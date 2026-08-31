@@ -6297,6 +6297,7 @@
   "cloudSync_disconnected": "Not connected",
   "cloudSync_oneClickDescription": "Choose a storage service and enter your account details. Saving only verifies and remembers the connection; it does not push or pull data.",
   "cloudSync_saveConnection": "Save connection",
+  "cloudSync_operationInProgress": "Another cloud sync operation is in progress. Try again shortly.",
   "cloudSync_fillRequiredFields": "Enter the required connection details for this provider.",
   "cloudSync_advancedSettings": "Advanced settings",
   "cloudSync_connectionManagement": "Storage connection",

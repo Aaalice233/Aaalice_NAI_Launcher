@@ -12794,6 +12794,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_saveConnection => '接続を保存';
 
   @override
+  String get cloudSync_operationInProgress =>
+      '別のクラウド同期操作を実行中です。しばらくしてからもう一度お試しください。';
+
+  @override
   String get cloudSync_fillRequiredFields => 'このプロバイダーの必須接続情報を入力してください。';
 
   @override

@@ -13124,6 +13124,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_saveConnection => 'Save connection';
 
   @override
+  String get cloudSync_operationInProgress =>
+      'Another cloud sync operation is in progress. Try again shortly.';
+
+  @override
   String get cloudSync_fillRequiredFields =>
       'Enter the required connection details for this provider.';
 

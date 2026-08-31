@@ -12579,6 +12579,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_saveConnection => '保存连接';
 
   @override
+  String get cloudSync_operationInProgress => '另一项云同步操作正在进行，请稍后重试。';
+
+  @override
   String get cloudSync_fillRequiredFields => '请填写当前服务商的必填连接信息。';
 
   @override
@@ -25874,6 +25877,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_saveConnection => '儲存連線';
+
+  @override
+  String get cloudSync_operationInProgress => '另一項雲端同步操作正在進行，請稍後再試。';
 
   @override
   String get cloudSync_fillRequiredFields => '請填寫目前服務商的必填連線資訊。';

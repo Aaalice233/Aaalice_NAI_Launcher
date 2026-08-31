@@ -6366,6 +6366,7 @@
   "cloudSync_disconnected": "尚未连接",
   "cloudSync_oneClickDescription": "选择存储服务并填写账号信息。保存只会验证并记住连接，不会推送或拉取数据。",
   "cloudSync_saveConnection": "保存连接",
+  "cloudSync_operationInProgress": "另一项云同步操作正在进行，请稍后重试。",
   "cloudSync_fillRequiredFields": "请填写当前服务商的必填连接信息。",
   "cloudSync_advancedSettings": "高级设置",
   "cloudSync_connectionManagement": "存储连接",

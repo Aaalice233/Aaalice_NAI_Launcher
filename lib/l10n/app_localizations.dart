@@ -22856,6 +22856,12 @@ abstract class AppLocalizations {
   /// **'Save connection'**
   String get cloudSync_saveConnection;
 
+  /// No description provided for @cloudSync_operationInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Another cloud sync operation is in progress. Try again shortly.'**
+  String get cloudSync_operationInProgress;
+
   /// No description provided for @cloudSync_fillRequiredFields.
   ///
   /// In en, this message translates to:

@@ -8,6 +8,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../data/cloud_sync/cloud_sync_content_selection_store.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../../providers/cloud_sync/cloud_sync_flight_gate.dart';
 import '../../providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'cloud_sync_agent_content_section.dart';
@@ -127,9 +128,11 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     setState(() => _busy = true);
     try {
       await operation();
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      final message = ref.read(cloudSyncUiStateProvider).error;
+      final message = error is CloudSyncOperationInProgressException
+          ? context.l10n.cloudSync_operationInProgress
+          : ref.read(cloudSyncUiStateProvider).error;
       if (message != null) {
         ScaffoldMessenger.of(
           context,
@@ -176,17 +179,30 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
       );
       return;
     }
+    final connection = _draft;
+    final oauthDraft = connection.backend.usesOAuth ? _oauthDraft : null;
+    final request = CloudSyncConnectRequest(
+      connection: connection,
+      dataKinds: _dataKinds,
+      contentSelection: _contentSelection,
+    );
+
+    // The save operation owns this authorization from its first await onward.
+    // dispose() must not revoke a session while connect() is persisting it.
+    if (oauthDraft != null) _oauthDraft = null;
     await _run(() async {
-      await _cloudSyncUiPort.connect(
-        CloudSyncConnectRequest(
-          connection: _draft,
-          dataKinds: _dataKinds,
-          contentSelection: _contentSelection,
-        ),
-      );
-      // The authorization is now owned by the persisted connection. Prevent
-      // widget disposal from revoking the session that was just committed.
-      _oauthDraft = null;
+      try {
+        await _cloudSyncUiPort.connect(request);
+      } catch (_) {
+        if (oauthDraft != null) {
+          if (mounted) {
+            _oauthDraft = oauthDraft;
+          } else {
+            await _cloudSyncUiPort.discardCloudDriveAuthorization(oauthDraft);
+          }
+        }
+        rethrow;
+      }
     });
   }
 

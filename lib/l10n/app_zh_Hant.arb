@@ -6641,6 +6641,7 @@
   "cloudSync_disconnected": "尚未連線",
   "cloudSync_oneClickDescription": "選擇儲存服務並填寫帳號資訊。儲存只會驗證並記住連線，不會推送或拉取資料。",
   "cloudSync_saveConnection": "儲存連線",
+  "cloudSync_operationInProgress": "另一項雲端同步操作正在進行，請稍後再試。",
   "cloudSync_fillRequiredFields": "請填寫目前服務商的必填連線資訊。",
   "cloudSync_advancedSettings": "進階設定",
   "cloudSync_connectionManagement": "儲存連線",

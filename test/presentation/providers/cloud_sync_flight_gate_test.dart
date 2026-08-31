@@ -19,7 +19,10 @@ void main() {
     });
     await started.future;
     final second = gate.run((_) async => runs++);
-    await expectLater(second, throwsStateError);
+    await expectLater(
+      second,
+      throwsA(isA<CloudSyncOperationInProgressException>()),
+    );
     expect(await gate.tryRunLifecycle((_) async => runs++), isFalse);
     expect(runs, 1);
 

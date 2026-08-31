@@ -1,5 +1,9 @@
 import '../../../core/cloud_sync/operation.dart';
 
+class CloudSyncOperationInProgressException implements Exception {
+  const CloudSyncOperationInProgressException();
+}
+
 /// Serializes every operation that can mutate cloud or local sync state.
 class CloudSyncFlightGate {
   Future<dynamic>? _flight;
@@ -14,9 +18,7 @@ class CloudSyncFlightGate {
       return Future.error(StateError('Cloud sync is disconnecting.'));
     }
     if (_flight != null) {
-      return Future.error(
-        StateError('Another cloud sync operation is already running.'),
-      );
+      return Future.error(const CloudSyncOperationInProgressException());
     }
     final operation = OperationToken();
     _operation = operation;

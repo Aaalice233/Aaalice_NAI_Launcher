@@ -6320,6 +6320,7 @@
   "cloudSync_disconnected": "未接続",
   "cloudSync_oneClickDescription": "保存先とアカウント情報を入力します。保存は接続の確認と記憶だけを行い、データのプッシュやプルは行いません。",
   "cloudSync_saveConnection": "接続を保存",
+  "cloudSync_operationInProgress": "別のクラウド同期操作を実行中です。しばらくしてからもう一度お試しください。",
   "cloudSync_fillRequiredFields": "このプロバイダーの必須接続情報を入力してください。",
   "cloudSync_advancedSettings": "詳細設定",
   "cloudSync_connectionManagement": "保存先の接続",

@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_config.dart
 import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_models.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_flight_gate.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
@@ -153,6 +154,81 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(port.discardedAuthorizations.single.accountId, 'late-account');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('保存期间页面销毁不会撤销已转交给保存操作的 OAuth', (tester) async {
+    final port = _FakePort()..connectCompleter = Completer<void>();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+
+    await _tapSaveConnection(tester);
+    expect(port.request?.connection.accountId, 'account-1');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    expect(port.discardedAuthorizations, isEmpty);
+    port.connectCompleter!.complete();
+    await tester.pumpAndSettle();
+    expect(port.discardedAuthorizations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('保存失败时恢复 OAuth 草稿以便重试', (tester) async {
+    final port = _FakePort()..connectError = StateError('save failed');
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+
+    await _tapSaveConnection(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('test@example.com'), findsOneWidget);
+    expect(port.discardedAuthorizations, isEmpty);
+    final save = find.byKey(const ValueKey('cloud-sync-save-connection'));
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('保存失败且页面已销毁时只清理一次 OAuth', (tester) async {
+    final port = _FakePort()..connectCompleter = Completer<void>();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+    await _tapSaveConnection(tester);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    port.connectCompleter!.completeError(StateError('save failed'));
+    await tester.pumpAndSettle();
+
+    expect(port.discardedAuthorizations, hasLength(1));
+    expect(port.discardedAuthorizations.single.accountId, 'account-1');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('旧云同步操作占用 gate 时显示明确反馈', (tester) async {
+    final port = _FakePort()
+      ..connectError = const CloudSyncOperationInProgressException();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+
+    await _tapSaveConnection(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('另一项云同步操作正在进行，请稍后重试。'), findsOneWidget);
+    expect(find.text('test@example.com'), findsOneWidget);
+    expect(port.discardedAuthorizations, isEmpty);
     expect(tester.takeException(), isNull);
   });
 
@@ -433,6 +509,24 @@ Finder _fieldWithLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is TextField && widget.decoration?.labelText == label,
 );
 
+CloudDriveProviderRegistry _oneDriveRegistry() => CloudDriveProviderRegistry([
+  const _ConfiguredCloudDriveProvider(CloudDriveOAuthProvider.oneDrive),
+]);
+
+Future<void> _authorizeOneDrive(WidgetTester tester) async {
+  await tester.tap(find.text('OneDrive'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('cloud-sync-authorize-oneDrive')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapSaveConnection(WidgetTester tester) async {
+  final save = find.byKey(const ValueKey('cloud-sync-save-connection'));
+  await tester.scrollUntilVisible(save, 180, scrollable: _pageScrollable);
+  await tester.tap(save);
+  await tester.pump();
+}
+
 Future<void> _tapText(
   WidgetTester tester,
   String text, {
@@ -576,6 +670,8 @@ class _FakePort extends CloudSyncUiPortAdapter {
   bool previewApplied = false;
   bool? ffdkjInstallChoice;
   Object? syncError;
+  Object? connectError;
+  Completer<void>? connectCompleter;
   var pushes = 0;
   var pulls = 0;
   String? recoveryKey;
@@ -655,6 +751,9 @@ class _FakePort extends CloudSyncUiPortAdapter {
   @override
   Future<void> connect(CloudSyncConnectRequest request) async {
     this.request = request;
+    final error = connectError;
+    if (error != null) throw error;
+    await connectCompleter?.future;
   }
 
   @override
