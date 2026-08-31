@@ -6,7 +6,7 @@ compatibility: 必须位于 Aaalice_NAI_Launcher 仓库，并具备 git、Git LF
 
 # Aaalice NAI Launcher 版本发布
 
-`AGENTS.md` 的“Changelog 与 Release Notes 规范”和“发布流程”是唯一事实来源；本 skill 负责把规则落实为不可跳步的执行清单。规则冲突时以最新 `AGENTS.md` 为准。
+本 skill 是 Aaalice NAI Launcher 应用版本发布与 Changelog 撰写的唯一流程文档。`AGENTS.md` 只保留通用工程、资源和验证约束；执行发布时同时遵守这些通用约束，但不得在其他文档复制本流程。
 
 ## 约束
 
@@ -19,7 +19,7 @@ compatibility: 必须位于 Aaalice_NAI_Launcher 仓库，并具备 git、Git LF
 
 ## 1. 同步与基线确认
 
-1. 读取 `AGENTS.md` 中当前发布规则。
+1. 读取项目 `AGENTS.md`，确认当前通用工程、资源和验证约束。
 2. 检查当前分支、工作区、远端和 LFS 状态：
 
 ```powershell
@@ -127,7 +127,7 @@ docs(release): 更新 <version> 版本日志
 
 ## 5. 发布前验证
 
-按 `AGENTS.md` 的当前要求执行，至少包括：
+执行以下固定发布检查：
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_flutter_sources.ps1
@@ -163,7 +163,9 @@ git tag -a v<version> -m "v<version>"
 git push origin v<version>
 ```
 
-推送后检查 GitHub Actions `Release` workflow 是否已由该 tag 触发。不得在 workflow 尚未成功时宣称安装包已发布；应区分“tag 已推送 / CI 构建中 / Release 已完成”。
+推送后检查 GitHub Actions `Release` workflow 是否已由该 tag 触发。该 workflow 应从不可变 tag commit 构建 Windows Setup、Windows Portable、macOS Portable 与正式签名 Android APK，并生成 `release_manifest.json`、`checksums.txt` 和 Release notes。
+
+不得在 workflow 尚未成功时宣称安装包已发布；应区分“tag 已推送 / CI 构建中 / Release 已完成”。Android 正式发布必须配置 `ANDROID_SIGNING_KEYSTORE_BASE64`、`ANDROID_SIGNING_KEYSTORE_PASSWORD`、`ANDROID_SIGNING_KEY_ALIAS` 与 `ANDROID_SIGNING_KEY_PASSWORD`，缺少任一项必须失败，不得发布调试签名 APK。Windows CI 签名使用 `WINDOWS_SIGNING_CERT_BASE64` 与 `WINDOWS_SIGNING_CERT_PASSWORD`；本地打包和签名分别使用 `scripts/package_windows_release.ps1` 与 `scripts/sign_windows_binary.ps1`。
 
 ## 交付清单
 
