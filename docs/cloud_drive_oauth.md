@@ -94,52 +94,6 @@ flutter analyze lib/core/cloud_sync/oauth lib/core/storage/secure_storage_servic
 
 真机诊断还必须分别检查：Google Android debug/release SHA 是否登记；macOS 构建产物 `Info.plist` 是否出现实际 reversed client ID scheme；OneDrive redirect 是否逐字符匹配 Entra；Windows 浏览器是否回到随机 `127.0.0.1` 端口。
 
-### 真实 OAuth 备份 E2E
-
-`scripts/run_cloud_drive_real_oauth_e2e.ps1` 是显式人工测试入口。它复用生产 OAuth runtime、provider adapter、加密协议和同步引擎，使用真实系统浏览器 OAuth 和真实 provider API，但只同步进程内合成的 allowlist 数据；不会读取、覆盖或恢复当前用户的应用设置、提示词、图片库和生产同步 namespace。每次运行创建唯一 `aaalice-e2e-*` 隔离目录，并验证：
-
-1. 系统浏览器 OAuth、secure-storage token session 和 provider/account 身份绑定；
-2. provider 运行时能力探测（Google 必须保持 `manualBackupOnly`，OneDrive 必须证明强条件写后才是 `bidirectional`）；
-3. 远端 `KEY` 包装、加密 object/manifest、`HEAD` 提交，以及密文与解密明文确实不同；
-4. 第二个临时“设备”使用恢复密钥轮换并拉取，旧恢复密钥失效；
-5. 第二版上传、第三个临时“设备”恢复与拉取、历史可见；OneDrive 还真实恢复第一版历史快照，Google 仅做只读预览以遵守手动备份能力边界；
-6. `finally` 删除隔离 namespace，并断开/撤销测试 OAuth session。
-
-Google 的 token revocation/Android `disconnect` 可能使同一 OAuth client 下已有授权失效，因此脚本强制要求**专用测试账号**；不要选择日常生产账号。`-ExpectedTestAccount` 填该账号在 provider 返回的邮箱/登录标识，脚本只把规范化后的 SHA-256 传给测试；OAuth 返回身份不匹配时会在任何云端读写前失败并清除本地 session，为避免误伤生产授权不会自动撤销误选账号，若刚授予过 consent 需由测试人员手工撤销。账号选择、密码、MFA 和 consent 只能由测试人员在 provider 系统浏览器中完成，脚本不保存也不自动填写密码/MFA。Android 只允许 package 尚未安装的干净专用 emulator，完成后自动卸载测试 App；启动前还必须停止目标上的现有 Launcher/开发 Runner。系统级文件锁禁止不同 worktree 并行运行真实 OAuth E2E。
-
-先把对应平台的 client ID/redirect URI 放入当前终端环境变量，再运行：
-
-```powershell
-# 只检查参数和必需环境变量；不登录、不写云端
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/run_cloud_drive_real_oauth_e2e.ps1 `
-  -Provider googleDrive -Platform windows `
-  -ExpectedTestAccount 'aaalice-e2e@example.com' -PlanOnly
-
-# Windows / Google Drive
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/run_cloud_drive_real_oauth_e2e.ps1 `
-  -Provider googleDrive -Platform windows `
-  -ExpectedTestAccount 'aaalice-e2e@example.com' `
-  -ConfirmDedicatedTestAccount -ConfirmCleanup
-
-# Android / OneDrive（不负责启动 emulator）
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/run_cloud_drive_real_oauth_e2e.ps1 `
-  -Provider oneDrive -Platform android -DeviceId emulator-5554 `
-  -ExpectedTestAccount 'aaalice-e2e@example.com' `
-  -ConfirmDedicatedTestAccount -ConfirmCleanup
-```
-
-若进程被强制终止，`tool/.tmp/cloud-drive-real-oauth-e2e/run-<namespace>.json` 会按运行分别保留不含凭据的 provider/platform/namespace 恢复信息；进程持有的系统级文件锁会自动释放，不需要手工删除陈旧锁。清理命令只接受存在对应恢复文件、与原 provider/platform 匹配且严格以 `aaalice-e2e-<provider>-` 开头的 namespace；删除后会回读确认 `HEAD`、`KEY` 和历史对象均已消失：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/run_cloud_drive_real_oauth_e2e.ps1 `
-  -Provider googleDrive -Platform windows `
-  -CleanupNamespace aaalice-e2e-google_drive-YYYYMMDDHHMMSS-random `
-  -ExpectedTestAccount 'aaalice-e2e@example.com' `
-  -ConfirmDedicatedTestAccount -ConfirmCleanup
-```
-
-该测试不属于常规单元测试、CI 或 `scripts/test_affected.ps1`，也不能代替两个 provider/三个平台分别完成外部应用注册、审核和人工登录验收。脚本分别给源检查 60 秒、`pub get` 300 秒、OAuth 配置诊断 60 秒硬限制；测试框架给人工 OAuth/MFA 窗口 10 分钟，外层脚本对 Flutter 测试进程设置 15 分钟硬限制，超时均终止进程树。本地 fake OAuth/HTTP 回归仍必须在单文件 30 秒限制内完成。
-
 Release workflow 要求先设置 GitHub Actions repository variables：`GOOGLE_DRIVE_WINDOWS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_REDIRECT_URI`、`GOOGLE_DRIVE_ANDROID_CLIENT_ID`、`ONEDRIVE_CLIENT_ID`、`ONEDRIVE_MACOS_REDIRECT_URI`、`ONEDRIVE_ANDROID_REDIRECT_URI`，以及可选 `ONEDRIVE_TENANT_ID`（默认 `common`）。正式发布缺少任一平台必需值时会在构建前失败，避免发布一个静默缺失云盘登录能力的安装包。这些值来自外部 Google/Entra 应用注册与审核，不在仓库中提供真实值。
 
 ## 数据、加密与账号隔离

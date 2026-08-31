@@ -16,10 +16,7 @@ import 'cloud_sync_backend.dart';
 /// are only checked immediately before a write. This backend must therefore
 /// remain manual-backup-only even when those checks succeed.
 class GoogleDriveCloudSyncBackend
-    implements
-        CloudSyncBackend,
-        CloudKeyEnvelopeBackend,
-        CloudNamespaceInspectionBackend {
+    implements CloudSyncBackend, CloudKeyEnvelopeBackend {
   GoogleDriveCloudSyncBackend({
     required Future<String> Function() accessTokenProvider,
     required this.namespace,
@@ -160,9 +157,6 @@ class GoogleDriveCloudSyncBackend
     final ids = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
     return ids.take(limit).toList(growable: false);
   }
-
-  @override
-  Future<bool> isNamespaceEmpty() async => (await _list()).isEmpty;
 
   @override
   Future<void> deleteNamespace() async {

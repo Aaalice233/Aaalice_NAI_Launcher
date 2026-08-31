@@ -7,14 +7,16 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/autocomplete/autocomplete_providers.dart';
 import '../../../core/cloud_sync/backend/github_cloud_sync_backend.dart';
+import '../../../core/cloud_sync/backend/google_drive_cloud_sync_backend.dart';
+import '../../../core/cloud_sync/backend/onedrive_cloud_sync_backend.dart';
 import '../../../core/cloud_sync/backend/webdav_cloud_sync_backend.dart';
 import '../../../core/cloud_sync/backend/webdav_backend_config.dart';
 import '../../../core/cloud_sync/cloud_drive_provider.dart';
-import '../../../core/cloud_sync/cloud_drive_provider_factory.dart';
 import '../../../core/cloud_sync/coordinator.dart';
 import '../../../core/cloud_sync/content_selection.dart';
 import '../../../core/cloud_sync/journal.dart';
 import '../../../core/cloud_sync/oauth/cloud_drive_oauth_factory.dart';
+import '../../../core/cloud_sync/oauth/cloud_drive_oauth_models.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
@@ -40,9 +42,31 @@ final cloudDriveOAuthRuntimeProvider = Provider<CloudDriveOAuthRuntime>((ref) {
 });
 
 final cloudDriveProviderRegistryProvider = Provider<CloudDriveProviderRegistry>(
-  (ref) => createCloudDriveProviderRegistry(
-    ref.watch(cloudDriveOAuthRuntimeProvider),
-  ),
+  (ref) {
+    final runtime = ref.watch(cloudDriveOAuthRuntimeProvider);
+    return CloudDriveProviderRegistry([
+      OAuthCloudDriveProvider(
+        id: CloudDriveOAuthProvider.googleDrive,
+        config: runtime.config,
+        tokens: runtime.tokens,
+        backendBuilder: ({required accessTokenProvider, required namespace}) =>
+            GoogleDriveCloudSyncBackend(
+              accessTokenProvider: accessTokenProvider,
+              namespace: namespace,
+            ),
+      ),
+      OAuthCloudDriveProvider(
+        id: CloudDriveOAuthProvider.oneDrive,
+        config: runtime.config,
+        tokens: runtime.tokens,
+        backendBuilder: ({required accessTokenProvider, required namespace}) =>
+            OneDriveCloudSyncBackend(
+              accessTokenProvider: accessTokenProvider,
+              namespace: namespace,
+            ),
+      ),
+    ]);
+  },
 );
 
 final cloudSyncApplicationServiceProvider =

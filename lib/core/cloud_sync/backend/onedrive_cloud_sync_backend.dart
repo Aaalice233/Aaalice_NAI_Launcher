@@ -10,10 +10,7 @@ import 'cloud_sync_backend.dart';
 import 'onedrive_api_client.dart';
 
 class OneDriveCloudSyncBackend
-    implements
-        CloudSyncBackend,
-        CloudKeyEnvelopeBackend,
-        CloudNamespaceInspectionBackend {
+    implements CloudSyncBackend, CloudKeyEnvelopeBackend {
   OneDriveCloudSyncBackend({
     required Future<String> Function() accessTokenProvider,
     this.namespace = 'aaalice-sync',
@@ -191,10 +188,6 @@ class OneDriveCloudSyncBackend
           ..sort((first, second) => second.compareTo(first));
     return ids.take(limit).toList(growable: false);
   }
-
-  @override
-  Future<bool> isNamespaceEmpty() async =>
-      await _api.metadata(namespace) == null;
 
   @override
   Future<void> deleteNamespace() => _api.delete(namespace);
