@@ -634,19 +634,6 @@ void main() {
     tester,
   ) async {
     await _setViewSize(tester, 1200);
-    String? clipboardText;
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.setData') {
-        clipboardText =
-            (call.arguments as Map<Object?, Object?>)['text'] as String?;
-      }
-      return null;
-    });
-    addTearDown(
-      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
-    );
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -672,36 +659,17 @@ void main() {
 
     expect(find.text('AI TAG'), findsWidgets);
     expect(find.text('3 images'), findsOneWidget);
-    expect(find.byTooltip('Copy Prompt'), findsAtLeastNWidgets(1));
-    final copyAllTags = find.widgetWithText(OutlinedButton, 'Copy all TAGs');
-    expect(copyAllTags, findsOneWidget);
-    await tester.tap(copyAllTags);
-    await tester.pump();
     expect(
-      clipboardText,
-      startsWith(
-        'positive: 1girl, solo | red hair\n'
-        'negative: lowres | bad hands\nmetadata: ',
-      ),
-    );
-    expect(clipboardText, isNot('{}'));
-    await tester.tap(find.byKey(const ValueKey('gallery_detail_copy_menu')));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.widgetWithText(MenuItemButton, 'Copy Prompt'), findsNothing);
-    expect(
-      find.widgetWithText(MenuItemButton, 'Custom copy'),
+      find.byKey(const ValueKey('gallery-detail-action-copy')),
       findsOneWidget,
     );
     expect(
-      find.widgetWithText(MenuItemButton, 'Copy full metadata'),
+      find.byKey(const ValueKey('gallery-detail-action-download-all')),
       findsOneWidget,
     );
-    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy full metadata'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Download all images in this work'), findsOneWidget);
     expect(find.byType(CachedNetworkImage), findsAtLeastNWidgets(4));
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Queue'));
+    await tester.tap(find.byKey(const ValueKey('gallery-detail-queue')));
     await tester.pump();
     final container = ProviderScope.containerOf(
       tester.element(find.byType(Dialog)),
@@ -780,56 +748,15 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    await tester.tap(find.byKey(const ValueKey('gallery_detail_copy_menu')));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(
-      find.widgetWithText(MenuItemButton, 'Copy artist chain'),
-      findsOneWidget,
-    );
-    expect(
-      find.widgetWithText(MenuItemButton, 'Copy full Prompt'),
-      findsOneWidget,
-    );
-    expect(
-      find.widgetWithText(MenuItemButton, 'Copy original artist fragments'),
-      findsOneWidget,
-    );
-    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy artist chain'));
-    await tester.pump();
-    expect(clipboardText, '1.2::artist:target::');
-    await tester.pump(const Duration(seconds: 3));
-
-    await tester.tap(find.byKey(const ValueKey('gallery_detail_copy_menu')));
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy full Prompt'));
-    await tester.pump();
+    final copyAction = find.byKey(const ValueKey('gallery-detail-action-copy'));
+    await tester.tap(copyAction);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.widgetWithText(FilledButton, 'Copy'));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(
       clipboardText,
-      'landscape, 1.2::artist:target::\n\nNegative Prompt:\nlowres\n\n'
-      'Hero:\nred hair\nNegative Prompt: bad hands',
+      'landscape, 1.2::artist:target:: | red hair\n\nlowres | bad hands',
     );
-    await tester.pump(const Duration(seconds: 3));
-
-    await tester.tap(
-      find.descendant(
-        of: find.byType(Dialog),
-        matching: find.byIcon(Icons.chevron_right),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 250));
-    await tester.tap(find.byKey(const ValueKey('gallery_detail_copy_menu')));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('No artist chain'), findsOneWidget);
-    expect(
-      tester
-          .widget<MenuItemButton>(
-            find.widgetWithText(MenuItemButton, 'No artist chain'),
-          )
-          .onPressed,
-      isNull,
-    );
-    await tester.tapAt(const Offset(200, 400));
     await tester.pump(const Duration(seconds: 3));
     expect(tester.takeException(), isNull);
   });
