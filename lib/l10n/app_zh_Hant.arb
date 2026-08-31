@@ -2440,7 +2440,7 @@
     }
   },
   "localGallery_protectedBulkMoveTitle": "保護模式：確認批次移動",
-  "localGallery_protectedBulkMoveContent": "將移動 {count} 張本地圖片檔案到目標資料夾。請確認不是誤操作。",
+  "localGallery_protectedBulkMoveContent": "將移動 {count} 張本地圖片檔案到目標分類。請確認不是誤操作。",
   "@localGallery_protectedBulkMoveContent": {
     "placeholders": {
       "count": {}
@@ -2695,8 +2695,8 @@
       "count": {}
     }
   },
-  "localGallery_noFoldersAvailable": "暫無可用資料夾，請先建立資料夾",
-  "localGallery_moveToFolder": "移動到資料夾",
+  "localGallery_noCategoriesAvailable": "暫無可用分類，請先建立分類",
+  "localGallery_moveToCategory": "移動到分類",
   "localGallery_imageCount": "{count} 張圖片",
   "@localGallery_imageCount": {
     "placeholders": {

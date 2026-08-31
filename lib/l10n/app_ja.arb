@@ -2381,7 +2381,7 @@
     }
   },
   "localGallery_protectedBulkMoveTitle": "保護モード: 一括移動の確認",
-  "localGallery_protectedBulkMoveContent": "これにより、{count} ローカル画像ファイルがターゲット フォルダに移動されます。これが間違いではないことを確認してください。",
+  "localGallery_protectedBulkMoveContent": "これにより、{count} ローカル画像ファイルがターゲット カテゴリに移動されます。これが間違いではないことを確認してください。",
   "@localGallery_protectedBulkMoveContent": {
     "placeholders": {
       "count": {}
@@ -2622,8 +2622,8 @@
       "count": {}
     }
   },
-  "localGallery_noFoldersAvailable": "使用可能なフォルダーがありません。最初にフォルダーを作成してください。",
-  "localGallery_moveToFolder": "フォルダーに移動",
+  "localGallery_noCategoriesAvailable": "利用可能なカテゴリがありません。先にカテゴリを作成してください。",
+  "localGallery_moveToCategory": "カテゴリに移動",
   "localGallery_imageCount": "{count} 画像",
   "@localGallery_imageCount": {
     "placeholders": {

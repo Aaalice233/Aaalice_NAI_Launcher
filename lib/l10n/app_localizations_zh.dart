@@ -5310,7 +5310,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return '将移动 $count 张本地图片文件到目标文件夹。请确认不是误操作。';
+    return '将移动 $count 张本地图片文件到目标分类。请确认不是误操作。';
   }
 
   @override
@@ -5748,10 +5748,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable => '暂无可用文件夹，请先创建文件夹';
+  String get localGallery_noCategoriesAvailable => '暂无可用分类，请先创建分类';
 
   @override
-  String get localGallery_moveToFolder => '移动到文件夹';
+  String get localGallery_moveToCategory => '移动到分类';
 
   @override
   String localGallery_imageCount(Object count) {
@@ -18795,7 +18795,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return '將移動 $count 張本地圖片檔案到目標資料夾。請確認不是誤操作。';
+    return '將移動 $count 張本地圖片檔案到目標分類。請確認不是誤操作。';
   }
 
   @override
@@ -19233,10 +19233,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get localGallery_noFoldersAvailable => '暫無可用資料夾，請先建立資料夾';
+  String get localGallery_noCategoriesAvailable => '暫無可用分類，請先建立分類';
 
   @override
-  String get localGallery_moveToFolder => '移動到資料夾';
+  String get localGallery_moveToCategory => '移動到分類';
 
   @override
   String localGallery_imageCount(Object count) {

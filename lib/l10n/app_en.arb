@@ -2418,7 +2418,7 @@
     }
   },
   "localGallery_protectedBulkMoveTitle": "Protected Mode: Confirm Bulk Move",
-  "localGallery_protectedBulkMoveContent": "This will move {count} local image files to the target folder. Confirm this is not a mistake.",
+  "localGallery_protectedBulkMoveContent": "This will move {count} local image files to the target category. Confirm this is not a mistake.",
   "@localGallery_protectedBulkMoveContent": {
     "placeholders": {
       "count": {}
@@ -2663,8 +2663,8 @@
       "count": {}
     }
   },
-  "localGallery_noFoldersAvailable": "No folders available, please create a folder first",
-  "localGallery_moveToFolder": "Move to Folder",
+  "localGallery_noCategoriesAvailable": "No categories available, please create a category first",
+  "localGallery_moveToCategory": "Move to Category",
   "localGallery_imageCount": "{count} images",
   "@localGallery_imageCount": {
     "placeholders": {

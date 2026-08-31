@@ -190,7 +190,7 @@ class _LocalGalleryShell extends ConsumerWidget {
           ? null
           : () => unawaited(controller.runPacking(actions.packSelectedImages)),
       onEditMetadata: actions.editSelectedMetadata,
-      onMoveToFolder: actions.moveSelectedToFolder,
+      onMoveToCategory: actions.moveSelectedToCategory,
       showCategoryPanel: viewModel.showPersistentCategories,
       onToggleCategoryPanel: viewModel.usePersistentCategories
           ? controller.toggleCategoryPanel

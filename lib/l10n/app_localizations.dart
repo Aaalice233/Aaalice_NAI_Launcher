@@ -9904,7 +9904,7 @@ abstract class AppLocalizations {
   /// No description provided for @localGallery_protectedBulkMoveContent.
   ///
   /// In en, this message translates to:
-  /// **'This will move {count} local image files to the target folder. Confirm this is not a mistake.'**
+  /// **'This will move {count} local image files to the target category. Confirm this is not a mistake.'**
   String localGallery_protectedBulkMoveContent(Object count);
 
   /// No description provided for @localGallery_importParamsFailed.
@@ -10687,17 +10687,17 @@ abstract class AppLocalizations {
   /// **'Deleted {count} images'**
   String localGallery_deletedImages(Object count);
 
-  /// No description provided for @localGallery_noFoldersAvailable.
+  /// No description provided for @localGallery_noCategoriesAvailable.
   ///
   /// In en, this message translates to:
-  /// **'No folders available, please create a folder first'**
-  String get localGallery_noFoldersAvailable;
+  /// **'No categories available, please create a category first'**
+  String get localGallery_noCategoriesAvailable;
 
-  /// No description provided for @localGallery_moveToFolder.
+  /// No description provided for @localGallery_moveToCategory.
   ///
   /// In en, this message translates to:
-  /// **'Move to Folder'**
-  String get localGallery_moveToFolder;
+  /// **'Move to Category'**
+  String get localGallery_moveToCategory;
 
   /// No description provided for @localGallery_imageCount.
   ///

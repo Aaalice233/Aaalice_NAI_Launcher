@@ -5405,7 +5405,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return 'これにより、$count ローカル画像ファイルがターゲット フォルダに移動されます。これが間違いではないことを確認してください。';
+    return 'これにより、$count ローカル画像ファイルがターゲット カテゴリに移動されます。これが間違いではないことを確認してください。';
   }
 
   @override
@@ -5845,11 +5845,11 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable =>
-      '使用可能なフォルダーがありません。最初にフォルダーを作成してください。';
+  String get localGallery_noCategoriesAvailable =>
+      '利用可能なカテゴリがありません。先にカテゴリを作成してください。';
 
   @override
-  String get localGallery_moveToFolder => 'フォルダーに移動';
+  String get localGallery_moveToCategory => 'カテゴリに移動';
 
   @override
   String localGallery_imageCount(Object count) {
