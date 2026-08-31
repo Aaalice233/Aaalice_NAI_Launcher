@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import '../../utils/app_logger.dart';
 import 'backend_http.dart';
 import 'cloud_sync_backend.dart';
 
@@ -22,13 +23,21 @@ class OneDriveItem {
   final bool isFolder;
 }
 
+Dio _createOneDriveDio() => Dio(
+  BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    sendTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
+  ),
+);
+
 class OneDriveApiClient {
   OneDriveApiClient({
     required Future<String> Function() accessTokenProvider,
     Dio? dio,
     Uri? graphBaseUri,
   }) : _accessTokenProvider = accessTokenProvider,
-       _dio = dio ?? Dio(),
+       _dio = dio ?? _createOneDriveDio(),
        _graphBase =
            graphBaseUri ?? Uri.parse('https://graph.microsoft.com/v1.0/') {
     if (!_graphBase.isAbsolute || !_graphBase.path.endsWith('/')) {
@@ -42,7 +51,7 @@ class OneDriveApiClient {
     // Signed upload/download URLs are pre-authenticated. A clean Dio instance
     // prevents caller-installed Graph interceptors from attaching bearer tokens.
     _signedHttp = BackendHttp(
-      dio: Dio()..httpClientAdapter = _dio.httpClientAdapter,
+      dio: _createOneDriveDio()..httpClientAdapter = _dio.httpClientAdapter,
     );
   }
 
@@ -130,6 +139,7 @@ class OneDriveApiClient {
       'GET',
       _appRoot,
       action: '初始化 OneDrive 应用目录',
+      retryable: false,
     );
     final item = _decodeMap(response!, 'OneDrive 应用目录');
     if (item['folder'] is! Map) {
@@ -311,6 +321,11 @@ class OneDriveApiClient {
         'Microsoft access token 为空。',
       );
     }
+    final stopwatch = Stopwatch()..start();
+    AppLogger.i(
+      'Microsoft Graph request started: action=$action, method=$method',
+      'OneDrive',
+    );
     final response = await _graphHttp.request(
       method,
       uri,
@@ -324,8 +339,15 @@ class OneDriveApiClient {
       data: data == null ? null : jsonEncode(data),
       retryable: retryable,
       maxResponseBytes: maxCloudJsonApiResponseBytes,
+      receiveTimeout: const Duration(seconds: 30),
     );
     final status = response.statusCode ?? 0;
+    AppLogger.i(
+      'Microsoft Graph request completed: action=$action, method=$method, '
+          'status=$status, elapsedMs=${stopwatch.elapsedMilliseconds}, '
+          'errorCode=${_graphErrorCode(response) ?? 'none'}',
+      'OneDrive',
+    );
     if (accepted.contains(status)) return response;
     if (allowNotFound && status == 404) return null;
     if (allowConflict && status == 409) return null;
@@ -524,12 +546,59 @@ class OneDriveApiClient {
       >= 500 => CloudBackendErrorKind.network,
       _ => CloudBackendErrorKind.invalidResponse,
     };
+    final graphCodes = _graphErrorCodes(response);
     throw CloudBackendException(
       kind,
-      '$action失败（HTTP $status）。',
+      _graphFailureMessage(action, status, graphCodes),
       statusCode: status,
       retryAfter: _retryAfter(response.headers),
     );
+  }
+
+  static String _graphFailureMessage(
+    String action,
+    int status,
+    List<String> codes,
+  ) {
+    if (codes.contains('itemDisabledDueToPendingProvisioning')) {
+      return 'Microsoft 正在为此账号开通 OneDrive 应用目录，目前尚未完成，请稍后重试。';
+    }
+    if (codes.contains('serviceReadOnly')) {
+      return 'Microsoft OneDrive 当前处于只读状态，暂时无法建立同步连接，请稍后重试。';
+    }
+    if (codes.contains('serviceNotAvailable')) {
+      return 'Microsoft OneDrive 应用目录服务暂时不可用，请稍后重试。';
+    }
+    return codes.isEmpty
+        ? '$action失败（HTTP $status）。'
+        : '$action失败（HTTP $status，Microsoft: ${codes.join('/')}）。';
+  }
+
+  static String? _graphErrorCode(Response<Uint8List> response) {
+    final codes = _graphErrorCodes(response);
+    return codes.isEmpty ? null : codes.join('/');
+  }
+
+  static List<String> _graphErrorCodes(Response<Uint8List> response) {
+    try {
+      final decoded = jsonDecode(BackendHttp.rawTextOf(response));
+      if (decoded is! Map) return const [];
+      final codes = <String>[];
+      Object? current = decoded['error'];
+      for (var depth = 0; depth < 4 && current is Map; depth++) {
+        final code = current['code'];
+        if (code is String &&
+            code.isNotEmpty &&
+            code.length <= 80 &&
+            RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(code)) {
+          codes.add(code);
+        }
+        current = current['innerError'];
+      }
+      return codes;
+    } on FormatException {
+      return const [];
+    }
   }
 
   static DateTime? _retryAfter(Headers headers) {

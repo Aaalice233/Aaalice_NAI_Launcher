@@ -20,6 +20,7 @@ class BackendHttp {
     int maxResponseBytes = 1024 * 1024,
     CloudBackendErrorKind tooLargeKind = CloudBackendErrorKind.invalidResponse,
     bool? retryable,
+    Duration receiveTimeout = const Duration(minutes: 2),
   }) async {
     final normalizedMethod = method.toUpperCase();
     final normalizedData = data is List<int> && data is! Uint8List
@@ -39,6 +40,7 @@ class BackendHttp {
           cancelToken: cancelToken,
           maxResponseBytes: maxResponseBytes,
           tooLargeKind: tooLargeKind,
+          receiveTimeout: receiveTimeout,
           redirectsRemaining: 5,
         );
         if (!mayRetry ||
@@ -110,6 +112,7 @@ class BackendHttp {
     CancelToken? cancelToken,
     required int maxResponseBytes,
     required CloudBackendErrorKind tooLargeKind,
+    required Duration receiveTimeout,
     required int redirectsRemaining,
   }) async {
     try {
@@ -124,7 +127,7 @@ class BackendHttp {
           followRedirects: false,
           validateStatus: (_) => true,
           sendTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(minutes: 2),
+          receiveTimeout: receiveTimeout,
         ),
       );
       final response = await _bufferResponse(
@@ -161,6 +164,7 @@ class BackendHttp {
           cancelToken: cancelToken,
           maxResponseBytes: maxResponseBytes,
           tooLargeKind: tooLargeKind,
+          receiveTimeout: receiveTimeout,
           redirectsRemaining: redirectsRemaining - 1,
         );
       }

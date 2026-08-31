@@ -11,6 +11,7 @@ import '../../../core/cloud_sync/object_codec.dart';
 import '../../../core/cloud_sync/operation.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/storage/local_storage_service.dart';
+import '../../../core/utils/app_logger.dart';
 import 'cloud_sync_connection_store.dart';
 import 'cloud_sync_capability_mapper.dart';
 import 'cloud_sync_conflict_selections.dart';
@@ -222,15 +223,32 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
     if (providers == null) {
       throw StateError('Cloud-drive OAuth is unavailable in this build.');
     }
+    final stopwatch = Stopwatch()..start();
+    AppLogger.i(
+      'Cloud-drive authorization requested: backend=${backend.name}',
+      'CloudSync',
+    );
     try {
       final session = await providers.require(backend.oauthProvider).connect();
+      AppLogger.i(
+        'Cloud-drive authorization completed: backend=${backend.name}, '
+            'elapsedMs=${stopwatch.elapsedMilliseconds}',
+        'CloudSync',
+      );
       return CloudSyncConnectionDraft(
         backend: backend,
         path: 'aaalice-sync',
         accountId: session.accountId,
         accountLabel: session.displayIdentifier,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Cloud-drive authorization failed: backend=${backend.name}, '
+            'elapsedMs=${stopwatch.elapsedMilliseconds}',
+        error,
+        stackTrace,
+        'CloudSync',
+      );
       _errorReporter.record(error);
       rethrow;
     }

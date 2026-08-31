@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../utils/app_logger.dart';
 import 'cloud_drive_oauth_client.dart';
 import 'cloud_drive_oauth_config.dart';
 import 'cloud_drive_oauth_models.dart';
@@ -127,7 +128,18 @@ final class _LoopbackCallbackReceiver implements OAuthCallbackReceiver {
         continue;
       }
       final uri = request.uri;
+      AppLogger.i(
+        'Loopback callback received: method=${request.method}, '
+            'path=${uri.path}, hasState=${uri.queryParameters.containsKey('state')}, '
+            'hasCode=${uri.queryParameters.containsKey('code')}, '
+            'hasError=${uri.queryParameters.containsKey('error')}',
+        'CloudDriveOAuth',
+      );
       if (request.method != 'GET') {
+        AppLogger.w(
+          'Loopback callback rejected: unsupported method=${request.method}',
+          'CloudDriveOAuth',
+        );
         await _respond(request, HttpStatus.methodNotAllowed, 'Not allowed.');
         continue;
       }
@@ -142,8 +154,17 @@ final class _LoopbackCallbackReceiver implements OAuthCallbackReceiver {
           HttpStatus.ok,
           'Authorization complete. You may close this window.',
         );
+        AppLogger.i(
+          'Loopback callback validated successfully',
+          'CloudDriveOAuth',
+        );
         return callback;
       } on CloudDriveOAuthException catch (error) {
+        AppLogger.w(
+          'Loopback callback validation failed: code=${error.code.name}, '
+              'oauthError=${error.oauthError ?? 'none'}',
+          'CloudDriveOAuth',
+        );
         if (error.code == CloudDriveOAuthFailureCode.cancelled ||
             error.code == CloudDriveOAuthFailureCode.authorizationFailed) {
           _completed = true;
@@ -209,12 +230,33 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
 
   @override
   Future<CloudDriveOAuthSession> authenticate() async {
-    final pkce = _pkce.create();
-    final receiver = await _callbackReceiverFactory.start(_config.redirectUri);
+    final stopwatch = Stopwatch()..start();
+    var stage = 'initialize';
+    OAuthCallbackReceiver? receiver;
+    AppLogger.i(
+      'OAuth authentication started: provider=${provider.id}, '
+          'callbackTimeout=${callbackTimeout.inSeconds}s',
+      'CloudDriveOAuth',
+    );
     try {
+      final pkce = _pkce.create();
+      stage = 'start_loopback_listener';
+      receiver = await _callbackReceiverFactory.start(_config.redirectUri);
+      AppLogger.i(
+        'Loopback listener ready: provider=${provider.id}, '
+            'port=${receiver.redirectUri.port}, path=${receiver.redirectUri.path}',
+        'CloudDriveOAuth',
+      );
+
       final authorizationUri = buildAuthorizationUri(
         redirectUri: receiver.redirectUri,
         request: pkce,
+      );
+      stage = 'open_system_browser';
+      AppLogger.i(
+        'Opening system browser: provider=${provider.id}, '
+            'authority=${authorizationUri.host}',
+        'CloudDriveOAuth',
       );
       if (!await _browserLauncher.open(authorizationUri)) {
         throw const CloudDriveOAuthException(
@@ -222,17 +264,45 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
           'The system browser could not be opened',
         );
       }
+      AppLogger.i(
+        'System browser launch accepted: provider=${provider.id}',
+        'CloudDriveOAuth',
+      );
+
+      stage = 'wait_for_callback';
+      AppLogger.i(
+        'Waiting for OAuth callback: provider=${provider.id}',
+        'CloudDriveOAuth',
+      );
       final callback = await receiver.waitForCallback(
         expectedState: pkce.state,
         timeout: callbackTimeout,
+      );
+      AppLogger.i(
+        'OAuth callback completed: provider=${provider.id}',
+        'CloudDriveOAuth',
+      );
+
+      stage = 'exchange_authorization_code';
+      AppLogger.i(
+        'Exchanging OAuth authorization code: provider=${provider.id}',
+        'CloudDriveOAuth',
       );
       final response = await _exchangeCode(
         code: callback.code,
         redirectUri: receiver.redirectUri,
         request: pkce,
       );
+      AppLogger.i(
+        'OAuth token response received: provider=${provider.id}, '
+            'hasRefreshToken=${response.refreshToken != null}, '
+            'hasIdToken=${response.idToken != null}',
+        'CloudDriveOAuth',
+      );
+
+      stage = 'validate_identity';
       final identity = _validatedIdentity(response, pkce.nonce);
-      return CloudDriveOAuthSession(
+      final session = CloudDriveOAuthSession(
         provider: provider,
         accountId: identity.accountId,
         displayIdentifier: identity.displayIdentifier,
@@ -240,8 +310,36 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
         refreshToken: response.refreshToken,
         expiresAt: response.expiresAt,
       );
+      AppLogger.i(
+        'OAuth authentication completed: provider=${provider.id}, '
+            'elapsedMs=${stopwatch.elapsedMilliseconds}',
+        'CloudDriveOAuth',
+      );
+      return session;
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'OAuth authentication failed: provider=${provider.id}, stage=$stage, '
+            'elapsedMs=${stopwatch.elapsedMilliseconds}',
+        error,
+        stackTrace,
+        'CloudDriveOAuth',
+      );
+      rethrow;
     } finally {
-      await receiver.close();
+      final activeReceiver = receiver;
+      if (activeReceiver != null) {
+        AppLogger.d(
+          'Closing loopback listener: provider=${provider.id}, '
+              'port=${activeReceiver.redirectUri.port}',
+          'CloudDriveOAuth',
+        );
+        await activeReceiver.close();
+        AppLogger.d(
+          'Loopback listener closed: provider=${provider.id}, '
+              'port=${activeReceiver.redirectUri.port}',
+          'CloudDriveOAuth',
+        );
+      }
     }
   }
 

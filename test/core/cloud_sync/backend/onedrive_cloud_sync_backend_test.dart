@@ -213,6 +213,32 @@ void main() {
     expect(api.metadataRateLimitResponses, 2);
   });
 
+  test('reports approot Graph errors without delaying setup retries', () async {
+    final api = _FakeOneDriveApi()
+      ..appRootFailureStatus = 503
+      ..appRootFailureCode = 'serviceNotAvailable'
+      ..appRootInnerFailureCode = 'itemDisabledDueToPendingProvisioning';
+
+    await expectLater(
+      _backend(api).testCapability(),
+      throwsA(
+        isA<CloudBackendException>()
+            .having(
+              (error) => error.kind,
+              'kind',
+              CloudBackendErrorKind.network,
+            )
+            .having((error) => error.statusCode, 'statusCode', 503)
+            .having(
+              (error) => error.message,
+              'message',
+              contains('正在为此账号开通 OneDrive 应用目录'),
+            ),
+      ),
+    );
+    expect(api.appRootRequests, 1);
+  });
+
   test(
     'capability proves stale eTag and create conflict then cleans probe',
     () async {
@@ -280,6 +306,10 @@ class _FakeOneDriveApi implements HttpClientAdapter {
   bool observedStalePrecondition = false;
   bool observedCreateConflict = false;
   bool appRootRequested = false;
+  int appRootRequests = 0;
+  int? appRootFailureStatus;
+  String appRootFailureCode = 'serviceNotAvailable';
+  String? appRootInnerFailureCode;
   int _revision = 0;
   int _session = 0;
 
@@ -333,6 +363,17 @@ class _FakeOneDriveApi implements HttpClientAdapter {
 
     if (request.uri.path == '/v1.0/me/drive/special/approot') {
       if (request.method == 'GET') {
+        appRootRequests++;
+        final failureStatus = appRootFailureStatus;
+        if (failureStatus != null) {
+          return _FakeResponse.json(failureStatus, {
+            'error': {
+              'code': appRootFailureCode,
+              if (appRootInnerFailureCode case final innerCode?)
+                'innerError': {'code': innerCode},
+            },
+          });
+        }
         appRootRequested = true;
         return _FakeResponse.json(200, {
           'name': 'Aaalice NAI Launcher',

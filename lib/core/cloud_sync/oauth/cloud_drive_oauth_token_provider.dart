@@ -1,3 +1,4 @@
+import '../../utils/app_logger.dart';
 import 'cloud_drive_oauth_client.dart';
 import 'cloud_drive_oauth_models.dart';
 
@@ -40,10 +41,37 @@ final class SecureCloudDriveOAuthTokenProvider
   Future<CloudDriveOAuthSession> connect(
     CloudDriveOAuthProvider provider,
   ) async {
-    final session = await _client(provider).authenticate();
-    _verifyClientSession(provider, session);
-    await _store.write(session);
-    return session;
+    final stopwatch = Stopwatch()..start();
+    var stage = 'authenticate';
+    AppLogger.i(
+      'OAuth session connection started: provider=${provider.id}',
+      'CloudDriveOAuth',
+    );
+    try {
+      final session = await _client(provider).authenticate();
+      _verifyClientSession(provider, session);
+      stage = 'persist_secure_session';
+      AppLogger.i(
+        'Persisting OAuth session in secure storage: provider=${provider.id}',
+        'CloudDriveOAuth',
+      );
+      await _store.write(session);
+      AppLogger.i(
+        'OAuth session persisted: provider=${provider.id}, '
+            'elapsedMs=${stopwatch.elapsedMilliseconds}',
+        'CloudDriveOAuth',
+      );
+      return session;
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'OAuth session connection failed: provider=${provider.id}, '
+            'stage=$stage, elapsedMs=${stopwatch.elapsedMilliseconds}',
+        error,
+        stackTrace,
+        'CloudDriveOAuth',
+      );
+      rethrow;
+    }
   }
 
   @override

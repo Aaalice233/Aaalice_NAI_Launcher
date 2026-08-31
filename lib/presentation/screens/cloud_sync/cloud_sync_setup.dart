@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/cloud_sync/content_selection.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/storage/local_storage_service.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../data/cloud_sync/cloud_sync_content_selection_store.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../providers/cloud_sync/cloud_sync_flight_gate.dart';
@@ -144,6 +145,12 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   }
 
   Future<void> _authorizeOAuth() async {
+    final backend = _backend;
+    final stopwatch = Stopwatch()..start();
+    AppLogger.i(
+      'OAuth authorization UI started: backend=${backend.name}',
+      'CloudSync',
+    );
     await _run(() async {
       final previous = _oauthDraft;
       if (previous != null) {
@@ -151,13 +158,18 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
         if (!mounted) return;
         setState(() => _oauthDraft = null);
       }
-      final connected = await _cloudSyncUiPort.authorizeCloudDrive(_backend);
+      final connected = await _cloudSyncUiPort.authorizeCloudDrive(backend);
       if (!mounted) {
         await _cloudSyncUiPort.discardCloudDriveAuthorization(connected);
         return;
       }
       setState(() => _oauthDraft = connected);
     });
+    AppLogger.i(
+      'OAuth authorization UI finished: backend=${backend.name}, '
+          'elapsedMs=${stopwatch.elapsedMilliseconds}',
+      'CloudSync',
+    );
   }
 
   void _changeBackend(CloudSyncBackendKind value) {
