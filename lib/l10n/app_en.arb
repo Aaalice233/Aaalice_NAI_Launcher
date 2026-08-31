@@ -2665,6 +2665,29 @@
   },
   "localGallery_noCategoriesAvailable": "No categories available, please create a category first",
   "localGallery_moveToCategory": "Move to Category",
+  "@localGallery_addedToAlbumWithName": {
+    "placeholders": {
+      "count": {},
+      "name": {}
+    }
+  },
+  "localGallery_albumSectionTitle": "Albums",
+  "localGallery_folderSectionTitle": "Folders",
+  "localGallery_albumEmptyHint": "No albums yet. Create one with the button on the right.",
+  "localGallery_createAlbum": "New Album",
+  "localGallery_createSubAlbum": "New Sub-album",
+  "localGallery_moveAlbumToRoot": "Move to Root",
+  "localGallery_createAlbumTitle": "New Album",
+  "localGallery_createSubAlbumTitle": "New Sub-album",
+  "localGallery_createAlbumHint": "Enter album name",
+  "localGallery_renameAlbumTitle": "Rename Album",
+  "localGallery_deleteAlbumTitle": "Delete Album",
+  "localGallery_deleteAlbumContent": "This deletes the album; image files are not affected and sub-albums are promoted to root.",
+  "localGallery_addedToAlbum": "Added to album",
+  "localGallery_albumAddFailed": "Failed to add to album",
+  "localGallery_albumSelectTitle": "Add to Album",
+  "localGallery_addToAlbum": "Add to Album",
+  "localGallery_addedToAlbumWithName": "Added {count} images to '{name}'",
   "localGallery_imageCount": "{count} images",
   "@localGallery_imageCount": {
     "placeholders": {

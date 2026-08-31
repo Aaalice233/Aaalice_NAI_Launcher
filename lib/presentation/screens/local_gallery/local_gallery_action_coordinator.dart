@@ -24,7 +24,7 @@ import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../agent_chat/providers/agent_chat_notifier.dart';
 import '../../providers/fixed_tags_provider.dart';
-import '../../providers/collection_provider.dart';
+import '../../providers/gallery_album_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
@@ -44,7 +44,7 @@ import '../../utils/local_gallery_reference_factory.dart';
 import '../../utils/metadata_import_coordinator.dart';
 import '../../utils/precise_ref_library_import_helper.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
-import '../../widgets/collection_select_dialog.dart';
+import '../../widgets/gallery/album_select_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_detail/components/prompt_copy_dialog.dart';
 import '../../widgets/common/precise_reference_type_dialog.dart';
@@ -397,35 +397,29 @@ class LocalGalleryActionCoordinator {
     }
   }
 
-  Future<void> addSelectedToCollection() async {
+  Future<void> addSelectedToAlbum() async {
     final selectedImages = await _selectedImages();
     if (selectedImages.isEmpty || !_mounted()) return;
-    final result = await CollectionSelectDialog.show(
-      _context(),
-      theme: Theme.of(_context()),
-    );
-    if (result == null) return;
+    final result = await AlbumSelectDialog.show(_context());
+    if (result == null || !_mounted()) return;
     final addedCount = await _ref
-        .read(collectionNotifierProvider.notifier)
-        .addImagesToCollection(
-          result.collectionId,
+        .read(galleryAlbumNotifierProvider.notifier)
+        .addImagesByPaths(
+          result.albumId,
           selectedImages.map((image) => image.path).toList(),
         );
     if (!_mounted()) return;
     if (addedCount > 0) {
       AppToast.success(
         _context(),
-        _context().l10n.localGallery_addedToCollection(
+        _context().l10n.localGallery_addedToAlbumWithName(
           addedCount,
-          result.collectionName,
+          result.albumName,
         ),
       );
       _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
     } else {
-      AppToast.info(
-        _context(),
-        _context().l10n.localGallery_addToCollectionFailed,
-      );
+      AppToast.info(_context(), _context().l10n.localGallery_albumAddFailed);
     }
   }
 

@@ -14,11 +14,13 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/permission_utils.dart';
+import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../providers/collection_provider.dart';
+import '../../providers/gallery_album_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/gallery_scan_progress_provider.dart';
 import '../../providers/local_gallery_provider.dart';
@@ -255,6 +257,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
         builder: (context, sheetRef, _) => buildCategoryPanel(
           galleryState: sheetRef.watch(localGalleryNotifierProvider),
           categoryState: sheetRef.watch(galleryCategoryNotifierProvider),
+          albumState: sheetRef.watch(galleryAlbumNotifierProvider),
           modal: true,
           afterSelection: () => Navigator.of(sheetContext).maybePop(),
         ),
@@ -265,12 +268,14 @@ class LocalGalleryScreenController extends ChangeNotifier {
   Widget buildCategoryPanel({
     required LocalGalleryState galleryState,
     required GalleryCategoryState categoryState,
+    required GalleryAlbumState albumState,
     bool modal = false,
     VoidCallback? afterSelection,
   }) {
     return LocalGalleryCategoryPanel(
       galleryState: galleryState,
       categoryState: categoryState,
+      albumState: albumState,
       favoriteCount: _ref
           .read(localGalleryNotifierProvider.notifier)
           .getTotalFavoriteCount(),
@@ -291,6 +296,82 @@ class LocalGalleryScreenController extends ChangeNotifier {
           .reorderCategories(parentId, oldIndex, newIndex),
       onImageDrop: handleImageDrop,
       onSyncWithFileSystem: handleSyncWithFileSystem,
+      onCreateAlbum: (parentId) => createAlbum(parentId),
+      onAlbumSelected: (id) => unawaited(handleAlbumSelected(id)),
+      onAlbumRenameRequest: handleAlbumRename,
+      onAlbumDeleteRequest: handleAlbumDelete,
+      onAddAlbumRequest: (parentId) => createAlbum(parentId),
+      onAlbumMove: (id, parentId) => _ref
+          .read(galleryAlbumNotifierProvider.notifier)
+          .moveAlbum(id, parentId),
+      onImageDropToAlbum: handleImageDropToAlbum,
+    );
+  }
+
+  Future<void> createAlbum(String? parentId) async {
+    final context = _context();
+    final name = await ThemedInputDialog.show(
+      context: context,
+      title: parentId == null
+          ? context.l10n.localGallery_createAlbumTitle
+          : context.l10n.localGallery_createSubAlbumTitle,
+      hintText: context.l10n.localGallery_createAlbumHint,
+      confirmText: context.l10n.common_create,
+      cancelText: context.l10n.common_cancel,
+    );
+    if (name == null || name.trim().isEmpty || !_mounted()) return;
+    await _ref
+        .read(galleryAlbumNotifierProvider.notifier)
+        .createAlbum(name, parentId: parentId);
+  }
+
+  Future<void> handleAlbumSelected(String? id) async {
+    await _ref.read(galleryAlbumNotifierProvider.notifier).selectAlbum(id);
+  }
+
+  Future<void> handleAlbumRename(String albumId) async {
+    final context = _context();
+    final albums = _ref.read(galleryAlbumNotifierProvider).albums;
+    final album = albums.findById(albumId);
+    if (album == null) return;
+    final name = await ThemedInputDialog.show(
+      context: context,
+      title: context.l10n.localGallery_renameAlbumTitle,
+      initialValue: album.name,
+      confirmText: context.l10n.common_confirm,
+      cancelText: context.l10n.common_cancel,
+    );
+    if (name == null || name.trim().isEmpty || !_mounted()) return;
+    await _ref
+        .read(galleryAlbumNotifierProvider.notifier)
+        .renameAlbum(albumId, name.trim());
+  }
+
+  Future<void> handleAlbumDelete(String albumId) async {
+    final context = _context();
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: context.l10n.localGallery_deleteAlbumTitle,
+      content: context.l10n.localGallery_deleteAlbumContent,
+      confirmText: context.l10n.common_delete,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
+    );
+    if (!confirmed || !_mounted()) return;
+    await _ref.read(galleryAlbumNotifierProvider.notifier).deleteAlbum(albumId);
+  }
+
+  Future<void> handleImageDropToAlbum(String imagePath, String albumId) async {
+    final added = await _ref
+        .read(galleryAlbumNotifierProvider.notifier)
+        .addImagesByPaths(albumId, [imagePath]);
+    if (!_mounted()) return;
+    AppToast.info(
+      _context(),
+      added > 0
+          ? _context().l10n.localGallery_addedToAlbum
+          : _context().l10n.localGallery_albumAddFailed,
     );
   }
 
@@ -327,6 +408,8 @@ class LocalGalleryScreenController extends ChangeNotifier {
     final categoryState = _ref.read(galleryCategoryNotifierProvider);
     final category = id != null ? categoryState.categories.findById(id) : null;
     final gallery = _ref.read(localGalleryNotifierProvider.notifier);
+    // 分类与相簿互斥：选分类时退出相簿选中状态
+    _ref.read(galleryAlbumNotifierProvider.notifier).clearSelection();
     if (id == 'favorites') {
       gallery.setShowFavoritesOnly(true);
     } else if (id != null && category != null) {

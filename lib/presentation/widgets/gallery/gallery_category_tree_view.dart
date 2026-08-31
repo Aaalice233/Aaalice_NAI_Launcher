@@ -42,6 +42,10 @@ class GalleryCategoryTreeView extends StatefulWidget {
   final void Function(String imagePath, String? categoryId)? onImageDrop;
   final VoidCallback? onSyncWithFileSystem;
 
+  /// 是否渲染顶部固定的「全部图片 / 收藏」节点；
+  /// 与相簿区并列展示时传 false 避免入口重复。
+  final bool includeRootNodes;
+
   const GalleryCategoryTreeView({
     super.key,
     required this.categories,
@@ -56,6 +60,7 @@ class GalleryCategoryTreeView extends StatefulWidget {
     this.onCategoryReorder,
     this.onImageDrop,
     this.onSyncWithFileSystem,
+    this.includeRootNodes = true,
   });
 
   @override
@@ -101,26 +106,28 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
-                _buildImageDropTarget(
-                  categoryId: null,
-                  child: _CategoryItem(
-                    icon: Icons.photo_library_outlined,
-                    label: context.l10n.localGallery_allImages,
-                    count: widget.totalImageCount,
-                    isSelected: widget.selectedCategoryId == null,
-                    onTap: () => widget.onCategorySelected(null),
+                if (widget.includeRootNodes) ...[
+                  _buildImageDropTarget(
+                    categoryId: null,
+                    child: _CategoryItem(
+                      icon: Icons.photo_library_outlined,
+                      label: context.l10n.localGallery_allImages,
+                      count: widget.totalImageCount,
+                      isSelected: widget.selectedCategoryId == null,
+                      onTap: () => widget.onCategorySelected(null),
+                    ),
                   ),
-                ),
-                _CategoryItem(
-                  icon: widget.selectedCategoryId == 'favorites'
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  iconColor: Colors.red.shade400,
-                  label: context.l10n.common_favorite,
-                  count: widget.favoriteCount,
-                  isSelected: widget.selectedCategoryId == 'favorites',
-                  onTap: () => widget.onCategorySelected('favorites'),
-                ),
+                  _CategoryItem(
+                    icon: widget.selectedCategoryId == 'favorites'
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    iconColor: Colors.red.shade400,
+                    label: context.l10n.common_favorite,
+                    count: widget.favoriteCount,
+                    isSelected: widget.selectedCategoryId == 'favorites',
+                    onTap: () => widget.onCategorySelected('favorites'),
+                  ),
+                ],
                 if (widget.categories.isNotEmpty)
                   const ThemedDivider(height: 16, indent: 12, endIndent: 12),
                 ...widget.categories.rootCategories.sortedByOrder().map(

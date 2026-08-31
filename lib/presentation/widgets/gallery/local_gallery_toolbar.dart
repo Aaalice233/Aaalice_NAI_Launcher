@@ -74,7 +74,7 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
 
   /// Callbacks for bulk actions
   /// 批量操作回调
-  final VoidCallback? onAddToCollection;
+  final VoidCallback? onAddToAlbum;
   final VoidCallback? onDeleteSelected;
   final VoidCallback? onPackSelected;
   final VoidCallback? onEditMetadata;
@@ -104,7 +104,7 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
     this.canUndo = false,
     this.canRedo = false,
     this.groupedGridViewKey,
-    this.onAddToCollection,
+    this.onAddToAlbum,
     this.onDeleteSelected,
     this.onPackSelected,
     this.onEditMetadata,
@@ -255,8 +255,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
           ),
           BulkActionItem(
             icon: Icons.playlist_add,
-            label: l10n.localGallery_addToCollection,
-            onPressed: widget.onAddToCollection,
+            label: l10n.localGallery_addToAlbum,
+            onPressed: widget.onAddToAlbum,
             color: theme.colorScheme.secondary,
           ),
           BulkActionItem(

@@ -5990,6 +5990,61 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_moveToCategory => 'Move to Category';
 
   @override
+  String get localGallery_albumSectionTitle => 'Albums';
+
+  @override
+  String get localGallery_folderSectionTitle => 'Folders';
+
+  @override
+  String get localGallery_albumEmptyHint =>
+      'No albums yet. Create one with the button on the right.';
+
+  @override
+  String get localGallery_createAlbum => 'New Album';
+
+  @override
+  String get localGallery_createSubAlbum => 'New Sub-album';
+
+  @override
+  String get localGallery_moveAlbumToRoot => 'Move to Root';
+
+  @override
+  String get localGallery_createAlbumTitle => 'New Album';
+
+  @override
+  String get localGallery_createSubAlbumTitle => 'New Sub-album';
+
+  @override
+  String get localGallery_createAlbumHint => 'Enter album name';
+
+  @override
+  String get localGallery_renameAlbumTitle => 'Rename Album';
+
+  @override
+  String get localGallery_deleteAlbumTitle => 'Delete Album';
+
+  @override
+  String get localGallery_deleteAlbumContent =>
+      'This deletes the album; image files are not affected and sub-albums are promoted to root.';
+
+  @override
+  String get localGallery_addedToAlbum => 'Added to album';
+
+  @override
+  String get localGallery_albumAddFailed => 'Failed to add to album';
+
+  @override
+  String get localGallery_albumSelectTitle => 'Add to Album';
+
+  @override
+  String get localGallery_addToAlbum => 'Add to Album';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return 'Added $count images to \'$name\'';
+  }
+
+  @override
   String localGallery_imageCount(Object count) {
     return '$count images';
   }

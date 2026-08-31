@@ -2624,6 +2624,29 @@
   },
   "localGallery_noCategoriesAvailable": "利用可能なカテゴリがありません。先にカテゴリを作成してください。",
   "localGallery_moveToCategory": "カテゴリに移動",
+  "@localGallery_addedToAlbumWithName": {
+    "placeholders": {
+      "count": {},
+      "name": {}
+    }
+  },
+  "localGallery_albumSectionTitle": "アルバム",
+  "localGallery_folderSectionTitle": "フォルダー",
+  "localGallery_albumEmptyHint": "アルバムがありません。右のボタンで作成できます",
+  "localGallery_createAlbum": "アルバムを作成",
+  "localGallery_createSubAlbum": "サブアルバムを作成",
+  "localGallery_moveAlbumToRoot": "ルートへ移動",
+  "localGallery_createAlbumTitle": "アルバムを作成",
+  "localGallery_createSubAlbumTitle": "サブアルバムを作成",
+  "localGallery_createAlbumHint": "アルバム名を入力",
+  "localGallery_renameAlbumTitle": "アルバムの名前を変更",
+  "localGallery_deleteAlbumTitle": "アルバムを削除",
+  "localGallery_deleteAlbumContent": "このアルバムを削除します（画像ファイルには影響しません）。サブアルバムはルートに移動します。",
+  "localGallery_addedToAlbum": "アルバムに追加しました",
+  "localGallery_albumAddFailed": "アルバムへの追加に失敗しました",
+  "localGallery_albumSelectTitle": "アルバムに追加",
+  "localGallery_addToAlbum": "アルバムに追加",
+  "localGallery_addedToAlbumWithName": "{count} 枚の画像を「{name}」に追加しました",
   "localGallery_imageCount": "{count} 画像",
   "@localGallery_imageCount": {
     "placeholders": {

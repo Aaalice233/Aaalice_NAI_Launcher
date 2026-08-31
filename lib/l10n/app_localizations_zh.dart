@@ -5754,6 +5754,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_moveToCategory => '移动到分类';
 
   @override
+  String get localGallery_albumSectionTitle => '相簿';
+
+  @override
+  String get localGallery_folderSectionTitle => '文件夹';
+
+  @override
+  String get localGallery_albumEmptyHint => '还没有相簿，点击右侧按钮创建';
+
+  @override
+  String get localGallery_createAlbum => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbum => '新建子相簿';
+
+  @override
+  String get localGallery_moveAlbumToRoot => '移到根级';
+
+  @override
+  String get localGallery_createAlbumTitle => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbumTitle => '新建子相簿';
+
+  @override
+  String get localGallery_createAlbumHint => '输入相簿名称';
+
+  @override
+  String get localGallery_renameAlbumTitle => '重命名相簿';
+
+  @override
+  String get localGallery_deleteAlbumTitle => '删除相簿';
+
+  @override
+  String get localGallery_deleteAlbumContent => '将删除该相簿（图片文件不受影响），子相簿会提升到根级。';
+
+  @override
+  String get localGallery_addedToAlbum => '已加入相簿';
+
+  @override
+  String get localGallery_albumAddFailed => '加入相簿失败';
+
+  @override
+  String get localGallery_albumSelectTitle => '加入相簿';
+
+  @override
+  String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '已将 $count 张图片加入「$name」';
+  }
+
+  @override
   String localGallery_imageCount(Object count) {
     return '$count 张图片';
   }
@@ -19237,6 +19290,59 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_moveToCategory => '移動到分類';
+
+  @override
+  String get localGallery_albumSectionTitle => '相簿';
+
+  @override
+  String get localGallery_folderSectionTitle => '資料夾';
+
+  @override
+  String get localGallery_albumEmptyHint => '還沒有相簿，點擊右側按鈕建立';
+
+  @override
+  String get localGallery_createAlbum => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbum => '新建子相簿';
+
+  @override
+  String get localGallery_moveAlbumToRoot => '移到根級';
+
+  @override
+  String get localGallery_createAlbumTitle => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbumTitle => '新建子相簿';
+
+  @override
+  String get localGallery_createAlbumHint => '輸入相簿名稱';
+
+  @override
+  String get localGallery_renameAlbumTitle => '重新命名相簿';
+
+  @override
+  String get localGallery_deleteAlbumTitle => '刪除相簿';
+
+  @override
+  String get localGallery_deleteAlbumContent => '將刪除該相簿（圖片檔案不受影響），子相簿會提升到根級。';
+
+  @override
+  String get localGallery_addedToAlbum => '已加入相簿';
+
+  @override
+  String get localGallery_albumAddFailed => '加入相簿失敗';
+
+  @override
+  String get localGallery_albumSelectTitle => '加入相簿';
+
+  @override
+  String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '已將 $count 張圖片加入「$name」';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
