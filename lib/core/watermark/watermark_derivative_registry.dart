@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import '../constants/storage_keys.dart';
 import '../storage/local_storage_service.dart';
 
@@ -28,7 +30,8 @@ class WatermarkDerivativeRegistry {
 
   WatermarkDerivativeLink? find(String outputPath) {
     final entries = _read();
-    final value = entries[outputPath];
+    final outputKey = _pathKey(outputPath);
+    final value = entries[outputKey] ?? entries[outputPath];
     if (value is! Map) return null;
     final source = value['source'];
     final createdAt = value['createdAt'];
@@ -38,7 +41,7 @@ class WatermarkDerivativeRegistry {
     final parsed = DateTime.tryParse(createdAt);
     if (parsed == null) return null;
     return WatermarkDerivativeLink(
-      outputPath: outputPath,
+      outputPath: outputKey,
       sourcePath: source,
       createdAt: parsed,
     );
@@ -48,18 +51,29 @@ class WatermarkDerivativeRegistry {
     required String outputPath,
     required String sourcePath,
   }) async {
-    if (outputPath.isEmpty || sourcePath.isEmpty || outputPath == sourcePath) {
+    final outputKey = _pathKey(outputPath);
+    final sourceValue = _normalizedPath(sourcePath);
+    if (outputKey.isEmpty ||
+        sourceValue.isEmpty ||
+        outputKey == _pathKey(sourceValue)) {
       return;
     }
     final entries = _read();
-    entries[outputPath] = {
-      'source': sourcePath,
+    entries.remove(outputPath);
+    entries[outputKey] = {
+      'source': sourceValue,
       'createdAt': DateTime.now().toUtc().toIso8601String(),
     };
     final sorted = entries.entries.toList()
       ..sort((a, b) {
-        final aTime = (a.value as Map?)?['createdAt']?.toString() ?? '';
-        final bTime = (b.value as Map?)?['createdAt']?.toString() ?? '';
+        final aValue = a.value;
+        final bValue = b.value;
+        final aTime = aValue is Map
+            ? aValue['createdAt']?.toString() ?? ''
+            : '';
+        final bTime = bValue is Map
+            ? bValue['createdAt']?.toString() ?? ''
+            : '';
         return bTime.compareTo(aTime);
       });
     final bounded = <String, Object?>{};
@@ -77,7 +91,9 @@ class WatermarkDerivativeRegistry {
   }
 
   Future<void> remove(String outputPath) async {
-    final entries = _read()..remove(outputPath);
+    final entries = _read()
+      ..remove(outputPath)
+      ..remove(_pathKey(outputPath));
     await _storage.setSetting(
       StorageKeys.watermarkDerivativeRegistryV1,
       jsonEncode(entries),
@@ -95,6 +111,19 @@ class WatermarkDerivativeRegistry {
       return Map<String, Object?>.from(decoded);
     } on FormatException {
       return {};
+    } on TypeError {
+      return {};
     }
+  }
+
+  String _pathKey(String path) {
+    final normalized = _normalizedPath(path);
+    return Platform.isWindows ? normalized.toLowerCase() : normalized;
+  }
+
+  String _normalizedPath(String path) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty || trimmed.contains('://')) return trimmed;
+    return p.normalize(p.absolute(trimmed));
   }
 }

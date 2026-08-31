@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -191,9 +190,22 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
     _logoImage?.dispose();
     final draftPath = _draftImportedLogoPath;
     if (draftPath != null) {
-      unawaited(File(draftPath).delete().catchError((_) => File(draftPath)));
+      unawaited(_deleteDraftLogo(draftPath));
     }
     super.dispose();
+  }
+
+  Future<void> _deleteDraftLogo(String path) async {
+    try {
+      await _logoService.deleteManaged(path);
+    } on Object catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to delete draft watermark logo',
+        error,
+        stackTrace,
+        'WatermarkEditor',
+      );
+    }
   }
 
   WatermarkLayout get _activeLayout {
@@ -262,32 +274,35 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
   }
 
   Future<void> _chooseLogo() async {
+    String? importedPath;
+    var adopted = false;
     try {
-      final path = await _logoService.pickAndImport(
+      importedPath = await _logoService.pickAndImport(
         dialogTitle: context.l10n.watermark_chooseLogo,
       );
-      if (path == null) return;
+      if (importedPath == null) return;
       if (!mounted) {
-        await _logoService.deleteManaged(path);
+        await _deleteDraftLogo(importedPath);
         return;
       }
-      final bytes = await _logoService.readValidated(path);
+      final bytes = await _logoService.readValidated(importedPath);
       final image = await _decodeSingleFrame(bytes);
       if (!mounted) {
         image.dispose();
-        await _logoService.deleteManaged(path);
+        await _deleteDraftLogo(importedPath);
         return;
       }
       final previousDraft = _draftImportedLogoPath;
       _logoImage?.dispose();
       setState(() {
-        _logoPath = path;
-        _draftImportedLogoPath = path;
+        _logoPath = importedPath;
+        _draftImportedLogoPath = importedPath;
         _logoBytes = bytes;
         _logoImage = image;
       });
-      if (previousDraft != null && previousDraft != path) {
-        await _logoService.deleteManaged(previousDraft);
+      adopted = true;
+      if (previousDraft != null && previousDraft != importedPath) {
+        await _deleteDraftLogo(previousDraft);
       }
       if (!_settings.logoStyle.enabled) {
         _changeSettings(
@@ -297,6 +312,9 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
         );
       }
     } on Object catch (error, stackTrace) {
+      if (!adopted && importedPath != null) {
+        await _deleteDraftLogo(importedPath);
+      }
       AppLogger.e(
         'Failed to import watermark logo',
         error,

@@ -614,10 +614,21 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
 
     if (left < 8) left = offset.dx + button.size.width + 8;
 
+    final watermarkEnabled = ref.read(
+      watermarkSettingsProvider.select((state) => state.configuration.enabled),
+    );
+    final isWatermarkDerivative =
+        watermarkEnabled &&
+        WatermarkDerivativeRegistry(
+              ref.read(localStorageServiceProvider),
+            ).find(widget.record.path) !=
+            null;
     final action = await LocalImageContextMenu.showSendActions(
       context,
       position: Offset(left, top),
       isKritaConnected: widget.isKritaConnected,
+      watermarkEnabled: watermarkEnabled,
+      isWatermarkDerivative: isWatermarkDerivative,
     );
     if (action == null || !mounted) return;
 

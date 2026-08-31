@@ -56,13 +56,20 @@ class LocalImageContextMenu {
     BuildContext context, {
     required Offset position,
     required bool isKritaConnected,
+    bool watermarkEnabled = false,
+    bool isWatermarkDerivative = false,
   }) {
     return showMenu<LocalImageContextAction>(
       context: context,
       constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
       position: _relativePosition(context, position),
       popUpAnimationStyle: AnimationStyle.noAnimation,
-      items: buildSendEntries(context, isKritaConnected: isKritaConnected),
+      items: buildSendEntries(
+        context,
+        isKritaConnected: isKritaConnected,
+        watermarkEnabled: watermarkEnabled,
+        isWatermarkDerivative: isWatermarkDerivative,
+      ),
     );
   }
 
@@ -147,6 +154,8 @@ class LocalImageContextMenu {
   static List<PopupMenuEntry<LocalImageContextAction>> buildSendEntries(
     BuildContext context, {
     required bool isKritaConnected,
+    bool watermarkEnabled = false,
+    bool isWatermarkDerivative = false,
   }) {
     return [
       _item(
@@ -204,6 +213,16 @@ class LocalImageContextMenu {
         icon: Icons.send_rounded,
         label: context.l10n.discordShare_action,
       ),
+      if (watermarkEnabled) const PopupMenuDivider(),
+      if (watermarkEnabled)
+        _item(
+          context,
+          value: LocalImageContextAction.createWatermark,
+          icon: Icons.branding_watermark_outlined,
+          label: isWatermarkDerivative
+              ? context.l10n.watermark_actionRegenerate
+              : context.l10n.watermark_actionCreate,
+        ),
     ];
   }
 

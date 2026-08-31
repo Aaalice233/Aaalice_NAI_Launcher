@@ -131,7 +131,11 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const _MenuHarness(isKritaConnected: true, sendOnly: true),
+      const _MenuHarness(
+        isKritaConnected: true,
+        sendOnly: true,
+        watermarkEnabled: true,
+      ),
     );
 
     await tester.tap(find.text('Open'));
@@ -156,7 +160,9 @@ void main() {
       LocalImageContextAction.sendToKrita,
       LocalImageContextAction.upscale,
       LocalImageContextAction.shareToDiscord,
+      LocalImageContextAction.createWatermark,
     ]);
+    expect(find.text('Create watermarked copy…'), findsOneWidget);
     expect(find.text('Import Image Metadata'), findsNothing);
     expect(find.text('Show in Folder'), findsNothing);
     expect(find.text('Delete'), findsNothing);
@@ -197,6 +203,7 @@ class _MenuHarness extends StatelessWidget {
                       context,
                       position: const Offset(20, 20),
                       isKritaConnected: isKritaConnected,
+                      watermarkEnabled: watermarkEnabled,
                     )
                   : await LocalImageContextMenu.show(
                       context,
