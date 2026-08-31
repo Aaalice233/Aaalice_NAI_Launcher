@@ -952,6 +952,113 @@ void main() {
     expect(find.byKey(const Key('outpaint_handle_top_left')), findsNothing);
     expect(find.byKey(const Key('outpaint_handle_bottom_right')), findsNothing);
   });
+
+  testWidgets('拖拽热区不得吞掉画布的悬停事件', (tester) async {
+    final hoverPositions = <Offset>[];
+    var exitCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 400,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: MouseRegion(
+                    onExit: (_) => exitCount++,
+                    child: Listener(
+                      behavior: HitTestBehavior.opaque,
+                      onPointerHover: (event) =>
+                          hoverPositions.add(event.localPosition),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: OutpaintEdgeDragOverlay(
+                    canvasSize: const Size(128, 96),
+                    controller: controller,
+                    onCommitted:
+                        (
+                          edges, {
+                          required horizontalSnapTarget,
+                          required verticalSnapTarget,
+                        }) async {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    // 起点落在画布矩形与所有热区之外
+    await gesture.addPointer(location: const Offset(300, 300));
+    addTearDown(gesture.removePointer);
+    await tester.pumpAndSettle();
+
+    hoverPositions.clear();
+    exitCount = 0;
+
+    final edgeCenter = tester.getCenter(
+      find.byKey(const Key('outpaint_edge_right')),
+    );
+    await gesture.moveTo(edgeCenter);
+    await tester.pumpAndSettle();
+
+    expect(
+      hoverPositions.last,
+      edgeCenter,
+      reason: '热区必须让悬停事件继续下传，否则画笔光标会在画布边缘消失',
+    );
+    expect(exitCount, 0, reason: '热区不得让下层 MouseRegion 收到 onExit');
+
+    final handleCenter = tester.getCenter(
+      find.byKey(const Key('outpaint_handle_right')),
+    );
+    await gesture.moveTo(handleCenter);
+    await tester.pumpAndSettle();
+
+    expect(hoverPositions.last, handleCenter);
+    expect(exitCount, 0);
+  });
+
+  testWidgets('手柄矩形算作拖拽热区，避免同时在画布上落笔', (tester) async {
+    await tester.pumpWidget(
+      _wrapOverlay(
+        controller: controller,
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {},
+      ),
+    );
+
+    const viewportSize = Size(400, 400);
+    for (final key in const [
+      Key('outpaint_handle_top_left'),
+      Key('outpaint_handle_bottom_right'),
+      Key('outpaint_handle_right'),
+    ]) {
+      final center = tester.getCenter(find.byKey(key));
+      expect(
+        OutpaintEdgeDragOverlay.isResizeInteractionPoint(
+          localPosition: center,
+          viewportSize: viewportSize,
+          canvasSize: const Size(128, 96),
+          controller: controller,
+        ),
+        isTrue,
+        reason: '$key 的中心必须被判定为拖拽热区',
+      );
+    }
+  });
 }
 
 class _OverlayGeometryCase {
