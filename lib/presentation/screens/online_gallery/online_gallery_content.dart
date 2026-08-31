@@ -316,8 +316,6 @@ class _OnlineGalleryContentPresenter {
           (state.randomEnabled ? state.randomSession.cache : state.currentCache)
               .isPageBoundaryStart(index)
           ? _controller.pageAnchorKey(post.stableKey)
-          : post.stableKey == _controller.pendingAnchorStableKey
-          ? _controller.anchorRestoreKey
           : null,
       onVisibilityChanged: _scrollCoordinator.handleCardVisibility,
       onGeometryMeasured: _controller.recordGeometryRead,

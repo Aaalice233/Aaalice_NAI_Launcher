@@ -14,16 +14,32 @@ class GalleryDetailMediaViewer extends StatelessWidget {
     required this.controller,
     required this.viewModel,
     required this.actions,
+    required this.actionRail,
   });
 
   final GalleryDetailController controller;
   final GalleryDetailViewModel viewModel;
   final GalleryDetailActions actions;
+  final Widget actionRail;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (viewModel.media.isEmpty) return _noImageState(theme);
+    if (viewModel.media.isEmpty) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          _noImageState(theme),
+          Positioned(
+            top: 54,
+            right: 10,
+            bottom: 54,
+            width: 188,
+            child: actionRail,
+          ),
+        ],
+      );
+    }
 
     return ColoredBox(
       color: Colors.black,
@@ -96,6 +112,13 @@ class GalleryDetailMediaViewer extends StatelessWidget {
                 if (viewModel.mediaIndex > 0) _navigationButton(left: true),
                 if (viewModel.mediaIndex + 1 < viewModel.media.length)
                   _navigationButton(left: false),
+                Positioned(
+                  top: 54,
+                  right: 10,
+                  bottom: 54,
+                  width: 188,
+                  child: actionRail,
+                ),
               ],
             ),
           ),
@@ -242,11 +265,16 @@ class GalleryDetailMediaViewer extends StatelessWidget {
   Widget _navigationButton({required bool left}) {
     return Positioned(
       left: left ? 12 : null,
-      right: left ? null : 12,
+      right: left ? null : 206,
       top: 0,
       bottom: 0,
       child: Center(
         child: IconButton.filled(
+          key: ValueKey(
+            left
+                ? 'gallery-detail-previous-media'
+                : 'gallery-detail-next-media',
+          ),
           onPressed: () =>
               actions.moveToMedia(viewModel.mediaIndex + (left ? -1 : 1)),
           tooltip: left

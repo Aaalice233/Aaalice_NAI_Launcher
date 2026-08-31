@@ -7,6 +7,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/windowing/workspace_side_panel_contract.dart';
 import '../../../agent_chat/widgets/agent_chat_panel.dart';
 import '../../../providers/layout_state_provider.dart';
+import '../../../widgets/common/owned_scroll_controller.dart';
 import 'collapsed_panel.dart';
 import 'history_panel.dart';
 
@@ -18,12 +19,14 @@ class RightPanel extends ConsumerStatefulWidget {
   final bool isResizing;
   final double? width;
   final bool? expanded;
+  final OwnedViewportOffset? historyViewport;
 
   const RightPanel({
     super.key,
     this.isResizing = false,
     this.width,
     this.expanded,
+    this.historyViewport,
   });
 
   @override
@@ -31,11 +34,13 @@ class RightPanel extends ConsumerStatefulWidget {
 }
 
 class _RightPanelState extends ConsumerState<RightPanel> {
+  late final OwnedViewportOffset _historyViewport;
   int _activeView = 1;
 
   @override
   void initState() {
     super.initState();
+    _historyViewport = widget.historyViewport ?? OwnedViewportOffset();
     final saved = ref
         .read(localStorageServiceProvider)
         .getSetting<int>(StorageKeys.rightPanelTab);
@@ -83,7 +88,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
       // （见 AgentChatPanel），历史页用 HistoryPanel 自带 header。
       child = _activeView == 0
           ? const AgentChatPanel()
-          : const HistoryPanel(embedded: false);
+          : HistoryPanel(embedded: false, viewportOffset: _historyViewport);
     } else {
       // 折叠态：竖排两个独立入口（聊天 / 历史），点击展开对应页面。
       child = Column(

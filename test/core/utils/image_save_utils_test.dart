@@ -11,6 +11,7 @@ import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   group('ComfyuiPromptParser pipe syntax', () {
@@ -467,5 +468,30 @@ void main() {
         expect(commentJson['fixed_negative_suffix'], equals(['text']));
       },
     );
+  });
+
+  test('named dated saves sanitize conflicts and finish atomically', () async {
+    final root = await Directory.systemTemp.createTemp('named-image-save');
+    addTearDown(() => root.delete(recursive: true));
+    final bytes = Uint8List.fromList([1, 2, 3, 4]);
+    final now = DateTime(2026, 8, 31, 12, 30);
+
+    final first = await ImageSaveUtils.saveBytesToDatedPath(
+      rootPath: root.path,
+      bytes: bytes,
+      preferredFileName: 'portrait:*_watermarked.png',
+      now: now,
+    );
+    final second = await ImageSaveUtils.saveBytesToDatedPath(
+      rootPath: root.path,
+      bytes: bytes,
+      preferredFileName: 'portrait:*_watermarked.png',
+      now: now,
+    );
+
+    expect(p.basename(first), 'portrait___watermarked.png');
+    expect(p.basename(second), 'portrait___watermarked-2.png');
+    expect(await File(first).readAsBytes(), bytes);
+    expect(await File(second).readAsBytes(), bytes);
   });
 }

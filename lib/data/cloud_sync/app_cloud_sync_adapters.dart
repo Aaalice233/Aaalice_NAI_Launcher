@@ -96,6 +96,7 @@ const portableSettingKeys = <String>{
   StorageKeys.fontFamily,
   StorageKeys.fontScale,
   StorageKeys.locale,
+  StorageKeys.watermarkConfigV1,
   StorageKeys.historyClickBehavior,
   StorageKeys.previewTransparencyBackground,
   StorageKeys.compositionGuideMode,

@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
 
 void main() {
+  setUp(() {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+  });
+
+  tearDown(() => PlatformCapabilities.debugOverride = null);
+
   testWidgets('shows direct send actions in the agreed order', (tester) async {
     LocalImageContextAction? selected;
 
@@ -39,6 +48,7 @@ void main() {
       LocalImageContextAction.importMetadata,
       LocalImageContextAction.copyPrompt,
       LocalImageContextAction.copySeed,
+      LocalImageContextAction.showInFolder,
       LocalImageContextAction.delete,
     ]);
     expect(find.text('Send to...'), findsNothing);
@@ -64,6 +74,49 @@ void main() {
     await tester.tap(find.text('Send to Vibe Transfer'));
     await tester.pumpAndSettle();
     expect(selected, LocalImageContextAction.sendToStyleTransfer);
+  });
+
+  testWidgets('shows the watermark command when the tool is enabled', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const _MenuHarness(isKritaConnected: true, watermarkEnabled: true),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create watermarked copy…'), findsOneWidget);
+    final item = tester
+        .widgetList<PopupMenuItem<LocalImageContextAction>>(
+          find.byType(PopupMenuItem<LocalImageContextAction>),
+        )
+        .singleWhere(
+          (item) => item.value == LocalImageContextAction.createWatermark,
+        );
+    expect(item.enabled, isTrue);
+  });
+
+  testWidgets('Android menu exposes system photo gallery export', (
+    tester,
+  ) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    await tester.pumpWidget(const _MenuHarness(isKritaConnected: false));
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save to photo gallery'), findsOneWidget);
+    final item = tester
+        .widgetList<PopupMenuItem<LocalImageContextAction>>(
+          find.byType(PopupMenuItem<LocalImageContextAction>),
+        )
+        .singleWhere(
+          (entry) => entry.value == LocalImageContextAction.saveToSystemGallery,
+        );
+    expect(item.enabled, isTrue);
   });
 
   testWidgets('opens without an expand animation', (tester) async {
@@ -110,7 +163,11 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const _MenuHarness(isKritaConnected: true, sendOnly: true),
+      const _MenuHarness(
+        isKritaConnected: true,
+        sendOnly: true,
+        watermarkEnabled: true,
+      ),
     );
 
     await tester.tap(find.text('Open'));
@@ -135,7 +192,9 @@ void main() {
       LocalImageContextAction.sendToKrita,
       LocalImageContextAction.upscale,
       LocalImageContextAction.shareToDiscord,
+      LocalImageContextAction.createWatermark,
     ]);
+    expect(find.text('Create watermarked copy…'), findsOneWidget);
     expect(find.text('Import Image Metadata'), findsNothing);
     expect(find.text('Show in Folder'), findsNothing);
     expect(find.text('Delete'), findsNothing);
@@ -149,6 +208,7 @@ class _MenuHarness extends StatelessWidget {
     this.hasSeed = true,
     required this.isKritaConnected,
     this.sendOnly = false,
+    this.watermarkEnabled = false,
     this.onSelected,
   });
 
@@ -157,6 +217,7 @@ class _MenuHarness extends StatelessWidget {
   final bool hasSeed;
   final bool isKritaConnected;
   final bool sendOnly;
+  final bool watermarkEnabled;
   final ValueChanged<LocalImageContextAction?>? onSelected;
 
   @override
@@ -174,6 +235,7 @@ class _MenuHarness extends StatelessWidget {
                       context,
                       position: const Offset(20, 20),
                       isKritaConnected: isKritaConnected,
+                      watermarkEnabled: watermarkEnabled,
                     )
                   : await LocalImageContextMenu.show(
                       context,
@@ -182,6 +244,7 @@ class _MenuHarness extends StatelessWidget {
                       hasPrompt: hasPrompt,
                       hasSeed: hasSeed,
                       isKritaConnected: isKritaConnected,
+                      watermarkEnabled: watermarkEnabled,
                     );
               onSelected?.call(selected);
             },

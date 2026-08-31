@@ -3053,7 +3053,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_promptTagCategories => '提示词类别';
 
   @override
-  String get onlineGallery_promptTagCategoriesTooltip => '选择复制、发送或加入队列时包含的标签类别';
+  String get onlineGallery_promptTagCategoriesTooltip => '选择发送或加入队列时包含的标签类别';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一个提示词类别';
@@ -3539,25 +3539,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_codexNegativePrompt => '负向提示词';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => '负面提示词';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => '角色提示词';
 
   @override
   String get onlineGallery_codexNote => '备注';
-
-  @override
-  String get onlineGallery_codexCopyPositive => '复制正向';
-
-  @override
-  String get onlineGallery_codexCopyNegative => '复制负向';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => '复制此角色';
-
-  @override
-  String get onlineGallery_codexCopyAll => '复制全部';
 
   @override
   String get onlineGallery_codexSendToGeneration => '带入生成页';
@@ -3606,13 +3591,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_copyArtistChain => '复制画师串';
 
   @override
-  String get onlineGallery_copyFullPrompt => '复制完整 Prompt';
+  String get onlineGallery_copyPrompt => '复制提示词';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '复制原始画师片段';
+  String get onlineGallery_promptCopyDescription =>
+      '选择要复制的原始提示词类别。正向与负向内容会以纯文本块分隔。';
 
   @override
-  String get onlineGallery_noArtistChain => '无可复制画师串';
+  String get onlineGallery_promptCopyCategoryHint => '按来源提供的标签类别复制';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => '复制该提示词字段的原始内容';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -3690,9 +3679,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_downloadAllMedia => '下载作品全部图片';
-
-  @override
-  String get onlineGallery_copyFullMetadata => '复制完整元数据';
 
   @override
   String get onlineGallery_copyAllTags => '复制全部 TAG';
@@ -12478,6 +12464,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get image_savedToSystemGallery => '已保存到系统相册';
 
   @override
+  String get localGallery_saveToSystemGallery => '保存到系统相册';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return '无法保存到系统相册：$error';
+  }
+
+  @override
   String image_savedAppOnly(Object error) {
     return '已保存到应用图库，但无法导出到系统相册：$error';
   }
@@ -13301,6 +13295,269 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentSettings_profileImported => '智能体配置已导入';
+
+  @override
+  String get settings_watermarkTitle => '水印';
+
+  @override
+  String get settings_watermarkSubtitle => '完全在本地创建水印副本，不改动原图';
+
+  @override
+  String get settings_watermarkEnable => '启用水印工具';
+
+  @override
+  String get settings_watermarkPreserveMetadata => '水印副本保留元数据';
+
+  @override
+  String get settings_watermarkPreserveMetadataHint =>
+      '关闭时清除 PNG 文本、EXIF、NovelAI 隐写数据、提示词和种子；开启时把原图中受支持的元数据安全写入新 PNG。';
+
+  @override
+  String get settings_watermarkEditDefault => '编辑默认水印';
+
+  @override
+  String get settings_watermarkCreateFromImage => '选择图片并创建水印副本…';
+
+  @override
+  String get settings_watermarkLayoutByOrientation => '按图片方向分别记忆布局';
+
+  @override
+  String get settings_watermarkLayoutByOrientationHint =>
+      '文字和样式共用，竖图、方图与横图分别保存位置。';
+
+  @override
+  String get settings_watermarkConfigMigrated => '旧版水印配置已迁移供检查，请保存以确认当前默认方案。';
+
+  @override
+  String get settings_watermarkConfigCorrupted =>
+      '水印配置无法读取，当前显示安全默认值；保存后才会替换损坏数据。';
+
+  @override
+  String get watermark_actionCreate => '创建水印副本…';
+
+  @override
+  String get watermark_actionRegenerate => '重新生成水印副本…';
+
+  @override
+  String get watermark_actionDownloadCreate => '下载并添加水印…';
+
+  @override
+  String get watermark_editorTitle => '水印编辑器';
+
+  @override
+  String get watermark_textLayer => '文字';
+
+  @override
+  String get watermark_logoLayer => 'Logo';
+
+  @override
+  String get watermark_enableLayer => '显示图层';
+
+  @override
+  String get watermark_text => '水印文字';
+
+  @override
+  String get watermark_alignment => '文字对齐';
+
+  @override
+  String get editor_colorHex => '十六进制颜色值';
+
+  @override
+  String get editor_colorSaturationBrightness => '颜色饱和度与明度';
+
+  @override
+  String get editor_colorHue => '颜色色相';
+
+  @override
+  String get watermark_alignLeft => '左对齐';
+
+  @override
+  String get watermark_alignCenter => '居中对齐';
+
+  @override
+  String get watermark_alignRight => '右对齐';
+
+  @override
+  String get watermark_font => '字体';
+
+  @override
+  String get watermark_chooseLogo => '选择 Logo';
+
+  @override
+  String get watermark_replaceLogo => '更换 Logo';
+
+  @override
+  String get watermark_logoMissing => '已保存的 Logo 缺失，请重新选择后再保存。';
+
+  @override
+  String get watermark_logoImportFailed =>
+      '无法导入 Logo。请选择尺寸受支持且有效的静态 PNG、JPEG 或 WebP 图片。';
+
+  @override
+  String get watermark_opacity => '透明度';
+
+  @override
+  String get watermark_size => '大小';
+
+  @override
+  String get watermark_letterSpacing => '字间距';
+
+  @override
+  String get watermark_stroke => '描边';
+
+  @override
+  String get watermark_shadow => '柔和阴影';
+
+  @override
+  String get watermark_margin => '边距';
+
+  @override
+  String get watermark_anchor => '位置锚点';
+
+  @override
+  String get watermark_anchorTopLeft => '左上';
+
+  @override
+  String get watermark_anchorTopCenter => '顶部居中';
+
+  @override
+  String get watermark_anchorTopRight => '右上';
+
+  @override
+  String get watermark_anchorCenterLeft => '左侧居中';
+
+  @override
+  String get watermark_anchorCenter => '画布中心';
+
+  @override
+  String get watermark_anchorCenterRight => '右侧居中';
+
+  @override
+  String get watermark_anchorBottomLeft => '左下';
+
+  @override
+  String get watermark_anchorBottomCenter => '底部居中';
+
+  @override
+  String get watermark_anchorBottomRight => '右下';
+
+  @override
+  String get watermark_layerArrangement => '图层排列';
+
+  @override
+  String get watermark_arrangementIndependent => '独立';
+
+  @override
+  String get watermark_arrangementHorizontal => '横向组合';
+
+  @override
+  String get watermark_arrangementVertical => '纵向组合';
+
+  @override
+  String get watermark_zOrder => '将所选图层置于上层';
+
+  @override
+  String get watermark_ratioOriginal => '原图';
+
+  @override
+  String get watermark_ratioPortrait => '竖图';
+
+  @override
+  String get watermark_ratioSquare => '方图';
+
+  @override
+  String get watermark_ratioLandscape => '横图';
+
+  @override
+  String get watermark_layoutUniversal => '通用布局';
+
+  @override
+  String get watermark_layoutPortrait => '竖图布局';
+
+  @override
+  String get watermark_layoutSquare => '方图布局';
+
+  @override
+  String get watermark_layoutLandscape => '横图布局';
+
+  @override
+  String get watermark_metadataRemoved => '将按“安全与分享”设置清除副本元数据。';
+
+  @override
+  String get watermark_metadataPreserved => '会把原图中受支持的元数据写入新副本。';
+
+  @override
+  String get watermark_setDefault => '设为默认';
+
+  @override
+  String get watermark_defaultSaved => '默认水印已更新';
+
+  @override
+  String get watermark_saveCopy => '保存副本';
+
+  @override
+  String get watermark_saving => '正在渲染原始分辨率图片…';
+
+  @override
+  String get watermark_saved => '水印副本已保存';
+
+  @override
+  String get watermark_share => '分享';
+
+  @override
+  String get watermark_open => '打开';
+
+  @override
+  String get watermark_undo => '撤销';
+
+  @override
+  String get watermark_reset => '重置';
+
+  @override
+  String get watermark_noLayer => '保存前请启用文字或 Logo。';
+
+  @override
+  String get watermark_cancelled => '已取消水印渲染';
+
+  @override
+  String watermark_failed(Object error) {
+    return '无法创建水印副本：$error';
+  }
+
+  @override
+  String get watermark_failedGeneric => '无法创建水印副本，请检查图片后重试。';
+
+  @override
+  String get watermark_systemGalleryExportFailed =>
+      '副本已保存在 Aaalice 中，但未能添加到系统图库。';
+
+  @override
+  String get watermark_galleryRefreshFailed => '副本已保存，但图库未能刷新；重新打开图库即可重试。';
+
+  @override
+  String get watermark_sourceMissing => '找不到原图，请重新选择原图后再生成水印。';
+
+  @override
+  String get watermark_chooseOriginal => '选择原图';
+
+  @override
+  String get watermark_dragHint => '拖动所选图层；方向键可精细移动，按住 Shift 可加大步长。';
+
+  @override
+  String get watermark_moveLeft => '向左移动图层';
+
+  @override
+  String get watermark_moveRight => '向右移动图层';
+
+  @override
+  String get watermark_moveUp => '向上移动图层';
+
+  @override
+  String get watermark_moveDown => '向下移动图层';
+
+  @override
+  String get watermark_sourceLoadFailed =>
+      '无法打开此图片。请确认文件是有效的静态 PNG、JPEG、WebP 或 BMP 图片后重试。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -16352,7 +16609,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_promptTagCategories => '提示詞類別';
 
   @override
-  String get onlineGallery_promptTagCategoriesTooltip => '選擇複製、傳送或加入佇列時包含的標籤類別';
+  String get onlineGallery_promptTagCategoriesTooltip => '選擇傳送或加入佇列時包含的標籤類別';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一個提示詞類別';
@@ -16838,25 +17095,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_codexNegativePrompt => '負向提示詞';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => '負面提示詞';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => '角色提示詞';
 
   @override
   String get onlineGallery_codexNote => '備註';
-
-  @override
-  String get onlineGallery_codexCopyPositive => '複製正向';
-
-  @override
-  String get onlineGallery_codexCopyNegative => '複製負向';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => '複製此角色';
-
-  @override
-  String get onlineGallery_codexCopyAll => '複製全部';
 
   @override
   String get onlineGallery_codexSendToGeneration => '帶入生成頁';
@@ -16905,13 +17147,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_copyArtistChain => '複製畫師串';
 
   @override
-  String get onlineGallery_copyFullPrompt => '複製完整 Prompt';
+  String get onlineGallery_copyPrompt => '複製提示詞';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '複製原始畫師片段';
+  String get onlineGallery_promptCopyDescription =>
+      '選擇要複製的原始提示詞類別。正向與負向內容會以純文字區塊分隔。';
 
   @override
-  String get onlineGallery_noArtistChain => '無可複製畫師串';
+  String get onlineGallery_promptCopyCategoryHint => '按來源提供的標籤類別複製';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => '複製該提示詞欄位的原始內容';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -16989,9 +17235,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_downloadAllMedia => '下載作品全部圖片';
-
-  @override
-  String get onlineGallery_copyFullMetadata => '複製完整後設資料';
 
   @override
   String get onlineGallery_copyAllTags => '複製全部 TAG';
@@ -25777,6 +26020,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get image_savedToSystemGallery => '已儲存到系統相簿';
 
   @override
+  String get localGallery_saveToSystemGallery => '儲存到系統相簿';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return '無法儲存到系統相簿：$error';
+  }
+
+  @override
   String image_savedAppOnly(Object error) {
     return '已儲存到應用程式圖庫，但無法匯出到系統相簿：$error';
   }
@@ -26601,4 +26852,267 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_profileImported => '智慧體設定已匯入';
+
+  @override
+  String get settings_watermarkTitle => '浮水印';
+
+  @override
+  String get settings_watermarkSubtitle => '完全在本機建立浮水印副本，不修改原圖';
+
+  @override
+  String get settings_watermarkEnable => '啟用浮水印工具';
+
+  @override
+  String get settings_watermarkPreserveMetadata => '浮水印副本保留中繼資料';
+
+  @override
+  String get settings_watermarkPreserveMetadataHint =>
+      '關閉時清除 PNG 文字、EXIF、NovelAI 隱寫資料、提示詞和種子；開啟時把原圖中支援的中繼資料安全寫入新 PNG。';
+
+  @override
+  String get settings_watermarkEditDefault => '編輯預設浮水印';
+
+  @override
+  String get settings_watermarkCreateFromImage => '選擇圖片並建立浮水印副本…';
+
+  @override
+  String get settings_watermarkLayoutByOrientation => '依圖片方向分別記憶版面';
+
+  @override
+  String get settings_watermarkLayoutByOrientationHint =>
+      '文字和樣式共用，直向、方形與橫向圖片分別儲存位置。';
+
+  @override
+  String get settings_watermarkConfigMigrated => '舊版浮水印設定已遷移供檢查，請儲存以確認目前預設方案。';
+
+  @override
+  String get settings_watermarkConfigCorrupted =>
+      '浮水印設定無法讀取，目前顯示安全預設值；儲存後才會取代損壞資料。';
+
+  @override
+  String get watermark_actionCreate => '建立浮水印副本…';
+
+  @override
+  String get watermark_actionRegenerate => '重新產生浮水印副本…';
+
+  @override
+  String get watermark_actionDownloadCreate => '下載並加入浮水印…';
+
+  @override
+  String get watermark_editorTitle => '浮水印編輯器';
+
+  @override
+  String get watermark_textLayer => '文字';
+
+  @override
+  String get watermark_logoLayer => 'Logo';
+
+  @override
+  String get watermark_enableLayer => '顯示圖層';
+
+  @override
+  String get watermark_text => '浮水印文字';
+
+  @override
+  String get watermark_alignment => '文字對齊';
+
+  @override
+  String get editor_colorHex => '十六進位顏色值';
+
+  @override
+  String get editor_colorSaturationBrightness => '顏色飽和度與明度';
+
+  @override
+  String get editor_colorHue => '顏色色相';
+
+  @override
+  String get watermark_alignLeft => '靠左對齊';
+
+  @override
+  String get watermark_alignCenter => '置中對齊';
+
+  @override
+  String get watermark_alignRight => '靠右對齊';
+
+  @override
+  String get watermark_font => '字型';
+
+  @override
+  String get watermark_chooseLogo => '選擇 Logo';
+
+  @override
+  String get watermark_replaceLogo => '更換 Logo';
+
+  @override
+  String get watermark_logoMissing => '已儲存的 Logo 遺失，請重新選擇後再儲存。';
+
+  @override
+  String get watermark_logoImportFailed =>
+      '無法匯入 Logo。請選擇尺寸受支援且有效的靜態 PNG、JPEG 或 WebP 圖片。';
+
+  @override
+  String get watermark_opacity => '透明度';
+
+  @override
+  String get watermark_size => '大小';
+
+  @override
+  String get watermark_letterSpacing => '字距';
+
+  @override
+  String get watermark_stroke => '描邊';
+
+  @override
+  String get watermark_shadow => '柔和陰影';
+
+  @override
+  String get watermark_margin => '邊距';
+
+  @override
+  String get watermark_anchor => '位置錨點';
+
+  @override
+  String get watermark_anchorTopLeft => '左上';
+
+  @override
+  String get watermark_anchorTopCenter => '頂部置中';
+
+  @override
+  String get watermark_anchorTopRight => '右上';
+
+  @override
+  String get watermark_anchorCenterLeft => '左側置中';
+
+  @override
+  String get watermark_anchorCenter => '畫布中央';
+
+  @override
+  String get watermark_anchorCenterRight => '右側置中';
+
+  @override
+  String get watermark_anchorBottomLeft => '左下';
+
+  @override
+  String get watermark_anchorBottomCenter => '底部置中';
+
+  @override
+  String get watermark_anchorBottomRight => '右下';
+
+  @override
+  String get watermark_layerArrangement => '圖層排列';
+
+  @override
+  String get watermark_arrangementIndependent => '獨立';
+
+  @override
+  String get watermark_arrangementHorizontal => '橫向組合';
+
+  @override
+  String get watermark_arrangementVertical => '縱向組合';
+
+  @override
+  String get watermark_zOrder => '將所選圖層移到上層';
+
+  @override
+  String get watermark_ratioOriginal => '原圖';
+
+  @override
+  String get watermark_ratioPortrait => '直向';
+
+  @override
+  String get watermark_ratioSquare => '方形';
+
+  @override
+  String get watermark_ratioLandscape => '橫向';
+
+  @override
+  String get watermark_layoutUniversal => '通用版面';
+
+  @override
+  String get watermark_layoutPortrait => '直向版面';
+
+  @override
+  String get watermark_layoutSquare => '方形版面';
+
+  @override
+  String get watermark_layoutLandscape => '橫向版面';
+
+  @override
+  String get watermark_metadataRemoved => '將依「安全性與分享」設定清除副本中繼資料。';
+
+  @override
+  String get watermark_metadataPreserved => '會把原圖中支援的中繼資料寫入新副本。';
+
+  @override
+  String get watermark_setDefault => '設為預設';
+
+  @override
+  String get watermark_defaultSaved => '預設浮水印已更新';
+
+  @override
+  String get watermark_saveCopy => '儲存副本';
+
+  @override
+  String get watermark_saving => '正在渲染原始解析度圖片…';
+
+  @override
+  String get watermark_saved => '浮水印副本已儲存';
+
+  @override
+  String get watermark_share => '分享';
+
+  @override
+  String get watermark_open => '開啟';
+
+  @override
+  String get watermark_undo => '復原';
+
+  @override
+  String get watermark_reset => '重設';
+
+  @override
+  String get watermark_noLayer => '儲存前請啟用文字或 Logo。';
+
+  @override
+  String get watermark_cancelled => '已取消浮水印渲染';
+
+  @override
+  String watermark_failed(Object error) {
+    return '無法建立浮水印副本：$error';
+  }
+
+  @override
+  String get watermark_failedGeneric => '無法建立浮水印副本，請檢查圖片後再試一次。';
+
+  @override
+  String get watermark_systemGalleryExportFailed =>
+      '副本已儲存在 Aaalice 中，但無法加入系統圖庫。';
+
+  @override
+  String get watermark_galleryRefreshFailed => '副本已儲存，但圖庫無法重新整理；重新開啟圖庫即可重試。';
+
+  @override
+  String get watermark_sourceMissing => '找不到原圖，請重新選擇原圖後再產生浮水印。';
+
+  @override
+  String get watermark_chooseOriginal => '選擇原圖';
+
+  @override
+  String get watermark_dragHint => '拖曳所選圖層；方向鍵可精細移動，按住 Shift 可加大步長。';
+
+  @override
+  String get watermark_moveLeft => '向左移動圖層';
+
+  @override
+  String get watermark_moveRight => '向右移動圖層';
+
+  @override
+  String get watermark_moveUp => '向上移動圖層';
+
+  @override
+  String get watermark_moveDown => '向下移動圖層';
+
+  @override
+  String get watermark_sourceLoadFailed =>
+      '無法開啟此圖片。請確認檔案是有效的靜態 PNG、JPEG、WebP 或 BMP 圖片後再試一次。';
 }

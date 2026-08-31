@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/services/android_media_store_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/utils/nai_resolution_adapter.dart';
@@ -14,6 +15,7 @@ import '../providers/fixed_tags_provider.dart';
 import '../providers/image_generation_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
 import '../router/app_routes.dart';
+import '../screens/watermark/watermark_editor_launcher.dart';
 import '../utils/fixed_tag_metadata_matcher.dart';
 import '../utils/krita_send_helper.dart';
 import '../utils/local_gallery_reference_factory.dart';
@@ -82,6 +84,14 @@ class ImageSendActionDispatcher {
           AppToast.info(context, context.l10n.gallery_upscalePanelLoaded);
         case LocalImageContextAction.shareToDiscord:
           await _shareToDiscord(context, ref, bytes, fileName);
+        case LocalImageContextAction.createWatermark:
+          await WatermarkEditorLauncher.open(
+            context: context,
+            sourceBytes: bytes,
+            sourceFileName: fileName,
+          );
+        case LocalImageContextAction.saveToSystemGallery:
+          await _saveToSystemGallery(context, bytes, fileName);
         case LocalImageContextAction.copyPrompt:
         case LocalImageContextAction.copySeed:
         case LocalImageContextAction.showInFolder:
@@ -97,6 +107,35 @@ class ImageSendActionDispatcher {
       );
       if (context.mounted) {
         AppToast.error(context, context.l10n.localGallery_sendFailed('$error'));
+      }
+    }
+  }
+
+  static Future<void> _saveToSystemGallery(
+    BuildContext context,
+    Uint8List bytes,
+    String fileName,
+  ) async {
+    try {
+      await AndroidMediaStoreService.saveImage(
+        bytes: bytes,
+        fileName: fileName,
+      );
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_savedToSystemGallery);
+      }
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to export image to system gallery',
+        error,
+        stackTrace,
+        'ImageSendAction',
+      );
+      if (context.mounted) {
+        AppToast.error(
+          context,
+          context.l10n.localGallery_saveToSystemGalleryFailed('$error'),
+        );
       }
     }
   }

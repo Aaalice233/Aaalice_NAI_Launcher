@@ -59,7 +59,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('包含保护模式与在线画廊黑名单', (tester) async {
+  testWidgets('包含保护模式、水印与在线画廊黑名单', (tester) async {
     await pumpSection(tester);
 
     expect(find.text('保护模式'), findsOneWidget);
@@ -67,6 +67,9 @@ void main() {
     expect(find.text('复制/拖拽时移除全部元数据'), findsOneWidget);
     expect(find.text('限制生图频率'), findsOneWidget);
     expect(find.text('生图间隔'), findsOneWidget);
+    expect(find.text('水印'), findsOneWidget);
+    expect(find.text('启用水印工具'), findsOneWidget);
+    expect(find.text('水印副本保留元数据'), findsOneWidget);
     expect(find.byType(OnlineGalleryBlacklistSettingsPanel), findsOneWidget);
   });
 
@@ -118,7 +121,7 @@ void main() {
     expect(intervalTile.onTap, isNull);
   });
 
-  testWidgets('在线画廊黑名单与主设置卡片宽度一致', (tester) async {
+  testWidgets('在线画廊黑名单与全部主设置卡片宽度一致', (tester) async {
     await pumpSection(tester);
 
     final primaryCard = find.descendant(
@@ -129,13 +132,13 @@ void main() {
       of: find.byType(OnlineGalleryBlacklistSettingsPanel),
       matching: find.byType(Card),
     );
-    expect(primaryCard, findsNWidgets(2));
+    expect(primaryCard, findsNWidgets(3));
     expect(blacklistCard, findsOneWidget);
 
     final primaryRect = tester.getRect(primaryCard.first);
     final blacklistRect = tester.getRect(blacklistCard);
 
-    for (var index = 1; index < 2; index++) {
+    for (var index = 1; index < 3; index++) {
       final sectionRect = tester.getRect(primaryCard.at(index));
       expect(sectionRect.left, primaryRect.left);
       expect(sectionRect.right, primaryRect.right);

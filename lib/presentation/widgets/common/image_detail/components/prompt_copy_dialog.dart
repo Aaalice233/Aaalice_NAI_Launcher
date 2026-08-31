@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../../data/models/gallery/nai_prompt_export_codec.dart';
+import '../../prompt_selection_tile.dart';
 
 /// Reuses the image-metadata prompt categories for both privacy-safe positive
 /// copying and complete/custom prompt export.
@@ -144,21 +145,25 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _PromptCategoryTile(
+                    PromptSelectionTile(
                       icon: Icons.subject,
                       title: context.l10n.detail_promptCategoryMain,
                       subtitle: context.l10n.detail_promptCategoryMainHint,
+                      unavailableLabel:
+                          context.l10n.detail_promptCategoryUnavailable,
                       value: _includeMainPrompt,
                       enabled: _hasMainPrompt,
                       onChanged: (value) =>
                           setState(() => _includeMainPrompt = value),
                     ),
                     const Divider(height: 1),
-                    _PromptCategoryTile(
+                    PromptSelectionTile(
                       icon: Icons.people_outline,
                       title: context.l10n.detail_promptCategoryCharacters,
                       subtitle:
                           context.l10n.detail_promptCategoryCharactersHint,
+                      unavailableLabel:
+                          context.l10n.detail_promptCategoryUnavailable,
                       count: _metadata.characterPrompts.length,
                       value: _includeCharacterPrompts,
                       enabled: _hasCharacters,
@@ -166,10 +171,12 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
                           setState(() => _includeCharacterPrompts = value),
                     ),
                     const Divider(height: 1),
-                    _PromptCategoryTile(
+                    PromptSelectionTile(
                       icon: Icons.auto_awesome_outlined,
                       title: context.l10n.detail_promptCategoryQuality,
                       subtitle: context.l10n.detail_promptCategoryQualityHint,
+                      unavailableLabel:
+                          context.l10n.detail_promptCategoryUnavailable,
                       count: qualityCount,
                       value: _includeQualityTags,
                       enabled: _hasQualityTags,
@@ -177,10 +184,12 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
                           setState(() => _includeQualityTags = value),
                     ),
                     const Divider(height: 1),
-                    _PromptCategoryTile(
+                    PromptSelectionTile(
                       icon: Icons.push_pin_outlined,
                       title: context.l10n.detail_promptCategoryFixed,
                       subtitle: context.l10n.detail_promptCategoryFixedHint,
+                      unavailableLabel:
+                          context.l10n.detail_promptCategoryUnavailable,
                       count: fixedCount,
                       value: _includeFixedTags,
                       enabled: _hasFixedTags,
@@ -419,84 +428,5 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
 
   void _update(NaiPromptCopySelection selection) {
     setState(() => _exportSelection = selection);
-  }
-}
-
-class _PromptCategoryTile extends StatelessWidget {
-  const _PromptCategoryTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-    this.count,
-    this.warning = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final int? count;
-  final bool value;
-  final bool enabled;
-  final bool warning;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final accent = warning ? colorScheme.tertiary : colorScheme.primary;
-
-    return CheckboxListTile(
-      value: enabled && value,
-      onChanged: enabled ? (value) => onChanged(value ?? false) : null,
-      controlAffinity: ListTileControlAffinity.trailing,
-      secondary: Icon(
-        icon,
-        size: 20,
-        color: enabled ? accent : colorScheme.onSurface.withValues(alpha: 0.3),
-      ),
-      title: Row(
-        children: [
-          Flexible(
-            child: Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          if (count != null && count! > 0) ...[
-            const SizedBox(width: 7),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '$count',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: accent,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-      subtitle: Text(
-        enabled ? subtitle : context.l10n.detail_promptCategoryUnavailable,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-          height: 1.3,
-        ),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-      activeColor: accent,
-      dense: true,
-    );
   }
 }

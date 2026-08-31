@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
@@ -14,9 +16,7 @@ void main() {
     PlatformCapabilities.debugOverride = null;
   });
 
-  testWidgets('visibility changes hit testing and opacity in the same pump', (
-    tester,
-  ) async {
+  testWidgets('visibility changes actions in the same pump', (tester) async {
     var visible = false;
     late StateSetter setHostState;
 
@@ -40,29 +40,57 @@ void main() {
       ),
     );
 
-    final opacity = find.descendant(
-      of: find.byType(CardActionButtons),
-      matching: find.byType(Opacity),
-    );
-    final hitTestGate = find.descendant(
-      of: find.byType(CardActionButtons),
-      matching: find.byType(IgnorePointer),
-    );
-
-    expect(find.byIcon(Icons.download), findsOneWidget);
-    expect(tester.widget<Opacity>(opacity).opacity, 0);
-    expect(tester.widget<IgnorePointer>(hitTestGate).ignoring, isTrue);
+    expect(find.byIcon(Icons.download), findsNothing);
 
     setHostState(() => visible = true);
     await tester.pump();
 
-    expect(tester.widget<Opacity>(opacity).opacity, 1);
-    expect(tester.widget<IgnorePointer>(hitTestGate).ignoring, isFalse);
+    expect(find.byIcon(Icons.download), findsOneWidget);
 
     setHostState(() => visible = false);
     await tester.pump();
 
-    expect(tester.widget<Opacity>(opacity).opacity, 0);
-    expect(tester.widget<IgnorePointer>(hitTestGate).ignoring, isTrue);
+    expect(find.byIcon(Icons.download), findsNothing);
+  });
+
+  testWidgets('hiding actions dismisses an active tooltip', (tester) async {
+    var visible = true;
+    late StateSetter setHostState;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              setHostState = setState;
+              return CardActionButtons(
+                visible: visible,
+                buttons: [
+                  CardActionButtonConfig(
+                    icon: Icons.download,
+                    tooltip: 'download',
+                    onPressed: () {},
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(find.byIcon(Icons.download)),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text('download'), findsOneWidget);
+
+    setHostState(() => visible = false);
+    await tester.pump();
+
+    expect(find.text('download'), findsNothing);
   });
 }

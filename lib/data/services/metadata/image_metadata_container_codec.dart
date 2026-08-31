@@ -83,6 +83,163 @@ class ImageMetadataContainerCodec {
     return _updateTextChunk(stealthBytes, metadataJson);
   }
 
+  /// 将原始 PNG 中可安全迁移的描述性元数据写回重新编码后的 PNG。
+  ///
+  /// 像素经过编辑后不能继续沿用原容器的颜色配置或尺寸声明；这里只迁移
+  /// 文本与标准 EXIF chunk，并在目标中去重。NovelAI stealth 元数据属于
+  /// 像素载荷，调用方需要根据隐私策略显式重建，不能在这里复制。
+  static Uint8List copySupportedMetadata({
+    required Uint8List source,
+    required Uint8List targetPng,
+  }) {
+    if (!isPngHeader(targetPng)) {
+      throw const FormatException('Metadata target must be PNG');
+    }
+    final sourceChunks = _supportedMetadataChunks(source);
+    if (sourceChunks.isEmpty) return targetPng;
+    const supportedTypes = {'tEXt', 'iTXt', 'zTXt', 'eXIf'};
+    final targetChunks = _parsePngChunks(targetPng);
+    final output = BytesBuilder()..add(targetPng.sublist(0, 8));
+    var inserted = false;
+    for (final chunk in targetChunks) {
+      if (supportedTypes.contains(chunk.type)) continue;
+      if (!inserted && chunk.type == 'IDAT') {
+        for (final metadataChunk in sourceChunks) {
+          _writeChunk(output, metadataChunk.type, metadataChunk.data);
+        }
+        inserted = true;
+      }
+      _writeChunk(output, chunk.type, chunk.data);
+    }
+    if (!inserted) {
+      throw const FormatException('Target PNG has no image data');
+    }
+    return output.toBytes();
+  }
+
+  static List<_PngChunk> _supportedMetadataChunks(Uint8List source) {
+    const supportedTypes = {'tEXt', 'iTXt', 'zTXt', 'eXIf'};
+    if (isPngHeader(source)) {
+      final chunks = _parsePngChunks(source)
+          .where((chunk) => supportedTypes.contains(chunk.type))
+          .toList(growable: false);
+      for (final chunk in chunks.where((chunk) => chunk.type == 'eXIf')) {
+        _validateTiffMetadata(chunk.data);
+      }
+      return chunks;
+    }
+    if (_isJpeg(source)) return _extractJpegExif(source);
+    if (_isWebP(source)) return _extractWebPExif(source);
+    return const [];
+  }
+
+  static bool _isJpeg(Uint8List bytes) =>
+      bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+
+  static bool _isWebP(Uint8List bytes) =>
+      bytes.length >= 12 &&
+      ascii.decode(bytes.sublist(0, 4), allowInvalid: true) == 'RIFF' &&
+      ascii.decode(bytes.sublist(8, 12), allowInvalid: true) == 'WEBP';
+
+  static List<_PngChunk> _extractJpegExif(Uint8List bytes) {
+    final result = <_PngChunk>[];
+    var offset = 2;
+    while (offset + 4 <= bytes.length) {
+      if (bytes[offset] != 0xFF) {
+        throw const FormatException('Malformed JPEG metadata markers');
+      }
+      while (offset < bytes.length && bytes[offset] == 0xFF) {
+        offset++;
+      }
+      if (offset >= bytes.length) break;
+      final marker = bytes[offset++];
+      if (marker == 0xD9 || marker == 0xDA) break;
+      if (marker == 0x01 || (marker >= 0xD0 && marker <= 0xD7)) continue;
+      if (offset + 2 > bytes.length) {
+        throw const FormatException('Truncated JPEG metadata segment');
+      }
+      final segmentLength = (bytes[offset] << 8) | bytes[offset + 1];
+      if (segmentLength < 2 || offset + segmentLength > bytes.length) {
+        throw const FormatException('Invalid JPEG metadata segment length');
+      }
+      final payloadStart = offset + 2;
+      final payloadEnd = offset + segmentLength;
+      if (marker == 0xE1 &&
+          payloadEnd - payloadStart >= 6 &&
+          ascii.decode(
+                bytes.sublist(payloadStart, payloadStart + 6),
+                allowInvalid: true,
+              ) ==
+              'Exif\u0000\u0000') {
+        final tiff = Uint8List.fromList(
+          bytes.sublist(payloadStart + 6, payloadEnd),
+        );
+        _validateTiffMetadata(tiff);
+        result.add(_PngChunk('eXIf', tiff));
+      }
+      offset += segmentLength;
+    }
+    return result;
+  }
+
+  static List<_PngChunk> _extractWebPExif(Uint8List bytes) {
+    final result = <_PngChunk>[];
+    var offset = 12;
+    while (offset + 8 <= bytes.length) {
+      final type = ascii.decode(
+        bytes.sublist(offset, offset + 4),
+        allowInvalid: true,
+      );
+      final length = ByteData.sublistView(
+        bytes,
+      ).getUint32(offset + 4, Endian.little);
+      final dataStart = offset + 8;
+      final dataEnd = dataStart + length;
+      if (dataEnd > bytes.length) {
+        throw const FormatException('Truncated WebP metadata chunk');
+      }
+      if (type == 'EXIF') {
+        var tiff = Uint8List.fromList(bytes.sublist(dataStart, dataEnd));
+        if (tiff.length >= 6 &&
+            ascii.decode(tiff.sublist(0, 6), allowInvalid: true) ==
+                'Exif\u0000\u0000') {
+          tiff = Uint8List.fromList(tiff.sublist(6));
+        }
+        _validateTiffMetadata(tiff);
+        result.add(_PngChunk('eXIf', tiff));
+      }
+      offset = dataEnd + (length.isOdd ? 1 : 0);
+    }
+    return result;
+  }
+
+  static void _validateTiffMetadata(Uint8List bytes) {
+    if (bytes.length < 8) {
+      throw const FormatException('Truncated EXIF metadata');
+    }
+    final littleEndian =
+        bytes[0] == 0x49 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x2A &&
+        bytes[3] == 0;
+    final bigEndian =
+        bytes[0] == 0x4D &&
+        bytes[1] == 0x4D &&
+        bytes[2] == 0 &&
+        bytes[3] == 0x2A;
+    if (!littleEndian && !bigEndian) {
+      throw const FormatException('Invalid EXIF TIFF header');
+    }
+    final byteData = ByteData.sublistView(bytes);
+    final ifdOffset = byteData.getUint32(
+      4,
+      littleEndian ? Endian.little : Endian.big,
+    );
+    if (ifdOffset < 8 || ifdOffset + 2 > bytes.length) {
+      throw const FormatException('Invalid EXIF IFD offset');
+    }
+  }
+
   /// 仅嵌入 tEXt chunk（不重新编码 PNG，性能提升 50-100 倍）
   ///
   /// 直接操作 PNG chunks，避免调用 img.decodePng/img.encodePng，

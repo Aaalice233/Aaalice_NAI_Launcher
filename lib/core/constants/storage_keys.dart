@@ -53,6 +53,10 @@ class StorageKeys {
   static const String fontScale = 'font_scale';
   static const String locale = 'locale';
   static const String fileLoggingEnabled = 'file_logging_enabled';
+  static const String watermarkConfigV1 = 'watermark_config_v1';
+  static const String watermarkLogoPathV1 = 'watermark_logo_path_v1';
+  static const String watermarkDerivativeRegistryV1 =
+      'watermark_derivative_registry_v1';
 
   // Window State Keys (窗口状态)
   static const String windowWidth = 'window_width';

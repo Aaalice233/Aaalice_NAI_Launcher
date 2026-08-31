@@ -38,6 +38,7 @@ import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/draggable_memory_image.dart';
+import '../../../widgets/common/owned_scroll_controller.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
 import '../../../utils/image_detail_opener.dart';
@@ -77,12 +78,18 @@ class _HistoryRowDescriptor {
 
 /// 历史面板组件
 class HistoryPanel extends ConsumerStatefulWidget {
-  const HistoryPanel({super.key, this.onClose, this.embedded = false});
+  const HistoryPanel({
+    super.key,
+    this.onClose,
+    this.embedded = false,
+    this.viewportOffset,
+  });
 
   final VoidCallback? onClose;
 
   /// 嵌入模式：隐藏自带标题行，由外层 Tab 栏承担标题职责。
   final bool embedded;
+  final OwnedViewportOffset? viewportOffset;
 
   @override
   ConsumerState<HistoryPanel> createState() => _HistoryPanelState();
@@ -104,7 +111,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   final Map<String, String?> _favoriteStatePaths = {};
   final Set<String> _favoriteStatusLoadingIds = {};
   final Set<String> _favoriteToggleLoadingIds = {};
-  final ScrollController _scrollController = ScrollController();
+  late final OwnedScrollController _scrollController;
   final Map<String, GlobalKey> _imageKeys = {};
   List<_HistoryRowDescriptor> _rowDescriptors = const [];
   ProviderSubscription<String?>? _selectionSubscription;
@@ -113,6 +120,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   @override
   void initState() {
     super.initState();
+    _scrollController = OwnedScrollController(viewport: widget.viewportOffset);
     _sharePreparationService.addListener(_handleSharePreparationChanged);
     _selectionSubscription = ref.listenManual(
       generationPreviewSelectionProvider,

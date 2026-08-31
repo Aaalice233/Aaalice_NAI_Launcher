@@ -7,7 +7,9 @@ import 'package:image/image.dart' as img;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/model_capabilities.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/android_generation_foreground_service.dart';
+import '../../core/services/android_media_store_service.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/services/character_conversion_service.dart';
 import '../../core/utils/app_logger.dart';
@@ -132,6 +134,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         addGalleryImages: gallery.addNewlySavedImages,
         refreshGallery: gallery.refresh,
         incrementStatistics: statistics.incrementImageCount,
+        publishToSystemGallery:
+            PlatformCapabilities.operatingSystem.supportsSystemGalleryExport
+            ? (sourcePath, fileName) async {
+                await AndroidMediaStoreService.saveImageFromPath(
+                  sourcePath: sourcePath,
+                  fileName: fileName,
+                  mimeType: 'image/png',
+                );
+              }
+            : null,
       ),
     );
   }

@@ -434,6 +434,10 @@ class _TransparencyBackgroundPanelState
                   color:
                       TransparencyBackgrounds.parseCustomColor(style) ??
                       const Color(0xFF808080),
+                  hexLabel: context.l10n.editor_colorHex,
+                  saturationBrightnessLabel:
+                      context.l10n.editor_colorSaturationBrightness,
+                  hueLabel: context.l10n.editor_colorHue,
                   onColorChanged: (color) => notifier.setStyle(
                     TransparencyBackgrounds.encodeCustomColor(color),
                   ),

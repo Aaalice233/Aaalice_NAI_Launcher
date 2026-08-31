@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../data/models/online_gallery/gallery_source.dart';
-import 'gallery_detail_action_panel.dart';
+import 'gallery_detail_action_rail.dart';
 import 'gallery_detail_controller.dart';
 import 'gallery_detail_info_panel.dart';
 import 'gallery_detail_media_viewer.dart';
 import 'gallery_detail_models.dart';
+import 'gallery_detail_primary_actions.dart';
 
 class GalleryDetailDialogView extends StatelessWidget {
   const GalleryDetailDialogView({
@@ -49,11 +50,15 @@ class GalleryDetailDialogView extends StatelessWidget {
                         controller: controller,
                         viewModel: viewModel,
                         actions: actions,
+                        actionRail: GalleryDetailActionRail(
+                          viewModel: viewModel,
+                          actions: actions,
+                        ),
                       );
                       final infoPanel = GalleryDetailInfoPanel(
                         viewModel: viewModel,
                         actions: actions,
-                        actionPanel: GalleryDetailActionPanel(
+                        primaryActions: GalleryDetailPrimaryActions(
                           viewModel: viewModel,
                           actions: actions,
                         ),

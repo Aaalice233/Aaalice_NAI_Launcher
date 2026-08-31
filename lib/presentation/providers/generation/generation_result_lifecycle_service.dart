@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:path/path.dart' as p;
+
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
@@ -17,6 +19,7 @@ class GenerationResultLifecycleDependencies {
     required this.addGalleryImages,
     required this.refreshGallery,
     required this.incrementStatistics,
+    this.publishToSystemGallery,
   });
 
   final GenerationHistoryStorageService historyStorage;
@@ -24,6 +27,8 @@ class GenerationResultLifecycleDependencies {
   final Future<int> Function(List<String> paths) addGalleryImages;
   final Future<void> Function() refreshGallery;
   final Future<void> Function(int count) incrementStatistics;
+  final Future<void> Function(String sourcePath, String fileName)?
+  publishToSystemGallery;
 }
 
 class GenerationSaveSnapshot {
@@ -43,10 +48,15 @@ class GenerationSaveSnapshot {
 }
 
 class GenerationSaveResult {
-  const GenerationSaveResult(this.images, this.savedPaths);
+  const GenerationSaveResult(
+    this.images,
+    this.savedPaths, {
+    this.systemGalleryExportFailureCount = 0,
+  });
 
   final List<GeneratedImage> images;
   final List<String> savedPaths;
+  final int systemGalleryExportFailureCount;
 }
 
 class ExternalImagePreparationResult {
@@ -171,6 +181,7 @@ class GenerationResultLifecycleService {
 
     final updated = <GeneratedImage>[];
     final paths = <String>[];
+    var systemGalleryExportFailureCount = 0;
     for (final image in images) {
       try {
         final hasMetadata = ImageSaveUtils.hasEmbeddedNovelAiMetadata(
@@ -211,6 +222,15 @@ class GenerationResultLifecycleService {
         );
         paths.add(path);
         updated.add(image.copyWithFilePath(path));
+        final publishToSystemGallery = dependencies.publishToSystemGallery;
+        if (publishToSystemGallery != null) {
+          try {
+            await publishToSystemGallery(path, p.basename(path));
+          } catch (error, stackTrace) {
+            systemGalleryExportFailureCount++;
+            AppLogger.e('自动保存到系统相册失败', error, stackTrace);
+          }
+        }
       } catch (error, stackTrace) {
         AppLogger.e('自动保存图像失败', error, stackTrace);
         updated.add(image);
@@ -233,7 +253,11 @@ class GenerationResultLifecycleService {
       }
       preloadMetadata(updated.where((image) => image.filePath != null));
     }
-    return GenerationSaveResult(updated, paths);
+    return GenerationSaveResult(
+      updated,
+      paths,
+      systemGalleryExportFailureCount: systemGalleryExportFailureCount,
+    );
   }
 
   void preloadMetadata(Iterable<GeneratedImage> images) {

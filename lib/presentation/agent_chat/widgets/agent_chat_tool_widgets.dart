@@ -17,6 +17,7 @@ import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../utils/image_detail_opener.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
+import '../../providers/watermark_settings_provider.dart';
 import '../../screens/online_gallery/online_gallery_detail_launcher.dart';
 import '../../services/image_send_action_dispatcher.dart';
 import '../../widgets/common/app_toast.dart';
@@ -1498,10 +1499,14 @@ Future<void> _showAgentChatImageSendMenu({
   } catch (_) {
     // The remaining image actions stay available during service restoration.
   }
+  final watermarkEnabled = ref.read(
+    watermarkSettingsProvider.select((state) => state.configuration.enabled),
+  );
   final action = await LocalImageContextMenu.showSendActions(
     context,
     position: position,
     isKritaConnected: isKritaConnected,
+    watermarkEnabled: watermarkEnabled,
   );
   if (action == null || !context.mounted) return;
   await ImageSendActionDispatcher.handle(

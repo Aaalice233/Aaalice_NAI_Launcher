@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/window_size_class.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
 import '../cloud_sync/cloud_sync_screen.dart';
 import 'sections/account_settings_section.dart';
 import 'sections/appearance_settings_section.dart';
@@ -50,7 +51,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late SettingsSection _selectedSection;
-  final _contentScrollController = ScrollController();
+  final _contentScrollController = OwnedScrollController();
   bool _isContentScrolled = false;
   bool _showCompactDetail = false;
   int _externalSectionRevision = 0;
@@ -191,6 +192,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() {
       _selectedSection = section;
       _showCompactDetail = showCompactDetail;
+      _contentScrollController.viewport.replace(0);
+      _contentScrollController.clearLayoutRestore();
       if (_contentScrollController.hasClients) {
         _contentScrollController.jumpTo(0);
       }
