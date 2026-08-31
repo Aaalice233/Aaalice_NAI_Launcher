@@ -385,6 +385,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '第三方站点需兼容 NovelAI 的 /user/subscription 与图像生成相关 API；Token 将按 Bearer 方式发送。';
 
   @override
+  String get auth_thirdPartyStreamingHint =>
+      '如果第三方站点不支持流式生成，请前往「设置 > 生成 > 图像输出」，关闭「流式预览」后再生成。';
+
+  @override
   String get auth_thirdPartyApiSiteRequired => '请输入第三方 API 站点地址';
 
   @override
@@ -814,6 +818,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get generation_generationFailed => '生成失败';
+
+  @override
+  String get generation_streamingUnsupported => '站点不支持流式生成';
+
+  @override
+  String get generation_streamingUnsupportedHint =>
+      '请前往「设置 > 生成 > 图像输出」，关闭「流式预览」后重试。';
 
   @override
   String generation_progress(Object progress) {
@@ -13556,6 +13567,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '第三方站點需相容 NovelAI 的 /user/subscription 與影象生成相關 API；Token 將按 Bearer 方式傳送。';
 
   @override
+  String get auth_thirdPartyStreamingHint =>
+      '若第三方站點不支援串流生成，請前往「設定 > 生成 > 影象輸出」，關閉「串流預覽」後再生成。';
+
+  @override
   String get auth_thirdPartyApiSiteRequired => '請輸入第三方 API 站點地址';
 
   @override
@@ -13985,6 +14000,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_generationFailed => '生成失敗';
+
+  @override
+  String get generation_streamingUnsupported => '站點不支援串流生成';
+
+  @override
+  String get generation_streamingUnsupportedHint =>
+      '請前往「設定 > 生成 > 影象輸出」，關閉「串流預覽」後重試。';
 
   @override
   String generation_progress(Object progress) {

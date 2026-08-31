@@ -833,6 +833,12 @@ abstract class AppLocalizations {
   /// **'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.'**
   String get auth_thirdPartyCompatibilityHint;
 
+  /// No description provided for @auth_thirdPartyStreamingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.'**
+  String get auth_thirdPartyStreamingHint;
+
   /// No description provided for @auth_thirdPartyApiSiteRequired.
   ///
   /// In en, this message translates to:
@@ -1654,6 +1660,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Generation failed'**
   String get generation_generationFailed;
+
+  /// No description provided for @generation_streamingUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This site does not support streaming generation'**
+  String get generation_streamingUnsupported;
+
+  /// No description provided for @generation_streamingUnsupportedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Settings > Generation > Image Output, turn off Streaming preview, and try again.'**
+  String get generation_streamingUnsupportedHint;
 
   /// No description provided for @generation_progress.
   ///
