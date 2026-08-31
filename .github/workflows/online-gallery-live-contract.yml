@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PUB_HOSTED_URL: "https://pub.dev"
+
 jobs:
   verify-live-sources:
     runs-on: ubuntu-latest
@@ -22,6 +25,10 @@ jobs:
           channel: stable
           flutter-version: '3.44.2'
           cache: true
+
+      - name: Verify official Flutter dependency sources
+        shell: pwsh
+        run: ./scripts/verify_flutter_sources.ps1
 
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile

@@ -51,7 +51,7 @@ class GalleryDetailActionPanel extends StatelessWidget {
           row(
             FilledButton.icon(
               style: actionStyle,
-              onPressed: viewModel.hasCopyableContent
+              onPressed: viewModel.canUseGenerationActions
                   ? actions.sendToGenerate
                   : null,
               icon: const Icon(Icons.auto_awesome, size: 18),
@@ -60,7 +60,8 @@ class GalleryDetailActionPanel extends StatelessWidget {
             OutlinedButton.icon(
               style: actionStyle,
               onPressed:
-                  viewModel.hasCopyableContent && !viewModel.queueActionPending
+                  viewModel.canUseGenerationActions &&
+                      !viewModel.queueActionPending
                   ? actions.addToQueue
                   : null,
               icon: viewModel.queueActionPending

@@ -101,6 +101,26 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   }
 
   @override
+  Future<LocalGalleryQueryPage> queryPage({
+    required int page,
+    int pageSize = 50,
+    String searchQuery = '',
+  }) {
+    _ensureInitialized();
+    return _query.queryPage(
+      page: page,
+      pageSize: pageSize,
+      searchQuery: searchQuery,
+    );
+  }
+
+  @override
+  Future<int?> getImageIdByPath(String filePath) {
+    _ensureInitialized();
+    return _repository.getImageIdByPath(_query.resolveTrackedPath(filePath));
+  }
+
+  @override
   Future<List<String>> getFilteredImagePaths() async {
     _ensureInitialized();
     return _query.getFilteredImagePaths();

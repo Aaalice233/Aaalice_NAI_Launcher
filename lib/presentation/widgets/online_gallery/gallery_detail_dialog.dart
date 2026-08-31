@@ -22,6 +22,7 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
     required this.detail,
     required this.isFavorited,
     required this.favoriteLoading,
+    required this.canUseGenerationActions,
     this.canToggleFavorite = true,
     required this.labels,
     required this.onCopyPrompt,
@@ -50,6 +51,7 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
   final GalleryDetail detail;
   final bool isFavorited;
   final bool favoriteLoading;
+  final bool canUseGenerationActions;
   final bool canToggleFavorite;
   final GalleryDetailDialogLabels labels;
   final VoidCallback onCopyPrompt;
@@ -151,6 +153,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
       isFavorited: _controller.isFavorited,
       favoriteLoading: widget.favoriteLoading,
       favoriteActionPending: _controller.favoriteActionPending,
+      canUseGenerationActions: widget.canUseGenerationActions,
       queueActionPending: _controller.queueActionPending,
       downloadActionPending: _controller.downloadActionPending,
       canToggleFavorite: widget.canToggleFavorite,

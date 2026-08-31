@@ -105,6 +105,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       _isDisposed = true;
       _lifecycleEpoch++;
       _generationInvocationStarting = false;
+      _activeComparisonSource = null;
       final invocationSettled = _generationInvocationSettled;
       _generationInvocationSettled = null;
       if (invocationSettled != null && !invocationSettled.isCompleted) {
@@ -133,6 +134,32 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         incrementStatistics: statistics.incrementImageCount,
       ),
     );
+  }
+
+  ImageComparisonSource? _comparisonSourceFor(Uint8List bytes) {
+    return ImageComparisonSource.fromBytes(
+      bytes,
+      reuseCandidates: _retainedComparisonSources(),
+    );
+  }
+
+  /// Reuses only sources already owned by live results; there is deliberately
+  /// no separate cache that could outlive history eviction or display cleanup.
+  Iterable<ImageComparisonSource> _retainedComparisonSources() sync* {
+    final seen = <ImageComparisonSource>{};
+    final active = _activeComparisonSource;
+    if (active != null && seen.add(active)) yield active;
+
+    for (final images in <List<GeneratedImage>>[
+      state.currentImages,
+      state.history,
+      state.displayImages,
+    ]) {
+      for (final image in images) {
+        final source = image.comparisonSource;
+        if (source != null && seen.add(source)) yield source;
+      }
+    }
   }
 
   Future<void> ensureGenerationHistoryRestored() {
@@ -362,6 +389,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
         _activeInvocationId = 0;
         _generationInvocationStarting = false;
+        _activeComparisonSource = null;
       }
       if (!invocationSettled.isCompleted) {
         invocationSettled.complete();
@@ -458,7 +486,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         _activeComparisonSource =
             sourceImage != null &&
                 params.action != ImageGenerationAction.generate
-            ? ImageComparisonSource.fromBytes(sourceImage)
+            ? _comparisonSourceFor(sourceImage)
             : null;
         state = state.copyWith(
           currentImages: [],
@@ -571,6 +599,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       case GenerationRequestFailed(:final error, :final isTerminal):
         _appendFailedSnapshots(event.runId);
         if (isTerminal) {
+          _activeComparisonSource = null;
           state = state.copyWith(
             status: GenerationStatus.error,
             errorMessage: error.toString(),
@@ -582,6 +611,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
       case GenerationCompleted(:final params):
         final images = List<GeneratedImage>.from(state.currentImages);
+        _activeComparisonSource = null;
         state = state.copyWith(
           status: GenerationStatus.completed,
           displayImages: images,
@@ -605,6 +635,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
       case GenerationCancelled():
         _appendFailedSnapshots(event.runId);
+        _activeComparisonSource = null;
         state = state.copyWith(
           status: GenerationStatus.cancelled,
           progress: 0,
@@ -614,6 +645,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
       case GenerationFailed(:final error):
         _appendFailedSnapshots(event.runId);
+        _activeComparisonSource = null;
         state = state.copyWith(
           status: GenerationStatus.error,
           errorMessage: error.toString(),
@@ -779,6 +811,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final runId = _activeRunId;
     _activeInvocationId = 0;
     _generationInvocationStarting = false;
+    _activeComparisonSource = null;
     _appendFailedSnapshots(runId);
     final coordinator = _coordinator;
     final handle = _activeRun;
@@ -821,7 +854,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       height: height,
       comparisonSource: comparisonSourceImage == null
           ? null
-          : ImageComparisonSource.fromBytes(comparisonSourceImage),
+          : _comparisonSourceFor(comparisonSourceImage),
       embedNaiMetadata: embedNaiMetadata,
     );
     if (!_isCurrentLifecycle(epoch)) return null;

@@ -94,6 +94,7 @@ class OnlineGalleryDetailLauncher {
           favoriteLoading: galleryState.favoriteLoadingPostKeys.contains(
             stableKey,
           ),
+          canUseGenerationActions: projection.hasUsableOutput,
           prefetchCoordinator: controller?.prefetchCoordinator,
           canToggleFavorite: true,
           labels: GalleryDetailDialogLabels(

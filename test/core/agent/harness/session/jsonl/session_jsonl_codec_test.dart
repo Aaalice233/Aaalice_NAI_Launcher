@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/harness/harness_messages.dart';
 import 'package:nai_launcher/core/agent/harness/session/jsonl/session_jsonl_codec.dart';
 
 void main() {
@@ -48,6 +49,65 @@ void main() {
     ]);
     expect(restored.provider, 'provider');
     expect(restored.model, 'model');
+  });
+
+  test('round-trips custom resource messages with blocks and details', () {
+    const message = HarnessCustomMessage(
+      customType: 'agentResourcePrompt',
+      display: true,
+      blockContent: [
+        UserTextContent(
+          '<agent-resource-references>{}</agent-resource-references>',
+        ),
+        UserTextContent('Use this reference'),
+        UserImageContent(
+          ImageContent(
+            source: ImageSource.base64(
+              mimeType: 'image/png',
+              base64Data: 'AQID',
+            ),
+          ),
+        ),
+      ],
+      details: {
+        'visibleContentOffset': 1,
+        'references': [
+          {
+            'version': 1,
+            'kind': 'generatedImage',
+            'source': 'generation_history',
+            'resourceId': 'image-1',
+            'display': {'name': 'Current canvas'},
+            'provenance': <String, String>{},
+          },
+        ],
+      },
+      timestamp: 123,
+    );
+
+    final restored = SessionJsonlCodec.decode(
+      SessionJsonlCodec.encode(message),
+    );
+
+    expect(restored, isA<HarnessCustomMessage>());
+    final custom = restored as HarnessCustomMessage;
+    expect(custom.customType, 'agentResourcePrompt');
+    expect(custom.display, isTrue);
+    expect(custom.timestamp, 123);
+    expect(
+      custom.content.whereType<UserTextContent>().last.text,
+      'Use this reference',
+    );
+    expect(
+      custom.content
+          .whereType<UserImageContent>()
+          .single
+          .image
+          .source
+          .base64Data,
+      'AQID',
+    );
+    expect((custom.details as Map)['references'], hasLength(1));
   });
 
   test('round-trips generated image tool results', () {

@@ -67,9 +67,7 @@ AgentContextUsage resolveAgentContextUsage(
   return AgentContextUsage(
     tokens: tokens,
     contextWindow: validWindow,
-    percent: tokens != null && validWindow != null
-        ? tokens / validWindow * 100
-        : null,
+    percent: tokens != null ? tokens / validWindow * 100 : null,
     estimated: tokens != null && estimate.trailingTokens > 0,
   );
 }

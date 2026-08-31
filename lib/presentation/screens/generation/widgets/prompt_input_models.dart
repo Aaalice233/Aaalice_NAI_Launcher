@@ -5,14 +5,12 @@ import '../../../../data/models/character/character_prompt.dart';
 @immutable
 class PromptInputViewData {
   const PromptInputViewData({
-    required this.compact,
     required this.autoGrow,
     required this.isMaximized,
     required this.showMaximizeButton,
     required this.numericEmphasisEnabled,
   });
 
-  final bool compact;
   final bool autoGrow;
   final bool isMaximized;
   final bool showMaximizeButton;

@@ -500,7 +500,7 @@ void main() {
     final turnTheme = Theme.of(tester.element(turnFinder));
     expect(
       (turn.decoration! as BoxDecoration).color,
-      turnTheme.colorScheme.surfaceContainerLow,
+      turnTheme.colorScheme.secondaryContainer.withValues(alpha: 0.48),
     );
     expect(find.byIcon(Icons.error_outline_rounded), findsNothing);
 
@@ -790,8 +790,8 @@ final _commands = AgentChatPanelCommands(
   cancelUserMessageEdit: () {},
   copyAssistantMessage: (_) async {},
   editQueuedMessage: (_) async {},
-  removeQueuedMessage: (_) {},
-  clearQueuedMessages: () {},
+  removeQueuedMessage: (_) async {},
+  clearQueuedMessages: () async {},
   addPendingResource: (_) async {},
   removePendingResource: (_) async {},
 );

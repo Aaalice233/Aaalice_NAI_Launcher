@@ -10,6 +10,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$env:PUB_HOSTED_URL = 'https://pub.dev'
+$env:FLUTTER_STORAGE_BASE_URL = $null
 
 $scriptDir = Split-Path -Parent $PSCommandPath
 $repoRoot = Resolve-Path -LiteralPath (Join-Path $scriptDir '../../../..')
@@ -333,7 +335,7 @@ $shouldRunPubGet = $RunPubGet -and -not $SkipPubGet
 $shouldRunBuildRunner = $RunBuildRunner -and -not $SkipBuildRunner
 if ($shouldRunPubGet) {
     Write-Host 'Resolving Flutter dependencies...' -ForegroundColor Cyan
-    & $flutterCommand pub get
+    & $flutterCommand pub get --enforce-lockfile
     if ($LASTEXITCODE -ne 0) {
         throw 'flutter pub get failed.'
     }

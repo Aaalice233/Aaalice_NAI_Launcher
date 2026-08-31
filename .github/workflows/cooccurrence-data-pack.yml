@@ -8,6 +8,7 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.44.2"
+  PUB_HOSTED_URL: "https://pub.dev"
   DATA_TAG: autocomplete-data-cooccurrence-2dadc5bf-v2
 
 jobs:
@@ -27,6 +28,10 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      - name: Verify official Flutter dependency sources
+        shell: pwsh
+        run: ./scripts/verify_flutter_sources.ps1
 
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile

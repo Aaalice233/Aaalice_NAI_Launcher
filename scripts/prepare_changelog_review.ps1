@@ -88,22 +88,26 @@ Set-Location -LiteralPath $repositoryRoot
 $headCommit = Get-GitFirstLine -Arguments @('rev-parse', "$HeadRef^{commit}")
 
 if ([string]::IsNullOrWhiteSpace($BaseRef)) {
-  $tags = Invoke-Git -Arguments @(
-    'tag',
-    '--merged', $HeadRef,
-    '--list', 'v[0-9]*',
-    '--sort=-version:refname'
+  $describeRef = $HeadRef
+  $nearestTag = Get-GitFirstLine -Arguments @(
+    'describe',
+    '--tags',
+    '--match', 'v[0-9]*',
+    '--abbrev=0',
+    $describeRef
   )
-  foreach ($tag in $tags) {
-    if ([string]::IsNullOrWhiteSpace($tag)) {
-      continue
-    }
-    $tagCommit = Get-GitFirstLine -Arguments @('rev-parse', "$tag^{commit}")
-    if ($tagCommit -ne $headCommit) {
-      $BaseRef = $tag.Trim()
-      break
-    }
+  $nearestTagCommit = Get-GitFirstLine -Arguments @('rev-parse', "$nearestTag^{commit}")
+  if ($nearestTagCommit -eq $headCommit) {
+    $describeRef = "$HeadRef^"
+    $nearestTag = Get-GitFirstLine -Arguments @(
+      'describe',
+      '--tags',
+      '--match', 'v[0-9]*',
+      '--abbrev=0',
+      $describeRef
+    )
   }
+  $BaseRef = $nearestTag.Trim()
 }
 
 if ([string]::IsNullOrWhiteSpace($BaseRef)) {

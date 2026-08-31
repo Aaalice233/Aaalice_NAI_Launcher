@@ -177,43 +177,6 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
   }
 }
 
-/// 带 Tooltip 的简单标签芯片
-class SimpleTagChipWithTooltip extends StatelessWidget {
-  final String tag;
-  final Color? color;
-  final VoidCallback? onTap;
-  final String? translation;
-  final int? category;
-  final String? tooltipMessage;
-
-  const SimpleTagChipWithTooltip({
-    super.key,
-    required this.tag,
-    this.color,
-    this.onTap,
-    this.translation,
-    this.category,
-    this.tooltipMessage,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final chip = SimpleTagChip(
-      tag: tag,
-      color: color,
-      onTap: onTap,
-      translation: translation,
-      category: category,
-    );
-
-    if (tooltipMessage != null) {
-      return Tooltip(message: tooltipMessage!, child: chip);
-    }
-
-    return chip;
-  }
-}
-
 /// 标签分类颜色
 class TagColors {
   static const Color artist = Color(0xFFFF8A8A); // 红色 - 艺术家

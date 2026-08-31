@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/harness/harness_messages.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_messages.dart';
@@ -171,6 +172,78 @@ void main() {
     },
   );
 
+  for (final width in [320.0, 840.0]) {
+    testWidgets(
+      'sent resource references stay visible at ${width.toInt()} and 2x text',
+      (tester) async {
+        final controller = AgentChatPanelController();
+        addTearDown(controller.dispose);
+        const message = HarnessCustomMessage(
+          customType: 'agentResourcePrompt',
+          display: true,
+          blockContent: [
+            UserTextContent('<agent-resource-references />'),
+            UserTextContent('Use these resources'),
+          ],
+          details: {
+            'visibleContentOffset': 1,
+            'references': [
+              {
+                'version': 1,
+                'kind': 'generatedImage',
+                'source': 'generation_history',
+                'resourceId': 'image-1',
+                'display': {'name': 'Current canvas'},
+                'provenance': <String, String>{},
+              },
+              {
+                'version': 1,
+                'kind': 'tagLibraryEntry',
+                'source': 'tag_library',
+                'resourceId': 'tag-1',
+                'display': {'name': 'Group OC'},
+                'provenance': <String, String>{},
+              },
+            ],
+          },
+          timestamp: 123,
+        );
+
+        await _pumpMessages(
+          tester,
+          width: width,
+          controller: controller,
+          state: const AgentChatState(
+            initialized: true,
+            routeReady: true,
+            messages: [message],
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('Use these resources'), findsOneWidget);
+        expect(find.text('Current canvas'), findsOneWidget);
+        expect(find.text('Group OC'), findsOneWidget);
+        final firstCard = find.byKey(
+          const ValueKey('agent-user-message-resource-0-0'),
+        );
+        final secondCard = find.byKey(
+          const ValueKey('agent-user-message-resource-0-1'),
+        );
+        expect(firstCard, findsOneWidget);
+        expect(secondCard, findsOneWidget);
+        if (width >= 840) {
+          expect(
+            tester.getTopLeft(firstCard).dy,
+            tester.getTopLeft(secondCard).dy,
+          );
+        }
+        expect(find.textContaining('agent-resource-references'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('streaming response exposes a live responding status', (
     tester,
   ) async {
@@ -269,8 +342,8 @@ final _commands = AgentChatPanelCommands(
   cancelUserMessageEdit: () {},
   copyAssistantMessage: (_) async {},
   editQueuedMessage: (_) async {},
-  removeQueuedMessage: (_) {},
-  clearQueuedMessages: () {},
+  removeQueuedMessage: (_) async {},
+  clearQueuedMessages: () async {},
   addPendingResource: (_) async {},
   removePendingResource: (_) async {},
 );

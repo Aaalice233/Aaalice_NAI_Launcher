@@ -9,6 +9,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$env:PUB_HOSTED_URL = 'https://pub.dev'
+$env:FLUTTER_STORAGE_BASE_URL = $null
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $flutterCommand = Get-Command flutter -ErrorAction Stop

@@ -144,13 +144,22 @@ class FocusedInpaintRequest {
       blend: img.BlendMode.direct,
     );
 
-    final display = img.Image.from(_originalSource, noAnimation: true);
-    img.compositeImage(
-      display,
-      cropPatch,
+    final cropGenerated = PicaLanczosResizer.resizeImage(
+      requestGenerated,
+      width: crop.width,
+      height: crop.height,
+    );
+    final cropCompositeMask = PicaLanczosResizer.resizeImage(
+      compositeMask,
+      width: crop.width,
+      height: crop.height,
+    );
+    final display = InpaintMaskUtils.compositeMaskedReplacement(
+      source: _originalSource,
+      generated: cropGenerated,
+      compositeMask: cropCompositeMask,
       dstX: crop.x,
       dstY: crop.y,
-      blend: img.BlendMode.alpha,
     );
     return ImageGenerationArtifact(
       displayImageBytes: Uint8List.fromList(img.encodePng(display, level: 1)),

@@ -142,6 +142,7 @@
   "auth_thirdPartyNicknameHint": "例: 自己ホスト型サイト / ミラー サイト",
   "auth_thirdPartyTokenHint": "サードパーティ サイトから API トークンを入力してください",
   "auth_thirdPartyCompatibilityHint": "サードパーティ サイトは、NovelAI サブスクリプション API およびイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。",
+  "auth_thirdPartyStreamingHint": "サードパーティサイトがストリーミング生成に対応していない場合は、［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから生成してください。",
   "auth_thirdPartyApiSiteRequired": "サードパーティ API サイトの URL を入力してください",
   "auth_validateAndLogin": "検証してログイン",
   "auth_tokenGuide": "NovelAI 設定からトークンを取得します",
@@ -316,6 +317,8 @@
   "generation_emptyPromptHint": "プロンプトを入力し、「生成」をクリックします",
   "generation_imageWillShowHere": "ここに画像が表示されます",
   "generation_generationFailed": "生成に失敗しました",
+  "generation_streamingUnsupported": "このサイトはストリーミング生成に対応していません",
+  "generation_streamingUnsupportedHint": "［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから、もう一度お試しください。",
   "generation_progress": "生成中...{progress}%",
   "@generation_progress": {
     "placeholders": {
@@ -346,7 +349,6 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "ウェブアクセスを有効にする",
   "agentChat_disableWebAccess": "ウェブアクセスを無効にする",
-  "agentChat_webAccess": "ウェブアクセス",
   "agentChat_unsupportedImageFormat": "サポートされていない画像形式です: {fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -1993,18 +1995,6 @@
   "nav_generate": "生成",
   "nav_gallery": "ライブラリ",
   "nav_settings": "設定",
-  "download_completed": "{name} ダウンロードが完了しました",
-  "@download_completed": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "download_failed": "{name} ダウンロードに失敗しました",
-  "@download_failed": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "sync_preparing": "同期の準備中...",
   "sync_fetching": "{category} を取得しています...",
   "@sync_fetching": {
@@ -4508,14 +4498,6 @@
   "vibe_import_fileParseFailed": "ファイルの解析に失敗しました",
   "vibe_import_fileSelectionFailed": "ファイルの選択に失敗しました",
   "vibe_import_importFailed": "インポートに失敗しました",
-  "vibe_import_failedWithError": "インポートに失敗しました: {error}",
-  "@vibe_import_failedWithError": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "vibe_import_bundleTitle": "Vibe バンドルをインポート",
   "vibe_import_bundleChooseMethod": "インポート方法を選択してください",
   "vibe_import_bundleAsWhole": "全体としてインポート",
@@ -4597,7 +4579,6 @@
   },
   "vibe_saveToLibrary_tagHint": "タグを入力して、[追加] を押します",
   "vibe_maxReached": "最大 16 件の Vibe に達しました",
-  "vibe_maxReachedRemoveSome": "最大 16 件の Vibe に達しました。まずいくつかの Vibe を削除してください。",
   "vibe_addedNamed": "Vibe を追加しました: {name}",
   "@vibe_addedNamed": {
     "placeholders": {
@@ -4676,7 +4657,6 @@
   "settings_restartRequiredTitle": "再起動が必要です",
   "settings_changePathConfirm": "データ ストレージ パスを変更した後、反映するにはアプリの再起動が必要です。\\n\\n新しいパスは次回起動時に有効になります。続行しますか？",
   "settings_resetPathConfirm": "データ ストレージ パスをリセットした後、反映するにはアプリの再起動が必要です。\\n\\nデフォルトのパスは次回起動時に有効になります。続行しますか？",
-  "settings_kritaBridgeTitle": "Krita Bridge",
   "settings_kritaBridgeEnable": "Krita ローカル ブリッジを有効にする",
   "settings_kritaBridgeDisabledText": "デフォルトではオフ。有効にするとローカル 127.0.0.1 でのみリッスンします",
   "settings_kritaBridgeStartingText": "ローカル ブリッジ サービスを開始しています...",

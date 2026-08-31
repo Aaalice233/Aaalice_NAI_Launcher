@@ -833,6 +833,12 @@ abstract class AppLocalizations {
   /// **'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.'**
   String get auth_thirdPartyCompatibilityHint;
 
+  /// No description provided for @auth_thirdPartyStreamingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.'**
+  String get auth_thirdPartyStreamingHint;
+
   /// No description provided for @auth_thirdPartyApiSiteRequired.
   ///
   /// In en, this message translates to:
@@ -1655,6 +1661,18 @@ abstract class AppLocalizations {
   /// **'Generation failed'**
   String get generation_generationFailed;
 
+  /// No description provided for @generation_streamingUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This site does not support streaming generation'**
+  String get generation_streamingUnsupported;
+
+  /// No description provided for @generation_streamingUnsupportedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Settings > Generation > Image Output, turn off Streaming preview, and try again.'**
+  String get generation_streamingUnsupportedHint;
+
   /// No description provided for @generation_progress.
   ///
   /// In en, this message translates to:
@@ -1798,12 +1816,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Disable web access'**
   String get agentChat_disableWebAccess;
-
-  /// No description provided for @agentChat_webAccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Web access'**
-  String get agentChat_webAccess;
 
   /// No description provided for @agentChat_unsupportedImageFormat.
   ///
@@ -8340,18 +8352,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get nav_settings;
-
-  /// No description provided for @download_completed.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} download completed'**
-  String download_completed(Object name);
-
-  /// No description provided for @download_failed.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} download failed'**
-  String download_failed(Object name);
 
   /// No description provided for @sync_preparing.
   ///
@@ -16408,12 +16408,6 @@ abstract class AppLocalizations {
   /// **'Import failed'**
   String get vibe_import_importFailed;
 
-  /// No description provided for @vibe_import_failedWithError.
-  ///
-  /// In en, this message translates to:
-  /// **'Import failed: {error}'**
-  String vibe_import_failedWithError(String error);
-
   /// No description provided for @vibe_import_bundleTitle.
   ///
   /// In en, this message translates to:
@@ -16569,12 +16563,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Maximum 16 vibes reached'**
   String get vibe_maxReached;
-
-  /// No description provided for @vibe_maxReachedRemoveSome.
-  ///
-  /// In en, this message translates to:
-  /// **'Maximum 16 vibes reached. Remove some vibes first.'**
-  String get vibe_maxReachedRemoveSome;
 
   /// No description provided for @vibe_addedNamed.
   ///
@@ -16875,12 +16863,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?'**
   String get settings_resetPathConfirm;
-
-  /// No description provided for @settings_kritaBridgeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Krita Bridge'**
-  String get settings_kritaBridgeTitle;
 
   /// No description provided for @settings_kritaBridgeEnable.
   ///

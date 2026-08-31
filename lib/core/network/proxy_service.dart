@@ -18,15 +18,11 @@ class ProxyTestResult {
     this.latencyMs,
   });
 
-  factory ProxyTestResult.success(int latencyMs) => ProxyTestResult(
-        success: true,
-        latencyMs: latencyMs,
-      );
+  factory ProxyTestResult.success(int latencyMs) =>
+      ProxyTestResult(success: true, latencyMs: latencyMs);
 
-  factory ProxyTestResult.failure(String error) => ProxyTestResult(
-        success: false,
-        errorMessage: error,
-      );
+  factory ProxyTestResult.failure(String error) =>
+      ProxyTestResult(success: false, errorMessage: error);
 }
 
 /// 跨平台代理服务
@@ -82,16 +78,18 @@ class ProxyService {
       final output = result.stdout as String;
 
       // 检查是否启用了 HTTP 代理
-      final httpEnableMatch =
-          RegExp(r'HTTPEnable\s*:\s*(\d)').firstMatch(output);
+      final httpEnableMatch = RegExp(
+        r'HTTPEnable\s*:\s*(\d)',
+      ).firstMatch(output);
       if (httpEnableMatch == null || httpEnableMatch.group(1) != '1') {
         AppLogger.d('macOS HTTP proxy not enabled', 'PROXY');
         return null;
       }
 
       // 提取代理主机和端口
-      final httpProxyMatch =
-          RegExp(r'HTTPProxy\s*:\s*(\S+)').firstMatch(output);
+      final httpProxyMatch = RegExp(
+        r'HTTPProxy\s*:\s*(\S+)',
+      ).firstMatch(output);
       final httpPortMatch = RegExp(r'HTTPPort\s*:\s*(\d+)').firstMatch(output);
 
       if (httpProxyMatch != null && httpPortMatch != null) {
@@ -111,7 +109,8 @@ class ProxyService {
   /// Linux: 通过环境变量读取代理
   static String? _getLinuxProxy() {
     // 尝试多个常见的环境变量
-    final proxyUrl = Platform.environment['http_proxy'] ??
+    final proxyUrl =
+        Platform.environment['http_proxy'] ??
         Platform.environment['HTTP_PROXY'] ??
         Platform.environment['https_proxy'] ??
         Platform.environment['HTTPS_PROXY'];
@@ -183,14 +182,6 @@ class ProxyService {
     };
   }
 
-  /// 获取代理字符串（用于 HttpClient.findProxy）
-  static String getProxyString(String? proxyAddress) {
-    if (proxyAddress == null || proxyAddress.isEmpty) {
-      return 'DIRECT';
-    }
-    return 'PROXY $proxyAddress';
-  }
-
   /// 测试代理连接
   static Future<ProxyTestResult> testProxyConnection(
     String proxyAddress,
@@ -212,10 +203,7 @@ class ProxyService {
             return ProxyTestResult.success(stopwatch.elapsedMilliseconds);
           }
         } catch (e) {
-          AppLogger.d(
-            'Proxy test URL failed ($url): $e',
-            'ProxyService',
-          );
+          AppLogger.d('Proxy test URL failed ($url): $e', 'ProxyService');
         }
       }
       return ProxyTestResult.failure('无法连接到测试服务器');

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../agent_types.dart';
+import '../../harness_messages.dart';
 
 /// Codec for message payloads nested in session entries and records.
 abstract final class SessionJsonlCodec {
@@ -99,6 +100,21 @@ abstract final class SessionJsonlCodec {
         'timestamp': message.timestamp,
       };
     }
+    if (message is HarnessCustomMessage) {
+      final details = _jsonCompatibleValue(message.details);
+      return {
+        'role': 'custom',
+        'customType': message.customType,
+        'display': message.display,
+        if (message.textContent case final text?) 'textContent': text,
+        if (message.blockContent case final blocks?)
+          'contentBlocks': [
+            for (final block in blocks) _encodeUserContent(block),
+          ],
+        if (details != null) 'details': details,
+        'timestamp': message.timestamp,
+      };
+    }
     return {'role': message.role, 'timestamp': message.timestamp};
   }
 
@@ -154,9 +170,60 @@ abstract final class SessionJsonlCodec {
           isError: value['isError'] as bool? ?? false,
           timestamp: timestamp,
         );
+      case 'custom':
+        final customType = value['customType'];
+        if (customType is! String || customType.isEmpty) return null;
+        return HarnessCustomMessage(
+          customType: customType,
+          display: value['display'] as bool? ?? false,
+          textContent: value['textContent'] as String?,
+          blockContent: _decodeUserContent(value['contentBlocks']),
+          details: value['details'],
+          timestamp: timestamp,
+        );
       default:
         return null;
     }
+  }
+
+  static Map<String, dynamic> _encodeUserContent(UserContent block) =>
+      switch (block) {
+        UserTextContent() => {'type': 'text', 'text': block.text},
+        UserImageContent() => {
+          'type': 'image',
+          if (block.image.source.url case final url?) 'url': url,
+          if (block.image.source.mimeType case final mimeType?)
+            'mimeType': mimeType,
+          if (block.image.source.base64Data case final base64?)
+            'base64': base64,
+        },
+      };
+
+  static List<UserContent>? _decodeUserContent(Object? value) {
+    if (value is! List) return null;
+    return [
+      for (final block in value)
+        if (block is Map<String, dynamic>)
+          switch (block['type']) {
+            'text' => UserTextContent(block['text'] as String? ?? ''),
+            'image' when block['url'] is String => UserImageContent(
+              ImageContent(
+                source: ImageSource.url(url: block['url'] as String),
+              ),
+            ),
+            'image'
+                when block['mimeType'] is String && block['base64'] is String =>
+              UserImageContent(
+                ImageContent(
+                  source: ImageSource.base64(
+                    mimeType: block['mimeType'] as String,
+                    base64Data: block['base64'] as String,
+                  ),
+                ),
+              ),
+            _ => null,
+          },
+    ].whereType<UserContent>().toList(growable: false);
   }
 
   static List<AssistantContent> _decodeAssistantContent(

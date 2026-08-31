@@ -416,6 +416,9 @@ class _AgentChatWorkTrailState extends State<AgentChatWorkTrail> {
     final title = widget.running
         ? _workingLabel(context, duration)
         : _workedLabel(context, duration);
+    final workSurface = widget.running
+        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.48)
+        : theme.colorScheme.secondaryContainer.withValues(alpha: 0.48);
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyT, control: true):
@@ -428,8 +431,8 @@ class _AgentChatWorkTrailState extends State<AgentChatWorkTrail> {
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: failed
-                ? theme.colorScheme.errorContainer.withValues(alpha: 0.14)
-                : theme.colorScheme.surfaceContainerLow,
+                ? theme.colorScheme.errorContainer.withValues(alpha: 0.2)
+                : workSurface,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Column(

@@ -13,7 +13,7 @@ import '../../data/services/image_metadata_service.dart';
 import '../providers/fixed_tags_provider.dart';
 import '../providers/image_generation_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
-import '../router/app_router.dart';
+import '../router/app_routes.dart';
 import '../utils/fixed_tag_metadata_matcher.dart';
 import '../utils/krita_send_helper.dart';
 import '../utils/local_gallery_reference_factory.dart';

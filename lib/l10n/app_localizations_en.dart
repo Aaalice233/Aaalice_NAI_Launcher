@@ -402,6 +402,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.';
 
   @override
+  String get auth_thirdPartyStreamingHint =>
+      'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.';
+
+  @override
   String get auth_thirdPartyApiSiteRequired => 'Enter third-party API site URL';
 
   @override
@@ -843,6 +847,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_generationFailed => 'Generation failed';
 
   @override
+  String get generation_streamingUnsupported =>
+      'This site does not support streaming generation';
+
+  @override
+  String get generation_streamingUnsupportedHint =>
+      'Go to Settings > Generation > Image Output, turn off Streaming preview, and try again.';
+
+  @override
   String generation_progress(Object progress) {
     return 'Generating... $progress%';
   }
@@ -917,9 +929,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_disableWebAccess => 'Disable web access';
-
-  @override
-  String get agentChat_webAccess => 'Web access';
 
   @override
   String agentChat_unsupportedImageFormat(Object fileName) {
@@ -4652,16 +4661,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nav_settings => 'Settings';
-
-  @override
-  String download_completed(Object name) {
-    return '$name download completed';
-  }
-
-  @override
-  String download_failed(Object name) {
-    return '$name download failed';
-  }
 
   @override
   String get sync_preparing => 'Preparing to sync...';
@@ -9310,11 +9309,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_import_importFailed => 'Import failed';
 
   @override
-  String vibe_import_failedWithError(String error) {
-    return 'Import failed: $error';
-  }
-
-  @override
   String get vibe_import_bundleTitle => 'Import Vibe Bundle';
 
   @override
@@ -9410,10 +9404,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibe_maxReached => 'Maximum 16 vibes reached';
-
-  @override
-  String get vibe_maxReachedRemoveSome =>
-      'Maximum 16 vibes reached. Remove some vibes first.';
 
   @override
   String vibe_addedNamed(String name) {
@@ -9575,9 +9565,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_resetPathConfirm =>
       'After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?';
-
-  @override
-  String get settings_kritaBridgeTitle => 'Krita Bridge';
 
   @override
   String get settings_kritaBridgeEnable => 'Enable Krita local bridge';

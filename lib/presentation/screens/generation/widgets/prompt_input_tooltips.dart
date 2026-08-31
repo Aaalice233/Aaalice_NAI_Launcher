@@ -4,7 +4,6 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
-import '../../../../data/models/prompt/prompt_preset_mode.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../widgets/common/app_toast.dart';
 import 'prompt_tooltip_components.dart';
@@ -16,7 +15,6 @@ class PositivePromptTooltip extends StatelessWidget {
     required this.userPrompt,
     required this.prefixes,
     required this.suffixes,
-    required this.qualityMode,
     required this.qualityContent,
     required this.characters,
     required this.globalAiChoice,
@@ -29,7 +27,6 @@ class PositivePromptTooltip extends StatelessWidget {
   final String userPrompt;
   final List<FixedTagEntry> prefixes;
   final List<FixedTagEntry> suffixes;
-  final PromptPresetMode qualityMode;
   final String? qualityContent;
   final List<CharacterPrompt> characters;
   final bool globalAiChoice;
@@ -159,9 +156,6 @@ class PositivePromptTooltip extends StatelessWidget {
           .where((value) => value.isNotEmpty)
           .map(_resolve),
     ];
-    // Reading the mode here keeps the view data complete for callers even when
-    // the effective quality content is empty for the selected mode.
-    qualityMode;
     return parts.join(', ');
   }
 }

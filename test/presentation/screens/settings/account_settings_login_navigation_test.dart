@@ -8,7 +8,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
-import 'package:nai_launcher/presentation/router/app_router.dart';
+import 'package:nai_launcher/presentation/router/app_routes.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/account_settings_section.dart';
 import 'package:nai_launcher/presentation/widgets/settings/account_profile_sheet.dart';
 
@@ -68,15 +68,13 @@ void main() {
       routes: [
         GoRoute(
           path: '/settings-test',
-          builder: (context, state) => const Scaffold(
-            body: AccountSettingsSection(),
-          ),
+          builder: (context, state) =>
+              const Scaffold(body: AccountSettingsSection()),
         ),
         GoRoute(
           path: AppRoutes.login,
-          builder: (context, state) => const Scaffold(
-            body: Text('LOGIN_ROUTE_OPENED'),
-          ),
+          builder: (context, state) =>
+              const Scaffold(body: Text('LOGIN_ROUTE_OPENED')),
         ),
       ],
     );
@@ -106,10 +104,10 @@ void main() {
     expect(find.text('LOGIN_ROUTE_OPENED'), findsOneWidget);
   });
 
-  testWidgets('authenticated account settings exposes direct logout', (
+  testWidgets('account profile sheet keeps logout visible in its footer', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(480, 800));
+    await tester.binding.setSurfaceSize(const Size(900, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     late _AuthenticatedAuthNotifier authNotifier;
@@ -137,51 +135,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const Key('account-settings-logout-button')),
-      findsOneWidget,
-    );
-    await tester.tap(find.byKey(const Key('account-settings-logout-button')));
-    await tester.pumpAndSettle();
-
-    expect(authNotifier.logoutCalled, isTrue);
-    expect(find.text('去登录'), findsOneWidget);
-  });
-
-  testWidgets('account profile sheet keeps logout visible in its footer', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(900, 700));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
-          accountManagerNotifierProvider.overrideWith(
-            _SavedAccountManagerNotifier.new,
-          ),
-          subscriptionNotifierProvider.overrideWith(
-            _InitialSubscriptionNotifier.new,
-          ),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: AccountSettingsSection()),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
     await tester.tap(find.text('Alice'));
     await tester.pumpAndSettle();
 
     expect(find.byType(AccountProfileBottomSheet), findsOneWidget);
-    expect(
-      find.byKey(const Key('account-profile-logout-button')),
-      findsOneWidget,
-    );
+    final logoutButton = find.byKey(const Key('account-profile-logout-button'));
+    expect(logoutButton, findsOneWidget);
+
+    await tester.tap(logoutButton);
+    await tester.pumpAndSettle();
+
+    expect(authNotifier.logoutCalled, isTrue);
+    expect(find.text('去登录'), findsOneWidget);
   });
 }

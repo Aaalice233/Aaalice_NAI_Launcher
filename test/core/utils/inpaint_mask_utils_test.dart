@@ -564,6 +564,39 @@ void main() {
     );
 
     test(
+      'composeGeneratedImageArtifact replaces masked alpha with transparent result',
+      () {
+        final source = img.Image(width: 4, height: 4);
+        img.fill(source, color: img.ColorRgb8(10, 20, 30));
+        final generated = img.Image(width: 4, height: 4, numChannels: 4);
+        img.fill(generated, color: img.ColorRgba8(200, 210, 220, 0));
+        final mask = img.Image(width: 4, height: 4, numChannels: 4);
+        img.fill(mask, color: img.ColorRgba8(0, 0, 0, 0));
+        mask.setPixelRgba(1, 1, 255, 255, 255, 255);
+        mask.setPixelRgba(2, 1, 128, 128, 128, 128);
+
+        final result = InpaintMaskUtils.composeGeneratedImageArtifact(
+          normalizedSourceImage: Uint8List.fromList(img.encodePng(source)),
+          compositeMaskImage: Uint8List.fromList(img.encodePng(mask)),
+          generatedImage: Uint8List.fromList(img.encodePng(generated)),
+        );
+        final display = img.decodeImage(result.displayImageBytes)!;
+
+        expect(display.numChannels, equals(4));
+        expect(display.getPixel(1, 1).a.toInt(), equals(0));
+        final softPixel = display.getPixel(2, 1);
+        expect(softPixel.a.toInt(), inInclusiveRange(126, 128));
+        expect(softPixel.r.toInt(), equals(10));
+        expect(softPixel.g.toInt(), equals(20));
+        expect(softPixel.b.toInt(), equals(30));
+        expect(display.getPixel(0, 0).a.toInt(), equals(255));
+        expect(display.getPixel(0, 0).r.toInt(), equals(10));
+        expect(display.getPixel(0, 0).g.toInt(), equals(20));
+        expect(display.getPixel(0, 0).b.toInt(), equals(30));
+      },
+    );
+
+    test(
       'extractGeneratedPatch should make pixels outside mask transparent',
       () {
         final generated = img.Image(width: 4, height: 4);

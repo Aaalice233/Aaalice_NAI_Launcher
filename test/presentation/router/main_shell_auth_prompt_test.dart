@@ -12,7 +12,7 @@ import 'package:nai_launcher/presentation/providers/account_manager_provider.dar
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/mobile_shell_overlay_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
-import 'package:nai_launcher/presentation/router/app_router.dart';
+import 'package:nai_launcher/presentation/router/app_shell.dart';
 import 'package:nai_launcher/presentation/router/shell_panels_overlay.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 

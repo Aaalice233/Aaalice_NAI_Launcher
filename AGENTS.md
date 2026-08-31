@@ -32,12 +32,13 @@ Aaalice_NAI_Launcher/
 
 项目使用 Flutter `>=3.35.0`、Dart `>=3.10.7`，当前 CI 固定 Flutter `3.44.2`。拉取仓库后必须安装 Git LFS，并获取唯一内置数据库 `assets/databases/tag_catalog.db`。Windows 构建还需要 Visual Studio 2022 的 Desktop development with C++、已加入 `PATH` 的 NuGet CLI；macOS 构建需要完整 Xcode 与 CocoaPods；Android 构建需要 JDK 17 和 Android SDK，最低运行版本为 Android 7.0（API 24）。
 
-`pubspec.lock` 中的 hosted package URL 必须保持为 `https://pub.dev`，与 GitHub CI 一致；本地可使用 `PUB_HOSTED_URL` 镜像下载，但不得提交镜像 URL 对 lockfile 的机械改写。
+`pubspec.lock` 中的 hosted package URL 必须保持为 `https://pub.dev`。禁止在用户级或系统级设置 `PUB_HOSTED_URL` 或 `FLUTTER_STORAGE_BASE_URL` 镜像，因为 `flutter pub get` 会据此重写 lockfile 或从非官方地址下载 SDK 资源。项目开发脚本与 GitHub Actions 固定使用官方源，提交、构建和发布前运行 `scripts/verify_flutter_sources.ps1`；发现镜像环境变量或非官方 lockfile URL 时必须失败，不得提交或发布。
 
 ```powershell
 git lfs install
 git lfs pull --include="assets/databases/tag_catalog.db"
-flutter pub get
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_flutter_sources.ps1
+flutter pub get --enforce-lockfile
 dart run build_runner build --delete-conflicting-outputs
 flutter run -d windows
 flutter run -d <android-device-id>
@@ -60,6 +61,8 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 项目热重载与按需运行验收由 `.pi/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责通过 Orca 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 终端；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，随后按 Orca cursor 增量读取两端日志；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。Agent 不得另开第二个 `flutter run` 或 `flutter attach`，仓库 `scripts/` 下不再保留项目热重载入口。
 
+`build_runner` 不是常规测试或纯 Dart/UI 改动的默认验证步骤。只有改动了 Riverpod/Freezed/JSON/Drift 等生成输入，或开发 Runner 预检明确报告生成文件缺失/过期时才运行；针对性测试直接运行相关测试文件，不得为此先扫描全仓库生成代码。用户要求立即启动热重载时先执行会话状态检查和 Runner 预检，不得先跑测试或生成器；若预检阻塞且必须全量生成，应明确说明这是一次性环境准备及预计耗时，让命令完整结束后立即继续启动，不得称其为“最小验证”或反复中断重跑。生成命令中断后必须检查并恢复被删除但未重新生成的已有输出。
+
 为本项目创建 Orca worktree 会话时，用户未明确指定 Agent 则默认使用 `pi`；仅在用户明确要求时改用其他 Agent。
 
 普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。共享代码默认作用于 `All`，平台实现只作用于对应端。
@@ -69,12 +72,17 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 - 主 Runner 必须在 `WM_SIZE` 和 `WM_WINDOWPOSCHANGED` 后排队重新对齐 Flutter child view；不得只依赖 `WM_SIZE`。否则外层主 HWND 恢复后，内部 `FLUTTERVIEW` 可能仍停在 Windows 最小化哨兵坐标 `-32000,-32000`，表现为旧画面冻结、按钮 hover 不消失、点击无响应或出现调整尺寸光标。
 - 调试“窗口可见但无法操作”时必须分别检查顶层 `FLUTTER_RUNNER_WIN32_WINDOW` 与其 `FLUTTERVIEW` 子窗口的 rect、enabled、capture 和 hit-test；不能只根据 Flutter 日志或外层 HWND 状态判断。
 - 修改插件版本或 Windows C++ 后必须完整重建。Orca 会话显示 `running` 或留有 PID 不等于构建成功；应确认控制台出现原生构建成功/启动标记、真实 `nai_launcher` 进程存在，依赖变化时再核对插件 DLL 时间戳，然后才让用户复现。
+- Windows 最小化会让窗口 constraints 短暂归零，响应式布局可能因此销毁并重建面板子树；滚动位置、是否跟随最新内容等必须跨 Widget/Controller 生命周期的 viewport 状态应由更高层稳定 owner 按会话保存。重建 ScrollController 时必须用保存值设置 `initialScrollOffset`，在首帧直接呈现原位置；不得先渲染默认位置再通过 post-frame `jumpTo` 恢复，否则会出现跳到底部后拉回的闪烁。
 
 用户明确要求自动化运行验收时，两个 runner 通过 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 启用仅限开发会话的 Flutter Driver extension，供官方 Dart and Flutter MCP server 在不抢占用户键鼠和桌面焦点的情况下截图、点击、输入、滚动与检查运行中 Flutter UI。禁止使用 Computer Use。稳定场景应固化为 `integration_test`；Android 系统界面场景使用 ADB。Android 项目 emulator 首次使用无 Quick Boot 快照、host GPU、无设备外框的干净启动，之后默认保留并复用暖机实例；复用前停止旧 App 并返回 Home，显式传 `-StopEmulatorOnExit` 时才跟随会话关闭。`-DeviceId` 仅用于明确复用外部设备。
 
 ## 代码风格与命名约定
 
 遵循 `analysis_options.yaml` 和 Dart 默认格式化规则，使用两个空格缩进。变量和方法使用 `lowerCamelCase`，类型使用 `UpperCamelCase`。Riverpod provider 命名应以 `Provider` 或 `NotifierProvider` 结尾。新增功能优先复用现有 service、provider、widget 和 utility，保持 `core`、`data`、`presentation` 的职责边界清晰。
+
+### Pi Harness 上游对齐
+
+`lib/core/agent/harness/` 及其持久会话协议以 Pi 官方实现为唯一事实来源。排查 Harness 问题时必须先查看本机已安装的 `@earendil-works/pi-agent-core` 源码及 `https://github.com/earendil-works/pi` 对应实现，并以官方行为为准定位和修复；修改 Harness 的类型、记录格式、状态归约、恢复/续跑、队列、回放、错误语义或存储约束时，能够移植的直接等价移植，并同步相关 conformance/regression tests，不得自行发明替代协议、额外 outcome 或自动修复语义。Launcher 特有的 UI 和业务适配放在 Harness 边界之外；若 Pi 尚未实现某项能力，应明确保留边界，不在 Harness 内创建第二套事实来源。
 
 ### Dart / Flutter 代码组织约定
 
@@ -87,9 +95,13 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 > 文件长不代表产出多；越长，越没人敢改。拆分的目标是让职责清楚、修改安全，而不是机械追求行数。
 
+### 云同步兼容性
+
+新增持久化功能或设置时必须评估云同步：判断其数据是否应同步；若现有同步数据类型过于笼统、无法让用户独立控制，应细化或新增同步列表选项，并确定合理默认状态。同步方案还需验证跨版本、跨设备兼容，评估数据量及增长趋势，避免缓存、日志、索引、生成产物等使同步体积急剧膨胀；凭据和设备专属状态必须排除。
+
 ## UI 设计语言
 
-新增或修改界面必须遵循仓库根目录的 [`design.md`](design.md)。项目采用 Quiet Layered Utility（静谧层叠工具界面）：内容优先、无边框优先、细边框兜底，主要通过排版、留白和低对比色面建立层级。普通卡片、工具按钮、导航项与已填充控件不得默认添加完整描边；主题个性不得破坏统一的信息层级、交互状态、密度、响应式和可访问性规则。
+新增或修改界面必须遵循仓库根目录的 [`DESIGN.md`](DESIGN.md)。项目采用 Quiet Layered Utility（静谧层叠工具界面）：内容优先、无边框优先、细边框兜底，主要通过排版、留白和低对比色面建立层级。普通卡片、工具按钮、导航项与已填充控件不得默认添加完整描边；主题个性不得破坏统一的信息层级、交互状态、密度、响应式和可访问性规则。
 
 所有共享 UI 从设计阶段起必须同时覆盖 Windows/macOS 桌面端和 Android 手机、横屏、平板/大屏，不能先完成桌面版再以缩放、裁切或静默删减功能得到移动版。业务能力、字段语义、状态和操作结果保持跨端一致；导航容器、面板呈现和输入方式可按 constraints 与设备能力自适应。桌面端保留鼠标、触控板、键盘、hover、快捷键和上下文操作效率；移动端提供不依赖 hover/右键/外接键盘的触屏等价入口，并正确处理 `SafeArea`、系统返回、横竖屏、软键盘和系统手势区。共享业务组件、Provider、路由状态和操作命令必须复用，平台差异集中在导航壳层、capabilities/service 与 conditional import，不在页面散落 `Platform.isAndroid` 或复制业务流程。
 
@@ -147,7 +159,15 @@ CI 与 Release checkout 不直接消耗 GitHub LFS 流量；`scripts/prepare_bun
 
 更新日志的差异审查、归类、撰写和完整性复核必须由当前主 Agent 亲自完成，禁止启动或委派任何子代理；这属于发布流程中的单一职责任务，不得为了并行分析而拆分。
 
-Changelog 条目应面向用户描述结果，不要只写内部实现名。常用分类为 `### ✨ 新增`、`### 🛠 改进`、`### 🐛 修复`，必要时才增加 `### ⚠️ 注意`。同一新功能开发期间的内部修复应合并描述最终结果，不要暴露用户从未使用过的中间损坏状态。不要在 `CHANGELOG.md` 中写发布文件列表；安装版、便携版、macOS 包说明由 `scripts/generate_release_metadata.ps1` 自动生成，避免 Release notes 重复。
+Changelog 条目遵守以下格式：
+
+- 每个 bullet 只描述一个功能主题或一个用户问题。
+- 同一功能的适用入口、交互方式和结果合并描述，不按操作细节机械拆分。
+- 不同功能或不同问题必须拆成多条，禁止为了减少行数强行塞进同一条。
+- 条目面向用户描述最终结果，不写类名、接口名或内部实现过程。
+- 同一新功能开发期间的内部修复合并到最终结果，不暴露用户从未使用过的中间状态。
+- 常用分类为 `### ✨ 新增`、`### 🛠 改进`、`### 🐛 修复`，只有确有必要时才增加 `### ⚠️ 注意`。
+- `CHANGELOG.md` 不写发布文件列表；安装包说明由 `scripts/generate_release_metadata.ps1` 自动生成。
 
 准备发布时需要检查：
 

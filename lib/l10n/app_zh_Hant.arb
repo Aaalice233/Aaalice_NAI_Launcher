@@ -145,6 +145,7 @@
   "auth_thirdPartyNicknameHint": "例如：自建站點 / 映象站點",
   "auth_thirdPartyTokenHint": "請輸入第三方站點提供的 API Token",
   "auth_thirdPartyCompatibilityHint": "第三方站點需相容 NovelAI 的 /user/subscription 與影象生成相關 API；Token 將按 Bearer 方式傳送。",
+  "auth_thirdPartyStreamingHint": "若第三方站點不支援串流生成，請前往「設定 > 生成 > 影象輸出」，關閉「串流預覽」後再生成。",
   "auth_thirdPartyApiSiteRequired": "請輸入第三方 API 站點地址",
   "auth_validateAndLogin": "驗證並登入",
   "auth_tokenGuide": "從 NovelAI 賬戶設定獲取 Token",
@@ -309,6 +310,8 @@
   "generation_emptyPromptHint": "輸入提示詞並點選生成",
   "generation_imageWillShowHere": "影象將在這裡顯示",
   "generation_generationFailed": "生成失敗",
+  "generation_streamingUnsupported": "站點不支援串流生成",
+  "generation_streamingUnsupportedHint": "請前往「設定 > 生成 > 影象輸出」，關閉「串流預覽」後重試。",
   "generation_progress": "生成中... {progress}%",
   "generation_params": "引數",
   "generation_paramsSettings": "生成引數",
@@ -334,7 +337,6 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "開啟聯網",
   "agentChat_disableWebAccess": "關閉聯網",
-  "agentChat_webAccess": "聯網存取",
   "agentChat_unsupportedImageFormat": "不支援的圖片格式：{fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -2058,18 +2060,6 @@
   "nav_generate": "生成",
   "nav_gallery": "圖庫",
   "nav_settings": "設定",
-  "download_completed": "{name}下載完成",
-  "@download_completed": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "download_failed": "{name}下載失敗",
-  "@download_failed": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "sync_preparing": "準備同步...",
   "sync_fetching": "正在獲取 {category}...",
   "@sync_fetching": {
@@ -4368,14 +4358,6 @@
   "vibe_import_fileParseFailed": "解析檔案失敗",
   "vibe_import_fileSelectionFailed": "檔案選擇失敗",
   "vibe_import_importFailed": "匯入失敗",
-  "vibe_import_failedWithError": "匯入失敗: {error}",
-  "@vibe_import_failedWithError": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "vibe_import_bundleTitle": "匯入 Vibe Bundle",
   "vibe_import_bundleChooseMethod": "選擇匯入方式",
   "vibe_import_bundleAsWhole": "作為整體匯入",
@@ -4457,7 +4439,6 @@
   },
   "vibe_saveToLibrary_tagHint": "輸入標籤後點選新增",
   "vibe_maxReached": "已達到最大數量 (16張)",
-  "vibe_maxReachedRemoveSome": "已達到最大數量 (16張)，請先移除一些 Vibe",
   "vibe_addedNamed": "已新增 Vibe: {name}",
   "@vibe_addedNamed": {
     "placeholders": {
@@ -4536,7 +4517,6 @@
   "settings_restartRequiredTitle": "需要重啟應用",
   "settings_changePathConfirm": "更改資料儲存路徑後，需要重啟應用才能生效。\\n\\n新路徑將在下次啟動時生效。是否繼續？",
   "settings_resetPathConfirm": "重置資料儲存路徑後，需要重啟應用才能生效。\\n\\n預設路徑將在下次啟動時生效。是否繼續？",
-  "settings_kritaBridgeTitle": "Krita Bridge",
   "settings_kritaBridgeEnable": "啟用 Krita 本地橋接",
   "settings_kritaBridgeDisabledText": "預設關閉；開啟後只監聽本機 127.0.0.1",
   "settings_kritaBridgeStartingText": "正在啟動本地橋接服務...",

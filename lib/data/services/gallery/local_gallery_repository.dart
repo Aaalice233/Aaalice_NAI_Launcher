@@ -163,6 +163,9 @@ class LocalGalleryRepository {
     return records;
   }
 
+  Future<int?> getImageIdByPath(String filePath) =>
+      _dataSource.getImageIdByPath(filePath);
+
   Future<bool> toggleFavorite(String filePath) async {
     final file = File(filePath);
     var imageId = await _dataSource.getImageIdByPath(filePath);

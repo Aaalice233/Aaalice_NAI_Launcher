@@ -9,6 +9,7 @@ import '../../../data/datasources/remote/nai_generation_transport.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../../data/models/image/image_params.dart';
 import 'generation_command.dart';
+import 'generation_error_classifier.dart';
 
 /// Owns the single generation algorithm. It has no Riverpod dependency and
 /// reports effects as immutable events for the notifier to reduce.
@@ -304,7 +305,7 @@ class ImageGenerationCoordinator {
           if (_aborted(handle) || _skipCurrentRequest) return;
           if (chunk.hasError) {
             final error = chunk.error ?? 'Unknown stream error';
-            if (_isStreamingNotAllowed(error)) {
+            if (isStreamingGenerationUnsupportedError(error)) {
               mode = _RequestMode.fallback;
               persistFallbackMode = true;
               break;
@@ -368,7 +369,7 @@ class ImageGenerationCoordinator {
           }
           rethrow;
         }
-        if (_isStreamingNotAllowed(error.toString())) {
+        if (isStreamingGenerationUnsupportedError(error)) {
           mode = _RequestMode.fallback;
           persistFallbackMode = true;
           continue;
@@ -472,14 +473,6 @@ class ImageGenerationCoordinator {
 
   bool _aborted(GenerationRunHandle handle) =>
       handle.isCancelled || !identical(_activeRun, handle);
-
-  static bool _isStreamingNotAllowed(String error) {
-    final lower = error.toLowerCase();
-    return lower.contains('streaming is not allowed') ||
-        lower.contains('streaming not allowed') ||
-        lower.contains('stream is not allowed') ||
-        lower.contains('stream not allowed');
-  }
 
   static bool _isRemoteCancelled(Object error) =>
       error.toString().toLowerCase().contains('cancelled');

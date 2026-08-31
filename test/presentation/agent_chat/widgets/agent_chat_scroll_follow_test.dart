@@ -80,6 +80,382 @@ void main() {
   );
 
   testWidgets(
+    'detaching and reattaching the transcript restores the owned paused viewport',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final state = _streamingState('a');
+      final heights = _transcriptHeights();
+
+      await _pumpTranscript(tester, controller, state, heights);
+      await tester.pump();
+      await tester.drag(
+        find.byKey(const ValueKey('transcript')),
+        const Offset(0, 420),
+      );
+      await tester.pumpAndSettle();
+      final pausedOffset = controller.scrollController.offset;
+      expect(pausedOffset, greaterThan(0));
+      expect(controller.showJumpToLatest, isTrue);
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      expect(controller.scrollController.hasClients, isFalse);
+
+      await _pumpTranscript(tester, controller, state, heights);
+      await tester.pump();
+      await tester.pump();
+
+      expect(controller.showJumpToLatest, isTrue);
+      expect(controller.scrollController.offset, closeTo(pausedOffset, 0.01));
+    },
+  );
+
+  testWidgets(
+    'recreated panel controller restores the paused viewport from shared ownership',
+    (tester) async {
+      final viewportStore = AgentChatViewportStore();
+      final state = _streamingState('a');
+      final heights = _transcriptHeights();
+      final firstController = AgentChatPanelController(
+        viewportStore: viewportStore,
+      );
+
+      await _pumpTranscript(tester, firstController, state, heights);
+      await tester.pump();
+      await tester.drag(
+        find.byKey(const ValueKey('transcript')),
+        const Offset(0, 420),
+      );
+      await tester.pumpAndSettle();
+      final pausedOffset = firstController.scrollController.offset;
+      expect(pausedOffset, greaterThan(0));
+      expect(firstController.showJumpToLatest, isTrue);
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      firstController.dispose();
+
+      final recreatedController = AgentChatPanelController(
+        viewportStore: viewportStore,
+        initialSessionId: 'a',
+      );
+      expect(recreatedController.followingLatest, isFalse);
+      expect(
+        recreatedController.scrollController.initialScrollOffset,
+        pausedOffset,
+      );
+      await _pumpTranscript(tester, recreatedController, state, heights);
+      await tester.pump();
+      await tester.pump();
+
+      expect(recreatedController.showJumpToLatest, isTrue);
+      expect(
+        recreatedController.scrollController.offset,
+        closeTo(pausedOffset, 0.01),
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      recreatedController.dispose();
+    },
+  );
+
+  testWidgets(
+    'zero-height viewport does not resume follow or discard the paused offset',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      var state = _streamingState('a');
+      final heights = _transcriptHeights();
+
+      await _pumpTranscript(tester, controller, state, heights);
+      await tester.pump();
+      await tester.drag(
+        find.byKey(const ValueKey('transcript')),
+        const Offset(0, 420),
+      );
+      await tester.pumpAndSettle();
+      final pausedOffset = controller.scrollController.offset;
+      expect(pausedOffset, greaterThan(0));
+      expect(controller.showJumpToLatest, isTrue);
+
+      await _pumpTranscript(
+        tester,
+        controller,
+        state,
+        heights,
+        viewportHeight: 0,
+      );
+      await tester.pump();
+      await _pumpTranscript(tester, controller, state, heights);
+      await tester.pump();
+
+      state = _streamingState('a', token: 'after viewport restore');
+      await _pumpTranscript(tester, controller, state, heights);
+      await tester.pump();
+
+      expect(controller.showJumpToLatest, isTrue);
+      expect(controller.scrollController.offset, closeTo(pausedOffset, 0.01));
+    },
+  );
+
+  testWidgets(
+    'consecutive valid and zero-size resizes preserve paused follow ownership',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final state = _streamingState('a');
+      final heights = _transcriptHeights();
+
+      await _pumpTranscript(tester, controller, state, heights);
+      await tester.pump();
+      await tester.drag(
+        find.byKey(const ValueKey('transcript')),
+        const Offset(0, 420),
+      );
+      await tester.pumpAndSettle();
+      final pausedOffset = controller.scrollController.offset;
+
+      for (final height in [180.0, 480.0, 0.0, 240.0, 360.0]) {
+        await _pumpTranscript(
+          tester,
+          controller,
+          state,
+          heights,
+          viewportHeight: height,
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(controller.showJumpToLatest, isTrue);
+        if (height > 0) {
+          expect(
+            controller.scrollController.offset,
+            closeTo(pausedOffset, 0.01),
+          );
+        }
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+
+  testWidgets(
+    'retained historical turns do not re-enter or shift after leaving the cache',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final buildCounts = <int, int>{};
+      final turns = List.generate(
+        6,
+        (index) => AgentChatTurnModel(
+          ordinal: index,
+          userMessage: UserMessage.text('turn $index'),
+          userMessageIndex: index,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 300,
+              child: AgentChatThreadViewport(
+                sessionId: 'a',
+                turns: turns,
+                controller: controller,
+                horizontalPadding: 0,
+                maxWidth: 600,
+                mobile: true,
+                hasEarlier: false,
+                historyLoading: false,
+                prependAnchorEntryId: null,
+                geometryRevision: 0,
+                onLoadEarlier: null,
+                live: const SizedBox.shrink(),
+                turnBuilder: (context, turn, current) => _LifecycleProbe(
+                  key: ValueKey('probe-${turn.ordinal}'),
+                  ordinal: turn.ordinal,
+                  buildCounts: buildCounts,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('probe-5')), findsOneWidget);
+      expect(buildCounts[5], 1);
+
+      controller.jumpToPreservingFollow(
+        controller.scrollController.position.maxScrollExtent,
+      );
+      await tester.pump();
+      controller.jumpToPreservingFollow(0);
+      await tester.pump();
+
+      final latest = find.byKey(const ValueKey('probe-5'));
+      expect(latest, findsOneWidget);
+      expect(
+        buildCounts[5],
+        1,
+        reason: 'virtualization must not recreate a turn on re-entry',
+      );
+      final settledTop = tester.getTopLeft(latest).dy;
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(tester.getTopLeft(latest).dy, closeTo(settledTop, 0.01));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.getTopLeft(latest).dy, closeTo(settledTop, 0.01));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'rapid offscreen keep-alive layout changes never read dirty render sizes',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = List.generate(
+        6,
+        (index) => AgentChatTurnModel(
+          ordinal: index,
+          userMessage: UserMessage.text('turn $index'),
+          userMessageIndex: index,
+        ),
+      );
+
+      Future<void> pump(double height, double width, double itemHeight) =>
+          tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: SizedBox(
+                  height: height,
+                  width: width,
+                  child: AgentChatThreadViewport(
+                    sessionId: 'a',
+                    turns: turns,
+                    controller: controller,
+                    horizontalPadding: 0,
+                    maxWidth: width,
+                    mobile: true,
+                    hasEarlier: false,
+                    historyLoading: false,
+                    prependAnchorEntryId: null,
+                    geometryRevision: (width, itemHeight),
+                    onLoadEarlier: null,
+                    live: const SizedBox.shrink(),
+                    turnBuilder: (context, turn, current) => SizedBox(
+                      height: itemHeight,
+                      child: Text('turn ${turn.ordinal}'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+      await pump(300, 600, 500);
+      await tester.pump();
+      for (final configuration in <(double, double, double)>[
+        (220, 420, 640),
+        (480, 760, 360),
+        (180, 360, 720),
+        (320, 600, 500),
+      ]) {
+        controller.jumpToPreservingFollow(
+          controller.scrollController.position.maxScrollExtent,
+        );
+        await pump(configuration.$1, configuration.$2, configuration.$3);
+        controller.jumpToPreservingFollow(0);
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+
+  testWidgets(
+    'hover and pointer-driven rebuilds never add post-frame scroll feedback',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = List.generate(
+        6,
+        (index) => AgentChatTurnModel(
+          ordinal: index,
+          userMessage: UserMessage.text('turn $index'),
+          userMessageIndex: index,
+        ),
+      );
+      var rebuildCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => Listener(
+                onPointerMove: (_) => setState(() => rebuildCount++),
+                onPointerHover: (_) => setState(() => rebuildCount++),
+                child: SizedBox(
+                  height: 300,
+                  child: AgentChatThreadViewport(
+                    sessionId: 'a',
+                    turns: turns,
+                    controller: controller,
+                    horizontalPadding: 0,
+                    maxWidth: 600,
+                    mobile: true,
+                    hasEarlier: false,
+                    historyLoading: false,
+                    prependAnchorEntryId: null,
+                    geometryRevision: 0,
+                    onLoadEarlier: null,
+                    live: const SizedBox.shrink(),
+                    turnBuilder: (context, turn, current) => SizedBox(
+                      height: 400,
+                      child: Text('turn ${turn.ordinal}'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(260);
+
+      final transcript = find.byType(CustomScrollView);
+      final transcriptCenter = tester.getCenter(transcript);
+      final beforeHover = controller.scrollController.offset;
+      await tester.sendEventToBinding(
+        PointerHoverEvent(
+          kind: PointerDeviceKind.mouse,
+          position: transcriptCenter,
+        ),
+      );
+      await tester.pump();
+      expect(rebuildCount, greaterThan(0));
+      expect(controller.scrollController.offset, closeTo(beforeHover, 0.01));
+
+      final gesture = await tester.startGesture(transcriptCenter);
+      var previousOffset = controller.scrollController.offset;
+      for (var frame = 0; frame < 6; frame++) {
+        await gesture.moveBy(const Offset(0, 24));
+        await tester.pump(const Duration(milliseconds: 16));
+        final currentOffset = controller.scrollController.offset;
+        expect(currentOffset, greaterThanOrEqualTo(previousOffset));
+        previousOffset = currentOffset;
+      }
+      await gesture.up();
+      await tester.pump();
+      expect(rebuildCount, greaterThan(0));
+
+      final settledOffset = controller.scrollController.offset;
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(controller.scrollController.offset, closeTo(settledOffset, 0.01));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(controller.scrollController.offset, closeTo(settledOffset, 0.01));
+    },
+  );
+
+  testWidgets(
     'streaming growth preserves the visible turn anchor while follow is paused',
     (tester) async {
       final controller = AgentChatPanelController();
@@ -109,6 +485,7 @@ void main() {
                   hasEarlier: false,
                   historyLoading: false,
                   prependAnchorEntryId: null,
+                  geometryRevision: liveHeight,
                   onLoadEarlier: null,
                   live: SizedBox(height: liveHeight),
                   turnBuilder: (context, turn, current) => SizedBox(
@@ -160,6 +537,29 @@ void main() {
 
     controller.scrollController.jumpTo(0);
     await tester.pump();
+    expect(
+      controller.showJumpToLatest,
+      isTrue,
+      reason: 'layout and viewport changes must not impersonate user intent',
+    );
+
+    final transcriptContext = tester.element(
+      find.byKey(const ValueKey('transcript')),
+    );
+    controller.handleScrollNotification(
+      UserScrollNotification(
+        metrics: _metrics(120),
+        context: transcriptContext,
+        direction: ScrollDirection.forward,
+      ),
+    );
+    controller.handleScrollNotification(
+      ScrollUpdateNotification(
+        metrics: _metrics(0),
+        context: transcriptContext,
+        scrollDelta: -120,
+      ),
+    );
     expect(controller.showJumpToLatest, isFalse);
 
     await tester.drag(
@@ -432,13 +832,14 @@ Future<void> _pumpTranscript(
   WidgetTester tester,
   AgentChatPanelController controller,
   AgentChatState state,
-  List<double> heights,
-) {
+  List<double> heights, {
+  double viewportHeight = 300,
+}) {
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: SizedBox(
-          height: 300,
+          height: viewportHeight,
           child: _Transcript(
             controller: controller,
             state: state,
@@ -446,6 +847,41 @@ Future<void> _pumpTranscript(
           ),
         ),
       ),
+    ),
+  );
+}
+
+class _LifecycleProbe extends StatefulWidget {
+  const _LifecycleProbe({
+    super.key,
+    required this.ordinal,
+    required this.buildCounts,
+  });
+
+  final int ordinal;
+  final Map<int, int> buildCounts;
+
+  @override
+  State<_LifecycleProbe> createState() => _LifecycleProbeState();
+}
+
+class _LifecycleProbeState extends State<_LifecycleProbe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.buildCounts.update(
+      widget.ordinal,
+      (count) => count + 1,
+      ifAbsent: () => 1,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 700,
+    child: Align(
+      alignment: Alignment.topLeft,
+      child: Text('probe ${widget.ordinal}'),
     ),
   );
 }
@@ -464,17 +900,20 @@ class _Transcript extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     controller.observe(state);
-    return NotificationListener<ScrollNotification>(
-      onNotification: controller.handleScrollNotification,
-      child: ListView.builder(
-        key: const ValueKey('transcript'),
-        controller: controller.scrollController,
-        reverse: true,
-        itemCount: heights.length,
-        itemBuilder: (context, index) => SizedBox(
-          key: ValueKey('item-$index'),
-          height: heights[index],
-          child: Text('item $index'),
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: controller.handleScrollMetricsNotification,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: controller.handleScrollNotification,
+        child: ListView.builder(
+          key: const ValueKey('transcript'),
+          controller: controller.scrollController,
+          reverse: true,
+          itemCount: heights.length,
+          itemBuilder: (context, index) => SizedBox(
+            key: ValueKey('item-$index'),
+            height: heights[index],
+            child: Text('item $index'),
+          ),
         ),
       ),
     );

@@ -100,6 +100,14 @@ class ErrorGalleryService implements LocalGalleryService {
   Future<List<LocalImageRecord>> getPage(int page, {int? pageSize}) =>
       _throwError();
   @override
+  Future<LocalGalleryQueryPage> queryPage({
+    required int page,
+    int pageSize = 50,
+    String searchQuery = '',
+  }) => _throwError();
+  @override
+  Future<int?> getImageIdByPath(String filePath) => _throwError();
+  @override
   Future<void> applyFilter(FilterCriteria criteria) => _throwError();
   @override
   Future<bool> toggleFavorite(String filePath) => _throwError();
@@ -154,6 +162,14 @@ class _PlaceholderGalleryService implements LocalGalleryService {
   @override
   Future<List<LocalImageRecord>> getPage(int page, {int? pageSize}) =>
       _throwNotInitialized();
+  @override
+  Future<LocalGalleryQueryPage> queryPage({
+    required int page,
+    int pageSize = 50,
+    String searchQuery = '',
+  }) => _throwNotInitialized();
+  @override
+  Future<int?> getImageIdByPath(String filePath) => _throwNotInitialized();
   @override
   Future<void> applyFilter(FilterCriteria criteria) => _throwNotInitialized();
   @override

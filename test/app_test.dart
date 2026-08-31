@@ -1820,19 +1820,20 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_custom',
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'openai_custom',
+                name: 'OpenAI Compatible',
+                type: ProviderType.openaiCompatible,
+                baseUrl: 'https://example.invalid/v1',
+              ),
+              model: 'model-a',
+              systemPrompt: '',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: 'key',
             ),
-            model: 'model-a',
-            messages: const [
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -1917,19 +1918,20 @@ void main() {
 
         expect(
           () => client
-              .streamChat(
-                sessionId: 'test',
-                provider: const ProviderConfig(
-                  id: 'openai_custom',
-                  name: 'OpenAI Compatible',
-                  type: ProviderType.openaiCompatible,
-                  baseUrl: 'https://example.invalid/v1',
+              .complete(
+                request: const PromptAssistantRequest(
+                  sessionId: 'test',
+                  provider: ProviderConfig(
+                    id: 'openai_custom',
+                    name: 'OpenAI Compatible',
+                    type: ProviderType.openaiCompatible,
+                    baseUrl: 'https://example.invalid/v1',
+                  ),
+                  model: 'model-a',
+                  systemPrompt: '',
+                  userParts: [PromptAssistantTextPart('test')],
+                  apiKey: 'key',
                 ),
-                model: 'model-a',
-                messages: const [
-                  {'role': 'user', 'content': 'test'},
-                ],
-                apiKey: 'key',
               )
               .drain<void>(),
           throwsA(isA<StateError>()),
@@ -1984,19 +1986,20 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_custom',
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'openai_custom',
+                name: 'OpenAI Compatible',
+                type: ProviderType.openaiCompatible,
+                baseUrl: 'https://example.invalid/v1',
+              ),
+              model: 'model-a',
+              systemPrompt: '',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: 'key',
             ),
-            model: 'model-a',
-            messages: const [
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -2038,20 +2041,21 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_responses',
-              name: 'OpenAI Responses',
-              protocol: ProviderProtocol.openaiResponses,
-              preset: ProviderPreset.openaiResponses,
-              baseUrl: 'https://api.openai.com/v1',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'openai_responses',
+                name: 'OpenAI Responses',
+                protocol: ProviderProtocol.openaiResponses,
+                preset: ProviderPreset.openaiResponses,
+                baseUrl: 'https://api.openai.com/v1',
+              ),
+              model: 'gpt-4.1-mini',
+              systemPrompt: '',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: 'key',
             ),
-            model: 'gpt-4.1-mini',
-            messages: const [
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -2083,20 +2087,21 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'lmstudio_responses',
-              name: 'LM Studio Responses',
-              protocol: ProviderProtocol.openaiResponses,
-              preset: ProviderPreset.lmStudioResponses,
-              baseUrl: 'http://localhost:1234/v1',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'lmstudio_responses',
+                name: 'LM Studio Responses',
+                protocol: ProviderProtocol.openaiResponses,
+                preset: ProviderPreset.lmStudioResponses,
+                baseUrl: 'http://localhost:1234/v1',
+              ),
+              model: 'local-model',
+              systemPrompt: '',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: null,
             ),
-            model: 'local-model',
-            messages: const [
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: null,
           )
           .toList();
 
@@ -2141,21 +2146,21 @@ void main() {
         });
 
         final chunks = await client
-            .streamChat(
-              sessionId: 'test',
-              provider: const ProviderConfig(
-                id: 'anthropic',
-                name: 'Anthropic',
-                protocol: ProviderProtocol.anthropicMessages,
-                preset: ProviderPreset.anthropic,
-                baseUrl: 'https://api.anthropic.com',
+            .complete(
+              request: const PromptAssistantRequest(
+                sessionId: 'test',
+                provider: ProviderConfig(
+                  id: 'anthropic',
+                  name: 'Anthropic',
+                  protocol: ProviderProtocol.anthropicMessages,
+                  preset: ProviderPreset.anthropic,
+                  baseUrl: 'https://api.anthropic.com',
+                ),
+                model: 'claude-sonnet-4-20250514',
+                systemPrompt: 'system prompt',
+                userParts: [PromptAssistantTextPart('test')],
+                apiKey: 'key',
               ),
-              model: 'claude-sonnet-4-20250514',
-              messages: const [
-                {'role': 'system', 'content': 'system prompt'},
-                {'role': 'user', 'content': 'test'},
-              ],
-              apiKey: 'key',
             )
             .toList();
 
@@ -2210,21 +2215,21 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'gemini',
-              name: 'Gemini',
-              protocol: ProviderProtocol.geminiGenerateContent,
-              preset: ProviderPreset.gemini,
-              baseUrl: 'https://generativelanguage.googleapis.com',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'gemini',
+                name: 'Gemini',
+                protocol: ProviderProtocol.geminiGenerateContent,
+                preset: ProviderPreset.gemini,
+                baseUrl: 'https://generativelanguage.googleapis.com',
+              ),
+              model: 'gemini-2.5-flash',
+              systemPrompt: 'system prompt',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: 'key',
             ),
-            model: 'gemini-2.5-flash',
-            messages: const [
-              {'role': 'system', 'content': 'system prompt'},
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -2257,7 +2262,7 @@ void main() {
       );
     });
 
-    test('compresses legacy streamChat image payload before posting', () async {
+    test('compresses typed image payload before posting', () async {
       const maxBytes = 20 * 1024;
       final dio = _MockDio();
       final client = PromptAssistantApiClient(
@@ -2301,31 +2306,26 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_custom',
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
+          .complete(
+            request: PromptAssistantRequest(
+              sessionId: 'test',
+              provider: const ProviderConfig(
+                id: 'openai_custom',
+                name: 'OpenAI Compatible',
+                type: ProviderType.openaiCompatible,
+                baseUrl: 'https://example.invalid/v1',
+              ),
+              model: 'model-a',
+              systemPrompt: '',
+              userParts: [
+                const PromptAssistantTextPart('describe'),
+                PromptAssistantImagePart(
+                  bytes: originalBytes,
+                  mimeType: 'image/png',
+                ),
+              ],
+              apiKey: 'key',
             ),
-            model: 'model-a',
-            messages: [
-              {
-                'role': 'user',
-                'content': [
-                  {'type': 'text', 'text': 'describe'},
-                  {
-                    'type': 'image_url',
-                    'image_url': {
-                      'url':
-                          'data:image/png;base64,${base64Encode(originalBytes)}',
-                    },
-                  },
-                ],
-              },
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -2335,81 +2335,82 @@ void main() {
       );
     });
 
-    test('normalizes small PNG image payloads to JPEG before posting', () async {
-      final dio = _MockDio();
-      final client = PromptAssistantApiClient(dio: dio);
-      final originalBytes = _buildNoisyPngBytes(width: 32, height: 24);
+    test(
+      'normalizes small PNG image payloads to JPEG before posting',
+      () async {
+        final dio = _MockDio();
+        final client = PromptAssistantApiClient(dio: dio);
+        final originalBytes = _buildNoisyPngBytes(width: 32, height: 24);
 
-      when(
-        () => dio.post<dynamic>(
-          any(),
-          data: any(named: 'data'),
-          options: any(named: 'options'),
-          cancelToken: any(named: 'cancelToken'),
-        ),
-      ).thenAnswer((invocation) async {
-        final payload = Map<String, dynamic>.from(
-          invocation.namedArguments[#data] as Map,
-        );
-        final messages = payload['messages'] as List;
-        final userMessage = messages.last as Map;
-        final content = userMessage['content'] as List;
-        final imagePart = content.last as Map;
-        final imageUrl = imagePart['image_url'] as Map;
-        final parsed = parseDataUriImage(imageUrl['url'] as String)!;
-        final decoded = img.decodeImage(parsed.bytes)!;
+        when(
+          () => dio.post<dynamic>(
+            any(),
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+            cancelToken: any(named: 'cancelToken'),
+          ),
+        ).thenAnswer((invocation) async {
+          final payload = Map<String, dynamic>.from(
+            invocation.namedArguments[#data] as Map,
+          );
+          final messages = payload['messages'] as List;
+          final userMessage = messages.last as Map;
+          final content = userMessage['content'] as List;
+          final imagePart = content.last as Map;
+          final imageUrl = imagePart['image_url'] as Map;
+          final parsed = parseDataUriImage(imageUrl['url'] as String)!;
+          final decoded = img.decodeImage(parsed.bytes)!;
 
-        expect(parsed.mimeType, 'image/jpeg');
-        expect(decoded.width, 32);
-        expect(decoded.height, 24);
+          expect(parsed.mimeType, 'image/jpeg');
+          expect(decoded.width, 32);
+          expect(decoded.height, 24);
 
-        return Response<dynamic>(
-          data: const {
-            'choices': [
-              {
-                'message': {'content': 'normalized'},
-              },
-            ],
-          },
-          requestOptions: RequestOptions(path: '/v1/chat/completions'),
-          statusCode: 200,
-        );
-      });
+          return Response<dynamic>(
+            data: const {
+              'choices': [
+                {
+                  'message': {'content': 'normalized'},
+                },
+              ],
+            },
+            requestOptions: RequestOptions(path: '/v1/chat/completions'),
+            statusCode: 200,
+          );
+        });
 
-      final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_custom',
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
-            ),
-            model: 'model-a',
-            messages: [
-              {
-                'role': 'user',
-                'content': [
-                  {'type': 'text', 'text': 'describe'},
-                  {
-                    'type': 'image_url',
-                    'image_url': {
-                      'url':
-                          'data:image/png;base64,${base64Encode(originalBytes)}',
-                    },
-                  },
+        final chunks = await client
+            .complete(
+              request: PromptAssistantRequest(
+                sessionId: 'test',
+                provider: const ProviderConfig(
+                  id: 'openai_custom',
+                  name: 'OpenAI Compatible',
+                  type: ProviderType.openaiCompatible,
+                  baseUrl: 'https://example.invalid/v1',
+                ),
+                model: 'model-a',
+                systemPrompt: '',
+                userParts: [
+                  const PromptAssistantTextPart('describe'),
+                  PromptAssistantImagePart(
+                    bytes: originalBytes,
+                    mimeType: 'image/png',
+                  ),
                 ],
-              },
-            ],
-            apiKey: 'key',
-          )
-          .toList();
+                apiKey: 'key',
+              ),
+            )
+            .toList();
 
-      expect(
-        chunks.where((chunk) => !chunk.done).map((chunk) => chunk.delta).join(),
-        'normalized',
-      );
-    });
+        expect(
+          chunks
+              .where((chunk) => !chunk.done)
+              .map((chunk) => chunk.delta)
+              .join(),
+          'normalized',
+        );
+      },
+    );
 
     test('surfaces provider HTTP error bodies', () async {
       final dio = _MockDio();
@@ -2442,19 +2443,20 @@ void main() {
 
       await expectLater(
         client
-            .streamChat(
-              sessionId: 'test',
-              provider: const ProviderConfig(
-                id: 'openai_custom',
-                name: 'OpenAI Compatible',
-                type: ProviderType.openaiCompatible,
-                baseUrl: 'https://example.invalid/v1',
+            .complete(
+              request: const PromptAssistantRequest(
+                sessionId: 'test',
+                provider: ProviderConfig(
+                  id: 'openai_custom',
+                  name: 'OpenAI Compatible',
+                  type: ProviderType.openaiCompatible,
+                  baseUrl: 'https://example.invalid/v1',
+                ),
+                model: 'model-a',
+                systemPrompt: '',
+                userParts: [PromptAssistantTextPart('test')],
+                apiKey: 'key',
               ),
-              model: 'model-a',
-              messages: const [
-                {'role': 'user', 'content': 'test'},
-              ],
-              apiKey: 'key',
             )
             .drain<void>(),
         throwsA(

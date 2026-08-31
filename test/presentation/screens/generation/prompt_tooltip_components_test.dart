@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
-import 'package:nai_launcher/data/models/prompt/prompt_preset_mode.dart';
 import 'package:nai_launcher/data/services/alias_resolver_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_tooltips.dart';
@@ -271,7 +270,6 @@ void main() {
                         userPrompt: 'positive effective prompt',
                         prefixes: const [],
                         suffixes: const [],
-                        qualityMode: PromptPresetMode.none,
                         qualityContent: null,
                         characters: const [],
                         globalAiChoice: true,

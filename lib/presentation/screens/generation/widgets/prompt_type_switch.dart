@@ -33,7 +33,7 @@ class PromptTypeSwitch extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final fixedTags = ref.watch(fixedTagsNotifierProvider);
-    final quality = ref.watch(qualityPresetNotifierProvider);
+    ref.watch(qualityPresetNotifierProvider);
     final model = ref.watch(
       generationParamsNotifierProvider.select((params) => params.model),
     );
@@ -62,7 +62,6 @@ class PromptTypeSwitch extends ConsumerWidget {
         userPrompt: controller.promptController.text,
         prefixes: fixedTags.enabledPrefixes,
         suffixes: fixedTags.enabledSuffixes,
-        qualityMode: quality.mode,
         qualityContent: qualityContent,
         characters: characters.characters,
         globalAiChoice: characters.globalAiChoice,

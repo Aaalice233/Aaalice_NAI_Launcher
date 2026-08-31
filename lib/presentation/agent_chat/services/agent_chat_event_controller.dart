@@ -202,6 +202,14 @@ class AgentChatEventController {
         }
         final failed = lastAssistant?.stopReason == StopReason.error;
         final aborted = lastAssistant?.stopReason == StopReason.aborted;
+        final agent = _sessionController.agent;
+        if (agent != null) {
+          final unconsumed = _queuedMessages(agent);
+          for (final queued in unconsumed) {
+            await _sessionController.cancelQueuedPrompt(queued.message);
+          }
+          agent.clearAllQueues();
+        }
         if (turnId != null) {
           await _sessionController.finishTurn(
             turnId: turnId,
@@ -216,7 +224,6 @@ class AgentChatEventController {
         if (runContext != null) {
           _runContexts.remove(runContext);
         }
-        final agent = _sessionController.agent;
         _writeState(
           _readState().copyWith(
             activities: const [],
@@ -227,36 +234,9 @@ class AgentChatEventController {
         );
       case AgentEventTurnEnd():
         final message = event.message;
-        final failure =
-            message is AssistantMessage &&
-            message.stopReason == StopReason.error;
-        final aborted =
-            message is AssistantMessage &&
-            message.stopReason == StopReason.aborted;
-        final completesUserTurn =
-            message is AssistantMessage &&
-            (failure ||
-                aborted ||
-                (message.toolCalls.isEmpty &&
-                    message.stopReason != StopReason.toolUse));
-        final runContext = _contextWithActiveTurn;
-        final turnId = runContext?.currentTurnId;
-        if (completesUserTurn && turnId != null) {
-          await _sessionController.finishTurn(
-            turnId: turnId,
-            outcome: failure
-                ? session_types.OperationOutcomeKind.failed
-                : aborted
-                ? session_types.OperationOutcomeKind.aborted
-                : session_types.OperationOutcomeKind.completed,
-            error: failure ? message.errorMessage : null,
-          );
-          if (runContext != null && runContext.currentTurnId == turnId) {
-            runContext
-              ..lastTurnId = turnId
-              ..currentTurnId = null;
-          }
-        }
+        // A Pi run operation spans the complete Agent lifecycle. Individual
+        // assistant turns may still be followed by steering, tools, or
+        // follow-up input, so only AgentEnd may persist operation_finished.
         if (message is AssistantMessage &&
             message.errorMessage != null &&
             message.stopReason == StopReason.error) {

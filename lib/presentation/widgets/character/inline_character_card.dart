@@ -207,7 +207,11 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
       opacity: enabled ? 1.0 : 0.48,
       child: Focus(
         focusNode: _cardFocusNode,
-        child: TapRegion(onTapOutside: (_) => _handleTapOutside(), child: card),
+        child: TapRegion(
+          groupId: CharacterPromptEditor.tapRegionGroupId(widget.character.id),
+          onTapOutside: (_) => _handleTapOutside(),
+          child: card,
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -6,8 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
-import '../../../core/database/database_providers.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/gallery/local_image_record.dart';
+import '../../../data/services/gallery/local_gallery_service.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
@@ -248,6 +250,133 @@ class _AgentChatPendingResourceCardState
   }
 }
 
+class AgentChatSentResourceCard extends StatefulWidget {
+  const AgentChatSentResourceCard({
+    super.key,
+    required this.reference,
+    required this.loadPreview,
+    required this.touchOptimized,
+  });
+
+  final AgentChatResourceReference reference;
+  final Future<ResolvedAgentResource?> Function() loadPreview;
+  final bool touchOptimized;
+
+  @override
+  State<AgentChatSentResourceCard> createState() =>
+      _AgentChatSentResourceCardState();
+}
+
+class _AgentChatSentResourceCardState extends State<AgentChatSentResourceCard> {
+  late Future<ResolvedAgentResource?> _preview;
+
+  @override
+  void initState() {
+    super.initState();
+    _preview = widget.loadPreview();
+  }
+
+  @override
+  void didUpdateWidget(covariant AgentChatSentResourceCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.reference != widget.reference) {
+      _preview = widget.loadPreview();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fallbackLabel =
+        widget.reference.display['name'] ??
+        widget.reference.display['title'] ??
+        context.l10n.agentChat_reference;
+    final dimension = widget.touchOptimized ? 24.0 : 21.0;
+    return FutureBuilder<ResolvedAgentResource?>(
+      future: _preview,
+      builder: (context, snapshot) {
+        final preview = snapshot.data;
+        final resolvedLabel = preview?.label.trim();
+        final label = fallbackLabel.trim().isNotEmpty
+            ? fallbackLabel
+            : resolvedLabel == null || resolvedLabel.isEmpty
+            ? widget.reference.resourceId
+            : resolvedLabel;
+        final unavailable =
+            snapshot.connectionState == ConnectionState.done &&
+            (snapshot.hasError || preview == null);
+        final bytes = preview?.bytes;
+        return Semantics(
+          label: '${context.l10n.agentChat_reference}: $label',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 100),
+            child: Container(
+              height: widget.touchOptimized ? 30 : 27,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onPrimaryContainer.withValues(
+                  alpha: 0.08,
+                ),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (bytes != null && bytes.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: Image.memory(
+                        bytes,
+                        width: dimension,
+                        height: dimension,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => SizedBox.square(
+                          dimension: dimension,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SizedBox.square(
+                      dimension: dimension,
+                      child: Icon(
+                        unavailable
+                            ? Icons.link_off_outlined
+                            : _kindIcon(widget.reference.kind),
+                        size: 14,
+                        color: unavailable
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Tooltip(
+                      message: label,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 abstract final class AgentChatResourcePicker {
   static Future<void> showReferenceGallery({
     required BuildContext context,
@@ -330,8 +459,41 @@ class _AgentChatResourcePickerBody extends ConsumerStatefulWidget {
 
 class _AgentChatResourcePickerBodyState
     extends ConsumerState<_AgentChatResourcePickerBody> {
+  static const _localPageSize = 50;
+
+  final _searchController = TextEditingController();
+  final _localScrollController = ScrollController();
+  Timer? _searchDebounce;
+  LocalGalleryService? _localGalleryService;
+  List<LocalImageRecord> _localRecords = const [];
+  Object? _localError;
   var _tab = 0;
   var _adding = false;
+  var _query = '';
+  var _localPage = -1;
+  var _localHasMore = true;
+  var _localLoading = false;
+  var _localRequestSerial = 0;
+
+  bool get _isLocalGalleryTab =>
+      widget.mode == _PickerMode.gallery && _tab == 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _localScrollController.addListener(_handleLocalScroll);
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _localRequestSerial++;
+    _localScrollController
+      ..removeListener(_handleLocalScroll)
+      ..dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -375,10 +537,35 @@ class _AgentChatResourcePickerBodyState
                 ButtonSegment(value: index, label: Text(tabs[index])),
             ],
             selected: {_tab},
-            onSelectionChanged: (value) => setState(() => _tab = value.first),
+            onSelectionChanged: (value) => _setTab(value.first),
           ),
         ),
-        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+          child: TextField(
+            key: const ValueKey('agent-chat-resource-search'),
+            controller: _searchController,
+            textInputAction: TextInputAction.search,
+            onChanged: _setQuery,
+            decoration: InputDecoration(
+              hintText: l10n.common_search,
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).deleteButtonTooltip,
+                      onPressed: () {
+                        _searchController.clear();
+                        _setQuery('');
+                      },
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
         Expanded(child: _buildItems()),
       ],
     );
@@ -387,10 +574,19 @@ class _AgentChatResourcePickerBodyState
   Widget _buildItems() {
     if (widget.mode == _PickerMode.gallery) {
       if (_tab == 0) {
+        final generatedImageLabel = context.l10n.agentChat_generatedImage;
         final images = ref
             .watch(imageGenerationNotifierProvider)
             .mergedPanelImages
-            .where((image) => image.kind == GeneratedImageKind.completed)
+            .where(
+              (image) =>
+                  image.kind == GeneratedImageKind.completed &&
+                  _matchesQuery([
+                    generatedImageLabel,
+                    image.id,
+                    '${image.width} × ${image.height}',
+                  ]),
+            )
             .toList(growable: false);
         return _list(
           images.map(
@@ -411,59 +607,16 @@ class _AgentChatResourcePickerBodyState
           ),
         );
       }
-      final records = ref.watch(localGalleryNotifierProvider).currentImages;
-      return _list(
-        records.map(
-          (record) => _PickerItem(
-            key: ValueKey('agent-chat-local-${record.path}'),
-            imageFile: File(record.path),
-            title: p.basename(record.path),
-            subtitle: _formatBytes(record.size),
-            onTap: () async {
-              if (_adding) return;
-              final unavailableMessage =
-                  context.l10n.agentChat_resourceUnavailable;
-              setState(() => _adding = true);
-              try {
-                final dataSource = (await ref.read(
-                  databaseManagerProvider.future,
-                )).galleryDataSource;
-                final id = await dataSource?.getImageIdByPath(record.path);
-                if (id == null) {
-                  throw StateError(unavailableMessage);
-                }
-                await widget.onSelected(
-                  AgentChatResourceReference(
-                    kind: AgentChatResourceKind.localGalleryImage,
-                    source: 'local_gallery',
-                    resourceId: '$id',
-                    display: {'name': p.basename(record.path)},
-                  ),
-                );
-                if (mounted) Navigator.pop(context);
-              } on Object catch (error) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.l10n.agentChat_addResourceFailed('$error'),
-                        ),
-                      ),
-                    );
-                }
-              } finally {
-                if (mounted) setState(() => _adding = false);
-              }
-            },
-          ),
-        ),
-      );
+      return _buildLocalGallery();
     }
 
     if (_tab == 0) {
-      final entries = ref.watch(tagLibraryPageNotifierProvider).filteredEntries;
+      final entries = ref
+          .watch(tagLibraryPageNotifierProvider)
+          .filteredEntries
+          .where(
+            (entry) => _matchesQuery([entry.displayName, entry.contentPreview]),
+          );
       return _list(
         entries.map(
           (entry) => _PickerItem(
@@ -484,7 +637,10 @@ class _AgentChatResourcePickerBodyState
       );
     }
     if (_tab == 1) {
-      final entries = ref.watch(vibeLibraryNotifierProvider).filteredEntries;
+      final entries = ref
+          .watch(vibeLibraryNotifierProvider)
+          .filteredEntries
+          .where((entry) => _matchesQuery([entry.displayName]));
       return _list(
         entries.map(
           (entry) => _PickerItem(
@@ -507,7 +663,8 @@ class _AgentChatResourcePickerBodyState
     }
     final entries = ref
         .watch(preciseRefLibraryNotifierProvider)
-        .filteredEntries;
+        .filteredEntries
+        .where((entry) => _matchesQuery([entry.name, entry.type.name]));
     return _list(
       entries.map(
         (entry) => _PickerItem(
@@ -526,6 +683,226 @@ class _AgentChatResourcePickerBodyState
         ),
       ),
     );
+  }
+
+  void _setTab(int tab) {
+    if (_tab == tab) return;
+    setState(() => _tab = tab);
+    if (_isLocalGalleryTab && _localPage < 0 && !_localLoading) {
+      unawaited(_loadLocalGallery(reset: true));
+    }
+  }
+
+  void _setQuery(String value) {
+    final query = value.trim();
+    setState(() => _query = query);
+    _searchDebounce?.cancel();
+    if (_isLocalGalleryTab) {
+      _searchDebounce = Timer(
+        const Duration(milliseconds: 250),
+        () => unawaited(_loadLocalGallery(reset: true)),
+      );
+    }
+  }
+
+  void _handleLocalScroll() {
+    if (!_isLocalGalleryTab ||
+        !_localScrollController.hasClients ||
+        _localLoading ||
+        _localError != null ||
+        !_localHasMore) {
+      return;
+    }
+    if (_localScrollController.position.extentAfter < 180) {
+      unawaited(_loadLocalGallery());
+    }
+  }
+
+  Widget _buildLocalGallery() {
+    if (_localPage < 0 && !_localLoading && _localError == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isLocalGalleryTab && _localPage < 0) {
+          unawaited(_loadLocalGallery(reset: true));
+        }
+      });
+    }
+
+    if (_localLoading && _localRecords.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_localError != null && _localRecords.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${context.l10n.common_error}: $_localError',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              FilledButton.tonal(
+                onPressed: () => unawaited(_loadLocalGallery(reset: true)),
+                child: Text(context.l10n.common_retry),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_localRecords.isEmpty) {
+      return Center(child: Text(context.l10n.agentChat_noResources));
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !_isLocalGalleryTab ||
+          !_localScrollController.hasClients ||
+          _localLoading ||
+          _localError != null ||
+          !_localHasMore) {
+        return;
+      }
+      if (_localScrollController.position.extentAfter < 180) {
+        unawaited(_loadLocalGallery());
+      }
+    });
+
+    return ListView.separated(
+      key: const ValueKey('agent-chat-local-gallery-list'),
+      controller: _localScrollController,
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+      itemCount:
+          _localRecords.length + (_localLoading || _localError != null ? 1 : 0),
+      separatorBuilder: (_, __) => const SizedBox(height: 4),
+      itemBuilder: (context, index) {
+        if (index == _localRecords.length) {
+          if (_localError != null) {
+            return Center(
+              child: TextButton.icon(
+                onPressed: () => unawaited(_loadLocalGallery()),
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(context.l10n.common_retry),
+              ),
+            );
+          }
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final record = _localRecords[index];
+        return _PickerItem(
+          key: ValueKey('agent-chat-local-${record.path}'),
+          imageFile: File(record.path),
+          title: p.basename(record.path),
+          subtitle: _formatBytes(record.size),
+          onTap: () => _selectLocalRecord(record),
+        );
+      },
+    );
+  }
+
+  Future<void> _loadLocalGallery({bool reset = false}) async {
+    if (_localLoading && !reset) return;
+    final requestSerial = ++_localRequestSerial;
+    final requestedQuery = _query;
+    final requestedPage = reset ? 0 : _localPage + 1;
+    setState(() {
+      _localLoading = true;
+      _localError = null;
+      if (reset) {
+        _localRecords = const [];
+        _localPage = -1;
+        _localHasMore = true;
+      }
+    });
+
+    try {
+      var service = _localGalleryService;
+      if (service == null) {
+        final notifier = ref.read(localGalleryNotifierProvider.notifier);
+        await notifier.initialize();
+        if (!mounted || requestSerial != _localRequestSerial) return;
+        final galleryState = ref.read(localGalleryNotifierProvider);
+        if (galleryState.error case final error?) {
+          throw StateError(error.details ?? error.code.name);
+        }
+        service = await notifier.getService();
+        _localGalleryService = service;
+      }
+      final result = await service.queryPage(
+        page: requestedPage,
+        pageSize: _localPageSize,
+        searchQuery: requestedQuery,
+      );
+      if (!mounted || requestSerial != _localRequestSerial) return;
+
+      final nextRecords = reset
+          ? result.records
+          : <LocalImageRecord>[
+              ..._localRecords,
+              ...result.records.where(
+                (candidate) => !_localRecords.any(
+                  (record) => record.path == candidate.path,
+                ),
+              ),
+            ];
+      setState(() {
+        _localRecords = nextRecords;
+        _localPage = result.page;
+        _localHasMore = result.hasMore;
+        _localLoading = false;
+      });
+    } on Object catch (error) {
+      if (!mounted || requestSerial != _localRequestSerial) return;
+      setState(() {
+        _localError = error;
+        _localLoading = false;
+      });
+    }
+  }
+
+  Future<void> _selectLocalRecord(LocalImageRecord record) async {
+    if (_adding) return;
+    final unavailableMessage = context.l10n.agentChat_resourceUnavailable;
+    setState(() => _adding = true);
+    try {
+      final notifier = ref.read(localGalleryNotifierProvider.notifier);
+      final service = _localGalleryService ??= await notifier.getService();
+      final id = await service.getImageIdByPath(record.path);
+      if (id == null) {
+        throw StateError(unavailableMessage);
+      }
+      await widget.onSelected(
+        AgentChatResourceReference(
+          kind: AgentChatResourceKind.localGalleryImage,
+          source: 'local_gallery',
+          resourceId: '$id',
+          display: {'name': p.basename(record.path)},
+        ),
+      );
+      if (mounted) Navigator.pop(context);
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(context.l10n.agentChat_addResourceFailed('$error')),
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  bool _matchesQuery(Iterable<String> values) {
+    final query = _query.toLowerCase();
+    if (query.isEmpty) return true;
+    return values.any((value) => value.toLowerCase().contains(query));
   }
 
   Widget _list(Iterable<Widget> items) {

@@ -20,6 +20,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scri
 
 该命令可能因任一端未启动而返回非零；分别读取输出，不把“另一端未启动”误判为已运行端失效。
 
+用户要求立即启动会话时，完成上述检查后直接创建或复用目标 Runner，不得先运行测试、Analyze 或 `build_runner`。若 Runner 预检明确报告生成文件缺失/过期，再将完整 `dart run build_runner build --delete-conflicting-outputs` 作为一次性环境准备：先说明全仓库扫描的预计耗时，确认两个 Flutter 会话均已停止，让生成命令完整结束后立即重启目标 Runner。不得把全量生成称为最小验证，不得因等待期间切换任务而反复中断重跑；命令中断时检查并恢复被删除但未重新生成的已有输出。
+
 ## 创建或复用终端
 
 先运行 `orca terminal list --worktree active --json`。有效会话标记与对应进程是会话存在的权威依据；标题和输出标记仅用于兼容旧会话。
@@ -39,7 +41,7 @@ orca terminal create --worktree active --title "安卓热重载" --command "pwsh
 规则：
 
 - Android 项目会话必须使用 `-EmulatorId Aaalice_API35`，不要使用 `-DeviceId emulator-5554`；后者只复用外部模拟器，会绕过项目的 GPU 和无设备外框启动参数。
-- 两个 runner 默认都复用现有依赖与生成文件，不运行 `pub get` / `build_runner`。依赖变化时显式传 `-RunPubGet`，Freezed/Riverpod 等生成源变化时先单独完成 `-RunBuildRunner`，不得与另一端 Flutter 构建并发。
+- 两个 runner 默认都复用现有依赖与生成文件，不运行 `pub get` / `build_runner`。纯 Dart/UI 改动及针对性测试不得预先运行生成器；依赖变化时显式传 `-RunPubGet`，Freezed/Riverpod 等生成源变化或 Runner 预检明确阻塞时才单独完成 `-RunBuildRunner`，不得与另一端 Flutter 构建并发。
 - 在 Orca 中直接创建项目终端；所有项目专用 runner/helper 都位于 `.pi/skills/`，不依赖仓库 `scripts/` 下的热重载入口。
 - 创建后轮询 `orca terminal read --terminal <handle> --json`。Windows 等待 `Starting Flutter in Windows debug mode`，Android 等待 `Starting Flutter in Android debug mode` 且应用启动完成。出现构建错误立即报告，不盲等。
 - Android runner 首次启动 emulator 时禁用 Quick Boot 快照、使用 host GPU、移除设备外框并等待系统完成启动；默认保留运行中的 emulator 作为下次会话的暖缓存。复用前会停止旧 App 并回到 Home，不会把旧界面当作本次启动结果。只有显式传 `-StopEmulatorOnExit` 才让 emulator 随会话关闭。

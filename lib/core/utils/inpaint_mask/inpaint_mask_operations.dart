@@ -523,7 +523,7 @@ class InpaintMaskUtils {
             height: source.height,
           );
 
-    final composed = img.Image.from(source, noAnimation: true);
+    final composed = source.convert(numChannels: 4, noAnimation: true);
     img.compositeImage(
       composed,
       generatedCanvas,
@@ -574,8 +574,11 @@ class InpaintMaskUtils {
             height: source.height,
           );
     final patch = applyCompositeMaskToGeneratedImage(generatedCanvas, mask);
-    final display = img.Image.from(source, noAnimation: true);
-    img.compositeImage(display, patch, blend: img.BlendMode.alpha);
+    final display = compositeMaskedReplacement(
+      source: source,
+      generated: generatedCanvas,
+      compositeMask: mask,
+    );
 
     return ImageGenerationArtifact(
       displayImageBytes: Uint8List.fromList(img.encodePng(display, level: 1)),
@@ -1013,6 +1016,99 @@ class InpaintMaskUtils {
     return Isolate.run(
       () => maskToEditorOverlay(bytes, overlayAlpha: overlayAlpha),
     );
+  }
+
+  /// Replaces source pixels through a soft mask using straight RGBA output.
+  ///
+  /// Source-over cannot represent a transparent generated pixel clearing an
+  /// opaque source pixel. This instead interpolates premultiplied color and
+  /// alpha independently, then converts the result back to straight RGBA.
+  static img.Image compositeMaskedReplacement({
+    required img.Image source,
+    required img.Image generated,
+    required img.Image compositeMask,
+    int dstX = 0,
+    int dstY = 0,
+  }) {
+    if (generated.width != compositeMask.width ||
+        generated.height != compositeMask.height) {
+      throw ArgumentError('Generated image and composite mask must match');
+    }
+    if (dstX < 0 ||
+        dstY < 0 ||
+        dstX + generated.width > source.width ||
+        dstY + generated.height > source.height) {
+      throw ArgumentError('Generated image must fit inside the source image');
+    }
+
+    final result = source.convert(numChannels: 4, noAnimation: true);
+    for (var y = 0; y < generated.height; y++) {
+      for (var x = 0; x < generated.width; x++) {
+        final maskAlpha = compositeMask.getPixel(x, y).a.toInt();
+        if (maskAlpha == 0) continue;
+
+        final generatedPixel = generated.getPixel(x, y);
+        if (maskAlpha == 255) {
+          result.setPixelRgba(
+            dstX + x,
+            dstY + y,
+            generatedPixel.r,
+            generatedPixel.g,
+            generatedPixel.b,
+            generatedPixel.a,
+          );
+          continue;
+        }
+
+        final sourcePixel = result.getPixel(dstX + x, dstY + y);
+        final maskWeight = maskAlpha / 255;
+        final generatedWeight = maskWeight * generatedPixel.a.toInt() / 255;
+        final sourceWeight = (1 - maskWeight) * sourcePixel.a.toInt() / 255;
+        final outputAlpha = generatedWeight + sourceWeight;
+
+        result.setPixelRgba(
+          dstX + x,
+          dstY + y,
+          _blendReplacementChannel(
+            sourcePixel.r,
+            generatedPixel.r,
+            sourceWeight,
+            generatedWeight,
+            outputAlpha,
+          ),
+          _blendReplacementChannel(
+            sourcePixel.g,
+            generatedPixel.g,
+            sourceWeight,
+            generatedWeight,
+            outputAlpha,
+          ),
+          _blendReplacementChannel(
+            sourcePixel.b,
+            generatedPixel.b,
+            sourceWeight,
+            generatedWeight,
+            outputAlpha,
+          ),
+          (outputAlpha * 255).round(),
+        );
+      }
+    }
+    return result;
+  }
+
+  static int _blendReplacementChannel(
+    num sourceChannel,
+    num generatedChannel,
+    double sourceWeight,
+    double generatedWeight,
+    double outputAlpha,
+  ) {
+    if (outputAlpha == 0) return 0;
+    return ((sourceChannel * sourceWeight +
+                generatedChannel * generatedWeight) /
+            outputAlpha)
+        .round();
   }
 
   static img.Image applyCompositeMaskToGeneratedImage(

@@ -827,7 +827,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('danbooru:401')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('grid-item:danbooru:401')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -853,8 +856,14 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('danbooru:401')), findsOneWidget);
-    expect(find.byKey(const ValueKey('danbooru:402')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('grid-item:danbooru:401')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('grid-item:danbooru:402')),
+      findsOneWidget,
+    );
     expect(find.text('2 images'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -911,7 +920,10 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('danbooru:401')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('grid-item:danbooru:401')),
+      findsOneWidget,
+    );
     expect(
       tester
           .widget<DanbooruPostCard>(find.byType(DanbooruPostCard))
@@ -941,12 +953,16 @@ void main() {
         visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
       ),
     );
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.byKey(const ValueKey('danbooru:401')), findsOneWidget);
-    expect(find.byKey(const ValueKey('danbooru:402')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('grid-item:danbooru:401')),
+      findsOneWidget,
+    );
+    final secondItem = find.byKey(const ValueKey('grid-item:danbooru:402'));
+    expect(secondItem, findsOneWidget);
     final secondPageCard = tester.widget<DanbooruPostCard>(
-      find.byKey(const ValueKey('danbooru:402')),
+      find.descendant(of: secondItem, matching: find.byType(DanbooruPostCard)),
     );
     expect(secondPageCard.post.previewUrl, contains('page-2'));
     expect(secondPageCard.post.id, 402);
