@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:uuid/uuid.dart';
 
@@ -55,11 +57,29 @@ abstract interface class GalleryAlbumRepository {
   /// 清空所有相簿及成员关系（测试与一次性导入前使用）
   Future<void> clearAllAlbums();
 
-  /// 批量导入相簿及其成员（保留原 id 与排序，用于 sidecar / 旧数据迁移）
+  /// 批量导入相簿及其成员（保留原 id 与排序，用于 sidecar / 旧数据 / 云同步恢复）
+  ///
+  /// - 父子关系做完整性与环校验后按拓扑顺序写入，乱序输入（子先父后）
+  ///   也可正确导入；
+  /// - 写入使用 INSERT ... ON CONFLICT DO UPDATE，避免 REPLACE 在
+  ///   自引用外键上触发 ON DELETE SET NULL 清空既有父子关系；
+  /// - 未能解析为图片记录的成员路径记入 pendingPaths，待图库索引
+  ///   就绪后由 [rebindPendingPaths] 补绑。
   Future<void> importAlbums(
     List<GalleryAlbumRecord> albums,
-    Map<String, List<int>> imageIdsByAlbumId,
-  );
+    Map<String, List<int>> imageIdsByAlbumId, {
+    Map<String, List<String>> pendingPathsByAlbumId = const {},
+  });
+
+  /// 把 pending 成员路径批量解析并绑定。
+  ///
+  /// [resolve] 接收相对路径列表，返回 相对路径 -> imageId 映射
+  /// （null 或缺省表示暂不可解析，保留在 pending 中）。
+  /// 返回执行后仍处于 pending 状态的路径总数。
+  Future<int> rebindPendingPaths({
+    required Future<Map<String, int?>> Function(List<String> relativePaths)
+    resolve,
+  });
 }
 
 class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
@@ -252,6 +272,7 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
       parentId: record.parentId,
       sortOrder: record.sortOrder,
       coverPath: record.coverPath,
+      pendingPaths: record.pendingPaths,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       imageCount: count,
@@ -405,23 +426,64 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
   @override
   Future<void> importAlbums(
     List<GalleryAlbumRecord> albums,
-    Map<String, List<int>> imageIdsByAlbumId,
-  ) async {
+    Map<String, List<int>> imageIdsByAlbumId, {
+    Map<String, List<String>> pendingPathsByAlbumId = const {},
+  }) async {
     if (albums.isEmpty) return;
     final now = _now();
+
+    // 校验父子图并计算拓扑顺序（父先子后），乱序输入也可正确导入。
+    final existingRows = await gateway.execute(
+      'importAlbums.loadParents',
+      (db) async => await db.rawQuery(
+        'SELECT id, parent_id FROM ${GalleryTables.albums}',
+      ),
+    );
+    final parentOf = <String, String?>{
+      for (final row in existingRows)
+        row['id'] as String: row['parent_id'] as String?,
+    };
+    for (final album in albums) {
+      parentOf[album.id] = album.parentId;
+    }
+    _validateAlbumParentGraph(parentOf, albums.map((a) => a.id).toSet());
+
+    final ordered = _topoSortAlbums(albums, parentOf);
+
     await gateway.execute('importAlbums', (db) async {
       final batch = db.batch();
-      for (final album in albums) {
-        batch.insert(GalleryTables.albums, {
-          'id': album.id,
-          'name': album.name,
-          'description': album.description,
-          'parent_id': album.parentId,
-          'sort_order': album.sortOrder,
-          'cover_path': album.coverPath,
-          'created_at': album.createdAt.millisecondsSinceEpoch,
-          'updated_at': album.updatedAt.millisecondsSinceEpoch,
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      for (final album in ordered) {
+        final pending = _mergePending(
+          pendingPathsByAlbumId[album.id],
+          album.pendingPaths,
+        );
+        // INSERT ... ON CONFLICT DO UPDATE：显式 upsert，避免 REPLACE 在
+        // 自引用外键上触发 ON DELETE SET NULL 清空既有父子关系。
+        batch.execute(
+          'INSERT INTO ${GalleryTables.albums} '
+          '(id, name, description, parent_id, sort_order, cover_path, '
+          ' pending_paths, created_at, updated_at) '
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
+          'ON CONFLICT(id) DO UPDATE SET '
+          '  name = excluded.name, '
+          '  description = excluded.description, '
+          '  parent_id = excluded.parent_id, '
+          '  sort_order = excluded.sort_order, '
+          '  cover_path = excluded.cover_path, '
+          '  pending_paths = excluded.pending_paths, '
+          '  updated_at = excluded.updated_at',
+          [
+            album.id,
+            album.name,
+            album.description,
+            album.parentId,
+            album.sortOrder,
+            album.coverPath,
+            jsonEncode(pending),
+            album.createdAt.millisecondsSinceEpoch,
+            album.updatedAt.millisecondsSinceEpoch,
+          ],
+        );
         for (final imageId in imageIdsByAlbumId[album.id] ?? const <int>[]) {
           batch.insert(GalleryTables.albumImages, {
             'album_id': album.id,
@@ -430,9 +492,133 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
           }, conflictAlgorithm: ConflictAlgorithm.ignore);
         }
       }
-      await batch.commit(noResult: false);
+      await batch.commit(noResult: true);
     });
     context.markDataChanged();
+  }
+
+  /// 合并调用方传入的 pending 与记录自带的 pending（去重）
+  static List<String> _mergePending(List<String>? a, List<String>? b) {
+    if (a == null || a.isEmpty) return b ?? const [];
+    if (b == null || b.isEmpty) return a;
+    final merged = {...a, ...b}.toList()..sort();
+    return merged;
+  }
+
+  /// 校验：parent 必须为 null / 本次导入集合内 / 库中已存在；合并图不得有环。
+  static void _validateAlbumParentGraph(
+    Map<String, String?> parentOf,
+    Set<String> importingIds,
+  ) {
+    for (final entry in parentOf.entries) {
+      final parent = entry.value;
+      if (parent == null) continue;
+      if (!parentOf.containsKey(parent)) {
+        throw ArgumentError('Album parent does not exist: $parent');
+      }
+    }
+    for (final albumId in importingIds) {
+      final seen = <String>{};
+      String? current = albumId;
+      while (current != null) {
+        if (!seen.add(current)) {
+          throw ArgumentError(
+            'Album parent graph contains a cycle at $albumId',
+          );
+        }
+        current = parentOf[current];
+      }
+    }
+  }
+
+  /// 拓扑排序：按父链深度升序（父先子后）；库中已有节点为外层。
+  static List<GalleryAlbumRecord> _topoSortAlbums(
+    List<GalleryAlbumRecord> albums,
+    Map<String, String?> parentOf,
+  ) {
+    final depthCache = <String, int>{};
+
+    int depth(String id) {
+      final cached = depthCache[id];
+      if (cached != null) return cached;
+      final parent = parentOf[id];
+      final value = parent == null ? 0 : depth(parent) + 1;
+      depthCache[id] = value;
+      return value;
+    }
+
+    final ordered = [...albums]
+      ..sort((a, b) {
+        final depthDiff = depth(a.id).compareTo(depth(b.id));
+        if (depthDiff != 0) return depthDiff;
+        return a.sortOrder.compareTo(b.sortOrder);
+      });
+    return ordered;
+  }
+
+  @override
+  Future<int> rebindPendingPaths({
+    required Future<Map<String, int?>> Function(List<String> relativePaths)
+    resolve,
+  }) async {
+    final rows = await gateway.execute(
+      'rebindPendingPaths.load',
+      (db) async => await db.rawQuery(
+        "SELECT id, pending_paths FROM ${GalleryTables.albums} "
+        "WHERE pending_paths IS NOT NULL AND pending_paths != '[]'",
+      ),
+    );
+
+    var remaining = 0;
+    for (final row in rows) {
+      final albumId = row['id'] as String;
+      List<String> pending;
+      try {
+        final decoded = jsonDecode(row['pending_paths'] as String? ?? '[]');
+        pending = decoded is List
+            ? decoded.whereType<String>().toList()
+            : const [];
+      } catch (_) {
+        pending = const [];
+      }
+      if (pending.isEmpty) continue;
+
+      final resolved = await resolve(pending);
+      final stillPending = <String>[];
+      final boundIds = <int>[];
+      for (final path in pending) {
+        final imageId = resolved[path];
+        if (imageId != null) {
+          boundIds.add(imageId);
+        } else {
+          stillPending.add(path);
+        }
+      }
+
+      await gateway.execute('rebindPendingPaths.apply', (db) async {
+        final batch = db.batch();
+        for (final imageId in boundIds) {
+          batch.insert(GalleryTables.albumImages, {
+            'album_id': albumId,
+            'image_id': imageId,
+            'added_at': _now(),
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+        }
+        batch.update(
+          GalleryTables.albums,
+          {'pending_paths': jsonEncode(stillPending)},
+          where: 'id = ?',
+          whereArgs: [albumId],
+        );
+        await batch.commit(noResult: true);
+      });
+
+      if (boundIds.isNotEmpty) {
+        context.markDataChanged();
+      }
+      remaining += stillPending.length;
+    }
+    return remaining;
   }
 
   static int _now() => DateTime.now().millisecondsSinceEpoch;

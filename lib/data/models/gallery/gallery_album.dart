@@ -29,6 +29,10 @@ class GalleryAlbum with _$GalleryAlbum {
     /// 封面图片路径（相对图库根目录）
     String? coverPath,
 
+    /// 尚未绑定到图片记录的成员路径（相对图库根目录），
+    /// 图库索引就绪后自动补绑
+    @Default([]) List<String> pendingPaths,
+
     /// 图片数量（含子相簿去重）
     @Default(0) int imageCount,
 

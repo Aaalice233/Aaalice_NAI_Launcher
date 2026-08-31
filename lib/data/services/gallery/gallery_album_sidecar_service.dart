@@ -115,4 +115,20 @@ class GalleryAlbumSidecarService {
   static String toAbsolutePath(String rootPath, String relativePath) {
     return p.joinAll([p.normalize(rootPath), ...relativePath.split('/')]);
   }
+
+  /// 校验成员/封面引用是否为图库根目录内的规范化相对路径。
+  ///
+  /// 拒绝绝对路径（POSIX 前导 / 或 Windows 盘符）、反斜杠与 .. 上跳段，
+  /// 防止越界引用或设备绝对路径（含盘符、用户名）进入 sidecar 与云同步。
+  static bool isValidRelativeMemberPath(String path) {
+    if (path.isEmpty || path.length > 1024) return false;
+    if (path.contains('\\')) return false;
+    if (path.startsWith('/')) return false;
+    if (RegExp(r'^[A-Za-z]:').hasMatch(path)) return false;
+    final segments = path.split('/');
+    for (final segment in segments) {
+      if (segment.isEmpty || segment == '.' || segment == '..') return false;
+    }
+    return true;
+  }
 }

@@ -227,4 +227,127 @@ void main() {
     expect(map[a], ['gallery/a.png']);
     expect(map[b], ['gallery/b.png']);
   });
+
+  test('importAlbums accepts out-of-order input (child before parent)',
+      () async {
+    final parent = GalleryAlbumRecord(
+      id: 'p1',
+      name: '父',
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+    );
+    final child = GalleryAlbumRecord(
+      id: 'c1',
+      name: '子',
+      parentId: 'p1',
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+    );
+
+    // 子相簿排在父相簿之前，拓扑排序应保证父先写入
+    await dataSource.albums.importAlbums([child, parent], const {});
+
+    final albums = await dataSource.albums.getAlbums();
+    expect(albums.map((a) => a.id).toList(), ['p1', 'c1']);
+    expect(albums[1].parentId, 'p1');
+  });
+
+  test('importAlbums re-import keeps parent links (regression for REPLACE)',
+      () async {
+    final root = GalleryAlbumRecord(
+      id: 'root',
+      name: 'root',
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+    );
+    final child = GalleryAlbumRecord(
+      id: 'child',
+      name: 'child',
+      parentId: 'root',
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+    );
+    await dataSource.albums.importAlbums([root, child], const {});
+
+    // 重复导入父相簿：REPLACE 语义曾会经 ON DELETE SET NULL 清空父子关系
+    await dataSource.albums.importAlbums([root], const {});
+
+    final albums = await dataSource.albums.getAlbums();
+    final childRecord = albums.firstWhere((a) => a.id == 'child');
+    expect(childRecord.parentId, 'root');
+  });
+
+  test('importAlbums rejects cycles and missing parents', () async {
+    final a = GalleryAlbumRecord(
+      id: 'a',
+      name: 'a',
+      parentId: 'b',
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+    );
+    final b = GalleryAlbumRecord(
+      id: 'b',
+      name: 'b',
+      parentId: 'a',
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+    );
+
+    await expectLater(
+      dataSource.albums.importAlbums([a, b], const {}),
+      throwsArgumentError,
+    );
+
+    final orphan = GalleryAlbumRecord(
+      id: 'orphan',
+      name: 'orphan',
+      parentId: 'ghost',
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+    );
+    await expectLater(
+      dataSource.albums.importAlbums([orphan], const {}),
+      throwsArgumentError,
+    );
+  });
+
+  test('pendingPaths persist and rebindPendingPaths binds resolved ones',
+      () async {
+    final imageId = await seedImage('gallery/a.png');
+    final album = GalleryAlbumRecord(
+      id: 'pa',
+      name: 'A',
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+    );
+    await dataSource.albums.importAlbums(
+      [album],
+      const {},
+      pendingPathsByAlbumId: const {
+        'pa': ['gallery/a.png', 'gallery/missing.png'],
+      },
+    );
+
+    var readBack = (await dataSource.albums.getAlbums()).single;
+    expect(readBack.pendingPaths, ['gallery/a.png', 'gallery/missing.png']);
+
+    // 模拟扫描完成后补绑：可解析的绑定，仍缺的保留在 pending
+    final remaining = await dataSource.albums.rebindPendingPaths(
+      resolve: (paths) async {
+        final ids = await dataSource.getImageIdsByPaths([
+          'gallery/a.png',
+          'gallery/missing.png',
+        ]);
+        return {
+          for (final path in paths) path: ids[path],
+        };
+      },
+    );
+
+    expect(remaining, 1);
+    readBack = (await dataSource.albums.getAlbums()).single;
+    expect(readBack.pendingPaths, ['gallery/missing.png']);
+    expect(readBack.imageCount, 1);
+    expect(imageId, greaterThan(0));
+  });
 }

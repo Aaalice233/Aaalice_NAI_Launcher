@@ -27,6 +27,9 @@ class GallerySchema {
       // 迁移：添加 last_scanned_at 列（如果缺失）
       await _migrateAddLastScannedAt(db);
 
+      // 迁移：相簿添加 pending_paths 列（如果缺失）
+      await _migrateAddAlbumPendingPaths(db);
+
       AppLogger.i('Gallery tables initialized', 'GalleryDS');
     });
   }
@@ -145,6 +148,34 @@ class GallerySchema {
         'GalleryDS',
       );
       // 迁移失败不应该阻止应用启动
+    }
+  }
+
+  /// 迁移：相簿添加 pending_paths 列（相对图库根目录、尚未绑定到
+  /// gallery_images 记录的成员路径，JSON 数组）
+  Future<void> _migrateAddAlbumPendingPaths(Database db) async {
+    try {
+      final tableInfo = await db.rawQuery(
+        'PRAGMA table_info(${GalleryTables.albums})',
+      );
+      final hasColumn = tableInfo.any((col) => col['name'] == 'pending_paths');
+
+      if (!hasColumn) {
+        AppLogger.i(
+          '[Migration] Adding pending_paths column to ${GalleryTables.albums}',
+          'GalleryDS',
+        );
+        await db.execute(
+          'ALTER TABLE ${GalleryTables.albums} ADD COLUMN pending_paths TEXT',
+        );
+      }
+    } catch (e, stack) {
+      AppLogger.e(
+        '[Migration] Failed to add pending_paths column',
+        e,
+        stack,
+        'GalleryDS',
+      );
     }
   }
 
@@ -308,6 +339,7 @@ class GallerySchema {
         parent_id TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0,
         cover_path TEXT,
+        pending_paths TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         FOREIGN KEY (parent_id) REFERENCES ${GalleryTables.albums}(id) ON DELETE SET NULL
