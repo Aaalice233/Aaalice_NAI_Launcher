@@ -40,6 +40,18 @@ void main() {
 
     expect(downloaded!.bytes, bytes);
     expect(downloaded.revision, uploaded.revision);
+    final appRootGet = api.requests.indexWhere(
+      (request) =>
+          request.method == 'GET' &&
+          request.uri.path == '/v1.0/me/drive/special/approot',
+    );
+    final firstFolderCreate = api.requests.indexWhere(
+      (request) =>
+          request.method == 'POST' &&
+          request.uri.path == '/v1.0/me/drive/special/approot/children',
+    );
+    expect(appRootGet, greaterThanOrEqualTo(0));
+    expect(firstFolderCreate, greaterThan(appRootGet));
     expect(
       api.requests.any(
         (request) => request.uri.path.contains(
@@ -267,6 +279,7 @@ class _FakeOneDriveApi implements HttpClientAdapter {
   int metadataRateLimitResponses = 0;
   bool observedStalePrecondition = false;
   bool observedCreateConflict = false;
+  bool appRootRequested = false;
   int _revision = 0;
   int _session = 0;
 
@@ -318,8 +331,26 @@ class _FakeOneDriveApi implements HttpClientAdapter {
       }
     }
 
+    if (request.uri.path == '/v1.0/me/drive/special/approot') {
+      if (request.method == 'GET') {
+        appRootRequested = true;
+        return _FakeResponse.json(200, {
+          'name': 'Aaalice NAI Launcher',
+          'eTag': '"approot"',
+          'size': 0,
+          'folder': <String, Object?>{},
+          'specialFolder': {'name': 'approot'},
+        });
+      }
+    }
+
     final graphPath = _graphItemPath(request.uri.path);
     if (request.method == 'POST' && request.uri.path.endsWith('/children')) {
+      if (!appRootRequested) {
+        return _FakeResponse.json(404, {
+          'error': {'code': 'itemNotFound'},
+        });
+      }
       final body = jsonDecode(request.data as String) as Map<String, dynamic>;
       final name = body['name'] as String;
       final parent = graphPath ?? '';

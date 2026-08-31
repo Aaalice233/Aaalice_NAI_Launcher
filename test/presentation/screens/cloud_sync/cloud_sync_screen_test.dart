@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
+import 'package:nai_launcher/core/cloud_sync/cloud_drive_provider.dart';
+import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_config.dart';
+import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_models.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
@@ -92,6 +98,61 @@ void main() {
     await tester.tap(save);
     await tester.pumpAndSettle();
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('OAuth 草稿随页面销毁安全清理且不读取已失效 ref', (tester) async {
+    final port = _FakePort();
+    final registry = CloudDriveProviderRegistry([
+      const _ConfiguredCloudDriveProvider(CloudDriveOAuthProvider.oneDrive),
+    ]);
+    await tester.pumpWidget(_subject(port: port, registry: registry));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('OneDrive'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('cloud-sync-authorize-oneDrive')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('test@example.com'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    expect(port.discardedAuthorizations.single.accountId, 'account-1');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('OAuth 返回时页面已销毁会立即清理新授权', (tester) async {
+    final port = _FakePort()
+      ..authorizationCompleter = Completer<CloudSyncConnectionDraft>();
+    final registry = CloudDriveProviderRegistry([
+      const _ConfiguredCloudDriveProvider(CloudDriveOAuthProvider.oneDrive),
+    ]);
+    await tester.pumpWidget(_subject(port: port, registry: registry));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('OneDrive'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('cloud-sync-authorize-oneDrive')),
+    );
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    port.authorizationCompleter!.complete(
+      const CloudSyncConnectionDraft(
+        backend: CloudSyncBackendKind.oneDrive,
+        path: 'aaalice-sync',
+        accountId: 'late-account',
+        accountLabel: 'late@example.com',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(port.discardedAuthorizations.single.accountId, 'late-account');
     expect(tester.takeException(), isNull);
   });
 
@@ -391,11 +452,17 @@ Finder get _pageScrollable => find
     )
     .at(0);
 
-Widget _subject({CloudSyncUiState? state, CloudSyncUiPort? port}) {
+Widget _subject({
+  CloudSyncUiState? state,
+  CloudSyncUiPort? port,
+  CloudDriveProviderRegistry? registry,
+}) {
   return ProviderScope(
     overrides: [
       if (state != null) cloudSyncUiStateProvider.overrideWithValue(state),
       if (port != null) cloudSyncUiPortProvider.overrideWithValue(port),
+      if (registry != null)
+        cloudDriveProviderRegistryProvider.overrideWithValue(registry),
       localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
     ],
     child: const MaterialApp(
@@ -418,6 +485,33 @@ class _MemoryStorage extends LocalStorageService {
   Future<void> setSetting<T>(String key, T value) async {
     values[key] = value;
   }
+}
+
+class _ConfiguredCloudDriveProvider implements CloudDriveProvider {
+  const _ConfiguredCloudDriveProvider(this.id);
+
+  @override
+  final CloudDriveOAuthProvider id;
+
+  @override
+  CloudDriveOAuthConfigDiagnostic diagnose() => CloudDriveOAuthConfigDiagnostic(
+    provider: id,
+    platform: CloudDriveOAuthPlatform.windows,
+    isConfigured: true,
+    reasons: const [],
+  );
+
+  @override
+  Future<CloudDriveOAuthSession> connect() => throw UnimplementedError();
+
+  @override
+  CloudSyncBackend createBackend({
+    required String accountId,
+    required String namespace,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> disconnect(String accountId) async {}
 }
 
 CloudSyncUiState _connectedState({
@@ -486,6 +580,27 @@ class _FakePort extends CloudSyncUiPortAdapter {
   var pulls = 0;
   String? recoveryKey;
   bool recoveryConfirmed = false;
+  Completer<CloudSyncConnectionDraft>? authorizationCompleter;
+  final discardedAuthorizations = <CloudSyncConnectionDraft>[];
+
+  @override
+  Future<CloudSyncConnectionDraft> authorizeCloudDrive(
+    CloudSyncBackendKind backend,
+  ) async =>
+      authorizationCompleter?.future ??
+      CloudSyncConnectionDraft(
+        backend: backend,
+        path: 'aaalice-sync',
+        accountId: 'account-1',
+        accountLabel: 'test@example.com',
+      );
+
+  @override
+  Future<void> discardCloudDriveAuthorization(
+    CloudSyncConnectionDraft connection,
+  ) async {
+    discardedAuthorizations.add(connection);
+  }
 
   @override
   Future<void> recoverCloudDriveEncryption(String recoveryKey) async {

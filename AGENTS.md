@@ -92,6 +92,7 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 4. **及时拆方法和 Widget**：方法超过 50 行应检查职责，超过 100 行必须拆分；`build` 嵌套超过 3～4 层，或主体需要滚动才能读完时，抽取具名子 Widget，避免堆叠匿名 builder。
 5. **目录按功能聚合**：在既有 `core`、`data`、`presentation` 分层内按功能组织，例如 `features/auth/`、`features/home/`；禁止用单个 `widgets.dart`、`utils.dart` 收纳所有不相关实现。
 6. **克制使用 `part` / `part of`**：仅在必须共享私有成员或框架约定要求时使用；同一逻辑单元的 part 文件合并计算规模，不得用它把 800 行代码伪装成数个小文件。
+7. **保证 Riverpod 生命周期安全**：`ConsumerState.dispose` / `deactivate` 及 widget 已卸载后的异步回调不得读取 `ref`；销毁清理需要的 service/port 必须在 `initState` 等有效生命周期预先获取并保存稳定句柄，异步回写 UI 或 Provider 前检查 `mounted` 或对应请求世代，避免卸载阶段断言和旧响应污染。
 
 > 文件长不代表产出多；越长，越没人敢改。拆分的目标是让职责清楚、修改安全，而不是机械追求行数。
 

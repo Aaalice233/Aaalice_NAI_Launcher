@@ -38,6 +38,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     CloudSyncDataKind.prompts,
     CloudSyncDataKind.galleries,
   };
+  late final CloudSyncUiPort _cloudSyncUiPort;
   late final CloudSyncContentSelectionStore _contentSelectionStore;
   late CloudSyncContentSelection _contentSelection;
 
@@ -57,6 +58,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     for (final controller in _controllers) {
       controller.addListener(_refreshInputState);
     }
+    _cloudSyncUiPort = ref.read(cloudSyncUiPortProvider);
     _contentSelectionStore = CloudSyncContentSelectionStore(
       ref.read(localStorageServiceProvider),
     );
@@ -75,11 +77,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   void dispose() {
     final pendingOAuth = _oauthDraft;
     if (pendingOAuth != null) {
-      unawaited(
-        ref
-            .read(cloudSyncUiPortProvider)
-            .discardCloudDriveAuthorization(pendingOAuth),
-      );
+      unawaited(_cloudSyncUiPort.discardCloudDriveAuthorization(pendingOAuth));
     }
     for (final controller in _controllers) {
       controller.removeListener(_refreshInputState);
@@ -146,15 +144,16 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     await _run(() async {
       final previous = _oauthDraft;
       if (previous != null) {
-        await ref
-            .read(cloudSyncUiPortProvider)
-            .discardCloudDriveAuthorization(previous);
-        if (mounted) setState(() => _oauthDraft = null);
+        await _cloudSyncUiPort.discardCloudDriveAuthorization(previous);
+        if (!mounted) return;
+        setState(() => _oauthDraft = null);
       }
-      final connected = await ref
-          .read(cloudSyncUiPortProvider)
-          .authorizeCloudDrive(_backend);
-      if (mounted) setState(() => _oauthDraft = connected);
+      final connected = await _cloudSyncUiPort.authorizeCloudDrive(_backend);
+      if (!mounted) {
+        await _cloudSyncUiPort.discardCloudDriveAuthorization(connected);
+        return;
+      }
+      setState(() => _oauthDraft = connected);
     });
   }
 
@@ -166,11 +165,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
       _oauthDraft = null;
     });
     if (previous != null) {
-      unawaited(
-        ref
-            .read(cloudSyncUiPortProvider)
-            .discardCloudDriveAuthorization(previous),
-      );
+      unawaited(_cloudSyncUiPort.discardCloudDriveAuthorization(previous));
     }
   }
 
@@ -182,15 +177,13 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
       return;
     }
     await _run(() async {
-      await ref
-          .read(cloudSyncUiPortProvider)
-          .connect(
-            CloudSyncConnectRequest(
-              connection: _draft,
-              dataKinds: _dataKinds,
-              contentSelection: _contentSelection,
-            ),
-          );
+      await _cloudSyncUiPort.connect(
+        CloudSyncConnectRequest(
+          connection: _draft,
+          dataKinds: _dataKinds,
+          contentSelection: _contentSelection,
+        ),
+      );
       // The authorization is now owned by the persisted connection. Prevent
       // widget disposal from revoking the session that was just committed.
       _oauthDraft = null;

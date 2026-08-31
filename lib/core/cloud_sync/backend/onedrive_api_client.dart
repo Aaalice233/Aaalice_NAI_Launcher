@@ -90,6 +90,7 @@ class OneDriveApiClient {
   }
 
   Future<void> ensureFolder(String path) async {
+    await _ensureAppRoot();
     var parent = '';
     for (final name in path.split('/')) {
       final endpoint = parent.isEmpty
@@ -121,6 +122,21 @@ class OneDriveApiClient {
         }
       }
       parent = parent.isEmpty ? name : '$parent/$name';
+    }
+  }
+
+  Future<void> _ensureAppRoot() async {
+    final response = await _graphRequest(
+      'GET',
+      _appRoot,
+      action: '初始化 OneDrive 应用目录',
+    );
+    final item = _decodeMap(response!, 'OneDrive 应用目录');
+    if (item['folder'] is! Map) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'OneDrive 应用目录响应不是文件夹。',
+      );
     }
   }
 
