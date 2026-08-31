@@ -6096,6 +6096,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_addToAlbum => 'Add to Album';
 
   @override
+  String get localGallery_removeFromAlbum => 'Remove from Album';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return 'Removed $count images';
+  }
+
+  @override
+  String get localGallery_albumNoMembers =>
+      'Selected images are not in this album';
+
+  @override
   String localGallery_addedToAlbumWithName(Object count, Object name) {
     return 'Added $count images to \'$name\'';
   }

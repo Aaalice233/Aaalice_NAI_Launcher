@@ -14,7 +14,42 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/gallery_album_provider.dart';
 import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
 import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_category_panel.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
+import 'package:hive/hive.dart';
+
+bool _removedClicked = false;
+
+void _markRemoved() => _removedClicked = true;
+
+class _ToolbarGalleryNotifier extends LocalGalleryNotifier {
+  _ToolbarGalleryNotifier(this._initialState, {required this.filteredPaths});
+
+  final LocalGalleryState _initialState;
+  final List<String> filteredPaths;
+
+  @override
+  LocalGalleryState build() => _initialState;
+
+  @override
+  Future<List<String>> getFilteredImagePaths() async => filteredPaths;
+}
+
+class _ActiveSelectionNotifier extends LocalGallerySelectionNotifier {
+  _ActiveSelectionNotifier(this._initialSelectedIds, {required this.isActive});
+
+  final Set<String> _initialSelectedIds;
+  final bool isActive;
+
+  @override
+  SelectionModeState build() {
+    return SelectionModeState(
+      isActive: isActive,
+      selectedIds: _initialSelectedIds,
+    );
+  }
+}
 
 /// 本地图库相簿侧栏集成测试（Windows 真实窗口）。
 ///
@@ -96,8 +131,8 @@ void main() {
       onAddAlbumRequest: (_) async {},
       onAlbumMove: (_, _) async => true,
       onImageDropToAlbum: (imagePath, albumId) async {
-            onDrop?.call(albumId, imagePath);
-          },
+        onDrop?.call(albumId, imagePath);
+      },
     );
 
     final gridTile = Draggable<LocalImageRecord>(
@@ -113,7 +148,10 @@ void main() {
         height: 72,
         color: Colors.blueGrey.shade700,
         child: const Center(
-          child: Text('拖我', style: TextStyle(color: Colors.white, fontSize: 12)),
+          child: Text(
+            '拖我',
+            style: TextStyle(color: Colors.white, fontSize: 12),
+          ),
         ),
       ),
     );
@@ -130,10 +168,7 @@ void main() {
               height: 760,
               child: Row(
                 children: [
-                  SizedBox(
-                    width: width >= 600 ? 250 : width,
-                    child: panel,
-                  ),
+                  SizedBox(width: width >= 600 ? 250 : width, child: panel),
                   if (width >= 600)
                     const Expanded(child: ColoredBox(color: Color(0xFF141414))),
                 ],
@@ -161,6 +196,8 @@ void main() {
 
   setUpAll(() async {
     await outputDir.create(recursive: true);
+    final hiveDir = Directory.systemTemp.createTempSync('album_it_hive_');
+    Hive.init(hiveDir.path);
   });
 
   testWidgets('宽屏：层级渲染与相簿选择', (tester) async {
@@ -171,10 +208,7 @@ void main() {
     await tester.pumpWidget(
       wrapBoundary(
         'wide-hierarchy',
-        buildHarness(
-          width: 840,
-          onAlbumSelected: (id) => selected = id,
-        ),
+        buildHarness(width: 840, onAlbumSelected: (id) => selected = id),
       ),
     );
     await tester.pumpAndSettle();
@@ -252,5 +286,53 @@ void main() {
     expect(find.text('测试文件夹'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await savePng('narrow-panel');
+  });
+
+  testWidgets('浏览相簿时多选工具栏的移出按钮可点击', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localGalleryNotifierProvider.overrideWith(
+            () => _ToolbarGalleryNotifier(
+              const LocalGalleryState(
+                currentImages: [],
+                filteredCount: 2,
+                totalCount: 2,
+                totalPages: 1,
+                isInitialized: true,
+              ),
+              filteredPaths: const ['gallery/a.png', 'gallery/b.png'],
+            ),
+          ),
+          localGallerySelectionNotifierProvider.overrideWith(
+            () => _ActiveSelectionNotifier(const {
+              'gallery/a.png',
+            }, isActive: true),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: LocalGalleryToolbar(
+              enableSearchAutocomplete: false,
+              onRemoveFromAlbum: _markRemoved,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = find.text('移出相簿');
+    expect(button, findsOneWidget);
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(_removedClicked, isTrue);
   });
 }

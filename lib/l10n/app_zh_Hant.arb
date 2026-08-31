@@ -2735,6 +2735,14 @@
   "localGallery_albumAddFailed": "加入相簿失敗",
   "localGallery_albumSelectTitle": "加入相簿",
   "localGallery_addToAlbum": "加入相簿",
+  "@localGallery_removedFromAlbum": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_removeFromAlbum": "移出相簿",
+  "localGallery_removedFromAlbum": "已移出 {count} 張圖片",
+  "localGallery_albumNoMembers": "所選圖片不在此相簿中",
   "localGallery_addedToAlbumWithName": "已將 {count} 張圖片加入「{name}」",
   "localGallery_imageCount": "{count} 張圖片",
   "@localGallery_imageCount": {

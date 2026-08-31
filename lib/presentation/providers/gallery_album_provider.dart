@@ -211,6 +211,10 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
     if (removed > 0) {
       await _load();
       _scheduleSidecarExport();
+      // 当前浏览的正是该相簿时，过滤视图需立即反映成员变化
+      await ref
+          .read(localGalleryNotifierProvider.notifier)
+          .refresh(scan: false);
     }
     return removed;
   }

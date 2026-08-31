@@ -38,6 +38,19 @@ void main() {
     },
   );
 
+  testWidgets('remove-from-album action only appears while browsing an album', (
+    tester,
+  ) async {
+    await _pumpToolbar(tester);
+    expect(find.byIcon(Icons.playlist_remove), findsNothing);
+
+    await _pumpToolbar(tester, onRemoveFromAlbum: _noop);
+
+    // 宽度不足时批量动作只显示图标；显隐条件是本用例的验证边界，
+    // 点击链路与其他批量按钮共用同一机制
+    expect(find.byIcon(Icons.playlist_remove), findsOneWidget);
+  });
+
   testWidgets('select current page only selects visible page paths', (
     tester,
   ) async {
@@ -137,6 +150,7 @@ Future<ProviderContainer> _pumpToolbar(
   WidgetTester tester, {
   Set<String> initialSelectedIds = const {},
   bool selectionActive = true,
+  VoidCallback? onRemoveFromAlbum,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -169,14 +183,15 @@ Future<ProviderContainer> _pumpToolbar(
           ),
         ),
       ],
-      child: const MaterialApp(
-        locale: Locale('zh'),
+      child: MaterialApp(
+        locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: LocalGalleryToolbar(
             enableSearchAutocomplete: false,
             onToggleCategoryPanel: _noop,
+            onRemoveFromAlbum: onRemoveFromAlbum,
           ),
         ),
       ),
