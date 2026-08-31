@@ -11,6 +11,7 @@ import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifi
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/right_panel.dart';
+import 'package:nai_launcher/presentation/widgets/common/owned_scroll_controller.dart';
 
 void main() {
   late Directory hiveDir;
@@ -73,6 +74,48 @@ void main() {
     isResizing.value = false;
     await tester.pump();
     expect(tester.state(find.byType(HistoryPanel)), same(initialState));
+  });
+
+  testWidgets('recreated responsive panel keeps the stable history owner', (
+    tester,
+  ) async {
+    final viewport = OwnedViewportOffset()..replace(720);
+    final showPanel = ValueNotifier(true);
+    addTearDown(showPanel.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: ValueListenableBuilder<bool>(
+              valueListenable: showPanel,
+              builder: (_, visible, __) => visible
+                  ? RightPanel(historyViewport: viewport)
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      ),
+    );
+    final firstState = tester.state(find.byType(RightPanel));
+
+    showPanel.value = false;
+    await tester.pump();
+    showPanel.value = true;
+    await tester.pump();
+
+    expect(tester.state(find.byType(RightPanel)), isNot(same(firstState)));
+    expect(
+      tester.widget<RightPanel>(find.byType(RightPanel)).historyViewport,
+      same(viewport),
+    );
+    expect(viewport.pixels, 720);
   });
 
   testWidgets('collapsed entries open the selected panel immediately', (

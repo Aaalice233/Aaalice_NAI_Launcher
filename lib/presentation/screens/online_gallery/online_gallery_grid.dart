@@ -91,6 +91,19 @@ class OnlineGalleryGrid extends StatelessWidget {
           0.0,
           double.infinity,
         );
+        final viewportScope = state.randomEnabled
+            ? 'random:${state.randomSession.scopeKey}'
+            : state.currentCacheKey;
+        final activeCache = state.randomEnabled
+            ? state.randomSession.cache
+            : state.currentCache;
+        if (availableWidth <= 0 || constraints.maxHeight <= 0) {
+          controller.markViewportUnavailable(
+            scope: viewportScope,
+            posts: state.posts,
+          );
+          return const SizedBox.shrink();
+        }
         final columnCount = ((availableWidth + spacing) / (160 + spacing))
             .floor()
             .clamp(1, 8);
@@ -103,9 +116,6 @@ class OnlineGalleryGrid extends StatelessWidget {
         final storageScope = state.randomEnabled
             ? 'random:${state.randomSession.scopeKey}'
             : 'normal';
-        final activeCache = state.randomEnabled
-            ? state.randomSession.cache
-            : state.currentCache;
         final showFooterBeforeRunway = activeCache.appendErrorCode != null;
         final placeholderCount = showFooterBeforeRunway
             ? 0
@@ -143,6 +153,14 @@ class OnlineGalleryGrid extends StatelessWidget {
           maxScrollExtent: masonryLayout.maxScrollExtent,
           elapsed: layoutStopwatch?.elapsed ?? Duration.zero,
         );
+        controller.prepareGridViewport(
+          scope: viewportScope,
+          cache: activeCache,
+          posts: state.posts,
+          layout: masonryLayout,
+          columnCount: columnCount,
+          itemWidth: itemWidth,
+        );
         final slotKeyPrefix =
             'gallery-slot:$storageScope:${state.currentCacheKey}:';
         int? findSlotIndex(Key key) {
@@ -171,9 +189,7 @@ class OnlineGalleryGrid extends StatelessWidget {
         }
 
         return CustomScrollView(
-          key: PageStorageKey<String>(
-            'online_gallery_$storageScope:${state.currentCacheKey}',
-          ),
+          key: ValueKey<String>('online-gallery-scroll:$viewportScope'),
           controller: controller.scrollController,
           scrollCacheExtent: ScrollCacheExtent.pixels(
             OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),

@@ -188,13 +188,16 @@ class OnlineGalleryViewportTracker {
     );
   }
 
-  int? _indexOfStableKey(List<GalleryItem> posts, String stableKey) {
+  int? indexOfStableKey(List<GalleryItem> posts, String stableKey) {
     if (posts is ChunkedGalleryItems) {
       return posts.indexOfStableKey(stableKey);
     }
     final index = posts.indexWhere((item) => item.stableKey == stableKey);
     return index < 0 ? null : index;
   }
+
+  int? _indexOfStableKey(List<GalleryItem> posts, String stableKey) =>
+      indexOfStableKey(posts, stableKey);
 
   void dispose() {
     _visibleByStableKey.clear();

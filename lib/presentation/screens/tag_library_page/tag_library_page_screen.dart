@@ -19,6 +19,7 @@ import '../../router/app_routes.dart';
 
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'widgets/category_tree_view.dart';
@@ -44,10 +45,22 @@ class TagLibraryPageScreen extends ConsumerStatefulWidget {
 class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   /// 搜索框焦点节点
   final FocusNode _searchFocusNode = FocusNode();
+  final OwnedScrollController _cardScrollController = OwnedScrollController(
+    viewport: OwnedViewportOffset(),
+  );
+  final OwnedScrollController _listScrollController = OwnedScrollController(
+    viewport: OwnedViewportOffset(),
+  );
+  final OwnedScrollController _groupedScrollController = OwnedScrollController(
+    viewport: OwnedViewportOffset(),
+  );
 
   @override
   void dispose() {
     _searchFocusNode.dispose();
+    _cardScrollController.dispose();
+    _listScrollController.dispose();
+    _groupedScrollController.dispose();
     super.dispose();
   }
 
@@ -375,6 +388,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         return _buildListView(theme, entries);
       case TagLibraryViewMode.grouped:
         return GroupedEntriesView(
+          scrollController: _groupedScrollController,
           onEdit: _showEditDialog,
           onDelete: _showDeleteEntryConfirmationForEntry,
           onSend: _showEntryDetail,
@@ -424,6 +438,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   /// 构建卡片网格
   Widget _buildCardGrid(ThemeData theme, List<TagLibraryEntry> entries) {
     return GridView.builder(
+      controller: _cardScrollController,
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 240,
@@ -439,6 +454,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   /// 构建列表视图
   Widget _buildListView(ThemeData theme, List<TagLibraryEntry> entries) {
     return ListView.builder(
+      controller: _listScrollController,
       padding: const EdgeInsets.all(16),
       itemCount: entries.length,
       itemBuilder: (context, index) => Padding(
