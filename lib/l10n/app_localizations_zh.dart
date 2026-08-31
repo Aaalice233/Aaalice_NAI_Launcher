@@ -12478,6 +12478,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get image_savedToSystemGallery => '已保存到系统相册';
 
   @override
+  String get localGallery_saveToSystemGallery => '保存到系统相册';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return '无法保存到系统相册：$error';
+  }
+
+  @override
   String image_savedAppOnly(Object error) {
     return '已保存到应用图库，但无法导出到系统相册：$error';
   }
@@ -25704,6 +25712,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get image_savedToSystemGallery => '已儲存到系統相簿';
+
+  @override
+  String get localGallery_saveToSystemGallery => '儲存到系統相簿';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return '無法儲存到系統相簿：$error';
+  }
 
   @override
   String image_savedAppOnly(Object error) {

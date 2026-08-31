@@ -13014,6 +13014,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get image_savedToSystemGallery => 'Saved to your photo gallery';
 
   @override
+  String get localGallery_saveToSystemGallery => 'Save to photo gallery';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return 'Could not save to your photo gallery: $error';
+  }
+
+  @override
   String image_savedAppOnly(Object error) {
     return 'Saved to the app gallery, but could not export to your photo gallery: $error';
   }

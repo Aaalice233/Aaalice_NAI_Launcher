@@ -11,6 +11,7 @@ import 'package:path/path.dart' as path;
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/database/database_providers.dart';
+import '../../../core/services/android_media_store_service.dart';
 import '../../../core/services/file_export_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
@@ -492,6 +493,8 @@ class LocalGalleryActionCoordinator {
         await _copyPrompt(record, availableMetadata);
       case LocalImageContextAction.copySeed:
         await _copySeed(record, availableMetadata);
+      case LocalImageContextAction.saveToSystemGallery:
+        await _saveToSystemGallery(record);
       case LocalImageContextAction.showInFolder:
         await _openFileInFolder(record.path);
       case LocalImageContextAction.delete:
@@ -819,6 +822,39 @@ class LocalGalleryActionCoordinator {
     await Clipboard.setData(ClipboardData(text: seedMetadata!.seed.toString()));
     if (_mounted()) {
       AppToast.success(_context(), _context().l10n.localGallery_seedCopied);
+    }
+  }
+
+  Future<void> _saveToSystemGallery(LocalImageRecord record) async {
+    try {
+      final file = File(record.path);
+      if (!await file.exists()) {
+        _showMissingImage();
+        return;
+      }
+      await AndroidMediaStoreService.saveImageFromPath(
+        sourcePath: file.path,
+        fileName: path.basename(file.path),
+      );
+      if (_mounted()) {
+        AppToast.success(
+          _context(),
+          _context().l10n.image_savedToSystemGallery,
+        );
+      }
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to export local gallery image to system gallery',
+        error,
+        stackTrace,
+        'LocalGallery',
+      );
+      if (_mounted()) {
+        AppToast.error(
+          _context(),
+          _context().l10n.localGallery_saveToSystemGalleryFailed('$error'),
+        );
+      }
     }
   }
 

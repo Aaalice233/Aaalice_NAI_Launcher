@@ -12688,6 +12688,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get image_savedToSystemGallery => 'システムギャラリーに保存しました';
 
   @override
+  String get localGallery_saveToSystemGallery => 'システムギャラリーに保存';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return 'システムギャラリーに保存できませんでした: $error';
+  }
+
+  @override
   String image_savedAppOnly(Object error) {
     return 'アプリ内ギャラリーには保存しましたが、システムギャラリーに書き出せませんでした: $error';
   }

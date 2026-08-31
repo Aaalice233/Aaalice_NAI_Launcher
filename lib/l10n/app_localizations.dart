@@ -22688,6 +22688,18 @@ abstract class AppLocalizations {
   /// **'Saved to your photo gallery'**
   String get image_savedToSystemGallery;
 
+  /// No description provided for @localGallery_saveToSystemGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to photo gallery'**
+  String get localGallery_saveToSystemGallery;
+
+  /// No description provided for @localGallery_saveToSystemGalleryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save to your photo gallery: {error}'**
+  String localGallery_saveToSystemGalleryFailed(Object error);
+
   /// No description provided for @image_savedAppOnly.
   ///
   /// In en, this message translates to:
