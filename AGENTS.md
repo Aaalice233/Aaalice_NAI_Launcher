@@ -70,6 +70,8 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 ### Windows 窗口稳定性
 
 - 主 Runner 必须在 `WM_SIZE` 和 `WM_WINDOWPOSCHANGED` 后排队重新对齐 Flutter child view；不得只依赖 `WM_SIZE`。否则外层主 HWND 恢复后，内部 `FLUTTERVIEW` 可能仍停在 Windows 最小化哨兵坐标 `-32000,-32000`，表现为旧画面冻结、按钮 hover 不消失、点击无响应或出现调整尺寸光标。
+- Flutter Windows 最小化发送零尺寸 metrics 是官方已知生命周期行为；顶层 `SIZE_MINIMIZED` 仍须通过 `HandleTopLevelWindowProc` 传递 `hidden` 生命周期，但主 Runner 不得把 iconic/零尺寸 client rect 转发给 child HWND。Flutter 壳层遇到临时无效 constraints 时必须保留同一 child element/state，并暂停 ticker、语义和交互；正常非最小化缩放仍须响应真实 constraints。
+- `windows/runner/` 是受 Git 管理的项目原生源码，`test`、`analyze`、`flutter clean`、`flutter build`、Release CI 和 Flutter SDK 升级不会用官方模板还原；若删除/重建平台工程或人工同步模板，必须保留项目的 child resize、accessibility 和生命周期定制，并运行静态契约测试。
 - 调试“窗口可见但无法操作”时必须分别检查顶层 `FLUTTER_RUNNER_WIN32_WINDOW` 与其 `FLUTTERVIEW` 子窗口的 rect、enabled、capture 和 hit-test；不能只根据 Flutter 日志或外层 HWND 状态判断。
 - 修改插件版本或 Windows C++ 后必须完整重建。Orca 会话显示 `running` 或留有 PID 不等于构建成功；应确认控制台出现原生构建成功/启动标记、真实 `nai_launcher` 进程存在，依赖变化时再核对插件 DLL 时间戳，然后才让用户复现。
 - Windows 最小化会让窗口 constraints 短暂归零，响应式布局可能因此销毁并重建面板子树；滚动位置、是否跟随最新内容等必须跨 Widget/Controller 生命周期的 viewport 状态应由更高层稳定 owner 按会话保存。重建 ScrollController 时必须用保存值设置 `initialScrollOffset`，在首帧直接呈现原位置；不得先渲染默认位置再通过 post-frame `jumpTo` 恢复，否则会出现跳到底部后拉回的闪烁。

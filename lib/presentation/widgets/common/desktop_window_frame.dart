@@ -16,7 +16,7 @@ const double desktopWindowButtonWidth = 48;
 /// Other platforms keep their native title bars. On Windows,
 /// `TitleBarStyle.hidden` retains the native resizable frame while this widget
 /// supplies the visible caption controls and drag region.
-class DesktopWindowFrame extends StatelessWidget {
+class DesktopWindowFrame extends StatefulWidget {
   const DesktopWindowFrame({
     super.key,
     required this.child,
@@ -29,26 +29,77 @@ class DesktopWindowFrame extends StatelessWidget {
   final bool? enabled;
 
   @override
+  State<DesktopWindowFrame> createState() => _DesktopWindowFrameState();
+}
+
+class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
+  Size? _lastValidViewport;
+
+  bool _isValidViewport(BoxConstraints constraints) {
+    return constraints.hasBoundedWidth &&
+        constraints.hasBoundedHeight &&
+        constraints.maxWidth.isFinite &&
+        constraints.maxHeight.isFinite &&
+        constraints.maxHeight >= desktopWindowHeaderHeight &&
+        constraints.maxWidth >= desktopWindowButtonWidth * 3;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (!(enabled ?? PlatformCapabilities.current.isWindows)) return child;
+    if (!(widget.enabled ?? PlatformCapabilities.current.isWindows)) {
+      return widget.child;
+    }
 
     final surfaceColor = Theme.of(context).colorScheme.surface;
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Windows briefly shrinks FLUTTERVIEW to a taskbar-sized surface while
-        // minimizing. Laying out a 40px caption there creates a visible debug
-        // overflow even though the top-level window is already disappearing.
-        if (constraints.maxHeight < desktopWindowHeaderHeight ||
-            constraints.maxWidth < desktopWindowButtonWidth * 3) {
-          return ColoredBox(color: surfaceColor);
-        }
-        return ColoredBox(
-          color: surfaceColor,
-          child: Column(
-            children: [
-              DesktopWindowHeader(controller: controller),
-              Expanded(child: child),
-            ],
+        final currentViewport = Size(
+          constraints.maxWidth,
+          constraints.maxHeight,
+        );
+        final isViewportValid = _isValidViewport(constraints);
+        if (isViewportValid) _lastValidViewport = currentViewport;
+
+        // The native view can report a zero or taskbar-sized surface while the
+        // top-level window is being minimized. Keep the same element tree laid
+        // out at its last real viewport so responsive shells and route state do
+        // not churn during that transient native lifecycle state.
+        final layoutViewport = isViewportValid
+            ? currentViewport
+            : _lastValidViewport ??
+                  const Size(
+                    desktopWindowButtonWidth * 3,
+                    desktopWindowHeaderHeight,
+                  );
+
+        return ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.topLeft,
+            minWidth: layoutViewport.width,
+            maxWidth: layoutViewport.width,
+            minHeight: layoutViewport.height,
+            maxHeight: layoutViewport.height,
+            child: SizedBox.fromSize(
+              size: layoutViewport,
+              child: TickerMode(
+                enabled: isViewportValid,
+                child: ExcludeSemantics(
+                  excluding: !isViewportValid,
+                  child: IgnorePointer(
+                    ignoring: !isViewportValid,
+                    child: ColoredBox(
+                      color: surfaceColor,
+                      child: Column(
+                        children: [
+                          DesktopWindowHeader(controller: widget.controller),
+                          Expanded(child: widget.child),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         );
       },

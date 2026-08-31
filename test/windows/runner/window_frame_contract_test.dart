@@ -37,7 +37,29 @@ void main() {
       ).hasMatch(source),
       isTrue,
     );
+    expect(source, contains('PostMessage(window_handle_,'));
+    expect(source, contains('case kResizeChildContentMessage:'));
+    expect(source, contains('ResizeChildContent();'));
   });
+
+  test(
+    'runner never forwards minimized or empty client geometry to Flutter',
+    () {
+      final source = File('windows/runner/win32_window.cpp').readAsStringSync();
+      final header = File('windows/runner/win32_window.h').readAsStringSync();
+
+      expect(source, contains('IsIconic(window_handle_)'));
+      expect(source, contains('width > 0 && height > 0'));
+      expect(source, contains('last_valid_client_rect_ = frame;'));
+      expect(source, contains('frame = last_valid_client_rect_;'));
+      expect(header, contains('RECT last_valid_client_rect_{};'));
+      expect(header, contains('bool has_last_valid_client_rect_ = false;'));
+      expect(
+        source.indexOf('if (IsIconic(window_handle_))'),
+        lessThan(source.indexOf('RECT frame = GetClientArea();')),
+      );
+    },
+  );
 
   test('Flutter caption closes through prevent-close event, never destroy', () {
     final source = File(
