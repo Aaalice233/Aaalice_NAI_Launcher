@@ -44,6 +44,28 @@ String buildAgentSystemPrompt({
         'the user saves to ready or closes to cancelled. Only call '
         'submit_manual_inpaint_draft after separately reporting the draft '
         'and estimated Anlas and receiving explicit user confirmation.',
+    '- create_inpaint_mask authors the mask yourself instead of asking the '
+        'user to draw it. Coordinates are 0-1 fractions of the image, so you '
+        'must read the source image with the read tool first; the tool '
+        'rejects a source you have not read. Give the target generous margin, '
+        'since repainting a little extra is safer than clipping it. Check the '
+        'returned overlay preview before submitting, and simply author a new '
+        'mask if it is off: only submit_manual_inpaint_draft spends Anlas.',
+    '- Focused inpainting crops around the mask and upscales before '
+        'generating, which is what makes fine detail come back correct; '
+        'without it a small area is repainted at its original few-hundred '
+        'pixels. auto only turns it on for sources larger than the 1 MP '
+        'free-generation size, so on a normal 1 MP output pass focused: true '
+        'explicitly whenever the target is small, such as a hand or a face.',
+    '- expand_inpaint_canvas is outpainting: it grows the canvas by pixel '
+        'margins and builds the matching mask itself, so it needs no visual '
+        'targeting. Prefer it over hand-authored masks for extending scenery.',
+    '- load_inpaint_draft_into_panel puts a ready draft on the Generation '
+        'page so the user can review the mask, adjust strength or focused '
+        'inpainting, or edit it further before generating. It replaces the '
+        'source image and mask that page currently holds, so offer it rather '
+        'than doing it unprompted. Inpaint is otherwise the one workflow that '
+        'never appears there.',
     '- generate_image is the DEFAULT and is SYNCHRONOUS: it waits, then '
         'shows the images in the chat. Its "count" generates N '
         'variations of the SAME prompt (max '
@@ -62,7 +84,13 @@ String buildAgentSystemPrompt({
         'already visible in the conversation. Do not call get_recent_images, '
         'read, preview_generated_image, or display_images merely to inspect or '
         'repeat that same output. Only retrieve it again when the user '
-        'explicitly asks to reopen, compare, inspect, or analyze the image.',
+        'explicitly asks to reopen, compare, inspect, or analyze the image, or '
+        'when you need coordinates for create_inpaint_mask.',
+    '- When you do need coordinates, read the image by path. '
+        'display_images and preview_generated_image return small previews '
+        'meant for the user to look at, and are too coarse to measure a '
+        'region from. A generated image exposes a path only once it is saved '
+        'to disk; if there is no path, say so instead of estimating.',
     '- generate_image and get_recent_images return the same generated-image '
         'contract: path is the exact workspace-relative argument for read, '
         'while resource_ref is an application-owned identity for resource '

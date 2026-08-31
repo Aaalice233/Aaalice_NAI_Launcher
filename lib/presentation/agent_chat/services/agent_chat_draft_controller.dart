@@ -211,7 +211,9 @@ class AgentChatDraftController {
   }) {
     final prefix = <UserContent>[];
     if (skill != null) {
-      prefix.add(UserTextContent(formatSkillInvocation(_redacted(skill), null)));
+      prefix.add(
+        UserTextContent(formatSkillInvocation(_redacted(skill), null)),
+      );
     }
     if (references.isNotEmpty) {
       prefix.add(UserTextContent(_resourceReferenceBlock(references)));
@@ -233,9 +235,7 @@ class AgentChatDraftController {
     );
   }
 
-  String _resourceReferenceBlock(
-    List<AgentChatResourceReference> references,
-  ) {
+  String _resourceReferenceBlock(List<AgentChatResourceReference> references) {
     final unavailable = _readState().unavailableResourceKeys;
     final payload = {
       'schemaVersion': 1,

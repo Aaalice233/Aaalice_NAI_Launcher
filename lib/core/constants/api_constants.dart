@@ -199,6 +199,14 @@ class ImageModels {
   /// 判断实际请求模型是否支持在 Inpainting 中复用原图潜空间。
   static bool supportsImg2ImgInpainting(String model) =>
       ModelCapabilityRegistry.of(model).supportsImg2ImgInpainting;
+
+  /// 导入底图时是否套用 Stable Diffusion 系的分辨率边界。
+  static bool usesStableDiffusionImportBounds(String model) {
+    final baseModel = resolveBaseModel(model);
+    return baseModel == animeCurated ||
+        baseModel == animeFull ||
+        baseModel == furry;
+  }
 }
 
 /// 采样器列表

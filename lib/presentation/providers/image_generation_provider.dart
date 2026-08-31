@@ -276,6 +276,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
+    GenerationFocusedSnapshot? focusedOverride,
   }) async {
     if (_isDisposed || _generationInvocationStarting || state.isGenerating) {
       return;
@@ -346,6 +347,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
       final preparation = _preparationService(
         preserveCharacterSnapshot: preserveCharacterSnapshot,
+        focusedOverride: focusedOverride,
       );
       late final GenerationPreparationResult prepared;
       try {
@@ -440,6 +442,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   GenerationRequestPreparationService _preparationService({
     bool preserveCharacterSnapshot = false,
+    GenerationFocusedSnapshot? focusedOverride,
   }) {
     var queueExecuting = false;
     try {
@@ -473,7 +476,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           },
         ),
         focused: GenerationFocusedPreparation(
+          // 只有生成页会把聚焦状态存在 workflow 里；Agent 等其他提交方必须显式
+          // 传入，否则会继承上一张图残留的聚焦选区。
           read: () {
+            if (focusedOverride != null) return focusedOverride;
             final workflow = ref.read(imageWorkflowControllerProvider);
             return GenerationFocusedSnapshot(
               enabled: workflow.focusedInpaintEnabled,

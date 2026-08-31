@@ -1186,6 +1186,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_toolSubmitInpaint => 'インペイントタスクを送信';
 
   @override
+  String get agentChat_toolCreateInpaintMask => 'インペイントマスクを作成';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => 'キャンバスを拡張';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => 'インペイントドラフトをパネルに読み込む';
+
+  @override
   String get agentChat_manualInpaintTitle => '手動インペイント';
 
   @override

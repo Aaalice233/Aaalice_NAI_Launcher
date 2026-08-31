@@ -1206,6 +1206,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_toolSubmitInpaint => 'Submit manual inpaint draft';
 
   @override
+  String get agentChat_toolCreateInpaintMask => 'Create inpaint mask';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => 'Expand canvas';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => 'Load inpaint draft into panel';
+
+  @override
   String get agentChat_manualInpaintTitle => 'Manual inpaint';
 
   @override

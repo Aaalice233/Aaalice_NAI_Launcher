@@ -1171,6 +1171,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_toolSubmitInpaint => '提交局部重绘任务';
 
   @override
+  String get agentChat_toolCreateInpaintMask => '创建重绘蒙版';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => '扩展画布';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => '装载重绘草稿到面板';
+
+  @override
   String get agentChat_manualInpaintTitle => '手动局部重绘';
 
   @override
@@ -14778,6 +14787,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolSubmitInpaint => '提交局部重繪任務';
+
+  @override
+  String get agentChat_toolCreateInpaintMask => '建立重繪遮罩';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => '擴展畫布';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => '載入重繪草稿到面板';
 
   @override
   String get agentChat_manualInpaintTitle => '手動局部重繪';
