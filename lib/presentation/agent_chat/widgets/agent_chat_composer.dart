@@ -474,9 +474,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         viewData.state.compacting ||
         viewData.state.sessionContentLoading ||
         (!viewData.state.routeReady && viewData.state.routeError.isEmpty);
-    final percent = available
-        ? (tokens! / window! * 100).clamp(0, 999).round()
-        : null;
+    final percent = usage.percent?.clamp(0, 999).round();
     final label = loading
         ? viewData.state.compacting
               ? l10n.agentChat_compacting
