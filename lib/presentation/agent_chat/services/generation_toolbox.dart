@@ -13,6 +13,7 @@ import 'generation_preparation_runtime.dart';
 import 'generation_preparation_service.dart';
 import 'generation_queue_task_service.dart';
 import 'generation_settings_service.dart';
+import 'generation_source_image_toolbox.dart';
 import 'generation_status_service.dart';
 import 'generation_tool_definitions.dart';
 import 'generation_tool_limits.dart';
@@ -74,6 +75,11 @@ class GenerationToolbox {
       settings: GenerationSettingsService(ref),
       history: history,
     );
+    _sourceImage = GenerationSourceImageToolbox(
+      ref,
+      resolver: resolver,
+      pathResolver: pathResolver,
+    );
   }
 
   static const int maxGenerateCount = generationToolMaxGenerateCount;
@@ -91,6 +97,10 @@ class GenerationToolbox {
   );
 
   late final GenerationToolDefinitions _definitions;
+  late final GenerationSourceImageToolbox _sourceImage;
 
-  List<AgentTool> tools() => _definitions.tools();
+  List<AgentTool> tools() => [
+    ..._definitions.tools(),
+    ..._sourceImage.tools(),
+  ];
 }

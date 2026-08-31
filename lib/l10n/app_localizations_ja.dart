@@ -1090,6 +1090,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_toolUpdateGenerationSettings => '生成設定を更新';
 
   @override
+  String get agentChat_toolGetGenerationSourceImage => 'i2i の元画像を表示';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage => 'i2i の元画像を読み込み';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage => 'i2i の元画像を削除';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings => 'i2i の強度を調整';
+
+  @override
   String get agentChat_toolPromptState => 'プロンプト状態を表示';
 
   @override

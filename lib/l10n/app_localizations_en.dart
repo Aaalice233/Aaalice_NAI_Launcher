@@ -1106,6 +1106,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Update generation settings';
 
   @override
+  String get agentChat_toolGetGenerationSourceImage =>
+      'View Image2Image source';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage =>
+      'Load Image2Image source';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage =>
+      'Clear Image2Image source';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings =>
+      'Adjust Image2Image strength';
+
+  @override
   String get agentChat_toolPromptState => 'View prompt state';
 
   @override

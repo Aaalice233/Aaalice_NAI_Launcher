@@ -38,4 +38,30 @@ void main() {
       ),
     );
   });
+
+  test('separates the persistent source-image slot from one-shot img2img', () {
+    final prompt = buildAgentSystemPrompt(
+      workspacePath: 'C:/exports',
+      webAccessEnabled: false,
+      skillBlock: '',
+    );
+
+    expect(
+      prompt,
+      contains(
+        'those are one-shot overrides for that single transaction and leave '
+        'the page untouched',
+      ),
+    );
+    expect(
+      prompt,
+      contains(
+        'Use the source-image tools whenever the user should see the image '
+        'sitting in the Image2Image panel.',
+      ),
+    );
+    expect(prompt, contains('set_generation_source_image'));
+    expect(prompt, contains('clear_generation_source_image'));
+    expect(prompt, contains('update_generation_source_settings'));
+  });
 }
