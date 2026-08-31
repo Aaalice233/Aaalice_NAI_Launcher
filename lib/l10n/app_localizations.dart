@@ -24386,6 +24386,12 @@ abstract class AppLocalizations {
   /// **'Could not create watermark copy: {error}'**
   String watermark_failed(Object error);
 
+  /// No description provided for @watermark_failedGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create the watermarked copy. Check the image and try again.'**
+  String get watermark_failedGeneric;
+
   /// No description provided for @watermark_sourceMissing.
   ///
   /// In en, this message translates to:

@@ -13982,6 +13982,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get watermark_failedGeneric =>
+      'Could not create the watermarked copy. Check the image and try again.';
+
+  @override
   String get watermark_sourceMissing =>
       'The original image is missing. Choose it again to recreate the watermark.';
 

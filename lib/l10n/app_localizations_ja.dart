@@ -13636,6 +13636,9 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get watermark_failedGeneric => '透かし入りコピーを作成できませんでした。画像を確認して再試行してください。';
+
+  @override
   String get watermark_sourceMissing => '元画像が見つかりません。再作成するには元画像を選び直してください。';
 
   @override

@@ -9,7 +9,9 @@ import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_controls.dart';
 import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_screen.dart';
 
 void main() {
@@ -133,6 +135,44 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('font picker identifies every preview by family name', (
+    tester,
+  ) async {
+    const settings = WatermarkSettings();
+    await tester.binding.setSurfaceSize(const Size(420, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: WatermarkEditorControls(
+            settings: settings,
+            layout: settings.universalLayout,
+            selectedLayer: WatermarkEditableLayer.text,
+            logoAvailable: false,
+            preserveMetadata: false,
+            onOpenMetadataSettings: () {},
+            onSettingsChanged: (_) {},
+            onLayoutChanged: (_) {},
+            onSelectedLayerChanged: (_) {},
+            onChooseLogo: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+
+    expect(find.text('LXGW ZhenKai GB'), findsWidgets);
+    expect(find.text('Ma Shan Zheng'), findsOneWidget);
+    expect(find.text('Great Vibes'), findsOneWidget);
+    expect(find.text('Allura'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Uint8List _pngBytes(int width, int height) {

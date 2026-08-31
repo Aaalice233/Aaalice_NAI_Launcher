@@ -50,9 +50,15 @@ class WatermarkSettingsNotifier extends Notifier<WatermarkSettingsState> {
     );
   }
 
-  Future<void> saveDefaults() => updateConfiguration(state.configuration);
+  Future<void> saveDefaults([WatermarkSettings? configuration]) =>
+      _persistConfiguration(configuration ?? state.configuration);
 
   Future<void> updateConfiguration(WatermarkSettings configuration) async {
+    if (state.loadIssue != null) return;
+    await _persistConfiguration(configuration);
+  }
+
+  Future<void> _persistConfiguration(WatermarkSettings configuration) async {
     final normalized = WatermarkSettings.decode(
       configuration.encode(),
     ).settings;

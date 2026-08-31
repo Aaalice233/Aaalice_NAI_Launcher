@@ -123,6 +123,7 @@ class _PrivacySettingsSectionState
     final shareSettings = ref.watch(shareImageSettingsProvider);
     final watermarkState = ref.watch(watermarkSettingsProvider);
     final watermarkSettings = watermarkState.configuration;
+    final watermarkControlsEnabled = watermarkState.loadIssue == null;
 
     return SettingsPageLayout(
       title: context.l10n.settings_privacySharing,
@@ -321,11 +322,13 @@ class _PrivacySettingsSectionState
                 secondary: const Icon(Icons.toggle_on_outlined),
                 title: Text(context.l10n.settings_watermarkEnable),
                 value: watermarkSettings.enabled,
-                onChanged: (value) => ref
-                    .read(watermarkSettingsProvider.notifier)
-                    .updateConfiguration(
-                      watermarkSettings.copyWith(enabled: value),
-                    ),
+                onChanged: watermarkControlsEnabled
+                    ? (value) => ref
+                          .read(watermarkSettingsProvider.notifier)
+                          .updateConfiguration(
+                            watermarkSettings.copyWith(enabled: value),
+                          )
+                    : null,
               ),
               SwitchListTile(
                 secondary: const Icon(Icons.data_object_outlined),
@@ -334,11 +337,13 @@ class _PrivacySettingsSectionState
                   context.l10n.settings_watermarkPreserveMetadataHint,
                 ),
                 value: watermarkSettings.preserveMetadata,
-                onChanged: (value) => ref
-                    .read(watermarkSettingsProvider.notifier)
-                    .updateConfiguration(
-                      watermarkSettings.copyWith(preserveMetadata: value),
-                    ),
+                onChanged: watermarkControlsEnabled
+                    ? (value) => ref
+                          .read(watermarkSettingsProvider.notifier)
+                          .updateConfiguration(
+                            watermarkSettings.copyWith(preserveMetadata: value),
+                          )
+                    : null,
               ),
               SwitchListTile(
                 secondary: const Icon(Icons.screen_rotation_alt_outlined),
@@ -347,20 +352,22 @@ class _PrivacySettingsSectionState
                   context.l10n.settings_watermarkLayoutByOrientationHint,
                 ),
                 value: watermarkSettings.rememberLayoutsByOrientation,
-                onChanged: (value) => ref
-                    .read(watermarkSettingsProvider.notifier)
-                    .updateConfiguration(
-                      watermarkSettings.copyWith(
-                        rememberLayoutsByOrientation: value,
-                      ),
-                    ),
+                onChanged: watermarkControlsEnabled
+                    ? (value) => ref
+                          .read(watermarkSettingsProvider.notifier)
+                          .updateConfiguration(
+                            watermarkSettings.copyWith(
+                              rememberLayoutsByOrientation: value,
+                            ),
+                          )
+                    : null,
               ),
               ListTile(
-                enabled: watermarkSettings.enabled,
+                enabled: watermarkControlsEnabled && watermarkSettings.enabled,
                 leading: const Icon(Icons.add_photo_alternate_outlined),
                 title: Text(context.l10n.settings_watermarkCreateFromImage),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: watermarkSettings.enabled
+                onTap: watermarkControlsEnabled && watermarkSettings.enabled
                     ? () => WatermarkEditorLauncher.pickSourceAndOpen(
                         context: context,
                       )

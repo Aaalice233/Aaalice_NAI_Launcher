@@ -327,9 +327,7 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
   }
 
   Future<void> _setDefault() async {
-    await ref
-        .read(watermarkSettingsProvider.notifier)
-        .updateConfiguration(_settings);
+    await ref.read(watermarkSettingsProvider.notifier).saveDefaults(_settings);
     final logoPath = _logoPath;
     if (logoPath != null) {
       final previousLogoPath = ref
@@ -433,8 +431,21 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
           SnackBar(content: Text(context.l10n.watermark_cancelled)),
         );
       }
-    } on Object catch (error) {
-      if (mounted) _showError(error);
+    } on Object catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to create watermarked copy',
+        error,
+        stackTrace,
+        'WatermarkEditor',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.watermark_failedGeneric),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       _renderToken = null;
       if (mounted) setState(() => _saving = false);

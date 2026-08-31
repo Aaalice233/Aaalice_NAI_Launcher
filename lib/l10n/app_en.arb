@@ -6566,6 +6566,7 @@
   "watermark_cancelled": "Watermark rendering cancelled",
   "watermark_failed": "Could not create watermark copy: {error}",
   "@watermark_failed": {"placeholders":{"error":{}}},
+  "watermark_failedGeneric": "Could not create the watermarked copy. Check the image and try again.",
   "watermark_sourceMissing": "The original image is missing. Choose it again to recreate the watermark.",
   "watermark_chooseOriginal": "Choose original image",
   "watermark_dragHint": "Drag the selected layer. Arrow keys move precisely; hold Shift for larger steps.",

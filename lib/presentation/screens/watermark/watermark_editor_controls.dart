@@ -107,14 +107,39 @@ class WatermarkEditorControls extends StatelessWidget {
               for (final option in WatermarkFontCatalog.options)
                 DropdownMenuItem(
                   value: option.family,
-                  child: Text(
-                    text.text.trim().isEmpty ? option.sample : text.text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: option.family,
-                      fontFamilyFallback: WatermarkFontCatalog.fallbackFamilies,
-                      fontSize: 20,
+                  child: Semantics(
+                    label: '${context.l10n.watermark_font}: ${option.family}',
+                    child: ExcludeSemantics(
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 112,
+                            child: Text(
+                              option.family,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 132,
+                            child: Text(
+                              text.text.trim().isEmpty
+                                  ? option.sample
+                                  : text.text,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: option.family,
+                                fontFamilyFallback:
+                                    WatermarkFontCatalog.fallbackFamilies,
+                                fontSize: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

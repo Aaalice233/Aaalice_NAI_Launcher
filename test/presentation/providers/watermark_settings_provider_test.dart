@@ -70,6 +70,14 @@ void main() {
         WatermarkSettingsLoadIssue.corrupted,
       );
 
+      await container
+          .read(watermarkSettingsProvider.notifier)
+          .updateConfiguration(const WatermarkSettings(enabled: true));
+      expect(
+        storage.getSetting<String>(StorageKeys.watermarkConfigV1),
+        '{broken',
+      );
+
       await container.read(watermarkSettingsProvider.notifier).saveDefaults();
 
       final state = container.read(watermarkSettingsProvider);

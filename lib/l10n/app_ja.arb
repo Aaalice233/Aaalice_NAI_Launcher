@@ -6589,6 +6589,7 @@
   "watermark_cancelled": "ウォーターマーク処理をキャンセルしました",
   "watermark_failed": "透かし入りコピーを作成できませんでした：{error}",
   "@watermark_failed": {"placeholders":{"error":{}}},
+  "watermark_failedGeneric": "透かし入りコピーを作成できませんでした。画像を確認して再試行してください。",
   "watermark_sourceMissing": "元画像が見つかりません。再作成するには元画像を選び直してください。",
   "watermark_chooseOriginal": "元画像を選択",
   "watermark_dragHint": "選択したレイヤーをドラッグします。矢印キーで微調整し、Shift キーで大きく移動します。",
