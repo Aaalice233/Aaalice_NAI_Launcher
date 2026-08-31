@@ -102,7 +102,7 @@ flutter analyze lib/core/cloud_sync/oauth lib/core/storage/secure_storage_servic
 2. provider 运行时能力探测（Google 必须保持 `manualBackupOnly`，OneDrive 必须证明强条件写后才是 `bidirectional`）；
 3. 远端 `KEY` 包装、加密 object/manifest、`HEAD` 提交，以及密文与解密明文确实不同；
 4. 第二个临时“设备”使用恢复密钥轮换并拉取，旧恢复密钥失效；
-5. 第二版上传、第三个临时“设备”恢复与拉取、历史可见，并真实恢复第一版历史快照；
+5. 第二版上传、第三个临时“设备”恢复与拉取、历史可见；OneDrive 还真实恢复第一版历史快照，Google 仅做只读预览以遵守手动备份能力边界；
 6. `finally` 删除隔离 namespace，并断开/撤销测试 OAuth session。
 
 Google 的 token revocation/Android `disconnect` 可能使同一 OAuth client 下已有授权失效，因此脚本强制要求**专用测试账号**；不要选择日常生产账号。`-ExpectedTestAccount` 填该账号在 provider 返回的邮箱/登录标识，脚本只把规范化后的 SHA-256 传给测试；OAuth 返回身份不匹配时会在任何云端读写前失败并清除本地 session，为避免误伤生产授权不会自动撤销误选账号，若刚授予过 consent 需由测试人员手工撤销。账号选择、密码、MFA 和 consent 只能由测试人员在 provider 系统浏览器中完成，脚本不保存也不自动填写密码/MFA。Android 只允许 package 尚未安装的干净专用 emulator，完成后自动卸载测试 App；启动前还必须停止目标上的现有 Launcher/开发 Runner。系统级文件锁禁止不同 worktree 并行运行真实 OAuth E2E。

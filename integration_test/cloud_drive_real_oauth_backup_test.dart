@@ -306,7 +306,8 @@ void main() {
         masterKey: keyC.masterKey,
       );
       await coordinatorC.downloadRemote();
-      expect(await adapterC.digest(), await adapterB.digest());
+      final latestDigest = await adapterB.digest();
+      expect(await adapterC.digest(), latestDigest);
       final history = await _waitForHistory(coordinatorC, {
         firstUpload.snapshotId,
         secondSnapshotId,
@@ -318,29 +319,34 @@ void main() {
 
       final preview = await coordinatorC.previewRestore(firstUpload.snapshotId);
       expect(preview.changes, isNotEmpty);
-      final restored = await coordinatorC.restore(firstUpload.snapshotId);
-      expect(restored.uploaded, isTrue);
-      expect(await adapterC.digest(), firstDigest);
       expect(
         firstDigest.any(
           (record) => (record['data']! as String).contains(_marker),
         ),
         isTrue,
       );
-      await _verifyRemoteObjectsAreEncrypted(
-        backend: backend,
-        expectedSnapshotId: restored.snapshotId,
-        codec: LegacyEncryptedCloudObjectCodec(
-          crypto: CloudCrypto(),
-          masterKey: keyC.masterKey,
-        ),
-      );
-      final restoredHistory = await _waitForHistory(coordinatorC, {
-        firstUpload.snapshotId,
-        secondSnapshotId,
-        restored.snapshotId,
-      });
-      expect(restoredHistory.length, greaterThanOrEqualTo(3));
+      switch (providerId) {
+        case CloudDriveOAuthProvider.googleDrive:
+          expect(await adapterC.digest(), latestDigest);
+        case CloudDriveOAuthProvider.oneDrive:
+          final restored = await coordinatorC.restore(firstUpload.snapshotId);
+          expect(restored.uploaded, isTrue);
+          expect(await adapterC.digest(), firstDigest);
+          await _verifyRemoteObjectsAreEncrypted(
+            backend: backend,
+            expectedSnapshotId: restored.snapshotId,
+            codec: LegacyEncryptedCloudObjectCodec(
+              crypto: CloudCrypto(),
+              masterKey: keyC.masterKey,
+            ),
+          );
+          final restoredHistory = await _waitForHistory(coordinatorC, {
+            firstUpload.snapshotId,
+            secondSnapshotId,
+            restored.snapshotId,
+          });
+          expect(restoredHistory.length, greaterThanOrEqualTo(3));
+      }
       await _status(status, tester, '真实 OAuth 加密备份往返验证通过，正在清理…');
     },
   );
