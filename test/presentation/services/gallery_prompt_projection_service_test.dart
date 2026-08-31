@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_output_filter_provider.dart';
@@ -153,6 +154,121 @@ void main() {
         'prompt': 'alice, watermark',
         'negative': 'bad hands, watermark',
       });
+    });
+  });
+
+  group('complete copy metadata', () {
+    test(
+      'falls back to item source metadata instead of serializing empty media braces',
+      () {
+        const item = GalleryItem(
+          id: 14,
+          sourceId: GallerySourceId.danbooru,
+          rawSourceMetadata: {
+            'id': 14,
+            'tag_string': '1girl blue_hair {blue_eyes}',
+          },
+        );
+        const media = GalleryMedia(id: '14:0');
+
+        final text = service.sourceMetadataForCopy(item: item, media: media);
+
+        expect(text, contains('"tag_string": "1girl blue_hair {blue_eyes}"'));
+        expect(text, isNot('{}'));
+      },
+    );
+
+    test('keeps all Danbooru and Gelbooru tags without output reduction', () {
+      const danbooru = GalleryItem(
+        id: 10,
+        sourceId: GallerySourceId.danbooru,
+        tags: ['solo', 'alice', 'series', 'watermark'],
+        tagStringGeneral: 'solo watermark',
+        tagStringCharacter: 'alice',
+        tagStringCopyright: 'series',
+      );
+      const gelbooru = GalleryItem(
+        id: 11,
+        sourceId: GallerySourceId.gelbooru,
+        tags: ['blue_hair', 'watermark'],
+      );
+
+      expect(
+        service
+            .metadataForCopy(
+              item: danbooru,
+              promptTagSettings: defaultPromptSettings,
+            )
+            .prompt,
+        'alice, series, solo, watermark',
+      );
+      expect(
+        service
+            .metadataForCopy(
+              item: gelbooru,
+              promptTagSettings: defaultPromptSettings,
+            )
+            .prompt,
+        'blue_hair, watermark',
+      );
+    });
+
+    test(
+      'preserves real AI metadata categories instead of flattening display',
+      () {
+        const sourceMetadata = NaiImageMetadata(
+          prompt: 'fixed, main',
+          negativePrompt: 'bad, global bad',
+          fixedPrefixTags: ['fixed'],
+          fixedNegativePrefixTags: ['bad'],
+          characterPrompts: ['alice'],
+          characterNegativePrompts: ['glasses'],
+        );
+        const media = GalleryMedia(
+          id: 'ai',
+          prompt: 'display prompt',
+          promptMetadata: sourceMetadata,
+        );
+        const item = GalleryItem(id: 12, sourceId: GallerySourceId.aiTag);
+
+        final metadata = service.metadataForCopy(
+          item: item,
+          currentMedia: media,
+          promptTagSettings: defaultPromptSettings,
+        );
+
+        expect(metadata, same(sourceMetadata));
+        expect(metadata.characterNegativePrompts, ['glasses']);
+        expect(metadata.fixedPrefixTags, ['fixed']);
+      },
+    );
+
+    test('maps QuickTagCloud character negatives into the shared model', () {
+      const item = GalleryItem(id: 13, sourceId: GallerySourceId.quickTagCloud);
+      const detail = GalleryDetail(
+        item: item,
+        media: [],
+        prompt: 'global',
+        negativePrompt: 'global bad',
+        characterPrompts: [
+          GalleryCharacterPrompt(
+            label: 'Alice',
+            prompt: 'alice',
+            negativePrompt: 'glasses',
+          ),
+        ],
+      );
+
+      final metadata = service.metadataForCopy(
+        item: item,
+        detail: detail,
+        promptTagSettings: defaultPromptSettings,
+      );
+
+      expect(metadata.prompt, 'global');
+      expect(metadata.negativePrompt, 'global bad');
+      expect(metadata.characterPrompts, ['alice']);
+      expect(metadata.characterNegativePrompts, ['glasses']);
     });
   });
 

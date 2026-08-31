@@ -1018,6 +1018,7 @@ _ParsedAiTagMediaBatch _parseAiTagMediaRows(
           rawMetadata: rawAiJson ?? promptText,
           metadataFormat: parsed.sourceFormat,
           metadataError: parsed.success ? null : parsed.errorMessage,
+          promptMetadata: parsed.metadata,
           metadata: AiTagGallerySourceAdapter._metadataMap(
             parsed.metadata,
             row,

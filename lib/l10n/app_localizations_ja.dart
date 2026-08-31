@@ -3768,6 +3768,43 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_copyFullMetadata => '完全なメタデータをコピー';
 
   @override
+  String get onlineGallery_copyAllTags => 'すべての TAG をコピー';
+
+  @override
+  String get onlineGallery_customCopyTags => 'カスタムコピー';
+
+  @override
+  String get promptCopy_exportTitle => 'TAG のカスタムコピー';
+
+  @override
+  String get promptCopy_allPositive => 'すべてのポジティブプロンプト';
+
+  @override
+  String get promptCopy_allNegative => 'すべてのネガティブプロンプト';
+
+  @override
+  String get promptCopy_mainPositive => 'メイン / グローバルポジティブ';
+
+  @override
+  String get promptCopy_mainNegative => 'メイン / グローバルネガティブ';
+
+  @override
+  String get promptCopy_fixedPositive => '固定ポジティブプロンプト';
+
+  @override
+  String get promptCopy_fixedNegative => '固定ネガティブプロンプト';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return 'キャラクター $index のポジティブ';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return 'キャラクター $index のネガティブ';
+  }
+
+  @override
   String get onlineGallery_gelbooruReadOnly => '読み取り専用のお気に入り';
 
   @override

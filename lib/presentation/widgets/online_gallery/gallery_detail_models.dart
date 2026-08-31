@@ -55,6 +55,8 @@ class GalleryDetailDialogLabels {
     required this.rating,
     required this.score,
     required this.copyMetadata,
+    this.copyAllTags = 'Copy all TAGs',
+    this.customCopyTags = 'Custom copy',
     required this.downloadAll,
     required this.sendToReverse,
     required this.copyArtistChain,
@@ -111,6 +113,8 @@ class GalleryDetailDialogLabels {
   final String rating;
   final String score;
   final String copyMetadata;
+  final String copyAllTags;
+  final String customCopyTags;
   final String downloadAll;
   final String sendToReverse;
   final String copyArtistChain;
@@ -196,6 +200,8 @@ class GalleryDetailActions {
     required this.searchTag,
     required this.showTagMenu,
     this.copyMetadata,
+    this.copyAllTags,
+    this.customCopyTags,
     this.downloadAll,
     this.sendToReverse,
     this.copyArtistChain,
@@ -220,6 +226,8 @@ class GalleryDetailActions {
   final ValueChanged<String> searchTag;
   final void Function(String tag, TapDownDetails details) showTagMenu;
   final void Function(GalleryMedia media)? copyMetadata;
+  final void Function(GalleryMedia? media)? copyAllTags;
+  final void Function(GalleryMedia? media)? customCopyTags;
   final Future<void> Function(List<GalleryMedia> media)? downloadAll;
   final Future<void> Function(GalleryMedia media)? sendToReverse;
   final void Function(GalleryMedia media)? copyArtistChain;
