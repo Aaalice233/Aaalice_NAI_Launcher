@@ -2703,6 +2703,14 @@
   "localGallery_albumAddFailed": "Failed to add to album",
   "localGallery_albumSelectTitle": "Add to Album",
   "localGallery_addToAlbum": "Add to Album",
+  "@localGallery_removedFromAlbum": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_removeFromAlbum": "Remove from Album",
+  "localGallery_removedFromAlbum": "Removed {count} images",
+  "localGallery_albumNoMembers": "Selected images are not in this album",
   "localGallery_addedToAlbumWithName": "Added {count} images to '{name}'",
   "localGallery_imageCount": "{count} images",
   "@localGallery_imageCount": {

@@ -5849,6 +5849,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_addToAlbum => '加入相簿';
 
   @override
+  String get localGallery_removeFromAlbum => '移出相簿';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return '已移出 $count 张图片';
+  }
+
+  @override
+  String get localGallery_albumNoMembers => '所选图片不在此相簿中';
+
+  @override
   String localGallery_addedToAlbumWithName(Object count, Object name) {
     return '已将 $count 张图片加入「$name」';
   }
@@ -19445,6 +19456,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String get localGallery_removeFromAlbum => '移出相簿';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return '已移出 $count 張圖片';
+  }
+
+  @override
+  String get localGallery_albumNoMembers => '所選圖片不在此相簿中';
 
   @override
   String localGallery_addedToAlbumWithName(Object count, Object name) {

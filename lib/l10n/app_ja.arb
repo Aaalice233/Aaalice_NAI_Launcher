@@ -2662,6 +2662,14 @@
   "localGallery_albumAddFailed": "アルバムへの追加に失敗しました",
   "localGallery_albumSelectTitle": "アルバムに追加",
   "localGallery_addToAlbum": "アルバムに追加",
+  "@localGallery_removedFromAlbum": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_removeFromAlbum": "アルバムから削除",
+  "localGallery_removedFromAlbum": "{count} 枚の画像を削除しました",
+  "localGallery_albumNoMembers": "選択した画像はこのアルバムにありません",
   "localGallery_addedToAlbumWithName": "{count} 枚の画像を「{name}」に追加しました",
   "localGallery_imageCount": "{count} 画像",
   "@localGallery_imageCount": {

@@ -5948,6 +5948,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_addToAlbum => 'アルバムに追加';
 
   @override
+  String get localGallery_removeFromAlbum => 'アルバムから削除';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return '$count 枚の画像を削除しました';
+  }
+
+  @override
+  String get localGallery_albumNoMembers => '選択した画像はこのアルバムにありません';
+
+  @override
   String localGallery_addedToAlbumWithName(Object count, Object name) {
     return '$count 枚の画像を「$name」に追加しました';
   }

@@ -10879,6 +10879,24 @@ abstract class AppLocalizations {
   /// **'Add to Album'**
   String get localGallery_addToAlbum;
 
+  /// No description provided for @localGallery_removeFromAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Album'**
+  String get localGallery_removeFromAlbum;
+
+  /// No description provided for @localGallery_removedFromAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {count} images'**
+  String localGallery_removedFromAlbum(Object count);
+
+  /// No description provided for @localGallery_albumNoMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected images are not in this album'**
+  String get localGallery_albumNoMembers;
+
   /// No description provided for @localGallery_addedToAlbumWithName.
   ///
   /// In en, this message translates to:

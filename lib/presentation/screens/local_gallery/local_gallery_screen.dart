@@ -176,6 +176,12 @@ class _LocalGalleryShell extends ConsumerWidget {
 
   Widget _buildToolbar(BuildContext context, WidgetRef ref) {
     final bulk = viewModel.bulkOperation;
+    // 浏览具体相簿（非全部/收藏）时才提供“移出相簿”入口
+    final selectedAlbumId = ref.watch(
+      galleryAlbumNotifierProvider.select((value) => value.selectedAlbumId),
+    );
+    final browsingAlbum =
+        selectedAlbumId != null && selectedAlbumId != 'favorites';
     return LocalGalleryToolbar(
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
@@ -187,6 +193,7 @@ class _LocalGalleryShell extends ConsumerWidget {
       onRedo: bulk.canRedo ? actions.redo : null,
       groupedGridViewKey: groupedGridViewKey,
       onAddToAlbum: actions.addSelectedToAlbum,
+      onRemoveFromAlbum: browsingAlbum ? actions.removeSelectedFromAlbum : null,
       onDeleteSelected: actions.deleteSelectedImages,
       onPackSelected: viewModel.isPackingImages
           ? null

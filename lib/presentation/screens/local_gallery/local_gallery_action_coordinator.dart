@@ -401,6 +401,30 @@ class LocalGalleryActionCoordinator {
     }
   }
 
+  /// 把选中图片移出当前浏览的相簿（仅解除引用，不动物理文件）
+  Future<void> removeSelectedFromAlbum() async {
+    final albumId = _ref.read(galleryAlbumNotifierProvider).selectedAlbumId;
+    if (albumId == null || albumId == 'favorites') return;
+    final selectedImages = await _selectedImages();
+    if (selectedImages.isEmpty || !_mounted()) return;
+    final removed = await _ref
+        .read(galleryAlbumNotifierProvider.notifier)
+        .removeImagesByPaths(
+          albumId,
+          selectedImages.map((image) => image.path).toList(),
+        );
+    if (!_mounted()) return;
+    if (removed > 0) {
+      AppToast.info(
+        _context(),
+        _context().l10n.localGallery_removedFromAlbum(removed),
+      );
+      _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+    } else {
+      AppToast.info(_context(), _context().l10n.localGallery_albumNoMembers);
+    }
+  }
+
   Future<void> addSelectedToAlbum() async {
     final selectedImages = await _selectedImages();
     if (selectedImages.isEmpty || !_mounted()) return;
