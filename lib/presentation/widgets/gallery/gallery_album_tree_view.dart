@@ -4,19 +4,19 @@ import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/local_image_record.dart';
-import '../common/themed_divider.dart';
 
 enum _AlbumAction { rename, addSubAlbum, moveToRoot, delete }
 
-/// 相簿树视图
+/// 顶部系统节点与可嵌套的用户相簿树。
 ///
-/// 顶部固定「全部图片 / 收藏」系统节点，下方为可嵌套的用户相簿树。
 /// 拖拽图片到相簿 = 加入相簿（逻辑引用，不移动物理文件）。
 class GalleryAlbumTreeView extends StatefulWidget {
   final List<GalleryAlbum> albums;
   final int totalImageCount;
   final int favoriteCount;
   final String? selectedAlbumId;
+  final bool includeAllImages;
+  final bool embedded;
   final ValueChanged<String?> onAlbumSelected;
   final Future<void> Function(String albumId)? onAlbumRenameRequest;
   final Future<void> Function(String albumId)? onAlbumDeleteRequest;
@@ -31,6 +31,8 @@ class GalleryAlbumTreeView extends StatefulWidget {
     required this.totalImageCount,
     this.favoriteCount = 0,
     this.selectedAlbumId,
+    this.includeAllImages = true,
+    this.embedded = false,
     required this.onAlbumSelected,
     this.onAlbumRenameRequest,
     this.onAlbumDeleteRequest,
@@ -50,15 +52,16 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      shrinkWrap: widget.embedded,
+      physics: widget.embedded ? const NeverScrollableScrollPhysics() : null,
+      padding: EdgeInsets.symmetric(vertical: widget.embedded ? 0 : 8),
       children: [
-        _AlbumItem(
-          icon: Icons.photo_library_outlined,
-          label: context.l10n.localGallery_allImages,
-          count: widget.totalImageCount,
-          isSelected: widget.selectedAlbumId == null,
-          onTap: () => widget.onAlbumSelected(null),
-        ),
+        if (widget.includeAllImages)
+          GalleryAllImagesItem(
+            count: widget.totalImageCount,
+            isSelected: widget.selectedAlbumId == null,
+            onTap: () => widget.onAlbumSelected(null),
+          ),
         _AlbumItem(
           icon: widget.selectedAlbumId == 'favorites'
               ? Icons.favorite
@@ -69,9 +72,7 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
           isSelected: widget.selectedAlbumId == 'favorites',
           onTap: () => widget.onAlbumSelected('favorites'),
         ),
-        if (widget.albums.isNotEmpty)
-          const ThemedDivider(height: 16, indent: 12, endIndent: 12)
-        else
+        if (widget.albums.isEmpty)
           _EmptyAlbumHint(onCreate: widget.onCreateAlbumRequest),
         ..._buildRootNodes(),
       ],
@@ -162,6 +163,134 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
   }
 }
 
+class GalleryAllImagesItem extends StatefulWidget {
+  const GalleryAllImagesItem({
+    super.key,
+    required this.count,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final int count;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  State<GalleryAllImagesItem> createState() => _GalleryAllImagesItemState();
+}
+
+class _GalleryAllImagesItemState extends State<GalleryAllImagesItem> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final foreground = widget.isSelected
+        ? colors.onPrimaryContainer
+        : colors.onSurface;
+
+    return Semantics(
+      button: true,
+      selected: widget.isSelected,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            gradient: widget.isSelected
+                ? LinearGradient(
+                    colors: [
+                      colors.primaryContainer,
+                      Color.alphaBlend(
+                        colors.primary.withValues(alpha: 0.08),
+                        colors.primaryContainer,
+                      ),
+                    ],
+                  )
+                : null,
+            color: widget.isSelected
+                ? null
+                : colors.onSurface.withValues(
+                    alpha: _isHovering ? 0.09 : 0.045,
+                  ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(10),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: widget.isSelected
+                            ? colors.primary.withValues(alpha: 0.18)
+                            : colors.onSurface.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        widget.isSelected
+                            ? Icons.photo_library_rounded
+                            : Icons.photo_library_outlined,
+                        size: 18,
+                        color: widget.isSelected
+                            ? colors.primary
+                            : colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        context.l10n.localGallery_allImages,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: foreground,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.1,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 30),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: foreground.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        widget.count.toString(),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: foreground.withValues(alpha: 0.78),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EmptyAlbumHint extends StatelessWidget {
   const _EmptyAlbumHint({required this.onCreate});
 
@@ -226,7 +355,7 @@ class _AlbumItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isTouch = PlatformCapabilities.current.hasTouchInput;
-    final indent = (12.0 + depth * 16.0).clamp(12.0, 44.0).toDouble();
+    final backgroundInset = (24.0 + depth * 12.0).clamp(24.0, 48.0).toDouble();
 
     final row = Row(
       children: [
@@ -242,7 +371,10 @@ class _AlbumItem extends StatelessWidget {
               color: theme.colorScheme.outline,
             ),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+            constraints: BoxConstraints.tightFor(
+              width: isTouch ? 48 : 20,
+              height: isTouch ? 48 : 20,
+            ),
           )
         else
           SizedBox(width: isTouch ? 48 : 20, height: isTouch ? 48 : 0),
@@ -271,7 +403,10 @@ class _AlbumItem extends StatelessWidget {
         ),
         Text(
           count.toString(),
-          style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+          style: TextStyle(
+            fontSize: 11,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
+          ),
         ),
         if (isTouch && onMenuAction != null)
           PopupMenuButton<_AlbumAction>(
@@ -300,32 +435,45 @@ class _AlbumItem extends StatelessWidget {
       ],
     );
 
-    return GestureDetector(
-      onSecondaryTapUp: onMenuAction != null
-          ? (details) => _showMenu(context, details.globalPosition)
-          : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.primaryContainer
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: isTouch ? 48 : 36),
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: indent,
-                right: isTouch ? 0 : 8,
-                top: isTouch ? 0 : 8,
-                bottom: isTouch ? 0 : 8,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        onSecondaryTapUp: onMenuAction != null
+            ? (details) => _showMenu(context, details.globalPosition)
+            : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: EdgeInsets.only(
+            left: backgroundInset,
+            right: 8,
+            top: 1,
+            bottom: 1,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.primaryContainer
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onTap,
+              hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(8),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: isTouch ? 48 : 36),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 4,
+                    right: isTouch ? 0 : 8,
+                    top: isTouch ? 0 : 8,
+                    bottom: isTouch ? 0 : 8,
+                  ),
+                  child: row,
+                ),
               ),
-              child: row,
             ),
           ),
         ),

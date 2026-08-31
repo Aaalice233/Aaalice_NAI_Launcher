@@ -6,9 +6,10 @@ import '../../providers/gallery_category_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../widgets/gallery/gallery_album_tree_view.dart';
 import '../../widgets/gallery/gallery_category_tree_view.dart';
+import '../../widgets/gallery/gallery_scan_progress_panel.dart';
 
-/// 本地图库左栏组织面板：相簿（逻辑引用）+ 文件夹（物理分类）
-class LocalGalleryCategoryPanel extends StatelessWidget {
+/// 本地图库左栏：全部图像 + 相簿（逻辑引用）+ 文件夹（物理分类）。
+class LocalGalleryCategoryPanel extends StatefulWidget {
   const LocalGalleryCategoryPanel({
     super.key,
     required this.galleryState,
@@ -32,6 +33,7 @@ class LocalGalleryCategoryPanel extends StatelessWidget {
     required this.onAlbumMove,
     required this.onImageDropToAlbum,
     this.modal = false,
+    this.scrollController,
     this.afterSelection,
   });
 
@@ -59,16 +61,30 @@ class LocalGalleryCategoryPanel extends StatelessWidget {
   final Future<void> Function(String imagePath, String albumId)
   onImageDropToAlbum;
   final bool modal;
+  final ScrollController? scrollController;
   final VoidCallback? afterSelection;
+
+  @override
+  State<LocalGalleryCategoryPanel> createState() =>
+      _LocalGalleryCategoryPanelState();
+}
+
+class _LocalGalleryCategoryPanelState extends State<LocalGalleryCategoryPanel> {
+  bool _albumsExpanded = true;
+  bool _foldersExpanded = true;
+
+  bool get _allImagesSelected =>
+      widget.albumState.selectedAlbumId == null &&
+      widget.categoryState.selectedCategoryId == null;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: modal ? double.infinity : 250,
+      width: widget.modal ? double.infinity : 250,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        border: modal
+        border: widget.modal
             ? null
             : Border(
                 right: BorderSide(
@@ -81,126 +97,203 @@ class LocalGalleryCategoryPanel extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _PanelSectionHeader(
-            modal: modal,
-            icon: Icons.photo_album_outlined,
-            title: context.l10n.localGallery_albumSectionTitle,
-            onCreate: () => onCreateAlbum(null),
-          ),
-          Divider(
-            height: 1,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
           Expanded(
-            flex: 2,
-            child: FutureBuilder<int>(
-              future: favoriteCount,
-              builder: (context, snapshot) => GalleryAlbumTreeView(
-                albums: albumState.albums,
-                totalImageCount: galleryState.totalCount,
-                favoriteCount: snapshot.data ?? 0,
-                selectedAlbumId: albumState.selectedAlbumId,
-                onAlbumSelected: (id) {
-                  onAlbumSelected(id);
-                  afterSelection?.call();
-                },
-                onAlbumRenameRequest: onAlbumRenameRequest,
-                onAlbumDeleteRequest: onAlbumDeleteRequest,
-                onAddAlbumRequest: onAddAlbumRequest,
-                onAlbumMove: onAlbumMove,
-                onImageDrop: onImageDropToAlbum,
-                onCreateAlbumRequest: () => onCreateAlbum(null),
-              ),
+            child: ListView(
+              controller: widget.scrollController,
+              padding: const EdgeInsets.only(top: 4),
+              children: [
+                GalleryAllImagesItem(
+                  key: const ValueKey('local-gallery-all-images'),
+                  count: widget.galleryState.totalCount,
+                  isSelected: _allImagesSelected,
+                  onTap: _selectAllImages,
+                ),
+                _PanelSectionHeader(
+                  toggleKey: const ValueKey('local-gallery-albums-toggle'),
+                  icon: Icons.photo_album_outlined,
+                  title: context.l10n.localGallery_albumSectionTitle,
+                  isExpanded: _albumsExpanded,
+                  onToggle: () =>
+                      setState(() => _albumsExpanded = !_albumsExpanded),
+                  onCreate: () => widget.onCreateAlbum(null),
+                ),
+                if (_albumsExpanded)
+                  FutureBuilder<int>(
+                    future: widget.favoriteCount,
+                    builder: (context, snapshot) => GalleryAlbumTreeView(
+                      albums: widget.albumState.albums,
+                      totalImageCount: widget.galleryState.totalCount,
+                      favoriteCount: snapshot.data ?? 0,
+                      selectedAlbumId: widget.albumState.selectedAlbumId,
+                      includeAllImages: false,
+                      embedded: true,
+                      onAlbumSelected: (id) {
+                        widget.onAlbumSelected(id);
+                        widget.afterSelection?.call();
+                      },
+                      onAlbumRenameRequest: widget.onAlbumRenameRequest,
+                      onAlbumDeleteRequest: widget.onAlbumDeleteRequest,
+                      onAddAlbumRequest: widget.onAddAlbumRequest,
+                      onAlbumMove: widget.onAlbumMove,
+                      onImageDrop: widget.onImageDropToAlbum,
+                      onCreateAlbumRequest: () => widget.onCreateAlbum(null),
+                    ),
+                  ),
+                _PanelSectionHeader(
+                  toggleKey: const ValueKey('local-gallery-folders-toggle'),
+                  icon: Icons.folder_outlined,
+                  title: context.l10n.localGallery_folderSectionTitle,
+                  isExpanded: _foldersExpanded,
+                  onToggle: () =>
+                      setState(() => _foldersExpanded = !_foldersExpanded),
+                  onCreate: widget.onCreateCategory,
+                ),
+                if (_foldersExpanded)
+                  GalleryCategoryTreeView(
+                    categories: widget.categoryState.categories,
+                    totalImageCount: widget.galleryState.totalCount,
+                    selectedCategoryId: widget.categoryState.selectedCategoryId,
+                    includeRootNodes: false,
+                    embedded: true,
+                    showScanProgress: false,
+                    onCategorySelected: (id) {
+                      widget.onCategorySelected(id);
+                      widget.afterSelection?.call();
+                    },
+                    onCategoryRename: widget.onCategoryRename,
+                    onCategoryDelete: widget.onCategoryDelete,
+                    onAddSubCategory: widget.onAddSubCategory,
+                    onCategoryMove: widget.onCategoryMove,
+                    onCategoryReorder: widget.onCategoryReorder,
+                    onImageDrop: widget.onImageDrop,
+                    onSyncWithFileSystem: widget.onSyncWithFileSystem,
+                  ),
+              ],
             ),
           ),
-          Divider(
-            height: 1,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-          _PanelSectionHeader(
-            modal: modal,
-            icon: Icons.folder_outlined,
-            title: context.l10n.localGallery_folderSectionTitle,
-            onCreate: onCreateCategory,
-          ),
-          Divider(
-            height: 1,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-          Expanded(
-            flex: 3,
-            child: GalleryCategoryTreeView(
-              categories: categoryState.categories,
-              totalImageCount: galleryState.totalCount,
-              selectedCategoryId: categoryState.selectedCategoryId,
-              includeRootNodes: false,
-              onCategorySelected: (id) {
-                onCategorySelected(id);
-                afterSelection?.call();
-              },
-              onCategoryRename: onCategoryRename,
-              onCategoryDelete: onCategoryDelete,
-              onAddSubCategory: onAddSubCategory,
-              onCategoryMove: onCategoryMove,
-              onCategoryReorder: onCategoryReorder,
-              onImageDrop: onImageDrop,
-              onSyncWithFileSystem: onSyncWithFileSystem,
-            ),
-          ),
+          const GalleryScanProgressPanel(),
         ],
       ),
     );
   }
+
+  void _selectAllImages() {
+    widget.onCategorySelected(null);
+    widget.afterSelection?.call();
+  }
 }
 
-class _PanelSectionHeader extends StatelessWidget {
+class _PanelSectionHeader extends StatefulWidget {
   const _PanelSectionHeader({
-    required this.modal,
+    required this.toggleKey,
     required this.icon,
     required this.title,
+    required this.isExpanded,
+    required this.onToggle,
     required this.onCreate,
   });
 
-  final bool modal;
+  final Key toggleKey;
   final IconData icon;
   final String title;
+  final bool isExpanded;
+  final VoidCallback onToggle;
   final VoidCallback onCreate;
+
+  @override
+  State<_PanelSectionHeader> createState() => _PanelSectionHeaderState();
+}
+
+class _PanelSectionHeaderState extends State<_PanelSectionHeader> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      constraints: const BoxConstraints(minHeight: 62),
-      child: Row(
-        children: [
-          if (!modal) ...[
-            Icon(icon, size: 20, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ] else
-            const Spacer(),
-          FilledButton.tonalIcon(
-            onPressed: onCreate,
-            icon: const Icon(Icons.add, size: 18),
-            label: Text(
-              context.l10n.common_new,
-              style: const TextStyle(fontSize: 13),
-            ),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
+    final toggleLabel = widget.isExpanded
+        ? context.l10n.common_collapse
+        : context.l10n.common_expand;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        key: widget.toggleKey,
+        duration: const Duration(milliseconds: 150),
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.onSurface.withValues(
+            alpha: _isHovered ? 0.11 : 0.06,
           ),
-        ],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  expanded: widget.isExpanded,
+                  label: '${widget.title}，$toggleLabel',
+                  child: Tooltip(
+                    message: toggleLabel,
+                    child: InkWell(
+                      onTap: widget.onToggle,
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 4),
+                            Icon(
+                              widget.isExpanded
+                                  ? Icons.expand_more
+                                  : Icons.chevron_right,
+                              size: 18,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              widget.icon,
+                              size: 20,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                widget.title,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.tonalIcon(
+                onPressed: widget.onCreate,
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(context.l10n.common_new),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  textStyle: theme.textTheme.labelMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

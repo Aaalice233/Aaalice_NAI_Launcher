@@ -259,6 +259,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
           categoryState: sheetRef.watch(galleryCategoryNotifierProvider),
           albumState: sheetRef.watch(galleryAlbumNotifierProvider),
           modal: true,
+          scrollController: scrollController,
           afterSelection: () => Navigator.of(sheetContext).maybePop(),
         ),
       ),
@@ -270,6 +271,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
     required GalleryCategoryState categoryState,
     required GalleryAlbumState albumState,
     bool modal = false,
+    ScrollController? scrollController,
     VoidCallback? afterSelection,
   }) {
     return LocalGalleryCategoryPanel(
@@ -280,9 +282,10 @@ class LocalGalleryScreenController extends ChangeNotifier {
           .read(localGalleryNotifierProvider.notifier)
           .getTotalFavoriteCount(),
       modal: modal,
+      scrollController: scrollController,
       afterSelection: afterSelection,
       onCreateCategory: () => unawaited(createCategory()),
-      onCategorySelected: handleCategorySelected,
+      onCategorySelected: (id) => unawaited(handleCategorySelected(id)),
       onCategoryRename: (id, name) => _ref
           .read(galleryCategoryNotifierProvider.notifier)
           .renameCategory(id, name),
@@ -403,21 +406,25 @@ class LocalGalleryScreenController extends ChangeNotifier {
     }
   }
 
-  void handleCategorySelected(String? id) {
+  Future<void> handleCategorySelected(String? id) async {
+    final gallery = _ref.read(localGalleryNotifierProvider.notifier);
+
+    // 分类、收藏与相簿必须同时清理状态和真实过滤条件，避免空相簿
+    // 留下不可见的 albumId，导致“全部图片”仍显示空结果。
+    await _ref.read(galleryAlbumNotifierProvider.notifier).selectAlbum(null);
+    if (!_mounted()) return;
+
     _ref.read(galleryCategoryNotifierProvider.notifier).selectCategory(id);
     final categoryState = _ref.read(galleryCategoryNotifierProvider);
     final category = id != null ? categoryState.categories.findById(id) : null;
-    final gallery = _ref.read(localGalleryNotifierProvider.notifier);
-    // 分类与相簿互斥：选分类时退出相簿选中状态
-    _ref.read(galleryAlbumNotifierProvider.notifier).clearSelection();
     if (id == 'favorites') {
-      gallery.setShowFavoritesOnly(true);
+      await gallery.setShowFavoritesOnly(true);
     } else if (id != null && category != null) {
-      gallery.setShowFavoritesOnly(false);
-      gallery.setSelectedCategory(id, category.folderPath);
+      await gallery.setShowFavoritesOnly(false);
+      await gallery.setSelectedCategory(id, category.folderPath);
     } else {
-      gallery.setShowFavoritesOnly(false);
-      gallery.setSelectedCategory(null, null);
+      await gallery.setShowFavoritesOnly(false);
+      await gallery.setSelectedCategory(null, null);
     }
   }
 
