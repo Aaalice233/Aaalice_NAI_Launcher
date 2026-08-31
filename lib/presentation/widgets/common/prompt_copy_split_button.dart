@@ -21,37 +21,75 @@ class PromptCopySplitButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            style: style,
-            onPressed: onPressed,
-            icon: const Icon(Icons.content_copy_outlined, size: 18),
-            label: Text(
-              primaryLabel,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final effectiveStyle =
+        (theme.outlinedButtonTheme.style ?? const ButtonStyle()).merge(style);
+    final outerShape =
+        effectiveStyle.shape?.resolve(const <WidgetState>{}) ??
+        const RoundedRectangleBorder();
+    final segmentStyle = effectiveStyle.copyWith(
+      shape: const WidgetStatePropertyAll(RoundedRectangleBorder()),
+      side: const WidgetStatePropertyAll(BorderSide.none),
+    );
+
+    return SizedBox(
+      height: 48,
+      child: Material(
+        type: MaterialType.transparency,
+        shape: outerShape,
+        clipBehavior: Clip.antiAlias,
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: segmentStyle,
+                onPressed: onPressed,
+                icon: const Icon(Icons.content_copy_outlined, size: 18),
+                label: Text(
+                  primaryLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
-          ),
+            SizedBox(
+              width: 1,
+              height: 24,
+              child: ColoredBox(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.72),
+              ),
+            ),
+            SizedBox(
+              width: 48,
+              child: MenuAnchor(
+                menuChildren: menuChildren,
+                builder: (context, controller, child) => Tooltip(
+                  message: menuTooltip,
+                  child: OutlinedButton(
+                    key: menuButtonKey,
+                    style: segmentStyle.copyWith(
+                      minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+                      padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+                    ),
+                    onPressed: menuChildren.isEmpty
+                        ? null
+                        : () => controller.isOpen
+                              ? controller.close()
+                              : controller.open(),
+                    child: AnimatedRotation(
+                      turns: controller.isOpen ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeOutCubic,
+                      child: const Icon(Icons.expand_more_rounded, size: 19),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 4),
-        MenuAnchor(
-          menuChildren: menuChildren,
-          builder: (context, controller, child) => IconButton.outlined(
-            key: menuButtonKey,
-            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-            padding: EdgeInsets.zero,
-            tooltip: menuTooltip,
-            onPressed: menuChildren.isEmpty
-                ? null
-                : () => controller.isOpen
-                      ? controller.close()
-                      : controller.open(),
-            icon: const Icon(Icons.arrow_drop_down, size: 20),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
