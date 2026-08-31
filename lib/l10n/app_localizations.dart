@@ -24392,6 +24392,18 @@ abstract class AppLocalizations {
   /// **'Could not create the watermarked copy. Check the image and try again.'**
   String get watermark_failedGeneric;
 
+  /// No description provided for @watermark_systemGalleryExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The copy was saved in Aaalice, but could not be added to the system gallery.'**
+  String get watermark_systemGalleryExportFailed;
+
+  /// No description provided for @watermark_galleryRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The copy was saved, but the gallery could not refresh. Reopen the gallery to retry.'**
+  String get watermark_galleryRefreshFailed;
+
   /// No description provided for @watermark_sourceMissing.
   ///
   /// In en, this message translates to:

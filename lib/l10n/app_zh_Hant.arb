@@ -6911,6 +6911,8 @@
   "watermark_failed": "無法建立浮水印副本：{error}",
   "@watermark_failed": {"placeholders":{"error":{}}},
   "watermark_failedGeneric": "無法建立浮水印副本，請檢查圖片後再試一次。",
+  "watermark_systemGalleryExportFailed": "副本已儲存在 Aaalice 中，但無法加入系統圖庫。",
+  "watermark_galleryRefreshFailed": "副本已儲存，但圖庫無法重新整理；重新開啟圖庫即可重試。",
   "watermark_sourceMissing": "找不到原圖，請重新選擇原圖後再產生浮水印。",
   "watermark_chooseOriginal": "選擇原圖",
   "watermark_dragHint": "拖曳所選圖層；方向鍵可精細移動，按住 Shift 可加大步長。",

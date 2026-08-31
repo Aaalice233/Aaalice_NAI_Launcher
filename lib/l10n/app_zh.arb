@@ -6636,6 +6636,8 @@
   "watermark_failed": "无法创建水印副本：{error}",
   "@watermark_failed": {"placeholders":{"error":{}}},
   "watermark_failedGeneric": "无法创建水印副本，请检查图片后重试。",
+  "watermark_systemGalleryExportFailed": "副本已保存在 Aaalice 中，但未能添加到系统图库。",
+  "watermark_galleryRefreshFailed": "副本已保存，但图库未能刷新；重新打开图库即可重试。",
   "watermark_sourceMissing": "找不到原图，请重新选择原图后再生成水印。",
   "watermark_chooseOriginal": "选择原图",
   "watermark_dragHint": "拖动所选图层；方向键可精细移动，按住 Shift 可加大步长。",

@@ -73,6 +73,30 @@ void main() {
     );
   });
 
+  test('invalid schemas are rejected without reading their fields', () {
+    for (final schemaVersion in <Object?>[
+      WatermarkSettings.currentSchemaVersion + 1,
+      -1,
+      '1',
+      null,
+    ]) {
+      final loaded = WatermarkSettings.decode(
+        jsonEncode({
+          'schemaVersion': schemaVersion,
+          'enabled': true,
+          'textStyle': {'text': 'invalid value'},
+        }),
+      );
+
+      expect(
+        loaded.issue,
+        WatermarkSettingsLoadIssue.corrupted,
+        reason: 'schemaVersion=$schemaVersion',
+      );
+      expect(loaded.settings, const WatermarkSettings());
+    }
+  });
+
   test('corrupted JSON returns defaults and exposes the issue', () {
     final loaded = WatermarkSettings.decode('{not-json');
 

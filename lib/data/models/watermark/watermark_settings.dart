@@ -314,6 +314,16 @@ class WatermarkSettings {
           issue: WatermarkSettingsLoadIssue.corrupted,
         );
       }
+      final hasSchemaVersion = decoded.containsKey('schemaVersion');
+      final rawVersion = decoded['schemaVersion'];
+      if ((hasSchemaVersion && rawVersion is! int) ||
+          (rawVersion is int &&
+              (rawVersion < 0 || rawVersion > currentSchemaVersion))) {
+        return const WatermarkSettingsLoadResult(
+          settings: WatermarkSettings(),
+          issue: WatermarkSettingsLoadIssue.corrupted,
+        );
+      }
       final reader = _WatermarkJsonReader(decoded);
       final settings = reader.readSettings();
       return WatermarkSettingsLoadResult(

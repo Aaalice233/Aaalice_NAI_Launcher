@@ -167,9 +167,8 @@ class _DetailTopBarActions extends ConsumerWidget {
     final isWatermarkDerivative =
         currentImage is LocalImageDetailData &&
         WatermarkDerivativeRegistry(
-              ref.read(localStorageServiceProvider),
-            ).find(currentImage.identifier) !=
-            null;
+          ref.read(localStorageServiceProvider),
+        ).isDerivative(currentImage.identifier);
     final watermarkLabel = isWatermarkDerivative
         ? l10n.watermark_actionRegenerate
         : l10n.watermark_actionCreate;

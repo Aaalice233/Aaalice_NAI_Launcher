@@ -187,10 +187,16 @@ class GalleryFolderRepository {
   Future<bool> moveImageToFolder(
     String imagePath,
     String targetFolderPath,
+  ) async => await moveImageToFolderPath(imagePath, targetFolderPath) != null;
+
+  /// 移动图片并返回实际目标路径；文件名冲突时该路径包含自动生成的后缀。
+  Future<String?> moveImageToFolderPath(
+    String imagePath,
+    String targetFolderPath,
   ) async {
     try {
       final file = File(imagePath);
-      if (!await file.exists()) return false;
+      if (!await file.exists()) return null;
 
       final fileName = p.basename(imagePath);
       var newPath = p.join(targetFolderPath, fileName);
@@ -198,17 +204,21 @@ class GalleryFolderRepository {
       if (await File(newPath).exists()) {
         final baseName = p.basenameWithoutExtension(fileName);
         final ext = p.extension(fileName);
-        newPath = p.join(
-          targetFolderPath,
-          '${baseName}_${DateTime.now().millisecondsSinceEpoch}$ext',
-        );
+        final conflictStem =
+            '${baseName}_${DateTime.now().millisecondsSinceEpoch}';
+        newPath = p.join(targetFolderPath, '$conflictStem$ext');
+        var suffix = 2;
+        while (await File(newPath).exists()) {
+          newPath = p.join(targetFolderPath, '$conflictStem-$suffix$ext');
+          suffix++;
+        }
       }
 
       await file.rename(newPath);
-      return true;
+      return newPath;
     } catch (e) {
       AppLogger.e('移动图片失败: $imagePath -> $targetFolderPath', e);
-      return false;
+      return null;
     }
   }
 

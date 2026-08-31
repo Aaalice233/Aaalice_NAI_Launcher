@@ -151,7 +151,9 @@ class ImageCardActionCatalog {
       group: 1,
       hover: false,
     );
-    if (coordinator.watermarkEnabled && data.imageBytes != null) {
+    if (coordinator.watermarkEnabled &&
+        (data.imageBytes != null ||
+            (data.sourceFilePath?.isNotEmpty ?? false))) {
       add(
         ImageCardActionId.createWatermark,
         Icons.branding_watermark_outlined,
@@ -283,19 +285,16 @@ class ImageCardActionCoordinator {
   bool get watermarkEnabled =>
       ref.read(watermarkSettingsProvider).configuration.enabled;
 
-  WatermarkDerivativeLink? get _watermarkLink {
+  bool get isWatermarkDerivative {
     final path = _data.sourceFilePath;
-    if (path == null || path.isEmpty) return null;
+    if (path == null || path.isEmpty) return false;
     return WatermarkDerivativeRegistry(
       ref.read(localStorageServiceProvider),
-    ).find(path);
+    ).isDerivative(path);
   }
-
-  bool get isWatermarkDerivative => _watermarkLink != null;
 
   Future<void> openWatermarkEditor() async {
     final bytes = _data.imageBytes;
-    if (bytes == null) return;
     final sourcePath = _data.sourceFilePath;
     if (sourcePath != null && sourcePath.isNotEmpty) {
       await WatermarkEditorLauncher.openForLocalPath(
@@ -305,6 +304,7 @@ class ImageCardActionCoordinator {
       );
       return;
     }
+    if (bytes == null) return;
     await WatermarkEditorLauncher.open(
       context: context,
       sourceBytes: bytes,

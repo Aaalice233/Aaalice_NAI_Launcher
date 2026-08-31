@@ -13986,6 +13986,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not create the watermarked copy. Check the image and try again.';
 
   @override
+  String get watermark_systemGalleryExportFailed =>
+      'The copy was saved in Aaalice, but could not be added to the system gallery.';
+
+  @override
+  String get watermark_galleryRefreshFailed =>
+      'The copy was saved, but the gallery could not refresh. Reopen the gallery to retry.';
+
+  @override
   String get watermark_sourceMissing =>
       'The original image is missing. Choose it again to recreate the watermark.';
 

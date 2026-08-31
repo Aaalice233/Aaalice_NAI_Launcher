@@ -453,9 +453,8 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final isWatermarkDerivative =
         watermarkEnabled &&
         WatermarkDerivativeRegistry(
-              ref.read(localStorageServiceProvider),
-            ).find(widget.record.path) !=
-            null;
+          ref.read(localStorageServiceProvider),
+        ).isDerivative(widget.record.path);
 
     PopupMenuItem<Object> item({
       required Object value,
@@ -620,9 +619,8 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final isWatermarkDerivative =
         watermarkEnabled &&
         WatermarkDerivativeRegistry(
-              ref.read(localStorageServiceProvider),
-            ).find(widget.record.path) !=
-            null;
+          ref.read(localStorageServiceProvider),
+        ).isDerivative(widget.record.path);
     final action = await LocalImageContextMenu.showSendActions(
       context,
       position: Offset(left, top),

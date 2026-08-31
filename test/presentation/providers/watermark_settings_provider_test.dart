@@ -5,12 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/core/watermark/watermark_logo_service.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/presentation/providers/watermark_settings_provider.dart';
 
 void main() {
   late Directory directory;
   late LocalStorageService storage;
+  late _TestWatermarkLogoService logoService;
 
   setUpAll(() async {
     directory = await Directory.systemTemp.createTemp('watermark-settings-');
@@ -19,7 +21,10 @@ void main() {
     storage = LocalStorageService();
   });
 
-  setUp(() => Hive.box<dynamic>(StorageKeys.settingsBox).clear());
+  setUp(() async {
+    await Hive.box<dynamic>(StorageKeys.settingsBox).clear();
+    logoService = _TestWatermarkLogoService();
+  });
 
   tearDownAll(() async {
     await Hive.close();
@@ -28,7 +33,10 @@ void main() {
 
   ProviderContainer createContainer() {
     final container = ProviderContainer(
-      overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        watermarkLogoServiceProvider.overrideWithValue(logoService),
+      ],
     );
     addTearDown(container.dispose);
     return container;
@@ -55,8 +63,30 @@ void main() {
     );
 
     await notifier.clearLocalLogoPath();
+    expect(logoService.deletedPaths, ['C:/private/logo.png']);
     expect(container.read(watermarkSettingsProvider).localLogoPath, isNull);
     expect(storage.getSetting(StorageKeys.watermarkLogoPathV1), isNull);
+  });
+
+  test('failed logo deletion keeps the path available for retry', () async {
+    final container = createContainer();
+    final notifier = container.read(watermarkSettingsProvider.notifier);
+    await notifier.updateLocalLogoPath('C:/private/logo.png');
+    logoService.deleteError = const FileSystemException('locked');
+
+    await expectLater(
+      notifier.clearLocalLogoPath(),
+      throwsA(isA<FileSystemException>()),
+    );
+
+    expect(
+      container.read(watermarkSettingsProvider).localLogoPath,
+      'C:/private/logo.png',
+    );
+    expect(
+      storage.getSetting<String>(StorageKeys.watermarkLogoPathV1),
+      'C:/private/logo.png',
+    );
   });
 
   test(
@@ -91,4 +121,16 @@ void main() {
       );
     },
   );
+}
+
+class _TestWatermarkLogoService extends WatermarkLogoService {
+  final deletedPaths = <String>[];
+  Object? deleteError;
+
+  @override
+  Future<void> deleteManaged(String path) async {
+    final error = deleteError;
+    if (error != null) throw error;
+    deletedPaths.add(path);
+  }
 }

@@ -401,8 +401,14 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
             bytes: result.bytes,
             fileName: result.fileName,
           );
-        } on Object catch (error) {
+        } on Object catch (error, stackTrace) {
           systemGalleryError = error;
+          AppLogger.e(
+            'Watermarked copy saved but system gallery export failed',
+            error,
+            stackTrace,
+            'WatermarkEditor',
+          );
         }
       }
       if (!mounted) return;
@@ -412,15 +418,40 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
           ref.read(localStorageServiceProvider),
         ).register(outputPath: output, sourcePath: sourcePath);
       }
-      unawaited(ref.read(localGalleryNotifierProvider.notifier).refresh());
+      Object? galleryRefreshError;
+      try {
+        final previousError = ref.read(localGalleryNotifierProvider).error;
+        await ref.read(localGalleryNotifierProvider.notifier).refresh();
+        final refreshError = ref.read(localGalleryNotifierProvider).error;
+        if (refreshError != null && !identical(refreshError, previousError)) {
+          galleryRefreshError = refreshError;
+          AppLogger.e(
+            'Watermarked copy saved but gallery refresh failed',
+            refreshError.details ?? refreshError.code.name,
+            null,
+            'WatermarkEditor',
+          );
+        }
+      } on Object catch (error, stackTrace) {
+        galleryRefreshError = error;
+        AppLogger.e(
+          'Watermarked copy saved but gallery refresh failed',
+          error,
+          stackTrace,
+          'WatermarkEditor',
+        );
+      }
       if (!mounted) return;
       if (systemGalleryError != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              context.l10n.image_savedAppOnly(systemGalleryError.toString()),
-            ),
+            content: Text(context.l10n.watermark_systemGalleryExportFailed),
           ),
+        );
+      }
+      if (galleryRefreshError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.watermark_galleryRefreshFailed)),
         );
       }
       await _showSaved(result, output);

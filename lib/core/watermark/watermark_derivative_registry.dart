@@ -47,6 +47,14 @@ class WatermarkDerivativeRegistry {
     );
   }
 
+  bool isDerivative(String path) =>
+      find(path) != null || looksLikeDerivativePath(path);
+
+  static bool looksLikeDerivativePath(String path) => RegExp(
+    r'_watermarked(?:[-_]\d+)?$',
+    caseSensitive: false,
+  ).hasMatch(p.basenameWithoutExtension(path));
+
   Future<void> register({
     required String outputPath,
     required String sourcePath,
@@ -64,6 +72,47 @@ class WatermarkDerivativeRegistry {
       'source': sourceValue,
       'createdAt': DateTime.now().toUtc().toIso8601String(),
     };
+    await _write(entries);
+  }
+
+  Future<void> relocatePath({
+    required String oldPath,
+    required String newPath,
+  }) async {
+    final oldKey = _pathKey(oldPath);
+    final newKey = _pathKey(newPath);
+    if (oldKey.isEmpty || newKey.isEmpty || oldKey == newKey) return;
+    final entries = _read();
+    var changed = false;
+    final outputValue = entries.remove(oldKey) ?? entries.remove(oldPath);
+    if (outputValue != null) {
+      entries[newKey] = outputValue;
+      changed = true;
+    }
+    final normalizedNewPath = _normalizedPath(newPath);
+    for (final entry in entries.entries.toList()) {
+      final value = entry.value;
+      if (value is! Map ||
+          _pathKey(value['source']?.toString() ?? '') != oldKey) {
+        continue;
+      }
+      entries[entry.key] = {
+        ...Map<String, Object?>.from(value),
+        'source': normalizedNewPath,
+      };
+      changed = true;
+    }
+    if (changed) await _write(entries);
+  }
+
+  Future<void> remove(String outputPath) async {
+    final entries = _read()
+      ..remove(outputPath)
+      ..remove(_pathKey(outputPath));
+    await _write(entries);
+  }
+
+  Future<void> _write(Map<String, Object?> entries) {
     final sorted = entries.entries.toList()
       ..sort((a, b) {
         final aValue = a.value;
@@ -77,26 +126,16 @@ class WatermarkDerivativeRegistry {
         return bTime.compareTo(aTime);
       });
     final bounded = <String, Object?>{};
-    for (final entry in sorted.take(_maxEntries)) {
+    for (final entry in sorted) {
       final value = entry.value;
       final source = value is Map ? value['source'] : null;
-      if (source is String && File(source).existsSync()) {
-        bounded[entry.key] = value;
-      }
+      if (source is! String || source.isEmpty) continue;
+      bounded[entry.key] = value;
+      if (bounded.length == _maxEntries) break;
     }
-    await _storage.setSetting(
+    return _storage.setSetting(
       StorageKeys.watermarkDerivativeRegistryV1,
       jsonEncode(bounded),
-    );
-  }
-
-  Future<void> remove(String outputPath) async {
-    final entries = _read()
-      ..remove(outputPath)
-      ..remove(_pathKey(outputPath));
-    await _storage.setSetting(
-      StorageKeys.watermarkDerivativeRegistryV1,
-      jsonEncode(entries),
     );
   }
 

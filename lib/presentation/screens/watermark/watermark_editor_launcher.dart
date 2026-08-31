@@ -48,16 +48,20 @@ class WatermarkEditorLauncher {
     Uint8List? fallbackBytes,
   }) async {
     final container = ProviderScope.containerOf(context, listen: false);
-    final link = WatermarkDerivativeRegistry(
+    final registry = WatermarkDerivativeRegistry(
       container.read(localStorageServiceProvider),
-    ).find(path);
+    );
+    final link = registry.find(path);
+    final inferredDerivative =
+        link == null &&
+        WatermarkDerivativeRegistry.looksLikeDerivativePath(path);
     var source = File(link?.sourcePath ?? path);
     String? resolvedSourcePath;
     Uint8List? bytes;
-    if (await source.exists()) {
+    if (!inferredDerivative && await source.exists()) {
       bytes = await source.readAsBytes();
       resolvedSourcePath = source.path;
-    } else if (link == null && fallbackBytes != null) {
+    } else if (!inferredDerivative && link == null && fallbackBytes != null) {
       bytes = fallbackBytes;
     } else {
       if (!context.mounted) return null;
@@ -165,6 +169,7 @@ class WatermarkEditorLauncher {
         ui.Offset.zero,
         ui.Offset(size.width, size.height),
         const [Color(0xFF2B3241), Color(0xFF7D6B91), Color(0xFFD1A68A)],
+        const [0, 0.55, 1],
       );
     canvas.drawRect(ui.Offset.zero & size, background);
     final glow = ui.Paint()

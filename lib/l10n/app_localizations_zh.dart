@@ -13406,6 +13406,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get watermark_failedGeneric => '无法创建水印副本，请检查图片后重试。';
 
   @override
+  String get watermark_systemGalleryExportFailed =>
+      '副本已保存在 Aaalice 中，但未能添加到系统图库。';
+
+  @override
+  String get watermark_galleryRefreshFailed => '副本已保存，但图库未能刷新；重新打开图库即可重试。';
+
+  @override
   String get watermark_sourceMissing => '找不到原图，请重新选择原图后再生成水印。';
 
   @override
@@ -26832,6 +26839,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get watermark_failedGeneric => '無法建立浮水印副本，請檢查圖片後再試一次。';
+
+  @override
+  String get watermark_systemGalleryExportFailed =>
+      '副本已儲存在 Aaalice 中，但無法加入系統圖庫。';
+
+  @override
+  String get watermark_galleryRefreshFailed => '副本已儲存，但圖庫無法重新整理；重新開啟圖庫即可重試。';
 
   @override
   String get watermark_sourceMissing => '找不到原圖，請重新選擇原圖後再產生浮水印。';

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../../core/watermark/watermark_logo_service.dart';
 import '../../data/models/watermark/watermark_settings.dart';
 
 class WatermarkSettingsState {
@@ -23,6 +24,10 @@ class WatermarkSettingsState {
     return path == null || path.isEmpty || !File(path).existsSync();
   }
 }
+
+final watermarkLogoServiceProvider = Provider<WatermarkLogoService>(
+  (ref) => const WatermarkLogoService(),
+);
 
 final watermarkSettingsProvider =
     NotifierProvider<WatermarkSettingsNotifier, WatermarkSettingsState>(
@@ -86,6 +91,10 @@ class WatermarkSettingsNotifier extends Notifier<WatermarkSettingsState> {
   }
 
   Future<void> clearLocalLogoPath() async {
+    final previousPath = state.localLogoPath;
+    if (previousPath != null) {
+      await ref.read(watermarkLogoServiceProvider).deleteManaged(previousPath);
+    }
     await _storage.deleteSetting(StorageKeys.watermarkLogoPathV1);
     state = WatermarkSettingsState(
       configuration: state.configuration,

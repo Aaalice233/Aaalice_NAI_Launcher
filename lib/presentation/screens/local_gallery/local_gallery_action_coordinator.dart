@@ -83,6 +83,9 @@ class LocalGalleryActionCoordinator {
   final BuildContext Function() _context;
   final bool Function() _mounted;
 
+  WatermarkDerivativeRegistry get _watermarkRegistry =>
+      WatermarkDerivativeRegistry(_ref.read(localStorageServiceProvider));
+
   Future<List<LocalImageRecord>> _selectedImages() async {
     final selectedIds = _ref
         .read(localGallerySelectionNotifierProvider)
@@ -146,6 +149,7 @@ class LocalGalleryActionCoordinator {
         final file = File(image.path);
         if (await file.exists()) {
           await file.delete();
+          await _watermarkRegistry.remove(image.path);
           deletedCount++;
         }
       } catch (_) {
@@ -390,11 +394,17 @@ class LocalGalleryActionCoordinator {
       icon: Icons.drive_file_move_outline,
     );
     if (!protected || !_mounted()) return;
-    final movedCount = await GalleryFolderRepository.instance
-        .moveImagesToFolder(
-          selectedImages.map((image) => image.path).toList(),
-          selectedFolder,
-        );
+    var movedCount = 0;
+    for (final image in selectedImages) {
+      final newPath = await GalleryFolderRepository.instance
+          .moveImageToFolderPath(image.path, selectedFolder);
+      if (newPath == null) continue;
+      await _watermarkRegistry.relocatePath(
+        oldPath: image.path,
+        newPath: newPath,
+      );
+      movedCount++;
+    }
     if (!_mounted()) return;
     if (movedCount > 0) {
       AppToast.info(
@@ -460,11 +470,9 @@ class LocalGalleryActionCoordinator {
           .read(watermarkSettingsProvider)
           .configuration
           .enabled,
-      isWatermarkDerivative:
-          WatermarkDerivativeRegistry(
-            _ref.read(localStorageServiceProvider),
-          ).find(record.path) !=
-          null,
+      isWatermarkDerivative: WatermarkDerivativeRegistry(
+        _ref.read(localStorageServiceProvider),
+      ).isDerivative(record.path),
     );
     if (action == null || !_mounted()) return;
     await routeImageAction(
@@ -882,6 +890,7 @@ class LocalGalleryActionCoordinator {
       final file = File(record.path);
       if (!await file.exists()) return;
       await file.delete();
+      await _watermarkRegistry.remove(record.path);
       await _ref.read(localGalleryNotifierProvider.notifier).refresh();
       if (_mounted()) {
         AppToast.success(_context(), _context().l10n.localGallery_imageDeleted);
