@@ -12,12 +12,10 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/media_mime_type.dart';
 import '../../../data/models/character/character_prompt.dart';
-import '../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../data/models/gallery/nai_prompt_export_codec.dart';
-import '../../../data/models/online_gallery/danbooru_post.dart';
+import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
+import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/models/queue/replication_task.dart';
-import '../../../data/services/online_gallery/artist_chain_parser.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
@@ -27,8 +25,8 @@ import '../../providers/reverse_prompt_provider.dart';
 import '../../services/gallery_prompt_projection_service.dart';
 import '../../services/generation_prompt_transfer_service.dart';
 import '../../widgets/common/app_toast.dart';
-import '../../widgets/common/image_detail/components/prompt_copy_dialog.dart';
 import '../../widgets/online_gallery/gallery_detail_dialog.dart';
+import '../../widgets/online_gallery/gallery_prompt_copy_dialog.dart';
 import 'online_gallery_screen_controller.dart';
 import 'online_gallery_utils.dart';
 
@@ -129,17 +127,7 @@ class OnlineGalleryDetailLauncher {
             imageLoadFailed: l10n.detail_imageLoadFailed,
             retry: l10n.common_retry,
             zoomHint: l10n.onlineGallery_pinchToZoom,
-            copyActions: l10n.common_copy,
-            copyPositive: item.sourceId == GallerySourceId.quickTagCloud
-                ? l10n.onlineGallery_codexCopyPositive
-                : l10n.localGallery_copyPrompt,
-            copyNegative: item.sourceId == GallerySourceId.quickTagCloud
-                ? l10n.onlineGallery_codexCopyNegative
-                : l10n.prompt_negativePrompt,
-            copyCharacter: l10n.onlineGallery_codexCopyCharacter,
-            copyAll: item.sourceId == GallerySourceId.quickTagCloud
-                ? l10n.onlineGallery_codexCopyAll
-                : l10n.onlineGallery_copyFullPrompt,
+            copyPrompt: l10n.onlineGallery_copyPrompt,
             addFavorite: l10n.common_favorite,
             removeFavorite: l10n.common_unfavorite,
             openSource: l10n.onlineGallery_codexOpenSource,
@@ -162,47 +150,11 @@ class OnlineGalleryDetailLauncher {
             favoriteCount: l10n.onlineGallery_favCount,
             rating: l10n.onlineGallery_ratingLabel,
             score: l10n.onlineGallery_score,
-            copyMetadata: l10n.onlineGallery_copyFullMetadata,
-            copyAllTags: l10n.onlineGallery_copyAllTags,
-            customCopyTags: l10n.onlineGallery_customCopyTags,
             downloadAll: l10n.onlineGallery_downloadAllMedia,
             sendToReverse: l10n.onlineGallery_sendToReversePrompt,
-            copyArtistChain: l10n.onlineGallery_copyArtistChain,
-            copyFullPrompt: l10n.onlineGallery_copyFullPrompt,
-            copyRawArtistFragments: l10n.onlineGallery_copyRawArtistFragments,
-            noArtistChain: l10n.onlineGallery_noArtistChain,
           ),
-          onCopyPrompt: () => unawaited(
-            _copyCodexText(
-              projection.positivePrompt,
-              l10n.onlineGallery_codexCopyPositive,
-            ),
-          ),
-          onCopyNegativePrompt: () => unawaited(
-            _copyCodexText(
-              projection.negativePrompt,
-              l10n.onlineGallery_codexCopyNegative,
-            ),
-          ),
-          onCopyCharacter: (character) {
-            final index = detail.characterPrompts.indexOf(character);
-            final projected =
-                index >= 0 && index < projection.characterPrompts.length
-                ? projection.characterPrompts[index]
-                : character;
-            unawaited(
-              _copyCodexText(
-                _buildCharacterCodexCopyText(projected),
-                l10n.onlineGallery_codexCopyCharacter,
-              ),
-            );
-          },
-          onCopyAll: () => unawaited(
-            _copyCodexText(
-              _buildCodexCopyText(projection),
-              l10n.onlineGallery_codexCopyAll,
-            ),
-          ),
+          onCopyPrompt: (media) =>
+              unawaited(_showPromptCopy(context, item, detail, media)),
           onToggleFavorite: () => toggleFavorite(context, item),
           onOpenSource: () => unawaited(
             _openCodexSource(
@@ -212,10 +164,18 @@ class OnlineGalleryDetailLauncher {
                   : item.postUrl,
             ),
           ),
-          onSendToGenerate: () {
-            _sendCodexDetailToGeneration(context, item, projection);
+          onSendToGenerate: (media) {
+            _sendCodexDetailToGeneration(
+              context,
+              item,
+              _projectionFor(item, detail, media),
+            );
           },
-          onAddToQueue: () => _addCodexDetailToQueue(context, item, projection),
+          onAddToQueue: (media) => _addCodexDetailToQueue(
+            context,
+            item,
+            _projectionFor(item, detail, media),
+          ),
           onDownloadCurrentOriginal: (media) =>
               _downloadCodexMedia(context, item, media),
           onTagSearch: (tag) {
@@ -223,78 +183,10 @@ class OnlineGalleryDetailLauncher {
             _galleryNotifier.search(tag);
           },
           onBlacklistChanged: () => _galleryNotifier.refresh(),
-          onCopyMetadata: (media) => unawaited(
-            _copyCodexText(
-              const GalleryPromptProjectionService().sourceMetadataForCopy(
-                item: item,
-                media: media,
-              ),
-              l10n.onlineGallery_copyFullMetadata,
-            ),
-          ),
-          onCopyAllTags: (media) => unawaited(
-            _copyCodexText(
-              NaiPromptExportCodec.encode(
-                _promptMetadataForCopy(item, detail, media),
-              ),
-              l10n.onlineGallery_copyAllTags,
-            ),
-          ),
-          onCustomCopyTags: (media) =>
-              unawaited(_showCustomPromptCopy(context, item, detail, media)),
           onDownloadAll: (media) =>
               _downloadGalleryMediaBatch(context, item, media),
           onSendToReverse: (media) =>
               _sendGalleryMediaToReverse(context, item, media),
-          onCopyArtistChain:
-              item.sourceId == GallerySourceId.aiTag &&
-                  item.focusedMediaId != null
-              ? (media) => unawaited(
-                  _copyCodexText(
-                    ArtistChainParser.parse(media.prompt).formattedText,
-                    l10n.onlineGallery_copyArtistChain,
-                  ),
-                )
-              : null,
-          onCopyFullPrompt:
-              item.sourceId == GallerySourceId.aiTag &&
-                  item.focusedMediaId != null
-              ? (media) => unawaited(
-                  _copyCodexText(
-                    _buildCodexCopyText(
-                      const GalleryPromptProjectionService().project(
-                        item: item,
-                        detail: detail,
-                        currentMedia: media,
-                        promptTagSettings: ref.read(
-                          onlineGalleryPromptTagSettingsProvider,
-                        ),
-                        outputFilter: ref.read(
-                          onlineGalleryOutputFilterProvider,
-                        ),
-                      ),
-                      negativeLabel:
-                          l10n.onlineGallery_negativePromptCopyHeading,
-                    ),
-                    l10n.onlineGallery_copyFullPrompt,
-                  ),
-                )
-              : null,
-          onCopyRawArtistFragments:
-              item.sourceId == GallerySourceId.aiTag &&
-                  item.focusedMediaId != null
-              ? (media) => unawaited(
-                  _copyCodexText(
-                    ArtistChainParser.parse(media.prompt).rawText,
-                    l10n.onlineGallery_copyRawArtistFragments,
-                  ),
-                )
-              : null,
-          hasArtistChain:
-              item.sourceId == GallerySourceId.aiTag &&
-                  item.focusedMediaId != null
-              ? (media) => ArtistChainParser.parse(media.prompt).isNotEmpty
-              : null,
         ),
       );
     } catch (error) {
@@ -369,30 +261,55 @@ class OnlineGalleryDetailLauncher {
     }
   }
 
-  NaiImageMetadata _promptMetadataForCopy(
+  GalleryPromptProjection _projectionFor(
     GalleryItem item,
     GalleryDetail detail,
     GalleryMedia? media,
-  ) => const GalleryPromptProjectionService().metadataForCopy(
+  ) => const GalleryPromptProjectionService().project(
     item: item,
     detail: detail,
     currentMedia: media,
     promptTagSettings: ref.read(onlineGalleryPromptTagSettingsProvider),
+    outputFilter: ref.read(onlineGalleryOutputFilterProvider),
   );
 
-  Future<void> _showCustomPromptCopy(
-    BuildContext context,
+  Future<void> _showPromptCopy(
+    BuildContext dialogContext,
     GalleryItem item,
     GalleryDetail detail,
     GalleryMedia? media,
   ) async {
-    final text = await PromptCopyDialog.showExport(
-      context,
-      metadata: _promptMetadataForCopy(item, detail, media),
+    final projection = _projectionFor(item, detail, media);
+    final preferredCategories = ref
+        .read(onlineGalleryPromptTagSettingsProvider)
+        .categories
+        .map(_copyCategory)
+        .toSet();
+    final initialSelection = projection.copy.defaultSelection(
+      preferredCategories: preferredCategories,
     );
-    if (text == null || !context.mounted) return;
-    await _copyCodexText(text, context.l10n.onlineGallery_customCopyTags);
+    final selection = await GalleryPromptCopyDialog.show(
+      dialogContext,
+      projection: projection.copy,
+      initialSelection: initialSelection,
+    );
+    if (selection == null || !dialogContext.mounted) return;
+    final text = projection.copy.buildText(selection);
+    if (text.isEmpty) return;
+    await _copyCodexText(text, dialogContext.l10n.onlineGallery_copyPrompt);
   }
+
+  GalleryPromptCopyCategory _copyCategory(
+    OnlineGalleryPromptTagCategory category,
+  ) => switch (category) {
+    OnlineGalleryPromptTagCategory.general => GalleryPromptCopyCategory.general,
+    OnlineGalleryPromptTagCategory.character =>
+      GalleryPromptCopyCategory.character,
+    OnlineGalleryPromptTagCategory.copyright =>
+      GalleryPromptCopyCategory.copyright,
+    OnlineGalleryPromptTagCategory.artist => GalleryPromptCopyCategory.artist,
+    OnlineGalleryPromptTagCategory.meta => GalleryPromptCopyCategory.meta,
+  };
 
   Future<void> _sendGalleryMediaToReverse(
     BuildContext dialogContext,
@@ -500,19 +417,6 @@ class OnlineGalleryDetailLauncher {
     }
   }
 
-  String _buildCharacterCodexCopyText(GalleryCharacterPrompt character) {
-    final blocks = <String>[];
-    final prompt = character.prompt.trim();
-    final negative = character.negativePrompt.trim();
-    if (prompt.isNotEmpty) blocks.add(prompt);
-    if (negative.isNotEmpty) {
-      blocks.add(
-        '${context.l10n.onlineGallery_codexNegativePrompt}:\n$negative',
-      );
-    }
-    return blocks.join('\n\n');
-  }
-
   Future<void> _openCodexSource(
     BuildContext dialogContext,
     String? rawUrl,
@@ -551,36 +455,6 @@ class OnlineGalleryDetailLauncher {
     }
   }
 
-  String _buildCodexCopyText(
-    GalleryPromptProjection projection, {
-    String? negativeLabel,
-  }) {
-    final blocks = <String>[];
-    final prompt = projection.positivePrompt.trim();
-    final negative = projection.negativePrompt.trim();
-    if (prompt.isNotEmpty) blocks.add(prompt);
-    final l10n = context.l10n;
-    final resolvedNegativeLabel =
-        negativeLabel ?? l10n.onlineGallery_codexNegativePrompt;
-    if (negative.isNotEmpty) {
-      blocks.add('$resolvedNegativeLabel:\n$negative');
-    }
-    for (var index = 0; index < projection.characterPrompts.length; index++) {
-      final character = projection.characterPrompts[index];
-      final content = <String>[
-        if (character.prompt.trim().isNotEmpty) character.prompt.trim(),
-        if (character.negativePrompt.trim().isNotEmpty)
-          '$resolvedNegativeLabel: ${character.negativePrompt.trim()}',
-      ].join('\n');
-      if (content.isNotEmpty) {
-        blocks.add(
-          '${character.label.isEmpty ? '${l10n.onlineGallery_codexCharacterPrompts} ${index + 1}' : character.label}:\n$content',
-        );
-      }
-    }
-    return blocks.join('\n\n');
-  }
-
   List<CharacterPrompt> _codexCharacters(
     GalleryItem item,
     GalleryPromptProjection projection,
@@ -592,7 +466,20 @@ class OnlineGalleryDetailLauncher {
           name: projection.characterPrompts[index].label,
           prompt: projection.characterPrompts[index].prompt,
           negativePrompt: projection.characterPrompts[index].negativePrompt,
-          positionMode: CharacterPositionMode.aiChoice,
+          positionMode:
+              projection.characterPrompts[index].positionX != null &&
+                  projection.characterPrompts[index].positionY != null
+              ? CharacterPositionMode.custom
+              : CharacterPositionMode.aiChoice,
+          customPosition:
+              projection.characterPrompts[index].positionX != null &&
+                  projection.characterPrompts[index].positionY != null
+              ? CharacterPosition(
+                  mode: CharacterPositionMode.custom,
+                  row: projection.characterPrompts[index].positionY!,
+                  column: projection.characterPrompts[index].positionX!,
+                )
+              : null,
         ),
     ];
   }
@@ -644,6 +531,8 @@ class OnlineGalleryDetailLauncher {
                   ReplicationCharacterPromptSnapshot(
                     prompt: character.prompt,
                     negativePrompt: character.negativePrompt,
+                    positionX: character.positionX,
+                    positionY: character.positionY,
                   ),
               ],
             ),
@@ -723,7 +612,7 @@ class OnlineGalleryDetailLauncher {
   }
 
   /// 处理收藏切换
-  Future<bool> toggleFavorite(BuildContext context, DanbooruPost post) async {
+  Future<bool> toggleFavorite(BuildContext context, GalleryItem post) async {
     final wasFavorited = _galleryNotifier.isFavorited(post);
     try {
       final success = await _galleryNotifier.toggleFavorite(post);

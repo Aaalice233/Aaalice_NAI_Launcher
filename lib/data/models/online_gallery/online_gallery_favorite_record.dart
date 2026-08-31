@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import '../gallery/nai_image_metadata.dart';
 import 'artist_chain.dart';
 import 'gallery_item.dart';
 import 'gallery_source.dart';
@@ -104,6 +107,8 @@ Map<String, dynamic> _detailToMap(GalleryDetail detail) => {
         'label': prompt.label,
         'prompt': prompt.prompt,
         'negativePrompt': prompt.negativePrompt,
+        'positionX': prompt.positionX,
+        'positionY': prompt.positionY,
       },
   ],
   'contributors': [
@@ -135,6 +140,8 @@ GalleryDetail _detailFromMap(Map<dynamic, dynamic> map) {
         label: _requiredString(value, 'label'),
         prompt: _requiredString(value, 'prompt'),
         negativePrompt: _string(value['negativePrompt']),
+        positionX: _nullableDouble(value['positionX']),
+        positionY: _nullableDouble(value['positionY']),
       ),
     ),
     contributors: _mapList(
@@ -273,6 +280,9 @@ Map<String, dynamic> _mediaToMap(GalleryMedia media) => {
   'negativePrompt': media.negativePrompt,
   'metadataFormat': media.metadataFormat,
   'metadataError': media.metadataError,
+  'promptMetadata': media.promptMetadata == null
+      ? null
+      : jsonDecode(jsonEncode(media.promptMetadata!.toJson())),
   'metadata': _persistableMap(media.metadata),
 };
 
@@ -291,6 +301,9 @@ GalleryMedia _mediaFromMap(Map<dynamic, dynamic> map) => GalleryMedia(
   negativePrompt: _nullableString(map['negativePrompt']),
   metadataFormat: _nullableString(map['metadataFormat']),
   metadataError: _nullableString(map['metadataError']),
+  promptMetadata: map['promptMetadata'] is Map
+      ? NaiImageMetadata.fromJson(_dynamicMap(map['promptMetadata']))
+      : null,
   metadata: _dynamicMap(map['metadata']),
 );
 
@@ -366,5 +379,11 @@ int? _nullableInt(Object? value) => switch (value) {
   final int number => number,
   final num number => number.toInt(),
   final String text => int.tryParse(text),
+  _ => null,
+};
+
+double? _nullableDouble(Object? value) => switch (value) {
+  final num number => number.toDouble(),
+  final String text => double.tryParse(text),
   _ => null,
 };

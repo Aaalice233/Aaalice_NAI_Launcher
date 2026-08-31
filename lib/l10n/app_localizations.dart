@@ -5730,7 +5730,7 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_promptTagCategoriesTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Choose which tag categories are included when copying, sending, or adding to the queue'**
+  /// **'Choose which tag categories are included when sending or adding to the queue'**
   String get onlineGallery_promptTagCategoriesTooltip;
 
   /// No description provided for @onlineGallery_keepOnePromptTagCategory.
@@ -6578,12 +6578,6 @@ abstract class AppLocalizations {
   /// **'Negative prompt'**
   String get onlineGallery_codexNegativePrompt;
 
-  /// No description provided for @onlineGallery_negativePromptCopyHeading.
-  ///
-  /// In en, this message translates to:
-  /// **'Negative Prompt'**
-  String get onlineGallery_negativePromptCopyHeading;
-
   /// No description provided for @onlineGallery_codexCharacterPrompts.
   ///
   /// In en, this message translates to:
@@ -6595,30 +6589,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notes'**
   String get onlineGallery_codexNote;
-
-  /// No description provided for @onlineGallery_codexCopyPositive.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy positive'**
-  String get onlineGallery_codexCopyPositive;
-
-  /// No description provided for @onlineGallery_codexCopyNegative.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy negative'**
-  String get onlineGallery_codexCopyNegative;
-
-  /// No description provided for @onlineGallery_codexCopyCharacter.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy this character'**
-  String get onlineGallery_codexCopyCharacter;
-
-  /// No description provided for @onlineGallery_codexCopyAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy all'**
-  String get onlineGallery_codexCopyAll;
 
   /// No description provided for @onlineGallery_codexSendToGeneration.
   ///
@@ -6710,23 +6680,29 @@ abstract class AppLocalizations {
   /// **'Copy artist chain'**
   String get onlineGallery_copyArtistChain;
 
-  /// No description provided for @onlineGallery_copyFullPrompt.
+  /// No description provided for @onlineGallery_copyPrompt.
   ///
   /// In en, this message translates to:
-  /// **'Copy full Prompt'**
-  String get onlineGallery_copyFullPrompt;
+  /// **'Copy prompt'**
+  String get onlineGallery_copyPrompt;
 
-  /// No description provided for @onlineGallery_copyRawArtistFragments.
+  /// No description provided for @onlineGallery_promptCopyDescription.
   ///
   /// In en, this message translates to:
-  /// **'Copy original artist fragments'**
-  String get onlineGallery_copyRawArtistFragments;
+  /// **'Choose the original prompt categories to copy. Positive and negative content is separated into plain-text blocks.'**
+  String get onlineGallery_promptCopyDescription;
 
-  /// No description provided for @onlineGallery_noArtistChain.
+  /// No description provided for @onlineGallery_promptCopyCategoryHint.
   ///
   /// In en, this message translates to:
-  /// **'No artist chain'**
-  String get onlineGallery_noArtistChain;
+  /// **'Copy tags from this source category'**
+  String get onlineGallery_promptCopyCategoryHint;
+
+  /// No description provided for @onlineGallery_promptCopyStructuredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the original content of this prompt field'**
+  String get onlineGallery_promptCopyStructuredHint;
 
   /// No description provided for @onlineGallery_artistCount.
   ///
@@ -6865,12 +6841,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download all images in this work'**
   String get onlineGallery_downloadAllMedia;
-
-  /// No description provided for @onlineGallery_copyFullMetadata.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy full metadata'**
-  String get onlineGallery_copyFullMetadata;
 
   /// No description provided for @onlineGallery_copyAllTags.
   ///
