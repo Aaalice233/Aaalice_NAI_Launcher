@@ -81,6 +81,7 @@ void main() {
                 detail: detail,
                 isFavorited: false,
                 favoriteLoading: false,
+                canUseGenerationActions: true,
                 labels: _labels(),
                 onCopyPrompt: () => copyCount++,
                 onCopyNegativePrompt: () => negativeCopyCount++,
@@ -183,6 +184,77 @@ void main() {
     },
   );
 
+  testWidgets(
+    'generation actions use projected capability for tags-only entries',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const item = GalleryItem(
+        id: 42,
+        workId: '42',
+        sourceId: GallerySourceId.danbooru,
+        tags: ['1girl', 'solo'],
+        tagString: '1girl solo',
+      );
+      const detail = GalleryDetail(item: item, media: []);
+      final canUseGenerationActions = ValueNotifier(false);
+      addTearDown(canUseGenerationActions.dispose);
+      var sentToGenerate = false;
+      var addedToQueue = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: ValueListenableBuilder<bool>(
+                valueListenable: canUseGenerationActions,
+                builder: (context, canUseActions, _) => GalleryDetailDialog(
+                  item: item,
+                  detail: detail,
+                  isFavorited: false,
+                  favoriteLoading: false,
+                  canUseGenerationActions: canUseActions,
+                  labels: _labels(),
+                  onCopyPrompt: () {},
+                  onCopyNegativePrompt: () {},
+                  onCopyCharacter: (_) {},
+                  onCopyAll: () {},
+                  onToggleFavorite: () async => true,
+                  onOpenSource: () {},
+                  onSendToGenerate: () => sentToGenerate = true,
+                  onAddToQueue: () async => addedToQueue = true,
+                  onDownloadCurrentOriginal: (_) async {},
+                  onTagSearch: (_) {},
+                  onBlacklistChanged: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final generateButton = find.widgetWithText(FilledButton, 'Generate');
+      final queueButton = find.widgetWithText(OutlinedButton, 'Queue');
+      expect(tester.widget<FilledButton>(generateButton).onPressed, isNull);
+      expect(tester.widget<OutlinedButton>(queueButton).onPressed, isNull);
+
+      canUseGenerationActions.value = true;
+      await tester.pump();
+
+      expect(tester.widget<FilledButton>(generateButton).onPressed, isNotNull);
+      expect(tester.widget<OutlinedButton>(queueButton).onPressed, isNotNull);
+      await tester.tap(generateButton);
+      await tester.tap(queueButton);
+      await tester.pumpAndSettle();
+      expect(sentToGenerate, isTrue);
+      expect(addedToQueue, isTrue);
+    },
+  );
+
   testWidgets('conflicting video metadata renders a stable placeholder', (
     tester,
   ) async {
@@ -215,6 +287,7 @@ void main() {
               detail: detail,
               isFavorited: false,
               favoriteLoading: false,
+              canUseGenerationActions: false,
               labels: _labels(),
               onCopyPrompt: () {},
               onCopyNegativePrompt: () {},
@@ -269,6 +342,7 @@ void main() {
               detail: const GalleryDetail(item: item, media: []),
               isFavorited: false,
               favoriteLoading: false,
+              canUseGenerationActions: true,
               labels: _labels(),
               onCopyPrompt: () {},
               onCopyNegativePrompt: () {},
@@ -348,6 +422,7 @@ void main() {
               detail: GalleryDetail(item: item, media: [media]),
               isFavorited: false,
               favoriteLoading: false,
+              canUseGenerationActions: false,
               labels: _labels(),
               onCopyPrompt: () {},
               onCopyNegativePrompt: () {},
@@ -415,6 +490,7 @@ void main() {
                 detail: detail,
                 isFavorited: false,
                 favoriteLoading: false,
+                canUseGenerationActions: false,
                 labels: _labels(),
                 onCopyPrompt: () {},
                 onCopyNegativePrompt: () {},

@@ -130,6 +130,7 @@ class GalleryDetailViewModel {
     required this.isFavorited,
     required this.favoriteLoading,
     required this.favoriteActionPending,
+    required this.canUseGenerationActions,
     required this.queueActionPending,
     required this.downloadActionPending,
     required this.canToggleFavorite,
@@ -144,6 +145,7 @@ class GalleryDetailViewModel {
   final bool isFavorited;
   final bool favoriteLoading;
   final bool favoriteActionPending;
+  final bool canUseGenerationActions;
   final bool queueActionPending;
   final bool downloadActionPending;
   final bool canToggleFavorite;
