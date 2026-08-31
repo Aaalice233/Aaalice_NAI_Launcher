@@ -109,6 +109,8 @@ class OnlineGallerySelectionActions {
               ReplicationCharacterPromptSnapshot(
                 prompt: character.prompt,
                 negativePrompt: character.negativePrompt,
+                positionX: character.positionX,
+                positionY: character.positionY,
               ),
           ],
         ),

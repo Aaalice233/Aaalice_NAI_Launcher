@@ -3163,7 +3163,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_promptTagCategoriesTooltip =>
-      'Choose which tag categories are included when copying, sending, or adding to the queue';
+      'Choose which tag categories are included when sending or adding to the queue';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory =>
@@ -3680,25 +3680,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_codexNegativePrompt => 'Negative prompt';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => 'Negative Prompt';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => 'Character prompts';
 
   @override
   String get onlineGallery_codexNote => 'Notes';
-
-  @override
-  String get onlineGallery_codexCopyPositive => 'Copy positive';
-
-  @override
-  String get onlineGallery_codexCopyNegative => 'Copy negative';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => 'Copy this character';
-
-  @override
-  String get onlineGallery_codexCopyAll => 'Copy all';
 
   @override
   String get onlineGallery_codexSendToGeneration => 'Send to Generate';
@@ -3752,14 +3737,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_copyArtistChain => 'Copy artist chain';
 
   @override
-  String get onlineGallery_copyFullPrompt => 'Copy full Prompt';
+  String get onlineGallery_copyPrompt => 'Copy prompt';
 
   @override
-  String get onlineGallery_copyRawArtistFragments =>
-      'Copy original artist fragments';
+  String get onlineGallery_promptCopyDescription =>
+      'Choose the original prompt categories to copy. Positive and negative content is separated into plain-text blocks.';
 
   @override
-  String get onlineGallery_noArtistChain => 'No artist chain';
+  String get onlineGallery_promptCopyCategoryHint =>
+      'Copy tags from this source category';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint =>
+      'Copy the original content of this prompt field';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -3849,9 +3839,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onlineGallery_downloadAllMedia =>
       'Download all images in this work';
-
-  @override
-  String get onlineGallery_copyFullMetadata => 'Copy full metadata';
 
   @override
   String get onlineGallery_copyAllTags => 'Copy all TAGs';

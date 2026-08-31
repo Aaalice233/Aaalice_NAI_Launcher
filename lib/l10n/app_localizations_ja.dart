@@ -3101,7 +3101,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_promptTagCategoriesTooltip =>
-      'コピー、送信、キューへの追加時に含めるタグカテゴリを選択します';
+      '送信、キューへの追加時に含めるタグカテゴリを選択します';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory =>
@@ -3602,25 +3602,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_codexNegativePrompt => 'ネガティブプロンプト';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => 'ネガティブプロンプト';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => 'キャラクタープロンプト';
 
   @override
   String get onlineGallery_codexNote => 'メモ';
-
-  @override
-  String get onlineGallery_codexCopyPositive => 'ポジティブをコピー';
-
-  @override
-  String get onlineGallery_codexCopyNegative => 'ネガティブをコピー';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => 'このキャラクターをコピー';
-
-  @override
-  String get onlineGallery_codexCopyAll => 'すべてコピー';
 
   @override
   String get onlineGallery_codexSendToGeneration => '生成画面へ送る';
@@ -3672,13 +3657,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_copyArtistChain => '絵師タグ列をコピー';
 
   @override
-  String get onlineGallery_copyFullPrompt => '完全な Prompt をコピー';
+  String get onlineGallery_copyPrompt => 'プロンプトをコピー';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '元の絵師タグ断片をコピー';
+  String get onlineGallery_promptCopyDescription =>
+      'コピーする元のプロンプト項目を選択します。ポジティブとネガティブはプレーンテキストのブロックに分けられます。';
 
   @override
-  String get onlineGallery_noArtistChain => 'コピー可能な絵師タグなし';
+  String get onlineGallery_promptCopyCategoryHint => 'このソースのタグカテゴリをコピー';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => 'このプロンプト欄の元の内容をコピー';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -3763,9 +3752,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_downloadAllMedia => '作品の全画像をダウンロード';
-
-  @override
-  String get onlineGallery_copyFullMetadata => '完全なメタデータをコピー';
 
   @override
   String get onlineGallery_copyAllTags => 'すべての TAG をコピー';

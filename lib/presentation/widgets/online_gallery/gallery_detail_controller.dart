@@ -31,6 +31,7 @@ class GalleryDetailController extends ChangeNotifier {
   bool favoriteActionPending = false;
   bool queueActionPending = false;
   bool downloadActionPending = false;
+  bool reverseActionPending = false;
   bool _disposed = false;
   final OnlineGalleryPrefetchCoordinator? _prefetchCoordinator;
 
@@ -154,6 +155,17 @@ class GalleryDetailController extends ChangeNotifier {
       await action();
     } finally {
       downloadActionPending = false;
+      _notifyChanged();
+    }
+  }
+
+  Future<void> sendToReverse(Future<void> Function() action) async {
+    reverseActionPending = true;
+    _notifyChanged();
+    try {
+      await action();
+    } finally {
+      reverseActionPending = false;
       _notifyChanged();
     }
   }

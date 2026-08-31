@@ -3053,7 +3053,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_promptTagCategories => '提示词类别';
 
   @override
-  String get onlineGallery_promptTagCategoriesTooltip => '选择复制、发送或加入队列时包含的标签类别';
+  String get onlineGallery_promptTagCategoriesTooltip => '选择发送或加入队列时包含的标签类别';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一个提示词类别';
@@ -3539,25 +3539,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_codexNegativePrompt => '负向提示词';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => '负面提示词';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => '角色提示词';
 
   @override
   String get onlineGallery_codexNote => '备注';
-
-  @override
-  String get onlineGallery_codexCopyPositive => '复制正向';
-
-  @override
-  String get onlineGallery_codexCopyNegative => '复制负向';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => '复制此角色';
-
-  @override
-  String get onlineGallery_codexCopyAll => '复制全部';
 
   @override
   String get onlineGallery_codexSendToGeneration => '带入生成页';
@@ -3606,13 +3591,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_copyArtistChain => '复制画师串';
 
   @override
-  String get onlineGallery_copyFullPrompt => '复制完整 Prompt';
+  String get onlineGallery_copyPrompt => '复制提示词';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '复制原始画师片段';
+  String get onlineGallery_promptCopyDescription =>
+      '选择要复制的原始提示词类别。正向与负向内容会以纯文本块分隔。';
 
   @override
-  String get onlineGallery_noArtistChain => '无可复制画师串';
+  String get onlineGallery_promptCopyCategoryHint => '按来源提供的标签类别复制';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => '复制该提示词字段的原始内容';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -3690,9 +3679,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_downloadAllMedia => '下载作品全部图片';
-
-  @override
-  String get onlineGallery_copyFullMetadata => '复制完整元数据';
 
   @override
   String get onlineGallery_copyAllTags => '复制全部 TAG';
@@ -16289,7 +16275,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_promptTagCategories => '提示詞類別';
 
   @override
-  String get onlineGallery_promptTagCategoriesTooltip => '選擇複製、傳送或加入佇列時包含的標籤類別';
+  String get onlineGallery_promptTagCategoriesTooltip => '選擇傳送或加入佇列時包含的標籤類別';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一個提示詞類別';
@@ -16775,25 +16761,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_codexNegativePrompt => '負向提示詞';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => '負面提示詞';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => '角色提示詞';
 
   @override
   String get onlineGallery_codexNote => '備註';
-
-  @override
-  String get onlineGallery_codexCopyPositive => '複製正向';
-
-  @override
-  String get onlineGallery_codexCopyNegative => '複製負向';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => '複製此角色';
-
-  @override
-  String get onlineGallery_codexCopyAll => '複製全部';
 
   @override
   String get onlineGallery_codexSendToGeneration => '帶入生成頁';
@@ -16842,13 +16813,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_copyArtistChain => '複製畫師串';
 
   @override
-  String get onlineGallery_copyFullPrompt => '複製完整 Prompt';
+  String get onlineGallery_copyPrompt => '複製提示詞';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '複製原始畫師片段';
+  String get onlineGallery_promptCopyDescription =>
+      '選擇要複製的原始提示詞類別。正向與負向內容會以純文字區塊分隔。';
 
   @override
-  String get onlineGallery_noArtistChain => '無可複製畫師串';
+  String get onlineGallery_promptCopyCategoryHint => '按來源提供的標籤類別複製';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => '複製該提示詞欄位的原始內容';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -16926,9 +16901,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_downloadAllMedia => '下載作品全部圖片';
-
-  @override
-  String get onlineGallery_copyFullMetadata => '複製完整後設資料';
 
   @override
   String get onlineGallery_copyAllTags => '複製全部 TAG';

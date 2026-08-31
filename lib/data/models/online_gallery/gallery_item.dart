@@ -441,11 +441,17 @@ class GalleryCharacterPrompt {
     required this.label,
     required this.prompt,
     this.negativePrompt = '',
+    this.positionX,
+    this.positionY,
   });
 
   final String label;
   final String prompt;
   final String negativePrompt;
+  final double? positionX;
+  final double? positionY;
+
+  bool get hasCustomPosition => positionX != null && positionY != null;
 }
 
 class GalleryContributor {
