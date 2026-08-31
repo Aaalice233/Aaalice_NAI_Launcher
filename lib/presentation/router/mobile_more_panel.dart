@@ -36,101 +36,117 @@ Future<void> showMobileMorePanel({
 
   return AdaptivePresenter.showPanel<void>(
     context: context,
-    initialChildSize: 0.68,
+    initialChildSize: 0.80,
     minChildSize: 0.52,
     titleBuilder: (context) => Text(
       context.l10n.nav_more,
       style: Theme.of(context).textTheme.titleLarge,
     ),
-    builder: (panelContext, scrollController) => ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
+    builder: (panelContext, scrollController) => Column(
       children: [
-        _MobileMoreDestination(
-          key: const ValueKey('mobile-more-agent'),
-          icon: Icons.smart_toy_outlined,
-          label: panelContext.l10n.nav_agent,
-          selected: activePanel == ShellPanel.agent,
-          showBadge: agentRunning,
-          onTap: () {
-            Navigator.of(panelContext).pop();
-            ref.read(shellPanelProvider.notifier).state = ShellPanel.agent;
-          },
-        ),
-        _MobileMoreDestination(
-          key: const ValueKey('mobile-more-queue'),
-          icon: Icons.playlist_play_rounded,
-          label: panelContext.l10n.queue_management,
-          selected: activePanel == ShellPanel.queue,
-          badgeCount: queueCount,
-          onTap: () {
-            Navigator.of(panelContext).pop();
-            ref.read(shellPanelProvider.notifier).state = ShellPanel.queue;
-          },
-        ),
-        _MobileMoreDestination(
-          key: const ValueKey('mobile-more-read-image-metadata'),
-          icon: Icons.document_scanner_outlined,
-          label: panelContext.l10n.metadataImport_readImageMetadata,
-          onTap: () async {
-            final panelRoute = ModalRoute.of(panelContext);
-            Navigator.of(panelContext).pop();
-            if (panelRoute != null) {
-              await panelRoute.completed;
-            }
-            if (context.mounted) {
-              await importImageMetadata(context, ref);
-            }
-          },
-        ),
-        const Divider(indent: 16, endIndent: 16),
-        _MobileMoreDestination(
-          icon: Icons.style_outlined,
-          label: panelContext.l10n.vibeLibrary_title,
-          onTap: () => _selectBranch(
-            panelContext,
-            navigationShell,
-            AppBranch.vibeLibrary,
+        Expanded(
+          child: Scrollbar(
+            controller: scrollController,
+            thumbVisibility: true,
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(8, 8, 12, 0),
+              children: [
+                _MobileMoreDestination(
+                  key: const ValueKey('mobile-more-agent'),
+                  icon: Icons.smart_toy_outlined,
+                  label: panelContext.l10n.nav_agent,
+                  selected: activePanel == ShellPanel.agent,
+                  showBadge: agentRunning,
+                  onTap: () {
+                    Navigator.of(panelContext).pop();
+                    ref.read(shellPanelProvider.notifier).state =
+                        ShellPanel.agent;
+                  },
+                ),
+                _MobileMoreDestination(
+                  key: const ValueKey('mobile-more-queue'),
+                  icon: Icons.playlist_play_rounded,
+                  label: panelContext.l10n.queue_management,
+                  selected: activePanel == ShellPanel.queue,
+                  badgeCount: queueCount,
+                  onTap: () {
+                    Navigator.of(panelContext).pop();
+                    ref.read(shellPanelProvider.notifier).state =
+                        ShellPanel.queue;
+                  },
+                ),
+                _MobileMoreDestination(
+                  key: const ValueKey('mobile-more-read-image-metadata'),
+                  icon: Icons.document_scanner_outlined,
+                  label: panelContext.l10n.metadataImport_readImageMetadata,
+                  onTap: () async {
+                    final panelRoute = ModalRoute.of(panelContext);
+                    Navigator.of(panelContext).pop();
+                    if (panelRoute != null) {
+                      await panelRoute.completed;
+                    }
+                    if (context.mounted) {
+                      await importImageMetadata(context, ref);
+                    }
+                  },
+                ),
+                const Divider(indent: 16, endIndent: 16),
+                _MobileMoreDestination(
+                  icon: Icons.style_outlined,
+                  label: panelContext.l10n.vibeLibrary_title,
+                  onTap: () => _selectBranch(
+                    panelContext,
+                    navigationShell,
+                    AppBranch.vibeLibrary,
+                  ),
+                ),
+                _MobileMoreDestination(
+                  icon: Icons.center_focus_strong_outlined,
+                  label: panelContext.l10n.nav_preciseRefLibrary,
+                  onTap: () => _selectBranch(
+                    panelContext,
+                    navigationShell,
+                    AppBranch.preciseRefLibrary,
+                  ),
+                ),
+                _MobileMoreDestination(
+                  icon: Icons.casino_outlined,
+                  label: panelContext.l10n.nav_randomConfig,
+                  onTap: () => _selectBranch(
+                    panelContext,
+                    navigationShell,
+                    AppBranch.promptConfig,
+                  ),
+                ),
+                _MobileMoreDestination(
+                  icon: Icons.insights_outlined,
+                  label: panelContext.l10n.nav_statistics,
+                  onTap: () => _selectBranch(
+                    panelContext,
+                    navigationShell,
+                    AppBranch.statistics,
+                  ),
+                ),
+                const Divider(indent: 16, endIndent: 16),
+                _MobileMoreDestination(
+                  key: const ValueKey('mobile-more-settings'),
+                  icon: Icons.settings_outlined,
+                  label: panelContext.l10n.settings_title,
+                  showBadge: hasUpdate,
+                  onTap: () => _selectBranch(
+                    panelContext,
+                    navigationShell,
+                    AppBranch.settings,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        _MobileMoreDestination(
-          icon: Icons.center_focus_strong_outlined,
-          label: panelContext.l10n.nav_preciseRefLibrary,
-          onTap: () => _selectBranch(
-            panelContext,
-            navigationShell,
-            AppBranch.preciseRefLibrary,
-          ),
-        ),
-        _MobileMoreDestination(
-          icon: Icons.casino_outlined,
-          label: panelContext.l10n.nav_randomConfig,
-          onTap: () => _selectBranch(
-            panelContext,
-            navigationShell,
-            AppBranch.promptConfig,
-          ),
-        ),
-        _MobileMoreDestination(
-          icon: Icons.insights_outlined,
-          label: panelContext.l10n.nav_statistics,
-          onTap: () => _selectBranch(
-            panelContext,
-            navigationShell,
-            AppBranch.statistics,
-          ),
-        ),
-        const Divider(indent: 16, endIndent: 16),
-        _MobileMoreDestination(
-          icon: Icons.settings_outlined,
-          label: panelContext.l10n.settings_title,
-          showBadge: hasUpdate,
-          onTap: () =>
-              _selectBranch(panelContext, navigationShell, AppBranch.settings),
-        ),
-        const Divider(indent: 16, endIndent: 16),
+        const Divider(height: 1, indent: 16, endIndent: 16),
         Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Row(
             children: [
               Expanded(

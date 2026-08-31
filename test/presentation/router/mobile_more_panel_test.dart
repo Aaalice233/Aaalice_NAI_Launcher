@@ -16,8 +16,14 @@ void main() {
   testWidgets(
     'mobile more panel exposes one single-line metadata entry and wires tap',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(400, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.padding = const FakeViewPadding(bottom: 32);
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+        tester.view.resetPadding();
+      });
 
       final navigationShell = _MockNavigationShell();
       var importCalls = 0;
@@ -63,6 +69,20 @@ void main() {
       expect(tile.subtitle, isNull);
       final title = tile.title! as Text;
       expect(title.maxLines, 1);
+      expect(find.byType(Scrollbar), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('mobile-more-settings')).hitTestable(),
+        findsOneWidget,
+      );
+
+      for (final key in const [
+        ValueKey('mobile-more-discord'),
+        ValueKey('mobile-more-github'),
+      ]) {
+        final button = find.byKey(key);
+        expect(button.hitTestable(), findsOneWidget);
+        expect(tester.getRect(button).bottom, lessThanOrEqualTo(768));
+      }
 
       await tester.tap(entry);
       await tester.pumpAndSettle();
