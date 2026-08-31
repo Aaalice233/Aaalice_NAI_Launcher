@@ -11,6 +11,7 @@ import '../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
 import '../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../common/themed_confirm_dialog.dart';
 import '../common/vertical_resize_handle.dart';
 import '../prompt/toolbar/toolbar.dart';
 import '../prompt/unified/unified.dart';
@@ -106,6 +107,32 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
     ref.read(characterPromptNotifierProvider.notifier).updateCharacter(updated);
   }
 
+  Future<void> _clearCurrentPrompt() async {
+    final controller = _tabIndex == 0 ? _promptController : _negativeController;
+    if (controller.text.isEmpty) return;
+
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: l10n.common_confirmClear,
+      content: l10n.common_clearInputConfirm,
+      confirmText: l10n.common_clear,
+      cancelText: l10n.common_cancel,
+      type: ThemedConfirmDialogType.warning,
+      icon: Icons.clear_all,
+    );
+    if (!mounted || !confirmed) return;
+
+    controller.clear();
+    _updateCharacter(
+      _tabIndex == 0
+          ? widget.character.copyWith(prompt: '')
+          : widget.character.copyWith(negativePrompt: ''),
+    );
+    setState(() {});
+    _focusCurrentTab();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -119,54 +146,91 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       ),
     );
     final assistantToolbarHeight = PromptAssistantOverlay.inlineToolbarHeight;
-    final switcherHeight =
-        assistantToolbarHeight +
-        (assistantExpanded ? 6 + assistantToolbarHeight : 0);
+    final assistantIconOnly = PlatformCapabilities.current.hasTouchInput;
+    final collapsedAssistantWidth = assistantIconOnly
+        ? assistantToolbarHeight
+        : PromptAssistantOverlay.collapsedInlineButtonWidth(
+            context,
+            l10n.promptAssistant_assistant,
+          );
+    final currentController = _tabIndex == 0
+        ? _promptController
+        : _negativeController;
+    final showClearButton =
+        !assistantExpanded && currentController.text.isNotEmpty;
+    const clearButtonWidth = 32.0;
+    final collapsedActionsWidth =
+        collapsedAssistantWidth + (showClearButton ? clearButtonWidth + 6 : 0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: switcherHeight,
+          height: assistantToolbarHeight,
           child: Stack(
+            alignment: Alignment.centerRight,
             children: [
-              Positioned(
-                left: 0,
-                right: assistantExpanded ? 0 : assistantToolbarHeight + 8,
-                top: 0,
-                height: assistantToolbarHeight,
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: _EditorTab(
-                        label: l10n.prompt_positivePrompt,
-                        selected: _tabIndex == 0,
-                        onTap: () {
-                          setState(() => _tabIndex = 0);
-                          _focusCurrentTab();
-                        },
+              Positioned.fill(
+                right: collapsedActionsWidth + 8,
+                child: Offstage(
+                  offstage: assistantExpanded,
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: _EditorTab(
+                          label: l10n.prompt_positivePrompt,
+                          selected: _tabIndex == 0,
+                          onTap: () {
+                            setState(() => _tabIndex = 0);
+                            _focusCurrentTab();
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: _EditorTab(
-                        label: l10n.prompt_negativePrompt,
-                        selected: _tabIndex == 1,
-                        onTap: () {
-                          setState(() => _tabIndex = 1);
-                          _focusCurrentTab();
-                        },
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: _EditorTab(
+                          label: l10n.prompt_negativePrompt,
+                          selected: _tabIndex == 1,
+                          onTap: () {
+                            setState(() => _tabIndex = 1);
+                            _focusCurrentTab();
+                          },
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
+              if (showClearButton)
+                Positioned(
+                  right: collapsedAssistantWidth + 6,
+                  top: 0,
+                  width: clearButtonWidth,
+                  height: assistantToolbarHeight,
+                  child: IconButton(
+                    key: const ValueKey('character-prompt-clear-button'),
+                    tooltip: l10n.toolbar_clear,
+                    onPressed: _clearCurrentPrompt,
+                    icon: const Icon(Icons.clear, size: 17),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: clearButtonWidth,
+                      height: 32,
+                    ),
+                    style: IconButton.styleFrom(
+                      foregroundColor: colorScheme.onSurfaceVariant,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 left: assistantExpanded ? 0 : null,
                 right: 0,
-                top: assistantExpanded ? assistantToolbarHeight + 6 : 0,
-                width: assistantExpanded ? null : assistantToolbarHeight,
+                top: 0,
+                width: assistantExpanded ? null : collapsedAssistantWidth,
                 height: assistantToolbarHeight,
                 child: ClipRRect(
                   key: const ValueKey('character-prompt-assistant-slot'),
@@ -189,7 +253,8 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
                               widget.character.copyWith(negativePrompt: value),
                             ),
                       floatOverEditor: false,
-                      iconOnly: true,
+                      iconOnly: assistantIconOnly,
+                      compactDesktopToolbar: true,
                       tapRegionGroupId: CharacterPromptEditor.tapRegionGroupId(
                         widget.character.id,
                       ),
@@ -241,9 +306,8 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       enableAutoFormat: enableAutoFormat,
       enableSyntaxHighlight: enableHighlight,
       enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
-      // 清空由 UnifiedPromptInput 内部处理并回调 onChanged('')，无需重复
-      showClearButton: true,
-      clearNeedsConfirm: true,
+      showClearButton: false,
+      clearNeedsConfirm: false,
     );
 
     final isNegative = _tabIndex == 1;

@@ -41,6 +41,7 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
     this.floatOverEditor = true,
     this.expandInPlace = true,
     this.iconOnly = false,
+    this.compactDesktopToolbar = false,
     this.expandInRootOverlay = false,
     this.tapRegionGroupId,
   });
@@ -62,6 +63,25 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
 
   /// Keeps the collapsed entry icon-only, including on desktop.
   final bool iconOnly;
+
+  /// Keeps priority actions inline and moves history into the overflow menu.
+  final bool compactDesktopToolbar;
+
+  static double collapsedInlineButtonWidth(BuildContext context, String label) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    return (textPainter.width + 41)
+        .ceilToDouble()
+        .clamp(64, double.infinity)
+        .toDouble();
+  }
 
   /// Renders the expanded action row in the root overlay above clipped cards.
   final bool expandInRootOverlay;
@@ -718,7 +738,8 @@ class _PromptAssistantOverlayState
                         context,
                       ).colorScheme.onSurface.withValues(alpha: 0.78),
                     ),
-                if (isExpanded && !_isDesktop) ...[
+                if (isExpanded &&
+                    (!_isDesktop || widget.compactDesktopToolbar)) ...[
                   _miniButton(
                     icon: Icons.translate,
                     tooltip: context.l10n.promptAssistant_translate,
@@ -866,8 +887,12 @@ class _PromptAssistantOverlayState
         borderRadius: BorderRadius.circular(8),
       ),
       textStyle: const TextStyle(color: Colors.white, fontSize: 12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 1),
+      child: SizedBox(
+        width: PromptAssistantOverlay.collapsedInlineButtonWidth(
+          context,
+          label,
+        ),
+        height: _isDesktop ? 32 : 48,
         child: TextButton.icon(
           key: const ValueKey('prompt_assistant_collapsed_button'),
           onPressed: onPressed,
@@ -879,6 +904,9 @@ class _PromptAssistantOverlayState
             padding: EdgeInsets.symmetric(horizontal: _isDesktop ? 8 : 12),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             textStyle: TextStyle(fontSize: _isDesktop ? 12 : 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
           ),
         ),
       ),
@@ -893,9 +921,6 @@ class _PromptAssistantOverlayState
     double iconSize = 17,
     double buttonSize = 32,
   }) {
-    // The full desktop assistant has nine actions. A 36px button plus spacing
-    // pushes the leading action outside narrow generation sidebars at common
-    // Windows display scales; 32px preserves every action without scrolling.
     final effectiveButtonSize = _isDesktop ? buttonSize : 48.0;
     final effectiveIconSize = _isDesktop ? iconSize : 20.0;
     return Tooltip(

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/cancellable_gallery_image_loader.dart';
@@ -43,15 +44,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   late final OnlineGallerySelectionActions _selectionActions;
   late final OnlineGalleryScreenCommands _commands;
   late final ProviderSubscription<OnlineGalleryState> _gallerySubscription;
+  late final OnlineGalleryNotifier _galleryNotifier;
   bool _appForeground = true;
+  bool _backgroundNetworkSyncScheduled = false;
+  bool _disposed = false;
   int _pageJumpRevision = 0;
 
   @override
   bool get wantKeepAlive => true;
-
-  /// 获取 Gallery Notifier（简化重复代码）
-  OnlineGalleryNotifier get _galleryNotifier =>
-      ref.read(onlineGalleryNotifierProvider.notifier);
 
   /// 获取 Selection Notifier（简化重复代码）
   OnlineGallerySelectionNotifier get _selectionNotifier =>
@@ -63,6 +63,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     WidgetsBinding.instance.addObserver(this);
     final lifecycleState = WidgetsBinding.instance.lifecycleState;
     _appForeground = _isForegroundLifecycleState(lifecycleState);
+    _galleryNotifier = ref.read(onlineGalleryNotifierProvider.notifier);
     _imageLoader = CancellableGalleryImageLoader();
     _controller = OnlineGalleryScreenController(
       prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
@@ -165,6 +166,23 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   void _syncBackgroundNetworkActivity() {
+    if (_disposed) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      if (_backgroundNetworkSyncScheduled) return;
+      _backgroundNetworkSyncScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _backgroundNetworkSyncScheduled = false;
+        if (!mounted || _disposed) return;
+        _applyBackgroundNetworkActivity();
+      });
+      return;
+    }
+    _applyBackgroundNetworkActivity();
+  }
+
+  void _applyBackgroundNetworkActivity() {
+    if (_disposed) return;
     _galleryNotifier.setBackgroundNetworkPaused(
       !_controller.branchVisible ||
           !_appForeground ||
@@ -302,6 +320,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   @override
   void dispose() {
+    _disposed = true;
     _pageJumpRevision++;
     WidgetsBinding.instance.removeObserver(this);
     CriticalNetworkActivityCoordinator.instance.removeListener(

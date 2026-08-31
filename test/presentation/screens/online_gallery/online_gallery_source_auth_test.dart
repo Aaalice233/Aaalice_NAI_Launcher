@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
+import 'package:nai_launcher/core/network/critical_network_activity.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
@@ -1105,6 +1106,38 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(_HiddenUnderfilledGalleryNotifier.loadMoreCalls, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('critical network pause is deferred until mounting completes', (
+    tester,
+  ) async {
+    final lease = CriticalNetworkActivityCoordinator.instance.acquire(
+      CriticalNetworkActivityType.imageGeneration,
+    );
+    addTearDown(lease.release);
+    await _setViewSize(tester, 1200);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _LifecycleGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    lease.release();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('random mode replaces pagination and restores it when disabled', (
@@ -1938,6 +1971,23 @@ class _HiddenUnderfilledGalleryNotifier extends OnlineGalleryNotifier {
   Future<void> loadMore() async {
     loadMoreCalls++;
   }
+}
+
+class _LifecycleGalleryNotifier extends OnlineGalleryNotifier {
+  bool _paused = false;
+
+  @override
+  OnlineGalleryState build() => const OnlineGalleryState();
+
+  @override
+  void setBackgroundNetworkPaused(bool paused) {
+    if (_paused == paused) return;
+    _paused = paused;
+    state = state.copyWith();
+  }
+
+  @override
+  Future<void> loadPosts({bool refresh = false}) async {}
 }
 
 class _UnderfilledGalleryNotifier extends OnlineGalleryNotifier {

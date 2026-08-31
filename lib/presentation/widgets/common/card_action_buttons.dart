@@ -70,26 +70,25 @@ class CardActionButtons extends StatelessWidget {
       );
     }
 
-    return IgnorePointer(
-      ignoring: !visible,
-      child: Opacity(
-        opacity: visible ? 1 : 0,
-        child: Flex(
-          direction: direction,
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            for (final button in buttons)
-              Padding(
-                padding: EdgeInsets.only(
-                  left: direction == Axis.horizontal ? 4 : 0,
-                  top: direction == Axis.vertical ? 4 : 0,
-                ),
-                child: _CardActionButton(config: button),
-              ),
-          ],
-        ),
-      ),
+    // Remove hidden tooltips from the overlay together with their card. Keeping
+    // transparent buttons mounted lets a tooltip linger while the pointer has
+    // already moved to another card, producing duplicate labels.
+    if (!visible) return const SizedBox.shrink();
+
+    return Flex(
+      direction: direction,
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        for (final button in buttons)
+          Padding(
+            padding: EdgeInsets.only(
+              left: direction == Axis.horizontal ? 4 : 0,
+              top: direction == Axis.vertical ? 4 : 0,
+            ),
+            child: _CardActionButton(config: button),
+          ),
+      ],
     );
   }
 }
