@@ -19,6 +19,8 @@ void main() {
       expect(find.text('尚未连接'), findsOneWidget);
       expect(find.text('WebDAV'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
+      expect(find.text('Google Drive'), findsOneWidget);
+      expect(find.text('OneDrive'), findsOneWidget);
       expect(find.text('保存连接'), findsOneWidget);
       expect(tester.takeException(), isNull, reason: 'width=$width');
     }
@@ -209,15 +211,21 @@ void main() {
     expect(port.ffdkjInstallChoice, isFalse);
   });
 
-  testWidgets('仅手动备份模式隐藏恢复并禁用冲突应用', (tester) async {
+  testWidgets('仅手动备份模式允许显式拉取但禁用历史恢复和合并', (tester) async {
     await tester.pumpWidget(
       _subject(
-        state: _connectedState(activityStatus: CloudSyncActivityStatus.idle),
+        state: _connectedState(
+          activityStatus: CloudSyncActivityStatus.idle,
+        ).copyWith(remoteExists: true),
         port: _FakePort(),
       ),
     );
     await tester.pumpAndSettle();
     expect(find.text('查看并恢复'), findsNothing);
+    final pull = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '从云端拉取'),
+    );
+    expect(pull.onPressed, isNotNull);
     final bulk = tester.widget<FilledButton>(
       find.byKey(const ValueKey('cloud-sync-bulk-local')),
     );
@@ -225,13 +233,14 @@ void main() {
   });
 
   testWidgets('存储服务警告会直接显示在已连接页面', (tester) async {
-    final state = _connectedState(
-      activityStatus: CloudSyncActivityStatus.idle,
-      capabilityMode: CloudSyncCapabilityMode.bidirectional,
-    ).copyWith(
-      capabilityWarnings: const ['当前 GitHub 仓库是公开仓库'],
-      clearProgress: true,
-    );
+    final state =
+        _connectedState(
+          activityStatus: CloudSyncActivityStatus.idle,
+          capabilityMode: CloudSyncCapabilityMode.bidirectional,
+        ).copyWith(
+          capabilityWarnings: const ['当前 GitHub 仓库是公开仓库'],
+          clearProgress: true,
+        );
 
     await tester.pumpWidget(_subject(state: state, port: _FakePort()));
     await tester.pumpAndSettle();
@@ -262,6 +271,74 @@ void main() {
     await tester.pumpAndSettle();
     expect(port.pushes, 1);
     expect(port.pulls, 1);
+  });
+
+  testWidgets('云盘恢复密钥阻止同步并可解锁账号隔离快照', (tester) async {
+    final port = _FakePort();
+    final state =
+        _connectedState(
+          activityStatus: CloudSyncActivityStatus.idle,
+          capabilityMode: CloudSyncCapabilityMode.bidirectional,
+        ).copyWith(
+          backend: CloudSyncBackendKind.oneDrive,
+          accountId: 'tenant:account',
+          accountLabel: 'user@example.test',
+          recoveryRequired: true,
+          conflicts: const [],
+          clearProgress: true,
+        );
+    await tester.pumpWidget(_subject(state: state, port: port));
+    await tester.pumpAndSettle();
+
+    expect(find.text('需要恢复密钥'), findsOneWidget);
+    expect(find.text('user@example.test'), findsOneWidget);
+    final push = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '推送到云端'),
+    );
+    expect(push.onPressed, isNull);
+    await tester.enterText(_fieldWithLabel('恢复密钥'), 'AA1-recovery');
+    await tester.pump();
+    final unlock = find.byKey(const ValueKey('cloud-sync-unlock-recovery-key'));
+    await tester.scrollUntilVisible(unlock, 180, scrollable: _pageScrollable);
+    expect(
+      tester.widget<TextField>(_fieldWithLabel('恢复密钥')).controller!.text,
+      'AA1-recovery',
+    );
+    expect(tester.widget<FilledButton>(unlock).onPressed, isNotNull);
+    await tester.tap(unlock);
+    await tester.pumpAndSettle();
+    expect(port.recoveryKey, 'AA1-recovery');
+  });
+
+  testWidgets('新云盘恢复密钥必须明确确认保存', (tester) async {
+    final port = _FakePort();
+    final state =
+        _connectedState(
+          activityStatus: CloudSyncActivityStatus.idle,
+          capabilityMode: CloudSyncCapabilityMode.bidirectional,
+        ).copyWith(
+          backend: CloudSyncBackendKind.googleDrive,
+          accountId: 'google-account',
+          accountLabel: 'google@example.test',
+          pendingRecoveryKey: 'AA1-new-recovery-key',
+          conflicts: const [],
+          clearProgress: true,
+        );
+    await tester.pumpWidget(_subject(state: state, port: port));
+    await tester.pumpAndSettle();
+
+    expect(find.text('AA1-new-recovery-key'), findsOneWidget);
+    final saved = find.byKey(const ValueKey('cloud-sync-recovery-saved'));
+    await tester.scrollUntilVisible(saved, 180, scrollable: _pageScrollable);
+    await tester.tap(saved);
+    await tester.pump();
+    final confirm = find.byKey(
+      const ValueKey('cloud-sync-confirm-recovery-key'),
+    );
+    await tester.scrollUntilVisible(confirm, 180, scrollable: _pageScrollable);
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+    expect(port.recoveryConfirmed, isTrue);
   });
 
   testWidgets('网络失败只显示可读提示且不暴露异常类型', (tester) async {
@@ -407,6 +484,18 @@ class _FakePort extends CloudSyncUiPortAdapter {
   Object? syncError;
   var pushes = 0;
   var pulls = 0;
+  String? recoveryKey;
+  bool recoveryConfirmed = false;
+
+  @override
+  Future<void> recoverCloudDriveEncryption(String recoveryKey) async {
+    this.recoveryKey = recoveryKey;
+  }
+
+  @override
+  Future<void> confirmCloudDriveRecoveryKeySaved() async {
+    recoveryConfirmed = true;
+  }
 
   @override
   Future<void> pushNow() async {

@@ -12591,7 +12591,75 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_chooseBackend => '备份到哪里';
 
   @override
-  String get cloudSync_chooseBackendDescription => '选择你已有的存储服务。账号信息只保存在此设备。';
+  String get cloudSync_chooseBackendDescription =>
+      '先选择同步目的地，再连接账号并选择要同步的内容。凭据只保存在设备安全存储中。';
+
+  @override
+  String cloudSync_oauthDescription(String provider) {
+    return '连接 $provider 账号';
+  }
+
+  @override
+  String get cloudSync_oauthSystemBrowser => '将使用系统浏览器安全登录；无需在应用中输入密码。';
+
+  @override
+  String cloudSync_oauthUnavailable(String details) {
+    return '此版本缺少 OAuth 发布配置，暂时无法连接。请向发布者提供以下诊断：\n$details';
+  }
+
+  @override
+  String cloudSync_accountConnected(String provider) {
+    return '已连接 $provider';
+  }
+
+  @override
+  String get cloudSync_connectAccount => '连接账号';
+
+  @override
+  String get cloudSync_changeAccount => '更换账号';
+
+  @override
+  String get cloudSync_connectedAccount => '已连接账号';
+
+  @override
+  String get cloudSync_encryptionNeedsAction => '完成加密设置后即可同步';
+
+  @override
+  String get cloudSync_encryptionNeedsActionDescription =>
+      '云端数据使用端到端加密；请保存新恢复密钥或使用已有恢复密钥解锁。';
+
+  @override
+  String get cloudSync_encryptionRecoveryTitle => '保存加密恢复密钥';
+
+  @override
+  String get cloudSync_encryptionRecoveryDescription =>
+      '这是在新设备或安全存储丢失后恢复云端数据的唯一方式。应用不会上传或记录这段密钥。';
+
+  @override
+  String get cloudSync_copyRecoveryKey => '复制恢复密钥';
+
+  @override
+  String get cloudSync_recoveryKeyCopied => '恢复密钥已复制';
+
+  @override
+  String get cloudSync_recoveryKeySaved => '我已将恢复密钥保存在安全的位置';
+
+  @override
+  String get cloudSync_recoveryKeyOneTimeWarning =>
+      '确认后应用将不再显示这段密钥。请勿保存到同一个云盘同步目录。';
+
+  @override
+  String get cloudSync_recoveryRequiredTitle => '需要恢复密钥';
+
+  @override
+  String get cloudSync_recoveryRequiredDescription =>
+      '这个账号已有加密备份。输入之前保存的恢复密钥以在本设备解锁；成功后会生成一段新的恢复密钥。';
+
+  @override
+  String get cloudSync_recoveryKey => '恢复密钥';
+
+  @override
+  String get cloudSync_unlock => '解锁';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV 地址';
@@ -25820,7 +25888,75 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_chooseBackend => '備份到哪裡';
 
   @override
-  String get cloudSync_chooseBackendDescription => '選擇你已有的儲存服務。帳號資訊只儲存在此裝置。';
+  String get cloudSync_chooseBackendDescription =>
+      '先選擇同步目的地，再連線帳號並選擇要同步的內容。憑證只會儲存在裝置的安全儲存區。';
+
+  @override
+  String cloudSync_oauthDescription(String provider) {
+    return '連線 $provider 帳號';
+  }
+
+  @override
+  String get cloudSync_oauthSystemBrowser => '將使用系統瀏覽器安全登入；無需在應用程式中輸入密碼。';
+
+  @override
+  String cloudSync_oauthUnavailable(String details) {
+    return '此版本缺少 OAuth 發佈設定，暫時無法連線。請向發佈者提供以下診斷：\n$details';
+  }
+
+  @override
+  String cloudSync_accountConnected(String provider) {
+    return '已連線 $provider';
+  }
+
+  @override
+  String get cloudSync_connectAccount => '連線帳號';
+
+  @override
+  String get cloudSync_changeAccount => '更換帳號';
+
+  @override
+  String get cloudSync_connectedAccount => '已連線帳號';
+
+  @override
+  String get cloudSync_encryptionNeedsAction => '完成加密設定後即可同步';
+
+  @override
+  String get cloudSync_encryptionNeedsActionDescription =>
+      '雲端資料使用端對端加密；請儲存新的復原密鑰，或使用先前儲存的密鑰解鎖。';
+
+  @override
+  String get cloudSync_encryptionRecoveryTitle => '儲存加密復原密鑰';
+
+  @override
+  String get cloudSync_encryptionRecoveryDescription =>
+      '這是在新裝置或安全儲存區遺失後復原雲端資料的唯一方式。應用程式不會上傳或記錄這段密鑰。';
+
+  @override
+  String get cloudSync_copyRecoveryKey => '複製復原密鑰';
+
+  @override
+  String get cloudSync_recoveryKeyCopied => '已複製復原密鑰';
+
+  @override
+  String get cloudSync_recoveryKeySaved => '我已將復原密鑰儲存在安全的位置';
+
+  @override
+  String get cloudSync_recoveryKeyOneTimeWarning =>
+      '確認後應用程式將不再顯示這段密鑰。請勿儲存在同一個雲端同步目錄。';
+
+  @override
+  String get cloudSync_recoveryRequiredTitle => '需要復原密鑰';
+
+  @override
+  String get cloudSync_recoveryRequiredDescription =>
+      '這個帳號已有加密備份。請輸入先前儲存的復原密鑰以在本裝置解鎖；成功後會產生新的復原密鑰。';
+
+  @override
+  String get cloudSync_recoveryKey => '復原密鑰';
+
+  @override
+  String get cloudSync_unlock => '解鎖';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV 位址';

@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -214,6 +217,122 @@ class SecureStorageService {
   Future<String?> getCloudSyncCredentials() =>
       _getCloudSecret(StorageKeys.cloudSyncCredentials);
 
+  String _cloudDriveIdentityKey(
+    String prefix,
+    String providerId,
+    String accountId,
+  ) {
+    final accountHash = sha256.convert(utf8.encode(accountId)).toString();
+    return '$prefix${providerId}_$accountHash';
+  }
+
+  String _cloudDriveOAuthSessionKey(String providerId, String accountId) =>
+      _cloudDriveIdentityKey(
+        StorageKeys.cloudDriveOAuthSessionPrefix,
+        providerId,
+        accountId,
+      );
+
+  Future<void> saveCloudDriveOAuthSession({
+    required String providerId,
+    required String accountId,
+    required String encodedSession,
+  }) => _saveCloudSecret(
+    _cloudDriveOAuthSessionKey(providerId, accountId),
+    encodedSession,
+  );
+
+  Future<String?> getCloudDriveOAuthSession({
+    required String providerId,
+    required String accountId,
+  }) => _getCloudSecret(_cloudDriveOAuthSessionKey(providerId, accountId));
+
+  Future<void> deleteCloudDriveOAuthSession({
+    required String providerId,
+    required String accountId,
+  }) => _deleteCloudSecret(_cloudDriveOAuthSessionKey(providerId, accountId));
+
+  Future<void> saveCloudDriveMasterKey({
+    required String providerId,
+    required String accountId,
+    required String encodedKey,
+  }) => _saveCloudSecret(
+    _cloudDriveIdentityKey(
+      StorageKeys.cloudDriveMasterKeyPrefix,
+      providerId,
+      accountId,
+    ),
+    encodedKey,
+  );
+
+  Future<String?> getCloudDriveMasterKey({
+    required String providerId,
+    required String accountId,
+  }) => _getCloudSecret(
+    _cloudDriveIdentityKey(
+      StorageKeys.cloudDriveMasterKeyPrefix,
+      providerId,
+      accountId,
+    ),
+  );
+
+  Future<void> saveCloudDrivePendingRecoveryKey({
+    required String providerId,
+    required String accountId,
+    required String recoveryKey,
+  }) => _saveCloudSecret(
+    _cloudDriveIdentityKey(
+      StorageKeys.cloudDrivePendingRecoveryPrefix,
+      providerId,
+      accountId,
+    ),
+    recoveryKey,
+  );
+
+  Future<String?> getCloudDrivePendingRecoveryKey({
+    required String providerId,
+    required String accountId,
+  }) => _getCloudSecret(
+    _cloudDriveIdentityKey(
+      StorageKeys.cloudDrivePendingRecoveryPrefix,
+      providerId,
+      accountId,
+    ),
+  );
+
+  Future<void> clearCloudDrivePendingRecoveryKey({
+    required String providerId,
+    required String accountId,
+  }) => _deleteCloudSecret(
+    _cloudDriveIdentityKey(
+      StorageKeys.cloudDrivePendingRecoveryPrefix,
+      providerId,
+      accountId,
+    ),
+  );
+
+  Future<void> clearCloudDriveEncryptionSecrets({
+    required String providerId,
+    required String accountId,
+  }) async {
+    await Future.wait([
+      _deleteCloudSecret(
+        _cloudDriveIdentityKey(
+          StorageKeys.cloudDriveMasterKeyPrefix,
+          providerId,
+          accountId,
+        ),
+      ),
+      _deleteCloudSecret(
+        _cloudDriveIdentityKey(
+          StorageKeys.cloudDrivePendingRecoveryPrefix,
+          providerId,
+          accountId,
+        ),
+      ),
+    ]);
+  }
+
   Future<void> clearCloudSyncSecrets() async {
     const keys = [
       StorageKeys.cloudSyncMasterKey,
@@ -224,6 +343,11 @@ class SecureStorageService {
       _memoryCache.remove(key);
     }
     await Future.wait(keys.map((key) => _storage.delete(key: key)));
+  }
+
+  Future<void> _deleteCloudSecret(String key) async {
+    await _storage.delete(key: key);
+    _memoryCache.remove(key);
   }
 
   Future<void> _saveCloudSecret(String key, String value) async {

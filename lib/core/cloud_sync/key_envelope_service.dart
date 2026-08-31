@@ -25,13 +25,25 @@ class CloudKeyEnvelopeService {
     required CloudKeyEnvelopeBackend backend,
     required SecureStorageService secureStorage,
     CloudCrypto? crypto,
+    this.providerId,
+    this.accountId,
   }) : _backend = backend,
        _secureStorage = secureStorage,
-       _crypto = crypto ?? CloudCrypto();
+       _crypto = crypto ?? CloudCrypto() {
+    if ((providerId == null) != (accountId == null) ||
+        (providerId?.isEmpty ?? false) ||
+        (accountId?.isEmpty ?? false)) {
+      throw ArgumentError(
+        'providerId and accountId must be supplied together and non-empty',
+      );
+    }
+  }
 
   final CloudKeyEnvelopeBackend _backend;
   final SecureStorageService _secureStorage;
   final CloudCrypto _crypto;
+  final String? providerId;
+  final String? accountId;
   CreatedMasterKey? _prepared;
 
   Future<String> prepareCreate(String password) async {
@@ -75,7 +87,7 @@ class CloudKeyEnvelopeService {
     final remote = await _backend.readKeyEnvelope();
     if (remote == null) throw StateError('Remote KEY.json is missing.');
     final envelope = WrappedMasterKey.decode(remote.bytes);
-    final local = await _secureStorage.getCloudSyncMasterKey();
+    final local = await _readPersistedMasterKey();
     late SecretKey master;
     if (local != null) {
       try {
@@ -149,6 +161,34 @@ class CloudKeyEnvelopeService {
     );
   }
 
+  Future<CloudKeyEnvelopeSession> recoverAndRotate(
+    String recoveryKey,
+    String newPassword,
+  ) async {
+    final remote = await _backend.readKeyEnvelope();
+    if (remote == null) throw StateError('Remote KEY.json is missing.');
+    final recovered = await _crypto.recover(
+      recoveryKey,
+      newPassword,
+      WrappedMasterKey.decode(remote.bytes),
+    );
+    final rotated = await _crypto.rotateRecoveryKey(
+      recovered.masterKey,
+      recovered.wrapped,
+    );
+    final committed = await _backend.commitKeyEnvelope(
+      rotated.wrapped.encode(),
+      expectedRevision: remote.revision,
+    );
+    await _persist(recovered.masterKey);
+    return CloudKeyEnvelopeSession(
+      masterKey: recovered.masterKey,
+      envelope: rotated.wrapped,
+      revision: committed.revision,
+      recoveryKey: rotated.recoveryKey,
+    );
+  }
+
   Future<CloudKeyEnvelopeSession> rotateRecoveryKey(
     CloudKeyEnvelopeSession current,
   ) async {
@@ -169,7 +209,30 @@ class CloudKeyEnvelopeService {
     );
   }
 
-  Future<void> _persist(SecretKey master) => master.extractBytes().then(
-    (bytes) => _secureStorage.saveCloudSyncMasterKey(base64Encode(bytes)),
-  );
+  Future<String?> _readPersistedMasterKey() {
+    final provider = providerId;
+    final account = accountId;
+    if (provider == null || account == null) {
+      return _secureStorage.getCloudSyncMasterKey();
+    }
+    return _secureStorage.getCloudDriveMasterKey(
+      providerId: provider,
+      accountId: account,
+    );
+  }
+
+  Future<void> _persist(SecretKey master) async {
+    final encoded = base64Encode(await master.extractBytes());
+    final provider = providerId;
+    final account = accountId;
+    if (provider == null || account == null) {
+      await _secureStorage.saveCloudSyncMasterKey(encoded);
+      return;
+    }
+    await _secureStorage.saveCloudDriveMasterKey(
+      providerId: provider,
+      accountId: account,
+      encodedKey: encoded,
+    );
+  }
 }

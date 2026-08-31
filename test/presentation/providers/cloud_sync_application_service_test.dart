@@ -158,6 +158,76 @@ void main() {
   );
 
   test(
+    'cloud drive encrypts data and requires recovery on another device',
+    () async {
+      const driveDraft = CloudSyncConnectionDraft(
+        backend: CloudSyncBackendKind.oneDrive,
+        accountId: 'tenant:account-a',
+        accountLabel: 'user@example.test',
+        path: 'aaalice-sync',
+      );
+      final first = await _Fixture.create();
+      addTearDown(first.dispose);
+
+      await first.service.connect(
+        const CloudSyncConnectRequest(
+          connection: driveDraft,
+          dataKinds: {CloudSyncDataKind.settings},
+        ),
+      );
+
+      final recoveryKey = first.states.last.pendingRecoveryKey;
+      expect(recoveryKey, startsWith('AA1-'));
+      expect(first.codecEncoding, CloudSnapshotEncoding.encrypted);
+      expect(first.backend.keyEnvelope, isNotNull);
+      expect(first.backend.head, isNull);
+      expect(
+        first.local.values[StorageKeys.cloudDriveConfiguration],
+        isNotNull,
+      );
+      expect(first.local.values[StorageKeys.cloudSyncConfiguration], isNull);
+      await expectLater(first.service.pushNow(), throwsStateError);
+
+      await first.service.confirmCloudDriveRecoveryKeySaved();
+      await first.service.pushNow();
+      expect(
+        SnapshotHead.decode(first.backend.head!.bytes).encoding,
+        CloudSnapshotEncoding.encrypted,
+      );
+      expect(
+        first.backend.objects.values.every(
+          (value) => !utf8
+              .decode(value.bytes, allowMalformed: true)
+              .contains('{"theme":"dark"}'),
+        ),
+        isTrue,
+      );
+
+      final second = await _Fixture.create(
+        backend: first.backend,
+        theme: 'light',
+      );
+      addTearDown(second.dispose);
+      await second.service.connect(
+        const CloudSyncConnectRequest(
+          connection: driveDraft,
+          dataKinds: {CloudSyncDataKind.settings},
+        ),
+      );
+      expect(second.states.last.recoveryRequired, isTrue);
+      expect(second.codecEncoding, isNull);
+      await expectLater(second.service.pullNow(), throwsStateError);
+
+      await second.service.recoverCloudDriveEncryption(recoveryKey!);
+      expect(second.states.last.pendingRecoveryKey, startsWith('AA1-'));
+      expect(second.codecEncoding, CloudSnapshotEncoding.encrypted);
+      await second.service.confirmCloudDriveRecoveryKeySaved();
+      await second.service.pullNow();
+      expect(second.states.last.lastSync, isNotNull);
+    },
+  );
+
+  test(
     'second device connection detects backup without changing remote data',
     () async {
       final first = await _Fixture.create();
@@ -242,7 +312,7 @@ class _Fixture {
     CloudSnapshotEncoding? codecEncoding;
     final service = CloudSyncApplicationService(
       backendFactory: (_) => effectiveBackend,
-      coordinatorFactory: (_, codec, __, ___) async {
+      coordinatorFactory: (_, codec, __, ___, ____) async {
         codecEncoding = codec.encoding;
         return SyncCoordinator(
           backend: effectiveBackend,
@@ -385,6 +455,11 @@ class _MemoryLocalStorage extends LocalStorageService {
 class _MemorySecureStorage extends SecureStorageService {
   String? credentials;
   String? masterKey;
+  final scopedMasterKeys = <String, String>{};
+  final pendingRecoveryKeys = <String, String>{};
+
+  String _scope(String providerId, String accountId) =>
+      '$providerId:$accountId';
 
   @override
   Future<void> saveCloudSyncCredentials(String encodedCredentials) async =>
@@ -396,6 +471,42 @@ class _MemorySecureStorage extends SecureStorageService {
       masterKey = encodedKey;
   @override
   Future<String?> getCloudSyncMasterKey() async => masterKey;
+  @override
+  Future<void> saveCloudDriveMasterKey({
+    required String providerId,
+    required String accountId,
+    required String encodedKey,
+  }) async => scopedMasterKeys[_scope(providerId, accountId)] = encodedKey;
+  @override
+  Future<String?> getCloudDriveMasterKey({
+    required String providerId,
+    required String accountId,
+  }) async => scopedMasterKeys[_scope(providerId, accountId)];
+  @override
+  Future<void> saveCloudDrivePendingRecoveryKey({
+    required String providerId,
+    required String accountId,
+    required String recoveryKey,
+  }) async => pendingRecoveryKeys[_scope(providerId, accountId)] = recoveryKey;
+  @override
+  Future<String?> getCloudDrivePendingRecoveryKey({
+    required String providerId,
+    required String accountId,
+  }) async => pendingRecoveryKeys[_scope(providerId, accountId)];
+  @override
+  Future<void> clearCloudDrivePendingRecoveryKey({
+    required String providerId,
+    required String accountId,
+  }) async => pendingRecoveryKeys.remove(_scope(providerId, accountId));
+  @override
+  Future<void> clearCloudDriveEncryptionSecrets({
+    required String providerId,
+    required String accountId,
+  }) async {
+    scopedMasterKeys.remove(_scope(providerId, accountId));
+    pendingRecoveryKeys.remove(_scope(providerId, accountId));
+  }
+
   @override
   Future<void> clearCloudSyncSecrets() async {
     credentials = null;

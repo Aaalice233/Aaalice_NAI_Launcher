@@ -18,6 +18,11 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
     required this.allowInsecureHttp,
     required this.onBackendChanged,
     required this.onAllowInsecureHttpChanged,
+    required this.oauthConfigured,
+    required this.oauthConfigurationMessage,
+    required this.oauthBusy,
+    required this.oauthAccountLabel,
+    required this.onAuthorizeOAuth,
   });
 
   final CloudSyncBackendKind backend;
@@ -31,6 +36,11 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
   final bool allowInsecureHttp;
   final ValueChanged<CloudSyncBackendKind> onBackendChanged;
   final ValueChanged<bool> onAllowInsecureHttpChanged;
+  final bool oauthConfigured;
+  final String oauthConfigurationMessage;
+  final bool oauthBusy;
+  final String? oauthAccountLabel;
+  final VoidCallback onAuthorizeOAuth;
 
   @override
   Widget build(BuildContext context) => CloudSyncSection(
@@ -39,22 +49,21 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SegmentedButton<CloudSyncBackendKind>(
-          style: const ButtonStyle(
-            minimumSize: WidgetStatePropertyAll(Size(0, 48)),
+        Semantics(
+          label: context.l10n.cloudSync_chooseBackend,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _destinationChip(CloudSyncBackendKind.webDav, 'WebDAV'),
+              _destinationChip(CloudSyncBackendKind.github, 'GitHub'),
+              _destinationChip(
+                CloudSyncBackendKind.googleDrive,
+                'Google Drive',
+              ),
+              _destinationChip(CloudSyncBackendKind.oneDrive, 'OneDrive'),
+            ],
           ),
-          segments: const [
-            ButtonSegment(
-              value: CloudSyncBackendKind.webDav,
-              label: Text('WebDAV'),
-            ),
-            ButtonSegment(
-              value: CloudSyncBackendKind.github,
-              label: Text('GitHub'),
-            ),
-          ],
-          selected: {backend},
-          onSelectionChanged: (value) => onBackendChanged(value.first),
         ),
         const SizedBox(height: 20),
         if (backend == CloudSyncBackendKind.webDav) ...[
@@ -91,7 +100,7 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
               ),
             ],
           ),
-        ] else
+        ] else if (backend == CloudSyncBackendKind.github)
           _fieldGrid([
             CloudSyncField(
               controller: secret,
@@ -106,7 +115,9 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
               controller: repository,
               label: context.l10n.cloudSync_repository,
             ),
-          ]),
+          ])
+        else
+          _oauthConnection(context),
         if (backend == CloudSyncBackendKind.github)
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
@@ -127,6 +138,86 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
       ],
     ),
   );
+
+  Widget _destinationChip(CloudSyncBackendKind value, String label) =>
+      ChoiceChip(
+        label: Text(label),
+        selected: backend == value,
+        onSelected: (selected) {
+          if (selected) onBackendChanged(value);
+        },
+      );
+
+  Widget _oauthConnection(BuildContext context) {
+    final providerName = backend == CloudSyncBackendKind.googleDrive
+        ? 'Google Drive'
+        : 'OneDrive';
+    final connected = oauthAccountLabel != null;
+    return CloudSyncSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                connected ? Icons.account_circle_outlined : Icons.lock_outline,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      connected
+                          ? context.l10n.cloudSync_accountConnected(
+                              providerName,
+                            )
+                          : context.l10n.cloudSync_oauthDescription(
+                              providerName,
+                            ),
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      connected
+                          ? oauthAccountLabel!
+                          : oauthConfigured
+                          ? context.l10n.cloudSync_oauthSystemBrowser
+                          : context.l10n.cloudSync_oauthUnavailable(
+                              oauthConfigurationMessage,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.tonalIcon(
+              key: ValueKey('cloud-sync-authorize-${backend.name}'),
+              onPressed: oauthConfigured && !oauthBusy
+                  ? onAuthorizeOAuth
+                  : null,
+              icon: oauthBusy
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(connected ? Icons.swap_horiz : Icons.open_in_browser),
+              label: Text(
+                connected
+                    ? context.l10n.cloudSync_changeAccount
+                    : context.l10n.cloudSync_connectAccount,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _fieldGrid(List<Widget> fields) => LayoutBuilder(
     builder: (context, constraints) {

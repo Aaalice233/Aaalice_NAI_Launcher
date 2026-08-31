@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'cloud_sync_conflict_center.dart';
+import 'cloud_sync_encryption_section.dart';
 import 'cloud_sync_ffdkj_prompt.dart';
 import 'cloud_sync_preview_panel.dart';
 import 'cloud_sync_security_section.dart';
@@ -65,6 +66,11 @@ class CloudSyncDashboard extends ConsumerWidget {
                 label: context.l10n.cloudSync_backend,
                 value: _backendName(state.backend),
               ),
+              if (state.accountLabel != null)
+                CloudSyncMetadata(
+                  label: context.l10n.cloudSync_connectedAccount,
+                  value: state.accountLabel!,
+                ),
               CloudSyncMetadata(
                 label: context.l10n.cloudSync_deviceName,
                 value: state.deviceName ?? '—',
@@ -76,22 +82,29 @@ class CloudSyncDashboard extends ConsumerWidget {
             ],
           ),
         ),
+        if (!state.encryptionReady) CloudSyncEncryptionSection(state: state),
         _syncActions(context, port),
         if (state.progress != null) _progress(context, state.progress!),
         if (state.pendingFfdkjInstall) const CloudSyncFfdkjPrompt(),
         if (state.pendingPreview != null) CloudSyncPreviewPanel(state: state),
         if (state.conflicts.isNotEmpty)
           CloudSyncConflictCenter(conflicts: state.conflicts),
-        if (state.supportsHistory) _history(context, port),
+        if (state.supportsHistory && state.encryptionReady)
+          _history(context, port),
         CloudSyncSecuritySection(state: state),
       ],
     );
   }
 
   Widget _status(BuildContext context) {
+    final needsEncryption = !state.encryptionReady;
     final needsAction =
-        state.needsConflictResolution || state.needsPreviewConfirmation;
-    final title = needsAction
+        needsEncryption ||
+        state.needsConflictResolution ||
+        state.needsPreviewConfirmation;
+    final title = needsEncryption
+        ? context.l10n.cloudSync_encryptionNeedsAction
+        : needsAction
         ? context.l10n.cloudSync_needsConflictResolution
         : switch (state.activityStatus) {
             CloudSyncActivityStatus.syncing => context.l10n.cloudSync_syncing,
@@ -103,7 +116,9 @@ class CloudSyncDashboard extends ConsumerWidget {
           ? Icons.warning_amber_rounded
           : Icons.cloud_done_outlined,
       title: title,
-      message: needsAction
+      message: needsEncryption
+          ? context.l10n.cloudSync_encryptionNeedsActionDescription
+          : needsAction
           ? state.needsConflictResolution
                 ? context.l10n.cloudSync_deferredConflictWarning
                 : context.l10n.cloudSync_previewAwaitingConfirmation
@@ -123,6 +138,7 @@ class CloudSyncDashboard extends ConsumerWidget {
               style: _buttonStyle,
               onPressed:
                   state.activityStatus == CloudSyncActivityStatus.idle &&
+                      state.encryptionReady &&
                       !state.needsPreviewConfirmation
                   ? () => _confirmDirection(
                       context,
@@ -138,6 +154,7 @@ class CloudSyncDashboard extends ConsumerWidget {
               style: _buttonStyle,
               onPressed:
                   state.activityStatus == CloudSyncActivityStatus.idle &&
+                      state.encryptionReady &&
                       !state.needsPreviewConfirmation &&
                       state.remoteExists == true
                   ? () => _confirmDirection(
@@ -293,6 +310,8 @@ class CloudSyncDashboard extends ConsumerWidget {
   String _backendName(CloudSyncBackendKind? backend) => switch (backend) {
     CloudSyncBackendKind.webDav => 'WebDAV',
     CloudSyncBackendKind.github => 'GitHub',
+    CloudSyncBackendKind.googleDrive => 'Google Drive',
+    CloudSyncBackendKind.oneDrive => 'OneDrive',
     null => '—',
   };
 

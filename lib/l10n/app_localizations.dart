@@ -22883,8 +22883,122 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_chooseBackendDescription.
   ///
   /// In en, this message translates to:
-  /// **'Choose a storage service you already use. Account details stay on this device.'**
+  /// **'Choose a destination, connect its account, then select what to sync. Credentials stay in this device\'s secure store.'**
   String get cloudSync_chooseBackendDescription;
+
+  /// No description provided for @cloudSync_oauthDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a {provider} account'**
+  String cloudSync_oauthDescription(String provider);
+
+  /// No description provided for @cloudSync_oauthSystemBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure sign-in opens in your system browser; you never enter the provider password in this app.'**
+  String get cloudSync_oauthSystemBrowser;
+
+  /// No description provided for @cloudSync_oauthUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This build is missing its OAuth release configuration, so the destination is unavailable. Send this diagnostic to the publisher:\n{details}'**
+  String cloudSync_oauthUnavailable(String details);
+
+  /// No description provided for @cloudSync_accountConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} connected'**
+  String cloudSync_accountConnected(String provider);
+
+  /// No description provided for @cloudSync_connectAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect account'**
+  String get cloudSync_connectAccount;
+
+  /// No description provided for @cloudSync_changeAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Change account'**
+  String get cloudSync_changeAccount;
+
+  /// No description provided for @cloudSync_connectedAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected account'**
+  String get cloudSync_connectedAccount;
+
+  /// No description provided for @cloudSync_encryptionNeedsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish encryption setup to sync'**
+  String get cloudSync_encryptionNeedsAction;
+
+  /// No description provided for @cloudSync_encryptionNeedsActionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud data is end-to-end encrypted. Save the new recovery key or unlock with the key you saved earlier.'**
+  String get cloudSync_encryptionNeedsActionDescription;
+
+  /// No description provided for @cloudSync_encryptionRecoveryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save the encryption recovery key'**
+  String get cloudSync_encryptionRecoveryTitle;
+
+  /// No description provided for @cloudSync_encryptionRecoveryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the only way to recover cloud data on a new device or after secure storage is lost. The app never uploads or logs this key.'**
+  String get cloudSync_encryptionRecoveryDescription;
+
+  /// No description provided for @cloudSync_copyRecoveryKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy recovery key'**
+  String get cloudSync_copyRecoveryKey;
+
+  /// No description provided for @cloudSync_recoveryKeyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery key copied'**
+  String get cloudSync_recoveryKeyCopied;
+
+  /// No description provided for @cloudSync_recoveryKeySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'I saved the recovery key in a safe place'**
+  String get cloudSync_recoveryKeySaved;
+
+  /// No description provided for @cloudSync_recoveryKeyOneTimeWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The app will stop showing this key after confirmation. Do not keep it in the same cloud-sync folder.'**
+  String get cloudSync_recoveryKeyOneTimeWarning;
+
+  /// No description provided for @cloudSync_recoveryRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery key required'**
+  String get cloudSync_recoveryRequiredTitle;
+
+  /// No description provided for @cloudSync_recoveryRequiredDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This account already has an encrypted backup. Enter the recovery key you saved to unlock it on this device; a replacement key will be issued afterward.'**
+  String get cloudSync_recoveryRequiredDescription;
+
+  /// No description provided for @cloudSync_recoveryKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery key'**
+  String get cloudSync_recoveryKey;
+
+  /// No description provided for @cloudSync_unlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get cloudSync_unlock;
 
   /// No description provided for @cloudSync_webDavUrl.
   ///

@@ -13,4 +13,5 @@ typedef CloudCoordinatorFactory =
       CloudObjectCodec codec,
       Set<CloudSyncDataKind> scope,
       CloudSyncContentSelection contentSelection,
+      CloudSyncConnectionDraft connection,
     );

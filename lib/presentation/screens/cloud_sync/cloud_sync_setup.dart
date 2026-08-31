@@ -8,6 +8,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../data/cloud_sync/cloud_sync_content_selection_store.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../../providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'cloud_sync_agent_content_section.dart';
 import 'cloud_sync_setup_configuration.dart';
@@ -31,6 +32,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   var _backend = CloudSyncBackendKind.webDav;
   var _busy = false;
   var _allowInsecureHttp = false;
+  CloudSyncConnectionDraft? _oauthDraft;
   var _dataKinds = <CloudSyncDataKind>{
     CloudSyncDataKind.settings,
     CloudSyncDataKind.prompts,
@@ -71,6 +73,14 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
 
   @override
   void dispose() {
+    final pendingOAuth = _oauthDraft;
+    if (pendingOAuth != null) {
+      unawaited(
+        ref
+            .read(cloudSyncUiPortProvider)
+            .discardCloudDriveAuthorization(pendingOAuth),
+      );
+    }
     for (final controller in _controllers) {
       controller.removeListener(_refreshInputState);
       controller.dispose();
@@ -78,25 +88,42 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     super.dispose();
   }
 
-  CloudSyncConnectionDraft get _draft => CloudSyncConnectionDraft(
-    backend: _backend,
-    serverUrl: _url.text.trim(),
-    username: _username.text.trim(),
-    secret: _secret.text,
-    owner: _owner.text.trim(),
-    repository: _repository.text.trim(),
-    branch: _branch.text.trim().isEmpty ? 'main' : _branch.text.trim(),
-    path: _path.text.trim().isEmpty ? 'aaalice-sync' : _path.text.trim(),
-    allowInsecureHttp: _allowInsecureHttp,
-  );
+  CloudSyncConnectionDraft get _draft {
+    final oauth = _oauthDraft;
+    if (_backend.usesOAuth && oauth != null) {
+      return CloudSyncConnectionDraft(
+        backend: _backend,
+        path: _path.text.trim().isEmpty ? 'aaalice-sync' : _path.text.trim(),
+        accountId: oauth.accountId,
+        accountLabel: oauth.accountLabel,
+      );
+    }
+    return CloudSyncConnectionDraft(
+      backend: _backend,
+      serverUrl: _url.text.trim(),
+      username: _username.text.trim(),
+      secret: _secret.text,
+      owner: _owner.text.trim(),
+      repository: _repository.text.trim(),
+      branch: _branch.text.trim().isEmpty ? 'main' : _branch.text.trim(),
+      path: _path.text.trim().isEmpty ? 'aaalice-sync' : _path.text.trim(),
+      allowInsecureHttp: _allowInsecureHttp,
+    );
+  }
 
-  bool get _canConnect => _backend == CloudSyncBackendKind.webDav
-      ? _url.text.trim().isNotEmpty &&
-            _username.text.trim().isNotEmpty &&
-            _secret.text.isNotEmpty
-      : _owner.text.trim().isNotEmpty &&
-            _repository.text.trim().isNotEmpty &&
-            _secret.text.isNotEmpty;
+  bool get _canConnect => switch (_backend) {
+    CloudSyncBackendKind.webDav =>
+      _url.text.trim().isNotEmpty &&
+          _username.text.trim().isNotEmpty &&
+          _secret.text.isNotEmpty,
+    CloudSyncBackendKind.github =>
+      _owner.text.trim().isNotEmpty &&
+          _repository.text.trim().isNotEmpty &&
+          _secret.text.isNotEmpty,
+    CloudSyncBackendKind.googleDrive || CloudSyncBackendKind.oneDrive =>
+      _oauthDraft?.backend == _backend &&
+          (_oauthDraft?.accountId.isNotEmpty ?? false),
+  };
 
   Future<void> _run(Future<void> Function() operation) async {
     setState(() => _busy = true);
@@ -115,6 +142,38 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     }
   }
 
+  Future<void> _authorizeOAuth() async {
+    await _run(() async {
+      final previous = _oauthDraft;
+      if (previous != null) {
+        await ref
+            .read(cloudSyncUiPortProvider)
+            .discardCloudDriveAuthorization(previous);
+        if (mounted) setState(() => _oauthDraft = null);
+      }
+      final connected = await ref
+          .read(cloudSyncUiPortProvider)
+          .authorizeCloudDrive(_backend);
+      if (mounted) setState(() => _oauthDraft = connected);
+    });
+  }
+
+  void _changeBackend(CloudSyncBackendKind value) {
+    if (value == _backend) return;
+    final previous = _oauthDraft;
+    setState(() {
+      _backend = value;
+      _oauthDraft = null;
+    });
+    if (previous != null) {
+      unawaited(
+        ref
+            .read(cloudSyncUiPortProvider)
+            .discardCloudDriveAuthorization(previous),
+      );
+    }
+  }
+
   Future<void> _connect() async {
     if (!_canConnect) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,8 +181,8 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
       );
       return;
     }
-    await _run(
-      () => ref
+    await _run(() async {
+      await ref
           .read(cloudSyncUiPortProvider)
           .connect(
             CloudSyncConnectRequest(
@@ -131,12 +190,21 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
               dataKinds: _dataKinds,
               contentSelection: _contentSelection,
             ),
-          ),
-    );
+          );
+      // The authorization is now owned by the persisted connection. Prevent
+      // widget disposal from revoking the session that was just committed.
+      _oauthDraft = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final oauthDiagnostic = _backend.usesOAuth
+        ? ref
+              .watch(cloudDriveProviderRegistryProvider)
+              .require(_backend.oauthProvider)
+              .diagnose()
+        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -156,9 +224,14 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
           branch: _branch,
           path: _path,
           allowInsecureHttp: _allowInsecureHttp,
-          onBackendChanged: (value) => setState(() => _backend = value),
+          onBackendChanged: _changeBackend,
           onAllowInsecureHttpChanged: (value) =>
               setState(() => _allowInsecureHttp = value),
+          oauthConfigured: oauthDiagnostic?.isConfigured ?? true,
+          oauthConfigurationMessage: oauthDiagnostic?.reasons.join('\n') ?? '',
+          oauthBusy: _busy,
+          oauthAccountLabel: _oauthDraft?.accountLabel,
+          onAuthorizeOAuth: _authorizeOAuth,
         ),
         _dataScope(),
         const SizedBox(height: 12),

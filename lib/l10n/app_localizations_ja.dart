@@ -12807,7 +12807,75 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_chooseBackendDescription =>
-      '使用中の保存サービスを選択します。アカウント情報はこのデバイスだけに保存されます。';
+      '同期先を選び、アカウントを接続してから同期する内容を選択します。認証情報はこのデバイスの安全なストレージにのみ保存されます。';
+
+  @override
+  String cloudSync_oauthDescription(String provider) {
+    return '$provider アカウントを接続';
+  }
+
+  @override
+  String get cloudSync_oauthSystemBrowser =>
+      'システムブラウザーで安全にログインします。アプリ内でプロバイダーのパスワードを入力する必要はありません。';
+
+  @override
+  String cloudSync_oauthUnavailable(String details) {
+    return 'このビルドには OAuth のリリース設定がないため接続できません。次の診断情報を配布元に送ってください：\n$details';
+  }
+
+  @override
+  String cloudSync_accountConnected(String provider) {
+    return '$provider に接続済み';
+  }
+
+  @override
+  String get cloudSync_connectAccount => 'アカウントを接続';
+
+  @override
+  String get cloudSync_changeAccount => 'アカウントを変更';
+
+  @override
+  String get cloudSync_connectedAccount => '接続中のアカウント';
+
+  @override
+  String get cloudSync_encryptionNeedsAction => '暗号化設定を完了すると同期できます';
+
+  @override
+  String get cloudSync_encryptionNeedsActionDescription =>
+      'クラウドデータはエンドツーエンドで暗号化されます。新しい復旧キーを保存するか、以前保存したキーでロックを解除してください。';
+
+  @override
+  String get cloudSync_encryptionRecoveryTitle => '暗号化復旧キーを保存';
+
+  @override
+  String get cloudSync_encryptionRecoveryDescription =>
+      '新しいデバイスまたは安全なストレージの消失後にクラウドデータを復元する唯一の手段です。アプリはこのキーをアップロードも記録もしません。';
+
+  @override
+  String get cloudSync_copyRecoveryKey => '復旧キーをコピー';
+
+  @override
+  String get cloudSync_recoveryKeyCopied => '復旧キーをコピーしました';
+
+  @override
+  String get cloudSync_recoveryKeySaved => '復旧キーを安全な場所に保存しました';
+
+  @override
+  String get cloudSync_recoveryKeyOneTimeWarning =>
+      '確認後、このキーは表示されません。同じクラウド同期フォルダーには保存しないでください。';
+
+  @override
+  String get cloudSync_recoveryRequiredTitle => '復旧キーが必要です';
+
+  @override
+  String get cloudSync_recoveryRequiredDescription =>
+      'このアカウントには暗号化済みバックアップがあります。保存済みの復旧キーを入力してこのデバイスで解除してください。成功後に新しいキーが発行されます。';
+
+  @override
+  String get cloudSync_recoveryKey => '復旧キー';
+
+  @override
+  String get cloudSync_unlock => 'ロック解除';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV URL';

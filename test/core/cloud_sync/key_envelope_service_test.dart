@@ -117,6 +117,64 @@ void main() {
       );
     },
   );
+
+  test(
+    'scopes master keys by provider account and rotates on recovery',
+    () async {
+      final storage = _Storage();
+      final disk = <String, String>{};
+      when(
+        () => storage.write(
+          key: any(named: 'key'),
+          value: any(named: 'value'),
+        ),
+      ).thenAnswer((call) async {
+        disk[call.namedArguments[#key] as String] =
+            call.namedArguments[#value] as String;
+      });
+      when(
+        () => storage.read(key: any(named: 'key')),
+      ).thenAnswer((call) async => disk[call.namedArguments[#key] as String]);
+      when(() => storage.delete(key: any(named: 'key'))).thenAnswer((
+        call,
+      ) async {
+        disk.remove(call.namedArguments[#key] as String);
+      });
+      final secure = SecureStorageService(storage: storage);
+      final backend = _KeyBackend();
+      final first = CloudKeyEnvelopeService(
+        backend: backend,
+        secureStorage: secure,
+        providerId: 'onedrive',
+        accountId: 'account-a',
+      );
+      final recovery = await first.prepareCreate('device-secret-a');
+      final created = await first.commitPrepared();
+
+      final otherAccount = CloudKeyEnvelopeService(
+        backend: backend,
+        secureStorage: secure,
+        providerId: 'onedrive',
+        accountId: 'account-b',
+      );
+      await expectLater(otherAccount.unlock(), throwsA(isA<StateError>()));
+
+      final recovered = await otherAccount.recoverAndRotate(
+        recovery,
+        'device-secret-b',
+      );
+      expect(recovered.recoveryKey, isNotNull);
+      expect(recovered.envelope.recoveryBox, isNotNull);
+      expect(
+        await recovered.masterKey.extractBytes(),
+        await created.masterKey.extractBytes(),
+      );
+      expect(
+        disk.keys.where((key) => key.contains('cloud_drive_master_key_v1_')),
+        hasLength(2),
+      );
+    },
+  );
 }
 
 class _KeyBackend implements CloudKeyEnvelopeBackend {

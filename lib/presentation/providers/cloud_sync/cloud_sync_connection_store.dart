@@ -38,7 +38,7 @@ class CloudSyncConnectionStore {
   final LocalStorageService _localStorage;
   final SecureStorageService _secureStorage;
   final String Function() _deviceIdFactory;
-  static const _configurationVersion = 2;
+  static const _configurationVersion = 3;
 
   Future<CloudSyncUiState> initializeState(CloudSyncUiState state) async {
     final deviceId = await ensureDeviceId();
@@ -72,8 +72,11 @@ class CloudSyncConnectionStore {
     await _secureStorage.saveCloudSyncCredentials(
       jsonEncode({'username': draft.username, 'secret': draft.secret}),
     );
+    final configurationKey = draft.backend.usesOAuth
+        ? StorageKeys.cloudDriveConfiguration
+        : StorageKeys.cloudSyncConfiguration;
     await _localStorage.setSetting(
-      StorageKeys.cloudSyncConfiguration,
+      configurationKey,
       jsonEncode({
         'version': _configurationVersion,
         'backend': draft.backend.name,
@@ -83,11 +86,18 @@ class CloudSyncConnectionStore {
         'branch': draft.branch,
         'path': draft.path,
         'allowInsecureHttp': draft.allowInsecureHttp,
+        'accountId': draft.accountId,
+        'accountLabel': draft.accountLabel,
         'dataKinds': dataKinds.map((value) => value.name).toList(),
         'contentSelection': contentSelection.toJson(),
         'remoteRevision': remoteRevision,
         'lastSync': lastSync?.toUtc().toIso8601String(),
       }),
+    );
+    await _localStorage.deleteSetting(
+      draft.backend.usesOAuth
+          ? StorageKeys.cloudSyncConfiguration
+          : StorageKeys.cloudDriveConfiguration,
     );
   }
 
@@ -95,23 +105,32 @@ class CloudSyncConnectionStore {
     required String remoteRevision,
     required DateTime lastSync,
   }) async {
-    final publicText = _localStorage.getSetting<String>(
-      StorageKeys.cloudSyncConfiguration,
+    final cloudDriveText = _localStorage.getSetting<String>(
+      StorageKeys.cloudDriveConfiguration,
     );
+    final configurationKey = cloudDriveText == null
+        ? StorageKeys.cloudSyncConfiguration
+        : StorageKeys.cloudDriveConfiguration;
+    final publicText =
+        cloudDriveText ??
+        _localStorage.getSetting<String>(StorageKeys.cloudSyncConfiguration);
     if (publicText == null) return;
     final public = Map<String, Object?>.from(jsonDecode(publicText) as Map);
     public['remoteRevision'] = remoteRevision;
     public['lastSync'] = lastSync.toUtc().toIso8601String();
-    await _localStorage.setSetting(
-      StorageKeys.cloudSyncConfiguration,
-      jsonEncode(public),
-    );
+    await _localStorage.setSetting(configurationKey, jsonEncode(public));
   }
 
   Future<PersistedCloudSyncConnection?> load() async {
-    final publicText = _localStorage.getSetting<String>(
-      StorageKeys.cloudSyncConfiguration,
+    final cloudDriveText = _localStorage.getSetting<String>(
+      StorageKeys.cloudDriveConfiguration,
     );
+    final configurationKey = cloudDriveText == null
+        ? StorageKeys.cloudSyncConfiguration
+        : StorageKeys.cloudDriveConfiguration;
+    final publicText =
+        cloudDriveText ??
+        _localStorage.getSetting<String>(StorageKeys.cloudSyncConfiguration);
     final secretText = await _secureStorage.getCloudSyncCredentials();
     if (publicText == null || secretText == null) return null;
     final public = Map<String, Object?>.from(jsonDecode(publicText) as Map);
@@ -122,10 +141,7 @@ class CloudSyncConnectionStore {
     }
     if (version < _configurationVersion) {
       public['version'] = _configurationVersion;
-      await _localStorage.setSetting(
-        StorageKeys.cloudSyncConfiguration,
-        jsonEncode(public),
-      );
+      await _localStorage.setSetting(configurationKey, jsonEncode(public));
     }
     final scope = (public['dataKinds'] as List? ?? const [])
         .whereType<String>()
@@ -144,6 +160,8 @@ class CloudSyncConnectionStore {
         branch: public['branch'] as String? ?? 'main',
         path: public['path'] as String? ?? '',
         allowInsecureHttp: public['allowInsecureHttp'] as bool? ?? false,
+        accountId: public['accountId'] as String? ?? '',
+        accountLabel: public['accountLabel'] as String? ?? '',
       ),
       dataKinds: scope.isEmpty ? CloudSyncDataKind.values.toSet() : scope,
       contentSelection: public['contentSelection'] == null
@@ -158,6 +176,9 @@ class CloudSyncConnectionStore {
 
   Future<void> clear() async {
     await _secureStorage.clearCloudSyncSecrets();
-    await _localStorage.deleteSetting(StorageKeys.cloudSyncConfiguration);
+    await Future.wait([
+      _localStorage.deleteSetting(StorageKeys.cloudSyncConfiguration),
+      _localStorage.deleteSetting(StorageKeys.cloudDriveConfiguration),
+    ]);
   }
 }

@@ -2,9 +2,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cloud_sync/content_selection.dart';
+import '../../../core/cloud_sync/oauth/cloud_drive_oauth_models.dart';
 import 'cloud_sync_provider_wiring.dart';
 
-enum CloudSyncBackendKind { webDav, github }
+enum CloudSyncBackendKind { webDav, github, googleDrive, oneDrive }
+
+extension CloudSyncBackendKindX on CloudSyncBackendKind {
+  bool get usesOAuth =>
+      this == CloudSyncBackendKind.googleDrive ||
+      this == CloudSyncBackendKind.oneDrive;
+
+  CloudDriveOAuthProvider get oauthProvider => switch (this) {
+    CloudSyncBackendKind.googleDrive => CloudDriveOAuthProvider.googleDrive,
+    CloudSyncBackendKind.oneDrive => CloudDriveOAuthProvider.oneDrive,
+    _ => throw StateError('$name does not use OAuth'),
+  };
+}
 
 enum CloudSyncConnectionStatus { disconnected, connected }
 
@@ -63,6 +76,8 @@ class CloudSyncConnectionDraft {
     this.branch = 'main',
     this.path = '',
     this.allowInsecureHttp = false,
+    this.accountId = '',
+    this.accountLabel = '',
   });
 
   final CloudSyncBackendKind backend;
@@ -74,6 +89,8 @@ class CloudSyncConnectionDraft {
   final String branch;
   final String path;
   final bool allowInsecureHttp;
+  final String accountId;
+  final String accountLabel;
 }
 
 @immutable
@@ -201,6 +218,8 @@ class CloudSyncUiState {
     this.connectionStatus = CloudSyncConnectionStatus.disconnected,
     this.activityStatus = CloudSyncActivityStatus.idle,
     this.backend,
+    this.accountId,
+    this.accountLabel,
     this.deviceName,
     this.lastSync,
     this.remoteRevision,
@@ -214,6 +233,8 @@ class CloudSyncUiState {
     this.snapshots = const [],
     this.conflicts = const [],
     this.remoteExists,
+    this.recoveryRequired = false,
+    this.pendingRecoveryKey,
     this.pendingPreview,
     this.pendingFfdkjInstall = false,
     this.maintenanceWarning,
@@ -223,6 +244,8 @@ class CloudSyncUiState {
   final CloudSyncConnectionStatus connectionStatus;
   final CloudSyncActivityStatus activityStatus;
   final CloudSyncBackendKind? backend;
+  final String? accountId;
+  final String? accountLabel;
   final String? deviceName;
   final DateTime? lastSync;
   final String? remoteRevision;
@@ -236,6 +259,8 @@ class CloudSyncUiState {
   final List<CloudSyncSnapshotView> snapshots;
   final List<CloudSyncConflictView> conflicts;
   final bool? remoteExists;
+  final bool recoveryRequired;
+  final String? pendingRecoveryKey;
   final CloudSyncPreviewView? pendingPreview;
   final bool pendingFfdkjInstall;
   final String? maintenanceWarning;
@@ -246,6 +271,7 @@ class CloudSyncUiState {
   bool get needsConflictResolution => conflicts.isNotEmpty;
   bool get isBusy => activityStatus != CloudSyncActivityStatus.idle;
   bool get needsPreviewConfirmation => pendingPreview != null;
+  bool get encryptionReady => !recoveryRequired && pendingRecoveryKey == null;
 
   void ensureNoPendingPreview() {
     if (pendingPreview != null) {
@@ -264,6 +290,8 @@ class CloudSyncUiState {
     CloudSyncConnectionStatus? connectionStatus,
     CloudSyncActivityStatus? activityStatus,
     CloudSyncBackendKind? backend,
+    String? accountId,
+    String? accountLabel,
     String? deviceName,
     DateTime? lastSync,
     String? remoteRevision,
@@ -277,6 +305,8 @@ class CloudSyncUiState {
     List<CloudSyncSnapshotView>? snapshots,
     List<CloudSyncConflictView>? conflicts,
     bool? remoteExists,
+    bool? recoveryRequired,
+    String? pendingRecoveryKey,
     CloudSyncPreviewView? pendingPreview,
     bool? pendingFfdkjInstall,
     String? maintenanceWarning,
@@ -284,11 +314,14 @@ class CloudSyncUiState {
     bool clearProgress = false,
     bool clearError = false,
     bool clearPendingPreview = false,
+    bool clearPendingRecoveryKey = false,
     bool clearMaintenanceWarning = false,
   }) => CloudSyncUiState(
     connectionStatus: connectionStatus ?? this.connectionStatus,
     activityStatus: activityStatus ?? this.activityStatus,
     backend: backend ?? this.backend,
+    accountId: accountId ?? this.accountId,
+    accountLabel: accountLabel ?? this.accountLabel,
     deviceName: deviceName ?? this.deviceName,
     lastSync: lastSync ?? this.lastSync,
     remoteRevision: remoteRevision ?? this.remoteRevision,
@@ -302,6 +335,10 @@ class CloudSyncUiState {
     snapshots: snapshots ?? this.snapshots,
     conflicts: conflicts ?? this.conflicts,
     remoteExists: remoteExists ?? this.remoteExists,
+    recoveryRequired: recoveryRequired ?? this.recoveryRequired,
+    pendingRecoveryKey: clearPendingRecoveryKey
+        ? null
+        : pendingRecoveryKey ?? this.pendingRecoveryKey,
     pendingPreview: clearPendingPreview
         ? null
         : pendingPreview ?? this.pendingPreview,
@@ -321,6 +358,18 @@ abstract interface class CloudSyncUiPort {
   Future<void> detectRemote(CloudSyncConnectionDraft connection);
 
   Future<void> connect(CloudSyncConnectRequest request);
+
+  Future<CloudSyncConnectionDraft> authorizeCloudDrive(
+    CloudSyncBackendKind backend,
+  );
+
+  Future<void> discardCloudDriveAuthorization(
+    CloudSyncConnectionDraft connection,
+  );
+
+  Future<void> recoverCloudDriveEncryption(String recoveryKey);
+
+  Future<void> confirmCloudDriveRecoveryKeySaved();
 
   Future<void> pushNow();
 
@@ -371,6 +420,23 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
   Future<void> connect(CloudSyncConnectRequest request) => _unavailable();
 
   @override
+  Future<CloudSyncConnectionDraft> authorizeCloudDrive(
+    CloudSyncBackendKind backend,
+  ) => _unavailable();
+
+  @override
+  Future<void> discardCloudDriveAuthorization(
+    CloudSyncConnectionDraft connection,
+  ) => _unavailable();
+
+  @override
+  Future<void> recoverCloudDriveEncryption(String recoveryKey) =>
+      _unavailable();
+
+  @override
+  Future<void> confirmCloudDriveRecoveryKeySaved() => _unavailable();
+
+  @override
   Future<void> deleteRemoteNamespace() => _unavailable();
 
   @override
@@ -412,7 +478,7 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
   @override
   Future<void> pullNow() => _unavailable();
 
-  Future<void> _unavailable() async {
+  Future<T> _unavailable<T>() async {
     throw StateError('Cloud sync service is not connected.');
   }
 }

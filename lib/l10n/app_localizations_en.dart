@@ -13138,7 +13138,78 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_chooseBackendDescription =>
-      'Choose a storage service you already use. Account details stay on this device.';
+      'Choose a destination, connect its account, then select what to sync. Credentials stay in this device\'s secure store.';
+
+  @override
+  String cloudSync_oauthDescription(String provider) {
+    return 'Connect a $provider account';
+  }
+
+  @override
+  String get cloudSync_oauthSystemBrowser =>
+      'Secure sign-in opens in your system browser; you never enter the provider password in this app.';
+
+  @override
+  String cloudSync_oauthUnavailable(String details) {
+    return 'This build is missing its OAuth release configuration, so the destination is unavailable. Send this diagnostic to the publisher:\n$details';
+  }
+
+  @override
+  String cloudSync_accountConnected(String provider) {
+    return '$provider connected';
+  }
+
+  @override
+  String get cloudSync_connectAccount => 'Connect account';
+
+  @override
+  String get cloudSync_changeAccount => 'Change account';
+
+  @override
+  String get cloudSync_connectedAccount => 'Connected account';
+
+  @override
+  String get cloudSync_encryptionNeedsAction =>
+      'Finish encryption setup to sync';
+
+  @override
+  String get cloudSync_encryptionNeedsActionDescription =>
+      'Cloud data is end-to-end encrypted. Save the new recovery key or unlock with the key you saved earlier.';
+
+  @override
+  String get cloudSync_encryptionRecoveryTitle =>
+      'Save the encryption recovery key';
+
+  @override
+  String get cloudSync_encryptionRecoveryDescription =>
+      'This is the only way to recover cloud data on a new device or after secure storage is lost. The app never uploads or logs this key.';
+
+  @override
+  String get cloudSync_copyRecoveryKey => 'Copy recovery key';
+
+  @override
+  String get cloudSync_recoveryKeyCopied => 'Recovery key copied';
+
+  @override
+  String get cloudSync_recoveryKeySaved =>
+      'I saved the recovery key in a safe place';
+
+  @override
+  String get cloudSync_recoveryKeyOneTimeWarning =>
+      'The app will stop showing this key after confirmation. Do not keep it in the same cloud-sync folder.';
+
+  @override
+  String get cloudSync_recoveryRequiredTitle => 'Recovery key required';
+
+  @override
+  String get cloudSync_recoveryRequiredDescription =>
+      'This account already has an encrypted backup. Enter the recovery key you saved to unlock it on this device; a replacement key will be issued afterward.';
+
+  @override
+  String get cloudSync_recoveryKey => 'Recovery key';
+
+  @override
+  String get cloudSync_unlock => 'Unlock';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV URL';

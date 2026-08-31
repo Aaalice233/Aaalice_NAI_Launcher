@@ -16,7 +16,8 @@ void main() {
       final local = _MemoryLocalStorage();
       final service = CloudSyncApplicationService(
         backendFactory: (_) => throw UnimplementedError(),
-        coordinatorFactory: (_, __, ___, ____) => throw UnimplementedError(),
+        coordinatorFactory: (_, __, ___, ____, _____) =>
+            throw UnimplementedError(),
         secureStorage: _MemorySecureStorage(),
         localStorage: local,
         onState: (_) {},
@@ -72,7 +73,7 @@ void main() {
     final public =
         jsonDecode(local.values[StorageKeys.cloudSyncConfiguration] as String)
             as Map<String, dynamic>;
-    expect(public['version'], 2);
+    expect(public['version'], 3);
     await store.clear();
     expect(await store.load(), isNull);
     expect(secure.cleared, isTrue);
@@ -103,12 +104,41 @@ void main() {
       final migrated =
           jsonDecode(local.values[StorageKeys.cloudSyncConfiguration] as String)
               as Map<String, dynamic>;
-      expect(migrated['version'], 2);
+      expect(migrated['version'], 3);
       expect(restored.contentSelection.includeAgentSystemPrompt, isTrue);
       expect(restored.contentSelection.includeSkills, isFalse);
       expect(restored.contentSelection.selectedSkillIds, isEmpty);
     },
   );
+
+  test('OAuth destination persists identity without credentials', () async {
+    final local = _MemoryLocalStorage();
+    final secure = _MemorySecureStorage();
+    final store = CloudSyncConnectionStore(
+      localStorage: local,
+      secureStorage: secure,
+    );
+
+    await store.save(
+      const CloudSyncConnectionDraft(
+        backend: CloudSyncBackendKind.googleDrive,
+        accountId: 'stable-account-id',
+        accountLabel: 'user@example.test',
+        path: 'aaalice-sync',
+      ),
+      {CloudSyncDataKind.prompts},
+    );
+
+    final restored = await store.load();
+    expect(restored!.draft.accountId, 'stable-account-id');
+    expect(restored.draft.accountLabel, 'user@example.test');
+    final publicText =
+        local.values[StorageKeys.cloudDriveConfiguration] as String;
+    expect(local.values[StorageKeys.cloudSyncConfiguration], isNull);
+    expect(publicText, isNot(contains('access_token')));
+    expect(publicText, isNot(contains('refresh_token')));
+    expect(jsonDecode(secure.credentials!), {'username': '', 'secret': ''});
+  });
 
   test('connection without content selection uses safe defaults', () async {
     final local = _MemoryLocalStorage();
