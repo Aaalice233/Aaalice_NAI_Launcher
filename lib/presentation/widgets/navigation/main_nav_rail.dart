@@ -1357,6 +1357,9 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
           case AuthErrorCode.credentialsLoginUnavailable:
             errorMessage = context.l10n.auth_error_credentialsLoginUnavailable;
             break;
+          case AuthErrorCode.endpointIncompatible:
+            errorMessage = context.l10n.auth_error_endpointIncompatible;
+            break;
           case AuthErrorCode.serverError:
             errorMessage = context.l10n.auth_error_serverError;
             break;

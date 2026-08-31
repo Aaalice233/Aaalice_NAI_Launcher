@@ -391,11 +391,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      'サードパーティ サイトは、NovelAI サブスクリプション API およびイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。';
+      'サードパーティ サイトは NovelAI のイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。/user/subscription 未実装のサイトではサブスクリプション情報を省略してログインします。';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       'サードパーティサイトがストリーミング生成に対応していない場合は、［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから生成してください。';
+
+  @override
+  String get anlas_thirdPartyUnavailable => 'このサイトは Anlas 残高情報を提供していません';
 
   @override
   String get auth_thirdPartyApiSiteRequired => 'サードパーティ API サイトの URL を入力してください';
@@ -462,6 +465,10 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI ではメールアドレス/パスワードログインに Web の安全確認が必要になりました。代わりに Persistent API Token を使用してください。';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      'このアドレスで NAI 互換 API が見つかりません。API アドレスがサイトのサービスルート URL か確認してください。';
 
   @override
   String get auth_error_serverError => 'サーバーエラー';

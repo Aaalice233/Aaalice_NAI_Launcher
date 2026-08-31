@@ -830,7 +830,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_thirdPartyCompatibilityHint.
   ///
   /// In en, this message translates to:
-  /// **'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.'**
+  /// **'The third-party site must be compatible with the NovelAI image-generation API; the token will be sent as a Bearer token. Sites without /user/subscription log in without subscription info.'**
   String get auth_thirdPartyCompatibilityHint;
 
   /// No description provided for @auth_thirdPartyStreamingHint.
@@ -838,6 +838,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.'**
   String get auth_thirdPartyStreamingHint;
+
+  /// No description provided for @anlas_thirdPartyUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This site does not provide Anlas balance info'**
+  String get anlas_thirdPartyUnavailable;
 
   /// No description provided for @auth_thirdPartyApiSiteRequired.
   ///
@@ -958,6 +964,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'NovelAI now requires a web safety check for email/password login. Please use a Persistent API Token instead.'**
   String get auth_error_credentialsLoginUnavailable_hint;
+
+  /// No description provided for @auth_error_endpointIncompatible.
+  ///
+  /// In en, this message translates to:
+  /// **'No NAI-compatible API found at this address. Make sure the API address is the site\'s service root URL.'**
+  String get auth_error_endpointIncompatible;
 
   /// No description provided for @auth_error_serverError.
   ///

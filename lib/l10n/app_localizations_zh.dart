@@ -382,11 +382,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      '第三方站点需兼容 NovelAI 的 /user/subscription 与图像生成相关 API；Token 将按 Bearer 方式发送。';
+      '第三方站点需兼容 NovelAI 图像生成 API；Token 将按 Bearer 方式发送。未实现 /user/subscription 的站点将跳过订阅信息。';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       '如果第三方站点不支持流式生成，请前往「设置 > 生成 > 图像输出」，关闭「流式预览」后再生成。';
+
+  @override
+  String get anlas_thirdPartyUnavailable => '当前站点不提供 Anlas 余额信息';
 
   @override
   String get auth_thirdPartyApiSiteRequired => '请输入第三方 API 站点地址';
@@ -452,6 +455,10 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI 官网账号密码登录需要网页安全验证，客户端无法完成，请改用 Persistent API Token。';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      '该地址下未发现 NAI 兼容接口，请确认 API 地址是站点提供的服务根地址';
 
   @override
   String get auth_error_serverError => '服务器错误';
@@ -13867,11 +13874,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      '第三方站點需相容 NovelAI 的 /user/subscription 與影象生成相關 API；Token 將按 Bearer 方式傳送。';
+      '第三方站點需相容 NovelAI 影像生成 API；Token 將按 Bearer 方式傳送。未實作 /user/subscription 的站點將略過訂閱資訊。';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       '若第三方站點不支援串流生成，請前往「設定 > 生成 > 影象輸出」，關閉「串流預覽」後再生成。';
+
+  @override
+  String get anlas_thirdPartyUnavailable => '目前站點不提供 Anlas 餘額資訊';
 
   @override
   String get auth_thirdPartyApiSiteRequired => '請輸入第三方 API 站點地址';
@@ -13937,6 +13947,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI 官網賬號密碼登入需要網頁安全驗證，客戶端無法完成，請改用 Persistent API Token。';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      '該地址下未發現 NAI 相容介面，請確認 API 地址是站點提供的服務根地址';
 
   @override
   String get auth_error_serverError => '伺服器錯誤';
