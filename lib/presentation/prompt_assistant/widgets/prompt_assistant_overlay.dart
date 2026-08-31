@@ -40,6 +40,9 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
     this.enabled = true,
     this.floatOverEditor = true,
     this.expandInPlace = true,
+    this.iconOnly = false,
+    this.expandInRootOverlay = false,
+    this.tapRegionGroupId,
   });
 
   final String sessionId;
@@ -57,6 +60,15 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
   /// prompt surface free of controls and preserving its readable area.
   final bool expandInPlace;
 
+  /// Keeps the collapsed entry icon-only, including on desktop.
+  final bool iconOnly;
+
+  /// Renders the expanded action row in the root overlay above clipped cards.
+  final bool expandInRootOverlay;
+
+  /// Keeps root-overlay actions inside an owning editor's tap region.
+  final Object? tapRegionGroupId;
+
   @override
   ConsumerState<PromptAssistantOverlay> createState() =>
       _PromptAssistantOverlayState();
@@ -65,13 +77,85 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
 class _PromptAssistantOverlayState
     extends ConsumerState<PromptAssistantOverlay> {
   StreamSubscription? _streamSub;
+  final LayerLink _rootOverlayLink = LayerLink();
+  OverlayEntry? _rootOverlayEntry;
+  Widget? _rootOverlayChild;
+  bool _rootOverlayDesiredVisible = false;
+  bool _overlaySyncScheduled = false;
 
   bool get _isDesktop => PlatformCapabilities.current.hasPrecisePointer;
 
   @override
+  void didUpdateWidget(PromptAssistantOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionId != widget.sessionId) {
+      unawaited(_streamSub?.cancel());
+      _streamSub = null;
+    }
+    if (oldWidget.sessionId != widget.sessionId ||
+        oldWidget.expandInRootOverlay != widget.expandInRootOverlay) {
+      _syncRootOverlay(false);
+    }
+  }
+
+  @override
   void dispose() {
     _streamSub?.cancel();
+    _removeRootOverlay();
     super.dispose();
+  }
+
+  void _syncRootOverlay(bool visible) {
+    _rootOverlayDesiredVisible = visible;
+    if (_overlaySyncScheduled) return;
+    _overlaySyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlaySyncScheduled = false;
+      if (!mounted) return;
+      final expanded =
+          ref.read(promptAssistantStateProvider)[widget.sessionId]?.expanded ??
+          false;
+      if (!widget.expandInRootOverlay ||
+          !expanded ||
+          !_rootOverlayDesiredVisible) {
+        _removeRootOverlay();
+        return;
+      }
+      if (_rootOverlayEntry != null) {
+        _rootOverlayEntry!.markNeedsBuild();
+        return;
+      }
+      _rootOverlayEntry = OverlayEntry(
+        builder: (overlayContext) => CompositedTransformFollower(
+          link: _rootOverlayLink,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.topRight,
+          followerAnchor: Alignment.topRight,
+          child: TapRegion(
+            groupId: widget.tapRegionGroupId,
+            child: UnconstrainedBox(
+              alignment: Alignment.topRight,
+              child: Material(
+                type: MaterialType.transparency,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(overlayContext).width - 16,
+                  ),
+                  child: _rootOverlayChild ?? const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      Overlay.of(context, rootOverlay: true).insert(_rootOverlayEntry!);
+    });
+  }
+
+  void _removeRootOverlay() {
+    _rootOverlayEntry?.remove();
+    _rootOverlayEntry = null;
+    _rootOverlayChild = null;
   }
 
   Future<void> _runTranslate() async {
@@ -541,9 +625,11 @@ class _PromptAssistantOverlayState
   Widget build(BuildContext context) {
     final config = ref.watch(promptAssistantConfigProvider);
     if (!widget.enabled || !config.enabled) {
+      if (widget.expandInRootOverlay) _syncRootOverlay(false);
       return const SizedBox.shrink();
     }
     if (_isDesktop && !config.desktopOverlayEnabled) {
+      if (widget.expandInRootOverlay) _syncRootOverlay(false);
       return const SizedBox.shrink();
     }
 
@@ -612,7 +698,7 @@ class _PromptAssistantOverlayState
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (!isExpanded)
-                  if (widget.expandInPlace && _isDesktop)
+                  if (widget.expandInPlace && _isDesktop && !widget.iconOnly)
                     _collapsedInlineButton(
                       label: context.l10n.promptAssistant_assistant,
                       tooltip: context.l10n.promptAssistant_expandAssistant,
@@ -733,6 +819,18 @@ class _PromptAssistantOverlayState
         ),
       ),
     );
+
+    if (widget.expandInRootOverlay) {
+      _rootOverlayChild = isExpanded ? child : null;
+      _syncRootOverlay(isExpanded);
+      return CompositedTransformTarget(
+        link: _rootOverlayLink,
+        child: SizedBox.square(
+          dimension: PromptAssistantOverlay.inlineToolbarHeight,
+          child: isExpanded ? null : child,
+        ),
+      );
+    }
 
     if (!widget.floatOverEditor) {
       return child;
