@@ -26,6 +26,18 @@ try {
         return $Value.Trim().Replace('\', '/').TrimStart('./')
     }
 
+    # Path.GetRelativePath needs .NET Core 2.0+, so Windows PowerShell 5.1 has
+    # no such method. Callers always pass a descendant, making a prefix cut exact.
+    function Get-PathRelativeTo([string]$BasePath, [string]$FullPath) {
+        $separator = [IO.Path]::DirectorySeparatorChar
+        $base = [IO.Path]::GetFullPath($BasePath).TrimEnd($separator)
+        $full = [IO.Path]::GetFullPath($FullPath)
+        if (-not $full.StartsWith($base + $separator, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "'$FullPath' is not inside '$BasePath'."
+        }
+        return $full.Substring($base.Length + 1)
+    }
+
     $changedFiles = [System.Collections.Generic.HashSet[string]]::new(
         [System.StringComparer]::OrdinalIgnoreCase
     )
@@ -67,7 +79,7 @@ try {
 
     $allTests = @(
         Get-ChildItem -Path 'test' -Recurse -File -Filter '*_test.dart' |
-            ForEach-Object { Normalize-RepoPath ([IO.Path]::GetRelativePath($repoRoot, $_.FullName)) }
+            ForEach-Object { Normalize-RepoPath (Get-PathRelativeTo $repoRoot $_.FullName) }
     )
     $selectedTests = [System.Collections.Generic.HashSet[string]]::new(
         [System.StringComparer]::OrdinalIgnoreCase
@@ -110,7 +122,9 @@ try {
 
         $sourceBaseName = [IO.Path]::GetFileNameWithoutExtension($changedFile)
         foreach ($testFile in $allTests) {
-            if ($testContents[$testFile].Contains($packageImport, [System.StringComparison]::Ordinal) -or
+            # String.Contains(String, StringComparison) needs .NET Core 2.1+;
+            # IndexOf carries the same overload back to .NET Framework.
+            if ($testContents[$testFile].IndexOf($packageImport, [System.StringComparison]::Ordinal) -ge 0 -or
                 [IO.Path]::GetFileNameWithoutExtension($testFile) -eq "${sourceBaseName}_test") {
                 [void]$selectedTests.Add($testFile)
             }
@@ -170,6 +184,11 @@ try {
         $testBatches.Add($currentBatch.ToArray())
     }
 
+    # pwsh ships with PowerShell 6+ only, so a 5.1-only host has to spawn the
+    # batch runner through its own executable.
+    $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+    $runnerHost = if ($pwshCommand) { $pwshCommand.Source } else { 'powershell.exe' }
+
     for ($index = 0; $index -lt $testBatches.Count; $index++) {
         $batch = @($testBatches[$index])
         Write-Host "Running affected test batch $($index + 1)/$($testBatches.Count) ($($batch.Count) files)..."
@@ -188,11 +207,11 @@ try {
             $runnerArguments += '-NoTestAssets'
         }
         $runnerArguments += '-Path'
-        # Native pwsh -File invocation does not preserve a PowerShell array
+        # Native -File invocation does not preserve a PowerShell array
         # parameter across the process boundary. The runner already accepts
         # comma-separated paths, so pass the batch as one argument.
         $runnerArguments += ($batch -join ',')
-        & pwsh @runnerArguments
+        & $runnerHost @runnerArguments
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
         }
