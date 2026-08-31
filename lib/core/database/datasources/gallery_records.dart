@@ -384,6 +384,63 @@ class ScanLogRecord {
   }
 }
 
+/// 相簿记录
+///
+/// 逻辑相簿的数据库实体；成员关系存于 gallery_album_images。
+class GalleryAlbumRecord {
+  final String id;
+  final String name;
+  final String? description;
+  final String? parentId;
+  final int sortOrder;
+  final String? coverPath;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final int imageCount;
+
+  const GalleryAlbumRecord({
+    required this.id,
+    required this.name,
+    this.description,
+    this.parentId,
+    this.sortOrder = 0,
+    this.coverPath,
+    required this.createdAt,
+    required this.updatedAt,
+    this.imageCount = 0,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'parent_id': parentId,
+    'sort_order': sortOrder,
+    'cover_path': coverPath,
+    'created_at': createdAt.millisecondsSinceEpoch,
+    'updated_at': updatedAt.millisecondsSinceEpoch,
+    'image_count': imageCount,
+  };
+
+  factory GalleryAlbumRecord.fromMap(Map<String, dynamic> map) {
+    return GalleryAlbumRecord(
+      id: map['id'] as String,
+      name: map['name'] as String,
+      description: map['description'] as String?,
+      parentId: map['parent_id'] as String?,
+      sortOrder: (map['sort_order'] as num?)?.toInt() ?? 0,
+      coverPath: map['cover_path'] as String?,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        (map['created_at'] as num?)?.toInt() ?? 0,
+      ),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(
+        (map['updated_at'] as num?)?.toInt() ?? 0,
+      ),
+      imageCount: (map['image_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 /// 慢查询日志记录
 class SlowQueryLog {
   final String operation;

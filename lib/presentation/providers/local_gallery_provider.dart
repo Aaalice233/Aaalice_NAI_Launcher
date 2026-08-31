@@ -831,6 +831,27 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     await _applyFilters();
   }
 
+  /// 设置选中的相簿
+  ///
+  /// [albumId] 相簿ID（null 表示取消相簿过滤）；'favorites' 表示收藏相簿。
+  Future<void> setSelectedAlbum(String? albumId) async {
+    final criteria = state.filterCriteria;
+
+    if (criteria.albumId == albumId) return;
+
+    _setState(
+      state.copyWith(
+        filterCriteria: criteria.copyWith(
+          albumId: albumId,
+          clearAlbumId: albumId == null,
+        ),
+        currentPage: 0,
+      ),
+    );
+
+    await _applyFilters();
+  }
+
   /// 设置分组视图
   Future<void> setGroupedView(bool value) async {
     _setState(state.copyWith(isGroupedView: value));

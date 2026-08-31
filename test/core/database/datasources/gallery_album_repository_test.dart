@@ -1,0 +1,230 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'package:nai_launcher/core/database/connection_pool_holder.dart';
+import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
+import 'package:nai_launcher/core/utils/app_logger.dart';
+
+/// 相簿数据访问层单元测试
+///
+/// 运行: flutter test test/core/database/datasources/gallery_album_repository_test.dart
+void main() {
+  late GalleryDataSource dataSource;
+  late String testDbPath;
+
+  setUpAll(() async {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    await AppLogger.initialize(isTestEnvironment: true);
+    final tempDir = Directory.systemTemp.createTempSync('gallery_album_test_');
+    testDbPath = '${tempDir.path}/test_gallery.db';
+  });
+
+  tearDownAll(() async {
+    await ConnectionPoolHolder.dispose();
+    try {
+      await Directory(testDbPath).parent.delete(recursive: true);
+    } catch (_) {}
+  });
+
+  setUp(() async {
+    if (ConnectionPoolHolder.isInitialized) {
+      await ConnectionPoolHolder.dispose();
+    }
+    try {
+      final dbFile = File(testDbPath);
+      if (await dbFile.exists()) await dbFile.delete();
+    } catch (_) {}
+
+    await ConnectionPoolHolder.initialize(
+      dbPath: testDbPath,
+      maxConnections: 2,
+    );
+    dataSource = GalleryDataSource();
+    await dataSource.initialize();
+  });
+
+  tearDown(() async {
+    await dataSource.dispose();
+    await ConnectionPoolHolder.dispose();
+    try {
+      final dbFile = File(testDbPath);
+      if (await dbFile.exists()) await dbFile.delete();
+    } catch (_) {}
+  });
+
+  Future<int> seedImage(String path) async {
+    final now = DateTime.now();
+    return dataSource.upsertImage(
+      filePath: path,
+      fileName: path.split('/').last,
+      fileSize: 1024,
+      createdAt: now,
+      modifiedAt: now,
+    );
+  }
+
+  test(
+    'createAlbum and getAlbums return tree order with subtree counts',
+    () async {
+      final rootId = await dataSource.albums.createAlbum(name: '角色');
+      final childId = await dataSource.albums.createAlbum(
+        name: '猫娘',
+        parentId: rootId,
+      );
+
+      final rootImage = await seedImage('gallery/root.png');
+      final childImage = await seedImage('gallery/child.png');
+      await dataSource.albums.addImagesToAlbum(rootId, [rootImage]);
+      await dataSource.albums.addImagesToAlbum(childId, [childImage]);
+
+      final albums = await dataSource.albums.getAlbums();
+
+      expect(albums.map((a) => a.name).toList(), ['角色', '猫娘']);
+      final root = albums.first;
+      final child = albums.last;
+      // 父相簿计数含子相簿成员（去重）
+      expect(root.imageCount, 2);
+      expect(child.imageCount, 1);
+    },
+  );
+
+  test('addImagesToAlbum is idempotent for existing members', () async {
+    final albumId = await dataSource.albums.createAlbum(name: 'A');
+    final imageId = await seedImage('gallery/a.png');
+
+    final first = await dataSource.albums.addImagesToAlbum(albumId, [imageId]);
+    final second = await dataSource.albums.addImagesToAlbum(albumId, [imageId]);
+
+    expect(first, 1);
+    expect(second, 0);
+
+    final albums = await dataSource.albums.getAlbums();
+    expect(albums.single.imageCount, 1);
+  });
+
+  test('removeImagesFromAlbum removes only requested members', () async {
+    final albumId = await dataSource.albums.createAlbum(name: 'A');
+    final imageA = await seedImage('gallery/a.png');
+    final imageB = await seedImage('gallery/b.png');
+    await dataSource.albums.addImagesToAlbum(albumId, [imageA, imageB]);
+
+    final removed = await dataSource.albums.removeImagesFromAlbum(albumId, [
+      imageA,
+    ]);
+
+    expect(removed, 1);
+    expect((await dataSource.albums.getAlbums()).single.imageCount, 1);
+  });
+
+  test('deleteAlbum promotes children to root and clears membership', () async {
+    final rootId = await dataSource.albums.createAlbum(name: 'root');
+    await dataSource.albums.createAlbum(name: 'child', parentId: rootId);
+    final imageId = await seedImage('gallery/a.png');
+    await dataSource.albums.addImagesToAlbum(rootId, [imageId]);
+
+    expect(await dataSource.albums.deleteAlbum(rootId), isTrue);
+
+    final albums = await dataSource.albums.getAlbums();
+    expect(albums, hasLength(1));
+    expect(albums.single.name, 'child');
+    expect(albums.single.parentId, isNull);
+    // 根相簿删除后其成员关系随之清理
+    expect(albums.single.imageCount, 0);
+  });
+
+  test(
+    'getAlbumFilePathsWithDescendants includes descendant members',
+    () async {
+      final rootId = await dataSource.albums.createAlbum(name: 'root');
+      final childId = await dataSource.albums.createAlbum(
+        name: 'child',
+        parentId: rootId,
+      );
+      await seedImage('gallery/root.png');
+      await seedImage('gallery/child.png');
+      final ids = await dataSource.getImageIdsByPaths([
+        'gallery/root.png',
+        'gallery/child.png',
+      ]);
+      await dataSource.albums.addImagesToAlbum(rootId, [
+        ids['gallery/root.png']!,
+      ]);
+      await dataSource.albums.addImagesToAlbum(childId, [
+        ids['gallery/child.png']!,
+      ]);
+
+      final paths = await dataSource.albums.getAlbumFilePathsWithDescendants(
+        rootId,
+      );
+
+      expect(paths.toSet(), {'gallery/root.png', 'gallery/child.png'});
+    },
+  );
+
+  test('importAlbums keeps original ids and membership', () async {
+    final imageId = await seedImage('gallery/import.png');
+    final album = GalleryAlbumRecord(
+      id: 'legacy-1',
+      name: '迁移相簿',
+      parentId: null,
+      sortOrder: 3,
+      createdAt: DateTime(2025, 1, 1),
+      updatedAt: DateTime(2025, 1, 1),
+    );
+
+    await dataSource.albums.importAlbums(
+      [album],
+      {
+        'legacy-1': [imageId],
+      },
+    );
+
+    final albums = await dataSource.albums.getAlbums();
+    expect(albums.single.id, 'legacy-1');
+    expect(albums.single.name, '迁移相簿');
+    expect(albums.single.imageCount, 1);
+  });
+
+  test('updateFilePath keeps album membership after physical move', () async {
+    final albumId = await dataSource.albums.createAlbum(name: 'A');
+    await seedImage('gallery/old.png');
+    final ids = await dataSource.getImageIdsByPaths(['gallery/old.png']);
+    await dataSource.albums.addImagesToAlbum(albumId, [
+      ids['gallery/old.png']!,
+    ]);
+
+    // 模拟分类移动：物理 rename 后同步库内路径（保留行 id）
+    await dataSource.updateFilePath(
+      ids['gallery/old.png']!,
+      'gallery/folder/old.png',
+      newFileName: 'old.png',
+    );
+
+    final paths = await dataSource.albums.getAlbumFilePathsWithDescendants(
+      albumId,
+    );
+    expect(paths, ['gallery/folder/old.png']);
+    expect((await dataSource.albums.getAlbums()).single.imageCount, 1);
+  });
+
+  test('getAllAlbumMemberPaths returns direct members per album', () async {
+    final a = await dataSource.albums.createAlbum(name: 'A');
+    final b = await dataSource.albums.createAlbum(name: 'B');
+    await seedImage('gallery/a.png');
+    await seedImage('gallery/b.png');
+    final ids = await dataSource.getImageIdsByPaths([
+      'gallery/a.png',
+      'gallery/b.png',
+    ]);
+    await dataSource.albums.addImagesToAlbum(a, [ids['gallery/a.png']!]);
+    await dataSource.albums.addImagesToAlbum(b, [ids['gallery/b.png']!]);
+
+    final map = await dataSource.albums.getAllAlbumMemberPaths();
+
+    expect(map[a], ['gallery/a.png']);
+    expect(map[b], ['gallery/b.png']);
+  });
+}
