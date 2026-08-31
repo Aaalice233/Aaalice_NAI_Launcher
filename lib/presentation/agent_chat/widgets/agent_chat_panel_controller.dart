@@ -317,6 +317,32 @@ class AgentChatPanelController extends ChangeNotifier {
     );
   }
 
+  /// 用选中的命令替换开头正在编辑的 `/片段`，光标落到名称之后。
+  void applySlashCommand(String name, int queryEnd) {
+    final value = inputController.value;
+    final end = queryEnd.clamp(0, value.text.length);
+    final rest = value.text.substring(end);
+    final insertion = rest.isEmpty || !RegExp(r'^\s').hasMatch(rest)
+        ? '/$name '
+        : '/$name';
+    inputController.value = TextEditingValue(
+      text: '$insertion$rest',
+      selection: TextSelection.collapsed(offset: insertion.length),
+    );
+    inputFocus.requestFocus();
+  }
+
+  /// 会话命令即时执行后清掉开头片段，保留用户已写的其余内容。
+  void removeLeadingSlashToken(int queryEnd) {
+    final value = inputController.value;
+    final end = queryEnd.clamp(0, value.text.length);
+    final text = value.text.substring(end).trimLeft();
+    inputController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
   void insertNewline() {
     final value = inputController.value;
     final selection = value.selection;

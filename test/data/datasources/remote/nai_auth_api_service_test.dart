@@ -22,7 +22,8 @@ void main() {
         endpoint: NaiApiEndpointConfig.official,
       );
 
-      expect(result['tier'], 3);
+      expect(result.subscriptionUnsupported, isFalse);
+      expect(result.subscriptionInfo?['tier'], 3);
       expect(adapter.requests, hasLength(1));
       expect(
         adapter.requests.single.uri.toString(),
@@ -45,12 +46,14 @@ void main() {
           imageBaseUrl: 'https://images.compatible.example',
         );
 
-        await service.validateToken(
+        final result = await service.validateToken(
           'compatible-token',
           endpoint: endpoint,
           allowAnyTokenFormat: true,
         );
 
+        expect(result.subscriptionUnsupported, isFalse);
+        expect(result.subscriptionInfo, isNotNull);
         expect(
           adapter.requests.single.uri.toString(),
           'https://compatible.example${ApiConstants.userSubscriptionEndpoint}',
@@ -111,6 +114,181 @@ void main() {
       );
     });
   });
+
+  group('third-party subscription fallback', () {
+    final endpoint = NaiApiEndpointConfig.fromInput(
+      mainBaseUrl: 'https://relay.example',
+      imageBaseUrl: 'https://images.relay.example',
+    );
+
+    NAIAuthApiService serviceWith(_ScriptedDioAdapter adapter) {
+      final dio = Dio()..httpClientAdapter = adapter;
+      return NAIAuthApiService(dio);
+    }
+
+    _ScriptedDioAdapter adapterWith({
+      required ResponseBody Function(RequestOptions options) onSubscription,
+      required ResponseBody Function(RequestOptions options) onProbe,
+    }) {
+      return _ScriptedDioAdapter((options) {
+        if (options.path.endsWith(ApiConstants.userSubscriptionEndpoint)) {
+          return onSubscription(options);
+        }
+        if (options.path.endsWith(ApiConstants.generateImageEndpoint)) {
+          return onProbe(options);
+        }
+        fail('Unexpected request: ${options.uri}');
+      });
+    }
+
+    test(
+      'missing /user/subscription falls back to image endpoint probe',
+      () async {
+        final adapter = adapterWith(
+          onSubscription: (_) => _jsonResponse({'detail': 'Not Found'}, 404),
+          onProbe: (_) => _jsonResponse({'error': '提示词不能为空'}, 400),
+        );
+        final service = serviceWith(adapter);
+
+        final result = await service.validateToken(
+          'sk-relay-token',
+          endpoint: endpoint,
+          allowAnyTokenFormat: true,
+        );
+
+        expect(result.subscriptionUnsupported, isTrue);
+        expect(result.subscriptionInfo, isNull);
+        expect(adapter.requests, hasLength(2));
+        final probe = adapter.requests[1];
+        expect(
+          probe.uri.toString(),
+          'https://images.relay.example${ApiConstants.generateImageEndpoint}',
+        );
+        expect(probe.method, 'POST');
+        expect(probe.headers['Authorization'], 'Bearer sk-relay-token');
+      },
+    );
+
+    test('subscription 200 with HTML body also falls back to probe', () async {
+      final adapter = adapterWith(
+        onSubscription: (_) =>
+            _htmlResponse('<!doctype html><html></html>', 200),
+        onProbe: (_) => _jsonResponse({'error': 'validation failed'}, 422),
+      );
+      final service = serviceWith(adapter);
+
+      final result = await service.validateToken(
+        'sk-relay-token',
+        endpoint: endpoint,
+        allowAnyTokenFormat: true,
+      );
+
+      expect(result.subscriptionUnsupported, isTrue);
+      expect(adapter.requests, hasLength(2));
+    });
+
+    test('probe 401 fails login with auth error', () async {
+      final adapter = adapterWith(
+        onSubscription: (_) => _jsonResponse({'detail': 'Not Found'}, 404),
+        onProbe: (_) => _jsonResponse({'error': 'invalid_api_key'}, 401),
+      );
+      final service = serviceWith(adapter);
+
+      await expectLater(
+        service.validateToken(
+          'sk-wrong-token',
+          endpoint: endpoint,
+          allowAnyTokenFormat: true,
+        ),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'statusCode',
+            401,
+          ),
+        ),
+      );
+    });
+
+    test('probe 404 reports incompatible endpoint', () async {
+      final adapter = adapterWith(
+        onSubscription: (_) => _jsonResponse({'detail': 'Not Found'}, 404),
+        onProbe: (_) => _htmlResponse('Cannot POST /ai/generate-image', 404),
+      );
+      final service = serviceWith(adapter);
+
+      await expectLater(
+        service.validateToken(
+          'sk-relay-token',
+          endpoint: endpoint,
+          allowAnyTokenFormat: true,
+        ),
+        throwsA(
+          isA<NaiEndpointIncompatibleException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            404,
+          ),
+        ),
+      );
+    });
+
+    test('probe 5xx surfaces server error instead of success', () async {
+      final adapter = adapterWith(
+        onSubscription: (_) => _jsonResponse({'detail': 'Not Found'}, 404),
+        onProbe: (_) => _jsonResponse({'error': 'bad gateway'}, 502),
+      );
+      final service = serviceWith(adapter);
+
+      await expectLater(
+        service.validateToken(
+          'sk-relay-token',
+          endpoint: endpoint,
+          allowAnyTokenFormat: true,
+        ),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'statusCode',
+            502,
+          ),
+        ),
+      );
+    });
+
+    test('official 404 keeps failing without probe', () async {
+      final adapter = _ScriptedDioAdapter(
+        (_) => _jsonResponse({'message': 'Not Found'}, 404),
+      );
+      final service = serviceWith(adapter);
+
+      await expectLater(
+        service.validateToken('pst-validTokenForEndpointRouting'),
+        throwsA(isA<DioException>()),
+      );
+      expect(adapter.requests, hasLength(1));
+    });
+  });
+}
+
+ResponseBody _jsonResponse(Object payload, int statusCode) {
+  return ResponseBody.fromString(
+    jsonEncode(payload),
+    statusCode,
+    headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    },
+  );
+}
+
+ResponseBody _htmlResponse(String body, int statusCode) {
+  return ResponseBody.fromString(
+    body,
+    statusCode,
+    headers: {
+      Headers.contentTypeHeader: ['text/html; charset=utf-8'],
+    },
+  );
 }
 
 class _RecordingDioAdapter implements HttpClientAdapter {
@@ -135,13 +313,27 @@ class _RecordingDioAdapter implements HttpClientAdapter {
             },
           };
 
-    return ResponseBody.fromString(
-      jsonEncode(response),
-      200,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+    return _jsonResponse(response, 200);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _ScriptedDioAdapter implements HttpClientAdapter {
+  _ScriptedDioAdapter(this._handler);
+
+  final ResponseBody Function(RequestOptions options) _handler;
+  final List<RequestOptions> requests = [];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    return _handler(options);
   }
 
   @override

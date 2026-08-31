@@ -94,10 +94,19 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       _cancelPostBillingRefresh();
     }
 
-    final hydratedState = _hydrateFromAuthState(authState);
+    // 第三方站点不提供 /user/subscription：整条订阅链路静默，不拉取不轮询。
+    final subscriptionUnsupported =
+        authState.isAuthenticated && authState.subscriptionUnsupported;
+
+    final hydratedState = subscriptionUnsupported
+        ? null
+        : _hydrateFromAuthState(authState);
 
     // React to authentication state changes
-    if (loggedIn || switchedAccount) {
+    if (subscriptionUnsupported) {
+      _stopAutoRefresh();
+      _cancelPostBillingRefresh();
+    } else if (loggedIn || switchedAccount) {
       // Login succeeded - use the subscription info already fetched during
       // token validation, then refresh in the background if needed.
       if (hydratedState == null) {
@@ -129,6 +138,12 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       );
       _criticalActivityListenerAttached = false;
     });
+
+    if (subscriptionUnsupported) {
+      const unsupportedState = SubscriptionState.unsupported();
+      _lastKnownState = unsupportedState;
+      return unsupportedState;
+    }
 
     if (hydratedState != null) {
       _lastKnownState = hydratedState;
@@ -252,7 +267,8 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       return;
     }
 
-    if (_previousAuthState?.isAuthenticated == true) {
+    if (_previousAuthState?.isAuthenticated == true &&
+        _previousAuthState?.subscriptionUnsupported != true) {
       _scheduleNextRefresh(Duration.zero);
     }
   }
@@ -303,6 +319,9 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   /// 获取订阅信息
   Future<void> fetchSubscription() async {
+    if (ref.read(authNotifierProvider).subscriptionUnsupported) {
+      return;
+    }
     if (CriticalNetworkActivityCoordinator.instance.isActive) {
       _deferRefresh(SubscriptionRefreshPriority.background);
       return;
@@ -410,7 +429,8 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   /// 延迟窗口与 NovelAI 网页端保持一致，并合并短时间内连续完成的编码、生成
   /// 等请求，避免在服务端余额尚未落库时读到旧值。
   void schedulePostBillingRefresh({Duration delay = postBillingRefreshDelay}) {
-    if (!ref.read(authNotifierProvider).isAuthenticated) {
+    final authState = ref.read(authNotifierProvider);
+    if (!authState.isAuthenticated || authState.subscriptionUnsupported) {
       return;
     }
 
@@ -444,7 +464,8 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     SubscriptionRefreshPriority priority =
         SubscriptionRefreshPriority.background,
   }) {
-    if (!ref.read(authNotifierProvider).isAuthenticated) {
+    final authState = ref.read(authNotifierProvider);
+    if (!authState.isAuthenticated || authState.subscriptionUnsupported) {
       return Future.value(false);
     }
     if (CriticalNetworkActivityCoordinator.instance.isActive) {

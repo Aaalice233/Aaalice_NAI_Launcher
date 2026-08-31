@@ -33,12 +33,14 @@ class ProContextMenu extends StatelessWidget {
   final Offset position;
   final List<ProMenuItem> items;
   final void Function(ProMenuItem) onSelect;
+  final double? maxHeight;
 
   const ProContextMenu({
     super.key,
     required this.position,
     required this.items,
     required this.onSelect,
+    this.maxHeight,
   });
 
   @override
@@ -68,15 +70,22 @@ class ProContextMenu extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: items.map((item) {
-                if (item.isDivider) {
-                  return const ThemedDivider(height: 1);
-                }
-                return _ContextMenuItem(item: item, onSelect: onSelect);
-              }).toList(),
+            child: ConstrainedBox(
+              constraints: maxHeight == null
+                  ? const BoxConstraints()
+                  : BoxConstraints(maxHeight: maxHeight!),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: items.map((item) {
+                    if (item.isDivider) {
+                      return const ThemedDivider(height: 1);
+                    }
+                    return _ContextMenuItem(item: item, onSelect: onSelect);
+                  }).toList(),
+                ),
+              ),
             ),
           ),
         ),

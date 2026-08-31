@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/agent/agent_settings.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../agent_chat/services/agent_chat_model_capability.dart';
 import '../../../agent_settings/providers/agent_settings_provider.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
@@ -11,6 +12,7 @@ import '../../settings/widgets/settings_card.dart';
 import '../../settings/widgets/settings_page_layout.dart';
 import 'web_access_settings.dart';
 import 'agent/agent_profile_actions.dart';
+import 'agent/context_window_field.dart';
 import 'agent/skill_management_panel.dart';
 import 'agent/system_prompt_editor.dart';
 
@@ -180,9 +182,31 @@ class _ModelCard extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 10),
               child: Text(context.l10n.agentSettings_noModel),
             ),
+          if (selected.isConfigured)
+            ContextWindowField(
+              providerId: selected.providerId,
+              model: selected.model,
+              catalogWindow: _catalogWindow(selected),
+              overrideWindow: settings.chat.contextWindowOverrideFor(
+                selected.providerId,
+                selected.model,
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  /// 只取目录推断值供占位显示，不含手填覆盖——否则提示会自我印证。
+  int _catalogWindow(AgentModelReference reference) {
+    final provider = promptConfig.providers
+        .where((item) => item.id == reference.providerId)
+        .firstOrNull;
+    if (provider == null) return 0;
+    return AgentChatModelCatalog.resolveProvider(
+      provider: provider,
+      model: reference.model,
+    ).contextWindow;
   }
 
   String _providerName(String id) =>

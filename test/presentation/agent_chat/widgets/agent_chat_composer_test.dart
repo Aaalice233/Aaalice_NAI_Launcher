@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/context_usage.dart';
+import 'package:nai_launcher/core/agent/harness/harness_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/windowing/agent_chat_shared_widgets.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
@@ -642,6 +643,182 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a slash at the start lists skills and session commands', (
+    tester,
+  ) async {
+    await _pumpComposer(tester, width: 412, state: _skilledState);
+
+    expect(_slashMenu, findsNothing);
+    await tester.enterText(_input, '/');
+    await tester.pump();
+
+    expect(_slashMenu, findsOneWidget);
+    expect(_inMenu('Skills'), findsOneWidget);
+    expect(_inMenu('/art-prompt'), findsOneWidget);
+    expect(_inMenu('/paperbanana'), findsOneWidget);
+    // Session commands follow the skills under their own heading; the list
+    // scrolls once the group exceeds the menu's height budget.
+    expect(_inMenu('Session'), findsOneWidget);
+    expect(_inMenu('/new'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the menu filters as the name is typed', (tester) async {
+    await _pumpComposer(tester, width: 412, state: _skilledState);
+
+    await tester.enterText(_input, '/art');
+    await tester.pump();
+    expect(_inMenu('/art-prompt'), findsOneWidget);
+    expect(_inMenu('/new'), findsNothing);
+
+    await tester.enterText(_input, '/zzz');
+    await tester.pump();
+    expect(_slashMenu, findsNothing);
+  });
+
+  testWidgets('a slash later in the message never opens the menu', (
+    tester,
+  ) async {
+    await _pumpComposer(tester, width: 412, state: _skilledState);
+
+    await tester.enterText(_input, 'read /art');
+    await tester.pump();
+    expect(_slashMenu, findsNothing);
+  });
+
+  testWidgets('arrow keys move the selection and Enter inserts the skill', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    var sends = 0;
+    await _pumpComposer(
+      tester,
+      width: 412,
+      state: _skilledState,
+      controller: controller,
+      onSend: () async => sends++,
+    );
+
+    // "paper" matches one command; "pa" would also hit "Compact context".
+    await tester.enterText(_input, '/paper');
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    // A single match wraps back to itself, and Enter accepts instead of sending.
+    expect(controller.inputController.text, '/paperbanana ');
+    expect(sends, 0);
+    expect(_slashMenu, findsNothing);
+  });
+
+  testWidgets('a session command runs at once and leaves no token behind', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    final actions = <AgentChatMoreAction>[];
+    var sends = 0;
+    await _pumpComposer(
+      tester,
+      width: 412,
+      state: _skilledState,
+      controller: controller,
+      onSend: () async => sends++,
+      onMoreAction: actions.add,
+    );
+
+    await tester.enterText(_input, '/new');
+    await tester.pump();
+    await tester.tap(_inMenu('/new'));
+    await tester.pump();
+
+    expect(actions, [AgentChatMoreAction.newSession]);
+    expect(controller.inputController.text, isEmpty);
+    expect(sends, 0);
+  });
+
+  testWidgets('Escape closes the menu and hands Enter back to send', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    var sends = 0;
+    await _pumpComposer(
+      tester,
+      width: 412,
+      state: _skilledState,
+      controller: controller,
+      onSend: () async => sends++,
+    );
+
+    await tester.enterText(_input, '/art');
+    await tester.pump();
+    expect(_slashMenu, findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(_slashMenu, findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(sends, 1);
+    expect(controller.inputController.text, '/art');
+  });
+
+  testWidgets('moving the caret back into the token reopens the menu', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    await _pumpComposer(
+      tester,
+      width: 412,
+      state: _skilledState,
+      controller: controller,
+    );
+
+    await tester.enterText(_input, '/art draw a cat');
+    await tester.pump();
+    expect(_slashMenu, findsNothing);
+
+    // A caret-only move leaves the draft text untouched, so the composer has
+    // to notice it on its own.
+    controller.inputController.selection = const TextSelection.collapsed(
+      offset: 4,
+    );
+    await tester.pump();
+    expect(_slashMenu, findsOneWidget);
+    expect(_inMenu('/art-prompt'), findsOneWidget);
+  });
+
+  testWidgets('the menu sits above the editor on desktop and mobile', (
+    tester,
+  ) async {
+    for (final (width, mobile) in [(412.0, true), (720.0, false)]) {
+      await _pumpComposer(
+        tester,
+        width: width,
+        state: _skilledState,
+        mobile: mobile,
+      );
+      await tester.enterText(_input, '/');
+      await tester.pump();
+
+      final menu = tester.getRect(_slashMenu);
+      final editor = tester.getRect(_input);
+      expect(
+        menu.bottom,
+        lessThanOrEqualTo(editor.top),
+        reason: 'width $width should keep the menu clear of the editor',
+      );
+      expect(menu.width, lessThanOrEqualTo(width));
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('message edit fills the composer and cancel restores its draft', (
     tester,
   ) async {
@@ -671,6 +848,30 @@ void main() {
   });
 }
 
+final _input = find.byKey(const ValueKey('agent-chat-input'));
+final _slashMenu = find.byKey(const ValueKey('agent-chat-slash-menu'));
+
+/// The editor holds the same literal text, so menu assertions must be scoped.
+Finder _inMenu(String text) =>
+    find.descendant(of: _slashMenu, matching: find.text(text));
+
+final _skilledState = _readyState.copyWith(
+  skills: const [
+    HarnessSkill(
+      name: 'art-prompt',
+      description: 'Draw with Danbooru tags',
+      content: 'skill body',
+      filePath: '/skills/art-prompt/SKILL.md',
+    ),
+    HarnessSkill(
+      name: 'paperbanana',
+      description: 'Academic figures',
+      content: 'skill body',
+      filePath: '/skills/paperbanana/SKILL.md',
+    ),
+  ],
+);
+
 const _readyState = AgentChatState(
   initialized: true,
   routeReady: true,
@@ -687,6 +888,7 @@ Future<void> _pumpComposer(
   AgentChatPanelController? controller,
   Future<void> Function()? onSend,
   Future<void> Function()? onAttachCurrentCanvas,
+  void Function(AgentChatMoreAction action)? onMoreAction,
   AgentChatResourceReference? currentCanvasReference,
   PromptAssistantConfigState? config,
   AgentSettingsState? agentSettings,
@@ -716,6 +918,7 @@ Future<void> _pumpComposer(
               controller: controller,
               onSend: onSend,
               onAttachCurrentCanvas: onAttachCurrentCanvas,
+              onMoreAction: onMoreAction,
               currentCanvasReference: currentCanvasReference,
               config: config,
               agentSettings: agentSettings,
@@ -737,6 +940,7 @@ class _ComposerHarness extends StatefulWidget {
     this.controller,
     this.onSend,
     this.onAttachCurrentCanvas,
+    this.onMoreAction,
     this.currentCanvasReference,
     this.config,
     this.agentSettings,
@@ -749,6 +953,7 @@ class _ComposerHarness extends StatefulWidget {
   final AgentChatPanelController? controller;
   final Future<void> Function()? onSend;
   final Future<void> Function()? onAttachCurrentCanvas;
+  final void Function(AgentChatMoreAction action)? onMoreAction;
   final AgentChatResourceReference? currentCanvasReference;
   final PromptAssistantConfigState? config;
   final AgentSettingsState? agentSettings;
@@ -791,7 +996,7 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
       selectSession: (_) async {},
       renameSession: (_) async {},
       deleteSession: (_) async {},
-      moreAction: (_) async {},
+      moreAction: (action) async => widget.onMoreAction?.call(action),
       selectModel: (_, _) async {},
       selectThinkingLevel: (_) async {},
       selectPermissionMode: (_) async {},

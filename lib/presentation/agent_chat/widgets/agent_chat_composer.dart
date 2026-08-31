@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/token_count_format.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
 import '../../../core/windowing/agent_chat_shared_widgets.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../models/agent_chat_slash_command.dart';
 import '../providers/agent_chat_state.dart';
 import 'agent_chat_header.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
 import 'agent_chat_resource_widgets.dart';
+import 'agent_chat_slash_menu.dart';
 
 class AgentChatComposer extends StatefulWidget {
   const AgentChatComposer({
@@ -32,20 +36,110 @@ class AgentChatComposer extends StatefulWidget {
 
 class _AgentChatComposerState extends State<AgentChatComposer> {
   bool _editorExpanded = false;
+  int _slashHighlight = 0;
+  String? _observedSlashQuery;
+  String? _dismissedSlashQuery;
 
   AgentChatPanelViewData get viewData => widget.viewData;
   AgentChatPanelCommands get commands => widget.commands;
   AgentChatPanelController get controller => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller.inputController.addListener(_handleSlashQueryChanged);
+  }
+
+  @override
+  void didUpdateWidget(AgentChatComposer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.controller, widget.controller)) {
+      oldWidget.controller.inputController.removeListener(
+        _handleSlashQueryChanged,
+      );
+      controller.inputController.addListener(_handleSlashQueryChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.inputController.removeListener(_handleSlashQueryChanged);
+    super.dispose();
+  }
+
+  /// 只负责请求重建，派生状态一律在 build 里同步。
+  ///
+  /// 纯文本改动会经由草稿状态让面板重建，但只移动光标不会——而光标进出片段
+  /// 决定菜单开合，所以这里补一次。面板 build 期间的 syncComposerText 也会
+  /// 触发本回调，那时本帧重建已在进行，再标脏就是构建期 setState。
+  void _handleSlashQueryChanged() {
+    if (!mounted) return;
+    final query = parseSlashQuery(controller.inputController.value)?.query;
+    if (query == _observedSlashQuery) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      return;
+    }
+    setState(() {});
+  }
+
+  void _dismissSlashMenu() {
+    setState(() => _dismissedSlashQuery = _observedSlashQuery ?? '');
+  }
 
   void _toggleEditorExpanded() {
     setState(() => _editorExpanded = !_editorExpanded);
     controller.inputFocus.requestFocus();
   }
 
+  void _moveSlashHighlight(int delta, int count) {
+    setState(() => _slashHighlight = (_slashHighlight + delta + count) % count);
+  }
+
+  /// 技能插入到输入框继续编辑；会话命令没有后续正文，选中即执行。
+  ///
+  /// 用构建菜单时的 [queryEnd] 而不是重新读实时 selection：鼠标点击会让输入框
+  /// 先失焦，此刻 selection 已经失效，再解析必然拿不到片段。
+  void _acceptSlashCommand(AgentChatSlashCommand command, int queryEnd) {
+    final action = command.sessionAction;
+    if (action == null) {
+      controller.applySlashCommand(command.name, queryEnd);
+      return;
+    }
+    controller.removeLeadingSlashToken(queryEnd);
+    commands.moreAction(action);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
+    final slashCommands = buildSlashCommands(
+      skills: viewData.state.skills,
+      l10n: l10n,
+      sessionActionsEnabled: viewData.sessionActionsEnabled,
+    );
+    controller.inputController.slashCommandNames = {
+      for (final command in slashCommands) command.name.toLowerCase(),
+    };
+    final slashQuery = viewData.state.initialized
+        ? parseSlashQuery(controller.inputController.value)
+        : null;
+    // 片段变化才重排：光标在片段内平移不该重置选中项，也不该撤销 Esc 之外的
+    // 关闭状态。
+    if (slashQuery?.query != _observedSlashQuery) {
+      _observedSlashQuery = slashQuery?.query;
+      _dismissedSlashQuery = null;
+      _slashHighlight = 0;
+    }
+    final slashMatches =
+        slashQuery == null || slashQuery.query == _dismissedSlashQuery
+        ? const <AgentChatSlashCommand>[]
+        : filterSlashCommands(slashCommands, slashQuery.query);
+    final slashHighlight = slashMatches.isEmpty
+        ? 0
+        : _slashHighlight.clamp(0, slashMatches.length - 1);
+
     return Padding(
       key: const ValueKey('agent-chat-input-container'),
       padding: AgentChatLayoutContract.composerOuterPadding(viewData.width),
@@ -63,7 +157,24 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
               _queuedMessages(theme, l10n),
             if (controller.isEditingUserMessage)
               _messageEditHeader(theme, l10n),
-            _editor(context, theme, l10n),
+            if (slashMatches.isNotEmpty)
+              AgentChatSlashMenu(
+                commands: slashMatches,
+                highlightIndex: slashHighlight,
+                touchOptimized: viewData.mobile,
+                onSelected: (command) =>
+                    _acceptSlashCommand(command, slashQuery!.end),
+                onHighlightChanged: (index) =>
+                    setState(() => _slashHighlight = index),
+              ),
+            _editor(
+              context,
+              theme,
+              l10n,
+              slashMatches,
+              slashHighlight,
+              slashQuery?.end ?? 0,
+            ),
             if (viewData.state.pendingResources.isNotEmpty ||
                 controller.pendingImages.isNotEmpty)
               _attachmentCards(),
@@ -111,7 +222,14 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     );
   }
 
-  Widget _editor(BuildContext context, ThemeData theme, AppLocalizations l10n) {
+  Widget _editor(
+    BuildContext context,
+    ThemeData theme,
+    AppLocalizations l10n,
+    List<AgentChatSlashCommand> slashMatches,
+    int slashHighlight,
+    int slashQueryEnd,
+  ) {
     final target = viewData.mobile ? 44.0 : 40.0;
     final trailingControls = viewData.running ? 2 : 1;
     final editor = TextField(
@@ -133,7 +251,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       textAlignVertical: TextAlignVertical.top,
       decoration: InputDecoration(
         isDense: true,
-        hintText: l10n.agentChat_inputHint,
+        hintText: viewData.state.skills.isEmpty
+            ? l10n.agentChat_inputHint
+            : l10n.agentChat_inputHintWithSlash,
         hintStyle: theme.textTheme.bodyMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.68),
         ),
@@ -156,6 +276,34 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           return KeyEventResult.ignored;
         }
         final key = event.logicalKey;
+        final composing =
+            controller.inputController.value.composing.isValid &&
+            !controller.inputController.value.composing.isCollapsed;
+        // 菜单开着时先于停止运行、队列编辑和发送处理，否则同一个键有两个归属。
+        if (slashMatches.isNotEmpty && !composing) {
+          if (key == LogicalKeyboardKey.escape) {
+            _dismissSlashMenu();
+            return KeyEventResult.handled;
+          }
+          if (!HardwareKeyboard.instance.isAltPressed &&
+              (key == LogicalKeyboardKey.arrowDown ||
+                  key == LogicalKeyboardKey.arrowUp)) {
+            _moveSlashHighlight(
+              key == LogicalKeyboardKey.arrowDown ? 1 : -1,
+              slashMatches.length,
+            );
+            return KeyEventResult.handled;
+          }
+          if (key == LogicalKeyboardKey.tab ||
+              ((key == LogicalKeyboardKey.enter ||
+                      key == LogicalKeyboardKey.numpadEnter) &&
+                  !HardwareKeyboard.instance.isShiftPressed &&
+                  !HardwareKeyboard.instance.isControlPressed &&
+                  !HardwareKeyboard.instance.isMetaPressed)) {
+            _acceptSlashCommand(slashMatches[slashHighlight], slashQueryEnd);
+            return KeyEventResult.handled;
+          }
+        }
         if (key == LogicalKeyboardKey.escape && viewData.running) {
           commands.stop();
           return KeyEventResult.handled;
@@ -334,7 +482,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
               ? l10n.agentChat_compacting
               : l10n.common_loading
         : available
-        ? '$percent% · ${usage.estimated ? '~' : ''}${_compactTokenCount(tokens!)} / ${_compactTokenCount(window!)}'
+        ? '$percent% · ${usage.estimated ? '~' : ''}${formatTokenCount(tokens!)} / ${formatTokenCount(window!)}'
         : l10n.agentChat_contextUnavailable;
     final onPressed = available && !loading && viewData.sessionActionsEnabled
         ? () => commands.moreAction(AgentChatMoreAction.compact)
@@ -413,16 +561,6 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         ),
       ),
     );
-  }
-
-  String _compactTokenCount(int value) {
-    if (value < 1000) return '$value';
-    if (value < 1000000) {
-      final compact = value / 1000;
-      return '${compact >= 100 ? compact.round() : compact.toStringAsFixed(1)}k';
-    }
-    final compact = value / 1000000;
-    return '${compact >= 100 ? compact.round() : compact.toStringAsFixed(1)}m';
   }
 
   Widget _queuedMessages(ThemeData theme, AppLocalizations l10n) {

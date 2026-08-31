@@ -187,7 +187,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     widget.onTagSearch(query);
   }
 
-  Future<void> _showTagMenu(String tag, TapDownDetails details) async {
+  Future<void> _showTagMenu(String tag, TapUpDetails details) async {
     final action = await showOnlineGalleryTagContextMenu(
       context: context,
       ref: ref,

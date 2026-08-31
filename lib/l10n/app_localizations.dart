@@ -830,7 +830,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_thirdPartyCompatibilityHint.
   ///
   /// In en, this message translates to:
-  /// **'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.'**
+  /// **'The third-party site must be compatible with the NovelAI image-generation API; the token will be sent as a Bearer token. Sites without /user/subscription log in without subscription info.'**
   String get auth_thirdPartyCompatibilityHint;
 
   /// No description provided for @auth_thirdPartyStreamingHint.
@@ -838,6 +838,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.'**
   String get auth_thirdPartyStreamingHint;
+
+  /// No description provided for @anlas_thirdPartyUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This site does not provide Anlas balance info'**
+  String get anlas_thirdPartyUnavailable;
 
   /// No description provided for @auth_thirdPartyApiSiteRequired.
   ///
@@ -958,6 +964,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'NovelAI now requires a web safety check for email/password login. Please use a Persistent API Token instead.'**
   String get auth_error_credentialsLoginUnavailable_hint;
+
+  /// No description provided for @auth_error_endpointIncompatible.
+  ///
+  /// In en, this message translates to:
+  /// **'No NAI-compatible API found at this address. Make sure the API address is the site\'s service root URL.'**
+  String get auth_error_endpointIncompatible;
 
   /// No description provided for @auth_error_serverError.
   ///
@@ -1721,6 +1733,30 @@ abstract class AppLocalizations {
   /// **'Message the AI agent…'**
   String get agentChat_inputHint;
 
+  /// No description provided for @agentChat_inputHintWithSlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Message the AI agent, / for skills…'**
+  String get agentChat_inputHintWithSlash;
+
+  /// No description provided for @agentChat_slashMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills and session commands'**
+  String get agentChat_slashMenu;
+
+  /// No description provided for @agentChat_slashSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get agentChat_slashSkills;
+
+  /// No description provided for @agentChat_slashSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Session'**
+  String get agentChat_slashSession;
+
   /// No description provided for @agentChat_addAttachment.
   ///
   /// In en, this message translates to:
@@ -2332,6 +2368,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Compacting context…'**
   String get agentChat_compacting;
+
+  /// No description provided for @agentChat_compactDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Context compacted: {before} → {after}'**
+  String agentChat_compactDone(String before, String after);
+
+  /// No description provided for @agentChat_compactNotNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Context does not need compacting yet'**
+  String get agentChat_compactNotNeeded;
+
+  /// No description provided for @agentChat_compactBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Still responding — try compacting afterwards'**
+  String get agentChat_compactBusy;
+
+  /// No description provided for @agentChat_compactUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Context usage unavailable, cannot compact'**
+  String get agentChat_compactUnavailable;
+
+  /// No description provided for @agentChat_compactFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to compact context: {error}'**
+  String agentChat_compactFailed(String error);
 
   /// No description provided for @agentChat_requestFailed.
   ///
@@ -23575,6 +23641,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'pending match'**
   String get agentSettings_pendingMatch;
+
+  /// No description provided for @agentSettings_contextWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Context window (tokens)'**
+  String get agentSettings_contextWindow;
+
+  /// No description provided for @agentSettings_contextWindowKnown.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to use the built-in value {value}. Override it when a relay or custom deployment exposes a different window.'**
+  String agentSettings_contextWindowKnown(String value);
+
+  /// No description provided for @agentSettings_contextWindowUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'This model is not in the built-in catalog, so its window cannot be detected. Without a value, context usage stays hidden and compaction is unavailable.'**
+  String get agentSettings_contextWindowUnknown;
+
+  /// No description provided for @agentSettings_contextWindowUnknownHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 128000'**
+  String get agentSettings_contextWindowUnknownHint;
+
+  /// No description provided for @agentSettings_contextWindowReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore the built-in value'**
+  String get agentSettings_contextWindowReset;
+
+  /// No description provided for @agentSettings_contextWindowInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number between 1 and 20000000'**
+  String get agentSettings_contextWindowInvalid;
 
   /// No description provided for @agentSettings_toolPermission.
   ///

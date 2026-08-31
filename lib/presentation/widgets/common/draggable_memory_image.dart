@@ -15,6 +15,7 @@ import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../utils/internal_drag_protocol.dart';
+import 'image_card_actions.dart';
 
 class DraggableMemoryImage extends ConsumerStatefulWidget {
   const DraggableMemoryImage({
@@ -104,6 +105,23 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
 
   @override
   Widget build(BuildContext context) {
+    final content = _buildDragSource(context);
+    final agentReference = widget.enabled ? _agentResourceReference : null;
+    if (agentReference == null) return content;
+
+    return ImageCardActionScope(
+      onAddToAgent: () => unawaited(
+        addAgentResourceToComposer(
+          context: context,
+          ref: ref,
+          reference: agentReference,
+        ),
+      ),
+      child: content,
+    );
+  }
+
+  Widget _buildDragSource(BuildContext context) {
     if (!widget.enabled) {
       return widget.child;
     }
@@ -126,21 +144,10 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
         dragItemProvider: (_) => _createDragItem(),
         liftBuilder: (context, child) => _buildDragFeedback(context),
         dragBuilder: (context, child) => _buildDragFeedback(context),
-        child: GestureDetector(
-          behavior: HitTestBehavior.deferToChild,
-          onSecondaryTapDown: _agentResourceReference == null
-              ? null
-              : (details) => showAddAgentResourceMenu(
-                  context: context,
-                  ref: ref,
-                  position: details.globalPosition,
-                  reference: _agentResourceReference!,
-                ),
-          child: DraggableWidget(
-            child: Opacity(
-              opacity: _isDragging ? widget.dragOpacity : 1.0,
-              child: widget.child,
-            ),
+        child: DraggableWidget(
+          child: Opacity(
+            opacity: _isDragging ? widget.dragOpacity : 1.0,
+            child: widget.child,
           ),
         ),
       ),

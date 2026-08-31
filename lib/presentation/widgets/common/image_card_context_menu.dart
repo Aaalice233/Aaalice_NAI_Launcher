@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/platform/platform_capabilities.dart';
@@ -114,17 +116,24 @@ class ImageCardContextMenuRoute extends PopupRoute<ProMenuItem> {
         builder: (context) {
           final screenSize = MediaQuery.sizeOf(context);
           const menuWidth = 180.0;
-          final menuHeight =
+          final estimatedMenuHeight =
               items.where((item) => !item.isDivider).length * 36.0 +
               items.where((item) => item.isDivider).length;
+          const viewportMargin = 16.0;
+          final maxMenuHeight = math.max(
+            0.0,
+            screenSize.height - viewportMargin * 2,
+          );
+          final menuHeight = math.min(estimatedMenuHeight, maxMenuHeight);
           var left = position.dx;
           var top = position.dy;
           if (left + menuWidth > screenSize.width) {
-            left = screenSize.width - menuWidth - 16;
+            left = screenSize.width - menuWidth - viewportMargin;
           }
-          if (top + menuHeight > screenSize.height) {
-            top = screenSize.height - menuHeight - 16;
+          if (top + menuHeight > screenSize.height - viewportMargin) {
+            top = screenSize.height - menuHeight - viewportMargin;
           }
+          top = math.max(viewportMargin, top);
           return GestureDetector(
             behavior: HitTestBehavior.translucent,
             onTap: () => Navigator.of(context).pop(),
@@ -133,6 +142,7 @@ class ImageCardContextMenuRoute extends PopupRoute<ProMenuItem> {
                 ProContextMenu(
                   position: Offset(left, top),
                   items: items,
+                  maxHeight: maxMenuHeight,
                   onSelect: (item) => Navigator.of(context).pop(item),
                 ),
               ],

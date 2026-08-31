@@ -62,7 +62,11 @@ $invalidPackages = @(
 if ($invalidPackages.Count -gt 0) {
     $details = $invalidPackages |
         Select-Object -First 10 |
-        ForEach-Object { "- $($_.Name): $($_.Url ?? '(missing URL)')" }
+        ForEach-Object {
+            # ?? needs PowerShell 7, and 5.1 fails to parse the whole script.
+            $url = if ([string]::IsNullOrEmpty($_.Url)) { '(missing URL)' } else { $_.Url }
+            "- $($_.Name): $url"
+        }
     $remaining = $invalidPackages.Count - $details.Count
     $suffix = if ($remaining -gt 0) {
         "`n- ... 另有 $remaining 个 package"
