@@ -391,7 +391,9 @@ class _PrivacySettingsSectionState
             ],
           ),
         ),
-        const OnlineGalleryBlacklistSettingsPanel(),
+        const SettingsCard(
+          child: OnlineGalleryBlacklistSettingsPanel(embedded: true),
+        ),
       ],
     );
   }

@@ -16,11 +16,13 @@ class OnlineGalleryBlacklistSettingsPanel extends ConsumerStatefulWidget {
   const OnlineGalleryBlacklistSettingsPanel({
     super.key,
     this.compact = false,
+    this.embedded = false,
     this.showSyncStatus = true,
     this.sourceId,
   });
 
   final bool compact;
+  final bool embedded;
   final bool showSyncStatus;
   final GallerySourceId? sourceId;
 
@@ -63,6 +65,50 @@ class _OnlineGalleryBlacklistSettingsPanelState
         ? _sortedTags
         : _sortedTags.where((tag) => tag.contains(_filter)).toList();
 
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(theme, state),
+        const SizedBox(height: 16),
+        _buildAddRow(state),
+        if (state.tags.length > 20) ...[
+          const SizedBox(height: 10),
+          TextField(
+            controller: _filterController,
+            textAlignVertical: TextAlignVertical.center,
+            decoration: InputDecoration(
+              isDense: true,
+              prefixIcon: const Icon(Icons.search, size: 18),
+              suffixIcon: _filter.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: () {
+                        _filterController.clear();
+                        setState(() => _filter = '');
+                      },
+                      icon: const Icon(Icons.close, size: 18),
+                    ),
+              border: const OutlineInputBorder(),
+              hintText: context.l10n.common_search,
+            ),
+            onChanged: (value) =>
+                setState(() => _filter = value.trim().toLowerCase()),
+          ),
+        ],
+        const SizedBox(height: 12),
+        _buildTagList(theme, tags),
+        const SizedBox(height: 8),
+        _buildListActions(state),
+        if (_supportsCloud) ...[
+          const SizedBox(height: 14),
+          _buildCloudSection(theme, state),
+        ],
+      ],
+    );
+
+    if (widget.embedded) {
+      return content;
+    }
     return Card(
       margin: widget.compact
           ? EdgeInsets.zero
@@ -70,49 +116,7 @@ class _OnlineGalleryBlacklistSettingsPanelState
       elevation: 0,
       color: theme.colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(theme, state),
-            const SizedBox(height: 16),
-            _buildAddRow(state),
-            if (state.tags.length > 20) ...[
-              const SizedBox(height: 10),
-              TextField(
-                controller: _filterController,
-                textAlignVertical: TextAlignVertical.center,
-                decoration: InputDecoration(
-                  isDense: true,
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  suffixIcon: _filter.isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: () {
-                            _filterController.clear();
-                            setState(() => _filter = '');
-                          },
-                          icon: const Icon(Icons.close, size: 18),
-                        ),
-                  border: const OutlineInputBorder(),
-                  hintText: context.l10n.common_search,
-                ),
-                onChanged: (value) =>
-                    setState(() => _filter = value.trim().toLowerCase()),
-              ),
-            ],
-            const SizedBox(height: 12),
-            _buildTagList(theme, tags),
-            const SizedBox(height: 8),
-            _buildListActions(state),
-            if (_supportsCloud) ...[
-              const SizedBox(height: 14),
-              _buildCloudSection(theme, state),
-            ],
-          ],
-        ),
-      ),
+      child: Padding(padding: const EdgeInsets.all(16), child: content),
     );
   }
 
