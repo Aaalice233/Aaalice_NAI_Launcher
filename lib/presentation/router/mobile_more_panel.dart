@@ -9,16 +9,25 @@ import '../adaptive/adaptive_presenter.dart';
 import '../agent_chat/providers/agent_chat_notifier.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/update_provider.dart';
+import '../services/mobile_image_metadata_importer.dart';
 import '../widgets/common/app_toast.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import 'app_branch.dart';
 import 'shell_panels_overlay.dart';
 
+typedef MobileMetadataImportAction =
+    Future<void> Function(BuildContext context, WidgetRef ref);
+
 Future<void> showMobileMorePanel({
   required BuildContext context,
   required WidgetRef ref,
   required StatefulNavigationShell navigationShell,
+  MobileMetadataImportAction? onImportImageMetadata,
 }) {
+  final importImageMetadata =
+      onImportImageMetadata ??
+      ((context, ref) =>
+          MobileImageMetadataImporter.shared.run(context: context, ref: ref));
   final queueCount = ref.read(replicationQueueNotifierProvider).count;
   final hasUpdate = ref.read(updateStateProvider).hasNewVersion;
   final activePanel = ref.read(shellPanelProvider);
@@ -57,6 +66,21 @@ Future<void> showMobileMorePanel({
           onTap: () {
             Navigator.of(panelContext).pop();
             ref.read(shellPanelProvider.notifier).state = ShellPanel.queue;
+          },
+        ),
+        _MobileMoreDestination(
+          key: const ValueKey('mobile-more-read-image-metadata'),
+          icon: Icons.document_scanner_outlined,
+          label: panelContext.l10n.metadataImport_readImageMetadata,
+          onTap: () async {
+            final panelRoute = ModalRoute.of(panelContext);
+            Navigator.of(panelContext).pop();
+            if (panelRoute != null) {
+              await panelRoute.completed;
+            }
+            if (context.mounted) {
+              await importImageMetadata(context, ref);
+            }
           },
         ),
         const Divider(indent: 16, endIndent: 16),
@@ -223,7 +247,7 @@ class _MobileMoreDestination extends StatelessWidget {
         smallSize: 7,
         child: Icon(icon),
       ),
-      title: Text(label),
+      title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: selected
           ? const Icon(Icons.check_rounded)
           : const Icon(Icons.chevron_right),

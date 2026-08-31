@@ -3680,6 +3680,9 @@
       }
     }
   },
+  "metadataImport_readImageMetadata": "画像メタデータを読み取る",
+  "metadataImport_readFailed": "選択した画像を読み込めませんでした",
+  "metadataImport_processFailed": "選択した画像を処理できませんでした",
   "metadataImport_noDataFound": "NovelAI メタデータが見つかりませんでした",
   "metadataImport_noParamsSelected": "パラメータが選択されていません",
   "metadataImport_appliedCount": "適用された {count} パラメータ",

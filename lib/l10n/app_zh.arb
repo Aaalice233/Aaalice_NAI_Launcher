@@ -3762,6 +3762,9 @@
       "count": {"type": "int"}
     }
   },
+  "metadataImport_readImageMetadata": "读取图片元数据",
+  "metadataImport_readFailed": "无法读取所选图片",
+  "metadataImport_processFailed": "无法处理所选图片",
   "metadataImport_noDataFound": "未找到 NovelAI 元数据",
   "metadataImport_noParamsSelected": "未选择任何要应用的参数",
   "metadataImport_appliedCount": "已应用 {count} 项参数",

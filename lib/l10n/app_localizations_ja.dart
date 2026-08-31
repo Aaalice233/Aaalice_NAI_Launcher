@@ -7786,6 +7786,15 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get metadataImport_readImageMetadata => '画像メタデータを読み取る';
+
+  @override
+  String get metadataImport_readFailed => '選択した画像を読み込めませんでした';
+
+  @override
+  String get metadataImport_processFailed => '選択した画像を処理できませんでした';
+
+  @override
   String get metadataImport_noDataFound => 'NovelAI メタデータが見つかりませんでした';
 
   @override
