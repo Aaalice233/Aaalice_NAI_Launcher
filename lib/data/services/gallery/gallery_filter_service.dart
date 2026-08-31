@@ -9,6 +9,7 @@ import '../../../core/database/utils/lru_cache.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/tag_normalizer.dart';
+import 'gallery_path_utils.dart';
 
 export 'gallery_filter_service.dart' show FilterCriteria;
 
@@ -39,6 +40,9 @@ class FilterCriteria {
   final String? categoryId;
   final String? categoryFolderPath;
 
+  /// 相簿过滤（'favorites' 表示收藏相簿，其余为相簿 id）
+  final String? albumId;
+
   const FilterCriteria({
     this.searchQuery = '',
     this.dateStart,
@@ -61,6 +65,7 @@ class FilterCriteria {
     this.metadataStatuses = const [],
     this.categoryId,
     this.categoryFolderPath,
+    this.albumId,
   });
 
   FilterCriteria copyWith({
@@ -102,6 +107,8 @@ class FilterCriteria {
     String? categoryFolderPath,
     bool clearCategoryId = false,
     bool clearCategoryFolderPath = false,
+    String? albumId,
+    bool clearAlbumId = false,
   }) {
     return FilterCriteria(
       searchQuery: searchQuery ?? this.searchQuery,
@@ -139,6 +146,7 @@ class FilterCriteria {
       categoryFolderPath: clearCategoryFolderPath
           ? null
           : (categoryFolderPath ?? this.categoryFolderPath),
+      albumId: clearAlbumId ? null : (albumId ?? this.albumId),
     );
   }
 
@@ -163,7 +171,8 @@ class FilterCriteria {
       maxFileSize != null ||
       metadataStatuses.isNotEmpty ||
       categoryId != null ||
-      categoryFolderPath != null;
+      categoryFolderPath != null ||
+      albumId != null;
 
   bool get hasMetadataFilters =>
       filterModel != null ||
@@ -207,6 +216,7 @@ class FilterCriteria {
       if (metadataStatuses.isNotEmpty) 'meta:${metadataStatuses.join(",")}',
       if (categoryId != null) 'catId:$categoryId',
       if (categoryFolderPath != null) 'catPath:$categoryFolderPath',
+      if (albumId != null) 'album:$albumId',
     ];
     return parts.join('|');
   }
@@ -505,6 +515,21 @@ class GalleryFilterService {
       );
     }
 
+    if (cancelToken.isCancelled) return [];
+
+    // 相簿过滤（逻辑引用集合，含子相簿）
+    if (criteria.albumId != null) {
+      filtered = await _filterByAlbum(
+        filtered,
+        criteria.albumId!,
+        cancelToken,
+      );
+      AppLogger.d(
+        '_applyLocalFilters after album filter: ${filtered.length} files',
+        'GalleryFilterService',
+      );
+    }
+
     AppLogger.d(
       '_applyLocalFilters END: ${filtered.length} files',
       'GalleryFilterService',
@@ -534,6 +559,16 @@ class GalleryFilterService {
       filtered = await _filterByCategory(
         filtered,
         criteria.categoryFolderPath!,
+        cancelToken,
+      );
+    }
+
+    if (cancelToken.isCancelled) return [];
+
+    if (criteria.albumId != null) {
+      filtered = await _filterByAlbum(
+        filtered,
+        criteria.albumId!,
         cancelToken,
       );
     }
@@ -667,6 +702,47 @@ class GalleryFilterService {
     if (cancelToken.isCancelled) return [];
 
     return matchingPaths.map((path) => File(path)).toList();
+  }
+
+  /// 按相簿过滤（'favorites' 收藏相簿；其余为相簿 id，含子相簿成员）
+  Future<List<File>> _filterByAlbum(
+    List<File> files,
+    String albumId,
+    CancelToken cancelToken,
+  ) async {
+    try {
+      if (albumId == 'favorites') {
+        final records = await _dataSource.queryFavoriteImages(
+          limit: max(1, files.length),
+        );
+        final favoriteKeys = {
+          for (final record in records) galleryFilePathKey(record.filePath),
+        };
+        return files
+            .where(
+              (file) =>
+                  !cancelToken.isCancelled &&
+                  favoriteKeys.contains(galleryFilePathKey(file.path)),
+            )
+            .toList();
+      }
+
+      final memberPaths = await _dataSource.albums
+          .getAlbumFilePathsWithDescendants(albumId);
+      final memberKeys = {
+        for (final path in memberPaths) galleryFilePathKey(path),
+      };
+      return files
+          .where(
+            (file) =>
+                !cancelToken.isCancelled &&
+                memberKeys.contains(galleryFilePathKey(file.path)),
+          )
+          .toList();
+    } catch (e) {
+      AppLogger.w('Failed to filter by album: $e', 'GalleryFilterService');
+      return [];
+    }
   }
 
   /// 按收藏状态过滤

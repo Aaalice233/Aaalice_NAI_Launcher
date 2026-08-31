@@ -2340,7 +2340,6 @@
   "localGallery_moveSelected": "移動",
   "localGallery_packSelected": "パック",
   "localGallery_editMetadata": "タグを編集",
-  "localGallery_addToCollection": "コレクションに追加",
   "localGallery_switchToGridView": "グリッド ビューに切り替える",
   "localGallery_switchToDateGroupedView": "日付グループ化ビューに切り替える",
   "localGallery_openFilterPanel": "フィルター パネルを開く",
@@ -2394,7 +2393,7 @@
     }
   },
   "localGallery_protectedBulkMoveTitle": "保護モード: 一括移動の確認",
-  "localGallery_protectedBulkMoveContent": "これにより、{count} ローカル画像ファイルがターゲット フォルダに移動されます。これが間違いではないことを確認してください。",
+  "localGallery_protectedBulkMoveContent": "これにより、{count} ローカル画像ファイルがターゲット カテゴリに移動されます。これが間違いではないことを確認してください。",
   "@localGallery_protectedBulkMoveContent": {
     "placeholders": {
       "count": {}
@@ -2635,8 +2634,31 @@
       "count": {}
     }
   },
-  "localGallery_noFoldersAvailable": "使用可能なフォルダーがありません。最初にフォルダーを作成してください。",
-  "localGallery_moveToFolder": "フォルダーに移動",
+  "localGallery_noCategoriesAvailable": "利用可能なカテゴリがありません。先にカテゴリを作成してください。",
+  "localGallery_moveToCategory": "カテゴリに移動",
+  "@localGallery_addedToAlbumWithName": {
+    "placeholders": {
+      "count": {},
+      "name": {}
+    }
+  },
+  "localGallery_albumSectionTitle": "アルバム",
+  "localGallery_folderSectionTitle": "フォルダー",
+  "localGallery_albumEmptyHint": "アルバムがありません。右のボタンで作成できます",
+  "localGallery_createAlbum": "アルバムを作成",
+  "localGallery_createSubAlbum": "サブアルバムを作成",
+  "localGallery_moveAlbumToRoot": "ルートへ移動",
+  "localGallery_createAlbumTitle": "アルバムを作成",
+  "localGallery_createSubAlbumTitle": "サブアルバムを作成",
+  "localGallery_createAlbumHint": "アルバム名を入力",
+  "localGallery_renameAlbumTitle": "アルバムの名前を変更",
+  "localGallery_deleteAlbumTitle": "アルバムを削除",
+  "localGallery_deleteAlbumContent": "このアルバムを削除します（画像ファイルには影響しません）。サブアルバムはルートに移動します。",
+  "localGallery_addedToAlbum": "アルバムに追加しました",
+  "localGallery_albumAddFailed": "アルバムへの追加に失敗しました",
+  "localGallery_albumSelectTitle": "アルバムに追加",
+  "localGallery_addToAlbum": "アルバムに追加",
+  "localGallery_addedToAlbumWithName": "{count} 枚の画像を「{name}」に追加しました",
   "localGallery_imageCount": "{count} 画像",
   "@localGallery_imageCount": {
     "placeholders": {
@@ -2650,14 +2672,6 @@
     }
   },
   "localGallery_moveImagesFailed": "画像の移動に失敗しました",
-  "localGallery_addedToCollection": "{count} 画像をコレクション「{name}」に追加しました",
-  "@localGallery_addedToCollection": {
-    "placeholders": {
-      "count": {},
-      "name": {}
-    }
-  },
-  "localGallery_addToCollectionFailed": "画像をコレクションに追加できませんでした",
   "brushPreset_selectHint": "ダブルタップしてこのブラシ プリセットを選択します",
   "brushPreset_pencil": "鉛筆",
   "brushPreset_fine": "細筆",

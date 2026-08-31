@@ -5328,9 +5328,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_editMetadata => 'タグを編集';
 
   @override
-  String get localGallery_addToCollection => 'コレクションに追加';
-
-  @override
   String get localGallery_switchToGridView => 'グリッド ビューに切り替える';
 
   @override
@@ -5443,7 +5440,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return 'これにより、$count ローカル画像ファイルがターゲット フォルダに移動されます。これが間違いではないことを確認してください。';
+    return 'これにより、$count ローカル画像ファイルがターゲット カテゴリに移動されます。これが間違いではないことを確認してください。';
   }
 
   @override
@@ -5883,11 +5880,65 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable =>
-      '使用可能なフォルダーがありません。最初にフォルダーを作成してください。';
+  String get localGallery_noCategoriesAvailable =>
+      '利用可能なカテゴリがありません。先にカテゴリを作成してください。';
 
   @override
-  String get localGallery_moveToFolder => 'フォルダーに移動';
+  String get localGallery_moveToCategory => 'カテゴリに移動';
+
+  @override
+  String get localGallery_albumSectionTitle => 'アルバム';
+
+  @override
+  String get localGallery_folderSectionTitle => 'フォルダー';
+
+  @override
+  String get localGallery_albumEmptyHint => 'アルバムがありません。右のボタンで作成できます';
+
+  @override
+  String get localGallery_createAlbum => 'アルバムを作成';
+
+  @override
+  String get localGallery_createSubAlbum => 'サブアルバムを作成';
+
+  @override
+  String get localGallery_moveAlbumToRoot => 'ルートへ移動';
+
+  @override
+  String get localGallery_createAlbumTitle => 'アルバムを作成';
+
+  @override
+  String get localGallery_createSubAlbumTitle => 'サブアルバムを作成';
+
+  @override
+  String get localGallery_createAlbumHint => 'アルバム名を入力';
+
+  @override
+  String get localGallery_renameAlbumTitle => 'アルバムの名前を変更';
+
+  @override
+  String get localGallery_deleteAlbumTitle => 'アルバムを削除';
+
+  @override
+  String get localGallery_deleteAlbumContent =>
+      'このアルバムを削除します（画像ファイルには影響しません）。サブアルバムはルートに移動します。';
+
+  @override
+  String get localGallery_addedToAlbum => 'アルバムに追加しました';
+
+  @override
+  String get localGallery_albumAddFailed => 'アルバムへの追加に失敗しました';
+
+  @override
+  String get localGallery_albumSelectTitle => 'アルバムに追加';
+
+  @override
+  String get localGallery_addToAlbum => 'アルバムに追加';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '$count 枚の画像を「$name」に追加しました';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -5901,14 +5952,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => '画像の移動に失敗しました';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '$count 画像をコレクション「$name」に追加しました';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '画像をコレクションに追加できませんでした';
 
   @override
   String get brushPreset_selectHint => 'ダブルタップしてこのブラシ プリセットを選択します';

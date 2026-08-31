@@ -9763,12 +9763,6 @@ abstract class AppLocalizations {
   /// **'Edit Tags'**
   String get localGallery_editMetadata;
 
-  /// No description provided for @localGallery_addToCollection.
-  ///
-  /// In en, this message translates to:
-  /// **'Collect'**
-  String get localGallery_addToCollection;
-
   /// No description provided for @localGallery_switchToGridView.
   ///
   /// In en, this message translates to:
@@ -9970,7 +9964,7 @@ abstract class AppLocalizations {
   /// No description provided for @localGallery_protectedBulkMoveContent.
   ///
   /// In en, this message translates to:
-  /// **'This will move {count} local image files to the target folder. Confirm this is not a mistake.'**
+  /// **'This will move {count} local image files to the target category. Confirm this is not a mistake.'**
   String localGallery_protectedBulkMoveContent(Object count);
 
   /// No description provided for @localGallery_importParamsFailed.
@@ -10753,17 +10747,119 @@ abstract class AppLocalizations {
   /// **'Deleted {count} images'**
   String localGallery_deletedImages(Object count);
 
-  /// No description provided for @localGallery_noFoldersAvailable.
+  /// No description provided for @localGallery_noCategoriesAvailable.
   ///
   /// In en, this message translates to:
-  /// **'No folders available, please create a folder first'**
-  String get localGallery_noFoldersAvailable;
+  /// **'No categories available, please create a category first'**
+  String get localGallery_noCategoriesAvailable;
 
-  /// No description provided for @localGallery_moveToFolder.
+  /// No description provided for @localGallery_moveToCategory.
   ///
   /// In en, this message translates to:
-  /// **'Move to Folder'**
-  String get localGallery_moveToFolder;
+  /// **'Move to Category'**
+  String get localGallery_moveToCategory;
+
+  /// No description provided for @localGallery_albumSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Albums'**
+  String get localGallery_albumSectionTitle;
+
+  /// No description provided for @localGallery_folderSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Folders'**
+  String get localGallery_folderSectionTitle;
+
+  /// No description provided for @localGallery_albumEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No albums yet. Create one with the button on the right.'**
+  String get localGallery_albumEmptyHint;
+
+  /// No description provided for @localGallery_createAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'New Album'**
+  String get localGallery_createAlbum;
+
+  /// No description provided for @localGallery_createSubAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'New Sub-album'**
+  String get localGallery_createSubAlbum;
+
+  /// No description provided for @localGallery_moveAlbumToRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to Root'**
+  String get localGallery_moveAlbumToRoot;
+
+  /// No description provided for @localGallery_createAlbumTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Album'**
+  String get localGallery_createAlbumTitle;
+
+  /// No description provided for @localGallery_createSubAlbumTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Sub-album'**
+  String get localGallery_createSubAlbumTitle;
+
+  /// No description provided for @localGallery_createAlbumHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter album name'**
+  String get localGallery_createAlbumHint;
+
+  /// No description provided for @localGallery_renameAlbumTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Album'**
+  String get localGallery_renameAlbumTitle;
+
+  /// No description provided for @localGallery_deleteAlbumTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Album'**
+  String get localGallery_deleteAlbumTitle;
+
+  /// No description provided for @localGallery_deleteAlbumContent.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes the album; image files are not affected and sub-albums are promoted to root.'**
+  String get localGallery_deleteAlbumContent;
+
+  /// No description provided for @localGallery_addedToAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to album'**
+  String get localGallery_addedToAlbum;
+
+  /// No description provided for @localGallery_albumAddFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to add to album'**
+  String get localGallery_albumAddFailed;
+
+  /// No description provided for @localGallery_albumSelectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Album'**
+  String get localGallery_albumSelectTitle;
+
+  /// No description provided for @localGallery_addToAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Album'**
+  String get localGallery_addToAlbum;
+
+  /// No description provided for @localGallery_addedToAlbumWithName.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} images to \'{name}\''**
+  String localGallery_addedToAlbumWithName(Object count, Object name);
 
   /// No description provided for @localGallery_imageCount.
   ///
@@ -10782,18 +10878,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to move images'**
   String get localGallery_moveImagesFailed;
-
-  /// No description provided for @localGallery_addedToCollection.
-  ///
-  /// In en, this message translates to:
-  /// **'Added {count} images to collection \"{name}\"'**
-  String localGallery_addedToCollection(Object count, Object name);
-
-  /// No description provided for @localGallery_addToCollectionFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to add images to collection'**
-  String get localGallery_addToCollectionFailed;
 
   /// No description provided for @brushPreset_selectHint.
   ///

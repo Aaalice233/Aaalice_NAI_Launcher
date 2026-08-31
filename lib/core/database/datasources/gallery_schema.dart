@@ -21,9 +21,14 @@ class GallerySchema {
       await _createImageTagsTable(db);
       await _createScanLogsTable(db);
       await _createFtsIndexTable(db);
+      await _createAlbumsTable(db);
+      await _createAlbumImagesTable(db);
 
       // 迁移：添加 last_scanned_at 列（如果缺失）
       await _migrateAddLastScannedAt(db);
+
+      // 迁移：相簿添加 pending_paths 列（如果缺失）
+      await _migrateAddAlbumPendingPaths(db);
 
       AppLogger.i('Gallery tables initialized', 'GalleryDS');
     });
@@ -143,6 +148,34 @@ class GallerySchema {
         'GalleryDS',
       );
       // 迁移失败不应该阻止应用启动
+    }
+  }
+
+  /// 迁移：相簿添加 pending_paths 列（相对图库根目录、尚未绑定到
+  /// gallery_images 记录的成员路径，JSON 数组）
+  Future<void> _migrateAddAlbumPendingPaths(Database db) async {
+    try {
+      final tableInfo = await db.rawQuery(
+        'PRAGMA table_info(${GalleryTables.albums})',
+      );
+      final hasColumn = tableInfo.any((col) => col['name'] == 'pending_paths');
+
+      if (!hasColumn) {
+        AppLogger.i(
+          '[Migration] Adding pending_paths column to ${GalleryTables.albums}',
+          'GalleryDS',
+        );
+        await db.execute(
+          'ALTER TABLE ${GalleryTables.albums} ADD COLUMN pending_paths TEXT',
+        );
+      }
+    } catch (e, stack) {
+      AppLogger.e(
+        '[Migration] Failed to add pending_paths column',
+        e,
+        stack,
+        'GalleryDS',
+      );
     }
   }
 
@@ -297,6 +330,46 @@ class GallerySchema {
     ''');
   }
 
+  Future<void> _createAlbumsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${GalleryTables.albums} (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        parent_id TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        cover_path TEXT,
+        pending_paths TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (parent_id) REFERENCES ${GalleryTables.albums}(id) ON DELETE SET NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_gallery_albums_parent
+      ON ${GalleryTables.albums}(parent_id)
+    ''');
+  }
+
+  Future<void> _createAlbumImagesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${GalleryTables.albumImages} (
+        album_id TEXT NOT NULL,
+        image_id INTEGER NOT NULL,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (album_id, image_id),
+        FOREIGN KEY (album_id) REFERENCES ${GalleryTables.albums}(id) ON DELETE CASCADE,
+        FOREIGN KEY (image_id) REFERENCES ${GalleryTables.images}(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_gallery_album_images_image
+      ON ${GalleryTables.albumImages}(image_id)
+    ''');
+  }
+
   Future<DataSourceHealth> checkHealth() async {
     return await gateway.execute('doCheckHealth', (db) async {
       final tables = [
@@ -307,6 +380,8 @@ class GallerySchema {
         GalleryTables.imageTags,
         GalleryTables.scanLogs,
         GalleryTables.ftsIndex,
+        GalleryTables.albums,
+        GalleryTables.albumImages,
       ];
 
       final missingTables = <String>[];

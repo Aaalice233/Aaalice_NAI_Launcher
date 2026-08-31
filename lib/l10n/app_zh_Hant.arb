@@ -2399,7 +2399,6 @@
   "localGallery_moveSelected": "移動",
   "localGallery_packSelected": "打包",
   "localGallery_editMetadata": "編輯標籤",
-  "localGallery_addToCollection": "收藏",
   "localGallery_switchToGridView": "切換到網格檢視",
   "localGallery_switchToDateGroupedView": "切換到日期分組檢視",
   "localGallery_openFilterPanel": "開啟篩選面板",
@@ -2453,7 +2452,7 @@
     }
   },
   "localGallery_protectedBulkMoveTitle": "保護模式：確認批次移動",
-  "localGallery_protectedBulkMoveContent": "將移動 {count} 張本地圖片檔案到目標資料夾。請確認不是誤操作。",
+  "localGallery_protectedBulkMoveContent": "將移動 {count} 張本地圖片檔案到目標分類。請確認不是誤操作。",
   "@localGallery_protectedBulkMoveContent": {
     "placeholders": {
       "count": {}
@@ -2708,8 +2707,31 @@
       "count": {}
     }
   },
-  "localGallery_noFoldersAvailable": "暫無可用資料夾，請先建立資料夾",
-  "localGallery_moveToFolder": "移動到資料夾",
+  "localGallery_noCategoriesAvailable": "暫無可用分類，請先建立分類",
+  "localGallery_moveToCategory": "移動到分類",
+  "@localGallery_addedToAlbumWithName": {
+    "placeholders": {
+      "count": {},
+      "name": {}
+    }
+  },
+  "localGallery_albumSectionTitle": "相簿",
+  "localGallery_folderSectionTitle": "資料夾",
+  "localGallery_albumEmptyHint": "還沒有相簿，點擊右側按鈕建立",
+  "localGallery_createAlbum": "新建相簿",
+  "localGallery_createSubAlbum": "新建子相簿",
+  "localGallery_moveAlbumToRoot": "移到根級",
+  "localGallery_createAlbumTitle": "新建相簿",
+  "localGallery_createSubAlbumTitle": "新建子相簿",
+  "localGallery_createAlbumHint": "輸入相簿名稱",
+  "localGallery_renameAlbumTitle": "重新命名相簿",
+  "localGallery_deleteAlbumTitle": "刪除相簿",
+  "localGallery_deleteAlbumContent": "將刪除該相簿（圖片檔案不受影響），子相簿會提升到根級。",
+  "localGallery_addedToAlbum": "已加入相簿",
+  "localGallery_albumAddFailed": "加入相簿失敗",
+  "localGallery_albumSelectTitle": "加入相簿",
+  "localGallery_addToAlbum": "加入相簿",
+  "localGallery_addedToAlbumWithName": "已將 {count} 張圖片加入「{name}」",
   "localGallery_imageCount": "{count} 張圖片",
   "@localGallery_imageCount": {
     "placeholders": {
@@ -2723,14 +2745,6 @@
     }
   },
   "localGallery_moveImagesFailed": "移動圖片失敗",
-  "localGallery_addedToCollection": "已新增 {count} 張圖片到集合「{name}」",
-  "@localGallery_addedToCollection": {
-    "placeholders": {
-      "count": {},
-      "name": {}
-    }
-  },
-  "localGallery_addToCollectionFailed": "新增圖片到集合失敗",
   "brushPreset_selectHint": "雙擊選擇此筆刷預設",
   "brushPreset_pencil": "鉛筆",
   "brushPreset_fine": "細筆",

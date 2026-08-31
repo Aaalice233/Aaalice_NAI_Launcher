@@ -5461,9 +5461,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_editMetadata => 'Edit Tags';
 
   @override
-  String get localGallery_addToCollection => 'Collect';
-
-  @override
   String get localGallery_switchToGridView => 'Switch to grid view';
 
   @override
@@ -5581,7 +5578,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return 'This will move $count local image files to the target folder. Confirm this is not a mistake.';
+    return 'This will move $count local image files to the target category. Confirm this is not a mistake.';
   }
 
   @override
@@ -6026,11 +6023,66 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable =>
-      'No folders available, please create a folder first';
+  String get localGallery_noCategoriesAvailable =>
+      'No categories available, please create a category first';
 
   @override
-  String get localGallery_moveToFolder => 'Move to Folder';
+  String get localGallery_moveToCategory => 'Move to Category';
+
+  @override
+  String get localGallery_albumSectionTitle => 'Albums';
+
+  @override
+  String get localGallery_folderSectionTitle => 'Folders';
+
+  @override
+  String get localGallery_albumEmptyHint =>
+      'No albums yet. Create one with the button on the right.';
+
+  @override
+  String get localGallery_createAlbum => 'New Album';
+
+  @override
+  String get localGallery_createSubAlbum => 'New Sub-album';
+
+  @override
+  String get localGallery_moveAlbumToRoot => 'Move to Root';
+
+  @override
+  String get localGallery_createAlbumTitle => 'New Album';
+
+  @override
+  String get localGallery_createSubAlbumTitle => 'New Sub-album';
+
+  @override
+  String get localGallery_createAlbumHint => 'Enter album name';
+
+  @override
+  String get localGallery_renameAlbumTitle => 'Rename Album';
+
+  @override
+  String get localGallery_deleteAlbumTitle => 'Delete Album';
+
+  @override
+  String get localGallery_deleteAlbumContent =>
+      'This deletes the album; image files are not affected and sub-albums are promoted to root.';
+
+  @override
+  String get localGallery_addedToAlbum => 'Added to album';
+
+  @override
+  String get localGallery_albumAddFailed => 'Failed to add to album';
+
+  @override
+  String get localGallery_albumSelectTitle => 'Add to Album';
+
+  @override
+  String get localGallery_addToAlbum => 'Add to Album';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return 'Added $count images to \'$name\'';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -6044,15 +6096,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => 'Failed to move images';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return 'Added $count images to collection \"$name\"';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed =>
-      'Failed to add images to collection';
 
   @override
   String get brushPreset_selectHint => 'Double tap to select this brush preset';

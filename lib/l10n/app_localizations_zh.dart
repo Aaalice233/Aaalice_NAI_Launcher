@@ -5236,9 +5236,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_editMetadata => '编辑标签';
 
   @override
-  String get localGallery_addToCollection => '收藏';
-
-  @override
   String get localGallery_switchToGridView => '切换到网格视图';
 
   @override
@@ -5348,7 +5345,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return '将移动 $count 张本地图片文件到目标文件夹。请确认不是误操作。';
+    return '将移动 $count 张本地图片文件到目标分类。请确认不是误操作。';
   }
 
   @override
@@ -5786,10 +5783,63 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable => '暂无可用文件夹，请先创建文件夹';
+  String get localGallery_noCategoriesAvailable => '暂无可用分类，请先创建分类';
 
   @override
-  String get localGallery_moveToFolder => '移动到文件夹';
+  String get localGallery_moveToCategory => '移动到分类';
+
+  @override
+  String get localGallery_albumSectionTitle => '相簿';
+
+  @override
+  String get localGallery_folderSectionTitle => '文件夹';
+
+  @override
+  String get localGallery_albumEmptyHint => '还没有相簿，点击右侧按钮创建';
+
+  @override
+  String get localGallery_createAlbum => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbum => '新建子相簿';
+
+  @override
+  String get localGallery_moveAlbumToRoot => '移到根级';
+
+  @override
+  String get localGallery_createAlbumTitle => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbumTitle => '新建子相簿';
+
+  @override
+  String get localGallery_createAlbumHint => '输入相簿名称';
+
+  @override
+  String get localGallery_renameAlbumTitle => '重命名相簿';
+
+  @override
+  String get localGallery_deleteAlbumTitle => '删除相簿';
+
+  @override
+  String get localGallery_deleteAlbumContent => '将删除该相簿（图片文件不受影响），子相簿会提升到根级。';
+
+  @override
+  String get localGallery_addedToAlbum => '已加入相簿';
+
+  @override
+  String get localGallery_albumAddFailed => '加入相簿失败';
+
+  @override
+  String get localGallery_albumSelectTitle => '加入相簿';
+
+  @override
+  String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '已将 $count 张图片加入「$name」';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -5803,14 +5853,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => '移动图片失败';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '已添加 $count 张图片到集合「$name」';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '添加图片到集合失败';
 
   @override
   String get brushPreset_selectHint => '双击选择此笔刷预设';
@@ -18780,9 +18822,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_editMetadata => '編輯標籤';
 
   @override
-  String get localGallery_addToCollection => '收藏';
-
-  @override
   String get localGallery_switchToGridView => '切換到網格檢視';
 
   @override
@@ -18892,7 +18931,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return '將移動 $count 張本地圖片檔案到目標資料夾。請確認不是誤操作。';
+    return '將移動 $count 張本地圖片檔案到目標分類。請確認不是誤操作。';
   }
 
   @override
@@ -19330,10 +19369,63 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get localGallery_noFoldersAvailable => '暫無可用資料夾，請先建立資料夾';
+  String get localGallery_noCategoriesAvailable => '暫無可用分類，請先建立分類';
 
   @override
-  String get localGallery_moveToFolder => '移動到資料夾';
+  String get localGallery_moveToCategory => '移動到分類';
+
+  @override
+  String get localGallery_albumSectionTitle => '相簿';
+
+  @override
+  String get localGallery_folderSectionTitle => '資料夾';
+
+  @override
+  String get localGallery_albumEmptyHint => '還沒有相簿，點擊右側按鈕建立';
+
+  @override
+  String get localGallery_createAlbum => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbum => '新建子相簿';
+
+  @override
+  String get localGallery_moveAlbumToRoot => '移到根級';
+
+  @override
+  String get localGallery_createAlbumTitle => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbumTitle => '新建子相簿';
+
+  @override
+  String get localGallery_createAlbumHint => '輸入相簿名稱';
+
+  @override
+  String get localGallery_renameAlbumTitle => '重新命名相簿';
+
+  @override
+  String get localGallery_deleteAlbumTitle => '刪除相簿';
+
+  @override
+  String get localGallery_deleteAlbumContent => '將刪除該相簿（圖片檔案不受影響），子相簿會提升到根級。';
+
+  @override
+  String get localGallery_addedToAlbum => '已加入相簿';
+
+  @override
+  String get localGallery_albumAddFailed => '加入相簿失敗';
+
+  @override
+  String get localGallery_albumSelectTitle => '加入相簿';
+
+  @override
+  String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '已將 $count 張圖片加入「$name」';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -19347,14 +19439,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_moveImagesFailed => '移動圖片失敗';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '已新增 $count 張圖片到集合「$name」';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '新增圖片到集合失敗';
 
   @override
   String get brushPreset_selectHint => '雙擊選擇此筆刷預設';

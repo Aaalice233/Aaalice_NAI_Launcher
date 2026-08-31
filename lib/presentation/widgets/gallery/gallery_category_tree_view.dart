@@ -42,6 +42,12 @@ class GalleryCategoryTreeView extends StatefulWidget {
   final void Function(String imagePath, String? categoryId)? onImageDrop;
   final VoidCallback? onSyncWithFileSystem;
 
+  /// 是否渲染顶部固定的「全部图片 / 收藏」节点；
+  /// 与相簿区并列展示时传 false 避免入口重复。
+  final bool includeRootNodes;
+  final bool embedded;
+  final bool showScanProgress;
+
   const GalleryCategoryTreeView({
     super.key,
     required this.categories,
@@ -56,6 +62,9 @@ class GalleryCategoryTreeView extends StatefulWidget {
     this.onCategoryReorder,
     this.onImageDrop,
     this.onSyncWithFileSystem,
+    this.includeRootNodes = true,
+    this.embedded = false,
+    this.showScanProgress = true,
   });
 
   @override
@@ -88,6 +97,41 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final categoryList = ListView(
+      shrinkWrap: widget.embedded,
+      physics: widget.embedded ? const NeverScrollableScrollPhysics() : null,
+      padding: EdgeInsets.symmetric(vertical: widget.embedded ? 0 : 8),
+      children: [
+        if (widget.includeRootNodes) ...[
+          _buildImageDropTarget(
+            categoryId: null,
+            child: _CategoryItem(
+              icon: Icons.photo_library_outlined,
+              label: context.l10n.localGallery_allImages,
+              count: widget.totalImageCount,
+              isSelected: widget.selectedCategoryId == null,
+              onTap: () => widget.onCategorySelected(null),
+            ),
+          ),
+          _CategoryItem(
+            icon: widget.selectedCategoryId == 'favorites'
+                ? Icons.favorite
+                : Icons.favorite_border,
+            iconColor: Colors.red.shade400,
+            label: context.l10n.common_favorite,
+            count: widget.favoriteCount,
+            isSelected: widget.selectedCategoryId == 'favorites',
+            onTap: () => widget.onCategorySelected('favorites'),
+          ),
+        ],
+        if (widget.includeRootNodes && widget.categories.isNotEmpty)
+          const ThemedDivider(height: 16, indent: 12, endIndent: 12),
+        ...widget.categories.rootCategories.sortedByOrder().map(
+          (category) => _buildCategoryNode(theme, category, 0),
+        ),
+      ],
+    );
+
     return GestureDetector(
       onSecondaryTapUp: widget.onAddSubCategory != null
           ? (details) =>
@@ -95,42 +139,10 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
           : null,
       behavior: HitTestBehavior.translucent,
       child: Column(
+        mainAxisSize: widget.embedded ? MainAxisSize.min : MainAxisSize.max,
         children: [
-          // 分类树列表
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: [
-                _buildImageDropTarget(
-                  categoryId: null,
-                  child: _CategoryItem(
-                    icon: Icons.photo_library_outlined,
-                    label: context.l10n.localGallery_allImages,
-                    count: widget.totalImageCount,
-                    isSelected: widget.selectedCategoryId == null,
-                    onTap: () => widget.onCategorySelected(null),
-                  ),
-                ),
-                _CategoryItem(
-                  icon: widget.selectedCategoryId == 'favorites'
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  iconColor: Colors.red.shade400,
-                  label: context.l10n.common_favorite,
-                  count: widget.favoriteCount,
-                  isSelected: widget.selectedCategoryId == 'favorites',
-                  onTap: () => widget.onCategorySelected('favorites'),
-                ),
-                if (widget.categories.isNotEmpty)
-                  const ThemedDivider(height: 16, indent: 12, endIndent: 12),
-                ...widget.categories.rootCategories.sortedByOrder().map(
-                  (category) => _buildCategoryNode(theme, category, 0),
-                ),
-              ],
-            ),
-          ),
-          // 扫描进度面板（底部）
-          const GalleryScanProgressPanel(),
+          if (widget.embedded) categoryList else Expanded(child: categoryList),
+          if (widget.showScanProgress) const GalleryScanProgressPanel(),
         ],
       ),
     );
@@ -447,45 +459,51 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
   }
 
   /// 从 DataReader 中提取文件路径
-  Future<String?> _getFilePathFromUri(DataReader reader) async {
-    final completer = Completer<String?>();
+  Future<String?> _getFilePathFromUri(DataReader reader) =>
+      galleryFilePathFromDataReader(reader);
+}
 
-    final progress = reader.getValue(
-      Formats.fileUri,
-      (uri) {
-        if (!completer.isCompleted) {
-          if (uri == null) {
-            completer.complete(null);
-            return;
-          }
-          try {
-            final filePath = uri.toFilePath();
-            completer.complete(filePath);
-          } catch (e) {
-            completer.complete(null);
-          }
+/// 从拖放 [DataReader] 中提取文件路径（fileUri）。
+///
+/// 分类树与相簿树共用的系统级拖放辅助；读取失败或超时返回 null。
+Future<String?> galleryFilePathFromDataReader(DataReader reader) async {
+  final completer = Completer<String?>();
+
+  final progress = reader.getValue(
+    Formats.fileUri,
+    (uri) {
+      if (!completer.isCompleted) {
+        if (uri == null) {
+          completer.complete(null);
+          return;
         }
-      },
-      onError: (e) {
-        if (!completer.isCompleted) {
+        try {
+          final filePath = uri.toFilePath();
+          completer.complete(filePath);
+        } catch (e) {
           completer.complete(null);
         }
-      },
+      }
+    },
+    onError: (e) {
+      if (!completer.isCompleted) {
+        completer.complete(null);
+      }
+    },
+  );
+
+  if (progress == null) {
+    return null;
+  }
+
+  // 添加超时保护
+  try {
+    return await completer.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => null,
     );
-
-    if (progress == null) {
-      return null;
-    }
-
-    // 添加超时保护
-    try {
-      return await completer.future.timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => null,
-      );
-    } catch (e) {
-      return null;
-    }
+  } catch (e) {
+    return null;
   }
 }
 
@@ -555,7 +573,9 @@ class _CategoryItemState extends State<_CategoryItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isTouch = PlatformCapabilities.current.hasTouchInput;
-    final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
+    final backgroundInset = (24.0 + widget.depth * 12.0)
+        .clamp(24.0, 48.0)
+        .toDouble();
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -566,12 +586,17 @@ class _CategoryItemState extends State<_CategoryItem> {
             : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          margin: EdgeInsets.only(
+            left: backgroundInset,
+            right: 8,
+            top: 1,
+            bottom: 1,
+          ),
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
                 : (_isHovering
-                      ? theme.colorScheme.surfaceContainerHighest
+                      ? theme.colorScheme.onSurface.withValues(alpha: 0.07)
                       : Colors.transparent),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -582,7 +607,7 @@ class _CategoryItemState extends State<_CategoryItem> {
               constraints: BoxConstraints(minHeight: isTouch ? 48 : 0),
               child: Padding(
                 padding: EdgeInsets.only(
-                  left: indent,
+                  left: 4,
                   right: isTouch ? 0 : 8,
                   top: isTouch ? 0 : 8,
                   bottom: isTouch ? 0 : 8,
@@ -603,9 +628,9 @@ class _CategoryItemState extends State<_CategoryItem> {
                           color: theme.colorScheme.outline,
                         ),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 48,
-                          height: 48,
+                        constraints: BoxConstraints.tightFor(
+                          width: isTouch ? 48 : 20,
+                          height: isTouch ? 48 : 20,
                         ),
                       )
                     else
@@ -672,7 +697,9 @@ class _CategoryItemState extends State<_CategoryItem> {
                       widget.count.toString(),
                       style: TextStyle(
                         fontSize: 11,
-                        color: theme.colorScheme.outline,
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.72,
+                        ),
                       ),
                     ),
                     if (isTouch &&

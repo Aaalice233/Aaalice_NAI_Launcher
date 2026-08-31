@@ -15,6 +15,9 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/hive_startup_box_opener.dart';
 import '../../core/utils/hive_storage_helper.dart';
 import '../../data/repositories/collection_repository.dart';
+import '../../core/database/datasources/gallery_data_source.dart';
+import '../../core/storage/local_storage_service.dart';
+import '../../data/services/gallery/gallery_album_import_coordinator.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/services/vibe_library_migration_service.dart';
@@ -151,6 +154,13 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
           ShortcutStorage().init(),
         ]);
         await CollectionRepository.instance.initialize();
+
+        // 相簿首次导入：sidecar / 旧集合一次性恢复（容错，不阻塞启动；
+        // 索引未就绪的成员路径进入 pending，由扫描协调器补绑）
+        await GalleryAlbumImportCoordinator(
+          dataSource: GalleryDataSource(),
+          localStorage: LocalStorageService(),
+        ).importIfNeeded();
       },
     );
   },
