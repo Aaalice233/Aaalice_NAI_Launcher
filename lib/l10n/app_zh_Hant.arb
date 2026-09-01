@@ -2738,7 +2738,6 @@
   "localGallery_createAlbumTitle": "新建相簿",
   "localGallery_createSubAlbumTitle": "新建子相簿",
   "localGallery_createAlbumHint": "輸入相簿名稱",
-  "localGallery_renameAlbumTitle": "重新命名相簿",
   "localGallery_deleteAlbumTitle": "刪除相簿",
   "localGallery_deleteAlbumContent": "將刪除該相簿（圖片檔案不受影響），子相簿會提升到根級。",
   "localGallery_addedToAlbum": "已加入相簿",

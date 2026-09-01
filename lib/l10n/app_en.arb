@@ -2706,7 +2706,6 @@
   "localGallery_createAlbumTitle": "New Album",
   "localGallery_createSubAlbumTitle": "New Sub-album",
   "localGallery_createAlbumHint": "Enter album name",
-  "localGallery_renameAlbumTitle": "Rename Album",
   "localGallery_deleteAlbumTitle": "Delete Album",
   "localGallery_deleteAlbumContent": "This deletes the album; image files are not affected and sub-albums are promoted to root.",
   "localGallery_addedToAlbum": "Added to album",

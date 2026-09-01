@@ -10897,12 +10897,6 @@ abstract class AppLocalizations {
   /// **'Enter album name'**
   String get localGallery_createAlbumHint;
 
-  /// No description provided for @localGallery_renameAlbumTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename Album'**
-  String get localGallery_renameAlbumTitle;
-
   /// No description provided for @localGallery_deleteAlbumTitle.
   ///
   /// In en, this message translates to:

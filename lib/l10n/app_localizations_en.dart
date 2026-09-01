@@ -6104,9 +6104,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_createAlbumHint => 'Enter album name';
 
   @override
-  String get localGallery_renameAlbumTitle => 'Rename Album';
-
-  @override
   String get localGallery_deleteAlbumTitle => 'Delete Album';
 
   @override

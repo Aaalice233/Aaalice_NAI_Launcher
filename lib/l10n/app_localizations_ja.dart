@@ -5956,9 +5956,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_createAlbumHint => 'アルバム名を入力';
 
   @override
-  String get localGallery_renameAlbumTitle => 'アルバムの名前を変更';
-
-  @override
   String get localGallery_deleteAlbumTitle => 'アルバムを削除';
 
   @override
