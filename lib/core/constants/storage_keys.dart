@@ -60,6 +60,7 @@ class StorageKeys {
   static const String windowHeight = 'window_height';
   static const String windowX = 'window_x';
   static const String windowY = 'window_y';
+  static const String windowStateV2 = 'window_state_v2';
 
   // UI Layout State Keys (UI布局状态)
   static const String leftPanelExpanded = 'left_panel_expanded';

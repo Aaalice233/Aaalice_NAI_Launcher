@@ -61,6 +61,46 @@ void main() {
     },
   );
 
+  test('window restore uses native physical work areas and atomic state', () {
+    final dartSource = File('lib/main.dart').readAsStringSync();
+    final nativeSource = File(
+      'windows/runner/flutter_window.cpp',
+    ).readAsStringSync();
+
+    expect(dartSource, contains('nativePlatform.getWorkAreas()'));
+    expect(dartSource, contains('nativePlatform;'));
+    expect(dartSource, contains('resolveWindowRestorePlan('));
+    expect(
+      dartSource,
+      contains('WindowsNativeWindowStatePlatform().restore(restorePlan)'),
+    );
+    expect(nativeSource, contains('EnumDisplayMonitors('));
+    expect(nativeSource, contains('GetWindowRect(window, &bounds)'));
+    expect(nativeSource, contains('ShowWindow(window, *maximized'));
+    expect(nativeSource, isNot(contains('SetNextFrameCallback')));
+    expect(nativeSource, contains('message == WM_WINDOWPOSCHANGED'));
+    expect(nativeSource, contains('message == WM_EXITSIZEMOVE'));
+    expect(
+      dartSource.indexOf('nativePlatform?.setBoundsChangedHandler'),
+      greaterThan(dartSource.indexOf('windowManager.waitUntilReadyToShow')),
+    );
+    expect(
+      dartSource,
+      contains('AppWindowListener(stateController, hideOnClose: trayReady)'),
+    );
+  });
+
+  test('shutdown flushes window state before closing Hive', () {
+    final source = File(
+      'lib/core/services/desktop_app_shutdown_service.dart',
+    ).readAsStringSync();
+
+    expect(
+      source.indexOf('await _windowStateFlushHandler?.call();'),
+      lessThan(source.indexOf('await Hive.close();')),
+    );
+  });
+
   test('Flutter caption closes through prevent-close event, never destroy', () {
     final source = File(
       'lib/core/windowing/desktop_window_controller.dart',
