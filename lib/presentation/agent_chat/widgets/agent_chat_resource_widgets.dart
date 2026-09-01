@@ -314,8 +314,8 @@ class _AgentChatSentResourceCardState extends State<AgentChatSentResourceCard> {
               height: widget.touchOptimized ? 30 : 27,
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: theme.colorScheme.onPrimaryContainer.withValues(
-                  alpha: 0.08,
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.72,
                 ),
                 borderRadius: BorderRadius.circular(7),
               ),
@@ -349,7 +349,7 @@ class _AgentChatSentResourceCardState extends State<AgentChatSentResourceCard> {
                         size: 14,
                         color: unavailable
                             ? theme.colorScheme.error
-                            : theme.colorScheme.onPrimaryContainer,
+                            : theme.colorScheme.onSurface,
                       ),
                     ),
                   const SizedBox(width: 5),
@@ -361,7 +361,7 @@ class _AgentChatSentResourceCardState extends State<AgentChatSentResourceCard> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
+                          color: theme.colorScheme.onSurface,
                           height: 1,
                         ),
                       ),

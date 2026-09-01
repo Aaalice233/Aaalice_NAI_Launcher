@@ -27,8 +27,9 @@ import 'core/utils/hive_startup_box_opener.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'core/utils/window_focus_tracker.dart';
 import 'core/utils/windows_clipboard_history_key_fix.dart';
-import 'core/utils/window_state_coercion.dart';
 import 'core/utils/window_state_persistence.dart';
+import 'core/windowing/desktop_window_state_controller.dart';
+import 'core/windowing/windows_native_window_state.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/gallery_folder_repository.dart';
 import 'core/cache/local_gallery_thumbnail_migration.dart';
@@ -83,50 +84,35 @@ Future<void> _runNonFatalStartupStep(
   );
 }
 
-Future<void> _windowStateSaveQueue = Future<void>.value();
-
-Future<WindowStateSnapshot> _saveCurrentWindowState() {
-  final operation = _windowStateSaveQueue.then((_) async {
-    final snapshot = WindowStateSnapshot(
-      size: await windowManager.getSize(),
-      position: await windowManager.getPosition(),
-    );
-    final box = Hive.box(StorageKeys.settingsBox);
-    await persistWindowStateSnapshot(
-      put: (key, value) => box.put(key, value),
-      snapshot: snapshot,
-    );
-    return snapshot;
-  });
-  _windowStateSaveQueue = operation.then<void>((_) {}, onError: (_) {});
-  return operation;
-}
-
-/// 窗口状态观察者，用于保存窗口位置和大小
+/// 在桌面生命周期切换时刷新最后一个有效的普通窗口状态。
 class WindowStateObserver extends WidgetsBindingObserver {
+  WindowStateObserver(this.controller);
+
+  final DesktopWindowStateController controller;
+
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
-    // 仅在桌面端保存窗口状态
-    if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    if (state != AppLifecycleState.paused &&
+        state != AppLifecycleState.detached) {
       return;
     }
 
-    // 应用暂停或即将退出时保存窗口状态
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      try {
-        final snapshot = await _saveCurrentWindowState();
-
-        AppLogger.i(
-          'Window state saved: ${snapshot.size.width}x${snapshot.size.height} at (${snapshot.position.dx}, ${snapshot.position.dy})',
-          'Main',
-        );
-        await AppLogger.flush();
-      } catch (e) {
-        AppLogger.e('Failed to save window state: $e', 'Main');
-      }
+    try {
+      await controller.flush();
+      await AppLogger.flush();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to flush window state during lifecycle transition',
+        error,
+        stackTrace,
+        'Main',
+      );
     }
   }
+}
+
+Future<void> _restoreWindowIfMinimized() async {
+  if (await windowManager.isMinimized()) await windowManager.restore();
 }
 
 /// 系统托盘监听器，处理托盘图标交互
@@ -135,6 +121,7 @@ class AppTrayListener extends TrayListener {
   Future<void> onTrayIconMouseDown() async {
     // 左键点击托盘图标 - 恢复窗口
     try {
+      await _restoreWindowIfMinimized();
       await windowManager.show();
       await windowManager.focus();
       AppLogger.d('Window restored from tray (left click)', 'TrayListener');
@@ -154,6 +141,7 @@ class AppTrayListener extends TrayListener {
     try {
       if (menuItem.key == 'show') {
         // 显示窗口
+        await _restoreWindowIfMinimized();
         await windowManager.show();
         await windowManager.focus();
         AppLogger.d('Window shown via tray menu', 'TrayListener');
@@ -166,82 +154,110 @@ class AppTrayListener extends TrayListener {
   }
 }
 
-/// 窗口监听器，处理窗口关闭、大小变化和显示事件
+/// 窗口监听器只保存有效普通 bounds；最大化与最小化不覆盖它。
 class AppWindowListener extends WindowListener {
-  DateTime? _lastResizeSave;
+  AppWindowListener(this.controller, {required this.hideOnClose});
+
+  final DesktopWindowStateController controller;
+  final bool hideOnClose;
 
   @override
   Future<void> onWindowClose() async {
-    // 阻止默认关闭行为，改为隐藏到托盘
+    if (!hideOnClose) return;
     try {
-      // 阻止窗口关闭
-      await windowManager.setPreventClose(true);
+      await controller.flush();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to persist window state before hiding to tray',
+        error,
+        stackTrace,
+        'WindowListener',
+      );
+    }
+
+    try {
       await windowManager.hide();
       AppLogger.d('Window hidden to tray', 'WindowListener');
-    } catch (e) {
-      AppLogger.e('Failed to hide window to tray: $e', 'WindowListener');
+    } catch (error, stackTrace) {
+      AppLogger.e('Failed to hide window', error, stackTrace, 'WindowListener');
     }
   }
 
   @override
-  Future<void> onWindowFocus() async {
-    // 窗口获得焦点时的处理
+  void onWindowFocus() {
     WindowFocusTracker.markFocused();
     AppLogger.d('Window focused', 'WindowListener');
   }
 
   @override
-  Future<void> onWindowBlur() async {
-    // 窗口失焦时记录时间，用于规避外部截图工具引发的焦点抖动
+  void onWindowBlur() {
     WindowFocusTracker.markBlurred();
     AppLogger.d('Window blurred', 'WindowListener');
   }
 
   @override
-  Future<void> onWindowResize() async {
-    // 窗口大小变化时实时保存（带防抖）
-    final now = DateTime.now();
-    if (_lastResizeSave != null &&
-        now.difference(_lastResizeSave!) < const Duration(milliseconds: 500)) {
-      return;
-    }
-    _lastResizeSave = now;
+  void onWindowResize() {
+    if (Platform.isLinux) unawaited(_capture('resize'));
+  }
 
+  @override
+  void onWindowResized() {
+    if (Platform.isMacOS) unawaited(_capture('resize end'));
+  }
+
+  @override
+  void onWindowMove() {
+    if (Platform.isLinux) unawaited(_capture('move'));
+  }
+
+  @override
+  void onWindowMoved() {
+    if (Platform.isMacOS) unawaited(_capture('move end'));
+  }
+
+  @override
+  void onWindowMaximize() => unawaited(_recordMaximized());
+
+  @override
+  void onWindowUnmaximize() => unawaited(_recordUnmaximized());
+
+  @override
+  void onWindowRestore() => unawaited(_capture('restore'));
+
+  Future<void> _capture(String reason) async {
     try {
-      final snapshot = await _saveCurrentWindowState();
-
-      AppLogger.d(
-        'Window size/position saved: ${snapshot.size.width}x${snapshot.size.height} at (${snapshot.position.dx}, ${snapshot.position.dy})',
-        'WindowListener',
-      );
-    } catch (e) {
-      AppLogger.w(
-        'Failed to save window state on resize: $e',
+      await controller.captureCurrentState();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to capture window state after $reason',
+        error,
+        stackTrace,
         'WindowListener',
       );
     }
   }
 
-  @override
-  Future<void> onWindowMove() async {
-    // 窗口移动时也保存位置
-    final now = DateTime.now();
-    if (_lastResizeSave != null &&
-        now.difference(_lastResizeSave!) < const Duration(milliseconds: 500)) {
-      return;
-    }
-    _lastResizeSave = now;
-
+  Future<void> _recordMaximized() async {
     try {
-      final snapshot = await _saveCurrentWindowState();
-
-      AppLogger.d(
-        'Window position saved: (${snapshot.position.dx}, ${snapshot.position.dy})',
+      await controller.recordMaximized();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to persist maximized window state',
+        error,
+        stackTrace,
         'WindowListener',
       );
-    } catch (e) {
-      AppLogger.w(
-        'Failed to save window position on move: $e',
+    }
+  }
+
+  Future<void> _recordUnmaximized() async {
+    try {
+      await controller.recordUnmaximized();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to persist restored window state',
+        error,
+        stackTrace,
         'WindowListener',
       );
     }
@@ -258,9 +274,9 @@ void setupWindowsWakeUpChannel() {
     if (call.method == 'wakeUp') {
       try {
         // 确保窗口显示并置于前台
+        await _restoreWindowIfMinimized();
         await windowManager.show();
         await windowManager.focus();
-        await windowManager.restore();
         AppLogger.i('Window woken up by new instance', 'Main');
       } catch (e) {
         AppLogger.e('Failed to wake up window: $e', 'Main');
@@ -272,42 +288,58 @@ void setupWindowsWakeUpChannel() {
 class _DesktopWindowConfiguration {
   const _DesktopWindowConfiguration({
     required this.options,
-    required this.width,
-    required this.height,
-    required this.savedX,
-    required this.savedY,
-    required this.fillBounds,
+    required this.restorePlan,
+    required this.stateController,
+    required this.nativePlatform,
   });
 
   final WindowOptions options;
-  final double width;
-  final double height;
-  final double? savedX;
-  final double? savedY;
-  final Rect? fillBounds;
+  final WindowRestorePlan restorePlan;
+  final DesktopWindowStateController stateController;
+  final WindowsNativeWindowStatePlatform? nativePlatform;
 
   Future<void> show() async {
     await windowManager.waitUntilReadyToShow(options, () async {
-      if (fillBounds != null) {
-        await windowManager.setBounds(fillBounds!);
-        AppLogger.d('Window filled to work area: ${width}x$height', 'Main');
-      } else if (savedX != null && savedY != null) {
-        await windowManager.setPosition(Offset(savedX!, savedY!));
-        AppLogger.d(
-          'Window state restored: ${width}x$height at ($savedX, $savedY)',
+      if (Platform.isWindows) {
+        await const WindowsNativeWindowStatePlatform().restore(restorePlan);
+      } else {
+        await windowManager.setBounds(restorePlan.normalBounds);
+        if (restorePlan.maximized) await windowManager.maximize();
+        await windowManager.show();
+      }
+      await windowManager.focus();
+      AppLogger.i(
+        'Desktop window restored to ${restorePlan.normalBounds} '
+            '(maximized: ${restorePlan.maximized})',
+        'Main',
+      );
+    });
+
+    WidgetsBinding.instance.addObserver(WindowStateObserver(stateController));
+    nativePlatform?.setBoundsChangedHandler(() async {
+      try {
+        await stateController.captureCurrentState();
+      } catch (error, stackTrace) {
+        AppLogger.e(
+          'Failed to capture native Windows bounds change',
+          error,
+          stackTrace,
           'Main',
         );
       }
-      await windowManager.show();
-      await windowManager.focus();
-      AppLogger.i('Desktop window showing rendered Splash', 'Main');
     });
     final trayReady = await _initializeSystemTray();
-    if (trayReady) {
-      await windowManager.setPreventClose(true);
-      windowManager.addListener(AppWindowListener());
-    }
+    if (trayReady) await windowManager.setPreventClose(true);
+    windowManager.addListener(
+      AppWindowListener(stateController, hideOnClose: trayReady),
+    );
   }
+}
+
+Rect _displayWorkArea(Display display) {
+  final size = display.visibleSize ?? display.size;
+  final position = display.visiblePosition ?? Offset.zero;
+  return Rect.fromLTWH(position.dx, position.dy, size.width, size.height);
 }
 
 Future<_DesktopWindowConfiguration?> _prepareDesktopWindow() async {
@@ -319,68 +351,89 @@ Future<_DesktopWindowConfiguration?> _prepareDesktopWindow() async {
     await windowManager.ensureInitialized();
     if (Platform.isWindows) setupWindowsWakeUpChannel();
 
-    final box = Hive.box(StorageKeys.settingsBox);
-    final savedWidth = coerceWindowDimension(
-      box.get(StorageKeys.windowWidth, defaultValue: 1600.0),
-      fallback: 1600.0,
-    );
-    final savedHeight = coerceWindowDimension(
-      box.get(StorageKeys.windowHeight, defaultValue: 900.0),
-      fallback: 900.0,
-    );
-    final savedX = coerceWindowPosition(box.get(StorageKeys.windowX));
-    final savedY = coerceWindowPosition(box.get(StorageKeys.windowY));
-
-    var width = savedWidth;
-    var height = savedHeight;
-    Rect? fillBounds;
-    try {
-      final display = await screenRetriever.getPrimaryDisplay();
-      final work = display.visibleSize ?? display.size;
-      final workPosition = display.visiblePosition ?? Offset.zero;
-      if (Platform.isMacOS) {
-        width = work.width;
-        height = work.height;
-        fillBounds = Rect.fromLTWH(
-          workPosition.dx,
-          workPosition.dy,
-          work.width,
-          work.height,
-        );
-      } else {
-        final maxWidth = (work.width - 40)
-            .clamp(800.0, double.infinity)
-            .toDouble();
-        final maxHeight = (work.height - 40)
-            .clamp(600.0, double.infinity)
-            .toDouble();
-        width = savedWidth.clamp(800.0, maxWidth).toDouble();
-        height = savedHeight.clamp(600.0, maxHeight).toDouble();
-      }
-    } catch (e) {
-      AppLogger.w('获取屏幕工作区失败，使用默认窗口尺寸: $e', 'Main');
-    }
-
-    await windowManager.setMinimumSize(const Size(800, 600));
-    if (fillBounds != null) {
-      await windowManager.setBounds(fillBounds);
+    var workAreas = const <Rect>[];
+    var workAreaScaleFactors = const <Rect, double>{};
+    Rect? primaryWorkArea;
+    var legacyScale = 1.0;
+    DesktopWindowStatePlatform statePlatform =
+        const WindowManagerStatePlatform();
+    WindowsNativeWindowStatePlatform? nativePlatform;
+    if (Platform.isWindows) {
+      nativePlatform = const WindowsNativeWindowStatePlatform();
+      final nativeWorkAreas = await nativePlatform.getWorkAreas();
+      workAreas = nativeWorkAreas.all;
+      primaryWorkArea = nativeWorkAreas.primary;
+      workAreaScaleFactors = nativeWorkAreas.scaleFactors;
+      legacyScale = nativeWorkAreas.primaryScaleFactor;
+      statePlatform = nativePlatform;
     } else {
-      await windowManager.setSize(Size(width, height));
-      if (savedX != null && savedY != null) {
-        await windowManager.setPosition(Offset(savedX, savedY));
-      } else {
-        await windowManager.center();
+      try {
+        final displays = await screenRetriever.getAllDisplays();
+        final primaryDisplay = await screenRetriever.getPrimaryDisplay();
+        workAreas = displays.map(_displayWorkArea).toList(growable: false);
+        primaryWorkArea = _displayWorkArea(primaryDisplay);
+      } catch (error, stackTrace) {
+        AppLogger.e(
+          'Unable to read desktop work areas; using validated saved bounds',
+          error,
+          stackTrace,
+          'Main',
+        );
       }
     }
 
-    WidgetsBinding.instance.addObserver(WindowStateObserver());
-    AppLogger.d('Desktop window configured before first frame', 'Main');
+    final box = Hive.box(StorageKeys.settingsBox);
+    final storedState = readWindowStateSnapshot(
+      storedState: box.get(StorageKeys.windowStateV2),
+      legacyWidth: box.get(StorageKeys.windowWidth),
+      legacyHeight: box.get(StorageKeys.windowHeight),
+      legacyX: box.get(StorageKeys.windowX),
+      legacyY: box.get(StorageKeys.windowY),
+      legacyScale: legacyScale,
+      legacyWorkAreaScaleFactors: workAreaScaleFactors,
+    );
+    final restorePlan = resolveWindowRestorePlan(
+      snapshot: storedState,
+      workAreas: workAreas,
+      primaryWorkArea: primaryWorkArea,
+      workAreaScaleFactors: workAreaScaleFactors,
+    );
+    final resolvedState = WindowStateSnapshot(
+      normalBounds: restorePlan.normalBounds,
+      maximized: restorePlan.maximized,
+      scaleFactor: restorePlan.scaleFactor,
+    );
+    Future<void> persist(WindowStateSnapshot snapshot) {
+      return persistWindowStateSnapshot(
+        put: (key, value) => box.put(key, value),
+        snapshot: snapshot,
+      );
+    }
 
+    await persist(resolvedState);
+    final stateController = DesktopWindowStateController(
+      initialState: resolvedState,
+      persist: persist,
+      platform: statePlatform,
+    );
+    DesktopAppShutdownService.setWindowStateFlushHandler(stateController.flush);
+
+    await windowManager.setMinimumSize(
+      const Size(minimumWindowWidth, minimumWindowHeight),
+    );
+    AppLogger.d('Desktop window restore plan prepared', 'Main');
+
+    final initialLogicalSize = Platform.isWindows
+        ? Size(
+            restorePlan.normalBounds.width / legacyScale,
+            restorePlan.normalBounds.height / legacyScale,
+          )
+        : restorePlan.normalBounds.size;
     return _DesktopWindowConfiguration(
       options: WindowOptions(
-        size: Size(width, height),
-        minimumSize: const Size(800, 600),
-        center: fillBounds == null && (savedX == null || savedY == null),
+        size: initialLogicalSize,
+        minimumSize: const Size(minimumWindowWidth, minimumWindowHeight),
+        center: false,
         backgroundColor: const Color(0xFF121212),
         skipTaskbar: false,
         titleBarStyle: Platform.isWindows
@@ -389,20 +442,13 @@ Future<_DesktopWindowConfiguration?> _prepareDesktopWindow() async {
         windowButtonVisibility: !Platform.isWindows,
         title: 'NAI Launcher',
       ),
-      width: width,
-      height: height,
-      savedX: savedX,
-      savedY: savedY,
-      fillBounds: fillBounds,
+      restorePlan: restorePlan,
+      stateController: stateController,
+      nativePlatform: nativePlatform,
     );
-  } catch (e, stackTrace) {
-    AppLogger.e(
-      'Desktop window preparation failed; continuing startup',
-      e,
-      stackTrace,
-      'Main',
-    );
-    return null;
+  } catch (error, stackTrace) {
+    AppLogger.e('Desktop window preparation failed', error, stackTrace, 'Main');
+    rethrow;
   }
 }
 

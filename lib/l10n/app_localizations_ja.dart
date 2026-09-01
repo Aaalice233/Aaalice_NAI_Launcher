@@ -1267,6 +1267,24 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_model => 'モデルを選択';
 
   @override
+  String get agentChat_modelLabel => 'モデル';
+
+  @override
+  String get agentChat_modelPickerTitle => 'モデルを選択';
+
+  @override
+  String get agentChat_searchModels => 'モデルを検索';
+
+  @override
+  String get agentChat_searchModelsHint => 'モデル名、ID、またはプロバイダー';
+
+  @override
+  String get agentChat_clearModelSearch => 'モデル検索をクリア';
+
+  @override
+  String get agentChat_noModelResults => '検索条件に一致するモデルはありません。';
+
+  @override
   String get agentChat_noModel => 'モデル未設定';
 
   @override
