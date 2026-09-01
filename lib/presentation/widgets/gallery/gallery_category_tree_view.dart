@@ -10,6 +10,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../common/context_menu_anchor.dart';
 import '../common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'gallery_scan_progress_panel.dart';
@@ -186,12 +187,7 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
   void _showEmptyAreaContextMenu(BuildContext context, Offset position) {
     showMenu(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: contextMenuAnchorAt(context, position),
       items: [
         PopupMenuItem(
           onTap: () => widget.onAddSubCategory?.call(null),
@@ -888,12 +884,7 @@ class _CategoryItemState extends State<_CategoryItem> {
   void _showContextMenu(BuildContext context, Offset position) {
     showMenu(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: contextMenuAnchorAt(context, position),
       items: [
         if (widget.onRename != null)
           PopupMenuItem(

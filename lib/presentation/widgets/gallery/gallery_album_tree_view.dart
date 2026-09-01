@@ -9,6 +9,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../common/context_menu_anchor.dart';
 import '../common/themed_input.dart';
 import 'gallery_category_tree_view.dart'
     show galleryFilePathFromDataReader, galleryInternalDragPathFromLocalData;
@@ -875,12 +876,7 @@ class _AlbumItemState extends State<_AlbumItem> {
   void _showContextMenu(BuildContext context, Offset position) {
     showMenu(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: contextMenuAnchorAt(context, position),
       items: [
         if (widget.onRename != null)
           PopupMenuItem(

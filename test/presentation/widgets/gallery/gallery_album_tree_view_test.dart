@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:nai_launcher/data/models/gallery/gallery_album.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_album_tree_view.dart';
 
 GalleryAlbum _album(String id, {String? parentId}) => GalleryAlbum(
@@ -95,9 +96,38 @@ void main() {
     expect(moveToRootCalled, isFalse);
   });
 
-  testWidgets('右键菜单出现在点击位置（无偏移）', (tester) async {
+  testWidgets('右键菜单出现在点击位置（壳层偏移 overlay 下无偏移）', (tester) async {
+    // 生产壳层结构：真实 DesktopWindowFrame 提供 40px 自绘标题栏，
+    // 分支 Navigator 在 200px 主导航栏右侧。showMenu 的 position 相对
+    // 最近 Overlay，直接传手势窗口全局坐标会让菜单整体偏移一个壳层
+    // 边距（相簿树右键菜单偏移 bug）。
+    Widget offsetHost(Widget child) {
+      return MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: DesktopWindowFrame(
+            enabled: true,
+            child: Row(
+              children: [
+                const SizedBox(width: 200),
+                Expanded(
+                  child: Navigator(
+                    onGenerateRoute: (_) => PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => child,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     await tester.pumpWidget(
-      _host(
+      offsetHost(
         GalleryAlbumTreeView(
           albums: [_album('first')],
           totalImageCount: 0,
@@ -109,20 +139,27 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final itemCenter = tester.getCenter(find.text('first'));
-    await tester.tap(
-      find.text('first'),
-      buttons: kSecondaryButton,
+    // 点击内容区左半侧的相簿行（与生产中相簿面板位于内容区左侧一致），
+    // 菜单应从点击点向右下展开。
+    final rowCenter = tester.getCenter(find.text('first'));
+    final tapPosition = Offset(280, rowCenter.dy);
+    final gesture = await tester.startGesture(
+      tapPosition,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
     );
+    await gesture.up();
     await tester.pumpAndSettle();
 
-    // 用首个菜单项（重命名）定位菜单锚点
-    final firstItem = find.text('重命名');
-    expect(firstItem, findsOneWidget);
-    final firstItemTopLeft = tester.getTopLeft(firstItem);
-    // 菜单锚点应贴近点击位置（允许首项内边距）
-    expect((firstItemTopLeft.dy - itemCenter.dy).abs(), lessThan(48));
-    expect((firstItemTopLeft.dx - itemCenter.dx).abs(), lessThan(48));
+    // 用菜单面板（菜单项最近的 Material 祖先）断言面板原点贴合点击点
+    final menuPanel = find.ancestor(
+      of: find.byWidgetPredicate((widget) => widget is PopupMenuItem),
+      matching: find.byType(Material),
+    ).first;
+    expect(menuPanel, findsOneWidget);
+    final panelTopLeft = tester.getTopLeft(menuPanel);
+    expect(panelTopLeft.dx, closeTo(tapPosition.dx, 0.01));
+    expect(panelTopLeft.dy, closeTo(tapPosition.dy, 0.01));
   });
 
   testWidgets('子相簿的新增使其祖先链自动展开并立即可见', (tester) async {

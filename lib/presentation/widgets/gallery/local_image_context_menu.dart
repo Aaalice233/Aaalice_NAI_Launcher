@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../common/context_menu_anchor.dart';
 
 enum LocalImageContextAction {
   addToAgent,
@@ -39,7 +40,7 @@ class LocalImageContextMenu {
     return showMenu<LocalImageContextAction>(
       context: context,
       constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
-      position: _relativePosition(context, position),
+      position: contextMenuAnchorAt(context, position),
       popUpAnimationStyle: AnimationStyle.noAnimation,
       items: buildEntries(
         context,
@@ -63,7 +64,7 @@ class LocalImageContextMenu {
     return showMenu<LocalImageContextAction>(
       context: context,
       constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
-      position: _relativePosition(context, position),
+      position: contextMenuAnchorAt(context, position),
       popUpAnimationStyle: AnimationStyle.noAnimation,
       items: buildSendEntries(
         context,
@@ -71,15 +72,6 @@ class LocalImageContextMenu {
         watermarkEnabled: watermarkEnabled,
         isWatermarkDerivative: isWatermarkDerivative,
       ),
-    );
-  }
-
-  static RelativeRect _relativePosition(BuildContext context, Offset position) {
-    final overlay =
-        Overlay.of(context).context.findRenderObject()! as RenderBox;
-    return RelativeRect.fromRect(
-      Rect.fromLTWH(position.dx, position.dy, 1, 1),
-      Offset.zero & overlay.size,
     );
   }
 
