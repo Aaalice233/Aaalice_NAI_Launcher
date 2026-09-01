@@ -8,9 +8,11 @@ import '../../../core/agent/permissions/permissions.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
+import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../router/app_router_config.dart';
 import '../../router/app_routes.dart';
+import 'agent_image_observation_ledger.dart';
 import 'agent_resource_resolver.dart';
 import 'application_toolbox.dart';
 import 'display_images_toolbox.dart';
@@ -79,6 +81,10 @@ class AgentToolRegistryBuilder {
   final String Function() _activeSessionId;
   final bool Function() _isMounted;
 
+  /// 跨 build() 保留：权限模式切换不该抹掉本会话已经看过的图。
+  final AgentImageObservationLedger _observationLedger =
+      AgentImageObservationLedger();
+
   AgentToolRegistry build({
     required bool fullAccess,
     required AgentPermissionMode permissionMode,
@@ -92,6 +98,34 @@ class AgentToolRegistryBuilder {
       workspaceDir: _workspaceDir,
       allowOutsideWorkspace: fullAccess,
     );
+    _manualInpaintToolbox.configureObservationLedger(
+      _observationLedger,
+      activeSessionId: _activeSessionId,
+    );
+    _manualInpaintToolbox.configurePanelHandoff(({
+      required source,
+      required sourceWidth,
+      required sourceHeight,
+      required mask,
+      required focusedInpaintEnabled,
+      required focusedSelectionRect,
+      required minimumContextMegaPixels,
+      required sourceIsOutpaint,
+    }) async {
+      _ref
+          .read(imageWorkflowControllerProvider.notifier)
+          .applyInpaintEditorResult(
+            sourceImage: source,
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
+            maskImage: mask,
+            focusedInpaintEnabled: focusedInpaintEnabled,
+            focusedSelectionRect: focusedSelectionRect,
+            minimumContextMegaPixels: minimumContextMegaPixels,
+            sourceIsOutpaint: sourceIsOutpaint,
+          );
+      _ref.read(appRouterProvider).go(AppRoutes.generation);
+    });
     final resourceResolver = AgentResourceResolver(
       _ref,
       loadInpaintDraftImage: _manualInpaintToolbox.loadDraftImage,
@@ -150,6 +184,8 @@ class AgentToolRegistryBuilder {
       ...ExecutionToolbox(
         _workspaceDir,
         allowOutsideWorkspace: fullAccess,
+        observationLedger: _observationLedger,
+        activeSessionId: _activeSessionId,
       ).tools(),
       ...GenerationToolbox(
         _ref,

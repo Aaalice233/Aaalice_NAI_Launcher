@@ -79,6 +79,9 @@ String agentToolLabel(BuildContext context, String toolName) {
     'cancel_manual_inpaint_draft' => l10n.agentChat_toolCancelInpaint,
     'reedit_manual_inpaint_draft' => l10n.agentChat_toolReeditInpaint,
     'submit_manual_inpaint_draft' => l10n.agentChat_toolSubmitInpaint,
+    'create_inpaint_mask' => l10n.agentChat_toolCreateInpaintMask,
+    'expand_inpaint_canvas' => l10n.agentChat_toolExpandInpaintCanvas,
+    'load_inpaint_draft_into_panel' => l10n.agentChat_toolLoadInpaintPanel,
     String() when toolName.contains('generated_image') =>
       l10n.agentChat_toolRecentImages,
     String() when toolName.contains('queue') =>

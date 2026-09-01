@@ -186,8 +186,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
       AgentPermissionDomain.vibeLibrary,
     String() when toolName.contains('precise_ref') =>
       AgentPermissionDomain.preciseRefLibrary,
-    String() when toolName.contains('manual_inpaint') =>
-      AgentPermissionDomain.inpaint,
+    String() when toolName.contains('inpaint') => AgentPermissionDomain.inpaint,
     'queue_image_task' ||
     'get_generation_status' => AgentPermissionDomain.generationQueue,
     String() when toolName.contains('generation_queue') =>
@@ -238,6 +237,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     'navigate_application' ||
     'select_generated_image' ||
     'open_generation_image_workflow' ||
+    'load_inpaint_draft_into_panel' ||
     'copy_generated_image_to_clipboard' ||
     'send_generated_image_to_krita' => AgentPermissionOperation.execute,
     _ when isDelete => AgentPermissionOperation.delete,

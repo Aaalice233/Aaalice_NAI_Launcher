@@ -11,6 +11,9 @@ class AnlasCalculator {
   AnlasCalculator._();
 
   static const int opusTier = 3;
+
+  /// Opus 基础免费额度覆盖的最大像素面积。
+  static const int opusFreeMaxPixels = 1024 * 1024;
   static const int invalidCost = -3;
   static const int maximumPerSampleCost = 140;
   static const int novelAiUpscaleOpusFreeMaxInputPixels = 640 * 640;
@@ -245,7 +248,7 @@ class AnlasCalculator {
     required int steps,
     required int resolution,
   }) {
-    return isOpus && steps <= 28 && resolution <= 1024 * 1024;
+    return isOpus && steps <= 28 && resolution <= opusFreeMaxPixels;
   }
 
   /// 检查当前参数是否满足 Opus 免费条件
@@ -280,7 +283,7 @@ class AnlasCalculator {
       return cost * 3 + 5;
     }
 
-    if (isOpus && pixels <= 1048576) {
+    if (isOpus && pixels <= opusFreeMaxPixels) {
       return 0;
     }
 

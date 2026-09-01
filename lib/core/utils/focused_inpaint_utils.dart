@@ -196,6 +196,13 @@ class FocusedInpaintUtils {
   static const int dimensionStep = 64;
   static const int focusedTargetAreaPixels = 1048576;
   static const int maxRequestAreaPixels = 3145728;
+  static const double defaultContextPadding = 96;
+  static const int minContextPadding = 32;
+  // 官网滑条 32~96 封顶但允许手填更大值，这里直接把上限放宽到 192。
+  static const int maxContextPadding = 192;
+
+  static double clampContextPadding(num value) =>
+      value.clamp(minContextPadding, maxContextPadding).toDouble();
 
   static FocusedInpaintGeometry? resolveGeometryForSelection({
     required int sourceWidth,

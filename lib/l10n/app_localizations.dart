@@ -2315,6 +2315,24 @@ abstract class AppLocalizations {
   /// **'Submit manual inpaint draft'**
   String get agentChat_toolSubmitInpaint;
 
+  /// No description provided for @agentChat_toolCreateInpaintMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Create inpaint mask'**
+  String get agentChat_toolCreateInpaintMask;
+
+  /// No description provided for @agentChat_toolExpandInpaintCanvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand canvas'**
+  String get agentChat_toolExpandInpaintCanvas;
+
+  /// No description provided for @agentChat_toolLoadInpaintPanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Load inpaint draft into panel'**
+  String get agentChat_toolLoadInpaintPanel;
+
   /// No description provided for @agentChat_manualInpaintTitle.
   ///
   /// In en, this message translates to:

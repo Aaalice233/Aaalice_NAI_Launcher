@@ -1197,6 +1197,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
+    GenerationFocusedSnapshot? focusedOverride,
   }) async {
     generateCalls++;
     batchSize = batchSizeOverride;
