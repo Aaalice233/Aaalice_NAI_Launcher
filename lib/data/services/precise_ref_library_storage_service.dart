@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/database/utils/lru_cache.dart';
 import '../../core/enums/precise_ref_type.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/async_work_pool.dart';
 import '../../core/utils/display_thumbnail_utils.dart';
 import '../../core/utils/precise_ref_library_path_helper.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
@@ -47,6 +48,7 @@ class PreciseRefLibraryStorageService {
   Box<PreciseRefLibraryEntry>? _entriesBox;
   LazyBox<Uint8List>? _thumbnailCacheBox;
   Future<void>? _initFuture;
+  final AsyncWorkPool _thumbnailReadPool = AsyncWorkPool(4);
   final Map<String, Future<Uint8List?>> _thumbnailLoadsById = {};
   final Set<String> _deletingIds = {};
 
@@ -326,24 +328,27 @@ class PreciseRefLibraryStorageService {
   }
 
   /// 获取展示缩略图（内存 → LazyBox 缓存，未命中时生成并回写）。
-  Future<Uint8List?> getDisplayThumbnail(String id) async {
+  ///
+  /// 所有读盘和解码都经过有界队列，避免网格首帧同时唤醒几十个 Future，
+  /// 把 LazyBox 回调、图片解码和卡片重建挤进同一帧。
+  Future<Uint8List?> getDisplayThumbnail(
+    String id, {
+    bool Function()? isCancelled,
+  }) async {
+    if (_deletingIds.contains(id)) return null;
+
+    final memory = _memoryThumbnails.get(id);
+    if (memory != null) return memory;
+
     try {
-      await init();
-      if (_deletingIds.contains(id)) return null;
-
-      final memory = _memoryThumbnails.get(id);
-      if (memory != null) return memory;
-
-      final cached = await _thumbnailCacheBox!.get(id);
-      if (cached != null && cached.isNotEmpty) {
-        _memoryThumbnails.put(id, cached);
-        return cached;
-      }
-
       final activeLoad = _thumbnailLoadsById[id];
       if (activeLoad != null) return activeLoad;
 
-      final load = _loadAndCacheDisplayThumbnail(id);
+      final load = _thumbnailReadPool.run(
+        () => _readOrCreateDisplayThumbnail(id),
+        isCancelled: isCancelled,
+        prioritize: true,
+      );
       _thumbnailLoadsById[id] = load;
       try {
         return await load;
@@ -356,6 +361,22 @@ class PreciseRefLibraryStorageService {
       AppLogger.e('加载精准参考缩略图失败', e, s, _tag);
       return null;
     }
+  }
+
+  Future<Uint8List?> _readOrCreateDisplayThumbnail(String id) async {
+    await init();
+    if (_deletingIds.contains(id)) return null;
+
+    final memory = _memoryThumbnails.get(id);
+    if (memory != null) return memory;
+
+    final cached = await _thumbnailCacheBox!.get(id);
+    if (cached != null && cached.isNotEmpty) {
+      _memoryThumbnails.put(id, cached);
+      return cached;
+    }
+
+    return _loadAndCacheDisplayThumbnail(id);
   }
 
   Future<Uint8List?> _loadAndCacheDisplayThumbnail(String id) async {

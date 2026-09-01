@@ -270,13 +270,15 @@ class AddAccountResult {
 @Riverpod(keepAlive: true)
 class AuthNotifier extends _$AuthNotifier {
   static const String _autoLoginKey = 'auto_login';
+  late Future<void> _initialization;
 
   @override
   AuthState build() {
-    // 初始化时检查已存储的认证状态
-    _checkExistingAuth();
+    _initialization = _checkExistingAuth();
     return const AuthState(status: AuthStatus.loading);
   }
+
+  Future<void> get whenInitialized => _initialization;
 
   /// 检查已存储的认证状态
   Future<void> _checkExistingAuth() async {

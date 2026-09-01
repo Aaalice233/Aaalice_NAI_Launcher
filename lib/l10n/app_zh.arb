@@ -465,7 +465,6 @@
   "@agentChat_compactFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_requestFailed": "请求失败，请重试。",
   "agentChat_errorDetails": "错误详情",
-  "agentChat_model": "选择模型",
   "agentChat_modelLabel": "模型",
   "agentChat_modelPickerTitle": "选择模型",
   "agentChat_searchModels": "搜索模型",

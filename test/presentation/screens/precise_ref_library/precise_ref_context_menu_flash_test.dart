@@ -31,7 +31,10 @@ class _ProbeStorage extends PreciseRefLibraryStorageService {
   Uint8List? peekDisplayThumbnail(String id) => _memory[id];
 
   @override
-  Future<Uint8List?> getDisplayThumbnail(String id) async {
+  Future<Uint8List?> getDisplayThumbnail(
+    String id, {
+    bool Function()? isCancelled,
+  }) async {
     thumbnailFetches.add(id);
     await Future<void>.delayed(const Duration(milliseconds: 1));
     final bytes = Uint8List.fromList(_kTransparentPng);

@@ -472,7 +472,6 @@
   "@agentChat_compactFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_requestFailed": "リクエストに失敗しました。もう一度お試しください。",
   "agentChat_errorDetails": "エラーの詳細",
-  "agentChat_model": "モデルを選択",
   "agentChat_modelLabel": "モデル",
   "agentChat_modelPickerTitle": "モデルを選択",
   "agentChat_searchModels": "モデルを検索",

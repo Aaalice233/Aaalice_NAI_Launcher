@@ -460,7 +460,6 @@
   "@agentChat_compactFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_requestFailed": "請求失敗，請重試。",
   "agentChat_errorDetails": "錯誤詳情",
-  "agentChat_model": "選擇模型",
   "agentChat_modelLabel": "模型",
   "agentChat_modelPickerTitle": "選擇模型",
   "agentChat_searchModels": "搜尋模型",

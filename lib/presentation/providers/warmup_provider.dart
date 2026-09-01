@@ -1,19 +1,11 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
-import 'package:google_fonts/google_fonts.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/network/proxy_service.dart';
-import '../../core/enums/warmup_phase.dart';
 import '../../core/database/database.dart';
+import '../../core/enums/warmup_phase.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 import '../../core/utils/app_logger.dart';
-import '../../data/repositories/gallery_folder_repository.dart';
-import 'auth_provider.dart';
-import 'font_provider.dart';
-import 'prompt_config_provider.dart';
-import 'subscription_provider.dart';
 import 'startup_initialization_provider.dart';
 
 part 'warmup_provider.g.dart';
@@ -42,11 +34,6 @@ class WarmupProgress {
   factory WarmupProgress.initial() =>
       const WarmupProgress(progress: 0.0, currentTask: 'warmup_preparing');
 
-  factory WarmupProgress.prepared() => const WarmupProgress(
-    progress: 1.0,
-    currentTask: 'warmup_preparing',
-  );
-
   factory WarmupProgress.complete() => const WarmupProgress(
     progress: 1.0,
     currentTask: 'warmup_complete',
@@ -69,11 +56,6 @@ class WarmupLocalizedException implements Exception {
 /// 预加载状态
 class WarmupState {
   final WarmupProgress progress;
-
-  /// 关键初始化已结束，可以在 Splash 下方挂载主页进行首帧探测。
-  final bool isPrepared;
-
-  /// 主页首帧与启动 microtask 均已结束，应用可以立即交互。
   final bool isComplete;
   final String? error;
 
@@ -82,7 +64,6 @@ class WarmupState {
 
   const WarmupState({
     required this.progress,
-    this.isPrepared = false,
     this.isComplete = false,
     this.error,
     this.subTaskMessage,
@@ -91,18 +72,11 @@ class WarmupState {
   factory WarmupState.initial() =>
       WarmupState(progress: WarmupProgress.initial());
 
-  factory WarmupState.prepared() =>
-      WarmupState(progress: WarmupProgress.prepared(), isPrepared: true);
-
-  factory WarmupState.complete() => WarmupState(
-    progress: WarmupProgress.complete(),
-    isPrepared: true,
-    isComplete: true,
-  );
+  factory WarmupState.complete() =>
+      WarmupState(progress: WarmupProgress.complete(), isComplete: true);
 
   WarmupState copyWith({
     WarmupProgress? progress,
-    bool? isPrepared,
     bool? isComplete,
     String? error,
     String? subTaskMessage,
@@ -111,7 +85,6 @@ class WarmupState {
   }) {
     return WarmupState(
       progress: progress ?? this.progress,
-      isPrepared: isPrepared ?? this.isPrepared,
       isComplete: isComplete ?? this.isComplete,
       error: clearError ? null : error ?? this.error,
       subTaskMessage: clearSubTaskMessage
@@ -127,7 +100,6 @@ class WarmupNotifier extends _$WarmupNotifier {
   late WarmupTaskScheduler _scheduler;
   Completer<void> _completer = Completer<void>();
   bool _isRunning = false;
-  bool _postWarmupStarted = false;
 
   @override
   WarmupState build() {
@@ -136,22 +108,13 @@ class WarmupNotifier extends _$WarmupNotifier {
     return WarmupState.initial();
   }
 
-  /// 等待当前预热尝试进入可交互状态，或以错误结束。
+  /// 等待当前预热尝试结束，结果通过 [state] 判断。
   Future<void> get whenComplete => _completer.future;
 
   /// Splash 首帧完成后才开始关键初始化。
   void start() {
-    if (_isRunning || state.isPrepared) return;
+    if (_isRunning || state.isComplete) return;
     unawaited(_startWarmup());
-  }
-
-  void markInteractiveReady() {
-    if (!state.isPrepared || state.isComplete || state.error != null) return;
-    state = WarmupState.complete();
-    AppLogger.i('Warmup completed; application is interactive', 'Warmup');
-    if (!_completer.isCompleted) {
-      _completer.complete();
-    }
   }
 
   // ===== 任务实现方法 =====
@@ -197,49 +160,12 @@ class WarmupNotifier extends _$WarmupNotifier {
     AppLogger.i('关键服务初始化完成', 'Warmup');
   }
 
-  Future<void> _initializeInteractiveReadiness() async {
-    AppLogger.i('开始交互就绪初始化...', 'Warmup');
+  Future<void> _initializeMainShellData() async {
+    AppLogger.i('开始主页交互数据初始化...', 'Warmup');
     await ref
         .read(startupInitializationTasksProvider)
-        .initializeInteractiveReadiness();
-    AppLogger.i('交互就绪初始化完成', 'Warmup');
-  }
-
-  // 【修复】移除了 _configureImageCache 方法
-  // Image Cache 配置已在 main.dart 中统一处理（200MB）
-
-  Future<void> _preloadFonts() async {
-    final fontConfig = ref.read(fontNotifierProvider);
-    if (fontConfig.source != FontSource.google ||
-        fontConfig.fontFamily.isEmpty) {
-      AppLogger.i('Using system font, skip preload', 'Warmup');
-      return;
-    }
-
-    try {
-      await GoogleFonts.pendingFonts([
-        GoogleFonts.getFont(fontConfig.fontFamily),
-      ]);
-      AppLogger.i('Preloaded Google Font: ${fontConfig.fontFamily}', 'Warmup');
-    } catch (e) {
-      AppLogger.w('Font preload failed: $e', 'Warmup');
-    }
-  }
-
-  Future<void> _warmupImageEditor() async {
-    try {
-      final recorder = ui.PictureRecorder();
-      final canvas = ui.Canvas(recorder);
-      final paint = ui.Paint()..color = const ui.Color(0xFF000000);
-      canvas.drawCircle(ui.Offset.zero, 10, paint);
-      final picture = recorder.endRecording();
-      final image = await picture.toImage(50, 50);
-      image.dispose();
-      picture.dispose();
-      AppLogger.i('Image editor canvas warmed up', 'Warmup');
-    } catch (e) {
-      AppLogger.w('Image editor warmup failed: $e', 'Warmup');
-    }
+        .initializeMainShellData();
+    AppLogger.i('主页交互数据初始化完成', 'Warmup');
   }
 
   /// 重试预加载。失败的数据库 FutureProvider 必须失效后重新创建实例。
@@ -252,63 +178,6 @@ class WarmupNotifier extends _$WarmupNotifier {
     _registerTasks();
     start();
   }
-
-  /// 检查网络环境（最多尝试2次，失败不阻塞启动）
-  ///
-  /// 总超时控制在 8 秒内（调度器 timeout），避免被强制终止
-  Future<void> _checkNetworkEnvironment() async {
-    const maxAttempts = 2;
-    const timeout = Duration(seconds: 3);
-
-    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-      state = state.copyWith(
-        subTaskMessage: 'warmup_networkCheck_attempt|$attempt|$maxAttempts',
-      );
-
-      try {
-        final result = await ProxyService.testNovelAIConnection(
-          timeout: timeout,
-        );
-
-        if (result.success) {
-          AppLogger.i(
-            'Network check successful: ${result.latencyMs}ms',
-            'Warmup',
-          );
-          state = state.copyWith(
-            subTaskMessage: 'warmup_networkCheck_success|${result.latencyMs}',
-          );
-          await Future.delayed(const Duration(milliseconds: 300));
-          return;
-        }
-
-        AppLogger.w(
-          'Network check attempt $attempt/$maxAttempts failed: ${result.errorMessage}',
-          'Warmup',
-        );
-      } catch (e) {
-        AppLogger.w(
-          'Network check attempt $attempt/$maxAttempts error: $e',
-          'Warmup',
-        );
-      }
-
-      if (attempt >= maxAttempts) {
-        AppLogger.w(
-          'Network check reached max attempts, continuing offline',
-          'Warmup',
-        );
-        state = state.copyWith(subTaskMessage: 'warmup_networkCheck_timeout');
-        return;
-      }
-
-      await Future.delayed(const Duration(seconds: 1));
-    }
-  }
-
-  // ===========================================================================
-  // 三阶段预热架构
-  // ===========================================================================
 
   /// 注册进入主界面前必须成功的任务。它们严格串行，确保迁移早于数据库打开。
   void _registerTasks() {
@@ -354,12 +223,12 @@ class WarmupNotifier extends _$WarmupNotifier {
     );
     _scheduler.registerTask(
       PhasedWarmupTask(
-        name: 'warmup_interactiveReadiness',
+        name: 'warmup_mainShellData',
         displayName: 'warmup_group_dataServices',
         phase: WarmupPhase.critical,
-        weight: 3,
+        weight: 2,
         timeout: Duration.zero,
-        task: _initializeInteractiveReadiness,
+        task: _initializeMainShellData,
       ),
     );
   }
@@ -380,11 +249,8 @@ class WarmupNotifier extends _$WarmupNotifier {
         );
       }
 
-      state = WarmupState.prepared();
-      AppLogger.i(
-        'Warmup preparation completed; mounting main application',
-        'Warmup',
-      );
+      state = WarmupState.complete();
+      AppLogger.i('Warmup completed; entering main application', 'Warmup');
     } catch (e, stack) {
       AppLogger.e('Warmup failed', e, stack, 'Warmup');
       state = state.copyWith(
@@ -393,83 +259,9 @@ class WarmupNotifier extends _$WarmupNotifier {
       );
     } finally {
       _isRunning = false;
-      if (state.error != null && !_completer.isCompleted) {
+      if (!_completer.isCompleted) {
         _completer.complete();
       }
-    }
-  }
-
-  /// 主应用首帧完成后再启动非关键任务，避免争用页面切换帧。
-  void startPostWarmupTasks() {
-    if (_postWarmupStarted || !state.isComplete) return;
-    _postWarmupStarted = true;
-    if (!ref.read(startupInitializationTasksProvider).enablePostWarmupTasks) {
-      return;
-    }
-    _startNonCriticalWarmup();
-  }
-
-  void _startNonCriticalWarmup() {
-    final tasks = <(String, Future<void> Function())>[
-      ('Font preload', _preloadFonts),
-      ('Image editor warmup', _warmupImageEditor),
-      ('Network check', _checkNetworkEnvironment),
-      ('Prompt config load', _loadPromptConfig),
-      ('Gallery file count', _countGalleryFiles),
-      ('Subscription cache load', _loadSubscriptionCached),
-    ];
-    for (final task in tasks) {
-      unawaited(_runNonCriticalTask(task.$1, task.$2));
-    }
-  }
-
-  Future<void> _runNonCriticalTask(
-    String name,
-    Future<void> Function() task,
-  ) async {
-    try {
-      await task();
-      AppLogger.d('$name completed', 'Warmup');
-    } catch (e, stack) {
-      AppLogger.e('$name failed', e, stack, 'Warmup');
-    }
-  }
-
-  /// 加载提示词配置
-  Future<void> _loadPromptConfig() async {
-    final notifier = ref.read(promptConfigNotifierProvider.notifier);
-    await notifier.whenLoaded.timeout(const Duration(seconds: 8));
-  }
-
-  /// 统计画廊文件数
-  Future<void> _countGalleryFiles() async {
-    try {
-      final count = await GalleryFolderRepository.instance.getTotalImageCount();
-      AppLogger.i('Gallery file count: $count', 'Warmup');
-    } catch (e) {
-      AppLogger.w('Gallery file count failed: $e', 'Warmup');
-    }
-  }
-
-  /// 加载缓存的订阅信息（快速）
-  Future<void> _loadSubscriptionCached() async {
-    try {
-      final authState = ref.read(authNotifierProvider);
-      if (!authState.isAuthenticated) {
-        AppLogger.i('User not authenticated, skip subscription', 'Warmup');
-        return;
-      }
-      // 仅读取缓存，不强制网络请求
-      final subState = ref.read(subscriptionNotifierProvider);
-      if (!subState.isLoaded) {
-        // 尝试快速加载，超时则跳过
-        await ref
-            .read(subscriptionNotifierProvider.notifier)
-            .fetchSubscription()
-            .timeout(const Duration(seconds: 2), onTimeout: () => null);
-      }
-    } catch (e) {
-      AppLogger.w('Subscription load failed (non-critical): $e', 'Warmup');
     }
   }
 }

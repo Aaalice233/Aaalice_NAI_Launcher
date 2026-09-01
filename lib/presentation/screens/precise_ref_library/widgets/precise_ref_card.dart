@@ -8,6 +8,7 @@ import '../../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
+import '../../../widgets/app_branch_visibility.dart';
 
 enum _PreciseRefCardAction { sendToPreciseRef, sendToImg2Img, edit, delete }
 
@@ -41,6 +42,17 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
   Uint8List? _thumbnail;
   bool _thumbnailRequested = false;
   bool _hovering = false;
+  bool _isBranchVisible = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final wasVisible = _isBranchVisible;
+    _isBranchVisible = AppBranchVisibility.of(context);
+    if (_isBranchVisible && !wasVisible && _thumbnail == null) {
+      _thumbnailRequested = false;
+    }
+  }
 
   @override
   void didUpdateWidget(covariant PreciseRefCard oldWidget) {
@@ -62,10 +74,21 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
       _thumbnail = cached;
       return;
     }
-    storage.getDisplayThumbnail(id).then((bytes) {
-      if (!mounted || widget.entry.id != id) return;
-      setState(() => _thumbnail = bytes);
-    });
+    storage
+        .getDisplayThumbnail(
+          id,
+          isCancelled: () =>
+              !mounted || widget.entry.id != id || !_isBranchVisible,
+        )
+        .then((bytes) {
+          if (!mounted || widget.entry.id != id) return;
+          if (_isBranchVisible) {
+            setState(() => _thumbnail = bytes);
+          } else {
+            // IndexedStack 会保留隐藏分支；只缓存结果，不把隐藏卡片标脏。
+            _thumbnail = bytes;
+          }
+        });
   }
 
   String _typeDisplayName(BuildContext context) {

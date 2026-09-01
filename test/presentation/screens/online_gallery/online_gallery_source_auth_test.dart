@@ -441,6 +441,7 @@ void main() {
         ),
       );
       await tester.pump();
+      await tester.pump();
       expect(
         _selectedModeColor(tester, 'online-gallery-mode-favorites'),
         const Color(0xFFBE185D),
@@ -666,6 +667,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
     await tester.tap(find.byType(DanbooruPostCard));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
@@ -740,6 +742,7 @@ void main() {
         child: const _TestApp(),
       ),
     );
+    await tester.pump();
     await tester.pump();
 
     expect(find.byKey(const ValueKey('ai_tag:801')), findsOneWidget);
@@ -913,6 +916,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
 
     expect(
       find.byKey(const ValueKey('grid-item:danbooru:401')),
@@ -927,6 +931,7 @@ void main() {
     );
 
     await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pump();
     await tester.pump();
 
     final container = ProviderScope.containerOf(
@@ -948,6 +953,7 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
 
     expect(
       find.byKey(const ValueKey('grid-item:danbooru:401')),

@@ -232,6 +232,10 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   ) {
     final target = viewData.mobile ? 44.0 : 40.0;
     final trailingControls = viewData.running ? 2 : 1;
+    final availableHeight = viewData.height
+        .clamp(0, AgentChatComposerLayout.availableViewportHeight(context))
+        .toDouble();
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
     final editor = TextField(
       key: const ValueKey('agent-chat-input'),
       controller: controller.inputController,
@@ -240,12 +244,18 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       expands: _editorExpanded,
       minLines: _editorExpanded
           ? null
-          : AgentChatComposerLayout.defaultMinLines,
+          : AgentChatComposerLayout.collapsedEditorMinLines(
+              availableHeight: availableHeight,
+              textScale: textScale,
+              touchOptimized: viewData.mobile,
+            ),
       maxLines: _editorExpanded
           ? null
-          : viewData.mobile
-          ? AgentChatComposerLayout.defaultMobileMaxLines
-          : AgentChatComposerLayout.defaultDesktopMaxLines,
+          : AgentChatComposerLayout.collapsedEditorMaxLines(
+              availableHeight: availableHeight,
+              textScale: textScale,
+              touchOptimized: viewData.mobile,
+            ),
       style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
       textInputAction: TextInputAction.newline,
       textAlignVertical: TextAlignVertical.top,
@@ -266,9 +276,6 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         border: InputBorder.none,
       ),
     );
-    final availableHeight = viewData.height
-        .clamp(0, AgentChatComposerLayout.availableViewportHeight(context))
-        .toDouble();
 
     return Focus(
       onKeyEvent: (node, event) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -48,6 +49,9 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   final paginationDemand = OnlineGalleryPaginationDemand();
   final Map<String, GlobalKey> _pageAnchorKeys = <String, GlobalKey>{};
   final Set<String> pendingGalleryDetails = <String>{};
+  final ListQueue<VoidCallback> _cardRevealQueue = ListQueue<VoidCallback>();
+  bool _cardRevealScheduled = false;
+  bool _disposed = false;
 
   Timer? searchDebounceTimer;
   Timer? scrollStopTimer;
@@ -462,6 +466,29 @@ class OnlineGalleryScreenController extends ChangeNotifier {
     });
   }
 
+  void scheduleCardReveal(VoidCallback reveal) {
+    if (_disposed) return;
+    _cardRevealQueue.addLast(reveal);
+    _scheduleCardRevealFrame();
+  }
+
+  void _scheduleCardRevealFrame() {
+    if (_cardRevealScheduled || _cardRevealQueue.isEmpty || _disposed) return;
+    _cardRevealScheduled = true;
+    SchedulerBinding.instance.scheduleFrame();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _cardRevealScheduled = false;
+      if (_disposed) return;
+      for (var index = 0; index < 2 && _cardRevealQueue.isNotEmpty; index++) {
+        _cardRevealQueue.removeFirst()();
+      }
+      if (_cardRevealQueue.isNotEmpty) {
+        SchedulerBinding.instance.scheduleFrame();
+        _scheduleCardRevealFrame();
+      }
+    });
+  }
+
   void cancelTimers() {
     searchDebounceTimer?.cancel();
     scrollStopTimer?.cancel();
@@ -472,6 +499,8 @@ class OnlineGalleryScreenController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    _cardRevealQueue.clear();
     if (kDebugMode) {
       SchedulerBinding.instance.removeTimingsCallback(_frameTimingsCallback);
     }

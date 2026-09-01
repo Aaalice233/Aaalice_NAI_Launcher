@@ -85,7 +85,7 @@ void main() {
     );
   });
 
-  test('reserves several viewports without unbounded placeholder growth', () {
+  test('renders only viewport-sized placeholders during large requests', () {
     var now = DateTime(2026);
     final demand = OnlineGalleryPaginationDemand(now: () => now);
     demand.recordScroll(0);
@@ -106,7 +106,7 @@ void main() {
       pageSize: 60,
     );
 
-    expect(count, greaterThanOrEqualTo(60));
-    expect(count, lessThanOrEqualTo((800 * 12 / 166).ceil() * 4));
+    expect(count, greaterThan(0));
+    expect(count, lessThanOrEqualTo((800 / 166).ceil() * 4));
   });
 }

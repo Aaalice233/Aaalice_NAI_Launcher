@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -27,15 +28,20 @@ part 'unified_gallery_service.g.dart';
 @Riverpod(keepAlive: true)
 class GalleryService extends _$GalleryService {
   LocalGalleryService? _service;
+  Future<void>? _initialization;
 
   @override
   LocalGalleryService build() {
-    _initializeService();
+    unawaited(ensureInitialized());
     ref.onDispose(() {
       _service?.dispose();
       _service = null;
     });
     return _PlaceholderGalleryService();
+  }
+
+  Future<void> ensureInitialized() {
+    return _initialization ??= _initializeService();
   }
 
   Future<void> _initializeService() async {
@@ -74,7 +80,8 @@ class GalleryService extends _$GalleryService {
   Future<void> reinitialize() async {
     await _service?.dispose();
     _service = null;
-    await _initializeService();
+    _initialization = null;
+    await ensureInitialized();
   }
 }
 

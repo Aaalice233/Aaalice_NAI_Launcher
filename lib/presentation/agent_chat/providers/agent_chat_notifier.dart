@@ -61,7 +61,7 @@ typedef AgentWireCompletion =
 
 final agentChatNotifierProvider =
     StateNotifierProvider<AgentChatNotifier, AgentChatState>((ref) {
-      return AgentChatNotifier(ref);
+      return AgentChatNotifier(ref, initializeImmediately: false);
     });
 
 /// 聊天 agent 编排层：
@@ -79,6 +79,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     AgentWireCompletion? completeRequest,
     Map<String, String>? skillEnvironment,
     Future<Directory?> Function()? imageProjectDirectoryResolver,
+    bool initializeImmediately = true,
   }) : _providedSupportDir = supportDir,
        _providedWorkspaceDir = workspaceDir,
        _providedSessionRepo = sessionRepo,
@@ -108,7 +109,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         unawaited(refreshPendingResourceAvailability());
       });
     }
-    _initializing = _init(presetSkills: presetSkills);
+    _presetSkills = presetSkills;
+    if (initializeImmediately) {
+      ensureInitialized();
+    }
   }
 
   final Ref _ref;
@@ -118,6 +122,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   final AgentWireCompletion? _completeRequest;
   final Map<String, String>? _skillEnvironment;
   final Future<Directory?> Function()? _imageProjectDirectoryResolver;
+  late final List<HarnessSkill>? _presetSkills;
   late Directory _supportDir;
   late Directory _workspaceDir;
   late AgentChatDraftController _draftController;
@@ -133,7 +138,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   final GenerationPreparationRuntime _generationPreparationRuntime =
       GenerationPreparationRuntime();
   final QueueControlRuntime _queueControlRuntime = QueueControlRuntime();
-  late final Future<void> _initializing;
+  Future<void>? _initializing;
   bool _usesPresetSkills = false;
   bool _runtimeReady = false;
   Future<void> _settingsRefresh = Future<void>.value();
@@ -147,6 +152,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   LocalStorageService get _local => _ref.read(localStorageServiceProvider);
   AgentChatSessionController get _sessionController => _sessionControllerValue!;
+  Future<void> get whenInitialized => ensureInitialized();
+
+  Future<void> ensureInitialized() =>
+      _initializing ??= _init(presetSkills: _presetSkills);
 
   Future<void> _init({List<HarnessSkill>? presetSkills}) async {
     final providedSupportDir = _providedSupportDir;
@@ -413,6 +422,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<int> reloadSkills() async {
+    await ensureInitialized();
     if (!_usesPresetSkills) {
       await _loadSkillsFromDisk(
         skillEnabledOverrides: _activeAgentSettings?.skillEnabledOverrides,
@@ -801,7 +811,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     String? customInstructions,
     AgentSystemPromptMode? mode,
   }) async {
-    await _initializing;
+    await ensureInitialized();
     await _settingsRefresh;
     final previewSkills = _usesPresetSkills
         ? _skills.values
@@ -911,7 +921,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> addPendingResource(AgentChatResourceReference reference) async {
-    await _initializing;
+    await ensureInitialized();
     await _draftController.addPendingResource(reference);
   }
 
@@ -966,11 +976,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   Future<ResolvedAgentResource?> resolveResourcePreview(
     AgentChatResourceReference reference,
   ) async {
-    await _initializing;
+    await ensureInitialized();
     return _draftController.resolveResourcePreview(reference);
   }
 
   Future<void> newSession() async {
+    await ensureInitialized();
     final inheritedThinkingLevel = state.thinkingLevel;
     await _sessionController.newSession();
     _refreshRoute();
@@ -981,6 +992,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> switchSession(String sessionId) async {
+    await ensureInitialized();
     await _sessionController.switchSession(sessionId);
     _refreshRoute();
   }
@@ -989,18 +1001,27 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   ///
   /// 原条目仍保留在会话树中，只移动 main lane 指针；后续发送会从回退点
   /// 建立新分支，与 `/rewind` 的语义一致。
-  Future<UserMessage?> rewindLastUserMessage() =>
-      _sessionController.rewindLastUserMessage();
+  Future<UserMessage?> rewindLastUserMessage() async {
+    await ensureInitialized();
+    return _sessionController.rewindLastUserMessage();
+  }
 
-  Future<void> loadEarlierHistory() => _sessionController.loadEarlierHistory();
+  Future<void> loadEarlierHistory() async {
+    await ensureInitialized();
+    return _sessionController.loadEarlierHistory();
+  }
 
   /// 删除指定会话；删除当前会话时自动切到最近剩余会话（无则新建）。
-  Future<void> deleteSession(String sessionId) =>
-      _sessionController.deleteSession(sessionId);
+  Future<void> deleteSession(String sessionId) async {
+    await ensureInitialized();
+    return _sessionController.deleteSession(sessionId);
+  }
 
   /// 重命名会话（持久化 name 记录，列表即时刷新）。
-  Future<void> renameSession(String sessionId, String name) =>
-      _sessionController.renameSession(sessionId, name);
+  Future<void> renameSession(String sessionId, String name) async {
+    await ensureInitialized();
+    return _sessionController.renameSession(sessionId, name);
+  }
 
   /// 切换聊天模型：写入 chat 任务路由并持久化，随后刷新本地路由缓存。
   Future<void> selectChatModel(String providerId, String model) async {
@@ -1059,7 +1080,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   Future<bool> prepareEditedSend() async {
     if (state.sessionTransitioning || _runActive) return false;
-    await _initializing;
+    await ensureInitialized();
     if (state.sessionTransitioning || _runActive) return false;
     if (!await validatePendingResourcesForSend()) return false;
     await _settingsRefresh;
@@ -1068,12 +1089,17 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     return state.routeReady && _sessionController.agent != null;
   }
 
-  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind() =>
-      _sessionController.beginRewindLastUserMessage();
+  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind() async {
+    await ensureInitialized();
+    return _sessionController.beginRewindLastUserMessage();
+  }
 
   Future<void> restoreEditedMessageRewind(
     AgentChatRewindCheckpoint checkpoint,
-  ) => _sessionController.restoreRewindCheckpoint(checkpoint);
+  ) async {
+    await ensureInitialized();
+    return _sessionController.restoreRewindCheckpoint(checkpoint);
+  }
 
   /// 开头 `/名称` 命中的已启用技能。解析放在发送这一刻，才能保证用的是与
   /// 当前工具注册表同一份 `_skills`；重试重发同一条文本时也会重新命中。
@@ -1096,7 +1122,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (state.sessionTransitioning) {
       return false;
     }
-    await _initializing;
+    await ensureInitialized();
     final previousDispatch = _sendDispatch;
     final dispatchDone = Completer<void>();
     _sendDispatch = dispatchDone.future;

@@ -18,6 +18,7 @@ import '../../../data/services/vibe_library_storage_service.dart';
 
 const _generationStateSchemaVersion = 2;
 const _advancedOptionsExpandedKey = 'generation_advanced_options_expanded';
+const _isolateDecodeThreshold = 64 * 1024;
 
 final class GenerationParamsPersistenceService {
   GenerationParamsPersistenceService({
@@ -176,7 +177,9 @@ final class GenerationParamsPersistenceService {
         return const GenerationStateRestoreResult.empty();
       }
       jsonChars = stateJson.length;
-      final decoded = await Isolate.run(() => _decodeStateJson(stateJson));
+      final decoded = stateJson.length < _isolateDecodeThreshold
+          ? _decodeStateJson(stateJson)
+          : await Isolate.run(() => _decodeStateJson(stateJson));
       final result = GenerationStateRestoreResult.fromDecoded(decoded);
       _hasRestored = true;
       return result;

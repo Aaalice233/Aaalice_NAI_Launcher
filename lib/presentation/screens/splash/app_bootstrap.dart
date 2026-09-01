@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../app.dart';
+import '../../../core/services/interactive_work_gate.dart';
 import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/first_launch_detector.dart';
@@ -23,7 +24,7 @@ class AppBootstrap extends ConsumerStatefulWidget {
     super.key,
     this.mainAppBuilder,
     this.onWarmupComplete,
-    this.autoUpdateDelay = const Duration(seconds: 3),
+    this.autoUpdateDelay = const Duration(seconds: 10),
     this.autoUpdateCheckRunner,
   });
 
@@ -43,11 +44,11 @@ class AppBootstrap extends ConsumerStatefulWidget {
 
 class _AppBootstrapState extends ConsumerState<AppBootstrap> {
   bool _showMainApp = false;
-  bool _interactiveReady = false;
+  bool _showSplashOverlay = true;
   bool _hasCheckedFirstLaunch = false;
+  bool _mainAppMountScheduled = false;
   bool _warmupCompletionNotified = false;
-  bool _readinessProbeScheduled = false;
-  Timer? _readinessProbeTimer;
+  Widget? _mountedMainApp;
 
   @override
   void initState() {
@@ -63,43 +64,22 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
   }
 
   void _scheduleMainAppMount() {
+    if (_mainAppMountScheduled) return;
+    _mainAppMountScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _showMainApp) return;
       setState(() {
         _showMainApp = true;
       });
-      _scheduleInteractiveReadinessProbe();
-    });
-  }
-
-  void _scheduleInteractiveReadinessProbe() {
-    if (_readinessProbeScheduled) return;
-    _readinessProbeScheduled = true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      AppLogger.i(
-        'Main application frame rendered; probing event loop readiness',
-        'AppBootstrap',
-      );
-
-      // A zero-delay event turn runs only after startup microtasks queued while
-      // building the main tree have settled. Keep Splash above the tree until
-      // that turn and the resulting frame both complete.
-      _readinessProbeTimer = Timer(Duration.zero, () {
-        if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_showSplashOverlay) return;
         setState(() {
-          _interactiveReady = true;
+          _showSplashOverlay = false;
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || _warmupCompletionNotified) return;
-          ref.read(warmupNotifierProvider.notifier).markInteractiveReady();
           _warmupCompletionNotified = true;
-          AppLogger.i(
-            'Application interactive readiness confirmed',
-            'AppBootstrap',
-          );
-          ref.read(warmupNotifierProvider.notifier).startPostWarmupTasks();
+          AppLogger.i('Main application first frame rendered', 'AppBootstrap');
           widget.onWarmupComplete?.call();
         });
       });
@@ -123,7 +103,7 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
   Widget build(BuildContext context) {
     final warmupState = ref.watch(warmupNotifierProvider);
 
-    if (warmupState.isPrepared && !_showMainApp) {
+    if (warmupState.isComplete && !_showMainApp) {
       _scheduleMainAppMount();
     }
 
@@ -131,36 +111,44 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
       return _buildSplash();
     }
 
-    final mainAppBuilder = widget.mainAppBuilder;
-    final mainApp = mainAppBuilder != null
-        ? mainAppBuilder(context)
-        : _MainAppWrapper(
+    // Cache the complete mounted subtree. Recreating this widget while merely
+    // removing Splash would update and rebuild the entire router hierarchy.
+    final mountedMainApp = _mountedMainApp ??= AutomaticUpdateCheck(
+      delay: widget.autoUpdateDelay,
+      checkRunner: widget.autoUpdateCheckRunner,
+      child:
+          widget.mainAppBuilder?.call(context) ??
+          _MainAppWrapper(
             hasCheckedFirstLaunch: _hasCheckedFirstLaunch,
             onFirstLaunchChecked: () {
               _hasCheckedFirstLaunch = true;
             },
-          );
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          AutomaticUpdateCheck(
-            enabled: _interactiveReady,
-            delay: widget.autoUpdateDelay,
-            checkRunner: widget.autoUpdateCheckRunner,
-            child: mainApp,
           ),
-          if (!_interactiveReady) Positioned.fill(child: _buildSplash()),
-        ],
-      ),
     );
-  }
-
-  @override
-  void dispose() {
-    _readinessProbeTimer?.cancel();
-    super.dispose();
+    // Keep the root and both child identities stable while hiding Splash.
+    // Removing the overlay would relayout the complete router tree; returning
+    // mountedMainApp directly would additionally remount it.
+    return Stack(
+      alignment: Alignment.topLeft,
+      fit: StackFit.expand,
+      children: [
+        mountedMainApp,
+        Opacity(
+          key: const ValueKey('splash_overlay'),
+          opacity: _showSplashOverlay ? 1 : 0,
+          child: TickerMode(
+            enabled: _showSplashOverlay,
+            child: IgnorePointer(
+              ignoring: !_showSplashOverlay,
+              child: ExcludeSemantics(
+                excluding: !_showSplashOverlay,
+                child: _buildSplash(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -173,13 +161,11 @@ class AutomaticUpdateCheck extends ConsumerStatefulWidget {
   const AutomaticUpdateCheck({
     super.key,
     required this.child,
-    this.enabled = true,
-    this.delay = const Duration(seconds: 3),
+    this.delay = const Duration(seconds: 10),
     this.checkRunner,
   });
 
   final Widget child;
-  final bool enabled;
   final Duration delay;
 
   @visibleForTesting
@@ -197,24 +183,11 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
   @override
   void initState() {
     super.initState();
-    if (widget.enabled) {
-      _schedule(widget.delay);
-    }
-  }
-
-  @override
-  void didUpdateWidget(AutomaticUpdateCheck oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!oldWidget.enabled && widget.enabled) {
-      _schedule(widget.delay);
-    } else if (oldWidget.enabled && !widget.enabled) {
-      _timer?.cancel();
-      _timer = null;
-    }
+    InteractiveWorkGate.instance.markInteraction();
+    _schedule(widget.delay);
   }
 
   void _schedule(Duration delay) {
-    if (!widget.enabled) return;
     _timer?.cancel();
     _timer = Timer(delay, _run);
   }
@@ -228,17 +201,24 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
         return;
       }
 
-      final provider = automaticUpdateCheckProvider(
-        onStartup: !_startupCheckCompleted,
+      // 更新检查可能继续下载并校验发布资产。进入统一空闲队列，避免与
+      // 云恢复、缓存维护和后台刷新同时争抢 UI isolate。
+      await InteractiveWorkGate.instance.runWhenIdle(
+        action: () async {
+          if (!mounted) return;
+          final provider = automaticUpdateCheckProvider(
+            onStartup: !_startupCheckCompleted,
+          );
+          ref.invalidate(provider);
+          await ref.read(provider.future);
+          _startupCheckCompleted = true;
+        },
       );
-      ref.invalidate(provider);
-      await ref.read(provider.future);
-      _startupCheckCompleted = true;
     } catch (error, stackTrace) {
       AppLogger.w('Auto update check failed: $error', 'AppBootstrap');
       AppLogger.d('$stackTrace', 'AppBootstrap');
     } finally {
-      if (mounted && widget.enabled) {
+      if (mounted) {
         _schedule(UpdateCheckService.failedCheckRetryInterval);
       }
     }

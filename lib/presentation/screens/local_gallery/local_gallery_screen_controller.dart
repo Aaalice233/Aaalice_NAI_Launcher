@@ -62,7 +62,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
   }
 
   static const Duration _refreshDebounce = Duration(milliseconds: 500);
-  static const Duration _minimumRefreshInterval = Duration(seconds: 5);
+  static const Duration _minimumRefreshInterval = Duration(seconds: 30);
 
   final WidgetRef _ref;
   final BuildContext Function() _context;
@@ -214,7 +214,9 @@ class LocalGalleryScreenController extends ChangeNotifier {
         }
 
         final now = DateTime.now();
-        final lastRefreshTime = _lastRefreshTime;
+        final lastRefreshTime =
+            _lastRefreshTime ??
+            _ref.read(localGalleryNotifierProvider.notifier).lastSynchronizedAt;
         if (lastRefreshTime != null &&
             now.difference(lastRefreshTime) < _minimumRefreshInterval) {
           AppLogger.d(
