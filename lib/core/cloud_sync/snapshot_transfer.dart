@@ -23,9 +23,6 @@ class CloudSnapshotTransfer {
     OperationToken token,
     SyncProgressCallback? onProgress,
   ) async {
-    if (head.encoding != codec.encoding) {
-      throw const CloudFormatException('snapshot encoding mismatch');
-    }
     final read = await backend.readSnapshotManifest(head.snapshotId);
     if (read == null) {
       throw const CloudFormatException('snapshot manifest is missing');
@@ -123,20 +120,17 @@ class CloudSnapshotTransfer {
 
   Future<CloudSyncSnapshotData> _decodeAndDownload(
     String snapshotId,
-    List<int> encryptedManifest,
+    List<int> encodedManifest,
     OperationToken token,
     SyncProgressCallback? onProgress,
   ) async {
     final manifest = SnapshotManifest.decode(
       await codec.decode(
-        encryptedManifest,
+        encodedManifest,
         objectId: snapshotId,
         kind: 'manifest',
       ),
     );
-    if (manifest.encoding != codec.encoding) {
-      throw const CloudFormatException('snapshot encoding mismatch');
-    }
     if (manifest.snapshotId != snapshotId) {
       throw const CloudFormatException('snapshot manifest identity mismatch');
     }

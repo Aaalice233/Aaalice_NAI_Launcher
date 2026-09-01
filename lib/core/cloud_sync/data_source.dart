@@ -217,11 +217,11 @@ abstract interface class CloudSyncDataSource {
 
   Future<void> deleteUploadArtifact(String operationId, String name);
 
-  /// Removes staging, recovery, and pending encrypted upload material.
+  /// Removes staging, recovery, and pending upload material.
   Future<void> completeOperation(String operationId);
 }
 
-/// Optional streaming bridge used by coordinators after decrypting one remote
+/// Optional streaming bridge used by coordinators after decoding one remote
 /// object. The returned record must not retain [record.bytes] in memory.
 abstract interface class CloudSyncPayloadMaterializer {
   Future<void> beginRemoteMaterialization(String snapshotId);

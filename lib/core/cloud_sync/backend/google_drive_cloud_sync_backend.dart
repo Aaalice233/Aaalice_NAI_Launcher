@@ -12,11 +12,10 @@ import 'cloud_sync_backend.dart';
 
 /// Stores cloud-sync records in Google Drive's hidden `appDataFolder` space.
 ///
-/// Drive does not expose conditional file updates, so HEAD and KEY revisions
-/// are only checked immediately before a write. This backend must therefore
+/// Drive does not expose conditional file updates, so HEAD revisions are only
+/// checked immediately before a write. This backend must therefore
 /// remain manual-backup-only even when those checks succeed.
-class GoogleDriveCloudSyncBackend
-    implements CloudSyncBackend, CloudKeyEnvelopeBackend {
+class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
   GoogleDriveCloudSyncBackend({
     required Future<String> Function() accessTokenProvider,
     required this.namespace,
@@ -52,7 +51,7 @@ class GoogleDriveCloudSyncBackend
       supportsHistory: true,
       supportsDelete: true,
       warnings: [
-        'Google Drive API 不提供文件内容的强 compare-and-swap；HEAD/KEY 只能检测已读到的旧 revision，无法安全启用双向同步。',
+        'Google Drive API 不提供文件内容的强 compare-and-swap；HEAD 只能检测已读到的旧 revision，无法安全启用双向同步。',
       ],
     );
   }
@@ -64,10 +63,6 @@ class GoogleDriveCloudSyncBackend
         ? null
         : CloudHeadRead(bytes: read.bytes, revision: read.revision);
   }
-
-  @override
-  Future<CloudObjectRead?> readKeyEnvelope() =>
-      _readMutable('key', _fileName('key'));
 
   @override
   Future<CloudObjectRead?> readObject(String objectId) {
@@ -123,18 +118,6 @@ class GoogleDriveCloudSyncBackend
     bytes,
     expectedRevision,
     maxCloudHeadResponseBytes,
-  );
-
-  @override
-  Future<CloudCommitResult> commitKeyEnvelope(
-    Uint8List bytes, {
-    required String? expectedRevision,
-  }) => _commitMutable(
-    'key',
-    _fileName('key'),
-    bytes,
-    expectedRevision,
-    maxCloudKeyResponseBytes,
   );
 
   @override
@@ -535,7 +518,6 @@ class GoogleDriveCloudSyncBackend
 
   String _fileName(String type, [String? id]) => switch (type) {
     'head' => 'aaalice-cloud-sync-HEAD.json',
-    'key' => 'aaalice-cloud-sync-KEY.json',
     'object' => 'aaalice-cloud-sync-object-$id',
     'manifest' => 'aaalice-cloud-sync-snapshot-$id.json',
     _ => throw StateError('Unknown Google Drive record type'),
@@ -551,7 +533,6 @@ class GoogleDriveCloudSyncBackend
 
   static int _limitFor(String type) => switch (type) {
     'head' => maxCloudHeadResponseBytes,
-    'key' => maxCloudKeyResponseBytes,
     'manifest' => maxCloudManifestResponseBytes,
     'object' => maxCloudObjectResponseBytes,
     _ => throw StateError('Unknown Google Drive record type'),

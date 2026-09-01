@@ -13254,49 +13254,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_connectedAccount => 'Connected account';
 
   @override
-  String get cloudSync_encryptionNeedsAction =>
-      'Finish encryption setup to sync';
-
-  @override
-  String get cloudSync_encryptionNeedsActionDescription =>
-      'Cloud data is end-to-end encrypted. Save the new recovery key or unlock with the key you saved earlier.';
-
-  @override
-  String get cloudSync_encryptionRecoveryTitle =>
-      'Save the encryption recovery key';
-
-  @override
-  String get cloudSync_encryptionRecoveryDescription =>
-      'This is the only way to recover cloud data on a new device or after secure storage is lost. The app never uploads or logs this key.';
-
-  @override
-  String get cloudSync_copyRecoveryKey => 'Copy recovery key';
-
-  @override
-  String get cloudSync_recoveryKeyCopied => 'Recovery key copied';
-
-  @override
-  String get cloudSync_recoveryKeySaved =>
-      'I saved the recovery key in a safe place';
-
-  @override
-  String get cloudSync_recoveryKeyOneTimeWarning =>
-      'The app will stop showing this key after confirmation. Do not keep it in the same cloud-sync folder.';
-
-  @override
-  String get cloudSync_recoveryRequiredTitle => 'Recovery key required';
-
-  @override
-  String get cloudSync_recoveryRequiredDescription =>
-      'This account already has an encrypted backup. Enter the recovery key you saved to unlock it on this device; a replacement key will be issued afterward.';
-
-  @override
-  String get cloudSync_recoveryKey => 'Recovery key';
-
-  @override
-  String get cloudSync_unlock => 'Unlock';
-
-  @override
   String get cloudSync_webDavUrl => 'WebDAV URL';
 
   @override

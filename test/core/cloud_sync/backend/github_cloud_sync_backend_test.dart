@@ -105,38 +105,6 @@ void main() {
     expect(api.files.keys, isNot(contains('cloud/HEAD.json')));
   });
 
-  test('KEY 在 snapshot 推进 branch 后仍按文件 SHA 独立 CAS', () async {
-    final api = FakeGitHubApi();
-    final backend = _backend(api);
-    final key1 = await backend.commitKeyEnvelope(
-      Uint8List.fromList([7]),
-      expectedRevision: null,
-    );
-    final first = await _uploadSnapshot(backend, 's1', expectedRevision: null);
-
-    final key2 = await backend.commitKeyEnvelope(
-      Uint8List.fromList([8]),
-      expectedRevision: key1.revision,
-    );
-
-    expect(key2.revision, isNot(key1.revision));
-    expect((await backend.readKeyEnvelope())!.bytes, [8]);
-    await _uploadSnapshot(backend, 's2', expectedRevision: first.revision);
-    await expectLater(
-      () => backend.commitKeyEnvelope(
-        Uint8List.fromList([9]),
-        expectedRevision: key1.revision,
-      ),
-      throwsA(
-        isA<CloudBackendException>().having(
-          (error) => error.kind,
-          'kind',
-          CloudBackendErrorKind.conflict,
-        ),
-      ),
-    );
-  });
-
   test('deleteNamespace 由单一 tree commit 原子删除且不 force', () async {
     final api = FakeGitHubApi(
       initialFiles: {

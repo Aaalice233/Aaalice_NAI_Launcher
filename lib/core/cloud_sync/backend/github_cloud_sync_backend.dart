@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -8,8 +7,7 @@ import 'cloud_sync_backend.dart';
 import 'github_api_client.dart';
 import 'github_backend_support.dart';
 
-class GitHubCloudSyncBackend
-    implements CloudSyncBackend, CloudKeyEnvelopeBackend {
+class GitHubCloudSyncBackend implements CloudSyncBackend {
   GitHubCloudSyncBackend({
     required this.owner,
     required this.repository,
@@ -77,44 +75,6 @@ class GitHubCloudSyncBackend
     return CloudHeadRead(
       bytes: result.bytes,
       revision: '${result.revision}:$branchSha',
-    );
-  }
-
-  @override
-  Future<CloudObjectRead?> readKeyEnvelope() =>
-      _api.readPath('$_root/KEY.json', maxBytes: maxCloudKeyResponseBytes);
-
-  @override
-  Future<CloudCommitResult> commitKeyEnvelope(
-    Uint8List bytes, {
-    required String? expectedRevision,
-  }) async {
-    _checkProtocolSize(bytes, maxCloudKeyResponseBytes);
-    final current = await _api.readPath(
-      '$_root/KEY.json',
-      maxBytes: maxCloudKeyResponseBytes,
-    );
-    if ((expectedRevision == null && current != null) ||
-        (expectedRevision != null && current?.revision != expectedRevision)) {
-      throw const CloudBackendException(
-        CloudBackendErrorKind.conflict,
-        '远端 KEY 已被其他设备更新，请重新读取后重试。',
-      );
-    }
-    final response = await _api.jsonRequest(
-      'PUT',
-      _api.contents('$_root/KEY.json', forWrite: true),
-      action: '提交 KEY',
-      accepted: const {200, 201},
-      data: {
-        'message': 'cloud-sync: update KEY',
-        'content': base64Encode(bytes),
-        'branch': branch,
-        if (current != null) 'sha': current.revision,
-      },
-    );
-    return CloudCommitResult(
-      revision: GitHubBackendSupport.contentSha(response),
     );
   }
 

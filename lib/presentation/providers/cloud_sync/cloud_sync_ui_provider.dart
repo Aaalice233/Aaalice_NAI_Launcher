@@ -233,8 +233,6 @@ class CloudSyncUiState {
     this.snapshots = const [],
     this.conflicts = const [],
     this.remoteExists,
-    this.recoveryRequired = false,
-    this.pendingRecoveryKey,
     this.pendingPreview,
     this.pendingFfdkjInstall = false,
     this.maintenanceWarning,
@@ -259,8 +257,6 @@ class CloudSyncUiState {
   final List<CloudSyncSnapshotView> snapshots;
   final List<CloudSyncConflictView> conflicts;
   final bool? remoteExists;
-  final bool recoveryRequired;
-  final String? pendingRecoveryKey;
   final CloudSyncPreviewView? pendingPreview;
   final bool pendingFfdkjInstall;
   final String? maintenanceWarning;
@@ -271,7 +267,6 @@ class CloudSyncUiState {
   bool get needsConflictResolution => conflicts.isNotEmpty;
   bool get isBusy => activityStatus != CloudSyncActivityStatus.idle;
   bool get needsPreviewConfirmation => pendingPreview != null;
-  bool get encryptionReady => !recoveryRequired && pendingRecoveryKey == null;
 
   void ensureNoPendingPreview() {
     if (pendingPreview != null) {
@@ -305,8 +300,6 @@ class CloudSyncUiState {
     List<CloudSyncSnapshotView>? snapshots,
     List<CloudSyncConflictView>? conflicts,
     bool? remoteExists,
-    bool? recoveryRequired,
-    String? pendingRecoveryKey,
     CloudSyncPreviewView? pendingPreview,
     bool? pendingFfdkjInstall,
     String? maintenanceWarning,
@@ -314,7 +307,6 @@ class CloudSyncUiState {
     bool clearProgress = false,
     bool clearError = false,
     bool clearPendingPreview = false,
-    bool clearPendingRecoveryKey = false,
     bool clearMaintenanceWarning = false,
   }) => CloudSyncUiState(
     connectionStatus: connectionStatus ?? this.connectionStatus,
@@ -335,10 +327,6 @@ class CloudSyncUiState {
     snapshots: snapshots ?? this.snapshots,
     conflicts: conflicts ?? this.conflicts,
     remoteExists: remoteExists ?? this.remoteExists,
-    recoveryRequired: recoveryRequired ?? this.recoveryRequired,
-    pendingRecoveryKey: clearPendingRecoveryKey
-        ? null
-        : pendingRecoveryKey ?? this.pendingRecoveryKey,
     pendingPreview: clearPendingPreview
         ? null
         : pendingPreview ?? this.pendingPreview,
@@ -366,10 +354,6 @@ abstract interface class CloudSyncUiPort {
   Future<void> discardCloudDriveAuthorization(
     CloudSyncConnectionDraft connection,
   );
-
-  Future<void> recoverCloudDriveEncryption(String recoveryKey);
-
-  Future<void> confirmCloudDriveRecoveryKeySaved();
 
   Future<void> pushNow();
 
@@ -428,13 +412,6 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
   Future<void> discardCloudDriveAuthorization(
     CloudSyncConnectionDraft connection,
   ) => _unavailable();
-
-  @override
-  Future<void> recoverCloudDriveEncryption(String recoveryKey) =>
-      _unavailable();
-
-  @override
-  Future<void> confirmCloudDriveRecoveryKeySaved() => _unavailable();
 
   @override
   Future<void> deleteRemoteNamespace() => _unavailable();

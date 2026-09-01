@@ -102,7 +102,7 @@ void main() {
     },
   );
 
-  test('resource chunks cannot exceed the encrypted object payload budget', () {
+  test('resource chunks cannot exceed the plain object payload budget', () {
     final adapter = _Adapter();
 
     expect(

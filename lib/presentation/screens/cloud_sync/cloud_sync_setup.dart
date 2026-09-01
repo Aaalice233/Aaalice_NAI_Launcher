@@ -267,7 +267,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
                     dimension: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.sync),
+                : const Icon(Icons.save_outlined),
             label: Text(context.l10n.cloudSync_saveConnection),
           ),
         ),

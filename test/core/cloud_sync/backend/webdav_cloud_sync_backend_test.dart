@@ -189,7 +189,7 @@ void main() {
       if (request.method == 'HEAD') return const TestHttpResponse(200);
       if (request.method == 'PROPFIND') {
         return _davResponse([
-          _davFile('/sync/aaalice-sync/KEY.json', etagValue: 'nutstore-v1'),
+          _davFile('/sync/aaalice-sync/HEAD.json', etagValue: 'nutstore-v1'),
         ]);
       }
       fail('Unexpected ${request.method} ${request.uri}');
@@ -197,7 +197,7 @@ void main() {
 
     final result = await _backend(
       adapter,
-    ).commitKeyEnvelope(Uint8List.fromList([1, 2, 3]), expectedRevision: null);
+    ).commitHead(Uint8List.fromList([1, 2, 3]), expectedRevision: null);
 
     expect(result.revision, '"nutstore-v1"');
     expect(

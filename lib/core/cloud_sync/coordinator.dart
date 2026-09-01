@@ -152,9 +152,6 @@ class SyncCoordinator {
       final manifest = SnapshotManifest.decode(
         await codec.decode(read.bytes, objectId: id, kind: 'manifest'),
       );
-      if (manifest.encoding != codec.encoding) {
-        throw const CloudFormatException('snapshot encoding mismatch');
-      }
       if (manifest.snapshotId != id) {
         throw const CloudFormatException('history manifest identity mismatch');
       }

@@ -1,5 +1,4 @@
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
-import '../../../core/cloud_sync/crypto_models.dart';
 import '../../../core/cloud_sync/models.dart';
 import 'cloud_sync_operation_runner.dart';
 import 'cloud_sync_ui_provider.dart';
@@ -35,7 +34,6 @@ class CloudSyncErrorReporter {
 
 String cloudSyncErrorMessage(Object error) => switch (error) {
   CloudBackendException() => error.message,
-  CloudCryptoException() => error.message,
   CloudFormatException() => '远端备份格式或完整性校验失败：${error.message}',
   StateError() => error.message,
   FormatException() => '保存的同步配置或旧备份信息无法读取。',

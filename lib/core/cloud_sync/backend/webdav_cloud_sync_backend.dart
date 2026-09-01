@@ -18,7 +18,6 @@ import 'webdav_object_maintenance.dart';
 class WebDavCloudSyncBackend
     implements
         CloudSyncBackend,
-        CloudKeyEnvelopeBackend,
         CloudSyncBackendMaintenance,
         ConcurrentCloudObjectUploadBackend {
   factory WebDavCloudSyncBackend.fromConfig({
@@ -77,7 +76,6 @@ class WebDavCloudSyncBackend
   Uri get _objects => _root.resolve('objects/');
   Uri get _snapshots => _root.resolve('snapshots/');
   Uri get _head => _root.resolve('HEAD.json');
-  Uri get _keyEnvelope => _root.resolve('KEY.json');
 
   @override
   Future<CloudBackendCapability> testCapability() async {
@@ -100,22 +98,6 @@ class WebDavCloudSyncBackend
         ? null
         : CloudHeadRead(bytes: value.bytes, revision: value.revision);
   }
-
-  @override
-  Future<CloudObjectRead?> readKeyEnvelope() =>
-      _get(_keyEnvelope, maxBytes: maxCloudKeyResponseBytes);
-
-  @override
-  Future<CloudCommitResult> commitKeyEnvelope(
-    Uint8List bytes, {
-    required String? expectedRevision,
-  }) => _commitMutable(
-    _keyEnvelope,
-    bytes,
-    expectedRevision: expectedRevision,
-    label: 'KEY',
-    maxBytes: maxCloudKeyResponseBytes,
-  );
 
   @override
   Future<CloudObjectRead?> readObject(String objectId) =>

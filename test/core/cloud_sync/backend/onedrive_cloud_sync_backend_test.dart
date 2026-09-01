@@ -48,10 +48,15 @@ void main() {
     final firstFolderCreate = api.requests.indexWhere(
       (request) =>
           request.method == 'POST' &&
-          request.uri.path == '/v1.0/me/drive/special/approot/children',
+          request.uri.path == '/v1.0/me/drive/items/approot-id/children',
     );
     expect(appRootGet, greaterThanOrEqualTo(0));
     expect(firstFolderCreate, greaterThan(appRootGet));
+    final folderCreateRequest = api.requests[firstFolderCreate];
+    expect(folderCreateRequest.uri.queryParameters, isEmpty);
+    final folderCreateBody =
+        jsonDecode(folderCreateRequest.data as String) as Map<String, dynamic>;
+    expect(folderCreateBody, {'name': 'cloud', 'folder': <String, Object?>{}});
     expect(
       api.requests.any(
         (request) => request.uri.path.contains(
@@ -88,15 +93,11 @@ void main() {
     );
   });
 
-  test('HEAD and KEY use upload-session If-Match CAS', () async {
+  test('HEAD uses upload-session If-Match CAS', () async {
     final api = _FakeOneDriveApi();
     final backend = _backend(api);
     final head1 = await backend.commitHead(
       Uint8List.fromList([1]),
-      expectedRevision: null,
-    );
-    final key1 = await backend.commitKeyEnvelope(
-      Uint8List.fromList([7]),
       expectedRevision: null,
     );
 
@@ -104,22 +105,14 @@ void main() {
       Uint8List.fromList([2]),
       expectedRevision: head1.revision,
     );
-    await backend.commitKeyEnvelope(
-      Uint8List.fromList([8]),
-      expectedRevision: key1.revision,
-    );
 
     expect(head2.revision, isNot(head1.revision));
     final replaceSessions = api.requests.where(
       (request) =>
           request.uri.path.endsWith(':/createUploadSession') &&
-          request.headers.containsKey('If-Match'),
+          request.headers['If-Match'] == head1.revision,
     );
-    expect(replaceSessions, hasLength(2));
-    expect(
-      replaceSessions.map((request) => request.headers['If-Match']),
-      containsAll([head1.revision, key1.revision]),
-    );
+    expect(replaceSessions, hasLength(1));
     await expectLater(
       backend.commitHead(
         Uint8List.fromList([3]),
@@ -239,6 +232,28 @@ void main() {
     expect(api.appRootRequests, 1);
   });
 
+  test('includes a bounded Microsoft error message in diagnostics', () async {
+    final api = _FakeOneDriveApi()
+      ..appRootFailureStatus = 400
+      ..appRootFailureCode = 'invalidRequest'
+      ..appRootFailureMessage = 'The provided name is invalid.\nRetry later.';
+
+    await expectLater(
+      _backend(api).testCapability(),
+      throwsA(
+        isA<CloudBackendException>()
+            .having((error) => error.statusCode, 'statusCode', 400)
+            .having(
+              (error) => error.message,
+              'message',
+              contains(
+                'invalidRequest: The provided name is invalid. Retry later.',
+              ),
+            ),
+      ),
+    );
+  });
+
   test(
     'capability proves stale eTag and create conflict then cleans probe',
     () async {
@@ -310,6 +325,7 @@ class _FakeOneDriveApi implements HttpClientAdapter {
   int? appRootFailureStatus;
   String appRootFailureCode = 'serviceNotAvailable';
   String? appRootInnerFailureCode;
+  String? appRootFailureMessage;
   int _revision = 0;
   int _session = 0;
 
@@ -369,6 +385,7 @@ class _FakeOneDriveApi implements HttpClientAdapter {
           return _FakeResponse.json(failureStatus, {
             'error': {
               'code': appRootFailureCode,
+              if (appRootFailureMessage case final message?) 'message': message,
               if (appRootInnerFailureCode case final innerCode?)
                 'innerError': {'code': innerCode},
             },
@@ -376,6 +393,7 @@ class _FakeOneDriveApi implements HttpClientAdapter {
         }
         appRootRequested = true;
         return _FakeResponse.json(200, {
+          'id': 'approot-id',
           'name': 'Aaalice NAI Launcher',
           'eTag': '"approot"',
           'size': 0,
@@ -394,7 +412,12 @@ class _FakeOneDriveApi implements HttpClientAdapter {
       }
       final body = jsonDecode(request.data as String) as Map<String, dynamic>;
       final name = body['name'] as String;
-      final parent = graphPath ?? '';
+      final parent = graphPath ?? _folderPathForChildrenRequest(request.uri);
+      if (parent == null) {
+        return _FakeResponse.json(400, {
+          'error': {'code': 'invalidRequest'},
+        });
+      }
       final path = parent.isEmpty ? name : '$parent/$name';
       if (folders.contains(path) || files.containsKey(path)) {
         return _FakeResponse.json(409, {
@@ -403,6 +426,7 @@ class _FakeOneDriveApi implements HttpClientAdapter {
       }
       folders.add(path);
       return _FakeResponse.json(201, {
+        'id': _folderId(path),
         'name': name,
         'eTag': '"folder-$path"',
         'size': 0,
@@ -465,6 +489,7 @@ class _FakeOneDriveApi implements HttpClientAdapter {
       }
       if (folders.contains(graphPath)) {
         return _FakeResponse.json(200, {
+          'id': _folderId(graphPath),
           'name': graphPath.split('/').last,
           'eTag': '"folder-$graphPath"',
           'size': 0,
@@ -484,6 +509,24 @@ class _FakeOneDriveApi implements HttpClientAdapter {
       'unexpected': '${request.method} ${request.uri}',
     });
   }
+
+  String? _folderPathForChildrenRequest(Uri uri) {
+    final segments = uri.pathSegments;
+    if (segments.length != 6 ||
+        segments[0] != 'v1.0' ||
+        segments[1] != 'me' ||
+        segments[2] != 'drive' ||
+        segments[3] != 'items' ||
+        segments[5] != 'children') {
+      return null;
+    }
+    final id = segments[4];
+    if (id == 'approot-id') return '';
+    if (!id.startsWith('folder-')) return null;
+    return Uri.decodeComponent(id.substring('folder-'.length));
+  }
+
+  String _folderId(String path) => 'folder-${Uri.encodeComponent(path)}';
 
   _FakeResponse _children(RequestOptions request, String directory) {
     final names = files.entries.where((entry) {

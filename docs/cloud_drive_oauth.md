@@ -97,12 +97,12 @@ flutter analyze lib/core/cloud_sync/oauth lib/core/storage/secure_storage_servic
 
 Release workflow 要求先设置 GitHub Actions repository variables：`GOOGLE_DRIVE_WINDOWS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_REDIRECT_URI`、`GOOGLE_DRIVE_ANDROID_CLIENT_ID`、`ONEDRIVE_CLIENT_ID`、`ONEDRIVE_MACOS_REDIRECT_URI`、`ONEDRIVE_ANDROID_REDIRECT_URI`，以及 `ONEDRIVE_TENANT_ID=common`。正式发布缺少任一平台必需值时会在构建前失败，避免发布一个静默缺失云盘登录能力的安装包。这些值来自外部 Google/Entra 应用注册与审核，不在仓库中提供真实值。
 
-## 数据、加密与账号隔离
+## 数据与账号隔离
 
 - Google 只写隐藏 `appDataFolder`，OneDrive 只写 `/special/approot` 下的 `aaalice-sync`；两者都不会请求或扫描普通网盘文件。
-- 两个 provider 复用同一套不可变 object/manifest + 小型 HEAD 协议和现有同步数据 allowlist。云盘快照内容使用随机 256-bit master key 加密；master key 按 provider + 稳定 account ID 隔离并只保存在安全存储，远端只存密码学包装后的 `KEY.json`。
-- 首次连接会显示一次性恢复密钥，确认安全保存前禁止同步。新设备必须用该密钥解锁已有快照；成功后会原子轮换为新恢复密钥。OAuth token、恢复密钥、master key、WebDAV/GitHub 凭据、设备配置、缓存、索引、队列和日志都不进入备份。
-- 断开账号会撤销（Google）或删除（Microsoft）OAuth session，并清理该 provider/account 的本地 master key；不会删除远端数据。“删除云端备份”始终使用独立高风险确认。
+- 两个 provider 复用同一套明文不可变 object/manifest + 小型 HEAD 协议和现有同步数据 allowlist，不创建 `KEY.json`，也不要求恢复密钥。
+- 保存连接只验证并保存配置，不会自动上传、拉取或恢复待处理同步；所有数据传输都必须由用户点击对应操作触发。
+- OAuth token、WebDAV/GitHub 凭据、设备配置、缓存、索引、队列和日志都不进入备份。断开账号会撤销（Google）或删除（Microsoft）OAuth session，但不会删除远端数据；“删除云端备份”始终使用独立高风险确认。
 
 ## 云同步并发语义
 

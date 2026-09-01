@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 const maxCloudHeadResponseBytes = 64 * 1024;
-const maxCloudKeyResponseBytes = 64 * 1024;
 const maxCloudManifestResponseBytes = 1024 * 1024 + 64;
 const maxCloudObjectResponseBytes = 4 * 1024 * 1024;
 const maxCloudListingResponseBytes = 4 * 1024 * 1024;
@@ -42,18 +41,6 @@ class CloudCommitResult {
   const CloudCommitResult({required this.revision});
 
   final String revision;
-}
-
-/// Rotatable remote key material kept independently from immutable snapshots.
-/// Implementations store it at the namespace root as `KEY.json` and must use
-/// the same compare-and-swap semantics as HEAD.
-abstract interface class CloudKeyEnvelopeBackend {
-  Future<CloudObjectRead?> readKeyEnvelope();
-
-  Future<CloudCommitResult> commitKeyEnvelope(
-    Uint8List bytes, {
-    required String? expectedRevision,
-  });
 }
 
 enum CloudBackendErrorKind {

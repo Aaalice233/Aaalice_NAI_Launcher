@@ -73,8 +73,7 @@ class WebDavNamespaceCleaner {
         }
         continue;
       }
-      if (entry.uri != root.resolve('HEAD.json') &&
-          entry.uri != root.resolve('KEY.json')) {
+      if (entry.uri != root.resolve('HEAD.json')) {
         throw const CloudBackendException(
           CloudBackendErrorKind.conflict,
           'WebDAV 同步空间包含未知文件，已保留全部数据。',

@@ -34,66 +34,12 @@ void main() {
       CloudSyncConnectionStatus.connected,
     );
     expect(fixture.backend.head, isNull);
-    expect(fixture.backend.keyEnvelope, isNull);
-    expect(fixture.codecEncoding, CloudSnapshotEncoding.plain);
     expect(fixture.secure.credentials, contains('provider-secret'));
     expect(fixture.local.values[StorageKeys.cloudSyncConfiguration], isNotNull);
   });
 
   test(
-    'legacy encrypted HEAD is ignored without replacing remote data',
-    () async {
-      final backend = _ApplicationBackend();
-      backend.head = CloudHeadRead(
-        bytes: Uint8List.fromList(
-          SnapshotHead(
-            snapshotId: 'legacy-encrypted-snapshot',
-            manifestSha256:
-                'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-            updatedAt: DateTime.utc(2025),
-            encoding: CloudSnapshotEncoding.encrypted,
-          ).encode(),
-        ),
-        revision: 'legacy-head',
-      );
-      final fixture = await _Fixture.create(backend: backend);
-      addTearDown(fixture.dispose);
-      const legacyOperationId = 'legacy-pending-operation';
-      await fixture.source.stage(legacyOperationId, fixture.source.snapshot);
-      await fixture.journal.write(
-        SyncJournal(
-          operationId: legacyOperationId,
-          operation: JournalOperation.uploadLocal,
-          phase: JournalPhase.prepared,
-          updatedAt: DateTime.now().toUtc(),
-          snapshotId: 'legacy-pending-snapshot',
-          targetFingerprint: await fixture.source.stagedFingerprint(
-            legacyOperationId,
-          ),
-          expectedRevision: 'legacy-head',
-          uploadRequired: true,
-        ),
-      );
-
-      await fixture.service.connect(
-        const CloudSyncConnectRequest(
-          connection: _draft,
-          dataKinds: {CloudSyncDataKind.settings},
-        ),
-      );
-
-      final head = SnapshotHead.decode(backend.head!.bytes);
-      expect(head.snapshotId, 'legacy-encrypted-snapshot');
-      expect(head.encoding, CloudSnapshotEncoding.encrypted);
-      expect(await fixture.journal.read(), isNull);
-      expect(fixture.source.stages, isEmpty);
-      expect(fixture.states.last.remoteExists, isFalse);
-      expect(fixture.codecEncoding, CloudSnapshotEncoding.plain);
-    },
-  );
-
-  test(
-    'recovered initial upload is not followed by a duplicate snapshot',
+    'saving connection discards a pending upload without touching remote data',
     () async {
       final fixture = await _Fixture.create();
       addTearDown(fixture.dispose);
@@ -122,20 +68,15 @@ void main() {
         ),
       );
 
-      expect(
-        SnapshotHead.decode(fixture.backend.head!.bytes).snapshotId,
-        snapshotId,
-      );
-      expect(
-        fixture.backend.events.where((event) => event == 'head'),
-        hasLength(1),
-      );
+      expect(fixture.backend.head, isNull);
+      expect(fixture.backend.events.where((event) => event == 'head'), isEmpty);
       expect(await fixture.journal.read(), isNull);
+      expect(fixture.source.stages, isEmpty);
     },
   );
 
   test(
-    'persisted fresh namespace remains connected for one-click retry',
+    'restoring saved settings discards pending upload without syncing',
     () async {
       final fixture = await _Fixture.create();
       addTearDown(fixture.dispose);
@@ -144,88 +85,74 @@ void main() {
         secureStorage: fixture.secure,
       );
       await store.save(_draft, {CloudSyncDataKind.settings});
+      const operationId = 'pending-restored-upload';
+      await fixture.source.stage(operationId, fixture.source.snapshot);
+      await fixture.journal.write(
+        SyncJournal(
+          operationId: operationId,
+          operation: JournalOperation.uploadLocal,
+          phase: JournalPhase.prepared,
+          updatedAt: DateTime.now().toUtc(),
+          snapshotId: 'pending-restored-snapshot',
+          targetFingerprint: await fixture.source.stagedFingerprint(
+            operationId,
+          ),
+          expectedRevision: null,
+          uploadRequired: true,
+        ),
+      );
 
       final restored = await fixture.service.restorePersisted();
 
       expect(restored, isTrue);
       expect(fixture.backend.head, isNull);
+      expect(await fixture.journal.read(), isNull);
+      expect(fixture.source.stages, isEmpty);
       expect(
         fixture.states.last.connectionStatus,
         CloudSyncConnectionStatus.connected,
       );
-      expect(fixture.codecEncoding, CloudSnapshotEncoding.plain);
     },
   );
 
-  test(
-    'cloud drive encrypts data and requires recovery on another device',
-    () async {
-      const driveDraft = CloudSyncConnectionDraft(
-        backend: CloudSyncBackendKind.oneDrive,
-        accountId: 'tenant:account-a',
-        accountLabel: 'user@example.test',
-        path: 'aaalice-sync',
-      );
-      final first = await _Fixture.create();
-      addTearDown(first.dispose);
+  test('cloud drives use plain snapshots without a key workflow', () async {
+    const driveDraft = CloudSyncConnectionDraft(
+      backend: CloudSyncBackendKind.oneDrive,
+      accountId: 'tenant:account-a',
+      accountLabel: 'user@example.test',
+      path: 'aaalice-sync',
+    );
+    final first = await _Fixture.create();
+    addTearDown(first.dispose);
 
-      await first.service.connect(
-        const CloudSyncConnectRequest(
-          connection: driveDraft,
-          dataKinds: {CloudSyncDataKind.settings},
-        ),
-      );
+    await first.service.connect(
+      const CloudSyncConnectRequest(
+        connection: driveDraft,
+        dataKinds: {CloudSyncDataKind.settings},
+      ),
+    );
 
-      final recoveryKey = first.states.last.pendingRecoveryKey;
-      expect(recoveryKey, startsWith('AA1-'));
-      expect(first.codecEncoding, CloudSnapshotEncoding.encrypted);
-      expect(first.backend.keyEnvelope, isNotNull);
-      expect(first.backend.head, isNull);
-      expect(
-        first.local.values[StorageKeys.cloudDriveConfiguration],
-        isNotNull,
-      );
-      expect(first.local.values[StorageKeys.cloudSyncConfiguration], isNull);
-      await expectLater(first.service.pushNow(), throwsStateError);
+    expect(first.backend.head, isNull);
+    expect(first.local.values[StorageKeys.cloudDriveConfiguration], isNotNull);
+    expect(first.local.values[StorageKeys.cloudSyncConfiguration], isNull);
 
-      await first.service.confirmCloudDriveRecoveryKeySaved();
-      await first.service.pushNow();
-      expect(
-        SnapshotHead.decode(first.backend.head!.bytes).encoding,
-        CloudSnapshotEncoding.encrypted,
-      );
-      expect(
-        first.backend.objects.values.every(
-          (value) => !utf8
-              .decode(value.bytes, allowMalformed: true)
-              .contains('{"theme":"dark"}'),
-        ),
-        isTrue,
-      );
+    await first.service.pushNow();
+    expect(SnapshotHead.decode(first.backend.head!.bytes).version, 1);
 
-      final second = await _Fixture.create(
-        backend: first.backend,
-        theme: 'light',
-      );
-      addTearDown(second.dispose);
-      await second.service.connect(
-        const CloudSyncConnectRequest(
-          connection: driveDraft,
-          dataKinds: {CloudSyncDataKind.settings},
-        ),
-      );
-      expect(second.states.last.recoveryRequired, isTrue);
-      expect(second.codecEncoding, isNull);
-      await expectLater(second.service.pullNow(), throwsStateError);
-
-      await second.service.recoverCloudDriveEncryption(recoveryKey!);
-      expect(second.states.last.pendingRecoveryKey, startsWith('AA1-'));
-      expect(second.codecEncoding, CloudSnapshotEncoding.encrypted);
-      await second.service.confirmCloudDriveRecoveryKeySaved();
-      await second.service.pullNow();
-      expect(second.states.last.lastSync, isNotNull);
-    },
-  );
+    final second = await _Fixture.create(
+      backend: first.backend,
+      theme: 'light',
+    );
+    addTearDown(second.dispose);
+    await second.service.connect(
+      const CloudSyncConnectRequest(
+        connection: driveDraft,
+        dataKinds: {CloudSyncDataKind.settings},
+      ),
+    );
+    await second.service.pullNow();
+    expect(second.states.last.lastSync, isNotNull);
+  });
 
   test(
     'second device connection detects backup without changing remote data',
@@ -283,7 +210,6 @@ class _Fixture {
     required this.source,
     required this.journal,
     required this.service,
-    required this.codecEncodingReader,
   });
 
   final Directory directory;
@@ -294,9 +220,6 @@ class _Fixture {
   final _MemorySource source;
   final JournalStore journal;
   final CloudSyncApplicationService service;
-  final CloudSnapshotEncoding? Function() codecEncodingReader;
-
-  CloudSnapshotEncoding? get codecEncoding => codecEncodingReader();
 
   static Future<_Fixture> create({
     _ApplicationBackend? backend,
@@ -309,11 +232,9 @@ class _Fixture {
     final states = <CloudSyncUiState>[];
     final source = _MemorySource(theme);
     final journal = JournalStore(File('${directory.path}/journal.json'));
-    CloudSnapshotEncoding? codecEncoding;
     final service = CloudSyncApplicationService(
       backendFactory: (_) => effectiveBackend,
       coordinatorFactory: (_, codec, __, ___, ____) async {
-        codecEncoding = codec.encoding;
         return SyncCoordinator(
           backend: effectiveBackend,
           dataSource: source,
@@ -335,7 +256,6 @@ class _Fixture {
       source: source,
       journal: journal,
       service: service,
-      codecEncodingReader: () => codecEncoding,
     );
   }
 
@@ -345,36 +265,13 @@ class _Fixture {
   }
 }
 
-class _ApplicationBackend extends CoordinatorTestBackend
-    implements CloudKeyEnvelopeBackend {
-  CloudObjectRead? keyEnvelope;
+class _ApplicationBackend extends CoordinatorTestBackend {
   int capabilityChecks = 0;
 
   @override
   Future<CloudBackendCapability> testCapability() async {
     capabilityChecks++;
     return super.testCapability();
-  }
-
-  @override
-  Future<CloudObjectRead?> readKeyEnvelope() async => keyEnvelope;
-
-  @override
-  Future<CloudCommitResult> commitKeyEnvelope(
-    Uint8List bytes, {
-    required String? expectedRevision,
-  }) async {
-    if (keyEnvelope?.revision != expectedRevision) {
-      throw const CloudBackendException(
-        CloudBackendErrorKind.conflict,
-        'KEY CAS failed',
-      );
-    }
-    keyEnvelope = CloudObjectRead(
-      bytes: Uint8List.fromList(bytes),
-      revision: 'key-${++revision}',
-    );
-    return CloudCommitResult(revision: keyEnvelope!.revision);
   }
 }
 
@@ -454,12 +351,6 @@ class _MemoryLocalStorage extends LocalStorageService {
 
 class _MemorySecureStorage extends SecureStorageService {
   String? credentials;
-  String? masterKey;
-  final scopedMasterKeys = <String, String>{};
-  final pendingRecoveryKeys = <String, String>{};
-
-  String _scope(String providerId, String accountId) =>
-      '$providerId:$accountId';
 
   @override
   Future<void> saveCloudSyncCredentials(String encodedCredentials) async =>
@@ -467,49 +358,7 @@ class _MemorySecureStorage extends SecureStorageService {
   @override
   Future<String?> getCloudSyncCredentials() async => credentials;
   @override
-  Future<void> saveCloudSyncMasterKey(String encodedKey) async =>
-      masterKey = encodedKey;
-  @override
-  Future<String?> getCloudSyncMasterKey() async => masterKey;
-  @override
-  Future<void> saveCloudDriveMasterKey({
-    required String providerId,
-    required String accountId,
-    required String encodedKey,
-  }) async => scopedMasterKeys[_scope(providerId, accountId)] = encodedKey;
-  @override
-  Future<String?> getCloudDriveMasterKey({
-    required String providerId,
-    required String accountId,
-  }) async => scopedMasterKeys[_scope(providerId, accountId)];
-  @override
-  Future<void> saveCloudDrivePendingRecoveryKey({
-    required String providerId,
-    required String accountId,
-    required String recoveryKey,
-  }) async => pendingRecoveryKeys[_scope(providerId, accountId)] = recoveryKey;
-  @override
-  Future<String?> getCloudDrivePendingRecoveryKey({
-    required String providerId,
-    required String accountId,
-  }) async => pendingRecoveryKeys[_scope(providerId, accountId)];
-  @override
-  Future<void> clearCloudDrivePendingRecoveryKey({
-    required String providerId,
-    required String accountId,
-  }) async => pendingRecoveryKeys.remove(_scope(providerId, accountId));
-  @override
-  Future<void> clearCloudDriveEncryptionSecrets({
-    required String providerId,
-    required String accountId,
-  }) async {
-    scopedMasterKeys.remove(_scope(providerId, accountId));
-    pendingRecoveryKeys.remove(_scope(providerId, accountId));
-  }
-
-  @override
   Future<void> clearCloudSyncSecrets() async {
     credentials = null;
-    masterKey = null;
   }
 }

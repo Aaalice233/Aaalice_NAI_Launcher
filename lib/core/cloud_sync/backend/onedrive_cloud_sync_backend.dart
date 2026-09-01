@@ -9,8 +9,7 @@ import 'cloud_object_naming.dart';
 import 'cloud_sync_backend.dart';
 import 'onedrive_api_client.dart';
 
-class OneDriveCloudSyncBackend
-    implements CloudSyncBackend, CloudKeyEnvelopeBackend {
+class OneDriveCloudSyncBackend implements CloudSyncBackend {
   OneDriveCloudSyncBackend({
     required Future<String> Function() accessTokenProvider,
     this.namespace = 'aaalice-sync',
@@ -28,7 +27,6 @@ class OneDriveCloudSyncBackend
   final OneDriveApiClient _api;
 
   String get _headPath => '$namespace/HEAD.json';
-  String get _keyPath => '$namespace/KEY.json';
 
   @override
   Future<CloudBackendCapability> testCapability() async {
@@ -109,10 +107,6 @@ class OneDriveCloudSyncBackend
   }
 
   @override
-  Future<CloudObjectRead?> readKeyEnvelope() =>
-      _read(_keyPath, maxCloudKeyResponseBytes);
-
-  @override
   Future<CloudObjectRead?> readObject(String objectId) {
     CloudObjectNaming.validateId(objectId);
     return _read('$namespace/objects/$objectId', maxCloudObjectResponseBytes);
@@ -160,17 +154,6 @@ class OneDriveCloudSyncBackend
     bytes,
     expectedRevision,
     maxCloudHeadResponseBytes,
-  );
-
-  @override
-  Future<CloudCommitResult> commitKeyEnvelope(
-    Uint8List bytes, {
-    required String? expectedRevision,
-  }) => _commitMutable(
-    _keyPath,
-    bytes,
-    expectedRevision,
-    maxCloudKeyResponseBytes,
   );
 
   @override

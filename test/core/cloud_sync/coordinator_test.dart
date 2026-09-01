@@ -31,7 +31,7 @@ void main() {
           fixture.backend.objects['snapshot.${outcome.snapshotId}']!;
       final decodedManifest = SnapshotManifest.decode(manifest.bytes);
       expect(decodedManifest.snapshotId, outcome.snapshotId);
-      expect(decodedManifest.encoding, CloudSnapshotEncoding.plain);
+      expect(decodedManifest.version, cloudSyncSchemaVersion);
       expect(
         fixture.source.base!.records['note'],
         fixture.source.local.records['note'],
@@ -246,7 +246,7 @@ void main() {
     },
   );
 
-  test('encrypted record objects never exceed the 4 MiB limit', () async {
+  test('plain record objects never exceed the 4 MiB limit', () async {
     final fixture = await _Fixture.create();
     addTearDown(fixture.dispose);
     fixture.source.local = CloudSyncSnapshotData([
@@ -280,7 +280,7 @@ void main() {
   });
 
   test(
-    'uploadLocal resumes a response-lost object with identical ciphertext',
+    'uploadLocal resumes a response-lost object with identical bytes',
     () async {
       final fixture = await _Fixture.create();
       addTearDown(fixture.dispose);

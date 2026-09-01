@@ -11,12 +11,14 @@ import 'cloud_sync_backend.dart';
 
 class OneDriveItem {
   const OneDriveItem({
+    required this.id,
     required this.name,
     required this.eTag,
     required this.size,
     required this.isFolder,
   });
 
+  final String? id;
   final String name;
   final String eTag;
   final int size;
@@ -99,55 +101,60 @@ class OneDriveApiClient {
   }
 
   Future<void> ensureFolder(String path) async {
-    await _ensureAppRoot();
-    var parent = '';
+    var parentItem = await _ensureAppRoot();
+    var parentPath = '';
     for (final name in path.split('/')) {
-      final endpoint = parent.isEmpty
-          ? '$_appRoot/children'
-          : '${_itemEndpoint(parent)}:/children';
+      final parentId = parentItem.id;
+      if (parentId == null || parentId.isEmpty) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'OneDrive 父目录响应缺少 id。',
+        );
+      }
       final response = await _graphRequest(
         'POST',
-        endpoint,
+        'me/drive/items/${Uri.encodeComponent(parentId)}/children',
         action: '创建 OneDrive 应用目录',
         accepted: const {201},
-        data: {
-          'name': name,
-          'folder': <String, Object?>{},
-          '@microsoft.graph.conflictBehavior': 'fail',
-        },
+        data: {'name': name, 'folder': <String, Object?>{}},
         allowConflict: true,
         retryable: true,
       );
-      if (response == null) {
-        final existing = await metadata(
-          parent.isEmpty ? name : '$parent/$name',
+      final currentPath = parentPath.isEmpty ? name : '$parentPath/$name';
+      final folder = response == null
+          ? await metadata(currentPath)
+          : _decodeItem(_decodeMap(response, 'OneDrive 目录创建结果'));
+      if (folder == null ||
+          !folder.isFolder ||
+          folder.name != name ||
+          folder.id == null ||
+          folder.id!.isEmpty) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          'OneDrive 中存在同名文件，无法创建同步目录。',
+          statusCode: 409,
         );
-        if (existing == null || !existing.isFolder) {
-          throw const CloudBackendException(
-            CloudBackendErrorKind.conflict,
-            'OneDrive 中存在同名文件，无法创建同步目录。',
-            statusCode: 409,
-          );
-        }
       }
-      parent = parent.isEmpty ? name : '$parent/$name';
+      parentItem = folder;
+      parentPath = currentPath;
     }
   }
 
-  Future<void> _ensureAppRoot() async {
+  Future<OneDriveItem> _ensureAppRoot() async {
     final response = await _graphRequest(
       'GET',
       _appRoot,
       action: '初始化 OneDrive 应用目录',
       retryable: false,
     );
-    final item = _decodeMap(response!, 'OneDrive 应用目录');
-    if (item['folder'] is! Map) {
+    final item = _decodeItem(_decodeMap(response!, 'OneDrive 应用目录'));
+    if (!item.isFolder || item.id == null || item.id!.isEmpty) {
       throw const CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
-        'OneDrive 应用目录响应不是文件夹。',
+        'OneDrive 应用目录响应缺少文件夹或 id。',
       );
     }
+    return item;
   }
 
   Future<OneDriveItem> upload(
@@ -345,7 +352,8 @@ class OneDriveApiClient {
     AppLogger.i(
       'Microsoft Graph request completed: action=$action, method=$method, '
           'status=$status, elapsedMs=${stopwatch.elapsedMilliseconds}, '
-          'errorCode=${_graphErrorCode(response) ?? 'none'}',
+          'errorCode=${_graphErrorCode(response) ?? 'none'}, '
+          'errorMessage=${_graphErrorMessage(response) ?? 'none'}',
       'OneDrive',
     );
     if (accepted.contains(status)) return response;
@@ -488,16 +496,21 @@ class OneDriveApiClient {
   }
 
   OneDriveItem _decodeItem(Map<String, dynamic> value) {
+    final id = value['id'];
     final name = value['name'];
     final eTag = value['eTag'] ?? value['@odata.etag'];
     final size = value['size'];
-    if (name is! String || eTag is! String || size is! int) {
+    if ((id != null && id is! String) ||
+        name is! String ||
+        eTag is! String ||
+        size is! int) {
       throw const CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
-        'OneDrive 文件项目缺少 name、eTag 或 size。',
+        'OneDrive 文件项目缺少有效的 id、name、eTag 或 size。',
       );
     }
     return OneDriveItem(
+      id: id as String?,
       name: name,
       eTag: eTag,
       size: size,
@@ -549,7 +562,12 @@ class OneDriveApiClient {
     final graphCodes = _graphErrorCodes(response);
     throw CloudBackendException(
       kind,
-      _graphFailureMessage(action, status, graphCodes),
+      _graphFailureMessage(
+        action,
+        status,
+        graphCodes,
+        _graphErrorMessage(response),
+      ),
       statusCode: status,
       retryAfter: _retryAfter(response.headers),
     );
@@ -559,6 +577,7 @@ class OneDriveApiClient {
     String action,
     int status,
     List<String> codes,
+    String? providerMessage,
   ) {
     if (codes.contains('itemDisabledDueToPendingProvisioning')) {
       return 'Microsoft 正在为此账号开通 OneDrive 应用目录，目前尚未完成，请稍后重试。';
@@ -569,14 +588,36 @@ class OneDriveApiClient {
     if (codes.contains('serviceNotAvailable')) {
       return 'Microsoft OneDrive 应用目录服务暂时不可用，请稍后重试。';
     }
-    return codes.isEmpty
+    final providerDetail = [
+      if (codes.isNotEmpty) codes.join('/'),
+      if (providerMessage != null) providerMessage,
+    ].join(': ');
+    return providerDetail.isEmpty
         ? '$action失败（HTTP $status）。'
-        : '$action失败（HTTP $status，Microsoft: ${codes.join('/')}）。';
+        : '$action失败（HTTP $status，Microsoft: $providerDetail）。';
   }
 
   static String? _graphErrorCode(Response<Uint8List> response) {
     final codes = _graphErrorCodes(response);
     return codes.isEmpty ? null : codes.join('/');
+  }
+
+  static String? _graphErrorMessage(Response<Uint8List> response) {
+    try {
+      final decoded = jsonDecode(BackendHttp.rawTextOf(response));
+      if (decoded is! Map || decoded['error'] is! Map) return null;
+      final message = (decoded['error'] as Map)['message'];
+      if (message is! String) return null;
+      final sanitized = message
+          .replaceAll(RegExp(r'[\x00-\x1F\x7F]+'), ' ')
+          .trim();
+      if (sanitized.isEmpty) return null;
+      return sanitized.length <= 300
+          ? sanitized
+          : '${sanitized.substring(0, 300)}…';
+    } on FormatException {
+      return null;
+    }
   }
 
   static List<String> _graphErrorCodes(Response<Uint8List> response) {

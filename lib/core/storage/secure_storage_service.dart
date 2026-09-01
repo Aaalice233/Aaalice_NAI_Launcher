@@ -205,12 +205,6 @@ class SecureStorageService {
     await _storage.delete(key: key);
   }
 
-  Future<void> saveCloudSyncMasterKey(String encodedKey) =>
-      _saveCloudSecret(StorageKeys.cloudSyncMasterKey, encodedKey);
-
-  Future<String?> getCloudSyncMasterKey() =>
-      _getCloudSecret(StorageKeys.cloudSyncMasterKey);
-
   Future<void> saveCloudSyncCredentials(String encodedCredentials) =>
       _saveCloudSecret(StorageKeys.cloudSyncCredentials, encodedCredentials);
 
@@ -252,93 +246,8 @@ class SecureStorageService {
     required String accountId,
   }) => _deleteCloudSecret(_cloudDriveOAuthSessionKey(providerId, accountId));
 
-  Future<void> saveCloudDriveMasterKey({
-    required String providerId,
-    required String accountId,
-    required String encodedKey,
-  }) => _saveCloudSecret(
-    _cloudDriveIdentityKey(
-      StorageKeys.cloudDriveMasterKeyPrefix,
-      providerId,
-      accountId,
-    ),
-    encodedKey,
-  );
-
-  Future<String?> getCloudDriveMasterKey({
-    required String providerId,
-    required String accountId,
-  }) => _getCloudSecret(
-    _cloudDriveIdentityKey(
-      StorageKeys.cloudDriveMasterKeyPrefix,
-      providerId,
-      accountId,
-    ),
-  );
-
-  Future<void> saveCloudDrivePendingRecoveryKey({
-    required String providerId,
-    required String accountId,
-    required String recoveryKey,
-  }) => _saveCloudSecret(
-    _cloudDriveIdentityKey(
-      StorageKeys.cloudDrivePendingRecoveryPrefix,
-      providerId,
-      accountId,
-    ),
-    recoveryKey,
-  );
-
-  Future<String?> getCloudDrivePendingRecoveryKey({
-    required String providerId,
-    required String accountId,
-  }) => _getCloudSecret(
-    _cloudDriveIdentityKey(
-      StorageKeys.cloudDrivePendingRecoveryPrefix,
-      providerId,
-      accountId,
-    ),
-  );
-
-  Future<void> clearCloudDrivePendingRecoveryKey({
-    required String providerId,
-    required String accountId,
-  }) => _deleteCloudSecret(
-    _cloudDriveIdentityKey(
-      StorageKeys.cloudDrivePendingRecoveryPrefix,
-      providerId,
-      accountId,
-    ),
-  );
-
-  Future<void> clearCloudDriveEncryptionSecrets({
-    required String providerId,
-    required String accountId,
-  }) async {
-    await Future.wait([
-      _deleteCloudSecret(
-        _cloudDriveIdentityKey(
-          StorageKeys.cloudDriveMasterKeyPrefix,
-          providerId,
-          accountId,
-        ),
-      ),
-      _deleteCloudSecret(
-        _cloudDriveIdentityKey(
-          StorageKeys.cloudDrivePendingRecoveryPrefix,
-          providerId,
-          accountId,
-        ),
-      ),
-    ]);
-  }
-
   Future<void> clearCloudSyncSecrets() async {
-    const keys = [
-      StorageKeys.cloudSyncMasterKey,
-      StorageKeys.cloudSyncCredentials,
-      StorageKeys.cloudSyncKeyEnvelope,
-    ];
+    const keys = [StorageKeys.cloudSyncCredentials];
     for (final key in keys) {
       _memoryCache.remove(key);
     }

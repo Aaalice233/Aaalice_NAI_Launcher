@@ -76,7 +76,6 @@ class ResumableSnapshotUploader {
         snapshotId: current.snapshotId,
         createdAt: now().toUtc(),
         objects: allMetadata,
-        encoding: codec.encoding,
       );
       manifestBytes = await codec.encode(
         Uint8List.fromList(manifest.encode()),
@@ -127,18 +126,18 @@ class ResumableSnapshotUploader {
         final object = allMetadata[index];
         batch.add(() async {
           final artifactName = 'object-$index.bin';
-          final encrypted = await dataSource.readUploadArtifact(
+          final encoded = await dataSource.readUploadArtifact(
             current.operationId,
             artifactName,
           );
-          if (encrypted == null) {
+          if (encoded == null) {
             throw CloudFormatException(
               'prepared upload artifact $artifactName is missing',
             );
           }
           await backend.putObject(
             object.id,
-            encrypted is Uint8List ? encrypted : Uint8List.fromList(encrypted),
+            encoded is Uint8List ? encoded : Uint8List.fromList(encoded),
             sha256: object.sha256,
           );
           completedObjects++;
@@ -208,7 +207,6 @@ class ResumableSnapshotUploader {
       snapshotId: current.snapshotId,
       manifestSha256: manifestSha,
       updatedAt: now().toUtc(),
-      encoding: codec.encoding,
     ).encode();
     if (await dataSource.readUploadArtifact(current.operationId, 'head.json') ==
         null) {
@@ -255,16 +253,16 @@ class ResumableSnapshotUploader {
   ) async {
     final objectId = '${journal.snapshotId}.$index';
     final artifactName = 'object-$index.bin';
-    var encrypted = await dataSource.readUploadArtifact(
+    var encoded = await dataSource.readUploadArtifact(
       journal.operationId,
       artifactName,
     );
-    if (encrypted == null) {
+    if (encoded == null) {
       final clear = await record.encodeForTransport();
       if (clear.length > codec.maxClearObjectBytes) {
         throw const CloudFormatException('record object is too large');
       }
-      encrypted = await codec.encode(
+      encoded = await codec.encode(
         clear,
         objectId: objectId,
         kind: record.kind,
@@ -272,14 +270,14 @@ class ResumableSnapshotUploader {
       await dataSource.writeUploadArtifact(
         journal.operationId,
         artifactName,
-        encrypted,
+        encoded,
       );
     }
     final metadata = SnapshotObject(
       id: objectId,
       kind: record.kind,
-      size: encrypted.length,
-      sha256: hashes.sha256.convert(encrypted).toString(),
+      size: encoded.length,
+      sha256: hashes.sha256.convert(encoded).toString(),
     );
     final metadataName = 'object-$index.json';
     final pendingMetadata = await dataSource.readUploadArtifact(

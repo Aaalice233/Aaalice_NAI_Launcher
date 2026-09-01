@@ -12917,46 +12917,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_connectedAccount => '接続中のアカウント';
 
   @override
-  String get cloudSync_encryptionNeedsAction => '暗号化設定を完了すると同期できます';
-
-  @override
-  String get cloudSync_encryptionNeedsActionDescription =>
-      'クラウドデータはエンドツーエンドで暗号化されます。新しい復旧キーを保存するか、以前保存したキーでロックを解除してください。';
-
-  @override
-  String get cloudSync_encryptionRecoveryTitle => '暗号化復旧キーを保存';
-
-  @override
-  String get cloudSync_encryptionRecoveryDescription =>
-      '新しいデバイスまたは安全なストレージの消失後にクラウドデータを復元する唯一の手段です。アプリはこのキーをアップロードも記録もしません。';
-
-  @override
-  String get cloudSync_copyRecoveryKey => '復旧キーをコピー';
-
-  @override
-  String get cloudSync_recoveryKeyCopied => '復旧キーをコピーしました';
-
-  @override
-  String get cloudSync_recoveryKeySaved => '復旧キーを安全な場所に保存しました';
-
-  @override
-  String get cloudSync_recoveryKeyOneTimeWarning =>
-      '確認後、このキーは表示されません。同じクラウド同期フォルダーには保存しないでください。';
-
-  @override
-  String get cloudSync_recoveryRequiredTitle => '復旧キーが必要です';
-
-  @override
-  String get cloudSync_recoveryRequiredDescription =>
-      'このアカウントには暗号化済みバックアップがあります。保存済みの復旧キーを入力してこのデバイスで解除してください。成功後に新しいキーが発行されます。';
-
-  @override
-  String get cloudSync_recoveryKey => '復旧キー';
-
-  @override
-  String get cloudSync_unlock => 'ロック解除';
-
-  @override
   String get cloudSync_webDavUrl => 'WebDAV URL';
 
   @override

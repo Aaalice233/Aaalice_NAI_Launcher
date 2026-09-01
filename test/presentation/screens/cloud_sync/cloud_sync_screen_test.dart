@@ -410,8 +410,7 @@ void main() {
     expect(port.pulls, 1);
   });
 
-  testWidgets('云盘恢复密钥阻止同步并可解锁账号隔离快照', (tester) async {
-    final port = _FakePort();
+  testWidgets('云盘连接不显示密钥流程且可直接选择同步方向', (tester) async {
     final state =
         _connectedState(
           activityStatus: CloudSyncActivityStatus.idle,
@@ -420,62 +419,19 @@ void main() {
           backend: CloudSyncBackendKind.oneDrive,
           accountId: 'tenant:account',
           accountLabel: 'user@example.test',
-          recoveryRequired: true,
           conflicts: const [],
           clearProgress: true,
         );
-    await tester.pumpWidget(_subject(state: state, port: port));
+    await tester.pumpWidget(_subject(state: state, port: _FakePort()));
     await tester.pumpAndSettle();
 
-    expect(find.text('需要恢复密钥'), findsOneWidget);
     expect(find.text('user@example.test'), findsOneWidget);
+    expect(find.textContaining('恢复密钥'), findsNothing);
+    expect(find.textContaining('加密设置'), findsNothing);
     final push = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, '推送到云端'),
     );
-    expect(push.onPressed, isNull);
-    await tester.enterText(_fieldWithLabel('恢复密钥'), 'AA1-recovery');
-    await tester.pump();
-    final unlock = find.byKey(const ValueKey('cloud-sync-unlock-recovery-key'));
-    await tester.scrollUntilVisible(unlock, 180, scrollable: _pageScrollable);
-    expect(
-      tester.widget<TextField>(_fieldWithLabel('恢复密钥')).controller!.text,
-      'AA1-recovery',
-    );
-    expect(tester.widget<FilledButton>(unlock).onPressed, isNotNull);
-    await tester.tap(unlock);
-    await tester.pumpAndSettle();
-    expect(port.recoveryKey, 'AA1-recovery');
-  });
-
-  testWidgets('新云盘恢复密钥必须明确确认保存', (tester) async {
-    final port = _FakePort();
-    final state =
-        _connectedState(
-          activityStatus: CloudSyncActivityStatus.idle,
-          capabilityMode: CloudSyncCapabilityMode.bidirectional,
-        ).copyWith(
-          backend: CloudSyncBackendKind.googleDrive,
-          accountId: 'google-account',
-          accountLabel: 'google@example.test',
-          pendingRecoveryKey: 'AA1-new-recovery-key',
-          conflicts: const [],
-          clearProgress: true,
-        );
-    await tester.pumpWidget(_subject(state: state, port: port));
-    await tester.pumpAndSettle();
-
-    expect(find.text('AA1-new-recovery-key'), findsOneWidget);
-    final saved = find.byKey(const ValueKey('cloud-sync-recovery-saved'));
-    await tester.scrollUntilVisible(saved, 180, scrollable: _pageScrollable);
-    await tester.tap(saved);
-    await tester.pump();
-    final confirm = find.byKey(
-      const ValueKey('cloud-sync-confirm-recovery-key'),
-    );
-    await tester.scrollUntilVisible(confirm, 180, scrollable: _pageScrollable);
-    await tester.tap(confirm);
-    await tester.pumpAndSettle();
-    expect(port.recoveryConfirmed, isTrue);
+    expect(push.onPressed, isNotNull);
   });
 
   testWidgets('网络失败只显示可读提示且不暴露异常类型', (tester) async {
@@ -674,8 +630,6 @@ class _FakePort extends CloudSyncUiPortAdapter {
   Completer<void>? connectCompleter;
   var pushes = 0;
   var pulls = 0;
-  String? recoveryKey;
-  bool recoveryConfirmed = false;
   Completer<CloudSyncConnectionDraft>? authorizationCompleter;
   final discardedAuthorizations = <CloudSyncConnectionDraft>[];
 
@@ -696,16 +650,6 @@ class _FakePort extends CloudSyncUiPortAdapter {
     CloudSyncConnectionDraft connection,
   ) async {
     discardedAuthorizations.add(connection);
-  }
-
-  @override
-  Future<void> recoverCloudDriveEncryption(String recoveryKey) async {
-    this.recoveryKey = recoveryKey;
-  }
-
-  @override
-  Future<void> confirmCloudDriveRecoveryKeySaved() async {
-    recoveryConfirmed = true;
   }
 
   @override
