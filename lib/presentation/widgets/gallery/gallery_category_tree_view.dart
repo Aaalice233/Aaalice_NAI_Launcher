@@ -79,6 +79,29 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
   final Set<String> _superDraggingCategoryIds = {};
 
   @override
+  void didUpdateWidget(covariant GalleryCategoryTreeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 新出现的分类（新建子分类/同步入册）自动展开其祖先链，
+    // 保证新节点立即可见；与相簿树行为保持一致
+    if (oldWidget.categories == widget.categories) return;
+    final oldIds = {for (final category in oldWidget.categories) category.id};
+    final parentOf = {
+      for (final category in widget.categories) category.id: category.parentId,
+    };
+    var changed = false;
+    for (final category in widget.categories) {
+      if (oldIds.contains(category.id)) continue;
+      var parentId = category.parentId;
+      while (parentId != null && !_expandedIds.contains(parentId)) {
+        changed = true;
+        _expandedIds.add(parentId);
+        parentId = parentOf[parentId];
+      }
+    }
+    if (changed) setState(() {});
+  }
+
+  @override
   void dispose() {
     _autoExpandTimer?.cancel();
     super.dispose();

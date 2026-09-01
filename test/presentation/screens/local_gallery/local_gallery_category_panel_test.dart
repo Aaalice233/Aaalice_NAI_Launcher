@@ -68,7 +68,7 @@ void main() {
                 onSyncWithFileSystem: () async {},
                 onCreateAlbum: (_) async {},
                 onAlbumSelected: onAlbumSelected ?? (_) {},
-                onAlbumRenameRequest: (_) async {},
+                onAlbumRename: (_, _) async {},
                 onAlbumDeleteRequest: (_) async {},
                 onAddAlbumRequest: (_) async {},
                 onAlbumMove: (_, _) async => true,

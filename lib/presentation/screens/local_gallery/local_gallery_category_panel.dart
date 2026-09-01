@@ -27,7 +27,7 @@ class LocalGalleryCategoryPanel extends StatefulWidget {
     required this.onSyncWithFileSystem,
     required this.onCreateAlbum,
     required this.onAlbumSelected,
-    required this.onAlbumRenameRequest,
+    required this.onAlbumRename,
     required this.onAlbumDeleteRequest,
     required this.onAddAlbumRequest,
     required this.onAlbumMove,
@@ -54,7 +54,7 @@ class LocalGalleryCategoryPanel extends StatefulWidget {
   final Future<void> Function() onSyncWithFileSystem;
   final Future<void> Function(String? parentId) onCreateAlbum;
   final ValueChanged<String?> onAlbumSelected;
-  final Future<void> Function(String albumId) onAlbumRenameRequest;
+  final Future<void> Function(String albumId, String newName) onAlbumRename;
   final Future<void> Function(String albumId) onAlbumDeleteRequest;
   final Future<void> Function(String? parentId) onAddAlbumRequest;
   final Future<bool> Function(String albumId, String? newParentId) onAlbumMove;
@@ -131,7 +131,7 @@ class _LocalGalleryCategoryPanelState extends State<LocalGalleryCategoryPanel> {
                         widget.onAlbumSelected(id);
                         widget.afterSelection?.call();
                       },
-                      onAlbumRenameRequest: widget.onAlbumRenameRequest,
+                      onAlbumRename: widget.onAlbumRename,
                       onAlbumDeleteRequest: widget.onAlbumDeleteRequest,
                       onAddAlbumRequest: widget.onAddAlbumRequest,
                       onAlbumMove: widget.onAlbumMove,

@@ -6,6 +6,7 @@ import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../common/themed_input.dart';
 import 'gallery_category_tree_view.dart'
     show galleryFilePathFromDataReader, galleryInternalDragPathFromLocalData;
 
@@ -22,7 +23,7 @@ class GalleryAlbumTreeView extends StatefulWidget {
   final bool includeAllImages;
   final bool embedded;
   final ValueChanged<String?> onAlbumSelected;
-  final Future<void> Function(String albumId)? onAlbumRenameRequest;
+  final Future<void> Function(String albumId, String newName)? onAlbumRename;
   final Future<void> Function(String albumId)? onAlbumDeleteRequest;
   final Future<void> Function(String? parentId)? onAddAlbumRequest;
   final Future<bool> Function(String albumId, String? newParentId)? onAlbumMove;
@@ -38,7 +39,7 @@ class GalleryAlbumTreeView extends StatefulWidget {
     this.includeAllImages = true,
     this.embedded = false,
     required this.onAlbumSelected,
-    this.onAlbumRenameRequest,
+    this.onAlbumRename,
     this.onAlbumDeleteRequest,
     this.onAddAlbumRequest,
     this.onAlbumMove,
@@ -53,6 +54,29 @@ class GalleryAlbumTreeView extends StatefulWidget {
 class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
   final Set<String> _expandedIds = {};
   final Set<String> _superDraggingAlbumIds = {};
+
+  @override
+  void didUpdateWidget(covariant GalleryAlbumTreeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 新出现的相簿（新建子相簿/云恢复/导入）自动展开其祖先链，
+    // 保证新节点立即可见；与分类树行为保持一致
+    if (oldWidget.albums == widget.albums) return;
+    final oldIds = {for (final album in oldWidget.albums) album.id};
+    final parentOf = {
+      for (final album in widget.albums) album.id: album.parentId,
+    };
+    var changed = false;
+    for (final album in widget.albums) {
+      if (oldIds.contains(album.id)) continue;
+      var parentId = album.parentId;
+      while (parentId != null && !_expandedIds.contains(parentId)) {
+        changed = true;
+        _expandedIds.add(parentId);
+        parentId = parentOf[parentId];
+      }
+    }
+    if (changed) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +132,18 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
             : _expandedIds.add(album.id),
       ),
       onTap: () => widget.onAlbumSelected(album.id),
-      onMenuAction: (action) => _handleAction(album, action),
+      onRename: widget.onAlbumRename == null
+          ? null
+          : (newName) => widget.onAlbumRename!(album.id, newName),
+      onAddSubAlbum: widget.onAddAlbumRequest == null
+          ? null
+          : () => widget.onAddAlbumRequest!(album.id),
+      onMoveToRoot: (depth == 0 || widget.onAlbumMove == null)
+          ? null
+          : () => widget.onAlbumMove!(album.id, null),
+      onDelete: widget.onAlbumDeleteRequest == null
+          ? null
+          : () => widget.onAlbumDeleteRequest!(album.id),
     );
 
     // 展开时把子树包进同一个拖放目标，整棵子树都是有效放置区
@@ -206,19 +241,6 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
       },
       child: dragTarget,
     );
-  }
-
-  void _handleAction(GalleryAlbum album, _AlbumAction action) {
-    switch (action) {
-      case _AlbumAction.rename:
-        widget.onAlbumRenameRequest?.call(album.id);
-      case _AlbumAction.addSubAlbum:
-        widget.onAddAlbumRequest?.call(album.id);
-      case _AlbumAction.moveToRoot:
-        widget.onAlbumMove?.call(album.id, null);
-      case _AlbumAction.delete:
-        widget.onAlbumDeleteRequest?.call(album.id);
-    }
   }
 }
 
@@ -383,7 +405,7 @@ class _EmptyAlbumHint extends StatelessWidget {
   }
 }
 
-class _AlbumItem extends StatelessWidget {
+class _AlbumItem extends StatefulWidget {
   const _AlbumItem({
     required this.icon,
     required this.label,
@@ -395,7 +417,10 @@ class _AlbumItem extends StatelessWidget {
     this.hasChildren = false,
     this.isExpanded = false,
     this.onExpand,
-    this.onMenuAction,
+    this.onRename,
+    this.onAddSubAlbum,
+    this.onMoveToRoot,
+    this.onDelete,
   });
 
   final IconData icon;
@@ -408,24 +433,59 @@ class _AlbumItem extends StatelessWidget {
   final bool isExpanded;
   final VoidCallback onTap;
   final VoidCallback? onExpand;
-  final ValueChanged<_AlbumAction>? onMenuAction;
+  final void Function(String newName)? onRename;
+  final VoidCallback? onAddSubAlbum;
+  final VoidCallback? onMoveToRoot;
+  final VoidCallback? onDelete;
+
+  @override
+  State<_AlbumItem> createState() => _AlbumItemState();
+}
+
+/// 相簿条目；交互模式与分类树 _CategoryItem 保持一致：
+/// 右键/触摸菜单每项自带动作，重命名进入就地编辑。
+class _AlbumItemState extends State<_AlbumItem> {
+  bool _isEditing = false;
+  late TextEditingController _editController;
+
+  @override
+  void initState() {
+    super.initState();
+    _editController = TextEditingController(text: widget.label);
+  }
+
+  @override
+  void didUpdateWidget(covariant _AlbumItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.label != widget.label && !_isEditing) {
+      _editController.text = widget.label;
+    }
+  }
+
+  @override
+  void dispose() {
+    _editController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isTouch = PlatformCapabilities.current.hasTouchInput;
-    final backgroundInset = (24.0 + depth * 12.0).clamp(24.0, 48.0).toDouble();
+    final backgroundInset = (24.0 + widget.depth * 12.0)
+        .clamp(24.0, 48.0)
+        .toDouble();
 
     final row = Row(
       children: [
-        if (hasChildren)
+        if (widget.hasChildren)
           IconButton(
-            onPressed: onExpand,
-            tooltip: isExpanded
+            onPressed: widget.onExpand,
+            tooltip: widget.isExpanded
                 ? context.l10n.common_collapse
                 : context.l10n.common_expand,
             icon: Icon(
-              isExpanded ? Icons.expand_more : Icons.chevron_right,
+              widget.isExpanded ? Icons.expand_more : Icons.chevron_right,
               size: 18,
               color: theme.colorScheme.outline,
             ),
@@ -438,56 +498,110 @@ class _AlbumItem extends StatelessWidget {
         else
           SizedBox(width: isTouch ? 48 : 20, height: isTouch ? 48 : 0),
         Icon(
-          icon,
+          widget.icon,
           size: 18,
           color:
-              iconColor ??
-              (isSelected
+              widget.iconColor ??
+              (widget.isSelected
                   ? theme.colorScheme.primary
                   : theme.colorScheme.onSurfaceVariant),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: _isEditing
+              ? ThemedInput(
+                  controller: _editController,
+                  autofocus: true,
+                  style: const TextStyle(fontSize: 13),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty) {
+                      widget.onRename?.call(value.trim());
+                    }
+                    setState(() => _isEditing = false);
+                  },
+                  onTapOutside: (_) => setState(() => _isEditing = false),
+                )
+              : Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: widget.isSelected
+                        ? FontWeight.w600
+                        : FontWeight.w500,
+                    color: widget.isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
         ),
         Text(
-          count.toString(),
+          widget.count.toString(),
           style: TextStyle(
             fontSize: 11,
             color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
           ),
         ),
-        if (isTouch && onMenuAction != null)
+        if (isTouch &&
+            (widget.onRename != null ||
+                widget.onAddSubAlbum != null ||
+                widget.onMoveToRoot != null ||
+                widget.onDelete != null))
           PopupMenuButton<_AlbumAction>(
             tooltip: context.l10n.common_moreActions,
-            onSelected: onMenuAction,
+            onSelected: (action) {
+              switch (action) {
+                case _AlbumAction.rename:
+                  setState(() => _isEditing = true);
+                case _AlbumAction.addSubAlbum:
+                  widget.onAddSubAlbum?.call();
+                case _AlbumAction.moveToRoot:
+                  widget.onMoveToRoot?.call();
+                case _AlbumAction.delete:
+                  widget.onDelete?.call();
+              }
+            },
             itemBuilder: (context) => [
               PopupMenuItem(
                 value: _AlbumAction.rename,
-                child: Text(context.l10n.common_rename),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.edit),
+                  title: Text(context.l10n.common_rename),
+                ),
               ),
               PopupMenuItem(
                 value: _AlbumAction.addSubAlbum,
-                child: Text(context.l10n.localGallery_createSubAlbum),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.create_new_folder),
+                  title: Text(context.l10n.localGallery_createSubAlbum),
+                ),
               ),
-              if (depth > 0)
+              if (widget.depth > 0)
                 PopupMenuItem(
                   value: _AlbumAction.moveToRoot,
-                  child: Text(context.l10n.localGallery_moveAlbumToRoot),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.drive_file_move_outline),
+                    title: Text(context.l10n.localGallery_moveAlbumToRoot),
+                  ),
                 ),
               PopupMenuItem(
                 value: _AlbumAction.delete,
-                child: Text(context.l10n.common_delete),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.delete_outline,
+                    color: theme.colorScheme.error,
+                  ),
+                  title: Text(context.l10n.common_delete),
+                ),
               ),
             ],
           ),
@@ -496,10 +610,10 @@ class _AlbumItem extends StatelessWidget {
 
     return Semantics(
       button: true,
-      selected: isSelected,
+      selected: widget.isSelected,
       child: GestureDetector(
-        onSecondaryTapUp: onMenuAction != null
-            ? (details) => _showMenu(context, details.globalPosition)
+        onSecondaryTapUp: widget.onRename != null
+            ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
@@ -510,7 +624,7 @@ class _AlbumItem extends StatelessWidget {
             bottom: 1,
           ),
           decoration: BoxDecoration(
-            color: isSelected
+            color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
@@ -518,7 +632,7 @@ class _AlbumItem extends StatelessWidget {
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              onTap: onTap,
+              onTap: widget.onTap,
               hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(8),
               child: ConstrainedBox(
@@ -540,33 +654,70 @@ class _AlbumItem extends StatelessWidget {
     );
   }
 
-  void _showMenu(BuildContext context, Offset position) {
-    showMenu<_AlbumAction>(
+  /// 桌面右键菜单；各项自带动作（与分类树一致），选择即执行
+  void _showContextMenu(BuildContext context, Offset position) {
+    showMenu(
       context: context,
       position: RelativeRect.fromLTRB(
         position.dx,
         position.dy,
-        MediaQuery.sizeOf(context).width - position.dx,
-        MediaQuery.sizeOf(context).height - position.dy,
+        position.dx + 1,
+        position.dy + 1,
       ),
       items: [
-        PopupMenuItem(
-          value: _AlbumAction.rename,
-          child: Text(context.l10n.common_rename),
-        ),
-        PopupMenuItem(
-          value: _AlbumAction.addSubAlbum,
-          child: Text(context.l10n.localGallery_createSubAlbum),
-        ),
-        if (depth > 0)
+        if (widget.onRename != null)
           PopupMenuItem(
-            value: _AlbumAction.moveToRoot,
-            child: Text(context.l10n.localGallery_moveAlbumToRoot),
+            onTap: () => Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) setState(() => _isEditing = true);
+            }),
+            child: Row(
+              children: [
+                const Icon(Icons.edit, size: 18),
+                const SizedBox(width: 8),
+                Text(context.l10n.common_rename),
+              ],
+            ),
           ),
-        PopupMenuItem(
-          value: _AlbumAction.delete,
-          child: Text(context.l10n.common_delete),
-        ),
+        if (widget.onAddSubAlbum != null)
+          PopupMenuItem(
+            onTap: widget.onAddSubAlbum,
+            child: Row(
+              children: [
+                const Icon(Icons.create_new_folder, size: 18),
+                const SizedBox(width: 8),
+                Text(context.l10n.localGallery_createSubAlbum),
+              ],
+            ),
+          ),
+        if (widget.onMoveToRoot != null)
+          PopupMenuItem(
+            onTap: widget.onMoveToRoot,
+            child: Row(
+              children: [
+                const Icon(Icons.drive_file_move_outline, size: 18),
+                const SizedBox(width: 8),
+                Text(context.l10n.localGallery_moveAlbumToRoot),
+              ],
+            ),
+          ),
+        if (widget.onDelete != null)
+          PopupMenuItem(
+            onTap: widget.onDelete,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.delete,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  context.l10n.common_delete,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
