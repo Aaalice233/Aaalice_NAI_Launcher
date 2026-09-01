@@ -1291,6 +1291,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_model => 'Select model';
 
   @override
+  String get agentChat_modelLabel => 'Model';
+
+  @override
+  String get agentChat_modelPickerTitle => 'Select model';
+
+  @override
+  String get agentChat_searchModels => 'Search models';
+
+  @override
+  String get agentChat_searchModelsHint => 'Name, model ID, or provider';
+
+  @override
+  String get agentChat_clearModelSearch => 'Clear model search';
+
+  @override
+  String get agentChat_noModelResults => 'No models match this search.';
+
+  @override
   String get agentChat_noModel => 'No model';
 
   @override

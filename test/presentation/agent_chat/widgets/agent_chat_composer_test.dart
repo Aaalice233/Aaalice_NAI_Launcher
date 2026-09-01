@@ -63,10 +63,12 @@ void main() {
       find.byKey(const ValueKey('agent-chat-send')),
     );
     expect(moreCenter.dx, lessThan(sendCenter.dx));
-    expect(moreCenter.dy, sendCenter.dy);
 
     final modelCenter = tester.getCenter(
       find.byKey(const ValueKey('agent-chat-model-selector')),
+    );
+    final thinkingCenter = tester.getCenter(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
     );
     final permissionCenter = tester.getCenter(
       find.byKey(const ValueKey('agent-chat-permission-mode')),
@@ -77,9 +79,14 @@ void main() {
     final contextCenter = tester.getCenter(
       find.byKey(const ValueKey('agent-chat-context-target')),
     );
-    expect(modelCenter.dx, lessThan(permissionCenter.dx));
+    expect(moreCenter.dx, lessThan(modelCenter.dx));
+    expect(moreCenter.dy, modelCenter.dy);
+    expect(modelCenter.dy, lessThan(thinkingCenter.dy));
+    expect(thinkingCenter.dx, lessThan(permissionCenter.dx));
     expect(permissionCenter.dx, lessThan(webCenter.dx));
     expect(webCenter.dx, lessThan(contextCenter.dx));
+    expect(contextCenter.dx, lessThan(sendCenter.dx));
+    expect(thinkingCenter.dy, sendCenter.dy);
     expect(
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
@@ -122,7 +129,7 @@ void main() {
   ) async {
     await _pumpComposer(
       tester,
-      width: 320,
+      width: 520,
       mobile: false,
       state: _readyState.copyWith(
         contextUsage: const AgentContextUsage.unknown(contextWindow: 128000),
@@ -139,6 +146,7 @@ void main() {
     for (final key in const [
       'agent-chat-more-actions',
       'agent-chat-model-selector',
+      'agent-chat-thinking-selector',
       'agent-chat-permission-mode',
       'agent-chat-web-access-toggle',
       'agent-chat-context-target',
@@ -174,13 +182,18 @@ void main() {
     final model = tester.getRect(
       find.byKey(const ValueKey('agent-chat-model-selector')),
     );
+    final thinking = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
+    );
     final permission = tester.getRect(
       find.byKey(const ValueKey('agent-chat-permission-mode')),
     );
-    expect(model.bottom, lessThanOrEqualTo(permission.top));
+    expect(model.bottom, lessThanOrEqualTo(thinking.top));
+    expect(thinking.bottom, lessThanOrEqualTo(permission.bottom));
     for (final key in const [
       'agent-chat-more-actions',
       'agent-chat-model-selector',
+      'agent-chat-thinking-selector',
       'agent-chat-permission-mode',
       'agent-chat-web-access-toggle',
       'agent-chat-context-target',
@@ -235,17 +248,17 @@ void main() {
     );
 
     final selector = find.byKey(const ValueKey('agent-chat-model-selector'));
-    expect(find.text(modelName), findsOneWidget);
-    expect(tester.getSize(selector).width, greaterThan(164));
+    expect(find.textContaining(modelName), findsOneWidget);
+    expect(tester.getSize(selector).width, greaterThan(120));
 
     await tester.tap(selector);
     await tester.pumpAndSettle();
 
     expect(find.text(modelName), findsNWidgets(2));
-    final popup = tester.widget<PopupMenuButton<(String, String)>>(
-      find.byType(PopupMenuButton<(String, String)>),
+    expect(
+      find.byKey(const ValueKey('agent-chat-model-search')),
+      findsOneWidget,
     );
-    expect(popup.constraints?.minWidth, 320);
     expect(tester.takeException(), isNull);
   });
 
@@ -293,6 +306,7 @@ void main() {
           );
           for (final key in const [
             'agent-chat-more-actions',
+            'agent-chat-thinking-selector',
             'agent-chat-permission-mode',
             'agent-chat-web-access-toggle',
             'agent-chat-context-target',

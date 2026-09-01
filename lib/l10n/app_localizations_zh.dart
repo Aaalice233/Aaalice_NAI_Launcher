@@ -1251,6 +1251,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_model => '选择模型';
 
   @override
+  String get agentChat_modelLabel => '模型';
+
+  @override
+  String get agentChat_modelPickerTitle => '选择模型';
+
+  @override
+  String get agentChat_searchModels => '搜索模型';
+
+  @override
+  String get agentChat_searchModelsHint => '模型名称、ID 或提供商';
+
+  @override
+  String get agentChat_clearModelSearch => '清除模型搜索';
+
+  @override
+  String get agentChat_noModelResults => '没有符合搜索条件的模型。';
+
+  @override
   String get agentChat_noModel => '未配置模型';
 
   @override
@@ -14867,6 +14885,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_model => '選擇模型';
+
+  @override
+  String get agentChat_modelLabel => '模型';
+
+  @override
+  String get agentChat_modelPickerTitle => '選擇模型';
+
+  @override
+  String get agentChat_searchModels => '搜尋模型';
+
+  @override
+  String get agentChat_searchModelsHint => '模型名稱、ID 或提供者';
+
+  @override
+  String get agentChat_clearModelSearch => '清除模型搜尋';
+
+  @override
+  String get agentChat_noModelResults => '沒有符合搜尋條件的模型。';
 
   @override
   String get agentChat_noModel => '未配置模型';
