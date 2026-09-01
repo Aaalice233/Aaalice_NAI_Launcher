@@ -2724,6 +2724,8 @@
   "localGallery_createAlbum": "新建相簿",
   "localGallery_createSubAlbum": "新建子相簿",
   "localGallery_moveAlbumToRoot": "移到根级",
+  "localGallery_moveAlbumUp": "移到上一级",
+  "localGallery_moveCategoryUp": "移到上一级",
   "localGallery_createAlbumTitle": "新建相簿",
   "localGallery_createSubAlbumTitle": "新建子相簿",
   "localGallery_createAlbumHint": "输入相簿名称",

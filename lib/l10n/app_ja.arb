@@ -2660,6 +2660,8 @@
   "localGallery_createAlbum": "アルバムを作成",
   "localGallery_createSubAlbum": "サブアルバムを作成",
   "localGallery_moveAlbumToRoot": "ルートへ移動",
+  "localGallery_moveAlbumUp": "一つ上へ移動",
+  "localGallery_moveCategoryUp": "一つ上へ移動",
   "localGallery_createAlbumTitle": "アルバムを作成",
   "localGallery_createSubAlbumTitle": "サブアルバムを作成",
   "localGallery_createAlbumHint": "アルバム名を入力",

@@ -5941,6 +5941,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_moveAlbumToRoot => 'ルートへ移動';
 
   @override
+  String get localGallery_moveAlbumUp => '一つ上へ移動';
+
+  @override
+  String get localGallery_moveCategoryUp => '一つ上へ移動';
+
+  @override
   String get localGallery_createAlbumTitle => 'アルバムを作成';
 
   @override

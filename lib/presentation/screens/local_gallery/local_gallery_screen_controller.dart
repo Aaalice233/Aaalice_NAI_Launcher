@@ -295,9 +295,9 @@ class LocalGalleryScreenController extends ChangeNotifier {
       onCategoryMove: (id, parentId) => _ref
           .read(galleryCategoryNotifierProvider.notifier)
           .moveCategory(id, parentId),
-      onCategoryReorder: (parentId, oldIndex, newIndex) => _ref
+      onCategoryMoveToSlot: (id, targetId, slot) => _ref
           .read(galleryCategoryNotifierProvider.notifier)
-          .reorderCategories(parentId, oldIndex, newIndex),
+          .moveCategoryToSlot(id, targetId, slot),
       onImageDrop: handleImageDrop,
       onSyncWithFileSystem: handleSyncWithFileSystem,
       onCreateAlbum: (parentId) => createAlbum(parentId),
@@ -310,6 +310,9 @@ class LocalGalleryScreenController extends ChangeNotifier {
       onAlbumMove: (id, parentId) => _ref
           .read(galleryAlbumNotifierProvider.notifier)
           .moveAlbum(id, parentId),
+      onAlbumMoveToSlot: (id, targetId, slot) => _ref
+          .read(galleryAlbumNotifierProvider.notifier)
+          .moveAlbumToSlot(id, targetId, slot),
       onImageDropToAlbum: handleImageDropToAlbum,
     );
   }

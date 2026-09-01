@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/gallery_album.dart';
+import '../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/gallery/gallery_album_sidecar_service.dart';
 import 'gallery_category_provider.dart';
@@ -155,6 +156,25 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
       _scheduleSidecarExport();
     }
     return success;
+  }
+
+  /// 按拖放槽位移动相簿（child=移入目标；before/after=同级或跨层排序，
+  /// 跨层时即“上移一级”），成功后刷新并导出 sidecar
+  Future<bool> moveAlbumToSlot(
+    String albumId,
+    String targetId,
+    GalleryTreeDropSlot slot,
+  ) async {
+    final changed = await _albums.moveAlbumToSlot(
+      albumId: albumId,
+      targetId: targetId,
+      slot: slot,
+    );
+    if (changed) {
+      await _load();
+      _scheduleSidecarExport();
+    }
+    return changed;
   }
 
   /// 移动相簿到新父级（含防环校验）

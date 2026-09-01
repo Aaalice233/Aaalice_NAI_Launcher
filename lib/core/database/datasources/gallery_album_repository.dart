@@ -1,10 +1,13 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
+
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../utils/app_logger.dart';
 import 'gallery_database_gateway.dart';
+import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import 'gallery_records.dart';
 import 'gallery_store_context.dart';
 import 'gallery_tables.dart';
@@ -90,6 +93,18 @@ abstract interface class GalleryAlbumRepository {
   Future<int> rebindPendingPaths({
     required Future<Map<String, int?>> Function(List<String> relativePaths)
     resolve,
+  });
+
+  /// 按拖放槽位原子移动相簿：
+  /// - child：成为 targetId 的子级（追加到其子级末尾）
+  /// - before/after：插入到 targetId 在其父级中的前/后位置；
+  ///   若被拖项与目标不同父，则同时发生“上移一级/跨层移动”
+  ///
+  /// 内含防环校验；返回是否实际变更（原地放置返回 false）。
+  Future<bool> moveAlbumToSlot({
+    required String albumId,
+    required String targetId,
+    required GalleryTreeDropSlot slot,
   });
 }
 
@@ -751,6 +766,119 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
       remaining += outcome.remaining;
     }
     return remaining;
+  }
+
+  @override
+  Future<bool> moveAlbumToSlot({
+    required String albumId,
+    required String targetId,
+    required GalleryTreeDropSlot slot,
+  }) async {
+    if (albumId == targetId) return false;
+
+    final rows = await gateway.execute(
+      'moveAlbumToSlot.load',
+      (db) async => await db.rawQuery(
+        'SELECT id, parent_id, sort_order FROM ${GalleryTables.albums}',
+      ),
+    );
+    final byId = <String, (String?, int)>{};
+    for (final row in rows) {
+      byId[row['id'] as String] = (
+        row['parent_id'] as String?,
+        (row['sort_order'] as num?)?.toInt() ?? 0,
+      );
+    }
+    if (!byId.containsKey(albumId) || !byId.containsKey(targetId)) {
+      return false;
+    }
+
+    final String? newParent;
+    switch (slot) {
+      case GalleryTreeDropSlot.child:
+        newParent = targetId;
+      case GalleryTreeDropSlot.before:
+      case GalleryTreeDropSlot.after:
+        newParent = byId[targetId]!.$1;
+    }
+
+    // 防环：新父的祖先链不得回到自身
+    var ancestor = newParent;
+    while (ancestor != null) {
+      if (ancestor == albumId) return false;
+      ancestor = byId[ancestor]?.$1;
+    }
+
+    final oldParent = byId[albumId]!.$1;
+
+    // 计算目标父级下新的同级顺序：
+    // - child 槽：目标父 = target 自身，其孩子追加 albumId 到末尾
+    // - before/after 槽：目标父 = target 的父级，列表包含 target 自身，
+    //   albumId 插到 target 的前/后位置
+    final List<(String, int)> siblings;
+    if (slot == GalleryTreeDropSlot.child) {
+      siblings =
+          byId.entries
+              .where((e) => e.key != albumId && e.value.$1 == targetId)
+              .map((e) => (e.key, e.value.$2))
+              .toList()
+            ..sort((a, b) => a.$2.compareTo(b.$2));
+    } else {
+      siblings =
+          byId.entries
+              .where((e) => e.key != albumId && e.value.$1 == newParent)
+              .map((e) => (e.key, e.value.$2))
+              .toList()
+            ..sort((a, b) => a.$2.compareTo(b.$2));
+    }
+
+    final ordered = <String>[for (final e in siblings) e.$1];
+    switch (slot) {
+      case GalleryTreeDropSlot.child:
+        ordered.add(albumId);
+      case GalleryTreeDropSlot.before:
+      case GalleryTreeDropSlot.after:
+        final targetIndex = ordered.indexOf(targetId);
+        final insertIndex = targetIndex == -1
+            ? ordered.length
+            : (slot == GalleryTreeDropSlot.before
+                  ? targetIndex
+                  : targetIndex + 1);
+        ordered.insert(insertIndex.clamp(0, ordered.length), albumId);
+    }
+
+    // 原地判断：同父且位置未变
+    if (oldParent == newParent) {
+      final current =
+          byId.entries
+              .where((e) => e.value.$1 == newParent)
+              .map((e) => (e.key, e.value.$2))
+              .toList()
+            ..sort((a, b) => a.$2.compareTo(b.$2));
+      final currentIds = [for (final e in current) e.$1];
+      if (const ListEquality().equals(currentIds, ordered)) return false;
+    }
+
+    await gateway.execute('moveAlbumToSlot.apply', (db) async {
+      final batch = db.batch();
+      batch.update(
+        GalleryTables.albums,
+        {'parent_id': newParent, 'updated_at': _now()},
+        where: 'id = ?',
+        whereArgs: [albumId],
+      );
+      for (var i = 0; i < ordered.length; i++) {
+        batch.update(
+          GalleryTables.albums,
+          {'sort_order': i},
+          where: 'id = ?',
+          whereArgs: [ordered[i]],
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+    context.markDataChanged();
+    return true;
   }
 
   static int _now() => DateTime.now().millisecondsSinceEpoch;

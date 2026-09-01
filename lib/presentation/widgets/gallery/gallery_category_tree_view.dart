@@ -8,12 +8,19 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_category.dart';
+import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'gallery_scan_progress_panel.dart';
 
-enum _GalleryCategoryAction { rename, addSubCategory, moveToRoot, delete }
+enum _GalleryCategoryAction {
+  rename,
+  addSubCategory,
+  moveUp,
+  moveToRoot,
+  delete,
+}
 
 String? galleryInternalDragPathFromLocalData(Object? localData) {
   if (localData is! Map) return null;
@@ -37,8 +44,12 @@ class GalleryCategoryTreeView extends StatefulWidget {
   final ValueChanged<String>? onCategoryDelete;
   final ValueChanged<String?>? onAddSubCategory;
   final void Function(String categoryId, String? newParentId)? onCategoryMove;
-  final void Function(String? parentId, int oldIndex, int newIndex)?
-  onCategoryReorder;
+  final Future<bool> Function(
+    String categoryId,
+    String targetId,
+    GalleryTreeDropSlot slot,
+  )?
+  onCategoryMoveToSlot;
   final void Function(String imagePath, String? categoryId)? onImageDrop;
   final VoidCallback? onSyncWithFileSystem;
 
@@ -59,7 +70,7 @@ class GalleryCategoryTreeView extends StatefulWidget {
     this.onCategoryDelete,
     this.onAddSubCategory,
     this.onCategoryMove,
-    this.onCategoryReorder,
+    this.onCategoryMoveToSlot,
     this.onImageDrop,
     this.onSyncWithFileSystem,
     this.includeRootNodes = true,
@@ -77,6 +88,7 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
   String? _hoveredCategoryId;
   Timer? _autoExpandTimer;
   final Set<String> _superDraggingCategoryIds = {};
+  final Map<String, GalleryTreeDropSlot> _slotStates = {};
 
   @override
   void didUpdateWidget(covariant GalleryCategoryTreeView oldWidget) {
@@ -195,6 +207,16 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
     );
   }
 
+  int _depthOf(GalleryCategory category) {
+    var depth = 0;
+    String? currentId = category.parentId;
+    while (currentId != null) {
+      depth++;
+      currentId = widget.categories.findById(currentId)?.parentId;
+    }
+    return depth;
+  }
+
   Widget _buildCategoryNode(
     ThemeData theme,
     GalleryCategory category,
@@ -233,16 +255,22 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
       onAddSubCategory: widget.onAddSubCategory != null
           ? () => widget.onAddSubCategory!(category.id)
           : null,
+      onMoveUp:
+          category.parentId != null &&
+              _depthOf(category) >= 2 &&
+              widget.onCategoryMove != null
+          ? () {
+              final parent = widget.categories.findById(category.parentId!);
+              widget.onCategoryMove!(category.id, parent?.parentId);
+            }
+          : null,
       onMoveToRoot: category.parentId != null && widget.onCategoryMove != null
           ? () => widget.onCategoryMove!(category.id, null)
           : null,
     );
 
-    if (widget.onCategoryMove != null || widget.onCategoryReorder != null) {
+    if (widget.onCategoryMoveToSlot != null) {
       categoryItem = _buildDraggableCategory(category, categoryItem);
-    }
-
-    if (widget.onCategoryMove != null) {
       categoryItem = _buildCategoryDragTarget(theme, category, categoryItem);
     }
 
@@ -313,59 +341,81 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
 
   Widget _buildCategoryDragTarget(
     ThemeData theme,
-    GalleryCategory targetCategory,
+    GalleryCategory target,
     Widget child,
   ) {
+    final childKey = GlobalKey();
+
     return DragTarget<GalleryCategory>(
       onWillAcceptWithDetails: (details) {
         final draggedCategory = details.data;
-        if (draggedCategory.id == targetCategory.id) return false;
-        if (widget.categories.wouldCreateCycle(
-          draggedCategory.id,
-          targetCategory.id,
-        )) {
+        if (draggedCategory.id == target.id) return false;
+        final slot = _slotStates[target.id];
+        final chainHead = slot == GalleryTreeDropSlot.child
+            ? target.id
+            : target.parentId;
+        if (widget.categories.wouldCreateCycle(draggedCategory.id, chainHead)) {
           return false;
         }
-        if (draggedCategory.parentId == targetCategory.id) return false;
         return true;
       },
       onAcceptWithDetails: (details) {
         HapticFeedback.heavyImpact();
-        widget.onCategoryMove?.call(details.data.id, targetCategory.id);
+        final slot = _slotStates[target.id] ?? GalleryTreeDropSlot.child;
+        widget.onCategoryMoveToSlot?.call(details.data.id, target.id, slot);
         setState(() {
-          _expandedIds.add(targetCategory.id);
+          _expandedIds.add(target.id);
           _hoveredCategoryId = null;
+          _slotStates.remove(target.id);
         });
         _autoExpandTimer?.cancel();
       },
       onMove: (details) {
-        if (_hoveredCategoryId != targetCategory.id) {
-          setState(() => _hoveredCategoryId = targetCategory.id);
-          final hasChildren = widget.categories
-              .getChildren(targetCategory.id)
-              .isNotEmpty;
-          if (hasChildren && !_expandedIds.contains(targetCategory.id)) {
-            _startAutoExpandTimer(targetCategory.id);
-          }
+        final box = childKey.currentContext?.findRenderObject() as RenderBox?;
+        final slot = box == null
+            ? GalleryTreeDropSlot.child
+            : _slotFor(
+                details.offset,
+                box.localToGlobal(Offset.zero) & box.size,
+              );
+        if (_hoveredCategoryId != target.id || _slotStates[target.id] != slot) {
+          setState(() {
+            _hoveredCategoryId = target.id;
+            _slotStates[target.id] = slot;
+          });
+        }
+        final hasChildren = widget.categories.getChildren(target.id).isNotEmpty;
+        if (slot == GalleryTreeDropSlot.child &&
+            hasChildren &&
+            !_expandedIds.contains(target.id)) {
+          _startAutoExpandTimer(target.id);
         }
       },
       onLeave: (_) {
-        if (_hoveredCategoryId == targetCategory.id) {
-          setState(() => _hoveredCategoryId = null);
+        if (_hoveredCategoryId == target.id) {
+          setState(() {
+            _hoveredCategoryId = null;
+            _slotStates.remove(target.id);
+          });
           _autoExpandTimer?.cancel();
         }
       },
       builder: (context, candidateData, rejectedData) {
         final isAccepting = candidateData.isNotEmpty;
         final isRejected = rejectedData.isNotEmpty;
+        final slot = _slotStates[target.id];
+        final showLineBefore =
+            isAccepting && slot == GalleryTreeDropSlot.before;
+        final showLineAfter = isAccepting && slot == GalleryTreeDropSlot.after;
+        final showChild = isAccepting && slot == GalleryTreeDropSlot.child;
 
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
-            color: isAccepting
+            color: showChild
                 ? theme.colorScheme.primary.withValues(alpha: 0.1)
                 : Colors.transparent,
-            border: isAccepting
+            border: showChild
                 ? Border.all(color: theme.colorScheme.primary, width: 2)
                 : isRejected
                 ? Border.all(
@@ -375,10 +425,26 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
                 : null,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: child,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (showLineBefore)
+                Container(height: 2, color: theme.colorScheme.primary),
+              KeyedSubtree(key: childKey, child: child),
+              if (showLineAfter)
+                Container(height: 2, color: theme.colorScheme.primary),
+            ],
+          ),
         );
       },
     );
+  }
+
+  GalleryTreeDropSlot _slotFor(Offset globalOffset, Rect rect) {
+    final local = globalOffset.dy - rect.top;
+    if (local < rect.height * 0.25) return GalleryTreeDropSlot.before;
+    if (local > rect.height * 0.75) return GalleryTreeDropSlot.after;
+    return GalleryTreeDropSlot.child;
   }
 
   Widget _buildImageDropTarget({
@@ -544,6 +610,7 @@ class _CategoryItem extends StatefulWidget {
   final void Function(String)? onRename;
   final VoidCallback? onDelete;
   final VoidCallback? onAddSubCategory;
+  final VoidCallback? onMoveUp;
   final VoidCallback? onMoveToRoot;
 
   const _CategoryItem({
@@ -560,6 +627,7 @@ class _CategoryItem extends StatefulWidget {
     this.onRename,
     this.onDelete,
     this.onAddSubCategory,
+    this.onMoveUp,
     this.onMoveToRoot,
   });
 
@@ -738,6 +806,8 @@ class _CategoryItemState extends State<_CategoryItem> {
                               setState(() => _isEditing = true);
                             case _GalleryCategoryAction.addSubCategory:
                               widget.onAddSubCategory?.call();
+                            case _GalleryCategoryAction.moveUp:
+                              widget.onMoveUp?.call();
                             case _GalleryCategoryAction.moveToRoot:
                               widget.onMoveToRoot?.call();
                             case _GalleryCategoryAction.delete:
@@ -764,6 +834,17 @@ class _CategoryItemState extends State<_CategoryItem> {
                                   context
                                       .l10n
                                       .localGallery_createSubCategoryTitle,
+                                ),
+                              ),
+                            ),
+                          if (widget.onMoveUp != null)
+                            PopupMenuItem(
+                              value: _GalleryCategoryAction.moveUp,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.arrow_upward),
+                                title: Text(
+                                  context.l10n.localGallery_moveCategoryUp,
                                 ),
                               ),
                             ),
@@ -835,6 +916,17 @@ class _CategoryItemState extends State<_CategoryItem> {
                 const Icon(Icons.create_new_folder, size: 18),
                 const SizedBox(width: 8),
                 Text(context.l10n.localGallery_createSubCategoryTitle),
+              ],
+            ),
+          ),
+        if (widget.onMoveUp != null)
+          PopupMenuItem(
+            onTap: widget.onMoveUp,
+            child: Row(
+              children: [
+                const Icon(Icons.arrow_upward, size: 18),
+                const SizedBox(width: 8),
+                Text(context.l10n.localGallery_moveCategoryUp),
               ],
             ),
           ),

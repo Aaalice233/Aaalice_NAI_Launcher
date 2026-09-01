@@ -95,6 +95,36 @@ void main() {
     expect(moveToRootCalled, isFalse);
   });
 
+  testWidgets('右键菜单出现在点击位置（无偏移）', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        GalleryAlbumTreeView(
+          albums: [_album('first')],
+          totalImageCount: 0,
+          onAlbumSelected: (_) {},
+          onAlbumRename: (_, _) async {},
+          onAddAlbumRequest: (_) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final itemCenter = tester.getCenter(find.text('first'));
+    await tester.tap(
+      find.text('first'),
+      buttons: kSecondaryButton,
+    );
+    await tester.pumpAndSettle();
+
+    // 用首个菜单项（重命名）定位菜单锚点
+    final firstItem = find.text('重命名');
+    expect(firstItem, findsOneWidget);
+    final firstItemTopLeft = tester.getTopLeft(firstItem);
+    // 菜单锚点应贴近点击位置（允许首项内边距）
+    expect((firstItemTopLeft.dy - itemCenter.dy).abs(), lessThan(48));
+    expect((firstItemTopLeft.dx - itemCenter.dx).abs(), lessThan(48));
+  });
+
   testWidgets('子相簿的新增使其祖先链自动展开并立即可见', (tester) async {
     await tester.pumpWidget(
       _host(

@@ -6,6 +6,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:nai_launcher/core/database/connection_pool_holder.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
+import 'package:nai_launcher/data/models/gallery/gallery_tree_drop_slot.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
 
 /// 相簿数据访问层单元测试
@@ -392,6 +393,87 @@ void main() {
       expect((await dataSource.albums.getAlbums()).single.id, existing.id);
     },
   );
+
+  test('moveAlbumToSlot child slot appends under target', () async {
+    final a = await dataSource.albums.createAlbum(name: 'A');
+    final b = await dataSource.albums.createAlbum(name: 'B');
+    final c = await dataSource.albums.createAlbum(name: 'C');
+
+    final changed = await dataSource.albums.moveAlbumToSlot(
+      albumId: a,
+      targetId: b,
+      slot: GalleryTreeDropSlot.child,
+    );
+
+    expect(changed, isTrue);
+    final albums = await dataSource.albums.getAlbums();
+    final moved = albums.firstWhere((x) => x.id == a);
+    expect(moved.parentId, b);
+    expect(albums.firstWhere((x) => x.id == c).parentId, isNull);
+  });
+
+  test('moveAlbumToSlot before slot reorders and moves up one level', () async {
+    final root = await dataSource.albums.createAlbum(name: 'root');
+    final childA = await dataSource.albums.createAlbum(
+      name: 'childA',
+      parentId: root,
+    );
+    await dataSource.albums.createAlbum(name: 'childB', parentId: root);
+    final sibling = await dataSource.albums.createAlbum(name: 'sibling');
+
+    final changed = await dataSource.albums.moveAlbumToSlot(
+      albumId: childA,
+      targetId: sibling,
+      slot: GalleryTreeDropSlot.before,
+    );
+
+    expect(changed, isTrue);
+    final albums = await dataSource.albums.getAlbums();
+    expect(albums.firstWhere((x) => x.id == childA).parentId, isNull);
+    final rootIds = albums
+        .where((x) => x.parentId == null)
+        .map((x) => x.id)
+        .toList();
+    expect(rootIds.indexOf(childA), lessThan(rootIds.indexOf(sibling)));
+  });
+
+  test('moveAlbumToSlot rejects cycles and self', () async {
+    final parent = await dataSource.albums.createAlbum(name: 'parent');
+    final child = await dataSource.albums.createAlbum(
+      name: 'child',
+      parentId: parent,
+    );
+
+    expect(
+      await dataSource.albums.moveAlbumToSlot(
+        albumId: parent,
+        targetId: child,
+        slot: GalleryTreeDropSlot.child,
+      ),
+      isFalse,
+    );
+    expect(
+      await dataSource.albums.moveAlbumToSlot(
+        albumId: parent,
+        targetId: parent,
+        slot: GalleryTreeDropSlot.child,
+      ),
+      isFalse,
+    );
+  });
+
+  test('moveAlbumToSlot adjacent same-position drop is a no-op', () async {
+    final a = await dataSource.albums.createAlbum(name: 'A');
+    final b = await dataSource.albums.createAlbum(name: 'B');
+
+    final changed = await dataSource.albums.moveAlbumToSlot(
+      albumId: b,
+      targetId: a,
+      slot: GalleryTreeDropSlot.after,
+    );
+
+    expect(changed, isFalse);
+  });
 
   test(
     'pendingPaths persist and rebindPendingPaths binds resolved ones',

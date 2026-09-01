@@ -121,7 +121,6 @@ void main() {
       onCategoryDelete: (_) async {},
       onAddSubCategory: (_) async {},
       onCategoryMove: (_, _) async {},
-      onCategoryReorder: (_, _, _) async {},
       onImageDrop: (_, _) async {},
       onSyncWithFileSystem: () async {},
       onCreateAlbum: (_) async {},
@@ -130,6 +129,8 @@ void main() {
       onAlbumDeleteRequest: (_) async {},
       onAddAlbumRequest: (_) async {},
       onAlbumMove: (_, _) async => true,
+      onAlbumMoveToSlot: (_, _, _) async => true,
+      onCategoryMoveToSlot: (_, _, _) async => true,
       onImageDropToAlbum: (imagePath, albumId) async {
         onDrop?.call(albumId, imagePath);
       },

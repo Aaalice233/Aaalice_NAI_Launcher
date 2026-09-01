@@ -5843,6 +5843,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_moveAlbumToRoot => '移到根级';
 
   @override
+  String get localGallery_moveAlbumUp => '移到上一级';
+
+  @override
+  String get localGallery_moveCategoryUp => '移到上一级';
+
+  @override
   String get localGallery_createAlbumTitle => '新建相簿';
 
   @override
@@ -19474,6 +19480,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_moveAlbumToRoot => '移到根級';
+
+  @override
+  String get localGallery_moveAlbumUp => '移到上一級';
+
+  @override
+  String get localGallery_moveCategoryUp => '移到上一級';
 
   @override
   String get localGallery_createAlbumTitle => '新建相簿';

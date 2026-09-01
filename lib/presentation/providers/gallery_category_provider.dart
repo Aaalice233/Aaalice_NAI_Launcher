@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/gallery_category.dart';
+import '../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../data/repositories/gallery_category_repository.dart';
 import 'category_operation_error.dart';
 
@@ -284,6 +285,98 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
         ),
       );
       return null;
+    }
+  }
+
+  /// 按拖放槽位移动分类：
+  /// - child：成为 target 的子分类（追加到末尾，含物理目录移动）
+  /// - before/after：插入到 target 在其父级中的前/后；跨父时同时物理
+  ///   移动目录（即“上移一级/跨层”），同父时仅重排顺序
+  Future<bool> moveCategoryToSlot(
+    String categoryId,
+    String targetId,
+    GalleryTreeDropSlot slot,
+  ) async {
+    final category = state.categories.findById(categoryId);
+    final target = state.categories.findById(targetId);
+    if (category == null || target == null || categoryId == targetId) {
+      return false;
+    }
+    final newParentId = slot == GalleryTreeDropSlot.child
+        ? targetId
+        : target.parentId;
+    if (state.categories.wouldCreateCycle(categoryId, newParentId)) {
+      return false;
+    }
+
+    try {
+      var working = [...state.categories];
+      // 跨父时先做物理移动并更新后代路径
+      if (category.parentId != newParentId) {
+        final moved = await _repository.moveCategory(
+          category,
+          newParentId,
+          working,
+        );
+        if (moved == null) return false;
+        working = working.map((c) => c.id == categoryId ? moved : c).toList();
+        working = _repository.updateDescendantPaths(
+          category.folderPath,
+          moved.folderPath,
+          working,
+        );
+      }
+
+      // 计算目标父级下新的同级顺序（含插入位置）
+      final siblings =
+          working
+              .where(
+                (c) =>
+                    c.parentId == newParentId &&
+                    c.id != categoryId &&
+                    c.id != targetId,
+              )
+              .toList()
+            ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      final targetOrder = target.sortOrder;
+      final targetIndex = siblings.indexWhere((c) => c.sortOrder > targetOrder);
+
+      final orderedIds = [for (final c in siblings) c.id];
+      switch (slot) {
+        case GalleryTreeDropSlot.child:
+          orderedIds.add(categoryId);
+        case GalleryTreeDropSlot.before:
+          orderedIds.insert(
+            (targetIndex == -1 ? orderedIds.length : targetIndex).clamp(
+              0,
+              orderedIds.length,
+            ),
+            categoryId,
+          );
+        case GalleryTreeDropSlot.after:
+          orderedIds.insert(
+            (targetIndex == -1 ? orderedIds.length : targetIndex).clamp(
+              0,
+              orderedIds.length,
+            ),
+            categoryId,
+          );
+      }
+
+      // 重写该父级全孩子的 sortOrder，并同步 moved 对象
+      working = working.map((c) {
+        if (c.parentId != newParentId) return c;
+        final index = orderedIds.indexOf(c.id);
+        if (index == -1) return c;
+        return c.copyWith(sortOrder: index, updatedAt: DateTime.now());
+      }).toList();
+
+      await _repository.saveCategories(working);
+      state = state.copyWith(categories: working);
+      return true;
+    } catch (e) {
+      AppLogger.e('槽位移动分类失败', e, null, 'GalleryCategory');
+      return false;
     }
   }
 

@@ -2701,6 +2701,8 @@
   "localGallery_createAlbum": "New Album",
   "localGallery_createSubAlbum": "New Sub-album",
   "localGallery_moveAlbumToRoot": "Move to Root",
+  "localGallery_moveAlbumUp": "Move Up One Level",
+  "localGallery_moveCategoryUp": "Move Up One Level",
   "localGallery_createAlbumTitle": "New Album",
   "localGallery_createSubAlbumTitle": "New Sub-album",
   "localGallery_createAlbumHint": "Enter album name",

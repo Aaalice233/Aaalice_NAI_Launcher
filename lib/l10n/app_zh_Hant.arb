@@ -2733,6 +2733,8 @@
   "localGallery_createAlbum": "新建相簿",
   "localGallery_createSubAlbum": "新建子相簿",
   "localGallery_moveAlbumToRoot": "移到根級",
+  "localGallery_moveAlbumUp": "移到上一級",
+  "localGallery_moveCategoryUp": "移到上一級",
   "localGallery_createAlbumTitle": "新建相簿",
   "localGallery_createSubAlbumTitle": "新建子相簿",
   "localGallery_createAlbumHint": "輸入相簿名稱",
