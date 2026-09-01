@@ -1268,15 +1268,9 @@ const piReasoningModelCatalog = <String, Map<String, AgentReasoningModelRule>>{
     ),
     'gemini-3.7-flash': AgentReasoningModelRule(
       api: AgentReasoningApi.geminiLevel,
-      levels: [
-        ThinkingLevel.minimal,
-        ThinkingLevel.low,
-        ThinkingLevel.medium,
-        ThinkingLevel.high,
-      ],
+      levels: [ThinkingLevel.low, ThinkingLevel.medium, ThinkingLevel.high],
       levelMap: {
         ThinkingLevel.off: null,
-        ThinkingLevel.minimal: 'MINIMAL',
         ThinkingLevel.low: 'LOW',
         ThinkingLevel.medium: 'MEDIUM',
         ThinkingLevel.high: 'HIGH',
@@ -1286,7 +1280,7 @@ const piReasoningModelCatalog = <String, Map<String, AgentReasoningModelRule>>{
       allowEmptySignature: false,
       alwaysIncludeEncryptedReasoning: false,
       thinkingBudgets: {},
-      disabledEffort: 'MINIMAL',
+      disabledEffort: 'LOW',
       contextWindow: 1048576,
       maxOutputTokens: 65536,
     ),
