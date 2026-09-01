@@ -472,6 +472,64 @@ User instructions.
     });
 
     test(
+      'switching models refreshes supported thinking levels and corrects state',
+      () async {
+        final configNotifier = container.read(
+          promptAssistantConfigProvider.notifier,
+        );
+        await configNotifier.upsertProvider(
+          ProviderPreset.deepseek.createConfig(),
+        );
+        await configNotifier.upsertModel(
+          const ModelConfig(
+            providerId: 'deepseek',
+            name: 'deepseek-v4-pro',
+            displayName: 'DeepSeek V4 Pro',
+            forTask: AssistantTaskType.chat,
+          ),
+        );
+        await configNotifier.upsertProvider(
+          ProviderPreset.gemini.createConfig(),
+        );
+        await configNotifier.upsertModel(
+          const ModelConfig(
+            providerId: 'gemini',
+            name: 'gemini-1.5-pro',
+            displayName: 'Gemini 1.5 Pro',
+            forTask: AssistantTaskType.chat,
+          ),
+        );
+        await container
+            .read(agentSettingsProvider.notifier)
+            .setModelReference(
+              const AgentModelReference(
+                providerId: 'deepseek',
+                model: 'deepseek-v4-pro',
+              ),
+            );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        final notifier = container.read(provider.notifier);
+        await notifier.setThinkingLevel(ThinkingLevel.high);
+        expect(container.read(provider).thinkingLevel, ThinkingLevel.high);
+
+        await notifier.selectChatModel('gemini', 'gemini-1.5-pro');
+
+        final state = container.read(provider);
+        expect(state.routeReady, isTrue);
+        expect(state.availableThinkingLevels, isEmpty);
+        expect(state.thinkingLevel, ThinkingLevel.off);
+        expect(
+          container.read(agentSettingsProvider).settings.chat.modelReference,
+          const AgentModelReference(
+            providerId: 'gemini',
+            model: 'gemini-1.5-pro',
+          ),
+        );
+      },
+    );
+
+    test(
       'new sessions inherit and persist the current thinking level',
       () async {
         final configNotifier = container.read(

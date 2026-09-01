@@ -2459,6 +2459,42 @@ abstract class AppLocalizations {
   /// **'Select model'**
   String get agentChat_model;
 
+  /// No description provided for @agentChat_modelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get agentChat_modelLabel;
+
+  /// No description provided for @agentChat_modelPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select model'**
+  String get agentChat_modelPickerTitle;
+
+  /// No description provided for @agentChat_searchModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Search models'**
+  String get agentChat_searchModels;
+
+  /// No description provided for @agentChat_searchModelsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name, model ID, or provider'**
+  String get agentChat_searchModelsHint;
+
+  /// No description provided for @agentChat_clearModelSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear model search'**
+  String get agentChat_clearModelSearch;
+
+  /// No description provided for @agentChat_noModelResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No models match this search.'**
+  String get agentChat_noModelResults;
+
   /// No description provided for @agentChat_noModel.
   ///
   /// In en, this message translates to:
