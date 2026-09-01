@@ -12,6 +12,27 @@ import 'package:nai_launcher/presentation/prompt_assistant/services/provider_ada
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 
 void main() {
+  test('streaming HTTP errors preserve the provider response body', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _ErrorAdapter(
+        '{"error":{"message":"Thinking level LOW is not supported"}}',
+      );
+    addTearDown(dio.close);
+
+    final events = await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.geminiGenerateContent),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(
+      events.whereType<AgentWireError>().single.message,
+      contains('Thinking level LOW is not supported'),
+    );
+  });
+
   test(
     'OpenAI chat stream does not emit finish after an error event',
     () async {
@@ -329,6 +350,159 @@ void main() {
       'role': 'tool',
       'tool_call_id': 'preview-1',
       'content': 'preview ready',
+    });
+  });
+
+  test('Gemini sends full JSON Schema for numeric tool enums', () async {
+    final capture = _CaptureAdapter();
+    final dio = Dio()..httpClientAdapter = capture;
+    addTearDown(dio.close);
+
+    await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(
+            ProviderProtocol.geminiGenerateContent,
+            tools: const [
+              Tool(
+                name: 'set_numeric_value',
+                description: 'Set a numeric value',
+                parameters: {
+                  'type': 'object',
+                  'properties': {
+                    'value': {
+                      'type': 'integer',
+                      'enum': [0, 1, 2],
+                    },
+                  },
+                },
+              ),
+            ],
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(
+      capture.options!.uri.path,
+      endsWith('/models/model:streamGenerateContent'),
+    );
+    expect(capture.options!.uri.queryParameters['alt'], 'sse');
+    final payload = capture.options!.data as Map<String, dynamic>;
+    final declaration =
+        (((payload['tools'] as List).single as Map)['functionDeclarations']
+                    as List)
+                .single
+            as Map;
+    expect(declaration, isNot(contains('parameters')));
+    expect(
+      ((declaration['parametersJsonSchema'] as Map)['properties']
+          as Map)['value'],
+      {
+        'type': 'integer',
+        'enum': [0, 1, 2],
+      },
+    );
+  });
+
+  test(
+    'Gemini 3 preserves provider tool call IDs and replaces duplicates',
+    () async {
+      final dio = Dio()
+        ..httpClientAdapter = _SseAdapter(
+          'data: {"candidates":[{"content":{"parts":['
+          '{"functionCall":{"id":"server-call","name":"read","args":{}}},'
+          '{"functionCall":{"id":"server-call","name":"write","args":{}}}'
+          ']},"finishReason":"STOP"}]}\n\n',
+        );
+      addTearDown(dio.close);
+
+      final events = await const GeminiGenerateContentAdapter()
+          .completeAgent(
+            dio: dio,
+            request: _request(
+              ProviderProtocol.geminiGenerateContent,
+              model: 'gemini-3.7-flash',
+            ),
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      final calls = events.whereType<AgentWireToolCallDone>().toList();
+      expect(calls.first.id, 'server-call');
+      expect(calls.last.id, isNot('server-call'));
+    },
+  );
+
+  test('Gemini 3 replays paired tool IDs and Pi result envelopes', () async {
+    final capture = _CaptureAdapter();
+    final dio = Dio()..httpClientAdapter = capture;
+    addTearDown(dio.close);
+    final base = _request(
+      ProviderProtocol.geminiGenerateContent,
+      model: 'gemini-3.7-flash',
+    );
+    final longId = 'call invalid ${List.filled(80, 'x').join()}';
+
+    await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: AgentChatRequest(
+            sessionId: base.sessionId,
+            provider: base.provider,
+            model: base.model,
+            systemPrompt: base.systemPrompt,
+            messages: [
+              AssistantMessage(
+                content: [
+                  ToolCallContent(
+                    id: longId,
+                    name: 'read',
+                    arguments: const {},
+                  ),
+                ],
+                stopReason: StopReason.toolUse,
+                provider: base.provider.id,
+                model: base.model,
+              ),
+              ToolResultMessage(
+                toolCallId: longId,
+                toolName: 'read',
+                content: const [ToolResultTextContent('done')],
+                isError: false,
+              ),
+              ToolResultMessage(
+                toolCallId: 'failed-call',
+                toolName: 'write',
+                content: const [ToolResultTextContent('denied')],
+                isError: true,
+              ),
+            ],
+            tools: const [],
+            apiKey: null,
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final contents =
+        (capture.options!.data as Map<String, dynamic>)['contents'] as List;
+    final functionCall =
+        ((contents.first as Map)['parts'] as List).single as Map;
+    final responses = ((contents.last as Map)['parts'] as List).cast<Map>();
+    final normalizedId =
+        ((functionCall['functionCall'] as Map)['id'] as String);
+    expect(normalizedId, hasLength(64));
+    expect(normalizedId, matches(RegExp(r'^[a-zA-Z0-9_-]+$')));
+    expect((responses.first['functionResponse'] as Map), {
+      'name': 'read',
+      'response': {'output': 'done'},
+      'id': normalizedId,
+    });
+    expect((responses.last['functionResponse'] as Map), {
+      'name': 'write',
+      'response': {'error': 'denied'},
+      'id': 'failed-call',
     });
   });
 
@@ -742,7 +916,9 @@ AgentChatRequest _request(
   ProviderProtocol protocol, {
   String? reasoning,
   String systemPrompt = 'system',
+  String model = 'model',
   bool includeTool = false,
+  List<Tool>? tools,
 }) {
   return AgentChatRequest(
     sessionId: 'session',
@@ -752,18 +928,23 @@ AgentChatRequest _request(
       protocol: protocol,
       baseUrl: 'https://example.test',
     ),
-    model: 'model',
+    model: model,
     systemPrompt: systemPrompt,
     messages: [UserMessage.text('hello')],
-    tools: includeTool
-        ? const [
-            Tool(
-              name: 'exact_tool',
-              description: 'Structured tool definition',
-              parameters: {'type': 'object', 'properties': <String, dynamic>{}},
-            ),
-          ]
-        : const [],
+    tools:
+        tools ??
+        (includeTool
+            ? const [
+                Tool(
+                  name: 'exact_tool',
+                  description: 'Structured tool definition',
+                  parameters: {
+                    'type': 'object',
+                    'properties': <String, dynamic>{},
+                  },
+                ),
+              ]
+            : const []),
     apiKey: null,
     reasoning: reasoning,
   );
@@ -787,6 +968,30 @@ class _SseAdapter implements HttpClientAdapter {
       200,
       headers: {
         Headers.contentTypeHeader: ['text/event-stream'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _ErrorAdapter implements HttpClientAdapter {
+  _ErrorAdapter(this.body);
+
+  final String body;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromString(
+      body,
+      400,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
       },
     );
   }
