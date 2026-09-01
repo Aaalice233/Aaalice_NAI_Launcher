@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -63,10 +65,13 @@ class TagLibraryState {
 class TagLibraryNotifier extends _$TagLibraryNotifier {
   TagLibraryService? _service;
   int _loadRevision = 0;
+  final Completer<void> _initialLoadCompleter = Completer<void>();
+
+  Future<void> get whenLoaded => _initialLoadCompleter.future;
 
   @override
   TagLibraryState build() {
-    _loadInitial();
+    unawaited(_loadInitial());
     return const TagLibraryState(isLoading: true);
   }
 
@@ -103,6 +108,10 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
         isLoading: false,
         error: e.toString(),
       );
+    } finally {
+      if (revision == _loadRevision && !_initialLoadCompleter.isCompleted) {
+        _initialLoadCompleter.complete();
+      }
     }
   }
 

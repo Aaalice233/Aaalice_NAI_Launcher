@@ -117,7 +117,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       final handle = _activeRun;
       if (coordinator != null && handle != null) coordinator.cancel(handle);
     });
-    Future.microtask(ensureGenerationHistoryRestored);
     return const ImageGenerationState();
   }
 

@@ -101,6 +101,7 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
   VibeLibraryCommandService get _commands =>
       VibeLibraryCommandService(_storage);
   Future<void>? _activeLoad;
+  bool _hasLoaded = false;
 
   @override
   VibeLibraryState build() {
@@ -109,7 +110,7 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
   }
 
   Future<void> initialize() async {
-    if (state.entries.isNotEmpty || state.isInitializing) return;
+    if (_hasLoaded) return;
     await _load(isInitializing: true, showLoading: true);
   }
 
@@ -182,6 +183,7 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
         _storage.getDisplayEntries(),
         _storage.getAllCategories(),
       ]);
+      _hasLoaded = true;
       state = state.copyWith(
         entries: values[0] as List<VibeLibraryEntry>,
         categories: values[1] as List<VibeLibraryCategory>,

@@ -480,7 +480,6 @@
   "@agentChat_compactFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_requestFailed": "Request failed. Please try again.",
   "agentChat_errorDetails": "Error details",
-  "agentChat_model": "Select model",
   "agentChat_modelLabel": "Model",
   "agentChat_modelPickerTitle": "Select model",
   "agentChat_searchModels": "Search models",

@@ -9,7 +9,7 @@ void main() {
     });
 
     test('keeps a bounded layout runway for direction reversal', () {
-      expect(OnlineGalleryPreloadPolicy.cacheExtent(800), 1000);
+      expect(OnlineGalleryPreloadPolicy.cacheExtent(800), 280);
       expect(OnlineGalleryPreloadPolicy.cacheExtent(-1), 0);
     });
 

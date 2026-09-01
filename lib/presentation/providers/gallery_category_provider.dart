@@ -57,13 +57,17 @@ class GalleryCategoryState with _$GalleryCategoryState {
 @riverpod
 class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
   final _repository = GalleryCategoryRepository.instance;
+  late Future<void> _initialLoad;
 
   @override
   GalleryCategoryState build() {
-    // 初始化时加载分类
-    Future.microtask(() => _loadCategories());
+    // 分类是画廊导航状态；离开页面后保留，避免每次重新读取和统计。
+    ref.keepAlive();
+    _initialLoad = Future<void>.microtask(_loadCategories);
     return const GalleryCategoryState(isLoading: true);
   }
+
+  Future<void> whenLoaded() => _initialLoad;
 
   /// 加载分类列表
   Future<void> _loadCategories() async {

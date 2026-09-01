@@ -2453,12 +2453,6 @@ abstract class AppLocalizations {
   /// **'Error details'**
   String get agentChat_errorDetails;
 
-  /// No description provided for @agentChat_model.
-  ///
-  /// In en, this message translates to:
-  /// **'Select model'**
-  String get agentChat_model;
-
   /// No description provided for @agentChat_modelLabel.
   ///
   /// In en, this message translates to:

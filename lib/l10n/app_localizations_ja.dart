@@ -1264,9 +1264,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_errorDetails => 'エラーの詳細';
 
   @override
-  String get agentChat_model => 'モデルを選択';
-
-  @override
   String get agentChat_modelLabel => 'モデル';
 
   @override

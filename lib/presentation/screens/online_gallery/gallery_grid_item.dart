@@ -11,6 +11,8 @@ import 'online_gallery_viewport_tracker.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/online_gallery/online_gallery_image_placeholder.dart';
 
+void _scheduleRevealImmediately(VoidCallback reveal) => reveal();
+
 /// Owns one gallery tile's visibility and detail request lifecycle.
 ///
 /// AI TAG items without a preview resolve their detail once when they first
@@ -31,6 +33,7 @@ class GalleryGridItem extends StatefulWidget {
     this.onTileBuild,
     this.onVisibilityTransition,
     this.onVisibilityDrivenRebuild,
+    this.scheduleReveal = _scheduleRevealImmediately,
     required this.viewportGeneration,
     required this.detailRequestScope,
     required this.loadDetail,
@@ -49,6 +52,7 @@ class GalleryGridItem extends StatefulWidget {
   final VoidCallback? onTileBuild;
   final VoidCallback? onVisibilityTransition;
   final VoidCallback? onVisibilityDrivenRebuild;
+  final void Function(VoidCallback reveal) scheduleReveal;
   final int viewportGeneration;
   final Object detailRequestScope;
   final Future<GalleryDetail> Function(
@@ -194,6 +198,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
         onGeometryMeasured: widget.onGeometryMeasured,
         onVisibilityTransition: widget.onVisibilityTransition,
         onVisibilityDrivenRebuild: widget.onVisibilityDrivenRebuild,
+        scheduleReveal: widget.scheduleReveal,
         builder: (context, hasBeenVisible, isScrolling, isVisible) {
           if (!hasBeenVisible) {
             return _buildDeferredCard(layoutAspectRatio);

@@ -19,6 +19,7 @@ import 'l10n/app_localizations_en.dart';
 import 'l10n/app_localizations_ja.dart';
 import 'l10n/app_localizations_zh.dart';
 import 'core/services/desktop_app_shutdown_service.dart';
+import 'core/services/interactive_work_gate.dart';
 import 'core/utils/app_error_reporter.dart';
 import 'core/utils/app_locale.dart';
 import 'core/utils/fatal_diagnostics.dart';
@@ -32,9 +33,12 @@ import 'core/windowing/desktop_window_state_controller.dart';
 import 'core/windowing/windows_native_window_state.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/gallery_folder_repository.dart';
+import 'data/services/temp_image_service.dart';
+import 'core/cache/gallery_cache_manager.dart';
 import 'core/cache/local_gallery_thumbnail_migration.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
 import 'presentation/providers/online_gallery_blacklist_provider.dart';
+import 'presentation/providers/startup_initialization_provider.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
 import 'presentation/services/generation_history_storage_service.dart';
 
@@ -186,12 +190,14 @@ class AppWindowListener extends WindowListener {
   @override
   void onWindowFocus() {
     WindowFocusTracker.markFocused();
+    InteractiveWorkGate.instance.setWindowFocused(true);
     AppLogger.d('Window focused', 'WindowListener');
   }
 
   @override
   void onWindowBlur() {
     WindowFocusTracker.markBlurred();
+    InteractiveWorkGate.instance.setWindowFocused(false);
     AppLogger.d('Window blurred', 'WindowListener');
   }
 
@@ -484,7 +490,35 @@ Future<bool> _initializeSystemTray() async {
   }
 }
 
+void _scheduleDeferredStartup(ProviderContainer container) {
+  unawaited(
+    InteractiveWorkGate.instance.runWhenIdle(
+      minimumDelay: const Duration(seconds: 5),
+      priority: InteractiveWorkPriority.maintenance,
+      action: () => _runDeferredStartup(container),
+    ),
+  );
+  unawaited(
+    InteractiveWorkGate.instance.runWhenIdle(
+      minimumDelay: const Duration(seconds: 10),
+      priority: InteractiveWorkPriority.maintenance,
+      action: () => _runNonFatalStartupStep(
+        'Online gallery blacklist sync',
+        () => container
+            .read(onlineGalleryBlacklistNotifierProvider.notifier)
+            .syncOnStartup(),
+      ),
+    ),
+  );
+}
+
 Future<void> _runDeferredStartup(ProviderContainer container) async {
+  await _runNonFatalStartupStep(
+    'Legacy gallery album import',
+    () => container
+        .read(startupInitializationTasksProvider)
+        .runDeferredDataMaintenance(),
+  );
   await _runNonFatalStartupStep('Legacy local thumbnail migration', () async {
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) return;
@@ -500,14 +534,14 @@ Future<void> _runDeferredStartup(ProviderContainer container) async {
       );
     }
   });
-
-  Future.delayed(const Duration(seconds: 8), () async {
-    await _runNonFatalStartupStep('Online gallery blacklist sync', () async {
-      await container
-          .read(onlineGalleryBlacklistNotifierProvider.notifier)
-          .syncOnStartup();
-    });
-  });
+  await _runNonFatalStartupStep(
+    'L2 cache cleanup',
+    () => L2CacheCleaner().checkAndClean(),
+  );
+  await _runNonFatalStartupStep(
+    'Temp files cleanup',
+    () => TempImageService().cleanupOldTempFiles(),
+  );
 }
 
 void main() {
@@ -598,7 +632,7 @@ Future<void> _bootstrapApplication() async {
       container: container,
       child: AppBootstrap(
         onWarmupComplete: () {
-          unawaited(_runDeferredStartup(container));
+          _scheduleDeferredStartup(container);
         },
       ),
     ),

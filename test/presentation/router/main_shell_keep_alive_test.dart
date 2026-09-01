@@ -11,7 +11,7 @@ import 'package:nai_launcher/presentation/router/app_branch.dart';
 import 'package:nai_launcher/presentation/router/app_shell.dart';
 
 void main() {
-  testWidgets('MainShell keeps only the semantic keep-alive branches mounted', (
+  testWidgets('MainShell retains visited branches and pauses hidden work', (
     tester,
   ) async {
     final lifecycle = <AppBranch, _BranchLifecycle>{
@@ -47,10 +47,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(lifecycle[AppBranch.generation]!.created, 1);
+    for (final branch in AppBranch.values.skip(1)) {
+      expect(
+        lifecycle[branch]!.created,
+        0,
+        reason: '${branch.name} must stay lazy until first navigation',
+      );
+    }
+
     for (final branch in keptAliveAppBranches) {
       router.go('/branch/${branch.index}');
       await tester.pumpAndSettle();
-      router.go('/branch/${AppBranch.generation.index}');
+      final fallback = branch == AppBranch.generation
+          ? AppBranch.localGallery
+          : AppBranch.generation;
+      router.go('/branch/${fallback.index}');
       await tester.pumpAndSettle();
 
       expect(lifecycle[branch]!.created, 1, reason: branch.name);
@@ -71,14 +83,15 @@ void main() {
       );
     }
 
-    router.go('/branch/${AppBranch.settings.index}');
-    await tester.pumpAndSettle();
-    router.go('/branch/${AppBranch.generation.index}');
-    await tester.pumpAndSettle();
-
-    expect(lifecycle[AppBranch.settings]!.created, 1);
-    expect(lifecycle[AppBranch.settings]!.disposed, 1);
-    expect(find.byKey(const ValueKey('branch-3')), findsNothing);
+    for (final branch in AppBranch.values) {
+      expect(lifecycle[branch]!.created, 1, reason: branch.name);
+      expect(lifecycle[branch]!.disposed, 0, reason: branch.name);
+      expect(
+        find.byKey(ValueKey('branch-${branch.index}'), skipOffstage: false),
+        findsOneWidget,
+        reason: branch.name,
+      );
+    }
   });
 }
 

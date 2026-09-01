@@ -25,6 +25,7 @@ import '../../../providers/vibe_library_selection_provider.dart';
 import '../../../router/app_routes.dart';
 import '../../../agent_chat/providers/agent_chat_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/frame_staggered_builder.dart';
 import '../../../widgets/common/pro_context_menu.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../agent_chat/widgets/agent_resource_drop_region.dart';
@@ -57,6 +58,14 @@ class _VibeLibraryContentViewState
     extends ConsumerState<VibeLibraryContentView> {
   /// GridView 的 PageStorageKey，用于保持滚动位置
   static const String _vibeLibraryGridKey = 'vibe_library_3d_grid';
+  final FrameStaggerController _frameStaggerController =
+      FrameStaggerController();
+
+  @override
+  void dispose() {
+    _frameStaggerController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,55 +131,65 @@ class _VibeLibraryContentViewState
         final entry = entries[index];
         final isSelected = selectionState.selectedIds.contains(entry.id);
 
-        return AgentResourceDragSource(
-          enableAddToAgentMenu: false,
-          reference: AgentChatResourceReference(
-            kind: AgentChatResourceKind.vibeLibraryEntry,
-            source: 'vibe_library',
-            resourceId: entry.id,
-            display: {'name': entry.displayName},
+        return FrameStaggeredChild(
+          key: ValueKey<String>('vibe-grid-${entry.id}'),
+          controller: _frameStaggerController,
+          placeholder: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          child: VibeCard(
-            entry: entry,
-            width: widget.itemWidth,
-            height: widget.itemWidth,
-            isSelected: isSelected,
-            showFavoriteIndicator: true,
-            onTap: () {
-              if (selectionState.isActive) {
+          child: AgentResourceDragSource(
+            enableAddToAgentMenu: false,
+            reference: AgentChatResourceReference(
+              kind: AgentChatResourceKind.vibeLibraryEntry,
+              source: 'vibe_library',
+              resourceId: entry.id,
+              display: {'name': entry.displayName},
+            ),
+            child: VibeCard(
+              entry: entry,
+              width: widget.itemWidth,
+              height: widget.itemWidth,
+              isSelected: isSelected,
+              showFavoriteIndicator: true,
+              onTap: () {
+                if (selectionState.isActive) {
+                  ref
+                      .read(vibeLibrarySelectionNotifierProvider.notifier)
+                      .toggle(entry.id);
+                } else {
+                  _showVibeDetail(context, entry);
+                }
+              },
+              onLongPress: () {
+                if (!selectionState.isActive) {
+                  ref
+                      .read(vibeLibrarySelectionNotifierProvider.notifier)
+                      .enterAndSelect(entry.id);
+                }
+              },
+              onSecondaryTapUp: (details) {
+                _showContextMenu(context, entry, details.globalPosition);
+              },
+              onFavoriteToggle: () {
                 ref
-                    .read(vibeLibrarySelectionNotifierProvider.notifier)
-                    .toggle(entry.id);
-              } else {
-                _showVibeDetail(context, entry);
-              }
-            },
-            onLongPress: () {
-              if (!selectionState.isActive) {
-                ref
-                    .read(vibeLibrarySelectionNotifierProvider.notifier)
-                    .enterAndSelect(entry.id);
-              }
-            },
-            onSecondaryTapUp: (details) {
-              _showContextMenu(context, entry, details.globalPosition);
-            },
-            onFavoriteToggle: () {
-              ref
-                  .read(vibeLibraryNotifierProvider.notifier)
-                  .toggleFavorite(entry.id);
-            },
-            onSendToGeneration: () async {
-              final physicalKeys =
-                  HardwareKeyboard.instance.physicalKeysPressed;
-              final isShiftPressed =
-                  physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
-                  physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
-              await _sendEntryToGeneration(context, entry, isShiftPressed);
-            },
-            onExport: () => unawaited(_exportSingleEntry(context, entry)),
-            onEdit: () => _showVibeDetail(context, entry),
-            onDelete: () => _deleteSingleEntry(context, entry),
+                    .read(vibeLibraryNotifierProvider.notifier)
+                    .toggleFavorite(entry.id);
+              },
+              onSendToGeneration: () async {
+                final physicalKeys =
+                    HardwareKeyboard.instance.physicalKeysPressed;
+                final isShiftPressed =
+                    physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
+                    physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
+                await _sendEntryToGeneration(context, entry, isShiftPressed);
+              },
+              onExport: () => unawaited(_exportSingleEntry(context, entry)),
+              onEdit: () => _showVibeDetail(context, entry),
+              onDelete: () => _deleteSingleEntry(context, entry),
+            ),
           ),
         );
       },
@@ -834,7 +853,7 @@ class _VibeLibraryContentViewState
   }
 }
 
-double computeVibeGridCacheExtent(double itemWidth) => itemWidth * 1.5;
+double computeVibeGridCacheExtent(double itemWidth) => itemWidth * 0.5;
 
 Future<VibeLibraryDetailData> resolveVibeDetailDataForOpen(
   VibeLibraryStorageService storage,

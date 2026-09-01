@@ -55,14 +55,40 @@ class _DelayedReadStorage extends PreciseRefLibraryStorageService {
 
   final Completer<void> readStarted = Completer<void>();
   final Completer<void> continueRead = Completer<void>();
+  int readCount = 0;
 
   @override
   Future<Uint8List?> readImageBytes(String id) async {
     final bytes = await super.readImageBytes(id);
+    readCount++;
     if (!readStarted.isCompleted) {
       readStarted.complete();
     }
     await continueRead.future;
+    return bytes;
+  }
+}
+
+class _ConcurrentReadStorage extends PreciseRefLibraryStorageService {
+  _ConcurrentReadStorage({required super.overrideDirectory});
+
+  final Completer<void> firstBatchStarted = Completer<void>();
+  final Completer<void> releaseReads = Completer<void>();
+  int startedReads = 0;
+  int activeReads = 0;
+  int maxActiveReads = 0;
+
+  @override
+  Future<Uint8List?> readImageBytes(String id) async {
+    final bytes = await super.readImageBytes(id);
+    startedReads++;
+    activeReads++;
+    if (activeReads > maxActiveReads) maxActiveReads = activeReads;
+    if (startedReads == 4 && !firstBatchStarted.isCompleted) {
+      firstBatchStarted.complete();
+    }
+    await releaseReads.future;
+    activeReads--;
     return bytes;
   }
 }
@@ -349,6 +375,58 @@ void main() {
     final entry = await storage.importFromBytes(bytes, name: 'a');
     final thumbnail = await storage.getDisplayThumbnail(entry.id);
     expect(thumbnail, bytes);
+  });
+
+  test('同一缩略图的并发读取合并为一次读盘', () async {
+    final entry = await storage.importFromBytes(_pngBytes(), name: 'shared');
+    final cache = Hive.lazyBox<Uint8List>('precise_ref_library_thumbnails_v1');
+    await cache.delete(entry.id);
+
+    final delayed = _DelayedReadStorage(overrideDirectory: imageDir.path);
+    storage = delayed;
+    final first = delayed.getDisplayThumbnail(entry.id);
+    final second = delayed.getDisplayThumbnail(entry.id);
+    await delayed.readStarted.future;
+
+    expect(delayed.readCount, 1);
+    delayed.continueRead.complete();
+    final results = await Future.wait([first, second]);
+    expect(results, everyElement(isNotNull));
+    expect(delayed.readCount, 1);
+  });
+
+  test('缩略图读盘并发限制为四个且不丢失排队任务', () async {
+    final entries = <String>[];
+    for (var index = 0; index < 6; index++) {
+      final entry = await storage.importFromBytes(
+        _pngBytes(),
+        name: 'queued-$index',
+      );
+      entries.add(entry.id);
+    }
+    await storage.close();
+    final thumbnailBox = await Hive.openLazyBox<Uint8List>(
+      'precise_ref_library_thumbnails_v1',
+    );
+    await thumbnailBox.clear();
+    await thumbnailBox.close();
+
+    final queuedStorage = _ConcurrentReadStorage(
+      overrideDirectory: imageDir.path,
+    );
+    storage = queuedStorage;
+    final loads = entries.map(storage.getDisplayThumbnail).toList();
+    await queuedStorage.firstBatchStarted.future.timeout(
+      const Duration(seconds: 2),
+    );
+
+    expect(queuedStorage.startedReads, 4);
+    expect(queuedStorage.maxActiveReads, 4);
+    queuedStorage.releaseReads.complete();
+    final thumbnails = await Future.wait(loads);
+    expect(queuedStorage.startedReads, 6);
+    expect(queuedStorage.maxActiveReads, 4);
+    expect(thumbnails, everyElement(isNotNull));
   });
 
   test('peekDisplayThumbnail 入库或读取后同步命中，删除后失效', () async {

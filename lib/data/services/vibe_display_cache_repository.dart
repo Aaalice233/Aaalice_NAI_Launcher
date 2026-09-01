@@ -1,7 +1,7 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 import '../../core/database/utils/lru_cache.dart';
+import '../../core/utils/async_work_pool.dart';
 import '../../core/utils/display_thumbnail_utils.dart';
 import '../../core/utils/vibe_performance_diagnostics.dart';
 import '../models/vibe/vibe_library_entry.dart';
@@ -15,8 +15,9 @@ class VibeDisplayCacheRepository {
   VibeDisplayCacheRepository(this._repository);
 
   final VibeLibraryRepositoryProtocol _repository;
-  Future<void> _thumbnailLoadQueue = Future.value();
+  final AsyncWorkPool _thumbnailReadPool = AsyncWorkPool(4);
   final Map<String, Future<Uint8List?>> _loadsById = {};
+  int _thumbnailLoadGeneration = 0;
 
   // 缩略图 ≤256px/64KB，256 条上限最多约 16MB
   final LRUCache<String, Uint8List> _memoryThumbnails = LRUCache(maxSize: 256);
@@ -51,26 +52,32 @@ class VibeDisplayCacheRepository {
   /// 卡片重建时先走这里，避免异步读盘期间渲染占位符造成闪烁。
   Uint8List? peekThumbnail(String id) => _memoryThumbnails.get(id);
 
-  Future<Uint8List?> getThumbnail(String id) async {
+  Future<Uint8List?> getThumbnail(
+    String id, {
+    bool Function()? isCancelled,
+  }) async {
     final memory = _memoryThumbnails.get(id);
     if (memory != null) return memory;
 
-    final cached = await _repository.readThumbnail(id);
-    if (cached != null && cached.isNotEmpty) {
-      _memoryThumbnails.put(id, cached);
-      return cached;
-    }
-
     final active = _loadsById[id];
     if (active != null) return active;
-    final load = _thumbnailLoadQueue.then((_) => _loadThumbnail(id));
-    _thumbnailLoadQueue = load.then<void>((_) {}, onError: (_) {});
+    final generation = _thumbnailLoadGeneration;
+    final load = _thumbnailReadPool.run(
+      () => _loadThumbnail(id),
+      isCancelled: () =>
+          generation != _thumbnailLoadGeneration ||
+          (isCancelled?.call() ?? false),
+    );
     _loadsById[id] = load;
     try {
       return await load;
     } finally {
       if (identical(_loadsById[id], load)) _loadsById.remove(id);
     }
+  }
+
+  void cancelPendingThumbnailLoads() {
+    _thumbnailLoadGeneration++;
   }
 
   Future<Uint8List?> _loadThumbnail(String id) async {

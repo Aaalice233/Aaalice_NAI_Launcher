@@ -10,6 +10,28 @@ abstract final class AgentChatComposerLayout {
   static const defaultMobileMaxLines = 6;
   static const defaultDesktopMaxLines = 8;
 
+  static int collapsedEditorMinLines({
+    required double availableHeight,
+    required double textScale,
+    required bool touchOptimized,
+  }) =>
+      touchOptimized &&
+          (availableHeight < 400 || (availableHeight < 500 && textScale > 1.4))
+      ? 1
+      : defaultMinLines;
+
+  static int collapsedEditorMaxLines({
+    required double availableHeight,
+    required double textScale,
+    required bool touchOptimized,
+  }) {
+    if (touchOptimized &&
+        (availableHeight < 400 || (availableHeight < 500 && textScale > 1.4))) {
+      return 1;
+    }
+    return touchOptimized ? defaultMobileMaxLines : defaultDesktopMaxLines;
+  }
+
   static double expandedEditorHeight({
     required double availableHeight,
     required bool touchOptimized,

@@ -11,7 +11,10 @@ import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/pr
 
 class _FakeStorage extends PreciseRefLibraryStorageService {
   @override
-  Future<Uint8List?> getDisplayThumbnail(String id) async => null;
+  Future<Uint8List?> getDisplayThumbnail(
+    String id, {
+    bool Function()? isCancelled,
+  }) async => null;
 }
 
 void main() {

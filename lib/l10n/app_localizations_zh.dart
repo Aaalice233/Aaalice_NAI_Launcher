@@ -1248,9 +1248,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_errorDetails => '错误详情';
 
   @override
-  String get agentChat_model => '选择模型';
-
-  @override
   String get agentChat_modelLabel => '模型';
 
   @override
@@ -14882,9 +14879,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_errorDetails => '錯誤詳情';
-
-  @override
-  String get agentChat_model => '選擇模型';
 
   @override
   String get agentChat_modelLabel => '模型';

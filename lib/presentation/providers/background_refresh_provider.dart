@@ -74,12 +74,32 @@ class BackgroundRefreshState {
 @riverpod
 class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
   final List<LazyDataSourceService> _services = [];
+  final Completer<void> _initialRefreshCompleter = Completer<void>();
+
+  Future<void> get whenInitialRefreshComplete =>
+      _initialRefreshCompleter.future;
 
   @override
   BackgroundRefreshState build() {
-    // 启动时检查是否需要刷新
-    _checkAndRefresh();
+    unawaited(_runInitialRefresh());
     return BackgroundRefreshState.initial();
+  }
+
+  Future<void> _runInitialRefresh() async {
+    try {
+      await _checkAndRefresh();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Initial background refresh failed',
+        error,
+        stackTrace,
+        'BackgroundRefresh',
+      );
+    } finally {
+      if (!_initialRefreshCompleter.isCompleted) {
+        _initialRefreshCompleter.complete();
+      }
+    }
   }
 
   /// 注册数据源服务
@@ -89,9 +109,7 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
 
   /// 检查并执行后台刷新
   Future<void> _checkAndRefresh() async {
-    // 延迟执行，确保主界面已加载
-    await Future.delayed(const Duration(seconds: 2));
-
+    // 调度时机由全局交互空闲队列负责；本服务只实现刷新业务。
     // 检查是否有待处理的刷新标记
     final prefs = await SharedPreferences.getInstance();
     final hasPendingRefresh =

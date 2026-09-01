@@ -616,12 +616,21 @@ void main() {
       find.byKey(const ValueKey('agent-assistant-message-retry-3')),
       findsOneWidget,
     );
+    final transcript = find.byKey(
+      ValueKey(
+        'agent-chat-thread-${container.read(agentChatNotifierProvider).activeSessionId}',
+      ),
+    );
+    await tester.drag(transcript, const Offset(0, 300));
+    await tester.pump();
     expect(
       tester
           .getSize(find.byKey(const ValueKey('agent-user-message-bubble-0')))
           .width,
       lessThan(100),
     );
+    await tester.drag(transcript, const Offset(0, -300));
+    await tester.pump();
 
     final latestMessage = find.byKey(const ValueKey('agent-user-message-2'));
     final actions = find.byKey(const ValueKey('agent-user-message-actions-2'));

@@ -79,6 +79,10 @@ class VibeLibraryStorageService {
     }
   }
 
+  void cancelPendingDisplayThumbnailLoads() {
+    _displayCache.cancelPendingThumbnailLoads();
+  }
+
   Future<VibeLibraryEntry?> findMatchingEntry(VibeReference vibe) =>
       _reader.findMatching(vibe);
   Future<VibeLibraryEntry?> findOverwriteCandidate(List<VibeReference> vibes) =>

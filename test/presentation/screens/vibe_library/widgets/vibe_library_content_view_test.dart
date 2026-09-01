@@ -12,8 +12,8 @@ void main() {
   });
 
   test('首屏网格缓存范围应收敛，避免额外预构建过多卡片', () {
-    expect(computeVibeGridCacheExtent(200), 300);
-    expect(computeVibeGridCacheExtent(160), 240);
+    expect(computeVibeGridCacheExtent(200), 100);
+    expect(computeVibeGridCacheExtent(160), 80);
   });
 
   test('打开详情前应优先回读真实条目参数，而不是继续使用列表旧快照', () async {

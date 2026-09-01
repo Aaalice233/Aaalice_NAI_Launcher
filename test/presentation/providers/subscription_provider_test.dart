@@ -203,6 +203,9 @@ void main() {
       );
       addTearDown(container.dispose);
       expect(container.read(subscriptionNotifierProvider).balance, 100);
+      unawaited(
+        container.read(subscriptionNotifierProvider.notifier).refreshBalance(),
+      );
       for (var i = 0; i < 20 && firstCancelToken == null; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 5));
       }
@@ -403,16 +406,16 @@ void main() {
 
     container.read(subscriptionNotifierProvider);
     await tester.pump();
-    expect(requestCount, 1);
+    expect(requestCount, 0);
 
     await tester.pump(const Duration(seconds: 30));
-    await tester.pump();
-    expect(requestCount, 2);
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(requestCount, 1);
     await tester.pump(const Duration(seconds: 59));
-    expect(requestCount, 2);
+    expect(requestCount, 1);
     await tester.pump(const Duration(seconds: 1));
-    await tester.pump();
-    expect(requestCount, 3);
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(requestCount, 2);
     expect(container.read(subscriptionNotifierProvider).balance, 100);
     container.dispose();
   });
@@ -439,16 +442,15 @@ void main() {
     );
     final notifier = container.read(subscriptionNotifierProvider.notifier);
     await tester.pump();
-    expect(requestCount, 1);
+    expect(requestCount, 0);
 
     notifier.setAppForeground(false);
     await tester.pump(const Duration(minutes: 5));
-    expect(requestCount, 1);
+    expect(requestCount, 0);
 
     notifier.setAppForeground(true);
-    await tester.pump(const Duration(milliseconds: 1));
-    await tester.pump();
-    expect(requestCount, 2);
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(requestCount, 1);
     container.dispose();
   });
 

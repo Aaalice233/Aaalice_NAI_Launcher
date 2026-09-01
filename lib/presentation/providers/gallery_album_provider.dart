@@ -61,13 +61,16 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
       GalleryAlbumSidecarService();
 
   Timer? _sidecarExportTimer;
+  late Future<void> _initialLoad;
 
   @override
   GalleryAlbumState build() {
     ref.onDispose(() => _sidecarExportTimer?.cancel());
-    Future.microtask(() => _load());
+    _initialLoad = Future<void>.microtask(_load);
     return const GalleryAlbumState(isLoading: true);
   }
+
+  Future<void> whenLoaded() => _initialLoad;
 
   GalleryAlbumRepository get _albums => _dataSource.albums;
 
