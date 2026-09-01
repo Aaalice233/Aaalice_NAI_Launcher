@@ -30,17 +30,10 @@ import 'core/utils/windows_clipboard_history_key_fix.dart';
 import 'core/utils/window_state_persistence.dart';
 import 'core/windowing/desktop_window_state_controller.dart';
 import 'core/windowing/windows_native_window_state.dart';
-import 'data/datasources/local/random_tag_library_data_source.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/gallery_folder_repository.dart';
-import 'core/cache/gallery_cache_manager.dart';
 import 'core/cache/local_gallery_thumbnail_migration.dart';
-
-import 'core/cache/tag_cache_service.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
-import 'data/services/metadata/isolate_metadata_service.dart';
-import 'data/services/search_index_service.dart';
-import 'data/services/temp_image_service.dart';
 import 'presentation/providers/online_gallery_blacklist_provider.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
 import 'presentation/services/generation_history_storage_service.dart';
@@ -492,30 +485,6 @@ Future<bool> _initializeSystemTray() async {
 }
 
 Future<void> _runDeferredStartup(ProviderContainer container) async {
-  await Future.wait([
-    _runNonFatalStartupStep('L2 cache cleanup', () async {
-      await L2CacheCleaner().checkAndClean();
-    }),
-    _runNonFatalStartupStep(
-      'Isolate metadata service initialization',
-      () async {
-        await IsolateMetadataService.instance.initialize();
-      },
-    ),
-    _runNonFatalStartupStep('Temp files cleanup', () async {
-      await TempImageService().cleanupOldTempFiles();
-    }),
-    _runNonFatalStartupStep('Random tag library preload', () async {
-      await container.read(randomTagLibraryDataSourceProvider).loadData();
-    }),
-    _runNonFatalStartupStep('Search index service initialization', () async {
-      await SearchIndexService().init();
-    }),
-    _runNonFatalStartupStep('Tag cache service initialization', () async {
-      await TagCacheService().init();
-    }),
-  ]);
-
   await _runNonFatalStartupStep('Legacy local thumbnail migration', () async {
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) return;

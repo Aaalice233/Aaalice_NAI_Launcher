@@ -42,6 +42,11 @@ class WarmupProgress {
   factory WarmupProgress.initial() =>
       const WarmupProgress(progress: 0.0, currentTask: 'warmup_preparing');
 
+  factory WarmupProgress.prepared() => const WarmupProgress(
+    progress: 1.0,
+    currentTask: 'warmup_preparing',
+  );
+
   factory WarmupProgress.complete() => const WarmupProgress(
     progress: 1.0,
     currentTask: 'warmup_complete',
@@ -64,6 +69,11 @@ class WarmupLocalizedException implements Exception {
 /// 预加载状态
 class WarmupState {
   final WarmupProgress progress;
+
+  /// 关键初始化已结束，可以在 Splash 下方挂载主页进行首帧探测。
+  final bool isPrepared;
+
+  /// 主页首帧与启动 microtask 均已结束，应用可以立即交互。
   final bool isComplete;
   final String? error;
 
@@ -72,6 +82,7 @@ class WarmupState {
 
   const WarmupState({
     required this.progress,
+    this.isPrepared = false,
     this.isComplete = false,
     this.error,
     this.subTaskMessage,
@@ -80,11 +91,18 @@ class WarmupState {
   factory WarmupState.initial() =>
       WarmupState(progress: WarmupProgress.initial());
 
-  factory WarmupState.complete() =>
-      WarmupState(progress: WarmupProgress.complete(), isComplete: true);
+  factory WarmupState.prepared() =>
+      WarmupState(progress: WarmupProgress.prepared(), isPrepared: true);
+
+  factory WarmupState.complete() => WarmupState(
+    progress: WarmupProgress.complete(),
+    isPrepared: true,
+    isComplete: true,
+  );
 
   WarmupState copyWith({
     WarmupProgress? progress,
+    bool? isPrepared,
     bool? isComplete,
     String? error,
     String? subTaskMessage,
@@ -93,6 +111,7 @@ class WarmupState {
   }) {
     return WarmupState(
       progress: progress ?? this.progress,
+      isPrepared: isPrepared ?? this.isPrepared,
       isComplete: isComplete ?? this.isComplete,
       error: clearError ? null : error ?? this.error,
       subTaskMessage: clearSubTaskMessage
@@ -117,13 +136,22 @@ class WarmupNotifier extends _$WarmupNotifier {
     return WarmupState.initial();
   }
 
-  /// 等待当前预热尝试结束，结果通过 [state] 判断。
+  /// 等待当前预热尝试进入可交互状态，或以错误结束。
   Future<void> get whenComplete => _completer.future;
 
   /// Splash 首帧完成后才开始关键初始化。
   void start() {
-    if (_isRunning || state.isComplete) return;
+    if (_isRunning || state.isPrepared) return;
     unawaited(_startWarmup());
+  }
+
+  void markInteractiveReady() {
+    if (!state.isPrepared || state.isComplete || state.error != null) return;
+    state = WarmupState.complete();
+    AppLogger.i('Warmup completed; application is interactive', 'Warmup');
+    if (!_completer.isCompleted) {
+      _completer.complete();
+    }
   }
 
   // ===== 任务实现方法 =====
@@ -167,6 +195,14 @@ class WarmupNotifier extends _$WarmupNotifier {
         .read(startupInitializationTasksProvider)
         .initializeCriticalServices();
     AppLogger.i('关键服务初始化完成', 'Warmup');
+  }
+
+  Future<void> _initializeInteractiveReadiness() async {
+    AppLogger.i('开始交互就绪初始化...', 'Warmup');
+    await ref
+        .read(startupInitializationTasksProvider)
+        .initializeInteractiveReadiness();
+    AppLogger.i('交互就绪初始化完成', 'Warmup');
   }
 
   // 【修复】移除了 _configureImageCache 方法
@@ -316,6 +352,16 @@ class WarmupNotifier extends _$WarmupNotifier {
         task: _initializeCriticalServices,
       ),
     );
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_interactiveReadiness',
+        displayName: 'warmup_group_dataServices',
+        phase: WarmupPhase.critical,
+        weight: 3,
+        timeout: Duration.zero,
+        task: _initializeInteractiveReadiness,
+      ),
+    );
   }
 
   /// 开始预热流程。
@@ -334,8 +380,11 @@ class WarmupNotifier extends _$WarmupNotifier {
         );
       }
 
-      state = WarmupState.complete();
-      AppLogger.i('Warmup completed; entering main application', 'Warmup');
+      state = WarmupState.prepared();
+      AppLogger.i(
+        'Warmup preparation completed; mounting main application',
+        'Warmup',
+      );
     } catch (e, stack) {
       AppLogger.e('Warmup failed', e, stack, 'Warmup');
       state = state.copyWith(
@@ -344,7 +393,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       );
     } finally {
       _isRunning = false;
-      if (!_completer.isCompleted) {
+      if (state.error != null && !_completer.isCompleted) {
         _completer.complete();
       }
     }

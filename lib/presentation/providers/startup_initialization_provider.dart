@@ -5,6 +5,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:video_player_media_kit/video_player_media_kit.dart';
 
 import '../../core/constants/storage_keys.dart';
+import '../../core/cache/gallery_cache_manager.dart';
+import '../../core/cache/tag_cache_service.dart';
 import '../../core/database/database_providers.dart';
 import '../../core/network/proxy_service.dart';
 import '../../core/network/system_proxy_http_overrides.dart';
@@ -14,12 +16,16 @@ import '../../core/shortcuts/shortcut_storage.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/hive_startup_box_opener.dart';
 import '../../core/utils/hive_storage_helper.dart';
-import '../../data/repositories/collection_repository.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../../data/datasources/local/random_tag_library_data_source.dart';
+import '../../data/repositories/collection_repository.dart';
 import '../../data/services/gallery/gallery_album_import_coordinator.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/image_metadata_service.dart';
+import '../../data/services/metadata/isolate_metadata_service.dart';
+import '../../data/services/search_index_service.dart';
+import '../../data/services/temp_image_service.dart';
 import '../../data/services/vibe_library_migration_service.dart';
 
 /// 可替换的启动关键任务边界，便于验证 Splash 与真实初始化的时序。
@@ -29,6 +35,7 @@ class StartupInitializationTasks {
     required this.runDataMigration,
     required this.initializeDatabase,
     required this.initializeCriticalServices,
+    required this.initializeInteractiveReadiness,
     this.enablePostWarmupTasks = true,
   });
 
@@ -39,6 +46,12 @@ class StartupInitializationTasks {
   runDataMigration;
   final Future<void> Function() initializeDatabase;
   final Future<void> Function() initializeCriticalServices;
+
+  /// 完成所有会在主页出现后争用 UI isolate 或启动 IO 的工作。
+  ///
+  /// 此 Future 成功前不得发布 warmup complete；调用方可以据此把“完成”
+  /// 解释为主页首次交互不会再被启动任务阻塞。
+  final Future<void> Function() initializeInteractiveReadiness;
   final bool enablePostWarmupTasks;
 }
 
@@ -162,9 +175,69 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
           localStorage: LocalStorageService(),
         ).importIfNeeded();
       },
+      initializeInteractiveReadiness: () async {
+        await Future.wait([
+          _runRequiredReadinessStep(
+            'Isolate metadata service initialization',
+            IsolateMetadataService.instance.initialize,
+          ),
+          _runRequiredReadinessStep('Random tag library preload', () async {
+            await ref.read(randomTagLibraryDataSourceProvider).loadData();
+          }),
+          _runRequiredReadinessStep(
+            'Search index service initialization',
+            () => ref.read(searchIndexServiceProvider).init(),
+          ),
+          _runRequiredReadinessStep(
+            'Tag cache service initialization',
+            () => ref.read(tagCacheServiceProvider).init(),
+          ),
+          _runNonFatalReadinessStep('L2 cache cleanup', () async {
+            await L2CacheCleaner().checkAndClean();
+          }),
+          _runNonFatalReadinessStep('Temp files cleanup', () async {
+            await TempImageService().cleanupOldTempFiles();
+          }),
+        ]);
+      },
     );
   },
 );
+
+Future<void> _runRequiredReadinessStep(
+  String name,
+  Future<void> Function() action,
+) async {
+  final stopwatch = Stopwatch()..start();
+  AppLogger.i('$name started', 'StartupReadiness');
+  try {
+    await action();
+  } catch (error, stackTrace) {
+    AppLogger.e(
+      '$name failed after ${stopwatch.elapsedMilliseconds}ms',
+      error,
+      stackTrace,
+      'StartupReadiness',
+    );
+    Error.throwWithStackTrace(error, stackTrace);
+  }
+  AppLogger.i(
+    '$name completed in ${stopwatch.elapsedMilliseconds}ms',
+    'StartupReadiness',
+  );
+}
+
+Future<void> _runNonFatalReadinessStep(
+  String name,
+  Future<void> Function() action,
+) async {
+  try {
+    await _runRequiredReadinessStep(name, action);
+  } catch (_) {
+    // Cache/temp maintenance is not an application capability. The required
+    // helper has already preserved the original error and stack in diagnostics.
+  }
+}
 
 void _configureSystemProxy(Box<dynamic> settingsBox) {
   if (!PlatformCapabilities.operatingSystem.isDesktop) return;
