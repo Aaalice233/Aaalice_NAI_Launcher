@@ -43,8 +43,11 @@ class AppBootstrap extends ConsumerStatefulWidget {
 
 class _AppBootstrapState extends ConsumerState<AppBootstrap> {
   bool _showMainApp = false;
+  bool _interactiveReady = false;
   bool _hasCheckedFirstLaunch = false;
   bool _warmupCompletionNotified = false;
+  bool _readinessProbeScheduled = false;
+  Timer? _readinessProbeTimer;
 
   @override
   void initState() {
@@ -59,48 +62,52 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final warmupState = ref.watch(warmupNotifierProvider);
+  void _scheduleMainAppMount() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _showMainApp) return;
+      setState(() {
+        _showMainApp = true;
+      });
+      _scheduleInteractiveReadinessProbe();
+    });
+  }
 
-    // 预加载完成后显示主应用
-    if (warmupState.isComplete && !_showMainApp) {
-      // 延迟一帧后切换，确保动画流畅
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _showMainApp) return;
+  void _scheduleInteractiveReadinessProbe() {
+    if (_readinessProbeScheduled) return;
+    _readinessProbeScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AppLogger.i(
+        'Main application frame rendered; probing event loop readiness',
+        'AppBootstrap',
+      );
+
+      // A zero-delay event turn runs only after startup microtasks queued while
+      // building the main tree have settled. Keep Splash above the tree until
+      // that turn and the resulting frame both complete.
+      _readinessProbeTimer = Timer(Duration.zero, () {
+        if (!mounted) return;
         setState(() {
-          _showMainApp = true;
+          _interactiveReady = true;
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || _warmupCompletionNotified) return;
+          ref.read(warmupNotifierProvider.notifier).markInteractiveReady();
           _warmupCompletionNotified = true;
+          AppLogger.i(
+            'Application interactive readiness confirmed',
+            'AppBootstrap',
+          );
           ref.read(warmupNotifierProvider.notifier).startPostWarmupTasks();
           widget.onWarmupComplete?.call();
         });
       });
-    }
+    });
+  }
 
-    // 如果显示主应用，直接返回（NAILauncherApp 自带 MaterialApp）
-    if (_showMainApp) {
-      final mainAppBuilder = widget.mainAppBuilder;
-      final mainApp = mainAppBuilder != null
-          ? mainAppBuilder(context)
-          : _MainAppWrapper(
-              hasCheckedFirstLaunch: _hasCheckedFirstLaunch,
-              onFirstLaunchChecked: () {
-                _hasCheckedFirstLaunch = true;
-              },
-            );
-      return AutomaticUpdateCheck(
-        delay: widget.autoUpdateDelay,
-        checkRunner: widget.autoUpdateCheckRunner,
-        child: mainApp,
-      );
-    }
-
-    // SplashScreen 需要 MaterialApp 提供基础上下文
+  Widget _buildSplash() {
     final locale = ref.watch(localeNotifierProvider);
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
@@ -110,6 +117,50 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
       builder: (context, child) => DesktopWindowFrame(child: child!),
       home: const SplashScreen(key: ValueKey('splash')),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final warmupState = ref.watch(warmupNotifierProvider);
+
+    if (warmupState.isPrepared && !_showMainApp) {
+      _scheduleMainAppMount();
+    }
+
+    if (!_showMainApp) {
+      return _buildSplash();
+    }
+
+    final mainAppBuilder = widget.mainAppBuilder;
+    final mainApp = mainAppBuilder != null
+        ? mainAppBuilder(context)
+        : _MainAppWrapper(
+            hasCheckedFirstLaunch: _hasCheckedFirstLaunch,
+            onFirstLaunchChecked: () {
+              _hasCheckedFirstLaunch = true;
+            },
+          );
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          AutomaticUpdateCheck(
+            enabled: _interactiveReady,
+            delay: widget.autoUpdateDelay,
+            checkRunner: widget.autoUpdateCheckRunner,
+            child: mainApp,
+          ),
+          if (!_interactiveReady) Positioned.fill(child: _buildSplash()),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _readinessProbeTimer?.cancel();
+    super.dispose();
   }
 }
 
@@ -122,11 +173,13 @@ class AutomaticUpdateCheck extends ConsumerStatefulWidget {
   const AutomaticUpdateCheck({
     super.key,
     required this.child,
+    this.enabled = true,
     this.delay = const Duration(seconds: 3),
     this.checkRunner,
   });
 
   final Widget child;
+  final bool enabled;
   final Duration delay;
 
   @visibleForTesting
@@ -144,10 +197,24 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
   @override
   void initState() {
     super.initState();
-    _schedule(widget.delay);
+    if (widget.enabled) {
+      _schedule(widget.delay);
+    }
+  }
+
+  @override
+  void didUpdateWidget(AutomaticUpdateCheck oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.enabled && widget.enabled) {
+      _schedule(widget.delay);
+    } else if (oldWidget.enabled && !widget.enabled) {
+      _timer?.cancel();
+      _timer = null;
+    }
   }
 
   void _schedule(Duration delay) {
+    if (!widget.enabled) return;
     _timer?.cancel();
     _timer = Timer(delay, _run);
   }
@@ -171,7 +238,7 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
       AppLogger.w('Auto update check failed: $error', 'AppBootstrap');
       AppLogger.d('$stackTrace', 'AppBootstrap');
     } finally {
-      if (mounted) {
+      if (mounted && widget.enabled) {
         _schedule(UpdateCheckService.failedCheckRetryInterval);
       }
     }

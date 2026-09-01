@@ -34,19 +34,25 @@ class SearchIndexService {
   int _totalTokens = 0;
   DateTime? _lastUpdated;
 
-  /// 初始化
-  Future<void> init() async {
+  /// 初始化。并发调用共享同一 Future，失败后允许显式重试。
+  Future<void> init() {
+    return _initFuture ??= _initialize().onError((
+      Object error,
+      StackTrace stackTrace,
+    ) {
+      _initFuture = null;
+      Error.throwWithStackTrace(error, stackTrace);
+    });
+  }
+
+  Future<void> _initialize() async {
     _box = await Hive.openBox(_boxName);
     await _loadIndex();
   }
 
   /// 确保已初始化（线程安全）
   Future<void> _ensureInit() async {
-    if (_box != null && _box!.isOpen) return;
-
-    // 使用 Future 锁避免并发初始化
-    _initFuture ??= init();
-    await _initFuture;
+    await init();
   }
 
   /// 从 Hive 加载索引
@@ -95,10 +101,26 @@ class SearchIndexService {
         'Search index loaded: $_documentCount documents, ${_invertedIndex.length} tokens',
         'SearchIndex',
       );
-    } catch (e) {
-      AppLogger.e('Failed to load search index: $e', 'SearchIndex');
-      // 加载失败时使用空索引
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to load search index',
+        error,
+        stackTrace,
+        'SearchIndex',
+      );
       _clearInMemoryIndex();
+      try {
+        await _box!.deleteAll([_indexKey, _documentsKey, _metadataKey]);
+        AppLogger.w('Invalid search index was reset', 'SearchIndex');
+      } catch (recoveryError, recoveryStackTrace) {
+        AppLogger.e(
+          'Failed to reset invalid search index',
+          recoveryError,
+          recoveryStackTrace,
+          'SearchIndex',
+        );
+        Error.throwWithStackTrace(error, stackTrace);
+      }
     }
   }
 
@@ -453,7 +475,7 @@ class SearchIndexService {
 }
 
 /// SearchIndexService Provider
-@riverpod
+@Riverpod(keepAlive: true)
 SearchIndexService searchIndexService(Ref ref) {
   final service = SearchIndexService();
   // Initialize the service when provider is first read

@@ -25,10 +25,11 @@ void main() {
     await AppVersion.initialize();
   });
 
-  testWidgets('Splash 先渲染，再按迁移、数据库、关键服务顺序进入主应用', (tester) async {
+  testWidgets('Splash 先渲染，并在交互任务完成后才进入主应用', (tester) async {
     final migration = Completer<void>();
     final database = Completer<void>();
     final criticalServices = Completer<void>();
+    final interactiveReadiness = Completer<void>();
     final calls = <String>[];
 
     await tester.pumpWidget(
@@ -50,6 +51,10 @@ void main() {
           initializeCriticalServices: () async {
             calls.add('criticalServices');
             await criticalServices.future;
+          },
+          initializeInteractiveReadiness: () async {
+            calls.add('interactiveReadiness');
+            await interactiveReadiness.future;
           },
         ),
       ),
@@ -76,9 +81,17 @@ void main() {
 
     criticalServices.complete();
     await _pumpAsync(tester);
+    expect(calls.last, 'interactiveReadiness');
+    expect(find.byType(SplashScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('main_app')), findsNothing);
+
+    interactiveReadiness.complete();
+    await _pumpAsync(tester);
     expect(find.byKey(const ValueKey('main_app')), findsOneWidget);
+    expect(find.byType(SplashScreen), findsNothing);
     expect(calls.where((call) => call == 'migration'), hasLength(1));
     expect(calls.where((call) => call == 'database'), hasLength(1));
+    expect(calls.where((call) => call == 'interactiveReadiness'), hasLength(1));
   });
 
   testWidgets('主应用显示后自动执行更新检测且自定义构建器不会绕过', (tester) async {
@@ -92,6 +105,7 @@ void main() {
           runDataMigration: (_) async => _successfulMigration(),
           initializeDatabase: () async {},
           initializeCriticalServices: () async {},
+          initializeInteractiveReadiness: () async {},
         ),
         autoUpdateDelay: Duration.zero,
         autoUpdateCheckRunner: (_) async {
@@ -127,6 +141,7 @@ void main() {
           initializeCriticalServices: () async {
             criticalServiceCalls++;
           },
+          initializeInteractiveReadiness: () async {},
         ),
       ),
     );
@@ -145,12 +160,91 @@ void main() {
     expect(criticalServiceCalls, 1);
     expect(find.byKey(const ValueKey('main_app')), findsOneWidget);
   });
+
+  testWidgets('交互准备失败保留 Splash，重试成功后才显示主页', (tester) async {
+    var readinessAttempts = 0;
+
+    await tester.pumpWidget(
+      _buildApp(
+        tasks: StartupInitializationTasks(
+          enablePostWarmupTasks: false,
+          initializeRuntimeConfiguration: () async {},
+          runDataMigration: (_) async => _successfulMigration(),
+          initializeDatabase: () async {},
+          initializeCriticalServices: () async {},
+          initializeInteractiveReadiness: () async {
+            readinessAttempts++;
+            if (readinessAttempts == 1) {
+              throw StateError('readiness failed');
+            }
+          },
+        ),
+      ),
+    );
+    await _pumpAsync(tester);
+
+    expect(readinessAttempts, 1);
+    expect(find.byType(SplashScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('main_app')), findsNothing);
+    expect(find.byKey(const ValueKey('warmup_retry')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('warmup_retry')));
+    await _pumpAsync(tester);
+
+    expect(readinessAttempts, 2);
+    expect(find.byType(SplashScreen), findsNothing);
+    expect(find.byKey(const ValueKey('main_app')), findsOneWidget);
+  });
+
+  testWidgets('完成回调等待主页首帧和启动 microtask，随后可立即交互', (tester) async {
+    var mainStartupMicrotaskSettled = false;
+    var completionSawSettledMicrotask = false;
+    var tapCount = 0;
+
+    await tester.pumpWidget(
+      _buildApp(
+        tasks: StartupInitializationTasks(
+          enablePostWarmupTasks: false,
+          initializeRuntimeConfiguration: () async {},
+          runDataMigration: (_) async => _successfulMigration(),
+          initializeDatabase: () async {},
+          initializeCriticalServices: () async {},
+          initializeInteractiveReadiness: () async {},
+        ),
+        onWarmupComplete: () {
+          completionSawSettledMicrotask = mainStartupMicrotaskSettled;
+        },
+        mainAppBuilder: (_) {
+          scheduleMicrotask(() {
+            mainStartupMicrotaskSettled = true;
+          });
+          return MaterialApp(
+            home: TextButton(
+              key: const ValueKey('ready_action'),
+              onPressed: () {
+                tapCount++;
+              },
+              child: const Text('ready'),
+            ),
+          );
+        },
+      ),
+    );
+    await _pumpAsync(tester);
+
+    expect(completionSawSettledMicrotask, isTrue);
+    expect(find.byType(SplashScreen), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('ready_action')));
+    expect(tapCount, 1);
+  });
 }
 
 Widget _buildApp({
   required StartupInitializationTasks tasks,
   Duration autoUpdateDelay = const Duration(seconds: 3),
   AutomaticUpdateCheckRunner? autoUpdateCheckRunner,
+  VoidCallback? onWarmupComplete,
+  WidgetBuilder? mainAppBuilder,
 }) {
   return ProviderScope(
     overrides: [
@@ -160,10 +254,13 @@ Widget _buildApp({
     child: AppBootstrap(
       autoUpdateDelay: autoUpdateDelay,
       autoUpdateCheckRunner: autoUpdateCheckRunner,
-      mainAppBuilder: (_) => const Directionality(
-        textDirection: TextDirection.ltr,
-        child: SizedBox(key: ValueKey('main_app')),
-      ),
+      onWarmupComplete: onWarmupComplete,
+      mainAppBuilder:
+          mainAppBuilder ??
+          (_) => const Directionality(
+            textDirection: TextDirection.ltr,
+            child: SizedBox(key: ValueKey('main_app')),
+          ),
     ),
   );
 }
@@ -179,6 +276,8 @@ Future<void> _pumpAsync(WidgetTester tester) async {
   for (var i = 0; i < 8; i++) {
     await tester.pump();
   }
+  await tester.pump(const Duration(milliseconds: 1));
+  await tester.pump();
 }
 
 class _MemoryStorage extends LocalStorageService {

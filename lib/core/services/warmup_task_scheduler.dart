@@ -209,6 +209,7 @@ class WarmupTaskScheduler {
   }
 
   Future<void> _executeTask(PhasedWarmupTask task) async {
+    final stopwatch = Stopwatch()..start();
     try {
       final timeout = task.timeout ?? const Duration(seconds: 5);
       if (timeout == Duration.zero) {
@@ -216,12 +217,22 @@ class WarmupTaskScheduler {
       } else {
         await task.task().timeout(timeout);
       }
-      AppLogger.i('Task "${task.name}" completed', 'WarmupScheduler');
-    } catch (e) {
-      AppLogger.w('Task "${task.name}" failed: $e', 'WarmupScheduler');
+      AppLogger.i(
+        'Task "${task.name}" completed in '
+            '${stopwatch.elapsedMilliseconds}ms',
+        'WarmupScheduler',
+      );
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Task "${task.name}" failed after '
+            '${stopwatch.elapsedMilliseconds}ms',
+        error,
+        stackTrace,
+        'WarmupScheduler',
+      );
       // 非关键阶段任务失败不抛出
       if (task.phase == WarmupPhase.critical) {
-        rethrow;
+        Error.throwWithStackTrace(error, stackTrace);
       }
     }
   }
