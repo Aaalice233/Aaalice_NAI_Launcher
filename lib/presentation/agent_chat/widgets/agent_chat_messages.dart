@@ -404,6 +404,24 @@ class AgentChatMessages extends StatelessWidget {
         ),
         alwaysUse24HourFormat: true,
       );
+      final hasBubbleContent = hasText || message.images.isNotEmpty;
+      Widget deliveryStatus(Color color) => Row(
+        key: ValueKey('agent-user-message-delivery-$messageIndex'),
+        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            sentAt,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontSize: 9,
+              height: 1,
+            ),
+          ),
+          const SizedBox(width: 3),
+          Icon(Icons.done_all_rounded, size: 11, color: color),
+        ],
+      );
       return MouseRegion(
         key: ValueKey('agent-user-message-$messageIndex'),
         onEnter: (_) => controller.setHoveredUserMessageIndex(messageIndex),
@@ -420,147 +438,120 @@ class AgentChatMessages extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Container(
-                  key: ValueKey('agent-user-message-bubble-$messageIndex'),
-                  constraints: BoxConstraints(
-                    minWidth: hasText ? 44 : 0,
-                    maxWidth: viewData.userBubbleMaxWidth,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withValues(
-                      alpha: 0.55,
+                if (resourceReferences.isNotEmpty)
+                  ConstrainedBox(
+                    key: ValueKey('agent-user-message-resources-$messageIndex'),
+                    constraints: BoxConstraints(
+                      maxWidth: viewData.userBubbleMaxWidth,
                     ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      topRight: Radius.circular(12),
-                      bottomLeft: Radius.circular(12),
-                      bottomRight: Radius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Wrap(
+                        spacing: 5,
+                        runSpacing: 4,
+                        alignment: WrapAlignment.end,
+                        children: [
+                          for (
+                            var index = 0;
+                            index < resourceReferences.length;
+                            index++
+                          )
+                            AgentChatSentResourceCard(
+                              key: ValueKey(
+                                'agent-user-message-resource-'
+                                '$messageIndex-$index',
+                              ),
+                              reference: resourceReferences[index],
+                              loadPreview: () =>
+                                  commands.resolveResourcePreview(
+                                    resourceReferences[index],
+                                  ),
+                              touchOptimized: viewData.mobile,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                  child: IntrinsicWidth(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (resourceReferences.isNotEmpty)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              bottom: message.images.isNotEmpty || hasText
-                                  ? 6
-                                  : 0,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                for (
-                                  var rowStart = 0;
-                                  rowStart < resourceReferences.length;
-                                  rowStart += 2
-                                )
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      bottom:
-                                          rowStart + 2 <
-                                              resourceReferences.length
-                                          ? 4
-                                          : 0,
+                if (hasBubbleContent)
+                  Container(
+                    key: ValueKey('agent-user-message-bubble-$messageIndex'),
+                    constraints: BoxConstraints(
+                      minWidth: hasText ? 44 : 0,
+                      maxWidth: viewData.userBubbleMaxWidth,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.55,
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                        bottomLeft: Radius.circular(12),
+                        bottomRight: Radius.circular(4),
+                      ),
+                    ),
+                    child: IntrinsicWidth(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (message.images.isNotEmpty)
+                            Padding(
+                              padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                alignment: WrapAlignment.end,
+                                children: [
+                                  for (final image in message.images)
+                                    _userImage(
+                                      theme,
+                                      image,
+                                      maxWidth:
+                                          viewData.userBubbleMaxWidth - 24,
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        for (
-                                          var index = rowStart;
-                                          index < resourceReferences.length &&
-                                              index < rowStart + 2;
-                                          index++
-                                        ) ...[
-                                          if (index > rowStart)
-                                            const SizedBox(width: 5),
-                                          AgentChatSentResourceCard(
-                                            key: ValueKey(
-                                              'agent-user-message-resource-'
-                                              '$messageIndex-$index',
-                                            ),
-                                            reference:
-                                                resourceReferences[index],
-                                            loadPreview: () =>
-                                                commands.resolveResourcePreview(
-                                                  resourceReferences[index],
-                                                ),
-                                            touchOptimized: viewData.mobile,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        if (message.images.isNotEmpty)
-                          Padding(
-                            padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
-                            child: Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              alignment: WrapAlignment.end,
-                              children: [
-                                for (final image in message.images)
-                                  _userImage(
-                                    theme,
-                                    image,
-                                    maxWidth: viewData.userBubbleMaxWidth - 24,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        if (hasText)
-                          Text(
-                            message.text,
-                            key: ValueKey(
-                              'agent-user-message-text-$messageIndex',
-                            ),
-                            textAlign: TextAlign.center,
-                            style:
-                                (viewData.mobile
-                                        ? theme.textTheme.bodyMedium
-                                        : theme.textTheme.bodySmall)
-                                    ?.copyWith(
-                                      color:
-                                          theme.colorScheme.onPrimaryContainer,
-                                      height: 1.45,
-                                    ),
-                          ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              sentAt,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onPrimaryContainer
-                                    .withValues(alpha: 0.58),
-                                fontSize: 9,
-                                height: 1,
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 3),
-                            Icon(
-                              Icons.done_all_rounded,
-                              size: 11,
-                              color: theme.colorScheme.onPrimaryContainer
-                                  .withValues(alpha: 0.58),
+                          if (hasText)
+                            Text(
+                              message.text,
+                              key: ValueKey(
+                                'agent-user-message-text-$messageIndex',
+                              ),
+                              textAlign: TextAlign.left,
+                              style:
+                                  (viewData.mobile
+                                          ? theme.textTheme.bodyMedium
+                                          : theme.textTheme.bodySmall)
+                                      ?.copyWith(
+                                        color: theme
+                                            .colorScheme
+                                            .onPrimaryContainer,
+                                        height: 1.45,
+                                      ),
                             ),
-                          ],
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          deliveryStatus(
+                            theme.colorScheme.onPrimaryContainer.withValues(
+                              alpha: 0.58,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: deliveryStatus(
+                      theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                     ),
                   ),
-                ),
                 const SizedBox(height: 2),
                 Focus(
                   onFocusChange: (focused) =>
