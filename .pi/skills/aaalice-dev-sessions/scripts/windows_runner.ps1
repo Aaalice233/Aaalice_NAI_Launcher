@@ -66,6 +66,7 @@ function Get-OAuthConfigValue {
 function Get-OptionalOAuthDartDefines {
     $names = @(
         'GOOGLE_DRIVE_WINDOWS_CLIENT_ID',
+        'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET',
         'GOOGLE_DRIVE_WINDOWS_REDIRECT_URI',
         'ONEDRIVE_WINDOWS_CLIENT_ID',
         'ONEDRIVE_WINDOWS_REDIRECT_URI',

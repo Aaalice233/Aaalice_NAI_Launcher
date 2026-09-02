@@ -376,6 +376,8 @@ abstract interface class CloudSyncUiPort {
     CloudSyncBackendKind backend,
   );
 
+  Future<void> cancelCloudDriveAuthorization(CloudSyncBackendKind backend);
+
   Future<void> discardCloudDriveAuthorization(
     CloudSyncConnectionDraft connection,
   );
@@ -434,6 +436,10 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
   Future<CloudSyncConnectionDraft> authorizeCloudDrive(
     CloudSyncBackendKind backend,
   ) => _unavailable();
+
+  @override
+  Future<void> cancelCloudDriveAuthorization(CloudSyncBackendKind backend) =>
+      _unavailable();
 
   @override
   Future<void> discardCloudDriveAuthorization(

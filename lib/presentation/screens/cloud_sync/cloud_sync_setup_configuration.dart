@@ -23,6 +23,7 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
     required this.oauthBusy,
     required this.oauthAccountLabel,
     required this.onAuthorizeOAuth,
+    required this.onCancelOAuth,
   });
 
   final CloudSyncBackendKind backend;
@@ -41,6 +42,7 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
   final bool oauthBusy;
   final String? oauthAccountLabel;
   final VoidCallback onAuthorizeOAuth;
+  final VoidCallback onCancelOAuth;
 
   @override
   Widget build(BuildContext context) => CloudSyncSection(
@@ -143,9 +145,11 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
       ChoiceChip(
         label: Text(label),
         selected: backend == value,
-        onSelected: (selected) {
-          if (selected) onBackendChanged(value);
-        },
+        onSelected: oauthBusy
+            ? null
+            : (selected) {
+                if (selected) onBackendChanged(value);
+              },
       );
 
   Widget _oauthConnection(BuildContext context) {
@@ -198,17 +202,22 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: FilledButton.tonalIcon(
               key: ValueKey('cloud-sync-authorize-${backend.name}'),
-              onPressed: oauthConfigured && !oauthBusy
+              onPressed: oauthBusy
+                  ? onCancelOAuth
+                  : oauthConfigured
                   ? onAuthorizeOAuth
                   : null,
-              icon: oauthBusy
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(connected ? Icons.swap_horiz : Icons.open_in_browser),
+              icon: Icon(
+                oauthBusy
+                    ? Icons.close
+                    : connected
+                    ? Icons.swap_horiz
+                    : Icons.open_in_browser,
+              ),
               label: Text(
-                connected
+                oauthBusy
+                    ? context.l10n.cloudSync_cancel
+                    : connected
                     ? context.l10n.cloudSync_changeAccount
                     : context.l10n.cloudSync_connectAccount,
               ),

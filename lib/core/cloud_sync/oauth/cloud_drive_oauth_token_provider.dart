@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../utils/app_logger.dart';
 import 'cloud_drive_oauth_client.dart';
 import 'cloud_drive_oauth_models.dart';
@@ -30,6 +32,10 @@ final class SecureCloudDriveOAuthTokenProvider
   final Duration refreshSkew;
   final Map<String, Future<CloudDriveOAuthSession>> _refreshes = {};
   final Map<String, int> _generations = {};
+  final Map<CloudDriveOAuthProvider, Completer<void>> _connectCancellations =
+      {};
+  final Map<CloudDriveOAuthProvider, Future<CloudDriveOAuthSession>>
+  _authentications = {};
 
   @override
   Future<CloudDriveOAuthSession?> readSession(
@@ -41,23 +47,62 @@ final class SecureCloudDriveOAuthTokenProvider
   Future<CloudDriveOAuthSession> connect(
     CloudDriveOAuthProvider provider,
   ) async {
+    if (_authentications.isNotEmpty || _connectCancellations.isNotEmpty) {
+      throw const CloudDriveOAuthException(
+        CloudDriveOAuthFailureCode.authorizationInProgress,
+        'Another OAuth authorization is still finishing',
+      );
+    }
     final stopwatch = Stopwatch()..start();
     var stage = 'authenticate';
+    final cancellation = Completer<void>();
+    _connectCancellations[provider] = cancellation;
     AppLogger.i(
       'OAuth session connection started: provider=${provider.id}',
       'CloudDriveOAuth',
     );
     try {
-      final session = await _client(provider).authenticate();
+      final client = _client(provider);
+      final authentication = client.authenticate();
+      _authentications[provider] = authentication;
+      unawaited(
+        authentication.then<void>(
+          (_) => _clearAuthentication(provider, authentication),
+          onError: (Object _, StackTrace __) =>
+              _clearAuthentication(provider, authentication),
+        ),
+      );
+      final session = await Future.any<CloudDriveOAuthSession>([
+        authentication,
+        cancellation.future.then<CloudDriveOAuthSession>(
+          (_) => throw const CloudDriveOAuthException(
+            CloudDriveOAuthFailureCode.cancelled,
+            'OAuth authorization was cancelled',
+          ),
+        ),
+      ]);
       _verifyClientSession(provider, session);
+      if (cancellation.isCompleted) _throwAuthorizationCancelled();
+      final previousSession = await _store.read(provider, session.accountId);
+      if (cancellation.isCompleted) _throwAuthorizationCancelled();
       final key = _sessionKey(provider, session.accountId);
-      _generations[key] = (_generations[key] ?? 0) + 1;
+      final generation = (_generations[key] ?? 0) + 1;
+      _generations[key] = generation;
       stage = 'persist_secure_session';
       AppLogger.i(
         'Persisting OAuth session in secure storage: provider=${provider.id}',
         'CloudDriveOAuth',
       );
       await _store.write(session);
+      if (cancellation.isCompleted) {
+        stage = 'restore_session_after_cancellation';
+        await _restoreSessionAfterCancellation(
+          session,
+          previousSession,
+          generation,
+        );
+        _throwAuthorizationCancelled();
+      }
       AppLogger.i(
         'OAuth session persisted: provider=${provider.id}, '
             'elapsedMs=${stopwatch.elapsedMilliseconds}',
@@ -73,8 +118,60 @@ final class SecureCloudDriveOAuthTokenProvider
         'CloudDriveOAuth',
       );
       rethrow;
+    } finally {
+      if (identical(_connectCancellations[provider], cancellation)) {
+        _connectCancellations.remove(provider);
+      }
     }
   }
+
+  @override
+  Future<void> cancelConnect(CloudDriveOAuthProvider provider) async {
+    final cancellation = _connectCancellations[provider];
+    if (cancellation == null) return;
+    if (!cancellation.isCompleted) cancellation.complete();
+    final client = _client(provider);
+    if (client is CloudDriveOAuthAuthenticationCanceller) {
+      await (client as CloudDriveOAuthAuthenticationCanceller)
+          .cancelAuthentication();
+      final authentication = _authentications[provider];
+      if (authentication != null) {
+        try {
+          await authentication;
+        } on Object {
+          // The connect Future owns and reports the cancellation result.
+        }
+      }
+    }
+  }
+
+  void _clearAuthentication(
+    CloudDriveOAuthProvider provider,
+    Future<CloudDriveOAuthSession> authentication,
+  ) {
+    if (identical(_authentications[provider], authentication)) {
+      _authentications.remove(provider);
+    }
+  }
+
+  Future<void> _restoreSessionAfterCancellation(
+    CloudDriveOAuthSession cancelled,
+    CloudDriveOAuthSession? previous,
+    int generation,
+  ) {
+    final key = _sessionKey(cancelled.provider, cancelled.accountId);
+    if ((_generations[key] ?? 0) != generation) {
+      return _store.delete(cancelled.provider, cancelled.accountId);
+    }
+    return previous == null
+        ? _store.delete(cancelled.provider, cancelled.accountId)
+        : _store.write(previous);
+  }
+
+  Never _throwAuthorizationCancelled() => throw const CloudDriveOAuthException(
+    CloudDriveOAuthFailureCode.cancelled,
+    'OAuth authorization was cancelled',
+  );
 
   @override
   Future<String> accessToken(

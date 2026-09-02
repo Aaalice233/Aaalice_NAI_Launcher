@@ -1,6 +1,7 @@
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/cloud_sync/cloud_drive_provider.dart';
 import '../../../core/cloud_sync/coordinator.dart';
+import '../../../core/cloud_sync/oauth/cloud_drive_oauth_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
@@ -228,10 +229,21 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
         stackTrace,
         'CloudSync',
       );
-      _errorReporter.record(error);
+      if (error is! CloudDriveOAuthException ||
+          error.code != CloudDriveOAuthFailureCode.cancelled) {
+        _errorReporter.record(error);
+      }
       rethrow;
     }
   });
+
+  @override
+  Future<void> cancelCloudDriveAuthorization(
+    CloudSyncBackendKind backend,
+  ) async {
+    if (!backend.usesOAuth) return;
+    await _cloudDriveProviders?.require(backend.oauthProvider).cancelConnect();
+  }
 
   @override
   Future<void> discardCloudDriveAuthorization(

@@ -13,6 +13,12 @@ abstract interface class CloudDriveOAuthClient {
   Future<void> disconnect(CloudDriveOAuthSession session);
 }
 
+/// Implemented by OAuth clients that can release an in-process authorization
+/// resource, such as a desktop loopback callback listener.
+abstract interface class CloudDriveOAuthAuthenticationCanceller {
+  Future<void> cancelAuthentication();
+}
+
 abstract interface class CloudDriveOAuthTokenProvider {
   Future<CloudDriveOAuthSession?> readSession(
     CloudDriveOAuthProvider provider,
@@ -20,6 +26,8 @@ abstract interface class CloudDriveOAuthTokenProvider {
   );
 
   Future<CloudDriveOAuthSession> connect(CloudDriveOAuthProvider provider);
+
+  Future<void> cancelConnect(CloudDriveOAuthProvider provider);
 
   Future<String> accessToken(
     CloudDriveOAuthProvider provider,
@@ -32,6 +40,7 @@ abstract interface class CloudDriveOAuthTokenProvider {
 enum CloudDriveOAuthFailureCode {
   notConfigured,
   cancelled,
+  authorizationInProgress,
   timedOut,
   invalidCallback,
   authorizationFailed,

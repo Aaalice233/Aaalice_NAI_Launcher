@@ -196,7 +196,8 @@ final class _LoopbackCallbackReceiver implements OAuthCallbackReceiver {
   Future<void> close() => _server.close(force: true);
 }
 
-final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
+final class LoopbackCloudDriveOAuthClient
+    implements CloudDriveOAuthClient, CloudDriveOAuthAuthenticationCanceller {
   LoopbackCloudDriveOAuthClient({
     required CloudDriveOAuthProviderConfig config,
     required OAuthHttpTransport transport,
@@ -224,6 +225,10 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
   final OAuthPkce _pkce;
   final DateTime Function() _clock;
   final Duration callbackTimeout;
+  final Map<int, OAuthCallbackReceiver> _activeReceivers = {};
+  final Map<int, Future<void>> _receiverClosures = {};
+  var _nextAuthenticationId = 0;
+  var _cancelledThroughAuthenticationId = 0;
 
   @override
   CloudDriveOAuthProvider get provider => _config.provider;
@@ -233,6 +238,7 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
     final stopwatch = Stopwatch()..start();
     var stage = 'initialize';
     OAuthCallbackReceiver? receiver;
+    final authenticationId = ++_nextAuthenticationId;
     AppLogger.i(
       'OAuth authentication started: provider=${provider.id}, '
           'callbackTimeout=${callbackTimeout.inSeconds}s',
@@ -242,6 +248,15 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
       final pkce = _pkce.create();
       stage = 'start_loopback_listener';
       receiver = await _callbackReceiverFactory.start(_config.redirectUri);
+      if (authenticationId <= _cancelledThroughAuthenticationId) {
+        await receiver.close();
+        receiver = null;
+        throw const CloudDriveOAuthException(
+          CloudDriveOAuthFailureCode.cancelled,
+          'OAuth authorization was cancelled',
+        );
+      }
+      _activeReceivers[authenticationId] = receiver;
       AppLogger.i(
         'Loopback listener ready: provider=${provider.id}, '
             'port=${receiver.redirectUri.port}, path=${receiver.redirectUri.path}',
@@ -328,19 +343,50 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
     } finally {
       final activeReceiver = receiver;
       if (activeReceiver != null) {
-        AppLogger.d(
-          'Closing loopback listener: provider=${provider.id}, '
-              'port=${activeReceiver.redirectUri.port}',
-          'CloudDriveOAuth',
-        );
-        await activeReceiver.close();
-        AppLogger.d(
-          'Loopback listener closed: provider=${provider.id}, '
-              'port=${activeReceiver.redirectUri.port}',
-          'CloudDriveOAuth',
-        );
+        await _closeReceiver(authenticationId, activeReceiver);
       }
     }
+  }
+
+  @override
+  Future<void> cancelAuthentication() async {
+    _cancelledThroughAuthenticationId = _nextAuthenticationId;
+    final active = _activeReceivers.entries.toList(growable: false);
+    for (final entry in active) {
+      final receiver = entry.value;
+      AppLogger.i(
+        'Cancelling OAuth callback wait: provider=${provider.id}, '
+            'port=${receiver.redirectUri.port}',
+        'CloudDriveOAuth',
+      );
+      await _closeReceiver(entry.key, receiver);
+    }
+  }
+
+  Future<void> _closeReceiver(
+    int authenticationId,
+    OAuthCallbackReceiver receiver,
+  ) {
+    final existing = _receiverClosures[authenticationId];
+    if (existing != null) return existing;
+    AppLogger.d(
+      'Closing loopback listener: provider=${provider.id}, '
+          'port=${receiver.redirectUri.port}',
+      'CloudDriveOAuth',
+    );
+    final close = receiver.close().whenComplete(() {
+      if (identical(_activeReceivers[authenticationId], receiver)) {
+        _activeReceivers.remove(authenticationId);
+      }
+      _receiverClosures.remove(authenticationId);
+      AppLogger.d(
+        'Loopback listener closed: provider=${provider.id}, '
+            'port=${receiver.redirectUri.port}',
+        'CloudDriveOAuth',
+      );
+    });
+    _receiverClosures[authenticationId] = close;
+    return close;
   }
 
   Uri buildAuthorizationUri({
@@ -374,13 +420,16 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
     required OAuthPkceRequest request,
   }) async {
     try {
-      final response = await _transport.postForm(_config.tokenEndpoint, {
+      final fields = <String, String>{
         'client_id': _config.clientId,
         'code': code,
         'code_verifier': request.codeVerifier,
         'redirect_uri': redirectUri.toString(),
         'grant_type': 'authorization_code',
-      });
+      };
+      final clientSecret = _config.clientSecret;
+      if (clientSecret != null) fields['client_secret'] = clientSecret;
+      final response = await _transport.postForm(_config.tokenEndpoint, fields);
       return _OAuthTokenResponse.parse(response, now: _clock());
     } on OAuthHttpException catch (error) {
       throw _mapHttpError(error);
@@ -403,12 +452,15 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
       );
     }
     try {
-      final json = await _transport.postForm(_config.tokenEndpoint, {
+      final fields = <String, String>{
         'client_id': _config.clientId,
         'refresh_token': refreshToken,
         'grant_type': 'refresh_token',
         'scope': _config.scopes.join(' '),
-      });
+      };
+      final clientSecret = _config.clientSecret;
+      if (clientSecret != null) fields['client_secret'] = clientSecret;
+      final json = await _transport.postForm(_config.tokenEndpoint, fields);
       final response = _OAuthTokenResponse.parse(
         json,
         now: _clock(),
@@ -543,16 +595,31 @@ final class LoopbackCloudDriveOAuthClient implements CloudDriveOAuthClient {
     }
   }
 
-  CloudDriveOAuthException _mapHttpError(OAuthHttpException error) =>
-      CloudDriveOAuthException(
-        error.error == 'invalid_grant'
-            ? CloudDriveOAuthFailureCode.invalidGrant
-            : CloudDriveOAuthFailureCode.authorizationFailed,
-        error.error == 'invalid_grant'
-            ? 'OAuth grant is no longer valid; sign in again'
-            : 'OAuth endpoint rejected the request',
-        oauthError: error.error,
-      );
+  CloudDriveOAuthException _mapHttpError(OAuthHttpException error) {
+    var description = error.description?.replaceAll(RegExp(r'[\r\n]+'), ' ');
+    final clientSecret = _config.clientSecret;
+    if (description != null && clientSecret != null) {
+      description = description.replaceAll(clientSecret, '[redacted]');
+    }
+    if (description != null && description.length > 300) {
+      description = '${description.substring(0, 300)}…';
+    }
+    AppLogger.w(
+      'OAuth endpoint rejected request: provider=${provider.id}, '
+          'status=${error.statusCode}, oauthError=${error.error}, '
+          'description=${description ?? 'none'}',
+      'CloudDriveOAuth',
+    );
+    return CloudDriveOAuthException(
+      error.error == 'invalid_grant'
+          ? CloudDriveOAuthFailureCode.invalidGrant
+          : CloudDriveOAuthFailureCode.authorizationFailed,
+      error.error == 'invalid_grant'
+          ? 'OAuth grant is no longer valid; sign in again'
+          : 'OAuth endpoint rejected the request',
+      oauthError: error.error,
+    );
+  }
 
   void _requireMatchingSession(CloudDriveOAuthSession session) {
     if (session.provider != provider) {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cloud_sync/content_selection.dart';
+import '../../../core/cloud_sync/oauth/cloud_drive_oauth_client.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
@@ -33,6 +34,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   final _path = TextEditingController(text: 'aaalice-sync');
   var _backend = CloudSyncBackendKind.webDav;
   var _busy = false;
+  var _authorizingOAuth = false;
   var _allowInsecureHttp = false;
   CloudSyncConnectionDraft? _oauthDraft;
   var _dataKinds = <CloudSyncDataKind>{
@@ -75,11 +77,33 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     if (mounted) setState(() {});
   }
 
+  void _runBackgroundCleanup(Future<void> cleanup, String action) {
+    unawaited(
+      cleanup.onError((error, stackTrace) {
+        AppLogger.e(
+          'Cloud sync cleanup failed: action=$action',
+          error,
+          stackTrace,
+          'CloudSync',
+        );
+      }),
+    );
+  }
+
   @override
   void dispose() {
+    if (_authorizingOAuth) {
+      _runBackgroundCleanup(
+        _cloudSyncUiPort.cancelCloudDriveAuthorization(_backend),
+        'cancel active OAuth authorization',
+      );
+    }
     final pendingOAuth = _oauthDraft;
     if (pendingOAuth != null) {
-      unawaited(_cloudSyncUiPort.discardCloudDriveAuthorization(pendingOAuth));
+      _runBackgroundCleanup(
+        _cloudSyncUiPort.discardCloudDriveAuthorization(pendingOAuth),
+        'discard OAuth draft',
+      );
     }
     for (final controller in _controllers) {
       controller.removeListener(_refreshInputState);
@@ -131,7 +155,16 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
       await operation();
     } catch (error) {
       if (!mounted) return;
-      final message = error is CloudSyncOperationInProgressException
+      if (error is CloudDriveOAuthException &&
+          error.code == CloudDriveOAuthFailureCode.cancelled) {
+        return;
+      }
+      final authorizationInProgress =
+          error is CloudDriveOAuthException &&
+          error.code == CloudDriveOAuthFailureCode.authorizationInProgress;
+      final message =
+          error is CloudSyncOperationInProgressException ||
+              authorizationInProgress
           ? context.l10n.cloudSync_operationInProgress
           : ref.read(cloudSyncUiStateProvider).error;
       if (message != null) {
@@ -147,29 +180,64 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   Future<void> _authorizeOAuth() async {
     final backend = _backend;
     final stopwatch = Stopwatch()..start();
+    setState(() => _authorizingOAuth = true);
     AppLogger.i(
       'OAuth authorization UI started: backend=${backend.name}',
       'CloudSync',
     );
-    await _run(() async {
-      final previous = _oauthDraft;
-      if (previous != null) {
-        await _cloudSyncUiPort.discardCloudDriveAuthorization(previous);
-        if (!mounted) return;
-        setState(() => _oauthDraft = null);
-      }
-      final connected = await _cloudSyncUiPort.authorizeCloudDrive(backend);
-      if (!mounted) {
-        await _cloudSyncUiPort.discardCloudDriveAuthorization(connected);
-        return;
-      }
-      setState(() => _oauthDraft = connected);
-    });
+    try {
+      await _run(() async {
+        final previous = _oauthDraft;
+        final connected = await _cloudSyncUiPort.authorizeCloudDrive(backend);
+        if (!mounted) {
+          await _cloudSyncUiPort.discardCloudDriveAuthorization(connected);
+          return;
+        }
+        setState(() => _oauthDraft = connected);
+        if (previous != null && previous.accountId != connected.accountId) {
+          try {
+            await _cloudSyncUiPort.discardCloudDriveAuthorization(previous);
+          } catch (error, stackTrace) {
+            AppLogger.e(
+              'Failed to discard replaced OAuth draft: '
+                  'backend=${backend.name}',
+              error,
+              stackTrace,
+              'CloudSync',
+            );
+          }
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _authorizingOAuth = false);
+      AppLogger.i(
+        'OAuth authorization UI finished: backend=${backend.name}, '
+            'elapsedMs=${stopwatch.elapsedMilliseconds}',
+        'CloudSync',
+      );
+    }
+  }
+
+  Future<void> _cancelOAuth() async {
+    final backend = _backend;
     AppLogger.i(
-      'OAuth authorization UI finished: backend=${backend.name}, '
-          'elapsedMs=${stopwatch.elapsedMilliseconds}',
+      'OAuth authorization cancellation requested: backend=${backend.name}',
       'CloudSync',
     );
+    try {
+      await _cloudSyncUiPort.cancelCloudDriveAuthorization(backend);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'OAuth authorization cancellation failed: backend=${backend.name}',
+        error,
+        stackTrace,
+        'CloudSync',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.cloudSync_operationFailed)),
+      );
+    }
   }
 
   void _changeBackend(CloudSyncBackendKind value) {
@@ -180,7 +248,10 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
       _oauthDraft = null;
     });
     if (previous != null) {
-      unawaited(_cloudSyncUiPort.discardCloudDriveAuthorization(previous));
+      _runBackgroundCleanup(
+        _cloudSyncUiPort.discardCloudDriveAuthorization(previous),
+        'discard OAuth draft after backend change',
+      );
     }
   }
 
@@ -250,9 +321,10 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
               setState(() => _allowInsecureHttp = value),
           oauthConfigured: oauthDiagnostic?.isConfigured ?? true,
           oauthConfigurationMessage: oauthDiagnostic?.reasons.join('\n') ?? '',
-          oauthBusy: _busy,
+          oauthBusy: _authorizingOAuth,
           oauthAccountLabel: _oauthDraft?.accountLabel,
           onAuthorizeOAuth: _authorizeOAuth,
+          onCancelOAuth: _cancelOAuth,
         ),
         _dataScope(),
         const SizedBox(height: 12),

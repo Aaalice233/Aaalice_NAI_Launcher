@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
 import 'package:nai_launcher/core/cloud_sync/cloud_drive_provider.dart';
+import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_client.dart';
 import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_config.dart';
 import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_models.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -125,13 +126,67 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('OAuth 返回时页面已销毁会立即清理新授权', (tester) async {
+  testWidgets('OAuth 等待期间可取消并立即恢复页面操作', (tester) async {
     final port = _FakePort()
       ..authorizationCompleter = Completer<CloudSyncConnectionDraft>();
-    final registry = CloudDriveProviderRegistry([
-      const _ConfiguredCloudDriveProvider(CloudDriveOAuthProvider.oneDrive),
-    ]);
-    await tester.pumpWidget(_subject(port: port, registry: registry));
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('OneDrive'));
+    await tester.pumpAndSettle();
+    final authorize = find.byKey(
+      const ValueKey('cloud-sync-authorize-oneDrive'),
+    );
+    await tester.tap(authorize);
+    await tester.pump();
+
+    expect(find.text('取消'), findsOneWidget);
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'WebDAV'))
+          .onSelected,
+      isNull,
+    );
+    await tester.tap(authorize);
+    await tester.pumpAndSettle();
+
+    expect(port.authorizationCancellations, 1);
+    expect(find.text('连接账号'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('更换账号时取消会保留原 OAuth 草稿', (tester) async {
+    final port = _FakePort();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+    expect(find.text('test@example.com'), findsOneWidget);
+
+    port.authorizationCompleter = Completer<CloudSyncConnectionDraft>();
+    final authorize = find.byKey(
+      const ValueKey('cloud-sync-authorize-oneDrive'),
+    );
+    await tester.tap(authorize);
+    await tester.pump();
+    await tester.tap(authorize);
+    await tester.pumpAndSettle();
+
+    expect(port.authorizationCancellations, 1);
+    expect(find.text('test@example.com'), findsOneWidget);
+    expect(port.discardedAuthorizations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('OAuth 等待期间销毁页面会取消后台授权', (tester) async {
+    final port = _FakePort()
+      ..authorizationCompleter = Completer<CloudSyncConnectionDraft>();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('OneDrive'));
@@ -141,19 +196,9 @@ void main() {
     );
     await tester.pump();
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-
-    port.authorizationCompleter!.complete(
-      const CloudSyncConnectionDraft(
-        backend: CloudSyncBackendKind.oneDrive,
-        path: 'aaalice-sync',
-        accountId: 'late-account',
-        accountLabel: 'late@example.com',
-      ),
-    );
     await tester.pumpAndSettle();
 
-    expect(port.discardedAuthorizations.single.accountId, 'late-account');
+    expect(port.authorizationCancellations, 1);
     expect(tester.takeException(), isNull);
   });
 
@@ -620,6 +665,9 @@ class _ConfiguredCloudDriveProvider implements CloudDriveProvider {
   Future<CloudDriveOAuthSession> connect() => throw UnimplementedError();
 
   @override
+  Future<void> cancelConnect() async {}
+
+  @override
   CloudSyncBackend createBackend({
     required String accountId,
     required String namespace,
@@ -696,6 +744,7 @@ class _FakePort extends CloudSyncUiPortAdapter {
   var pulls = 0;
   Completer<CloudSyncConnectionDraft>? authorizationCompleter;
   final discardedAuthorizations = <CloudSyncConnectionDraft>[];
+  var authorizationCancellations = 0;
 
   @override
   Future<CloudSyncConnectionDraft> authorizeCloudDrive(
@@ -708,6 +757,22 @@ class _FakePort extends CloudSyncUiPortAdapter {
         accountId: 'account-1',
         accountLabel: 'test@example.com',
       );
+
+  @override
+  Future<void> cancelCloudDriveAuthorization(
+    CloudSyncBackendKind backend,
+  ) async {
+    authorizationCancellations++;
+    final completer = authorizationCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.completeError(
+        const CloudDriveOAuthException(
+          CloudDriveOAuthFailureCode.cancelled,
+          'cancelled by test',
+        ),
+      );
+    }
+  }
 
   @override
   Future<void> discardCloudDriveAuthorization(

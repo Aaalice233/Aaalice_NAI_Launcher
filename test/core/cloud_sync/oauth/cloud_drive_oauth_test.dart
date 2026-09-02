@@ -77,6 +77,10 @@ void main() {
       );
       expect(
         diagnostic.reasons.join(' '),
+        contains('GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET'),
+      );
+      expect(
+        diagnostic.reasons.join(' '),
         contains('GOOGLE_DRIVE_WINDOWS_REDIRECT_URI'),
       );
     });
@@ -154,6 +158,7 @@ void main() {
         platform: CloudDriveOAuthPlatform.windows,
         values: {
           'GOOGLE_DRIVE_WINDOWS_CLIENT_ID': 'client-id',
+          'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET': 'desktop-client-secret',
           'GOOGLE_DRIVE_WINDOWS_REDIRECT_URI': 'http://localhost:8080',
         },
       );
@@ -337,6 +342,168 @@ void main() {
     );
 
     test(
+      'cancels an active authorization without persisting a session',
+      () async {
+        final store = _MemorySessionStore();
+        final client = _PendingAuthenticationClient(
+          CloudDriveOAuthProvider.googleDrive,
+        );
+        final provider = _provider(store, client, now);
+
+        final connection = provider.connect(client.provider);
+        final cancellation = expectLater(
+          connection,
+          throwsA(
+            isA<CloudDriveOAuthException>().having(
+              (error) => error.code,
+              'code',
+              CloudDriveOAuthFailureCode.cancelled,
+            ),
+          ),
+        );
+        await client.started.future;
+        await provider.cancelConnect(client.provider);
+        await cancellation;
+
+        expect(client.cancelCalls, 1);
+        expect(store._sessions, isEmpty);
+      },
+    );
+
+    test(
+      'blocks a replacement until a non-cancellable native flow settles',
+      () async {
+        final store = _MemorySessionStore();
+        final client = _DelayedClient(CloudDriveOAuthProvider.googleDrive);
+        final oneDriveSession = _session(
+          now: now,
+          provider: CloudDriveOAuthProvider.oneDrive,
+        );
+        final oneDriveClient = _FakeClient(
+          CloudDriveOAuthProvider.oneDrive,
+          refreshResult: oneDriveSession,
+        );
+        final provider = SecureCloudDriveOAuthTokenProvider(
+          store: store,
+          clients: {
+            client.provider: client,
+            oneDriveClient.provider: oneDriveClient,
+          },
+          clock: () => now,
+        );
+
+        final connection = provider.connect(client.provider);
+        final cancellation = expectLater(
+          connection,
+          throwsA(
+            isA<CloudDriveOAuthException>().having(
+              (error) => error.code,
+              'code',
+              CloudDriveOAuthFailureCode.cancelled,
+            ),
+          ),
+        );
+        await provider.cancelConnect(client.provider);
+        await cancellation;
+        for (final blockedProvider in [
+          client.provider,
+          oneDriveClient.provider,
+        ]) {
+          await expectLater(
+            provider.connect(blockedProvider),
+            throwsA(
+              isA<CloudDriveOAuthException>().having(
+                (error) => error.code,
+                'code',
+                CloudDriveOAuthFailureCode.authorizationInProgress,
+              ),
+            ),
+          );
+        }
+
+        client.result.complete(_session(now: now));
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          await provider.connect(oneDriveClient.provider),
+          isA<CloudDriveOAuthSession>(),
+        );
+      },
+    );
+
+    test(
+      'restores the previous session when cancelled during secure persistence',
+      () async {
+        final store = _DelayedWriteSessionStore();
+        final previous = _session(now: now, accessToken: 'previous-token');
+        store.seed(previous);
+        final replacement = previous.copyWith(accessToken: 'replacement-token');
+        final client = _FakeClient(
+          previous.provider,
+          refreshResult: replacement,
+        );
+        final provider = _provider(store, client, now);
+
+        final connection = provider.connect(previous.provider);
+        final cancellation = expectLater(
+          connection,
+          throwsA(
+            isA<CloudDriveOAuthException>().having(
+              (error) => error.code,
+              'code',
+              CloudDriveOAuthFailureCode.cancelled,
+            ),
+          ),
+        );
+        await store.writeStarted.future;
+        await provider.cancelConnect(previous.provider);
+        store.allowWrite.complete();
+        await cancellation;
+
+        expect(
+          (await store.read(
+            previous.provider,
+            previous.accountId,
+          ))?.accessToken,
+          'previous-token',
+        );
+      },
+    );
+
+    test(
+      'cancelled replacement cannot resurrect a concurrently discarded session',
+      () async {
+        final store = _DelayedWriteSessionStore();
+        final previous = _session(now: now, accessToken: 'previous-token');
+        store.seed(previous);
+        final replacement = previous.copyWith(accessToken: 'replacement-token');
+        final client = _FakeClient(
+          previous.provider,
+          refreshResult: replacement,
+        );
+        final provider = _provider(store, client, now);
+
+        final connection = provider.connect(previous.provider);
+        final cancellation = expectLater(
+          connection,
+          throwsA(
+            isA<CloudDriveOAuthException>().having(
+              (error) => error.code,
+              'code',
+              CloudDriveOAuthFailureCode.cancelled,
+            ),
+          ),
+        );
+        await store.writeStarted.future;
+        await provider.cancelConnect(previous.provider);
+        await provider.disconnect(previous.provider, previous.accountId);
+        store.allowWrite.complete();
+        await cancellation;
+
+        expect(await store.read(previous.provider, previous.accountId), isNull);
+      },
+    );
+
+    test(
       'disconnect cannot delete a session reconnected while revoking',
       () async {
         final store = _MemorySessionStore();
@@ -438,8 +605,79 @@ void main() {
       expect(receiver.waitCalls, 1);
       expect(receiver.closed, isTrue);
       expect(transport.lastForm, containsPair('code_verifier', isNotEmpty));
-      expect(transport.lastForm, isNot(contains('client_secret')));
+      expect(
+        transport.lastForm,
+        containsPair('client_secret', 'desktop-client-secret'),
+      );
     });
+
+    test(
+      'cancellation closes the active loopback listener immediately',
+      () async {
+        final receiver = _PendingCallbackReceiver();
+        final client = LoopbackCloudDriveOAuthClient(
+          config: _windowsConfig(
+            CloudDriveOAuthProvider.googleDrive,
+          ).requireProvider(CloudDriveOAuthProvider.googleDrive),
+          transport: _FakeTransport(),
+          browserLauncher: _FakeBrowser(),
+          callbackReceiverFactory: _FakeCallbackFactory(receiver),
+        );
+
+        final authentication = client.authenticate();
+        final cancellation = expectLater(
+          authentication,
+          throwsA(
+            isA<CloudDriveOAuthException>().having(
+              (error) => error.code,
+              'code',
+              CloudDriveOAuthFailureCode.cancelled,
+            ),
+          ),
+        );
+        await receiver.started.future;
+        await client.cancelAuthentication();
+        await cancellation;
+
+        expect(receiver.closed, isTrue);
+      },
+    );
+
+    test(
+      'cancellation during listener startup prevents browser launch',
+      () async {
+        final receiver = _PendingCallbackReceiver();
+        final factory = _DelayedCallbackFactory(receiver);
+        final browser = _FakeBrowser();
+        final client = LoopbackCloudDriveOAuthClient(
+          config: _windowsConfig(
+            CloudDriveOAuthProvider.googleDrive,
+          ).requireProvider(CloudDriveOAuthProvider.googleDrive),
+          transport: _FakeTransport(),
+          browserLauncher: browser,
+          callbackReceiverFactory: factory,
+        );
+
+        final authentication = client.authenticate();
+        final cancellation = expectLater(
+          authentication,
+          throwsA(
+            isA<CloudDriveOAuthException>().having(
+              (error) => error.code,
+              'code',
+              CloudDriveOAuthFailureCode.cancelled,
+            ),
+          ),
+        );
+        await factory.started.future;
+        await client.cancelAuthentication();
+        factory.allowStart.complete();
+        await cancellation;
+
+        expect(receiver.closed, isTrue);
+        expect(browser.opened, isNull);
+      },
+    );
 
     test('preserves refresh token when provider does not rotate it', () async {
       final transport = _FakeTransport(
@@ -498,6 +736,8 @@ CloudDriveOAuthConfig _windowsConfig(
     platform: CloudDriveOAuthPlatform.windows,
     values: {
       '${prefix}_WINDOWS_CLIENT_ID': 'client-id',
+      if (provider == CloudDriveOAuthProvider.googleDrive)
+        'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET': 'desktop-client-secret',
       '${prefix}_WINDOWS_REDIRECT_URI': 'http://127.0.0.1',
       ...extras,
     },
@@ -529,7 +769,7 @@ final class _SequenceRandom implements OAuthRandomSource {
   );
 }
 
-final class _MemorySessionStore implements CloudDriveOAuthSessionStore {
+class _MemorySessionStore implements CloudDriveOAuthSessionStore {
   final _sessions = <String, CloudDriveOAuthSession>{};
 
   String _key(CloudDriveOAuthProvider provider, String accountId) =>
@@ -552,6 +792,22 @@ final class _MemorySessionStore implements CloudDriveOAuthSessionStore {
   @override
   Future<void> write(CloudDriveOAuthSession session) async {
     _sessions[_key(session.provider, session.accountId)] = session;
+  }
+}
+
+final class _DelayedWriteSessionStore extends _MemorySessionStore {
+  final writeStarted = Completer<void>();
+  final allowWrite = Completer<void>();
+
+  void seed(CloudDriveOAuthSession session) {
+    _sessions[_key(session.provider, session.accountId)] = session;
+  }
+
+  @override
+  Future<void> write(CloudDriveOAuthSession session) async {
+    if (!writeStarted.isCompleted) writeStarted.complete();
+    await allowWrite.future;
+    await super.write(session);
   }
 }
 
@@ -579,6 +835,44 @@ final class _FakeClient implements CloudDriveOAuthClient {
     if (refreshError != null) throw refreshError!;
     return refreshResult!;
   }
+}
+
+final class _PendingAuthenticationClient
+    implements CloudDriveOAuthClient, CloudDriveOAuthAuthenticationCanceller {
+  _PendingAuthenticationClient(this.provider);
+
+  @override
+  final CloudDriveOAuthProvider provider;
+  final started = Completer<void>();
+  final result = Completer<CloudDriveOAuthSession>();
+  var cancelCalls = 0;
+
+  @override
+  Future<CloudDriveOAuthSession> authenticate() {
+    started.complete();
+    return result.future;
+  }
+
+  @override
+  Future<void> cancelAuthentication() async {
+    cancelCalls++;
+    if (!result.isCompleted) {
+      result.completeError(
+        const CloudDriveOAuthException(
+          CloudDriveOAuthFailureCode.cancelled,
+          'authentication cancelled',
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<void> disconnect(CloudDriveOAuthSession session) async {}
+
+  @override
+  Future<CloudDriveOAuthSession> refresh(
+    CloudDriveOAuthSession session,
+  ) async => session;
 }
 
 final class _DelayedDisconnectClient implements CloudDriveOAuthClient {
@@ -637,6 +931,21 @@ final class _FakeBrowser implements OAuthBrowserLauncher {
   }
 }
 
+final class _DelayedCallbackFactory implements OAuthCallbackReceiverFactory {
+  _DelayedCallbackFactory(this.receiver);
+
+  final OAuthCallbackReceiver receiver;
+  final started = Completer<void>();
+  final allowStart = Completer<void>();
+
+  @override
+  Future<OAuthCallbackReceiver> start(Uri configuredRedirectUri) async {
+    started.complete();
+    await allowStart.future;
+    return receiver;
+  }
+}
+
 final class _FakeCallbackFactory implements OAuthCallbackReceiverFactory {
   const _FakeCallbackFactory(this.receiver);
 
@@ -666,6 +975,36 @@ final class _FakeCallbackReceiver implements OAuthCallbackReceiver {
     waitCalls++;
     expect(expectedState, isNotEmpty);
     return const OAuthAuthorizationCallback(code: 'authorization-code');
+  }
+}
+
+final class _PendingCallbackReceiver implements OAuthCallbackReceiver {
+  @override
+  final redirectUri = Uri.parse('http://127.0.0.1:43124/oauth2/callback');
+  final started = Completer<void>();
+  final result = Completer<OAuthAuthorizationCallback>();
+  var closed = false;
+
+  @override
+  Future<void> close() async {
+    closed = true;
+    if (started.isCompleted && !result.isCompleted) {
+      result.completeError(
+        const CloudDriveOAuthException(
+          CloudDriveOAuthFailureCode.cancelled,
+          'listener closed',
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<OAuthAuthorizationCallback> waitForCallback({
+    required String expectedState,
+    required Duration timeout,
+  }) {
+    started.complete();
+    return result.future;
   }
 }
 

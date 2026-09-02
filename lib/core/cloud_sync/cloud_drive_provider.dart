@@ -15,6 +15,8 @@ abstract interface class CloudDriveProvider {
 
   Future<CloudDriveOAuthSession> connect();
 
+  Future<void> cancelConnect();
+
   CloudSyncBackend createBackend({
     required String accountId,
     required String namespace,
@@ -66,6 +68,9 @@ final class OAuthCloudDriveProvider implements CloudDriveProvider {
     }
     return session;
   }
+
+  @override
+  Future<void> cancelConnect() => _tokens.cancelConnect(id);
 
   @override
   CloudSyncBackend createBackend({
