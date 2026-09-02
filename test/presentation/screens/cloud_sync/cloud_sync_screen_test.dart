@@ -93,6 +93,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('高级设置字段名称独立显示且不会被展开区域裁剪', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_subject());
+    await tester.pumpAndSettle();
+
+    final advancedSettings = find.text('高级设置');
+    await tester.scrollUntilVisible(
+      advancedSettings,
+      180,
+      scrollable: _pageScrollable,
+    );
+    await tester.tap(advancedSettings);
+    await tester.pumpAndSettle();
+
+    final label = find.text('备份文件夹');
+    final field = _fieldWithLabel('备份文件夹');
+    final expansion = find.ancestor(
+      of: label,
+      matching: find.byType(ExpansionTile),
+    );
+    expect(label, findsOneWidget);
+    expect(field, findsOneWidget);
+    expect(expansion, findsOneWidget);
+
+    final labelRect = tester.getRect(label);
+    final fieldRect = tester.getRect(field);
+    final expansionRect = tester.getRect(expansion);
+    expect(labelRect.top, greaterThanOrEqualTo(expansionRect.top));
+    expect(labelRect.bottom, lessThan(fieldRect.top));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('已连接状态展示降级能力、完整进度、历史与待处理冲突', (tester) async {
     final state = _connectedState();
     final port = _FakePort();
@@ -292,9 +325,8 @@ void main() {
   });
 }
 
-Finder _fieldWithLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is TextField && widget.decoration?.labelText == label,
-);
+Finder _fieldWithLabel(String label) =>
+    find.byKey(ValueKey('cloud-sync-field-$label'));
 
 Future<void> _tapText(
   WidgetTester tester,

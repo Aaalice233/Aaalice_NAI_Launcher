@@ -78,15 +78,28 @@ class CloudSyncField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
 
   @override
-  Widget build(BuildContext context) => TextField(
-    controller: controller,
-    obscureText: obscureText,
-    enableSuggestions: !obscureText,
-    autocorrect: !obscureText,
-    keyboardType: keyboardType,
-    textInputAction: textInputAction,
-    onChanged: onChanged,
-    decoration: InputDecoration(labelText: label, filled: true),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      ExcludeSemantics(
+        child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+      ),
+      const SizedBox(height: 8),
+      Semantics(
+        label: label,
+        child: TextField(
+          key: ValueKey('cloud-sync-field-$label'),
+          controller: controller,
+          obscureText: obscureText,
+          enableSuggestions: !obscureText,
+          autocorrect: !obscureText,
+          keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          onChanged: onChanged,
+          decoration: const InputDecoration(filled: true),
+        ),
+      ),
+    ],
   );
 }
 
