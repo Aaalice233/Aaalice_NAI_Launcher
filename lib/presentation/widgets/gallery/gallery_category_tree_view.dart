@@ -7,6 +7,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -406,7 +407,9 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
         final showChild = isAccepting && slot == GalleryTreeDropSlot.child;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             color: showChild
                 ? theme.colorScheme.primary.withValues(alpha: 0.1)
@@ -464,7 +467,9 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
         final showDropEffect = isAccepting || isSuperDragging;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             gradient: showDropEffect
                 ? LinearGradient(
@@ -659,7 +664,9 @@ class _CategoryItemState extends State<_CategoryItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final interactionPolicy = context.interactionPolicy;
+    final isTouch = interactionPolicy.touchAvailable;
+    final controlExtent = interactionPolicy.minimumControlExtent;
     final backgroundInset = (24.0 + widget.depth * 12.0)
         .clamp(24.0, 48.0)
         .toDouble();
@@ -672,7 +679,9 @@ class _CategoryItemState extends State<_CategoryItem> {
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           margin: EdgeInsets.only(
             left: backgroundInset,
             right: 8,
@@ -691,7 +700,7 @@ class _CategoryItemState extends State<_CategoryItem> {
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: isTouch ? 48 : 0),
+              constraints: BoxConstraints(minHeight: controlExtent),
               child: Padding(
                 padding: EdgeInsets.only(
                   left: 4,
@@ -716,15 +725,12 @@ class _CategoryItemState extends State<_CategoryItem> {
                         ),
                         padding: EdgeInsets.zero,
                         constraints: BoxConstraints.tightFor(
-                          width: isTouch ? 48 : 20,
-                          height: isTouch ? 48 : 20,
+                          width: controlExtent,
+                          height: controlExtent,
                         ),
                       )
                     else
-                      SizedBox(
-                        width: isTouch ? 48 : 20,
-                        height: isTouch ? 48 : 0,
-                      ),
+                      SizedBox(width: controlExtent, height: controlExtent),
                     Icon(
                       widget.icon,
                       size: 18,

@@ -26,6 +26,7 @@ class _PolarActivityChartState extends State<PolarActivityChart>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool _reducedMotion = false;
 
   @override
   void initState() {
@@ -38,7 +39,19 @@ class _PolarActivityChartState extends State<PolarActivityChart>
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
-    _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (reducedMotion == _reducedMotion && _controller.value != 0) return;
+    _reducedMotion = reducedMotion;
+    if (reducedMotion) {
+      _controller.value = 1;
+    } else {
+      _controller.forward(from: 0);
+    }
   }
 
   @override
@@ -283,6 +296,7 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
   late AnimationController _controller;
   late Animation<double> _pulseAnimation;
   bool _isHovered = false;
+  bool _reducedMotion = false;
 
   @override
   void initState() {
@@ -295,7 +309,20 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
       begin: 1.0,
       end: 1.08,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (reducedMotion == _reducedMotion && _controller.isAnimating) return;
+    _reducedMotion = reducedMotion;
+    if (reducedMotion) {
+      _controller.stop();
+      _controller.value = 0;
+    } else {
+      _controller.repeat(reverse: true);
+    }
   }
 
   @override
@@ -348,9 +375,11 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
         animation: _pulseAnimation,
         builder: (context, child) {
           return Transform.scale(
-            scale: _isHovered ? _pulseAnimation.value : 1.0,
+            scale: _isHovered && !_reducedMotion ? _pulseAnimation.value : 1.0,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: _reducedMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 gradient: LinearGradient(

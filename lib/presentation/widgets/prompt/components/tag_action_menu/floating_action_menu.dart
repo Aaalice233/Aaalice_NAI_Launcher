@@ -41,36 +41,35 @@ class FloatingActionMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
+    final maxWidth = (MediaQuery.sizeOf(context).width - 24).clamp(
+      0.0,
+      double.infinity,
+    );
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Material(
         color: theme.colorScheme.surfaceContainerHighest,
+        elevation: 8,
         borderRadius: BorderRadius.circular(TagChipSizes.menuBorderRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        clipBehavior: Clip.antiAlias,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _WeightControlSection(tag: tag, onWeightChanged: onWeightChanged),
+              _buildDivider(theme),
+              _ActionButtonsSection(
+                tag: tag,
+                onToggleEnabled: onToggleEnabled,
+                onEdit: onEdit,
+                onDelete: onDelete,
+                onCopy: onCopy,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 权重控制区域
-          _WeightControlSection(tag: tag, onWeightChanged: onWeightChanged),
-
-          _buildDivider(theme),
-
-          // 操作按钮区域
-          _ActionButtonsSection(
-            tag: tag,
-            onToggleEnabled: onToggleEnabled,
-            onEdit: onEdit,
-            onDelete: onDelete,
-            onCopy: onCopy,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -115,32 +114,32 @@ class _WeightControlSection extends StatelessWidget {
         ),
 
         // 权重值显示
-        GestureDetector(
-          onTap: () {
-            // 点击重置权重
-            if (tag.weight != 1.0) {
-              onWeightChanged?.call(1.0);
-              HapticFeedback.mediumImpact();
-            }
-          },
-          child: Tooltip(
-            message: context.l10n.tooltip_resetWeight,
-            child: Container(
-              constraints: const BoxConstraints(minWidth: 42),
+        Tooltip(
+          message: context.l10n.tooltip_resetWeight,
+          child: TextButton(
+            onPressed: tag.weight == 1.0
+                ? null
+                : () {
+                    onWeightChanged?.call(1.0);
+                    HapticFeedback.mediumImpact();
+                  },
+            style: TextButton.styleFrom(
+              minimumSize: const Size(42, TagChipSizes.menuButtonSize),
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                tag.weightPercentText,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: tag.weight > 1.0
-                      ? PromptTagColors.weightIncrease
-                      : tag.weight < 1.0
-                      ? PromptTagColors.weightDecrease
-                      : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              tag.weightPercentText,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: tag.weight > 1.0
+                    ? PromptTagColors.weightIncrease
+                    : tag.weight < 1.0
+                    ? PromptTagColors.weightDecrease
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),
@@ -243,7 +242,7 @@ class _ActionButtonsSection extends StatelessWidget {
 }
 
 /// 菜单图标按钮
-class _MenuIconButton extends StatefulWidget {
+class _MenuIconButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final Color color;
@@ -257,41 +256,23 @@ class _MenuIconButton extends StatefulWidget {
   });
 
   @override
-  State<_MenuIconButton> createState() => _MenuIconButtonState();
-}
-
-class _MenuIconButtonState extends State<_MenuIconButton> {
-  bool _isHovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Tooltip(
-        message: widget.tooltip,
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            width: TagChipSizes.menuButtonSize,
-            height: TagChipSizes.menuButtonSize,
-            decoration: BoxDecoration(
-              color: _isHovered
-                  ? widget.color.withValues(alpha: 0.15)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              widget.icon,
-              size: TagChipSizes.menuIconSize,
-              color: _isHovered
-                  ? widget.color
-                  : widget.color.withValues(alpha: 0.8),
-            ),
-          ),
-        ),
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(icon),
+      tooltip: tooltip,
+      iconSize: TagChipSizes.menuIconSize,
+      color: color.withValues(alpha: 0.8),
+      hoverColor: color.withValues(alpha: 0.15),
+      focusColor: color.withValues(alpha: 0.15),
+      highlightColor: color.withValues(alpha: 0.12),
+      constraints: const BoxConstraints.tightFor(
+        width: TagChipSizes.menuButtonSize,
+        height: TagChipSizes.menuButtonSize,
+      ),
+      padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
     );
   }
@@ -325,7 +306,20 @@ class FloatingMenuPortal extends StatefulWidget {
 
 class _FloatingMenuPortalState extends State<FloatingMenuPortal> {
   final LayerLink _link = LayerLink();
+  final GlobalKey _targetKey = GlobalKey();
+  final GlobalKey _menuKey = GlobalKey();
   OverlayEntry? _overlayEntry;
+  double _horizontalOffset = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showMenu) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.showMenu) _showOverlay();
+      });
+    }
+  }
 
   @override
   void didUpdateWidget(FloatingMenuPortal oldWidget) {
@@ -339,6 +333,9 @@ class _FloatingMenuPortalState extends State<FloatingMenuPortal> {
           _hideOverlay();
         }
       });
+    } else if (widget.showMenu) {
+      _overlayEntry?.markNeedsBuild();
+      _scheduleReposition();
     }
   }
 
@@ -353,28 +350,65 @@ class _FloatingMenuPortalState extends State<FloatingMenuPortal> {
 
     _overlayEntry = OverlayEntry(
       builder: (context) {
-        return UnconstrainedBox(
-          child: CompositedTransformFollower(
-            link: _link,
-            targetAnchor: Alignment.topLeft,
-            followerAnchor: Alignment.bottomLeft,
-            offset: Offset(0, -widget.menuOffset.dy),
-            child: widget.menuBuilder(context),
+        return Positioned.fill(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CompositedTransformFollower(
+                link: _link,
+                targetAnchor: Alignment.topLeft,
+                followerAnchor: Alignment.bottomLeft,
+                offset: Offset(_horizontalOffset, -widget.menuOffset.dy),
+                child: KeyedSubtree(
+                  key: _menuKey,
+                  child: widget.menuBuilder(context),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
 
     Overlay.of(context).insert(_overlayEntry!);
+    _scheduleReposition();
+  }
+
+  void _scheduleReposition() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _overlayEntry == null) return;
+      final targetBox =
+          _targetKey.currentContext?.findRenderObject() as RenderBox?;
+      final menuBox = _menuKey.currentContext?.findRenderObject() as RenderBox?;
+      if (targetBox == null || menuBox == null || !menuBox.hasSize) return;
+      final mediaQuery = MediaQuery.of(context);
+      const gap = 12.0;
+      final targetX = targetBox.localToGlobal(Offset.zero).dx;
+      final safeLeft = mediaQuery.padding.left + gap;
+      final safeRight = mediaQuery.size.width - mediaQuery.padding.right - gap;
+      final maxLeft = (safeRight - menuBox.size.width).clamp(
+        safeLeft,
+        double.infinity,
+      );
+      final nextOffset = targetX.clamp(safeLeft, maxLeft) - targetX;
+      if (nextOffset == _horizontalOffset) return;
+      _horizontalOffset = nextOffset;
+      _overlayEntry?.markNeedsBuild();
+    });
   }
 
   void _hideOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
+    _horizontalOffset = 0;
   }
 
   @override
   Widget build(BuildContext context) {
-    return CompositedTransformTarget(link: _link, child: widget.child);
+    if (widget.showMenu) _scheduleReposition();
+    return CompositedTransformTarget(
+      link: _link,
+      child: KeyedSubtree(key: _targetKey, child: widget.child),
+    );
   }
 }

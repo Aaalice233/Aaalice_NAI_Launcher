@@ -62,7 +62,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     // 这里只负责布局
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isNarrow = widget.compact || constraints.maxWidth < 500;
+        final largeText = MediaQuery.textScalerOf(context).scale(14) > 18.2;
+        final isNarrow =
+            widget.compact || constraints.maxWidth < 720 || largeText;
 
         // 生成按钮几何居中：左右两个等宽弹性区吸收其余控件，
         // 按钮位置不随随机工具等元素的显隐漂移
@@ -98,149 +100,61 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                 },
               ),
             // 紧凑模式补上第二种批量控制：批次大小（每次请求张数）
-            if (widget.compact && !showCancel) ...[
-              const SizedBox(width: 4),
-              const BatchSettingsButton(),
-            ],
+            if (widget.compact && !showCancel) const BatchSettingsButton(),
           ];
 
-          if (widget.compact) {
-            // 官网钉底条单行：自动保存放右侧空位，左组只剩点数与骰子，
-            // 两侧内容变均衡后不再需要把字缩小
-            return Row(
+          final compact = widget.compact;
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            primary: false,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const OpusUsageChip(compact: true),
-                          const SizedBox(width: 6),
-                          const AnlasBalanceChip(compact: true),
-                          if (showRandomTools) ...[
-                            const SizedBox(width: 8),
-                            RandomModeToggle(enabled: randomMode),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
+                SizedBox(
+                  width: constraints.maxWidth.clamp(0.0, 190.0),
+                  child: generateButton,
                 ),
+                if (rightGroup.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  ...rightGroup,
+                ],
                 const SizedBox(width: 8),
-                generateButton,
+                OpusUsageChip(compact: compact),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ...rightGroup,
-                          const SizedBox(width: 8),
-                          const AutoSaveToggleChip(compact: true),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                AnlasBalanceChip(compact: compact),
+                if (showRandomTools) ...[
+                  const SizedBox(width: 8),
+                  RandomModeToggle(enabled: randomMode),
+                ],
+                if (compact) ...[
+                  const SizedBox(width: 8),
+                  const AutoSaveToggleChip(compact: true),
+                ],
               ],
-            );
-          }
-
-          // 经典布局窄宽：单行三段，生成按钮居中
-          return Row(
-            children: [
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: showRandomTools
-                      ? RandomModeToggle(enabled: randomMode)
-                      : const SizedBox.shrink(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              generateButton,
-              const SizedBox(width: 8),
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: rightGroup,
-                  ),
-                ),
-              ),
-            ],
+            ),
           );
         }
 
-        // 正常布局 - 自动保存锚最左，点数/随机贴按钮左，批量控件贴按钮右；
-        // 左右组空间不足时内部等比缩小，避免溢出叠到生成按钮上
         return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: Row(
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  const AutoSaveToggleChip(),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const OpusUsageChip(),
-                            const SizedBox(width: 8),
-                            const AnlasBalanceChip(),
-                            const SizedBox(width: 16),
-                            if (showRandomTools) ...[
-                              RandomModeToggle(enabled: randomMode),
-                              const SizedBox(width: 12),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  const OpusUsageChip(),
+                  const AnlasBalanceChip(),
+                  if (showRandomTools) RandomModeToggle(enabled: randomMode),
                 ],
               ),
             ),
+            const SizedBox(width: 12),
             generateButton,
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(width: 12),
-                      DraggableNumberInput(
-                        value: nSamples,
-                        min: 1,
-                        prefix: '×',
-                        onChanged: (value) {
-                          ref
-                              .read(generationParamsNotifierProvider.notifier)
-                              .updateNSamples(value);
-                        },
-                      ),
-                      const SizedBox(width: 16),
-                      const BatchSettingsButton(),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            const SizedBox(width: 12),
+            const Spacer(),
           ],
         );
       },

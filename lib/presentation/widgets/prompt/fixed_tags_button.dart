@@ -671,6 +671,6 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
   }
 
   void _showFixedTagsDialog(BuildContext context) {
-    showDialog(context: context, builder: (context) => const FixedTagsDialog());
+    FixedTagsDialog.show(context);
   }
 }

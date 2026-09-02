@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/autocomplete/tag_translation_lookup.dart';
-import '../../core/platform/platform_capabilities.dart';
+import '../adaptive/interaction_policy.dart';
 
 /// 简单标签芯片组件
 ///
@@ -80,9 +80,8 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
             ? TagColors.fromCategory(widget.category!)
             : theme.colorScheme.primary);
     final translationText = widget.translation ?? _autoTranslation;
-    final deleteExtent = PlatformCapabilities.current.hasTouchInput
-        ? 48.0
-        : 20.0;
+    final interactionPolicy = context.interactionPolicy;
+    final deleteExtent = interactionPolicy.minimumControlExtent;
     final stateColor = widget.isOutputFiltered
         ? theme.colorScheme.error
         : chipColor;
@@ -95,7 +94,9 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
         onSecondaryTapUp: widget.onSecondaryTapUp,
         borderRadius: BorderRadius.circular(4),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: _isHovering
@@ -158,7 +159,7 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
                         width: deleteExtent,
                         height: deleteExtent,
                       ),
-                      visualDensity: PlatformCapabilities.current.hasTouchInput
+                      visualDensity: interactionPolicy.touchAvailable
                           ? VisualDensity.standard
                           : VisualDensity.compact,
                       icon: Icon(Icons.close, size: 13, color: stateColor),

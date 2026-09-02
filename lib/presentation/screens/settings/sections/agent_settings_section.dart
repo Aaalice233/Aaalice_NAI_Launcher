@@ -243,22 +243,25 @@ class _ReadingPreferencesCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SegmentedButton<double>(
-            key: const ValueKey('agent-reading-text-scale'),
-            segments: [
-              for (final scale in AgentChatConfig.supportedReadingTextScales)
-                ButtonSegment(
-                  value: scale,
-                  label: Text('${(scale * 100).round()}%'),
-                ),
-            ],
-            selected: {chat.readingTextScale},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) => _reportAgentSettingFailure(
-              context,
-              ref
-                  .read(agentSettingsProvider.notifier)
-                  .setReadingTextScale(selection.single),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<double>(
+              key: const ValueKey('agent-reading-text-scale'),
+              segments: [
+                for (final scale in AgentChatConfig.supportedReadingTextScales)
+                  ButtonSegment(
+                    value: scale,
+                    label: Text('${(scale * 100).round()}%'),
+                  ),
+              ],
+              selected: {chat.readingTextScale},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) => _reportAgentSettingFailure(
+                context,
+                ref
+                    .read(agentSettingsProvider.notifier)
+                    .setReadingTextScale(selection.single),
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -274,25 +277,28 @@ class _ReadingPreferencesCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SegmentedButton<AgentChatDensity>(
-            key: const ValueKey('agent-chat-density'),
-            segments: [
-              ButtonSegment(
-                value: AgentChatDensity.comfortable,
-                label: Text(context.l10n.agentSettings_densityComfortable),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<AgentChatDensity>(
+              key: const ValueKey('agent-chat-density'),
+              segments: [
+                ButtonSegment(
+                  value: AgentChatDensity.comfortable,
+                  label: Text(context.l10n.agentSettings_densityComfortable),
+                ),
+                ButtonSegment(
+                  value: AgentChatDensity.compact,
+                  label: Text(context.l10n.agentSettings_densityCompact),
+                ),
+              ],
+              selected: {chat.density},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) => _reportAgentSettingFailure(
+                context,
+                ref
+                    .read(agentSettingsProvider.notifier)
+                    .setChatDensity(selection.single),
               ),
-              ButtonSegment(
-                value: AgentChatDensity.compact,
-                label: Text(context.l10n.agentSettings_densityCompact),
-              ),
-            ],
-            selected: {chat.density},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) => _reportAgentSettingFailure(
-              context,
-              ref
-                  .read(agentSettingsProvider.notifier)
-                  .setChatDensity(selection.single),
             ),
           ),
         ],

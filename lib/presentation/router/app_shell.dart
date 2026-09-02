@@ -50,6 +50,10 @@ class _MainShellState extends ConsumerState<MainShell> {
   int? _previousIndex;
   final Set<int> _visitedBranchIndices = <int>{};
   bool _authPromptVisible = false;
+  final GlobalKey _contentKey = GlobalKey(debugLabel: 'main-shell-content');
+  final GlobalKey _panelOverlayKey = GlobalKey(
+    debugLabel: 'main-shell-panel-overlay',
+  );
   final Map<int, bool> _branchCanHandlePop = <int, bool>{};
   ProviderSubscription<AuthPromptRequest?>? _authPromptSubscription;
   late final TimingsCallback _frameTimingsCallback;
@@ -254,20 +258,29 @@ class _MainShellState extends ConsumerState<MainShell> {
       },
     };
 
-    final shortcutEnabledContent = ShortcutAwareWidget(
-      contextType: ShortcutContext.global,
-      shortcuts: globalShortcuts,
-      autofocus: true,
-      child: dropEnabledContent,
+    final shortcutEnabledContent = KeyedSubtree(
+      key: _contentKey,
+      child: ShortcutAwareWidget(
+        contextType: ShortcutContext.global,
+        shortcuts: globalShortcuts,
+        autofocus: true,
+        child: dropEnabledContent,
+      ),
     );
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
-        if (!sizeClass.isCompact) {
+        final mediaQuery = MediaQuery.of(context);
+        final safeUsableWidth =
+            (constraints.maxWidth - mediaQuery.padding.horizontal)
+                .clamp(0.0, double.infinity)
+                .toDouble();
+        final sizeClass = WindowSizeClass.fromWidth(safeUsableWidth);
+        if (sizeClass.isExpandedOrWider) {
           return DesktopShell(
             navigationShell: widget.navigationShell,
             content: shortcutEnabledContent,
+            panelOverlayKey: _panelOverlayKey,
           );
         }
 
@@ -275,6 +288,7 @@ class _MainShellState extends ConsumerState<MainShell> {
           navigationShell: widget.navigationShell,
           branchCanHandlePop: _branchCanHandlePop[currentIndex] ?? false,
           content: shortcutEnabledContent,
+          panelOverlayKey: _panelOverlayKey,
         );
       },
     );

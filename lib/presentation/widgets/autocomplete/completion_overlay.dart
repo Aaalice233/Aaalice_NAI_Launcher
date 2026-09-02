@@ -5,15 +5,22 @@ import '../../../core/autocomplete/autocomplete_settings.dart';
 import '../../../core/autocomplete/cooccurrence_data_pack_service.dart';
 import '../../../core/autocomplete/completion_models.dart';
 import '../../../core/autocomplete/zh_dictionary_service.dart';
-import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 
 const double autocompleteCandidateExtent = 35;
 
-double get effectiveAutocompleteCandidateExtent =>
-    PlatformCapabilities.current.hasTouchInput
-    ? 48
-    : autocompleteCandidateExtent;
+double effectiveAutocompleteCandidateExtent(BuildContext context) {
+  final minimum = context.interactionPolicy.touchAvailable
+      ? context.interactionPolicy.minimumControlExtent
+      : autocompleteCandidateExtent;
+  final scaledFontSize = MediaQuery.textScalerOf(context).scale(13);
+  final scaleFactor = scaledFontSize / 13;
+  final scaledContentHeight = scaleFactor > 1.3
+      ? scaledFontSize * 2.4 + 18
+      : scaledFontSize * 1.35 + 16;
+  return scaledContentHeight > minimum ? scaledContentHeight : minimum;
+}
 
 /// Compact completion popup inspired by editor command palettes.
 ///
@@ -62,124 +69,147 @@ class CompletionOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
-    final touchCompact =
-        PlatformCapabilities.current.hasTouchInput &&
-        MediaQuery.sizeOf(context).width < 600;
-    final popupSurface = Color.alphaBlend(
-      theme.colorScheme.onSurface.withValues(alpha: dark ? 0.075 : 0.012),
-      theme.colorScheme.surface,
-    );
-    final radius = BorderRadius.all(Radius.circular(touchCompact ? 12 : 10));
-    return DecoratedBox(
-      key: const ValueKey('autocomplete-popup-surface'),
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        border: touchCompact
-            ? Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
-              )
-            : null,
-        boxShadow: [
-          if (dark)
-            BoxShadow(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-              blurRadius: 5,
-              spreadRadius: -1,
-            ),
-          BoxShadow(
-            color: theme.colorScheme.primary.withValues(
-              alpha: dark ? 0.12 : 0.06,
-            ),
-            blurRadius: 22,
-            spreadRadius: -6,
-            offset: const Offset(0, 7),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.68 : 0.2),
-            blurRadius: 34,
-            spreadRadius: dark ? 3 : 0,
-            offset: const Offset(0, 15),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.38 : 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: radius,
-        clipBehavior: Clip.antiAlias,
-        child: Material(
-          key: const ValueKey('autocomplete-popup-background'),
-          color: popupSurface,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxHeight),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CompletionHeader(
-                  query: _displayQuery(state.query),
-                  resultCount: state.candidates.length,
-                  related: state.query?.relatedTag != null,
-                  isRelatedPinned: isRelatedPinned,
-                  onToggleRelatedPin: onToggleRelatedPin,
-                  onClose: onClose,
+    final interactionPolicy = context.interactionPolicy;
+    final touchInput = interactionPolicy.touchAvailable;
+    final candidateExtent = effectiveAutocompleteCandidateExtent(context);
+    final scaledHeader = MediaQuery.textScalerOf(context).scale(14) * 1.35 + 14;
+    final headerExtent = scaledHeader > (touchInput ? 56.0 : 36.0)
+        ? scaledHeader
+        : (touchInput ? 56.0 : 36.0);
+    final scaledFooter = MediaQuery.textScalerOf(context).scale(11) * 1.35 + 16;
+    final footerExtent = scaledFooter > (touchInput ? 48.0 : 31.0)
+        ? scaledFooter
+        : (touchInput ? 48.0 : 31.0);
+    final showFooter =
+        maxHeight >= headerExtent + candidateExtent + footerExtent;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final touchCompact = touchInput && constraints.maxWidth < 600;
+        final popupSurface = Color.alphaBlend(
+          theme.colorScheme.onSurface.withValues(alpha: dark ? 0.075 : 0.012),
+          theme.colorScheme.surface,
+        );
+        final radius = BorderRadius.all(
+          Radius.circular(touchCompact ? 12 : 10),
+        );
+        return DecoratedBox(
+          key: const ValueKey('autocomplete-popup-surface'),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: touchCompact
+                ? Border.all(
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.7,
+                    ),
+                  )
+                : null,
+            boxShadow: [
+              if (dark)
+                BoxShadow(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                  blurRadius: 5,
+                  spreadRadius: -1,
                 ),
-                Flexible(
-                  child: state.candidates.isEmpty
-                      ? _EmptyCompletionBody(state: state)
-                      : Scrollbar(
-                          key: const ValueKey('autocomplete-popup-scrollbar'),
-                          controller: scrollController,
-                          thumbVisibility: state.candidates.length > 9,
-                          trackVisibility: state.candidates.length > 9,
-                          interactive: !touchCompact,
-                          thickness: touchCompact ? 4 : 8,
-                          radius: const Radius.circular(8),
-                          child: ListView.builder(
-                            key: const ValueKey('autocomplete-popup-list'),
-                            controller: scrollController,
-                            shrinkWrap: true,
-                            padding: EdgeInsets.only(
-                              right: touchCompact ? 6 : 14,
-                            ),
-                            itemExtent: effectiveAutocompleteCandidateExtent,
-                            scrollCacheExtent: ScrollCacheExtent.pixels(
-                              effectiveAutocompleteCandidateExtent * 10,
-                            ),
-                            addAutomaticKeepAlives: false,
-                            itemCount: state.candidates.length,
-                            itemBuilder: (context, index) {
-                              final candidate = state.candidates[index];
-                              return _CompletionTile(
-                                key: ValueKey(
-                                  'autocomplete-candidate-${candidate.stableId}',
+              BoxShadow(
+                color: theme.colorScheme.primary.withValues(
+                  alpha: dark ? 0.12 : 0.06,
+                ),
+                blurRadius: 22,
+                spreadRadius: -6,
+                offset: const Offset(0, 7),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: dark ? 0.68 : 0.2),
+                blurRadius: 34,
+                spreadRadius: dark ? 3 : 0,
+                offset: const Offset(0, 15),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: dark ? 0.38 : 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: radius,
+            clipBehavior: Clip.antiAlias,
+            child: Material(
+              key: const ValueKey('autocomplete-popup-background'),
+              color: popupSurface,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _CompletionHeader(
+                      query: _displayQuery(state.query),
+                      resultCount: state.candidates.length,
+                      related: state.query?.relatedTag != null,
+                      isRelatedPinned: isRelatedPinned,
+                      onToggleRelatedPin: onToggleRelatedPin,
+                      onOpenSettings: showFooter ? null : onOpenSettings,
+                      onClose: onClose,
+                    ),
+                    Flexible(
+                      child: state.candidates.isEmpty
+                          ? _EmptyCompletionBody(state: state)
+                          : Scrollbar(
+                              key: const ValueKey(
+                                'autocomplete-popup-scrollbar',
+                              ),
+                              controller: scrollController,
+                              thumbVisibility: state.candidates.length > 9,
+                              trackVisibility: state.candidates.length > 9,
+                              interactive: !touchCompact,
+                              thickness: touchCompact ? 4 : 8,
+                              radius: const Radius.circular(8),
+                              child: ListView.builder(
+                                key: const ValueKey('autocomplete-popup-list'),
+                                controller: scrollController,
+                                shrinkWrap: true,
+                                padding: EdgeInsets.only(
+                                  right: touchCompact ? 6 : 14,
                                 ),
-                                candidate: candidate,
-                                selected: index == selectedIndex,
-                                showAliases: showAliases,
-                                showTranslations: showTranslations,
-                                showCategory: showCategory,
-                                showCount: showCount,
-                                onTap: () => onSelected(index),
-                              );
-                            },
-                          ),
-                        ),
+                                itemExtent: candidateExtent,
+                                scrollCacheExtent: ScrollCacheExtent.pixels(
+                                  candidateExtent * 10,
+                                ),
+                                addAutomaticKeepAlives: false,
+                                itemCount: state.candidates.length,
+                                itemBuilder: (context, index) {
+                                  final candidate = state.candidates[index];
+                                  return _CompletionTile(
+                                    key: ValueKey(
+                                      'autocomplete-candidate-${candidate.stableId}',
+                                    ),
+                                    candidate: candidate,
+                                    selected: index == selectedIndex,
+                                    showAliases: showAliases,
+                                    showTranslations: showTranslations,
+                                    showCategory: showCategory,
+                                    showCount: showCount,
+                                    onTap: () => onSelected(index),
+                                  );
+                                },
+                              ),
+                            ),
+                    ),
+                    if (showFooter)
+                      _CompletionFooter(
+                        state: state,
+                        settings: settings,
+                        dictionaryState: dictionaryState,
+                        cooccurrenceDataPackState: cooccurrenceDataPackState,
+                        onOpenSettings: onOpenSettings,
+                      ),
+                  ],
                 ),
-                _CompletionFooter(
-                  state: state,
-                  settings: settings,
-                  dictionaryState: dictionaryState,
-                  cooccurrenceDataPackState: cooccurrenceDataPackState,
-                  onOpenSettings: onOpenSettings,
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -215,6 +245,9 @@ class _EmptyCompletionBody extends StatelessWidget {
                   width: 15,
                   height: 15,
                   child: CircularProgressIndicator(
+                    value: MediaQuery.disableAnimationsOf(context)
+                        ? 0.75
+                        : null,
                     strokeWidth: 1.8,
                     color: theme.colorScheme.primary,
                   ),
@@ -268,6 +301,7 @@ class _CompletionHeader extends StatelessWidget {
     required this.related,
     required this.isRelatedPinned,
     required this.onToggleRelatedPin,
+    required this.onOpenSettings,
     required this.onClose,
   });
 
@@ -276,15 +310,21 @@ class _CompletionHeader extends StatelessWidget {
   final bool related;
   final bool isRelatedPinned;
   final VoidCallback? onToggleRelatedPin;
+  final VoidCallback? onOpenSettings;
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final touchInput = PlatformCapabilities.current.hasTouchInput;
+    final touchInput = context.interactionPolicy.touchAvailable;
+    final minimumHeight = touchInput ? 56.0 : 36.0;
+    final scaledHeight = MediaQuery.textScalerOf(context).scale(14) * 1.35 + 14;
+    final headerHeight = scaledHeight > minimumHeight
+        ? scaledHeight
+        : minimumHeight;
     return Container(
       key: const ValueKey('autocomplete-popup-header'),
-      height: touchInput ? 56 : 36,
+      height: headerHeight,
       padding: EdgeInsets.fromLTRB(
         8,
         touchInput ? 3 : 5,
@@ -337,7 +377,7 @@ class _CompletionHeader extends StatelessWidget {
               Expanded(
                 child: Container(
                   key: const ValueKey('autocomplete-popup-query'),
-                  height: 25,
+                  height: headerHeight - (touchInput ? 6 : 10),
                   alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
@@ -390,6 +430,13 @@ class _CompletionHeader extends StatelessWidget {
                   ),
                 const SizedBox(width: 2),
               ],
+              if (onOpenSettings != null)
+                _NonFocusableIconButton(
+                  key: const ValueKey('autocomplete-popup-settings'),
+                  tooltip: context.l10n.autocomplete_openSettings,
+                  icon: Icons.settings_rounded,
+                  onPressed: onOpenSettings!,
+                ),
               if (related && onToggleRelatedPin != null)
                 _NonFocusableIconButton(
                   key: const ValueKey('autocomplete-popup-related-pin'),
@@ -463,12 +510,13 @@ class _KeyboardHints extends StatelessWidget {
     );
     return Tooltip(
       message: _CompletionHeader._shortcutDescription(context),
-      child: SizedBox(
-        width: compact ? 105 : 218,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: content,
+      child: ClipRect(
+        child: SizedBox(
+          width: compact ? 105 : 218,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: content,
+          ),
         ),
       ),
     );
@@ -512,7 +560,7 @@ class _CompletionTile extends StatelessWidget {
       child: InkWell(
         onTap: candidate.isExisting ? null : onTap,
         child: Container(
-          height: effectiveAutocompleteCandidateExtent,
+          height: effectiveAutocompleteCandidateExtent(context),
           decoration: BoxDecoration(
             color: selected
                 ? categoryColor.withValues(
@@ -818,6 +866,9 @@ class _CandidateSecondary extends StatelessWidget {
                     width: 11,
                     height: 11,
                     child: CircularProgressIndicator(
+                      value: MediaQuery.disableAnimationsOf(context)
+                          ? 0.75
+                          : null,
                       strokeWidth: 1.5,
                       color: theme.colorScheme.primary,
                     ),
@@ -865,8 +916,10 @@ class _SourceBadges extends StatelessWidget {
     final ordered = sources.toList()
       ..sort((left, right) => left.index.compareTo(right.index));
     final visible = ordered.take(compact ? 1 : 4).toList();
+    final textScale = MediaQuery.textScalerOf(context).scale(8) / 8;
+    final compactWidth = 64 * textScale.clamp(1.0, 1.35).toDouble();
     return SizedBox(
-      width: compact ? 64 : 112,
+      width: compact ? compactWidth : 112,
       child: Align(
         alignment: Alignment.centerRight,
         child: Row(
@@ -955,9 +1008,16 @@ class _CompletionFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final minimumHeight = context.interactionPolicy.touchAvailable
+        ? context.interactionPolicy.minimumControlExtent
+        : 31.0;
+    final scaledHeight = MediaQuery.textScalerOf(context).scale(11) * 1.35 + 16;
+    final footerHeight = scaledHeight > minimumHeight
+        ? scaledHeight
+        : minimumHeight;
     return Container(
       key: const ValueKey('autocomplete-popup-footer'),
-      height: PlatformCapabilities.current.hasTouchInput ? 48 : 31,
+      height: footerHeight,
       padding: const EdgeInsets.only(left: 9),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
@@ -1286,6 +1346,7 @@ class _StatusIndicator extends StatelessWidget {
                 width: 12,
                 height: 12,
                 child: CircularProgressIndicator(
+                  value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
                   strokeWidth: 1.7,
                   color: toneColor,
                 ),
@@ -1355,15 +1416,23 @@ class _NonFocusableIconButtonState extends State<_NonFocusableIconButton> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final precisePointerAvailable =
+        context.interactionPolicy.precisePointerAvailable;
     return Focus(
       canRequestFocus: false,
       descendantsAreFocusable: false,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
+        onEnter: precisePointerAvailable
+            ? (_) => setState(() => _hovered = true)
+            : null,
+        onExit: precisePointerAvailable
+            ? (_) => setState(() => _hovered = false)
+            : null,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 120),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
             color: _hovered || widget.active
@@ -1373,15 +1442,19 @@ class _NonFocusableIconButtonState extends State<_NonFocusableIconButton> {
           ),
           child: IconButton(
             tooltip: widget.tooltip,
-            visualDensity: PlatformCapabilities.current.hasTouchInput
+            visualDensity: context.interactionPolicy.touchAvailable
                 ? VisualDensity.standard
                 : VisualDensity.compact,
             constraints: BoxConstraints.tightFor(
-              width: PlatformCapabilities.current.hasTouchInput ? 48 : 28,
-              height: PlatformCapabilities.current.hasTouchInput ? 48 : 28,
+              width: context.interactionPolicy.touchAvailable
+                  ? context.interactionPolicy.minimumControlExtent
+                  : 28,
+              height: context.interactionPolicy.touchAvailable
+                  ? context.interactionPolicy.minimumControlExtent
+                  : 28,
             ),
             padding: EdgeInsets.zero,
-            iconSize: PlatformCapabilities.current.hasTouchInput ? 20 : 16,
+            iconSize: context.interactionPolicy.touchAvailable ? 20 : 16,
             color: _hovered || widget.active
                 ? colors.primary
                 : colors.onSurfaceVariant,

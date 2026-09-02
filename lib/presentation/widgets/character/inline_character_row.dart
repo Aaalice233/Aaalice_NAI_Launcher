@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../data/models/character/character_prompt.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/generation/generation_panel_expansion_provider.dart';
@@ -18,6 +19,112 @@ import 'add_to_library_dialog.dart';
 import 'character_position_canvas.dart';
 import 'inline_character_card.dart';
 import 'inline_character_editor.dart';
+
+class _InlineCharacterHeader extends ConsumerWidget {
+  const _InlineCharacterHeader({
+    required this.count,
+    required this.compact,
+    required this.forceExitMaximizedPrompt,
+  });
+
+  final int count;
+  final bool compact;
+  final bool forceExitMaximizedPrompt;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final controlExtent = context.interactionPolicy.minimumControlExtent;
+    final modeOrTitle = count == 0
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.people_outline_rounded,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  l10n.prompt_characterPrompts,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          )
+        : SingleChildScrollView(
+            key: const ValueKey('character-position-mode-scroll'),
+            scrollDirection: Axis.horizontal,
+            child: CharacterPositionModeSegments(
+              forceExitMaximizedPrompt: forceExitMaximizedPrompt,
+            ),
+          );
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!compact || count == 0)
+          Container(
+            constraints: const BoxConstraints(minWidth: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        if (count > 0) ...[
+          SizedBox(width: compact ? 4 : 8),
+          IconButton(
+            onPressed: () => confirmClearAllCharacters(context, ref),
+            icon: const Icon(Icons.delete_sweep_outlined),
+            iconSize: 20,
+            tooltip: l10n.characterEditor_clearAll,
+            color: theme.colorScheme.error,
+            constraints: BoxConstraints.tightFor(
+              width: controlExtent,
+              height: controlExtent,
+            ),
+            padding: EdgeInsets.zero,
+          ),
+        ],
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final largeText = MediaQuery.textScalerOf(context).scale(14) >= 20;
+        if (constraints.maxWidth < 380 || largeText) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              modeOrTitle,
+              const SizedBox(height: 4),
+              Align(alignment: Alignment.centerRight, child: actions),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Flexible(child: modeOrTitle),
+            const Spacer(),
+            actions,
+          ],
+        );
+      },
+    );
+  }
+}
 
 enum _CharacterAddAction {
   female(CharacterGender.female),
@@ -172,64 +279,10 @@ class InlineCharacterRow extends ConsumerWidget {
           if (!managerLayout || characters.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  if (characters.isEmpty) ...[
-                    Icon(
-                      Icons.people_outline_rounded,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppLocalizations.of(context)!.prompt_characterPrompts,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ] else
-                    CharacterPositionModeSegments(
-                      forceExitMaximizedPrompt: managerLayout,
-                    ),
-                  const Spacer(),
-                  if (!compactHeader || characters.isEmpty)
-                    Container(
-                      constraints: const BoxConstraints(minWidth: 24),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${characters.length}',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ),
-                  if (characters.isNotEmpty) ...[
-                    SizedBox(width: compactHeader ? 4 : 8),
-                    IconButton(
-                      onPressed: () => confirmClearAllCharacters(context, ref),
-                      icon: const Icon(Icons.delete_sweep_outlined),
-                      iconSize: 18,
-                      tooltip: AppLocalizations.of(
-                        context,
-                      )!.characterEditor_clearAll,
-                      color: theme.colorScheme.error,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 40,
-                        height: 40,
-                      ),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ],
-                ],
+              child: _InlineCharacterHeader(
+                count: characters.length,
+                compact: compactHeader,
+                forceExitMaximizedPrompt: managerLayout,
               ),
             ),
           // 等宽占满网格：每排卡片等分行宽（含尾部添加卡），排列整齐
@@ -271,11 +324,15 @@ class InlineCharacterRow extends ConsumerWidget {
           ),
           // 面板展开/收起用高度生长 + 交叉淡化，切换角色时两面板淡化过渡
           AnimatedSize(
-            duration: const Duration(milliseconds: 180),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
             alignment: Alignment.topCenter,
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 120),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 120),
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
               child: editingCharacter == null
@@ -648,10 +705,7 @@ class _AddCharacterChip extends ConsumerWidget {
     }
 
     // 词库导入
-    final entry = await showDialog(
-      context: context,
-      builder: (context) => const TagLibraryPickerDialog(),
-    );
+    final entry = await TagLibraryPickerDialog.show(context);
     if (entry != null) {
       final parsed = CharacterPromptBlockParser.parse(entry.content);
       ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../bulk_action_bar.dart';
@@ -299,216 +300,235 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
             ),
           ),
           child: LayoutBuilder(
-            builder: (context, constraints) => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (constraints.maxWidth < 1050)
-                  _buildCompactToolbar(theme, state)
-                else
-                  Row(
-                    children: [
-                      // Title
-                      Text(
-                        l10n.localGallery_title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+              final useCompactToolbar = constraints.maxWidth / textScale < 1050;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (useCompactToolbar)
+                    _buildCompactToolbar(
+                      theme,
+                      state,
+                      stackTitle: constraints.maxWidth < 400 || textScale >= 2,
+                    )
+                  else
+                    Row(
+                      key: const ValueKey('localGalleryDesktopToolbar'),
+                      children: [
+                        // Title
+                        Text(
+                          l10n.localGallery_title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Image count
-                      if (!state.isIndexing)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? theme.colorScheme.primaryContainer.withValues(
-                                    alpha: 0.4,
-                                  )
-                                : theme.colorScheme.primaryContainer.withValues(
-                                    alpha: 0.3,
-                                  ),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            state.hasFilters
-                                ? '${state.filteredCount}/${state.totalCount}'
-                                : '${state.totalCount}',
-                            style: theme.textTheme.labelSmall?.copyWith(
+                        const SizedBox(width: 8),
+                        // Image count
+                        if (!state.isIndexing)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
                               color: isDark
-                                  ? theme.colorScheme.onPrimaryContainer
-                                  : theme.colorScheme.onSurface,
-                              fontWeight: FontWeight.w500,
+                                  ? theme.colorScheme.primaryContainer
+                                        .withValues(alpha: 0.4)
+                                  : theme.colorScheme.primaryContainer
+                                        .withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              state.hasFilters
+                                  ? '${state.filteredCount}/${state.totalCount}'
+                                  : '${state.totalCount}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: isDark
+                                    ? theme.colorScheme.onPrimaryContainer
+                                    : theme.colorScheme.onSurface,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
-                      const SizedBox(width: 12),
-                      // Search field (expanded)
-                      Expanded(child: _buildSearchField(theme, state)),
-                      const SizedBox(width: 8),
-                      // Filter button group
-                      _buildDateRangeButton(theme, state),
-                      const SizedBox(width: 6),
-                      // 日期分组视图切换按钮
-                      CompactIconButton(
-                        icon: state.isGroupedView
-                            ? Icons.view_module
-                            : Icons.calendar_today,
-                        label: state.isGroupedView
-                            ? l10n.common_grid
-                            : l10n.common_date,
-                        tooltip: state.isGroupedView
-                            ? l10n.localGallery_switchToGridView
-                            : l10n.localGallery_switchToDateGroupedView,
-                        shortcutId: ShortcutIds.jumpToDate,
-                        isActive: state.isGroupedView,
-                        onPressed: () {
-                          if (state.isGroupedView) {
-                            // 退出分组视图
-                            ref
-                                .read(localGalleryNotifierProvider.notifier)
-                                .setGroupedView(false);
-                          } else {
-                            // 进入分组视图
-                            _pickDateAndJump(context);
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 6),
-                      CompactIconButton(
-                        icon: Icons.tune,
-                        label: l10n.common_filter,
-                        tooltip: l10n.localGallery_openFilterPanel,
-                        shortcutId: ShortcutIds.openFilterPanel,
-                        onPressed: () => showGalleryFilterPanel(context),
-                      ),
-                      // Note: View mode toggle removed - only 3D card view is supported now
-                      if (state.hasFilters) ...[
+                        const SizedBox(width: 12),
+                        // Search field (expanded)
+                        Expanded(child: _buildSearchField(theme, state)),
+                        const SizedBox(width: 8),
+                        // Filter button group
+                        _buildDateRangeButton(theme, state),
                         const SizedBox(width: 6),
+                        // 日期分组视图切换按钮
                         CompactIconButton(
-                          icon: Icons.filter_alt_off,
-                          label: l10n.common_clear,
-                          tooltip: l10n.localGallery_clearFilters,
-                          shortcutId: ShortcutIds.clearFilter,
+                          icon: state.isGroupedView
+                              ? Icons.view_module
+                              : Icons.calendar_today,
+                          label: state.isGroupedView
+                              ? l10n.common_grid
+                              : l10n.common_date,
+                          tooltip: state.isGroupedView
+                              ? l10n.localGallery_switchToGridView
+                              : l10n.localGallery_switchToDateGroupedView,
+                          shortcutId: ShortcutIds.jumpToDate,
+                          isActive: state.isGroupedView,
                           onPressed: () {
-                            _searchController.clear();
-                            ref
-                                .read(localGalleryNotifierProvider.notifier)
-                                .clearAllFilters();
+                            if (state.isGroupedView) {
+                              // 退出分组视图
+                              ref
+                                  .read(localGalleryNotifierProvider.notifier)
+                                  .setGroupedView(false);
+                            } else {
+                              // 进入分组视图
+                              _pickDateAndJump(context);
+                            }
                           },
-                          isDanger: true,
-                        ),
-                      ],
-                      // Divider
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Container(
-                          width: 1,
-                          height: 24,
-                          color: theme.dividerColor.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      // Category panel toggle
-                      if (widget.onToggleCategoryPanel != null) ...[
-                        CompactIconButton(
-                          icon: widget.showCategoryPanel
-                              ? Icons.view_sidebar
-                              : Icons.view_sidebar_outlined,
-                          label: l10n.common_categories,
-                          tooltip: widget.showCategoryPanel
-                              ? l10n.localGallery_hideCategoryPanel
-                              : l10n.localGallery_showCategoryPanel,
-                          shortcutId: ShortcutIds.toggleCategoryPanel,
-                          onPressed: widget.onToggleCategoryPanel,
                         ),
                         const SizedBox(width: 6),
-                      ],
-                      // Undo/Redo
-                      if (widget.canUndo || widget.canRedo) ...[
                         CompactIconButton(
-                          icon: Icons.undo,
-                          tooltip: l10n.common_undo,
-                          onPressed: widget.canUndo ? widget.onUndo : null,
+                          icon: Icons.tune,
+                          label: l10n.common_filter,
+                          tooltip: l10n.localGallery_openFilterPanel,
+                          shortcutId: ShortcutIds.openFilterPanel,
+                          onPressed: () => showGalleryFilterPanel(context),
                         ),
-                        const SizedBox(width: 4),
+                        // Note: View mode toggle removed - only 3D card view is supported now
+                        if (state.hasFilters) ...[
+                          const SizedBox(width: 6),
+                          CompactIconButton(
+                            icon: Icons.filter_alt_off,
+                            label: l10n.common_clear,
+                            tooltip: l10n.localGallery_clearFilters,
+                            shortcutId: ShortcutIds.clearFilter,
+                            onPressed: () {
+                              _searchController.clear();
+                              ref
+                                  .read(localGalleryNotifierProvider.notifier)
+                                  .clearAllFilters();
+                            },
+                            isDanger: true,
+                          ),
+                        ],
+                        // Divider
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Container(
+                            width: 1,
+                            height: 24,
+                            color: theme.dividerColor.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        // Category panel toggle
+                        if (widget.onToggleCategoryPanel != null) ...[
+                          CompactIconButton(
+                            icon: widget.showCategoryPanel
+                                ? Icons.view_sidebar
+                                : Icons.view_sidebar_outlined,
+                            label: l10n.common_categories,
+                            tooltip: widget.showCategoryPanel
+                                ? l10n.localGallery_hideCategoryPanel
+                                : l10n.localGallery_showCategoryPanel,
+                            shortcutId: ShortcutIds.toggleCategoryPanel,
+                            onPressed: widget.onToggleCategoryPanel,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        // Undo/Redo
+                        if (widget.canUndo || widget.canRedo) ...[
+                          CompactIconButton(
+                            icon: Icons.undo,
+                            tooltip: l10n.common_undo,
+                            onPressed: widget.canUndo ? widget.onUndo : null,
+                          ),
+                          const SizedBox(width: 4),
+                          CompactIconButton(
+                            icon: Icons.redo,
+                            tooltip: l10n.common_redo,
+                            onPressed: widget.canRedo ? widget.onRedo : null,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        // Multi-select
                         CompactIconButton(
-                          icon: Icons.redo,
-                          tooltip: l10n.common_redo,
-                          onPressed: widget.canRedo ? widget.onRedo : null,
+                          icon: Icons.checklist,
+                          label: l10n.common_multiSelect,
+                          tooltip: l10n.localGallery_enterSelectionMode,
+                          shortcutId: ShortcutIds.enterSelectionMode,
+                          onPressed: widget.onEnterSelectionMode,
                         ),
                         const SizedBox(width: 6),
+                        // Open folder
+                        CompactIconButton(
+                          icon: Icons.folder_open,
+                          label: l10n.common_folder,
+                          tooltip: l10n.shortcut_action_open_folder,
+                          shortcutId: ShortcutIds.openFolder,
+                          onPressed: widget.onOpenFolder,
+                        ),
+                        const SizedBox(width: 6),
+                        // Refresh button
+                        CompactIconButton(
+                          icon: Icons.refresh,
+                          label: l10n.common_refresh,
+                          tooltip: l10n.localGallery_refreshTooltip,
+                          shortcutId: ShortcutIds.refreshGallery,
+                          onPressed: widget.onRefresh,
+                        ),
                       ],
-                      // Multi-select
-                      CompactIconButton(
-                        icon: Icons.checklist,
-                        label: l10n.common_multiSelect,
-                        tooltip: l10n.localGallery_enterSelectionMode,
-                        shortcutId: ShortcutIds.enterSelectionMode,
-                        onPressed: widget.onEnterSelectionMode,
-                      ),
-                      const SizedBox(width: 6),
-                      // Open folder
-                      CompactIconButton(
-                        icon: Icons.folder_open,
-                        label: l10n.common_folder,
-                        tooltip: l10n.shortcut_action_open_folder,
-                        shortcutId: ShortcutIds.openFolder,
-                        onPressed: widget.onOpenFolder,
-                      ),
-                      const SizedBox(width: 6),
-                      // Refresh button
-                      CompactIconButton(
-                        icon: Icons.refresh,
-                        label: l10n.common_refresh,
-                        tooltip: l10n.localGallery_refreshTooltip,
-                        shortcutId: ShortcutIds.refreshGallery,
-                        onPressed: widget.onRefresh,
-                      ),
-                    ],
-                  ),
-                if (state.filterCriteria.selectedTags.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _buildSelectedTagChips(theme, state),
+                    ),
+                  if (state.filterCriteria.selectedTags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _buildSelectedTagChips(theme, state),
+                  ],
                 ],
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCompactToolbar(ThemeData theme, LocalGalleryState state) {
+  Widget _buildCompactToolbar(
+    ThemeData theme,
+    LocalGalleryState state, {
+    required bool stackTitle,
+  }) {
     final l10n = context.l10n;
+    final minimumControlExtent = context.interactionPolicy.minimumControlExtent;
+    final title = Text(
+      l10n.localGallery_title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    );
+    final search = _buildSearchField(
+      theme,
+      state,
+      touch: true,
+      showResultCount: true,
+    );
+
     return Column(
+      key: const ValueKey('localGalleryCompactToolbar'),
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          key: const ValueKey('localGalleryMobileSearchRow'),
-          children: [
-            Text(
-              l10n.localGallery_title,
-              maxLines: 1,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildSearchField(
-                theme,
-                state,
-                touch: true,
-                showResultCount: true,
-              ),
-            ),
-          ],
-        ),
+        if (stackTitle) ...[
+          title,
+          const SizedBox(height: 8),
+          search,
+        ] else
+          Row(
+            key: const ValueKey('localGalleryMobileSearchRow'),
+            children: [
+              Flexible(flex: 0, child: title),
+              const SizedBox(width: 12),
+              Expanded(child: search),
+            ],
+          ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 44,
+        ConstrainedBox(
+          constraints: BoxConstraints(minHeight: minimumControlExtent),
           child: SingleChildScrollView(
             key: const ValueKey('localGalleryMobileActionBar'),
             scrollDirection: Axis.horizontal,
@@ -583,6 +603,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
     required String tooltip,
     required VoidCallback? onPressed,
   }) {
+    final minimumControlExtent = context.interactionPolicy.minimumControlExtent;
     return Tooltip(
       message: tooltip,
       child: TextButton.icon(
@@ -590,7 +611,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
         icon: Icon(icon, size: 18),
         label: Text(label),
         style: TextButton.styleFrom(
-          minimumSize: const Size(0, 44),
+          minimumSize: Size(0, minimumControlExtent),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           visualDensity: VisualDensity.compact,
         ),
@@ -600,98 +621,103 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
 
   Widget _buildCompactOverflow(ThemeData theme, LocalGalleryState state) {
     final l10n = context.l10n;
-    return PopupMenuButton<_LocalGalleryToolbarAction>(
-      tooltip: l10n.nav_more,
-      icon: const Icon(Icons.more_vert),
-      onSelected: (action) {
-        switch (action) {
-          case _LocalGalleryToolbarAction.date:
-            _pickDateAndJump(context);
-            return;
-          case _LocalGalleryToolbarAction.toggleGrouped:
-            if (state.isGroupedView) {
-              ref
-                  .read(localGalleryNotifierProvider.notifier)
-                  .setGroupedView(false);
-            } else {
+    final minimumControlExtent = context.interactionPolicy.minimumControlExtent;
+    return SizedBox.square(
+      dimension: minimumControlExtent,
+      child: PopupMenuButton<_LocalGalleryToolbarAction>(
+        tooltip: l10n.nav_more,
+        padding: EdgeInsets.zero,
+        icon: const Icon(Icons.more_vert),
+        onSelected: (action) {
+          switch (action) {
+            case _LocalGalleryToolbarAction.date:
               _pickDateAndJump(context);
-            }
-            return;
-          case _LocalGalleryToolbarAction.clearFilters:
-            _searchController.clear();
-            ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
-            return;
-          case _LocalGalleryToolbarAction.undo:
-            widget.onUndo?.call();
-            return;
-          case _LocalGalleryToolbarAction.redo:
-            widget.onRedo?.call();
-            return;
-          case _LocalGalleryToolbarAction.openFolder:
-            widget.onOpenFolder?.call();
-            return;
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: _LocalGalleryToolbarAction.date,
-          child: ListTile(
-            leading: const Icon(Icons.date_range),
-            title: Text(l10n.common_date),
-          ),
-        ),
-        PopupMenuItem(
-          value: _LocalGalleryToolbarAction.toggleGrouped,
-          child: ListTile(
-            leading: Icon(
-              state.isGroupedView ? Icons.view_module : Icons.calendar_today,
-            ),
-            title: Text(
-              state.isGroupedView
-                  ? l10n.common_grid
-                  : l10n.localGallery_switchToDateGroupedView,
-            ),
-          ),
-        ),
-        if (state.hasFilters)
+              return;
+            case _LocalGalleryToolbarAction.toggleGrouped:
+              if (state.isGroupedView) {
+                ref
+                    .read(localGalleryNotifierProvider.notifier)
+                    .setGroupedView(false);
+              } else {
+                _pickDateAndJump(context);
+              }
+              return;
+            case _LocalGalleryToolbarAction.clearFilters:
+              _searchController.clear();
+              ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+              return;
+            case _LocalGalleryToolbarAction.undo:
+              widget.onUndo?.call();
+              return;
+            case _LocalGalleryToolbarAction.redo:
+              widget.onRedo?.call();
+              return;
+            case _LocalGalleryToolbarAction.openFolder:
+              widget.onOpenFolder?.call();
+              return;
+          }
+        },
+        itemBuilder: (context) => [
           PopupMenuItem(
-            value: _LocalGalleryToolbarAction.clearFilters,
+            value: _LocalGalleryToolbarAction.date,
+            child: ListTile(
+              leading: const Icon(Icons.date_range),
+              title: Text(l10n.common_date),
+            ),
+          ),
+          PopupMenuItem(
+            value: _LocalGalleryToolbarAction.toggleGrouped,
             child: ListTile(
               leading: Icon(
-                Icons.filter_alt_off,
-                color: theme.colorScheme.error,
+                state.isGroupedView ? Icons.view_module : Icons.calendar_today,
               ),
               title: Text(
-                l10n.localGallery_clearFilters,
-                style: TextStyle(color: theme.colorScheme.error),
+                state.isGroupedView
+                    ? l10n.common_grid
+                    : l10n.localGallery_switchToDateGroupedView,
               ),
             ),
           ),
-        if (widget.canUndo)
-          PopupMenuItem(
-            value: _LocalGalleryToolbarAction.undo,
-            child: ListTile(
-              leading: const Icon(Icons.undo),
-              title: Text(l10n.common_undo),
+          if (state.hasFilters)
+            PopupMenuItem(
+              value: _LocalGalleryToolbarAction.clearFilters,
+              child: ListTile(
+                leading: Icon(
+                  Icons.filter_alt_off,
+                  color: theme.colorScheme.error,
+                ),
+                title: Text(
+                  l10n.localGallery_clearFilters,
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              ),
             ),
-          ),
-        if (widget.canRedo)
-          PopupMenuItem(
-            value: _LocalGalleryToolbarAction.redo,
-            child: ListTile(
-              leading: const Icon(Icons.redo),
-              title: Text(l10n.common_redo),
+          if (widget.canUndo)
+            PopupMenuItem(
+              value: _LocalGalleryToolbarAction.undo,
+              child: ListTile(
+                leading: const Icon(Icons.undo),
+                title: Text(l10n.common_undo),
+              ),
             ),
-          ),
-        if (widget.onOpenFolder != null)
-          PopupMenuItem(
-            value: _LocalGalleryToolbarAction.openFolder,
-            child: ListTile(
-              leading: const Icon(Icons.folder_open),
-              title: Text(l10n.common_folder),
+          if (widget.canRedo)
+            PopupMenuItem(
+              value: _LocalGalleryToolbarAction.redo,
+              child: ListTile(
+                leading: const Icon(Icons.redo),
+                title: Text(l10n.common_redo),
+              ),
             ),
-          ),
-      ],
+          if (widget.onOpenFolder != null)
+            PopupMenuItem(
+              value: _LocalGalleryToolbarAction.openFolder,
+              child: ListTile(
+                leading: const Icon(Icons.folder_open),
+                title: Text(l10n.common_folder),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

@@ -5,16 +5,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/tag_library/import_models.dart';
 import '../../../../data/services/tag_library_io_service.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/tag_library_page_provider.dart';
-
 import '../../../widgets/common/app_toast.dart';
 
 /// 导入对话框
 class ImportDialog extends ConsumerStatefulWidget {
-  const ImportDialog({super.key});
+  const ImportDialog._();
+
+  static Future<void> show(BuildContext context) {
+    return AdaptivePresenter.showForm<void>(
+      context: context,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.file_download_outlined,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              panelContext.l10n.tagLibrary_import,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                panelContext,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      sideSheetWidth: 700,
+      builder: (context, _) => const ImportDialog._(),
+    );
+  }
 
   @override
   ConsumerState<ImportDialog> createState() => _ImportDialogState();
@@ -39,96 +66,71 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 标题
-              Row(
-                children: [
-                  Icon(
-                    Icons.file_download_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    context.l10n.tagLibrary_import,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (!_isImporting)
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                ],
+    return Padding(
+      key: const Key('tag-library-import-content'),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_isImporting) ...[
+            // 导入进度
+            LinearProgressIndicator(value: _progress),
+            const SizedBox(height: 12),
+            Text(
+              _progressMessage,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
               ),
+            ),
+          ] else if (_preview == null) ...[
+            // 文件选择说明可能在大字号或软键盘下超过可用高度。
+            Expanded(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: _buildFileSelection(theme),
+              ),
+            ),
+          ] else ...[
+            // 预览和选择
+            Expanded(child: _buildPreview(theme)),
 
-              const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-              if (_isImporting) ...[
-                // 导入进度
-                LinearProgressIndicator(value: _progress),
-                const SizedBox(height: 12),
-                Text(
-                  _progressMessage,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
+            // 操作按钮
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedFile = null;
+                      _preview = null;
+                      _conflicts = [];
+                      _conflictResolutions.clear();
+                    });
+                  },
+                  child: Text(context.l10n.tagLibrary_reselect),
                 ),
-              ] else if (_preview == null) ...[
-                // 选择文件
-                _buildFileSelection(theme),
-              ] else ...[
-                // 预览和选择
-                Expanded(child: _buildPreview(theme)),
-
-                const SizedBox(height: 16),
-
-                // 操作按钮
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedFile = null;
-                          _preview = null;
-                          _conflicts = [];
-                          _conflictResolutions.clear();
-                        });
-                      },
-                      child: Text(context.l10n.tagLibrary_reselect),
+                FilledButton.icon(
+                  onPressed:
+                      _selectedEntryIds.isNotEmpty ||
+                          _selectedCategoryIds.isNotEmpty
+                      ? _import
+                      : null,
+                  icon: const Icon(Icons.file_download),
+                  label: Text(
+                    context.l10n.tagLibrary_selectedImportCount(
+                      _selectedEntryIds.length + _selectedCategoryIds.length,
                     ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed:
-                          _selectedEntryIds.isNotEmpty ||
-                              _selectedCategoryIds.isNotEmpty
-                          ? _import
-                          : null,
-                      icon: const Icon(Icons.file_download),
-                      label: Text(
-                        context.l10n.tagLibrary_selectedImportCount(
-                          _selectedEntryIds.length +
-                              _selectedCategoryIds.length,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
-            ],
-          ),
-        ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -151,7 +153,11 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
             child: Column(
               children: [
                 if (_isLoading)
-                  const CircularProgressIndicator()
+                  CircularProgressIndicator(
+                    value: MediaQuery.disableAnimationsOf(context)
+                        ? 0.72
+                        : null,
+                  )
                 else ...[
                   Icon(
                     Icons.upload_file,
@@ -575,7 +581,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       ],
       child: Container(
         constraints: BoxConstraints(
-          minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 0,
+          minHeight: context.interactionPolicy.shouldExposeTouchAlternatives
+              ? 48
+              : 0,
         ),
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

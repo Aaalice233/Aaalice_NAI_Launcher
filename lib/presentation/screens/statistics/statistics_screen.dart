@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../themes/theme_extension.dart';
 import '../../widgets/statistics/export_dialog.dart';
 import 'statistics_state.dart';
@@ -66,7 +66,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
 
     return Container(
       constraints: const BoxConstraints(minHeight: 56),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
@@ -76,34 +76,65 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.bar_chart_rounded, size: 24, color: colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              l10n.statistics_title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final compact = constraints.maxWidth < 520 || textScale > 1.5;
+          final title = Row(
+            children: [
+              Icon(
+                Icons.bar_chart_rounded,
+                size: 24,
+                color: colorScheme.primary,
               ),
-            ),
-          ),
-          if (PlatformCapabilities.current.hasTouchInput)
-            TextButton.icon(
-              onPressed: exportAction,
-              icon: const Icon(Icons.download_outlined, size: 18),
-              label: Text(l10n.common_export),
-            )
-          else
-            IconButton(
-              onPressed: exportAction,
-              tooltip: l10n.common_export,
-              icon: const Icon(Icons.download_outlined),
-            ),
-          const AnimatedRefreshButton(),
-        ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  l10n.statistics_title,
+                  maxLines: compact ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          );
+          final actions = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (context.interactionPolicy.shouldExposeTouchAlternatives &&
+                  !compact)
+                TextButton.icon(
+                  onPressed: exportAction,
+                  icon: const Icon(Icons.download_outlined, size: 18),
+                  label: Text(l10n.common_export),
+                )
+              else
+                IconButton(
+                  onPressed: exportAction,
+                  tooltip: l10n.common_export,
+                  icon: const Icon(Icons.download_outlined),
+                ),
+              const AnimatedRefreshButton(),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                title,
+                Align(alignment: Alignment.centerRight, child: actions),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: title),
+              actions,
+            ],
+          );
+        },
       ),
     );
   }
@@ -128,9 +159,11 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
       return _buildEmptyState(l10n);
     }
 
-    final crossAxisCount = availableWidth < 600
-        ? 1
-        : (availableWidth < 900 ? 2 : 3);
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final crossAxisCount = statisticsDashboardColumnCount(
+      availableWidth,
+      textScale,
+    );
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: StaggeredGrid.count(
@@ -184,30 +217,47 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     WidgetRef ref,
   ) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.red),
-          const SizedBox(height: 16),
-          Text(l10n.statistics_error(error)),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () =>
-                ref.read(statisticsNotifierProvider.notifier).refresh(),
-            child: Text(l10n.statistics_retry),
-          ),
-        ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(l10n.statistics_error(error)),
+            const SizedBox(height: 16),
+            FilledButton.tonal(
+              onPressed: () =>
+                  ref.read(statisticsNotifierProvider.notifier).refresh(),
+              child: Text(l10n.statistics_retry),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmptyState(AppLocalizations l10n) {
     return Center(
-      child: ChartEmptyState(
-        icon: Icons.bar_chart_outlined,
-        title: l10n.statistics_noData,
-        subtitle: l10n.statistics_generateFirst,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ChartEmptyState(
+          icon: Icons.bar_chart_outlined,
+          title: l10n.statistics_noData,
+          subtitle: l10n.statistics_generateFirst,
+        ),
       ),
     );
   }
+}
+
+int statisticsDashboardColumnCount(double availableWidth, double textScale) {
+  final effectiveWidth = availableWidth / textScale.clamp(1.0, 3.0);
+  if (effectiveWidth < 600) return 1;
+  if (effectiveWidth < 900) return 2;
+  return 3;
 }

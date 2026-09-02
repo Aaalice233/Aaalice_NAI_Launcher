@@ -3,16 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../../../data/services/danbooru_auth_service.dart';
 import '../../../../../data/services/gelbooru_auth_service.dart';
+import '../../../../adaptive/interaction_policy.dart';
+import '../../../../adaptive/window_size_class.dart';
 import '../../../../providers/online_gallery_blacklist_provider.dart';
 import '../../../../providers/online_gallery_output_filter_provider.dart';
+import '../../../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../../../providers/online_gallery_provider.dart';
 import '../../../../providers/quick_tag_cloud_gallery_provider.dart';
 import '../../../../providers/selection_mode_provider.dart';
+import '../../../../services/gallery_prompt_projection_service.dart';
 import '../../../../widgets/bulk_action_bar.dart';
 import '../../../online_gallery/online_gallery_screen_commands.dart';
 import '../../../online_gallery/online_gallery_screen_controller.dart';
@@ -23,10 +26,18 @@ import 'online_gallery_toolbar_bindings.dart';
 import 'online_gallery_toolbar_search.dart';
 import 'online_gallery_toolbar_source_controls.dart';
 
-double get _galleryToolbarControlHeight => galleryToolbarControlHeight;
-double get _gallerySearchFieldHeight => gallerySearchFieldHeight;
+double _galleryToolbarControlHeight(BuildContext context) =>
+    galleryToolbarControlHeightFor(context);
+double _gallerySearchFieldHeight(BuildContext context) =>
+    gallerySearchFieldHeightFor(context);
 
-enum _MobileGalleryAction { random, refresh, multiSelect }
+enum _MobileGalleryAction {
+  blacklist,
+  outputFilter,
+  random,
+  refresh,
+  multiSelect,
+}
 
 class OnlineGalleryToolbarFeature extends ConsumerWidget {
   const OnlineGalleryToolbarFeature({
@@ -84,10 +95,22 @@ class _OnlineGalleryToolbarPresenter {
     SelectionModeState selectionState,
   ) {
     if (selectionState.isActive) {
-      final allPostIds = state.posts.map((p) => p.stableKey).toList();
+      final promptTagSettings = ref.watch(
+        onlineGalleryPromptTagSettingsProvider,
+      );
+      final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
+      const projectionService = GalleryPromptProjectionService();
+      final selectablePostIds = projectionService.selectableStableKeys(
+        items: state.posts,
+        promptTagSettings: promptTagSettings,
+        outputFilter: outputFilter,
+        detailForItem: _galleryNotifier.peekDetail,
+      );
       final isAllSelected =
-          allPostIds.isNotEmpty &&
-          allPostIds.every((id) => selectionState.selectedIds.contains(id));
+          selectablePostIds.isNotEmpty &&
+          selectablePostIds.every(
+            (id) => selectionState.selectedIds.contains(id),
+          );
       final canDownloadSelected = state.posts.any(
         (post) =>
             selectionState.selectedIds.contains(post.stableKey) &&
@@ -102,7 +125,7 @@ class _OnlineGalleryToolbarPresenter {
           if (isAllSelected) {
             _selectionNotifier.clearSelection();
           } else {
-            _selectionNotifier.selectAll(allPostIds);
+            _selectionNotifier.selectAll(selectablePostIds);
           }
         },
         actions: [
@@ -131,7 +154,8 @@ class _OnlineGalleryToolbarPresenter {
 
     return LayoutBuilder(
       builder: (context, outerConstraints) {
-        final useMobileToolbar = outerConstraints.maxWidth < 600;
+        final sizeClass = WindowSizeClass.fromWidth(outerConstraints.maxWidth);
+        final useMobileToolbar = sizeClass.isCompact;
         return Container(
           padding: useMobileToolbar
               ? const EdgeInsets.fromLTRB(8, 8, 8, 7)
@@ -160,13 +184,9 @@ class _OnlineGalleryToolbarPresenter {
               // 全局控件的固定职责和可辨识性。
               final forceCompactForText =
                   MediaQuery.textScalerOf(context).scale(1) > 1.2;
-              final useScrollablePrimary = constraints.maxWidth < 1400;
-              final keepsDetailedLabels =
-                  Localizations.localeOf(context).languageCode == 'zh';
+              final useScrollablePrimary = constraints.maxWidth < 1800;
               final compactPrimaryActions =
-                  forceCompactForText ||
-                  constraints.maxWidth < 1400 ||
-                  !keepsDetailedLabels;
+                  forceCompactForText || constraints.maxWidth < 1100;
               final compactRating = compactPrimaryActions;
               final compactModes = compactPrimaryActions;
               final collapseSecondaryControls = constraints.maxWidth < 1100;
@@ -247,7 +267,7 @@ class _OnlineGalleryToolbarPresenter {
     required double availableWidth,
   }) {
     final compact = availableWidth < 350;
-    final sourceWidth = compact ? 72.0 : 116.0;
+    final sourceWidth = compact ? 72.0 : 132.0;
     final modeWidth = compact ? 62.0 : 76.0;
     final filterWidth = compact ? 76.0 : 88.0;
     final activeSource = _activeSource(state);
@@ -267,42 +287,46 @@ class _OnlineGalleryToolbarPresenter {
       children: [
         SizedBox(
           key: const ValueKey('online-gallery-mobile-scope-row'),
-          height: _galleryToolbarControlHeight,
-          child: Row(
-            key: const ValueKey('online-gallery-mobile-primary-row'),
-            children: [
-              SizedBox(
-                key: const ValueKey('online-gallery-mobile-source'),
-                width: sourceWidth,
-                child: _buildSourceSelector(
-                  state,
-                  selectedLabel: sourceLabel,
-                  maxLabelWidth: sourceWidth - 34,
-                  expandLabel: true,
+          height: _galleryToolbarControlHeight(context),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              key: const ValueKey('online-gallery-mobile-primary-row'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  key: const ValueKey('online-gallery-mobile-source'),
+                  width: sourceWidth,
+                  child: _buildSourceSelector(
+                    state,
+                    selectedLabel: sourceLabel,
+                    maxLabelWidth: sourceWidth - 34,
+                    expandLabel: true,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: modeWidth,
-                child: _buildMobileModeSelector(theme, state),
-              ),
-              const SizedBox(width: 6),
-              _buildRatingControl(theme, state, compact: true),
-              const Spacer(),
-              _buildUserButton(
-                theme,
-                state,
-                authState,
-                gelbooruAuthState,
-                compact: true,
-              ),
-            ],
+                const SizedBox(width: 6),
+                SizedBox(
+                  width: modeWidth,
+                  child: _buildMobileModeSelector(theme, state),
+                ),
+                const SizedBox(width: 6),
+                _buildRatingControl(theme, state, compact: true),
+                const SizedBox(width: 8),
+                _buildUserButton(
+                  theme,
+                  state,
+                  authState,
+                  gelbooruAuthState,
+                  compact: true,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 6),
         SizedBox(
           key: const ValueKey('online-gallery-mobile-query-row'),
-          height: _gallerySearchFieldHeight,
+          height: _gallerySearchFieldHeight(context),
           child: Row(
             key: const ValueKey('online-gallery-mobile-search-row'),
             children: [
@@ -313,7 +337,7 @@ class _OnlineGalleryToolbarPresenter {
               const SizedBox(width: 6),
               SizedBox(
                 width: filterWidth,
-                height: _gallerySearchFieldHeight,
+                height: _gallerySearchFieldHeight(context),
                 child: _buildMobileFilterButton(theme, state),
               ),
               const SizedBox(width: 4),
@@ -345,7 +369,7 @@ class _OnlineGalleryToolbarPresenter {
     return PopupMenuButton<GalleryViewMode>(
       key: const ValueKey('online-gallery-mobile-mode-selector'),
       tooltip: current.$2,
-      offset: Offset(0, _galleryToolbarControlHeight + 4),
+      offset: Offset(0, _galleryToolbarControlHeight(context) + 4),
       onSelected: (mode) {
         _bindings.commands.saveScrollOffset();
         switch (mode) {
@@ -391,7 +415,7 @@ class _OnlineGalleryToolbarPresenter {
         ),
       ],
       child: Container(
-        height: _galleryToolbarControlHeight,
+        height: _galleryToolbarControlHeight(context),
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -437,52 +461,73 @@ class _OnlineGalleryToolbarPresenter {
       onlineGalleryOutputFilterProvider.select((value) => value.tags.length),
     );
     final filterCount = blacklistCount + outputCount;
-    return TextButton(
-      key: const ValueKey('online-gallery-mobile-filter'),
-      onPressed: _showSourceFilters,
-      style: TextButton.styleFrom(
-        foregroundColor: theme.colorScheme.onSurfaceVariant,
-        backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.58,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.tune_rounded, size: 16),
-          const SizedBox(width: 3),
-          Flexible(
-            child: Text(
-              context.l10n.common_filter,
-              maxLines: 1,
-              overflow: TextOverflow.fade,
-              softWrap: false,
-            ),
+    final showLabel = MediaQuery.textScalerOf(context).scale(14) <= 20;
+    return Semantics(
+      button: true,
+      label: filterCount > 0
+          ? '${context.l10n.common_filter}: $filterCount'
+          : context.l10n.common_filter,
+      child: TextButton(
+        key: const ValueKey('online-gallery-mobile-filter'),
+        onPressed: _showCompactFilters,
+        style: TextButton.styleFrom(
+          foregroundColor: theme.colorScheme.onSurfaceVariant,
+          backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.58,
           ),
-          if (filterCount > 0) ...[
-            const SizedBox(width: 3),
-            Text(
-              filterCount.toString(),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontFeatures: const [FontFeature.tabularFigures()],
-                fontWeight: FontWeight.w700,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.tune_rounded, size: 16),
+            if (showLabel) ...[
+              const SizedBox(width: 3),
+              Flexible(
+                child: Text(
+                  context.l10n.common_filter,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
+                ),
               ),
-            ),
+            ],
+            if (showLabel && filterCount > 0) ...[
+              const SizedBox(width: 3),
+              Text(
+                filterCount.toString(),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildMobileMoreButton(ThemeData theme, OnlineGalleryState state) {
+    final blacklistCount = ref.watch(
+      onlineGalleryBlacklistNotifierProvider.select(
+        (value) => value.tags.length,
+      ),
+    );
+    final outputFilterCount = ref.watch(
+      onlineGalleryOutputFilterProvider.select((value) => value.tags.length),
+    );
     return PopupMenuButton<_MobileGalleryAction>(
       key: const ValueKey('online-gallery-mobile-more'),
       tooltip: context.l10n.nav_more,
       onSelected: (action) {
         switch (action) {
+          case _MobileGalleryAction.blacklist:
+            _sourceControls.showBlacklist();
+          case _MobileGalleryAction.outputFilter:
+            _sourceControls.showOutputFilter();
           case _MobileGalleryAction.random:
             _toggleRandomGallery(state);
           case _MobileGalleryAction.refresh:
@@ -492,6 +537,24 @@ class _OnlineGalleryToolbarPresenter {
         }
       },
       itemBuilder: (context) => [
+        PopupMenuItem(
+          key: const ValueKey('online-gallery-mobile-blacklist-action'),
+          value: _MobileGalleryAction.blacklist,
+          child: ListTile(
+            leading: const Icon(Icons.block_rounded),
+            title: Text(context.l10n.onlineGallery_blacklistTags),
+            trailing: Text('$blacklistCount'),
+          ),
+        ),
+        PopupMenuItem(
+          key: const ValueKey('online-gallery-mobile-output-filter-action'),
+          value: _MobileGalleryAction.outputFilter,
+          child: ListTile(
+            leading: const Icon(Icons.filter_alt_off_outlined),
+            title: Text(context.l10n.onlineGallery_outputFilter),
+            trailing: Text('$outputFilterCount'),
+          ),
+        ),
         if (state.supportsRandom)
           PopupMenuItem(
             value: _MobileGalleryAction.random,
@@ -526,8 +589,8 @@ class _OnlineGalleryToolbarPresenter {
         ),
       ],
       child: SizedBox(
-        width: _gallerySearchFieldHeight,
-        height: _gallerySearchFieldHeight,
+        width: _gallerySearchFieldHeight(context),
+        height: _gallerySearchFieldHeight(context),
         child: Icon(
           Icons.more_horiz_rounded,
           color: theme.colorScheme.onSurfaceVariant,
@@ -663,9 +726,10 @@ class _OnlineGalleryToolbarPresenter {
                 foregroundColor: state.randomEnabled
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,
-                minimumSize: Size(0, _galleryToolbarControlHeight),
+                minimumSize: Size(0, _galleryToolbarControlHeight(context)),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                visualDensity: PlatformCapabilities.current.isMobile
+                visualDensity:
+                    context.interactionPolicy.prefersTouchPresentation
                     ? VisualDensity.standard
                     : VisualDensity.compact,
                 shape: RoundedRectangleBorder(
@@ -692,7 +756,8 @@ class _OnlineGalleryToolbarPresenter {
                   horizontal: 10,
                   vertical: 7,
                 ),
-                visualDensity: PlatformCapabilities.current.isMobile
+                visualDensity:
+                    context.interactionPolicy.prefersTouchPresentation
                     ? VisualDensity.standard
                     : VisualDensity.compact,
                 shape: RoundedRectangleBorder(
@@ -721,9 +786,9 @@ class _OnlineGalleryToolbarPresenter {
             key: const ValueKey('online-gallery-refresh'),
             onPressed: () => _refreshGallery(state),
             style: FilledButton.styleFrom(
-              minimumSize: Size(0, _galleryToolbarControlHeight),
+              minimumSize: Size(0, _galleryToolbarControlHeight(context)),
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              visualDensity: PlatformCapabilities.current.isMobile
+              visualDensity: context.interactionPolicy.prefersTouchPresentation
                   ? VisualDensity.standard
                   : VisualDensity.compact,
               shape: RoundedRectangleBorder(
@@ -750,7 +815,7 @@ class _OnlineGalleryToolbarPresenter {
             ),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              visualDensity: PlatformCapabilities.current.isMobile
+              visualDensity: context.interactionPolicy.prefersTouchPresentation
                   ? VisualDensity.standard
                   : VisualDensity.compact,
               shape: RoundedRectangleBorder(
@@ -765,9 +830,9 @@ class _OnlineGalleryToolbarPresenter {
             onPressed: _selectionNotifier.enter,
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurfaceVariant,
-              minimumSize: Size(0, _galleryToolbarControlHeight),
+              minimumSize: Size(0, _galleryToolbarControlHeight(context)),
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              visualDensity: PlatformCapabilities.current.isMobile
+              visualDensity: context.interactionPolicy.prefersTouchPresentation
                   ? VisualDensity.standard
                   : VisualDensity.compact,
               shape: RoundedRectangleBorder(
@@ -785,7 +850,7 @@ class _OnlineGalleryToolbarPresenter {
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurfaceVariant,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              visualDensity: PlatformCapabilities.current.isMobile
+              visualDensity: context.interactionPolicy.prefersTouchPresentation
                   ? VisualDensity.standard
                   : VisualDensity.compact,
               shape: RoundedRectangleBorder(
@@ -836,6 +901,8 @@ class _OnlineGalleryToolbarPresenter {
   );
 
   Future<void> _showSourceFilters() => _sourceControls.showSourceFilters();
+
+  Future<void> _showCompactFilters() => _sourceControls.showSourceFilters();
 
   Widget _buildSecondaryControls(ThemeData theme, OnlineGalleryState state) =>
       _sourceControls.buildSecondaryControls(theme);

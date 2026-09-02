@@ -9,10 +9,10 @@ import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart'
 import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
 
 void main() {
-  testWidgets('未连接布局在五档宽度均无 overflow', (tester) async {
-    for (final width in [390.0, 700.0, 840.0, 1180.0, 1600.0]) {
-      await tester.binding.setSurfaceSize(Size(width, 900));
-      await tester.pumpWidget(_subject());
+  testWidgets('未连接布局在 320–1600 宽度与 3x 文本下均无 overflow', (tester) async {
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 1200));
+      await tester.pumpWidget(_subject(textScale: 3));
       await tester.pumpAndSettle();
 
       expect(find.text('备份与恢复'), findsWidgets);
@@ -96,7 +96,7 @@ void main() {
   testWidgets('已连接状态展示降级能力、完整进度、历史与待处理冲突', (tester) async {
     final state = _connectedState();
     final port = _FakePort();
-    for (final width in [390.0, 700.0, 840.0, 1180.0, 1600.0]) {
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
       await tester.binding.setSurfaceSize(Size(width, 900));
       await tester.pumpWidget(_subject(state: state, port: port));
       await tester.pumpAndSettle();
@@ -225,13 +225,14 @@ void main() {
   });
 
   testWidgets('存储服务警告会直接显示在已连接页面', (tester) async {
-    final state = _connectedState(
-      activityStatus: CloudSyncActivityStatus.idle,
-      capabilityMode: CloudSyncCapabilityMode.bidirectional,
-    ).copyWith(
-      capabilityWarnings: const ['当前 GitHub 仓库是公开仓库'],
-      clearProgress: true,
-    );
+    final state =
+        _connectedState(
+          activityStatus: CloudSyncActivityStatus.idle,
+          capabilityMode: CloudSyncCapabilityMode.bidirectional,
+        ).copyWith(
+          capabilityWarnings: const ['当前 GitHub 仓库是公开仓库'],
+          clearProgress: true,
+        );
 
     await tester.pumpWidget(_subject(state: state, port: _FakePort()));
     await tester.pumpAndSettle();
@@ -314,18 +315,28 @@ Finder get _pageScrollable => find
     )
     .at(0);
 
-Widget _subject({CloudSyncUiState? state, CloudSyncUiPort? port}) {
+Widget _subject({
+  CloudSyncUiState? state,
+  CloudSyncUiPort? port,
+  double textScale = 1,
+}) {
   return ProviderScope(
     overrides: [
       if (state != null) cloudSyncUiStateProvider.overrideWithValue(state),
       if (port != null) cloudSyncUiPortProvider.overrideWithValue(port),
       localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
     ],
-    child: const MaterialApp(
-      locale: Locale('zh'),
+    child: MaterialApp(
+      locale: const Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: SettingsScreen(initialSection: SettingsSection.cloudSync),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
+      home: const SettingsScreen(initialSection: SettingsSection.cloudSync),
     ),
   );
 }

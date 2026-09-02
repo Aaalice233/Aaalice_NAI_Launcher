@@ -12,30 +12,34 @@ const _tinyPng =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 /// 自动应答桥:每条命令按类型立即回 response,走真实 Model3dBridge 逻辑
-Model3dBridge autoReplyBridge() {
+Model3dBridge autoReplyBridge({List<Map<String, dynamic>>? recordedCommands}) {
   late Model3dBridge bridge;
   bridge = Model3dBridge(
     evalJs: (source) async {
       final match = RegExp(r'dispatch\((.+)\)$').firstMatch(source)!;
-      final command = jsonDecode(jsonDecode(match.group(1)!) as String)
-          as Map<String, dynamic>;
+      final command =
+          jsonDecode(jsonDecode(match.group(1)!) as String)
+              as Map<String, dynamic>;
+      recordedCommands?.add(command);
       final data = switch (command['type'] as String) {
         'render' => {'png': _tinyPng},
         'serialize' => {
-            'sceneState': {'version': 1},
-          },
+          'sceneState': {'version': 1},
+        },
         'loadModel' => {'boneCount': 19, 'duplicateBoneNames': <String>[]},
         _ => <String, dynamic>{},
       };
       // 模拟 JS 异步回复
-      Future.microtask(() => bridge.handleJsMessage([
-            {
-              'type': 'response',
-              'requestId': command['requestId'],
-              'ok': true,
-              'data': data,
-            },
-          ]));
+      Future.microtask(
+        () => bridge.handleJsMessage([
+          {
+            'type': 'response',
+            'requestId': command['requestId'],
+            'ok': true,
+            'data': data,
+          },
+        ]),
+      );
     },
   );
   return bridge;
@@ -46,47 +50,195 @@ Future<Future<Model3dEditResult?>> pumpEditor(
   WidgetTester tester, {
   Model3dLayerData? existing,
   Model3dBridge? bridge,
+  Size size = const Size(800, 600),
+  double textScale = 1,
+  double? contentWidth,
 }) async {
   late Future<Model3dEditResult?> resultFuture;
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Builder(
-      builder: (context) => ElevatedButton(
-        onPressed: () {
-          resultFuture = Navigator.push<Model3dEditResult>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => Model3dEditorScreen(
-                renderWidth: 8,
-                renderHeight: 8,
-                existing: existing,
-                bridgeOverride: bridge ?? autoReplyBridge(),
-                viewportBuilder: (_) => const ColoredBox(color: Colors.black),
-                markReadyForTest: true,
+  await tester.pumpWidget(
+    MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => MediaQuery(
+        data: MediaQueryData(
+          size: size,
+          textScaler: TextScaler.linear(textScale),
+          padding: const EdgeInsets.only(top: 12, bottom: 16),
+        ),
+        child: child!,
+      ),
+      home: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () {
+            resultFuture = Navigator.push<Model3dEditResult>(
+              context,
+              MaterialPageRoute(
+                builder: (_) {
+                  final editor = Model3dEditorScreen(
+                    renderWidth: 8,
+                    renderHeight: 8,
+                    existing: existing,
+                    bridgeOverride: bridge ?? autoReplyBridge(),
+                    viewportBuilder: (_) =>
+                        const ColoredBox(color: Colors.black),
+                    markReadyForTest: true,
+                  );
+                  return Align(
+                    child: SizedBox(width: contentWidth, child: editor),
+                  );
+                },
               ),
-            ),
-          );
-        },
-        child: const Text('open'),
+            );
+          },
+          child: const Text('open'),
+        ),
       ),
     ),
-  ));
+  );
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
   return resultFuture;
 }
 
 void main() {
-  testWidgets('empty scene shows mannequin and import entries',
-      (tester) async {
+  testWidgets('narrow large-text editor keeps primary actions reachable', (
+    tester,
+  ) async {
+    const size = Size(360, 640);
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pumpEditor(tester, size: size, textScale: 2);
+
+    expect(find.byIcon(Icons.check), findsWidgets);
+    expect(find.text('Add Built-in Mannequin'), findsOneWidget);
+    expect(find.text('Import Model (.glb/.gltf)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'light fields stay usable at 320px, 3x text, SafeArea and bridge live updates',
+    (tester) async {
+      const size = Size(320, 900);
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final commands = <Map<String, dynamic>>[];
+      await pumpEditor(
+        tester,
+        size: size,
+        textScale: 3,
+        bridge: autoReplyBridge(recordedCommands: commands),
+      );
+
+      final toolbarScroll = find.byWidgetPredicate(
+        (widget) =>
+            widget is SingleChildScrollView &&
+            widget.scrollDirection == Axis.horizontal,
+      );
+      for (
+        var attempt = 0;
+        attempt < 6 &&
+            find
+                .byIcon(Icons.accessibility_new)
+                .hitTestable()
+                .evaluate()
+                .isEmpty;
+        attempt++
+      ) {
+        await tester.drag(toolbarScroll, const Offset(-240, 0));
+        await tester.pumpAndSettle();
+      }
+      expect(
+        find.byIcon(Icons.accessibility_new).hitTestable(),
+        findsOneWidget,
+      );
+      await tester.tap(find.byIcon(Icons.accessibility_new).hitTestable());
+      await tester.pumpAndSettle();
+      for (
+        var attempt = 0;
+        attempt < 6 &&
+            find.byIcon(Icons.light_mode).hitTestable().evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.drag(toolbarScroll, const Offset(240, 0));
+        await tester.pumpAndSettle();
+      }
+      expect(find.byIcon(Icons.light_mode).hitTestable(), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.light_mode).hitTestable());
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('model3d-light-intensity')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('model3d-light-azimuth')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('model3d-light-elevation')),
+        findsOneWidget,
+      );
+
+      final intensitySlider = find.descendant(
+        of: find.byKey(const ValueKey('model3d-light-intensity')),
+        matching: find.byType(Slider),
+      );
+      await tester.drag(intensitySlider, const Offset(40, 0));
+      await tester.pumpAndSettle();
+
+      final lightCommands = commands
+          .where((command) => command['type'] == 'setLight')
+          .toList();
+      expect(lightCommands, isNotEmpty);
+      final payload = lightCommands.last;
+      expect(payload['intensity'], isNot(1.6));
+      expect(payload['azimuth'], 37.0);
+      expect(payload['elevation'], 50.0);
+      expect(tester.takeException(), isNull);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('apply action uses the editor local width', (tester) async {
+    const size = Size(800, 640);
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pumpEditor(tester, size: size, contentWidth: 500);
+
+    final appBar = find.byType(AppBar);
+    expect(
+      find.descendant(
+        of: appBar,
+        matching: find.widgetWithText(FilledButton, 'Apply to Layer'),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: appBar, matching: find.byIcon(Icons.check)),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('empty scene shows mannequin and import entries', (tester) async {
     await pumpEditor(tester);
     expect(find.text('Add Built-in Mannequin'), findsOneWidget);
     expect(find.text('Import Model (.glb/.gltf)'), findsOneWidget);
   });
 
-  testWidgets('adding mannequin hides empty state and enables apply',
-      (tester) async {
+  testWidgets('adding mannequin hides empty state and enables apply', (
+    tester,
+  ) async {
     await pumpEditor(tester);
     await tester.tap(find.text('Add Built-in Mannequin'));
     await tester.pumpAndSettle();

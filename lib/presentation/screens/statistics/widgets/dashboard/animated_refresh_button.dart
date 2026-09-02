@@ -35,12 +35,13 @@ class _AnimatedRefreshButtonState extends ConsumerState<AnimatedRefreshButton>
   }
 
   void _handleRefresh() {
-    // Start rotation animation
-    _rotationController.repeat();
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (!reducedMotion) {
+      _rotationController.repeat();
+    }
 
-    // Trigger refresh
     ref.read(statisticsNotifierProvider.notifier).refresh().then((_) {
-      // Stop rotation when refresh completes
+      if (!mounted) return;
       _rotationController.stop();
       _rotationController.reset();
     });
@@ -53,11 +54,12 @@ class _AnimatedRefreshButtonState extends ConsumerState<AnimatedRefreshButton>
     final colorScheme = theme.colorScheme;
     final data = ref.watch(statisticsNotifierProvider);
     final isLoading = data.isLoading;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
-    // Auto-rotate when loading
-    if (isLoading && !_rotationController.isAnimating) {
+    if (isLoading && !reducedMotion && !_rotationController.isAnimating) {
       _rotationController.repeat();
-    } else if (!isLoading && _rotationController.isAnimating) {
+    } else if ((reducedMotion || !isLoading) &&
+        _rotationController.isAnimating) {
       _rotationController.stop();
       _rotationController.reset();
     }
@@ -66,9 +68,13 @@ class _AnimatedRefreshButtonState extends ConsumerState<AnimatedRefreshButton>
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: isLoading ? null : _handleRefresh,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          duration: reducedMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
@@ -115,7 +121,9 @@ class _AnimatedRefreshButtonState extends ConsumerState<AnimatedRefreshButton>
               const SizedBox(width: 6),
               // Text with animated color
               AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
+                duration: reducedMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
                 style: theme.textTheme.bodySmall!.copyWith(
                   color: _isHovered && !isLoading
                       ? colorScheme.primary

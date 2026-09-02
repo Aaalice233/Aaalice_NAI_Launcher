@@ -61,6 +61,7 @@ class _VibeLibraryContentViewState
   static const String _vibeLibraryGridKey = 'vibe_library_3d_grid';
   final FrameStaggerController _frameStaggerController =
       FrameStaggerController();
+  bool _exportDialogLocked = false;
 
   @override
   void dispose() {
@@ -86,7 +87,11 @@ class _VibeLibraryContentViewState
 
     // 加载中状态
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(
+          value: MediaQuery.disableAnimationsOf(context) ? 0.5 : null,
+        ),
+      );
     }
 
     // 空状态处理
@@ -654,6 +659,8 @@ class _VibeLibraryContentViewState
     BuildContext context,
     VibeLibraryEntry entry,
   ) async {
+    if (_exportDialogLocked) return;
+    _exportDialogLocked = true;
     final span = VibePerformanceDiagnostics.start(
       'content.exportSingleEntry',
       details: {'entryId': entry.id, 'isBundle': entry.isBundle},
@@ -672,12 +679,13 @@ class _VibeLibraryContentViewState
           .categories;
       categoryCount = categories.length;
 
-      showDialog<void>(
-        context: context,
-        builder: (context) =>
-            VibeExportDialog(entries: [actualEntry], categories: categories),
+      await VibeExportDialog.show(
+        context,
+        entries: [actualEntry],
+        categories: categories,
       );
     } finally {
+      _exportDialogLocked = false;
       span.finish(details: {'hydrated': hydrated, 'categories': categoryCount});
     }
   }

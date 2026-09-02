@@ -122,6 +122,8 @@ void main() {
       await coordinator.request(_item(2));
       await coordinator.request(_item(3));
       expect(coordinator.completedCount, 2);
+      expect(coordinator.peekCompleted(_item(1)), isNull);
+      expect(coordinator.peekCompleted(_item(3))?.description, 'call-3');
       await coordinator.request(_item(1));
       expect(calls, 4);
 
@@ -138,6 +140,7 @@ void main() {
 
       now = now.add(const Duration(hours: 24));
       expect(coordinator.completedCount, 0);
+      expect(coordinator.peekCompleted(_item(3)), isNull);
     },
   );
 

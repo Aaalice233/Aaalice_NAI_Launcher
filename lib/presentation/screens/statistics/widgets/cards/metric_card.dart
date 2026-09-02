@@ -72,7 +72,9 @@ class _MetricCardState extends State<MetricCard> {
                 highlightColor: effectiveIconColor.withValues(alpha: 0.04),
                 child: Padding(
                   padding: EdgeInsets.all(widget.compact ? 14 : 18),
-                  child: widget.compact
+                  child:
+                      widget.compact &&
+                          MediaQuery.textScalerOf(context).scale(14) <= 21
                       ? _buildCompactLayout(
                           theme,
                           colorScheme,

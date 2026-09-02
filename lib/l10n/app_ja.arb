@@ -778,6 +778,14 @@
     }
   },
   "img2img_directorRunning": "処理中...",
+  "img2img_directorConfirmTitle": "Anlas 消費の確認",
+  "img2img_directorConfirmContent": "{tool} の実行には推定 {cost} Anlas が必要です。続行しますか？",
+  "@img2img_directorConfirmContent": {
+    "placeholders": {
+      "tool": {},
+      "cost": {"type": "int"}
+    }
+  },
   "img2img_directorResult": "結果",
   "img2img_directorResultReady": "{tool} が完了しました",
   "@img2img_directorResultReady": {

@@ -1,12 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel.dart';
 
 void main() {
@@ -50,6 +53,8 @@ void main() {
       Size size, {
       double textScale = 1,
       double keyboardInset = 0,
+      InteractionPolicy? interactionPolicy,
+      bool fullScreen = true,
     }) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = size;
@@ -68,14 +73,51 @@ void main() {
               ).copyWith(textScaler: TextScaler.linear(textScale)),
               child: child!,
             ),
-            home: const Scaffold(
-              body: AgentChatPanel(mobile: true, fullScreen: true),
+            home: Scaffold(
+              body: InteractionPolicyScope(
+                initialPolicy: interactionPolicy,
+                child: AgentChatPanel(fullScreen: fullScreen),
+              ),
             ),
           ),
         ),
       );
       await tester.pump();
     }
+
+    await pumpViewport(
+      const Size(420, 760),
+      fullScreen: false,
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+    );
+    expect(
+      find.byKey(const ValueKey('agent-chat-mobile-viewport')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+
+    await pumpViewport(
+      const Size(840, 760),
+      fullScreen: false,
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: true,
+      ),
+    );
+    expect(
+      find.byKey(const ValueKey('agent-chat-mobile-viewport')),
+      findsNothing,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('agent-chat-send'))).width,
+      48,
+    );
+    expect(tester.takeException(), isNull);
 
     for (final size in const [
       Size(320, 640),
@@ -89,9 +131,39 @@ void main() {
       expect(tester.takeException(), isNull, reason: 'viewport $size');
     }
 
-    await pumpViewport(const Size(360, 800), textScale: 2);
+    for (final size in const [Size(320, 640), Size(600, 360)]) {
+      await pumpViewport(size, textScale: 3);
+      _expectCoreRegionsVisible(tester, size.height);
+      expect(tester.takeException(), isNull, reason: '3x text viewport $size');
+    }
+
+    await pumpViewport(const Size(360, 800), textScale: 3);
     _expectCoreRegionsVisible(tester, 800);
     expect(tester.takeException(), isNull);
+    final compactControls = find.byKey(
+      const ValueKey('agent-chat-compact-controls'),
+    );
+    expect(compactControls, findsOneWidget);
+    await tester.tap(compactControls);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('agent-chat-compact-web-access')),
+      findsOneWidget,
+    );
+    for (final mode in AgentPermissionMode.values) {
+      expect(
+        find.byKey(ValueKey('agent-chat-compact-permission-${mode.name}')),
+        findsOneWidget,
+      );
+    }
+    final webAccess = find.byKey(
+      const ValueKey('agent-chat-compact-web-access'),
+    );
+    await tester.ensureVisible(webAccess);
+    expect(webAccess.hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
 
     final input = find.byKey(const ValueKey('agent-chat-input'));
     await tester.tap(input);

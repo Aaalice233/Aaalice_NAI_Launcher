@@ -1862,6 +1862,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_directorRunning => '処理中...';
 
   @override
+  String get img2img_directorConfirmTitle => 'Anlas 消費の確認';
+
+  @override
+  String img2img_directorConfirmContent(Object tool, int cost) {
+    return '$tool の実行には推定 $cost Anlas が必要です。続行しますか？';
+  }
+
+  @override
   String get img2img_directorResult => '結果';
 
   @override

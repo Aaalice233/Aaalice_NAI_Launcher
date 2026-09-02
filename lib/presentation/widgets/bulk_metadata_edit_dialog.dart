@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/utils/bulk_tag_edit_utils.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../adaptive/adaptive_presenter.dart';
 import '../providers/bulk_operation_provider.dart';
 import '../providers/local_gallery_provider.dart';
 import '../providers/selection_mode_provider.dart';
@@ -22,7 +23,9 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 /// Provides bulk metadata editing options for selected images
 /// 为选中的图片提供批量元数据编辑选项
 class BulkMetadataEditDialog extends ConsumerStatefulWidget {
-  const BulkMetadataEditDialog({super.key});
+  const BulkMetadataEditDialog({super.key, this.scrollController});
+
+  final ScrollController? scrollController;
 
   @override
   ConsumerState<BulkMetadataEditDialog> createState() =>
@@ -154,146 +157,106 @@ class _BulkMetadataEditDialogState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final isDark = theme.brightness == Brightness.dark;
-    final selectionState = ref.watch(localGallerySelectionNotifierProvider);
-    final selectedCount = selectionState.selectedIds.length;
-
-    return AlertDialog(
-      backgroundColor: Colors.transparent,
-      content: Container(
-        width: 500,
-        constraints: const BoxConstraints(maxHeight: 600),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark
-              ? theme.colorScheme.surfaceContainerHigh
-              : theme.colorScheme.surface,
-          borderRadius: const BorderRadius.all(Radius.circular(16)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Icon(
-                  Icons.edit_outlined,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l10n.bulkMetadataEdit_title(selectedCount),
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                  tooltip: l10n.common_close,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const ThemedDivider(),
-            const SizedBox(height: 16),
-
-            // Scrollable content
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildEditSection(
-                      theme,
-                      l10n.bulkMetadataEdit_tagsToAdd,
-                      Icons.add_circle_outline,
-                      [
-                        _buildTagInputField(
-                          theme,
-                          _tagsToAddController,
-                          _tagsToAddFocus,
-                          l10n.bulkMetadataEdit_tagsToAddHint,
-                          _addTagToAdd,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildChipsList(
-                          theme,
-                          _chipsToAdd,
-                          Colors.green,
-                          _removeTagToAdd,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    _buildEditSection(
-                      theme,
-                      l10n.bulkMetadataEdit_tagsToRemove,
-                      Icons.remove_circle_outline,
-                      [
-                        _buildTagInputField(
-                          theme,
-                          _tagsToRemoveController,
-                          _tagsToRemoveFocus,
-                          l10n.bulkMetadataEdit_tagsToRemoveHint,
-                          _addTagToRemove,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildChipsList(
-                          theme,
-                          _chipsToRemove,
-                          Colors.red,
-                          _removeTagToRemove,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+    return SingleChildScrollView(
+      key: const ValueKey('bulk-metadata-edit-scroll'),
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildEditSection(
+            theme,
+            l10n.bulkMetadataEdit_tagsToAdd,
+            Icons.add_circle_outline,
+            [
+              _buildTagInputField(
+                theme,
+                _tagsToAddController,
+                _tagsToAddFocus,
+                l10n.bulkMetadataEdit_tagsToAddHint,
+                _addTagToAdd,
               ),
-            ),
+              const SizedBox(height: 8),
+              _buildChipsList(
+                theme,
+                _chipsToAdd,
+                Colors.green,
+                _removeTagToAdd,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildEditSection(
+            theme,
+            l10n.bulkMetadataEdit_tagsToRemove,
+            Icons.remove_circle_outline,
+            [
+              _buildTagInputField(
+                theme,
+                _tagsToRemoveController,
+                _tagsToRemoveFocus,
+                l10n.bulkMetadataEdit_tagsToRemoveHint,
+                _addTagToRemove,
+              ),
+              const SizedBox(height: 8),
+              _buildChipsList(
+                theme,
+                _chipsToRemove,
+                Colors.red,
+                _removeTagToRemove,
+              ),
+            ],
+          ),
 
-            const SizedBox(height: 16),
-            const ThemedDivider(),
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
+          const ThemedDivider(),
+          const SizedBox(height: 16),
 
-            // Action buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, size: 18),
-                    label: Text(l10n.common_cancel),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
+          // Action buttons
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+              final stackActions = constraints.maxWidth / textScale < 300;
+              final cancel = OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, size: 18),
+                label: Text(l10n.common_cancel),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _applyEdit,
-                    icon: const Icon(Icons.check, size: 18),
-                    label: Text(context.l10n.common_apply),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
+              );
+              final apply = ElevatedButton.icon(
+                onPressed: _applyEdit,
+                icon: const Icon(Icons.check, size: 18),
+                label: Text(context.l10n.common_apply),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              );
+              if (stackActions) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [apply, const SizedBox(height: 8), cancel],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: cancel),
+                  const SizedBox(width: 12),
+                  Expanded(child: apply),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -312,11 +275,15 @@ class _BulkMetadataEditDialogState
           children: [
             Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -341,7 +308,7 @@ class _BulkMetadataEditDialogState
       children: [
         Expanded(
           child: Container(
-            height: 40,
+            constraints: const BoxConstraints(minHeight: 40),
             decoration: BoxDecoration(
               color: isDark
                   ? theme.colorScheme.surfaceContainerHighest.withValues(
@@ -439,8 +406,40 @@ class _BulkMetadataEditDialogState
 /// Show bulk metadata edit dialog
 /// 显示批量元数据编辑对话框
 void showBulkMetadataEditDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (context) => const BulkMetadataEditDialog(),
+  unawaited(
+    AdaptivePresenter.showForm<void>(
+      context: context,
+      sideSheetWidth: 500,
+      titleBuilder: (panelContext) => Consumer(
+        builder: (context, ref, _) {
+          final selectedCount = ref
+              .watch(localGallerySelectionNotifierProvider)
+              .selectedIds
+              .length;
+          return Row(
+            children: [
+              Icon(
+                Icons.edit_outlined,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  context.l10n.bulkMetadataEdit_title(selectedCount),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+      builder: (panelContext, scrollController) =>
+          BulkMetadataEditDialog(scrollController: scrollController),
+    ),
   );
 }

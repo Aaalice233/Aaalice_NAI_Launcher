@@ -85,40 +85,70 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Icon(Icons.shuffle_rounded, size: 19, color: colors.primary),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    context.l10n.randomManager_previewGeneration,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                FilledButton.icon(
-                  onPressed: _isGenerating ? null : _generate,
-                  icon: _isGenerating
-                      ? const SizedBox.square(
-                          dimension: 15,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.play_arrow_rounded, size: 18),
-                  label: Text(
-                    _isGenerating
-                        ? context.l10n.randomManager_generating
-                        : context.l10n.randomManager_generate,
-                  ),
-                ),
-                const SizedBox(width: 32),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) =>
+                  _buildHeader(context, compact: constraints.maxWidth < 600),
             ),
             const SizedBox(height: 12),
             Expanded(child: _buildResult(context)),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, {required bool compact}) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final title = Row(
+      children: [
+        Icon(Icons.shuffle_rounded, size: 19, color: colors.primary),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            context.l10n.randomManager_previewGeneration,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+    final generateButton = FilledButton.icon(
+      onPressed: _isGenerating ? null : _generate,
+      icon: _isGenerating
+          ? SizedBox.square(
+              dimension: 15,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+              ),
+            )
+          : const Icon(Icons.play_arrow_rounded, size: 18),
+      label: Text(
+        _isGenerating
+            ? context.l10n.randomManager_generating
+            : context.l10n.randomManager_generate,
+      ),
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          title,
+          const SizedBox(height: 8),
+          Align(alignment: Alignment.centerRight, child: generateButton),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: title),
+        generateButton,
+        const SizedBox(width: 32),
+      ],
     );
   }
 
@@ -179,32 +209,71 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
           ),
         ),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            _InlineStat(
-              icon: Icons.person_outline_rounded,
-              label: context.l10n.randomManager_characterCountLabel(
-                result.characterCount,
-              ),
-            ),
-            const SizedBox(width: 10),
-            _InlineStat(
-              icon: Icons.sell_outlined,
-              label: context.l10n.randomManager_tagCountLabel(tagCount),
-            ),
-            const Spacer(),
-            IconButton(
-              onPressed: _copyToClipboard,
-              tooltip: context.l10n.randomManager_copy,
-              icon: const Icon(Icons.copy_outlined, size: 18),
-            ),
-            IconButton(
-              onPressed: _isGenerating ? null : _generate,
-              tooltip: context.l10n.randomManager_regenerate,
-              icon: const Icon(Icons.refresh_rounded, size: 19),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) => _buildResultFooter(
+            context,
+            result: result,
+            tagCount: tagCount,
+            compact: constraints.maxWidth < 600,
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildResultFooter(
+    BuildContext context, {
+    required RandomPromptResult result,
+    required int tagCount,
+    required bool compact,
+  }) {
+    final stats = Wrap(
+      spacing: 10,
+      runSpacing: 6,
+      children: [
+        _InlineStat(
+          icon: Icons.person_outline_rounded,
+          label: context.l10n.randomManager_characterCountLabel(
+            result.characterCount,
+          ),
+        ),
+        _InlineStat(
+          icon: Icons.sell_outlined,
+          label: context.l10n.randomManager_tagCountLabel(tagCount),
+        ),
+      ],
+    );
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: _copyToClipboard,
+          tooltip: context.l10n.randomManager_copy,
+          icon: const Icon(Icons.copy_outlined, size: 18),
+        ),
+        IconButton(
+          onPressed: _isGenerating ? null : _generate,
+          tooltip: context.l10n.randomManager_regenerate,
+          icon: const Icon(Icons.refresh_rounded, size: 19),
+        ),
+      ],
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          stats,
+          const SizedBox(height: 4),
+          Align(alignment: Alignment.centerRight, child: actions),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: stats),
+        actions,
       ],
     );
   }

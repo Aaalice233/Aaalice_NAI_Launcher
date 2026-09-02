@@ -135,7 +135,8 @@ void main() {
               routes: [
                 GoRoute(
                   path: '/',
-                  builder: (context, state) => const SizedBox.expand(),
+                  builder: (context, state) =>
+                      const SizedBox.expand(key: ValueKey('auth-test-content')),
                 ),
               ],
             ),
@@ -172,8 +173,12 @@ void main() {
     expect(find.byType(MobileShell), findsNothing);
     final banner = find.byKey(const ValueKey('auth-recovery-banner'));
     expect(banner, findsOneWidget);
-    expect(tester.getSize(banner).width, lessThanOrEqualTo(440));
-    expect(tester.getSize(banner).height, lessThan(72));
+    expect(tester.getSize(banner).width, lessThanOrEqualTo(760));
+    expect(tester.getSize(banner).height, lessThan(100));
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('auth-test-content'))).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(banner).dy),
+    );
     expect(tester.takeException(), isNull);
 
     await tester.binding.setSurfaceSize(const Size(390, 820));
@@ -183,6 +188,10 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(tester.getSize(banner).width, lessThanOrEqualTo(366));
     expect(tester.getSize(banner).height, lessThan(120));
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('auth-test-content'))).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(banner).dy),
+    );
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byKey(const ValueKey('auth-recovery-dismiss')));
@@ -429,7 +438,8 @@ void main() {
     );
     expect(container.read(agentChatNotifierProvider).composerText, '跨分支草稿');
 
-    await tester.tap(find.byKey(const ValueKey('shell-panel-scrim')));
+    expect(find.byKey(const ValueKey('shell-panel-scrim')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(shellPanelProvider), isNull);

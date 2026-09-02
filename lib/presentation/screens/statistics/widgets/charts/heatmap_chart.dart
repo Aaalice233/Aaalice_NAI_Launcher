@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+
 import '../../utils/chart_colors.dart';
 
 /// Heatmap chart widget for displaying activity distribution
@@ -51,6 +52,7 @@ class _HeatmapChartState extends State<HeatmapChart>
   late Animation<double> _animation;
   int? _hoveredWeek;
   int? _hoveredDay;
+  bool _reducedMotion = false;
 
   @override
   void initState() {
@@ -63,7 +65,19 @@ class _HeatmapChartState extends State<HeatmapChart>
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
-    _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (reducedMotion == _reducedMotion && _controller.value != 0) return;
+    _reducedMotion = reducedMotion;
+    if (reducedMotion) {
+      _controller.value = 1;
+    } else {
+      _controller.forward(from: 0);
+    }
   }
 
   @override
@@ -77,6 +91,11 @@ class _HeatmapChartState extends State<HeatmapChart>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final requiredCellSize = 48 - widget.cellSpacing;
+    final cellSize =
+        widget.onCellTap != null && widget.cellSize < requiredCellSize
+        ? requiredCellSize
+        : widget.cellSize;
     // Use abbreviated weekday names from l10n
     final dayLabels = [
       l10n.statistics_monday,
@@ -105,15 +124,16 @@ class _HeatmapChartState extends State<HeatmapChart>
                     child: Column(
                       children: List.generate(7, (dayIndex) {
                         return SizedBox(
-                          height: widget.cellSize + widget.cellSpacing,
+                          height: cellSize + widget.cellSpacing,
                           child: Center(
                             child: Text(
                               dayLabels[dayIndex],
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w500,
-                                color: colorScheme.onSurfaceVariant
-                                    .withValues(alpha: 0.8),
+                                color: colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.8,
+                                ),
                               ),
                               textAlign: TextAlign.right,
                             ),
@@ -133,12 +153,14 @@ class _HeatmapChartState extends State<HeatmapChart>
                           children: List.generate(7, (dayIndex) {
                             final value =
                                 dayIndex < widget.data[weekIndex].length
-                                    ? widget.data[weekIndex][dayIndex]
-                                    : 0.0;
+                                ? widget.data[weekIndex][dayIndex]
+                                : 0.0;
                             final animatedValue = value * _animation.value;
-                            final isHovered = _hoveredWeek == weekIndex &&
+                            final isHovered =
+                                _hoveredWeek == weekIndex &&
                                 _hoveredDay == dayIndex;
-                            final isToday = widget.todayPosition != null &&
+                            final isToday =
+                                widget.todayPosition != null &&
                                 widget.todayPosition!.$1 == weekIndex &&
                                 widget.todayPosition!.$2 == dayIndex;
 
@@ -157,10 +179,10 @@ class _HeatmapChartState extends State<HeatmapChart>
                               child: GestureDetector(
                                 onTap: widget.onCellTap != null
                                     ? () => widget.onCellTap!(
-                                          weekIndex,
-                                          dayIndex,
-                                          value,
-                                        )
+                                        weekIndex,
+                                        dayIndex,
+                                        value,
+                                      )
                                     : null,
                                 child: Tooltip(
                                   message: value > 0
@@ -173,8 +195,9 @@ class _HeatmapChartState extends State<HeatmapChart>
                                     borderRadius: BorderRadius.circular(8),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.15),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         blurRadius: 8,
                                         offset: const Offset(0, 4),
                                       ),
@@ -182,18 +205,21 @@ class _HeatmapChartState extends State<HeatmapChart>
                                   ),
                                   textStyle: theme.textTheme.bodySmall,
                                   child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 150),
-                                    width: widget.cellSize,
-                                    height: widget.cellSize,
-                                    margin:
-                                        EdgeInsets.all(widget.cellSpacing / 2),
+                                    duration: _reducedMotion
+                                        ? Duration.zero
+                                        : const Duration(milliseconds: 150),
+                                    width: cellSize,
+                                    height: cellSize,
+                                    margin: EdgeInsets.all(
+                                      widget.cellSpacing / 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: value > 0
                                           ? ChartColors.getHeatmapColor(
                                               animatedValue,
                                             )
                                           : colorScheme.surfaceContainerHighest
-                                              .withValues(alpha: 0.5),
+                                                .withValues(alpha: 0.5),
                                       borderRadius: BorderRadius.circular(
                                         isHovered || isToday ? 4 : 3,
                                       ),
@@ -201,10 +227,11 @@ class _HeatmapChartState extends State<HeatmapChart>
                                         color: isToday
                                             ? colorScheme.primary
                                             : isHovered
-                                                ? colorScheme.primary
-                                                    .withValues(alpha: 0.6)
-                                                : colorScheme.outlineVariant
-                                                    .withValues(alpha: 0.3),
+                                            ? colorScheme.primary.withValues(
+                                                alpha: 0.6,
+                                              )
+                                            : colorScheme.outlineVariant
+                                                  .withValues(alpha: 0.3),
                                         width: isToday
                                             ? 2
                                             : (isHovered ? 1.5 : 0.5),
@@ -214,17 +241,21 @@ class _HeatmapChartState extends State<HeatmapChart>
                                               BoxShadow(
                                                 color:
                                                     ChartColors.getHeatmapColor(
-                                                  value,
-                                                ).withValues(alpha: 0.4),
+                                                      value,
+                                                    ).withValues(alpha: 0.4),
                                                 blurRadius: 6,
                                                 spreadRadius: 1,
                                               ),
                                             ]
                                           : null,
                                     ),
-                                    transform: isHovered
-                                        ? Matrix4.identity()
-                                            .scaledByDouble(1.15, 1.15, 1.0, 1)
+                                    transform: isHovered && !_reducedMotion
+                                        ? Matrix4.identity().scaledByDouble(
+                                            1.15,
+                                            1.15,
+                                            1.0,
+                                            1,
+                                          )
                                         : null,
                                     transformAlignment: Alignment.center,
                                   ),
@@ -307,10 +338,7 @@ class _HeatmapChartState extends State<HeatmapChart>
 /// Generate heatmap data from date-count map
 /// 从日期-计数映射生成热力图数据
 /// Returns a record containing the data and today's position
-({
-  List<List<double>> data,
-  (int, int)? todayPosition,
-}) generateHeatmapData(
+({List<List<double>> data, (int, int)? todayPosition}) generateHeatmapData(
   Map<DateTime, int> dateCounts, {
   int weeks = 52,
   DateTime? endDate,
@@ -332,8 +360,11 @@ class _HeatmapChartState extends State<HeatmapChart>
   for (int week = 0; week < weeks; week++) {
     final weekData = <double>[];
     for (int day = 0; day < 7; day++) {
-      final dateKey =
-          DateTime(currentDate.year, currentDate.month, currentDate.day);
+      final dateKey = DateTime(
+        currentDate.year,
+        currentDate.month,
+        currentDate.day,
+      );
       final count = dateCounts[dateKey] ?? 0;
       weekData.add(count / maxCount);
 

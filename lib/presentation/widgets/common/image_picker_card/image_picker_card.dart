@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -126,40 +125,48 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    Widget card = MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: _isLoading ? SystemMouseCursors.wait : SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: _isLoading ? null : _handleTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: _getBorderColor(theme),
-              width: _isHovered || _isDragOver ? 1.5 : 1.0,
+    Widget card = Semantics(
+      button: true,
+      enabled: !_isLoading,
+      label: widget.label,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        cursor: _isLoading ? SystemMouseCursors.wait : SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _isLoading ? null : _handleTap,
+          child: AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
+            width: widget.width,
+            height: widget.height,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: _getBorderColor(theme),
+                width: _isHovered || _isDragOver ? 1.5 : 1.0,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              color: _getBackgroundColor(theme),
+              boxShadow: _buildBoxShadow(theme),
             ),
-            borderRadius: BorderRadius.circular(12),
-            color: _getBackgroundColor(theme),
-            boxShadow: _buildBoxShadow(theme),
-          ),
-          child: Stack(
-            children: [
-              // 主内容
-              _buildContent(theme),
+            child: Stack(
+              children: [
+                // 主内容
+                _buildContent(theme),
 
-              // 加载状态覆盖层
-              if (_isLoading) const LoadingOverlay(),
+                // 加载状态覆盖层
+                if (_isLoading) const LoadingOverlay(),
 
-              // 触屏没有 hover，已选内容必须始终保留可见的清除入口。
-              if (_hasSelection && widget.onClear != null)
-                _buildClearButton(theme),
+                // 触屏没有 hover，已选内容必须始终保留可见的清除入口。
+                if (_hasSelection && widget.onClear != null)
+                  _buildClearButton(theme),
 
-              // 拖拽覆盖层
-              if (_isDragOver) _buildDragOverlay(theme),
-            ],
+                // 拖拽覆盖层
+                if (_isDragOver) _buildDragOverlay(theme),
+              ],
+            ),
           ),
         ),
       ),
@@ -184,38 +191,90 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
 
   /// 默认内容（未选择状态）
   Widget _buildDefaultContent(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            widget.icon,
-            size: 28,
-            color: _isHovered || _isDragOver
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            widget.label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: _isHovered || _isDragOver
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          if (widget.hintText != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              widget.hintText!,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-            ),
-          ],
-        ],
+    final active = _isHovered || _isDragOver;
+    final icon = Icon(
+      widget.icon,
+      size: 28,
+      color: active
+          ? theme.colorScheme.primary
+          : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+    );
+    final label = Text(
+      widget.label,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: active
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurface.withValues(alpha: 0.6),
       ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+    );
+    final hint = widget.hintText == null
+        ? null
+        : Text(
+            widget.hintText!,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScaler = MediaQuery.textScalerOf(context);
+        final scaledBodyHeight = textScaler.scale(
+          theme.textTheme.bodySmall?.fontSize ?? 12,
+        );
+        final scaledHintHeight = textScaler.scale(
+          theme.textTheme.labelSmall?.fontSize ?? 11,
+        );
+        final showHint =
+            hint != null &&
+            constraints.maxHeight >= scaledBodyHeight + scaledHintHeight + 20;
+        final useHorizontalLayout =
+            constraints.maxHeight < 88 || scaledBodyHeight > 24;
+
+        if (useHorizontalLayout) {
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: constraints.maxHeight < 72 ? 4 : 8,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                icon,
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      label,
+                      if (showHint) ...[const SizedBox(height: 2), hint],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              icon,
+              const SizedBox(height: 8),
+              label,
+              if (showHint) ...[const SizedBox(height: 2), hint],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -223,9 +282,11 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
   Widget _buildSelectedContent(ThemeData theme) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final thumbnailSize = widget.height - 16;
+        final thumbnailSize = (constraints.maxHeight - 16)
+            .clamp(24.0, 84.0)
+            .toDouble();
         // 宽度足够时显示横排布局，否则只显示缩略图
-        final showTextInfo = constraints.maxWidth > thumbnailSize + 80;
+        final showTextInfo = constraints.maxWidth > thumbnailSize + 112;
 
         if (!showTextInfo) {
           // 紧凑模式：只显示缩略图
@@ -234,7 +295,9 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
               imageBytes: widget.selectedImage,
               imagePath: widget.selectedPath,
               fallbackIcon: widget.icon,
-              size: constraints.maxWidth.clamp(40, thumbnailSize),
+              size: constraints.biggest.shortestSide
+                  .clamp(24.0, thumbnailSize)
+                  .toDouble(),
               borderRadius: 8,
             ),
           );
@@ -266,6 +329,8 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (widget.selectedPath != null) ...[
                       const SizedBox(height: 4),
@@ -521,8 +586,9 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
   }
 
   String _getDisplayPath(String path) {
-    // 只显示文件名或最后一级目录名
-    final parts = path.split(Platform.pathSeparator);
-    return parts.isNotEmpty ? parts.last : path;
+    // 拖入路径可能来自不同于当前运行平台的系统。
+    final parts = path.split(RegExp(r'[/\\]'));
+    final leaf = parts.lastWhere((part) => part.isNotEmpty, orElse: () => path);
+    return leaf;
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/gallery_album_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/local_gallery_provider.dart';
@@ -268,6 +269,7 @@ class _PanelSectionHeaderState extends State<_PanelSectionHeader> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final minimumControlExtent = context.interactionPolicy.minimumControlExtent;
     final toggleLabel = widget.isExpanded
         ? context.l10n.common_collapse
         : context.l10n.common_expand;
@@ -277,7 +279,9 @@ class _PanelSectionHeaderState extends State<_PanelSectionHeader> {
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
         key: widget.toggleKey,
-        duration: const Duration(milliseconds: 150),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: theme.colorScheme.onSurface.withValues(
@@ -341,7 +345,7 @@ class _PanelSectionHeaderState extends State<_PanelSectionHeader> {
                 icon: const Icon(Icons.add, size: 18),
                 label: Text(context.l10n.common_new),
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 40),
+                  minimumSize: Size(0, minimumControlExtent),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,

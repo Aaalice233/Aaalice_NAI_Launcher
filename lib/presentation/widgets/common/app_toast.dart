@@ -1,6 +1,10 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
+import '../../adaptive/interaction_policy.dart';
+import '../../adaptive/window_size_class.dart';
 
 /// Toast 类型
 enum ToastType { success, error, warning, info, progress }
@@ -111,10 +115,9 @@ class _NoOpToastController implements ToastController {
 /// 桌面端与移动端均显示顶部可堆叠 Toast，避免遮挡底部主操作区。
 class AppToast {
   static OverlayEntry? _progressEntry;
+  static OverlayEntry? _toastStackEntry;
+  static OverlayState? _toastOverlay;
   static final List<_ActiveToast> _activeToasts = [];
-
-  /// 判断是否为桌面端
-  static bool get _isDesktop => PlatformCapabilities.current.isDesktop;
 
   /// 显示成功通知
   static void success(BuildContext context, String message) {
@@ -153,8 +156,9 @@ class AppToast {
     double? progress,
     String? subtitle,
   }) {
-    // 如果已有进度 Toast，先移除
-    _progressEntry?.remove();
+    // 进度通知是单例。替换时让旧控制器随旧 Entry 一并失效，
+    // 避免旧任务稍后 dismiss/complete 误删新任务的通知。
+    if (_progressEntry?.mounted == true) _progressEntry!.remove();
     _progressEntry = null;
 
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
@@ -166,20 +170,23 @@ class AppToast {
     // 创建一个同步可用的控制器
     final proxyController = _ProxyToastController();
 
-    _progressEntry = OverlayEntry(
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
       builder: (context) => _ProgressToastWidget(
         initialMessage: message,
         initialProgress: progress,
         initialSubtitle: subtitle,
         onControllerCreated: (c) => proxyController._setReal(c),
         onDismiss: () {
-          _progressEntry?.remove();
+          if (_progressEntry != entry) return;
+          if (entry.mounted) entry.remove();
           _progressEntry = null;
         },
       ),
     );
 
-    overlay.insert(_progressEntry!);
+    _progressEntry = entry;
+    overlay.insert(entry);
     return proxyController;
   }
 
@@ -188,7 +195,7 @@ class AppToast {
     if (overlay == null) {
       return;
     }
-    _showToastInOverlay(overlay, message, type, mobile: !_isDesktop);
+    _showToastInOverlay(overlay, message, type);
   }
 
   static void _showOnOverlay(
@@ -199,7 +206,7 @@ class AppToast {
     if (overlay == null || !overlay.mounted) {
       return;
     }
-    _showToastInOverlay(overlay, message, type, mobile: !_isDesktop);
+    _showToastInOverlay(overlay, message, type);
   }
 
   /// 用于生成唯一 toast ID 的计数器
@@ -208,72 +215,131 @@ class AppToast {
   static void _showToastInOverlay(
     OverlayState overlay,
     String message,
-    ToastType type, {
-    required bool mobile,
-  }) {
+    ToastType type,
+  ) {
+    // Overlay roots can be replaced by router or test lifecycles. Never carry
+    // stale toast widgets into the new root.
+    if (_toastOverlay != overlay) {
+      if (_toastStackEntry?.mounted == true) _toastStackEntry!.remove();
+      _toastStackEntry = null;
+      _toastOverlay = overlay;
+      _activeToasts.clear();
+    }
+
     // 使用递增计数器确保 ID 唯一，避免同一毫秒内创建的 toast 有相同 ID
     final id = _toastIdCounter++;
 
-    // 先创建 ActiveToast，entry 先为占位符
-    final activeToast = _ActiveToast(
-      id: id,
-      entry: OverlayEntry(builder: (_) => const SizedBox.shrink()),
+    _activeToasts.add(_ActiveToast(id: id, message: message, type: type));
+
+    final currentEntry = _toastStackEntry;
+    if (currentEntry != null) {
+      currentEntry.markNeedsBuild();
+      return;
+    }
+
+    _toastStackEntry = OverlayEntry(
+      builder: (context) => _ToastStack(
+        toasts: List<_ActiveToast>.of(_activeToasts),
+        onDismiss: _dismissToast,
+      ),
     );
-    _activeToasts.add(activeToast);
+    overlay.insert(_toastStackEntry!);
+  }
 
-    // 创建真正的 entry
-    late OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (context) {
-        // 动态计算当前 index，确保在 markNeedsBuild 后位置能正确更新
-        final currentIndex = _activeToasts.indexWhere((t) => t.id == id);
-        return _SingleToastWidget(
-          key: ValueKey(id),
-          message: message,
-          type: type,
-          index: currentIndex,
-          mobile: mobile,
-          onDismiss: () {
-            entry.remove();
-            _activeToasts.remove(activeToast);
-            // 更新其他 toast 的位置
-            for (final toast in _activeToasts) {
-              toast.entry.markNeedsBuild();
-            }
-          },
-        );
-      },
-    );
-
-    // 更新 ActiveToast 的 entry
-    activeToast.entry = entry;
-
-    overlay.insert(entry);
+  static void _dismissToast(int id) {
+    _activeToasts.removeWhere((toast) => toast.id == id);
+    if (_activeToasts.isEmpty) {
+      if (_toastStackEntry?.mounted == true) _toastStackEntry!.remove();
+      _toastStackEntry = null;
+      _toastOverlay = null;
+      return;
+    }
+    _toastStackEntry?.markNeedsBuild();
   }
 }
 
 class _ActiveToast {
-  final int id;
-  OverlayEntry entry;
+  const _ActiveToast({
+    required this.id,
+    required this.message,
+    required this.type,
+  });
 
-  _ActiveToast({required this.id, required this.entry});
+  final int id;
+  final String message;
+  final ToastType type;
 }
 
-/// 单个 Toast Widget（桌面端纯色背景样式）
+class _ToastStack extends StatelessWidget {
+  const _ToastStack({required this.toasts, required this.onDismiss});
+
+  final List<_ActiveToast> toasts;
+  final ValueChanged<int> onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final policy = context.interactionPolicy;
+            final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+            final horizontalInset = sizeClass.isCompact ? 12.0 : 16.0;
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalInset,
+                sizeClass.isCompact ? 12 : 16,
+                horizontalInset,
+                12,
+              ),
+              child: Align(
+                alignment: policy.usesAnchoredMenus
+                    ? Alignment.topRight
+                    : Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: sizeClass.isCompact ? constraints.maxWidth : 360,
+                    maxHeight: constraints.maxHeight,
+                  ),
+                  child: SingleChildScrollView(
+                    primary: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final toast in toasts) ...[
+                          _SingleToastWidget(
+                            key: ValueKey(toast.id),
+                            message: toast.message,
+                            type: toast.type,
+                            onDismiss: () => onDismiss(toast.id),
+                          ),
+                          if (toast != toasts.last) const SizedBox(height: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// 单个 Toast Widget
 class _SingleToastWidget extends StatefulWidget {
   final String message;
   final ToastType type;
   final VoidCallback onDismiss;
-  final int index;
-  final bool mobile;
 
   const _SingleToastWidget({
     super.key,
     required this.message,
     required this.type,
     required this.onDismiss,
-    required this.index,
-    required this.mobile,
   });
 
   @override
@@ -285,6 +351,10 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
+  bool _entranceStarted = false;
+  bool _isDismissing = false;
+  bool _supportsHover = false;
+  Timer? _autoDismissTimer;
 
   @override
   void initState() {
@@ -304,84 +374,123 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    _controller.forward();
+    _scheduleAutoDismiss();
+  }
 
-    // 自动消失
-    Future.delayed(const Duration(seconds: 3), _dismiss);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final supportsHover = context.interactionPolicy.precisePointerAvailable;
+    if (_supportsHover && !supportsHover && _autoDismissTimer == null) {
+      _scheduleAutoDismiss();
+    }
+    _supportsHover = supportsHover;
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
+  }
+
+  void _scheduleAutoDismiss() {
+    _autoDismissTimer?.cancel();
+    _autoDismissTimer = Timer(const Duration(seconds: 3), _dismiss);
+  }
+
+  void _handleHoverEnter(PointerEnterEvent event) {
+    _autoDismissTimer?.cancel();
+    _autoDismissTimer = null;
+  }
+
+  void _handleHoverExit(PointerExitEvent event) {
+    if (!_isDismissing) _scheduleAutoDismiss();
   }
 
   void _dismiss() {
-    if (!mounted) return;
-    _controller.reverse().then((_) {
+    if (!mounted || _isDismissing) return;
+    _isDismissing = true;
+    _autoDismissTimer?.cancel();
+    final reverse = MediaQuery.disableAnimationsOf(context)
+        ? _controller.animateBack(0, duration: Duration.zero)
+        : _controller.reverse();
+    reverse.then((_) {
       if (mounted) widget.onDismiss();
     });
   }
 
   @override
   void dispose() {
+    _autoDismissTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final (icon, color) = _getTypeStyle(Theme.of(context), widget.type);
-    final safeTop = widget.mobile ? MediaQuery.paddingOf(context).top : 0.0;
-    final topOffset =
-        safeTop +
-        (widget.mobile ? 12.0 : 16.0) +
-        (widget.index >= 0 ? widget.index : 0) * 64.0;
+    final theme = Theme.of(context);
+    final style = _getTypeStyle(theme, widget.type);
+    final policy = context.interactionPolicy;
 
-    return Positioned(
-      top: topOffset,
-      left: widget.mobile ? 12 : null,
-      right: widget.mobile ? 12 : 16,
+    return MouseRegion(
+      onEnter: policy.precisePointerAvailable ? _handleHoverEnter : null,
+      onExit: policy.precisePointerAvailable ? _handleHoverExit : null,
       child: SlideTransition(
         position: _slideAnimation,
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: Material(
             color: Colors.transparent,
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 360),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(icon, color: Colors.white, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.message,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+            child: Semantics(
+              container: true,
+              liveRegion: true,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                decoration: BoxDecoration(
+                  color: style.container,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.shadow.withValues(alpha: 0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(style.icon, color: style.foreground, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.message,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: style.foreground,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  InkWell(
-                    onTap: _dismiss,
-                    borderRadius: BorderRadius.circular(12),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(Icons.close, size: 18, color: Colors.white70),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _dismiss,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      icon: Icon(
+                        Icons.close,
+                        size: 18,
+                        color: style.foreground,
+                      ),
+                      style: IconButton.styleFrom(
+                        minimumSize: Size.square(
+                          context.interactionPolicy.minimumControlExtent,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -416,18 +525,23 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
+  bool _entranceStarted = false;
+  bool _supportsHover = false;
 
   late String _message;
   double? _progress;
   String? _subtitle;
   ToastType _type = ToastType.progress;
   bool _autoClose = false;
+  bool _isDismissing = false;
+  Timer? _autoCloseTimer;
+  Duration? _autoCloseDuration;
 
   @override
   void initState() {
     super.initState();
     _message = widget.initialMessage;
-    _progress = widget.initialProgress;
+    _progress = widget.initialProgress?.clamp(0, 1);
     _subtitle = widget.initialSubtitle;
 
     _controller = AnimationController(
@@ -445,36 +559,57 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    _controller.forward();
-
     // 创建控制器
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onControllerCreated(_RealToastController._(this));
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final supportsHover = context.interactionPolicy.precisePointerAvailable;
+    final autoCloseDuration = _autoCloseDuration;
+    if (_supportsHover &&
+        !supportsHover &&
+        _autoClose &&
+        _autoCloseTimer == null &&
+        autoCloseDuration != null) {
+      _scheduleAutoClose(autoCloseDuration);
+    }
+    _supportsHover = supportsHover;
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
+  }
+
   void _updateProgress(double? progress, {String? message, String? subtitle}) {
-    if (!mounted) return;
+    if (!mounted || _type != ToastType.progress || _isDismissing) return;
     setState(() {
-      _progress = progress;
+      _progress = progress?.clamp(0, 1);
       if (message != null) _message = message;
       if (subtitle != null) _subtitle = subtitle;
     });
   }
 
   void _complete({String? message}) {
-    if (!mounted) return;
+    if (!mounted || _type != ToastType.progress || _isDismissing) return;
     setState(() {
       _type = ToastType.success;
       _progress = 1.0;
+      _subtitle = null;
       if (message != null) _message = message;
       _autoClose = true;
     });
-    Future.delayed(const Duration(seconds: 2), _dismiss);
+    _scheduleAutoClose(const Duration(seconds: 2));
   }
 
   void _fail({String? message}) {
-    if (!mounted) return;
+    if (!mounted || _type != ToastType.progress || _isDismissing) return;
     setState(() {
       _type = ToastType.error;
       _progress = null;
@@ -482,53 +617,107 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
       if (message != null) _message = message;
       _autoClose = true;
     });
-    Future.delayed(const Duration(seconds: 3), _dismiss);
+    _scheduleAutoClose(const Duration(seconds: 3));
+  }
+
+  void _scheduleAutoClose(Duration duration) {
+    _autoCloseDuration = duration;
+    _autoCloseTimer?.cancel();
+    _autoCloseTimer = Timer(duration, _dismiss);
+  }
+
+  void _handleHoverEnter(PointerEnterEvent event) {
+    _autoCloseTimer?.cancel();
+    _autoCloseTimer = null;
+  }
+
+  void _handleHoverExit(PointerExitEvent event) {
+    final duration = _autoCloseDuration;
+    if (!_isDismissing && _autoClose && duration != null) {
+      _scheduleAutoClose(duration);
+    }
   }
 
   void _dismiss() {
-    if (!mounted) return;
-    _controller.reverse().then((_) {
+    if (!mounted || _isDismissing) return;
+    _isDismissing = true;
+    _autoCloseTimer?.cancel();
+    final reverse = MediaQuery.disableAnimationsOf(context)
+        ? _controller.animateBack(0, duration: Duration.zero)
+        : _controller.reverse();
+    reverse.then((_) {
       if (mounted) widget.onDismiss();
     });
   }
 
   @override
   void dispose() {
+    _autoCloseTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final (icon, color) = _getTypeStyle(theme, _type);
-    final isMobile = !PlatformCapabilities.current.isDesktop;
+    final policy = context.interactionPolicy;
+    return Positioned.fill(
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+            final inset = sizeClass.isCompact ? 12.0 : 16.0;
+            return Padding(
+              padding: EdgeInsets.all(inset),
+              child: Align(
+                alignment: policy.usesAnchoredMenus
+                    ? Alignment.topRight
+                    : Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: sizeClass.isCompact ? constraints.maxWidth : 360,
+                  ),
+                  child: policy.precisePointerAvailable
+                      ? MouseRegion(
+                          onEnter: _handleHoverEnter,
+                          onExit: _handleHoverExit,
+                          child: _buildProgressSurface(context, policy),
+                        )
+                      : _buildProgressSurface(context, policy),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
-    return Positioned(
-      top: isMobile ? MediaQuery.paddingOf(context).top + 12 : 16,
-      left: isMobile ? 12 : null,
-      right: isMobile ? 12 : 16,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: Material(
-            color: Colors.transparent,
+  Widget _buildProgressSurface(BuildContext context, InteractionPolicy policy) {
+    final theme = Theme.of(context);
+    final style = _getTypeStyle(theme, _type);
+    return SlideTransition(
+      position: _slideAnimation,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Material(
+          color: Colors.transparent,
+          child: Semantics(
+            container: true,
+            liveRegion: true,
+            label: _subtitle == null ? _message : '$_message. $_subtitle',
+            value: _type == ToastType.progress && _progress != null
+                ? '${(_progress! * 100).round()}%'
+                : null,
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 360, minWidth: 240),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _type == ToastType.progress
-                    ? theme.colorScheme.surfaceContainerHigh
-                    : color,
+                color: style.container,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: (_type == ToastType.progress ? Colors.black : color)
-                        .withValues(alpha: 0.25),
+                    color: theme.colorScheme.shadow.withValues(alpha: 0.18),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
-                    spreadRadius: 2,
                   ),
                 ],
               ),
@@ -539,37 +728,33 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (_type == ToastType.progress)
-                        Icon(Icons.downloading_rounded, color: color, size: 20)
-                      else
-                        Icon(icon, color: Colors.white, size: 20),
+                      Icon(style.icon, color: style.accent, size: 20),
                       const SizedBox(width: 12),
                       Flexible(
                         child: Text(
                           _message,
-                          style: TextStyle(
-                            color: _type == ToastType.progress
-                                ? theme.colorScheme.onSurface
-                                : Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: style.foreground,
                           ),
                         ),
                       ),
                       if (!_autoClose) ...[
                         const SizedBox(width: 8),
-                        InkWell(
-                          onTap: _dismiss,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Icon(
-                              Icons.close,
-                              size: 18,
-                              color: _type == ToastType.progress
-                                  ? theme.colorScheme.onSurfaceVariant
-                                  : Colors.white70,
+                        IconButton(
+                          onPressed: _dismiss,
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).closeButtonTooltip,
+                          style: IconButton.styleFrom(
+                            minimumSize: Size.square(
+                              policy.minimumControlExtent,
                             ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: Icon(
+                            Icons.close,
+                            size: 18,
+                            color: style.foreground,
                           ),
                         ),
                       ],
@@ -581,11 +766,8 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                       padding: const EdgeInsets.only(left: 32),
                       child: Text(
                         _subtitle!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _type == ToastType.progress
-                              ? theme.colorScheme.onSurfaceVariant
-                              : Colors.white70,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: style.foreground,
                         ),
                       ),
                     ),
@@ -596,8 +778,10 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: _progress,
-                        backgroundColor: color.withValues(alpha: 0.2),
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                        backgroundColor: style.foreground.withValues(
+                          alpha: 0.16,
+                        ),
+                        valueColor: AlwaysStoppedAnimation<Color>(style.accent),
                         minHeight: 4,
                       ),
                     ),
@@ -612,18 +796,53 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
   }
 }
 
-/// 获取类型对应的图标和颜色
-(IconData, Color) _getTypeStyle(ThemeData theme, ToastType type) {
-  switch (type) {
-    case ToastType.success:
-      return (Icons.check_circle_rounded, const Color(0xFF4CAF50));
-    case ToastType.error:
-      return (Icons.cancel_rounded, const Color(0xFFE53935));
-    case ToastType.warning:
-      return (Icons.warning_rounded, const Color(0xFFFF9800));
-    case ToastType.info:
-      return (Icons.info_rounded, const Color(0xFF2196F3));
-    case ToastType.progress:
-      return (Icons.hourglass_empty_rounded, theme.colorScheme.primary);
-  }
+class _ToastVisualStyle {
+  const _ToastVisualStyle({
+    required this.icon,
+    required this.container,
+    required this.foreground,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final Color container;
+  final Color foreground;
+  final Color accent;
+}
+
+/// Toast surfaces use complete semantic pairs so every theme owns contrast.
+_ToastVisualStyle _getTypeStyle(ThemeData theme, ToastType type) {
+  final colors = theme.colorScheme;
+  return switch (type) {
+    ToastType.success => _ToastVisualStyle(
+      icon: Icons.check_circle_rounded,
+      container: colors.primaryContainer,
+      foreground: colors.onPrimaryContainer,
+      accent: colors.onPrimaryContainer,
+    ),
+    ToastType.error => _ToastVisualStyle(
+      icon: Icons.cancel_rounded,
+      container: colors.errorContainer,
+      foreground: colors.onErrorContainer,
+      accent: colors.onErrorContainer,
+    ),
+    ToastType.warning => _ToastVisualStyle(
+      icon: Icons.warning_rounded,
+      container: colors.tertiaryContainer,
+      foreground: colors.onTertiaryContainer,
+      accent: colors.onTertiaryContainer,
+    ),
+    ToastType.info => _ToastVisualStyle(
+      icon: Icons.info_rounded,
+      container: colors.secondaryContainer,
+      foreground: colors.onSecondaryContainer,
+      accent: colors.onSecondaryContainer,
+    ),
+    ToastType.progress => _ToastVisualStyle(
+      icon: Icons.downloading_rounded,
+      container: colors.surfaceContainerHigh,
+      foreground: colors.onSurface,
+      accent: colors.primary,
+    ),
+  };
 }

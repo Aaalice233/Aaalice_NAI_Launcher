@@ -105,6 +105,16 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 所有共享 UI 从设计阶段起必须同时覆盖 Windows/macOS 桌面端和 Android 手机、横屏、平板/大屏，不能先完成桌面版再以缩放、裁切或静默删减功能得到移动版。业务能力、字段语义、状态和操作结果保持跨端一致；导航容器、面板呈现和输入方式可按 constraints 与设备能力自适应。桌面端保留鼠标、触控板、键盘、hover、快捷键和上下文操作效率；移动端提供不依赖 hover/右键/外接键盘的触屏等价入口，并正确处理 `SafeArea`、系统返回、横竖屏、软键盘和系统手势区。共享业务组件、Provider、路由状态和操作命令必须复用，平台差异集中在导航壳层、capabilities/service 与 conditional import，不在页面散落 `Platform.isAndroid` 或复制业务流程。
 
+### 响应式与体验实施规则
+
+- 先明确用户主任务、首要信息和关键操作，再安排视觉层级；工具界面优先可扫描、低认知负担和高频操作效率，不用装饰抢占内容注意力。
+- 遵循“constraints 向下、size 向上、parent 定位”：页面级用共享 `WindowSizeClass`，局部重排用 `LayoutBuilder`；不得用平台名、设备型号或横竖屏标签推断可用空间。
+- 统一复用 `AdaptiveSlotLayout`、`AdaptiveContentBounds`、`AdaptivePresenter` 与 `InteractionPolicyScope`；能力层只描述“能否执行”，策略层决定“如何呈现”，不得在页面另建冲突断点。
+- Compact/Medium/Expanded/Wide 只改变导航、分栏、密度和呈现方式，不改变业务语义。窄屏可滚动、分层或换行，但不得裁切或静默隐藏功能；宽屏限制正文/表单阅读宽度，列表和网格使用惰性构建。
+- 触屏先保证关键操作显式可达且命中区不少于 44×44；桌面再保留 hover、右键、快捷键和焦点遍历作为加速器。断点切换不得丢失选择、输入、焦点、滚动位置或未提交状态。
+- 每个界面同时设计 loading、empty、error、disabled、success 与长文案/本地化状态；层级优先用排版、间距和低对比色面表达，强色只用于主操作、状态和风险。动效只解释状态变化，并遵循 Reduce Motion。
+- 新增或修改界面至少检查 `320/600/840/1180/1600` 宽度、`3x` 文本、短横屏、IME 与 `SafeArea`；Widget test 必须断言无 overflow、关键信息完整且全部操作可达，验证按“批量审查一次、集中修复、再确认一次”收敛。
+
 ## 在线画廊顶栏布局约束
 
 在线画廊顶栏在能够承载工具栏的桌面/平板宽度按控件职责固定分行，不允许按站点自由重排；紧凑手机端可改用触屏友好的分层筛选面板，但必须保留相同的全局/来源专属职责边界和全部操作能力。实现位于 `lib/presentation/screens/online_gallery/online_gallery_screen.dart`，布局回归测试位于 `test/presentation/screens/online_gallery/online_gallery_source_auth_test.dart`。

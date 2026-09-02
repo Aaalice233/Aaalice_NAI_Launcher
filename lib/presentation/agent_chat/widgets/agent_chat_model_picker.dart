@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,7 +7,14 @@ import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
+
+double _agentChatControlExtent(BuildContext context) => math.max(
+  context.interactionPolicy.minimumControlExtent,
+  MediaQuery.textScalerOf(context).scale(16) + 12,
+);
 
 class AgentChatModelControl extends StatelessWidget {
   const AgentChatModelControl({
@@ -15,9 +24,9 @@ class AgentChatModelControl extends StatelessWidget {
     required this.routeLabel,
     required this.routeError,
     required this.enabled,
-    required this.touchOptimized,
     required this.onSelected,
     this.restoreFocusNode,
+    this.showLabel = true,
   });
 
   final PromptAssistantConfigState config;
@@ -25,9 +34,9 @@ class AgentChatModelControl extends StatelessWidget {
   final String routeLabel;
   final String routeError;
   final bool enabled;
-  final bool touchOptimized;
   final Future<void> Function(String providerId, String model) onSelected;
   final FocusNode? restoreFocusNode;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -66,19 +75,21 @@ class AgentChatModelControl extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             onTap: interactive ? () => _openPicker(context, current) : null,
             child: SizedBox(
-              height: touchOptimized ? 44 : 40,
+              height: _agentChatControlExtent(context),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Row(
                   children: [
-                    Text(
-                      '${l10n.agentChat_modelLabel}:',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    if (showLabel) ...[
+                      Text(
+                        '${l10n.agentChat_modelLabel}:',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
                       ),
-                      maxLines: 1,
-                    ),
-                    const SizedBox(width: 4),
+                      const SizedBox(width: 4),
+                    ],
                     Expanded(
                       child: Text(
                         displayValue,
@@ -111,7 +122,6 @@ class AgentChatModelControl extends StatelessWidget {
       context,
       options: _modelOptions(config),
       selected: current,
-      touchOptimized: touchOptimized,
     );
     if (selected != null) {
       await onSelected(selected.provider.id, selected.model.name);
@@ -130,14 +140,12 @@ class AgentChatThinkingControl extends StatelessWidget {
     required this.level,
     required this.availableLevels,
     required this.enabled,
-    required this.touchOptimized,
     required this.onSelected,
   });
 
   final ThinkingLevel level;
   final List<ThinkingLevel> availableLevels;
   final bool enabled;
-  final bool touchOptimized;
   final Future<void> Function(ThinkingLevel level) onSelected;
 
   @override
@@ -153,7 +161,7 @@ class AgentChatThinkingControl extends StatelessWidget {
         for (final option in availableLevels)
           PopupMenuItem<ThinkingLevel>(
             value: option,
-            height: touchOptimized ? 48 : 40,
+            height: _agentChatControlExtent(context),
             child: Row(
               children: [
                 SizedBox(
@@ -178,7 +186,7 @@ class AgentChatThinkingControl extends StatelessWidget {
         label: '${l10n.agentChat_reasoningLevel}: $value',
         child: Container(
           key: const ValueKey('agent-chat-thinking-selector'),
-          height: touchOptimized ? 44 : 40,
+          height: _agentChatControlExtent(context),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: Theme.of(
@@ -223,35 +231,19 @@ Future<_AgentChatModelOption?> _showAgentChatModelPicker(
   BuildContext context, {
   required List<_AgentChatModelOption> options,
   required _AgentChatModelOption? selected,
-  required bool touchOptimized,
 }) {
-  final picker = _AgentChatModelPickerBody(
-    options: options,
-    selected: selected,
-    touchOptimized: touchOptimized,
-  );
-  if (MediaQuery.sizeOf(context).width < 600) {
-    return showModalBottomSheet<_AgentChatModelOption>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: FractionallySizedBox(heightFactor: 0.78, child: picker),
-      ),
-    );
-  }
-  return showDialog<_AgentChatModelOption>(
+  return AdaptivePresenter.showPanel<_AgentChatModelOption>(
     context: context,
-    builder: (_) => Dialog(
-      clipBehavior: Clip.antiAlias,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 640),
-        child: picker,
-      ),
+    title: context.l10n.agentChat_modelPickerTitle,
+    initialChildSize: 0.9,
+    minChildSize: 0.5,
+    maxChildSize: 0.96,
+    sideSheetWidth: 620,
+    restoreFocus: false,
+    builder: (_, scrollController) => _AgentChatModelPickerBody(
+      options: options,
+      selected: selected,
+      scrollController: scrollController,
     ),
   );
 }
@@ -260,12 +252,12 @@ class _AgentChatModelPickerBody extends StatefulWidget {
   const _AgentChatModelPickerBody({
     required this.options,
     required this.selected,
-    required this.touchOptimized,
+    required this.scrollController,
   });
 
   final List<_AgentChatModelOption> options;
   final _AgentChatModelOption? selected;
-  final bool touchOptimized;
+  final ScrollController scrollController;
 
   @override
   State<_AgentChatModelPickerBody> createState() =>
@@ -275,7 +267,6 @@ class _AgentChatModelPickerBody extends StatefulWidget {
 class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
-  final _scrollController = ScrollController();
   var _query = '';
   var _highlightedIndex = 0;
 
@@ -302,7 +293,6 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -311,167 +301,167 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final filtered = _filtered;
-    final rowExtent = widget.touchOptimized ? 72.0 : 64.0;
+    final baseRowExtent = context.interactionPolicy.touchAvailable
+        ? 72.0
+        : 64.0;
+    final extraTextExtent =
+        (MediaQuery.textScalerOf(context).scale(1) - 1).clamp(0, 3).toDouble() *
+        36;
+    final rowExtent = baseRowExtent + extraTextExtent;
     return Focus(
       onKeyEvent: (node, event) => _handleKey(event, filtered, rowExtent),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l10n.agentChat_modelPickerTitle,
-                    style: theme.textTheme.titleMedium,
+      child: LayoutBuilder(
+        builder: (context, constraints) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: math.min(120, constraints.maxHeight * 0.4),
+              ),
+              child: SingleChildScrollView(
+                primary: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  child: TextField(
+                    key: const ValueKey('agent-chat-model-search'),
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    autofocus: true,
+                    textInputAction: TextInputAction.search,
+                    onChanged: (value) {
+                      setState(() {
+                        _query = value;
+                        _highlightedIndex = 0;
+                      });
+                      _scrollToHighlight(rowExtent);
+                    },
+                    decoration: InputDecoration(
+                      labelText: l10n.agentChat_searchModels,
+                      hintText: l10n.agentChat_searchModelsHint,
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              key: const ValueKey(
+                                'agent-chat-model-search-clear',
+                              ),
+                              tooltip: l10n.agentChat_clearModelSearch,
+                              onPressed: _clearSearch,
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                            ),
+                    ),
                   ),
                 ),
-                IconButton(
-                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: TextField(
-              key: const ValueKey('agent-chat-model-search'),
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              autofocus: true,
-              textInputAction: TextInputAction.search,
-              onChanged: (value) {
-                setState(() {
-                  _query = value;
-                  _highlightedIndex = 0;
-                });
-                _scrollToHighlight(rowExtent);
-              },
-              decoration: InputDecoration(
-                labelText: l10n.agentChat_searchModels,
-                hintText: l10n.agentChat_searchModelsHint,
-                prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                suffixIcon: _query.isEmpty
-                    ? null
-                    : IconButton(
-                        key: const ValueKey('agent-chat-model-search-clear'),
-                        tooltip: l10n.agentChat_clearModelSearch,
-                        onPressed: _clearSearch,
-                        icon: const Icon(Icons.close_rounded, size: 18),
-                      ),
               ),
             ),
-          ),
-          Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        l10n.agentChat_noModelResults,
-                        key: const ValueKey('agent-chat-model-empty'),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          l10n.agentChat_noModelResults,
+                          key: const ValueKey('agent-chat-model-empty'),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                    ),
-                  )
-                : ListView.builder(
-                    key: const ValueKey('agent-chat-model-results'),
-                    controller: _scrollController,
-                    itemExtent: rowExtent,
-                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final option = filtered[index];
-                      final selected =
-                          widget.selected?.sameModel(option) == true;
-                      final highlighted = index == _highlightedIndex;
-                      return Semantics(
-                        selected: selected,
-                        button: true,
-                        label:
-                            '${option.displayName}, ${option.provider.name}, ${option.model.name}',
-                        child: Material(
-                          color: highlighted
-                              ? theme.colorScheme.surfaceContainerHighest
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(6),
-                          child: InkWell(
-                            key: ValueKey(
-                              'agent-chat-model-option-${option.provider.id}-${option.model.name}',
-                            ),
+                    )
+                  : ListView.builder(
+                      key: const ValueKey('agent-chat-model-results'),
+                      controller: widget.scrollController,
+                      itemExtent: rowExtent,
+                      padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final option = filtered[index];
+                        final selected =
+                            widget.selected?.sameModel(option) == true;
+                        final highlighted = index == _highlightedIndex;
+                        return Semantics(
+                          selected: selected,
+                          button: true,
+                          label:
+                              '${option.displayName}, ${option.provider.name}, ${option.model.name}',
+                          child: Material(
+                            color: highlighted
+                                ? theme.colorScheme.surfaceContainerHighest
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(6),
-                            onHover: (hovered) {
-                              if (hovered && _highlightedIndex != index) {
-                                setState(() => _highlightedIndex = index);
-                              }
-                            },
-                            onTap: () => Navigator.pop(context, option),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
+                            child: InkWell(
+                              key: ValueKey(
+                                'agent-chat-model-option-${option.provider.id}-${option.model.name}',
                               ),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 20,
-                                    child: selected
-                                        ? Icon(
-                                            Icons.check_rounded,
-                                            size: 18,
-                                            color: theme.colorScheme.primary,
-                                          )
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          option.displayName,
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: selected
-                                                    ? FontWeight.w600
-                                                    : null,
-                                              ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          _modelMetadata(option),
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                color: theme
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
+                              borderRadius: BorderRadius.circular(6),
+                              onHover: (hovered) {
+                                if (hovered && _highlightedIndex != index) {
+                                  setState(() => _highlightedIndex = index);
+                                }
+                              },
+                              onTap: () => Navigator.pop(context, option),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 20,
+                                      child: selected
+                                          ? Icon(
+                                              Icons.check_rounded,
+                                              size: 18,
+                                              color: theme.colorScheme.primary,
+                                            )
+                                          : null,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            option.displayName,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: selected
+                                                      ? FontWeight.w600
+                                                      : null,
+                                                ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _modelMetadata(option),
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -526,17 +516,17 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
       _highlightedIndex = selectedIndex < 0 ? 0 : selectedIndex;
     });
     _searchFocusNode.requestFocus();
-    _scrollToHighlight(widget.touchOptimized ? 72 : 64);
+    _scrollToHighlight(context.interactionPolicy.touchAvailable ? 72 : 64);
   }
 
   void _scrollToHighlight(double rowExtent) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
+      if (!mounted || !widget.scrollController.hasClients) return;
       final target = (_highlightedIndex * rowExtent).clamp(
         0.0,
-        _scrollController.position.maxScrollExtent,
+        widget.scrollController.position.maxScrollExtent,
       );
-      _scrollController.animateTo(
+      widget.scrollController.animateTo(
         target,
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOutCubic,

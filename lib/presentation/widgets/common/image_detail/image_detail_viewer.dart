@@ -203,9 +203,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     const thumbnailMargin = 8.0;
     const totalWidth = thumbnailWidth + thumbnailMargin;
 
-    final screenWidth = MediaQuery.of(context).size.width;
+    final viewportWidth = _thumbnailController.position.viewportDimension;
     final targetOffset =
-        (index * totalWidth) - (screenWidth / 2) + (totalWidth / 2);
+        (index * totalWidth) - (viewportWidth / 2) + (totalWidth / 2);
     final maxOffset = _thumbnailController.position.maxScrollExtent;
 
     final offset = targetOffset.clamp(0.0, maxOffset);
@@ -456,9 +456,6 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth > 800;
-
     // 定义快捷键映射
     final shortcuts = <String, VoidCallback>{
       // 上一张
@@ -493,23 +490,32 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         onKeyEvent: _handleKeyEvent,
         child: Scaffold(
           backgroundColor: Colors.black,
-          body: isDesktop && widget.showMetadataPanel
-              ? Row(
-                  children: [
-                    Expanded(child: _buildMainContent()),
-                    DetailMetadataPanel(
-                      currentImage: _currentImage,
-                      initialExpanded: true,
-                    ),
-                  ],
-                )
-              : _buildMainContent(),
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final showSideMetadata = constraints.maxWidth >= 1100;
+              return showSideMetadata && widget.showMetadataPanel
+                  ? Row(
+                      children: [
+                        Expanded(
+                          child: _buildMainContent(showMetadataAction: false),
+                        ),
+                        DetailMetadataPanel(
+                          currentImage: _currentImage,
+                          initialExpanded: true,
+                        ),
+                      ],
+                    )
+                  : _buildMainContent(
+                      showMetadataAction: widget.showMetadataPanel,
+                    );
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildMainContent() {
+  Widget _buildMainContent({required bool showMetadataAction}) {
     final showThumbnails = widget.showThumbnails && widget.images.length > 1;
 
     return Stack(
@@ -539,7 +545,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
         // 顶部控制栏
         AnimatedPositioned(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           top: _showControls ? 0 : -100,
           left: 0,
           right: 0,
@@ -548,11 +556,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             totalImages: widget.images.length,
             currentImage: _currentImage,
             onClose: () => _requestClose('top-bar-close'),
-            onShowMetadata:
-                MediaQuery.sizeOf(context).width <= 800 &&
-                    widget.showMetadataPanel
-                ? _showMetadataPanel
-                : null,
+            onShowMetadata: showMetadataAction ? _showMetadataPanel : null,
             onReuseMetadata: widget.callbacks?.onReuseMetadata != null
                 ? () => _handleReuseMetadata(context)
                 : null,
@@ -582,7 +586,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         // 底部缩略图栏
         if (showThumbnails)
           AnimatedPositioned(
-            duration: const Duration(milliseconds: 200),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
             bottom: _showControls ? 0 : -100,
             left: 0,
             right: 0,

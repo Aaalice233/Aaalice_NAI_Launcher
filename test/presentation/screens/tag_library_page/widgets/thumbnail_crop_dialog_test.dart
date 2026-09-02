@@ -108,6 +108,126 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('复杂裁剪通过 AdaptivePresenter 呈现并由系统返回取消', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 160);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPadding();
+      tester.view.resetViewInsets();
+    });
+
+    await _cacheFileImage(tester, testImage);
+    ThumbnailCropResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(3)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () => showThumbnailCropDialog(
+                context: context,
+                imagePath: testImage.path,
+                onConfirm: (value) => result = value,
+              ),
+              child: const Text('打开'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+    final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    expect(panel, findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+    expect(
+      find.byKey(const ValueKey('thumbnail-crop-preview')),
+      findsOneWidget,
+    );
+    for (final tooltip in ['重置', '取消', '确定']) {
+      expect(find.byTooltip(tooltip), findsAtLeastNWidgets(1));
+    }
+    expect(tester.takeException(), isNull);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(panel, findsNothing);
+    expect(result, isNull);
+  });
+
+  testWidgets('320 宽 3x 文本与 IME 下保留预览和全部动作', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 200);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPadding();
+      tester.view.resetViewInsets();
+    });
+
+    await _cacheFileImage(tester, testImage);
+    ThumbnailCropResult? result;
+    await _pumpDialog(
+      tester,
+      imagePath: testImage.path,
+      textScale: 3,
+      onConfirm: (value) => result = value,
+    );
+
+    final preview = tester.getRect(
+      find.byKey(const ValueKey('thumbnail-crop-preview')),
+    );
+    expect(preview.width, greaterThan(200));
+    expect(preview.height, greaterThan(40));
+    expect(preview.left, greaterThanOrEqualTo(12));
+    expect(preview.right, lessThanOrEqualTo(308));
+    for (final tooltip in ['重置', '取消', '确定']) {
+      expect(find.byTooltip(tooltip), findsAtLeastNWidgets(1));
+    }
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byTooltip('确定'));
+    await tester.pumpAndSettle();
+    expect(result, isNotNull);
+  });
+
+  testWidgets('1600 宽视口限制桌面内容宽度与预览尺寸', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await _cacheFileImage(tester, testImage);
+    await _pumpDialog(tester, imagePath: testImage.path, onConfirm: (_) {});
+
+    expect(
+      tester.getSize(find.byKey(const ValueKey('thumbnail-crop-frame'))).width,
+      lessThanOrEqualTo(720),
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('thumbnail-crop-preview'))),
+      const Size(640, 360),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('手机横屏大字体无横向或纵向溢出', (tester) async {
     tester.view.physicalSize = const Size(800, 360);
     tester.view.devicePixelRatio = 1;

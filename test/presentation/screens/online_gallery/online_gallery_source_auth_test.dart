@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
-import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/quick_tag_cloud_gallery_source_adapter.dart';
@@ -19,20 +18,226 @@ import 'package:nai_launcher/data/services/gelbooru_auth_service.dart';
 import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_remote_catalog_service.dart';
 import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_user_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/danbooru_suggestion_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_content.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
 import 'package:nai_launcher/presentation/widgets/app_branch_visibility.dart';
+import 'package:nai_launcher/presentation/widgets/bulk_action_bar.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
+import 'package:nai_launcher/presentation/widgets/gelbooru_credentials_dialog.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 void main() {
   setUp(() {
     VisibilityDetectorController.instance.updateInterval = Duration.zero;
   });
+
+  for (final width in [320.0, 360.0]) {
+    testWidgets('date range popup stays reachable and closes at width $width', (
+      tester,
+    ) async {
+      await _setViewSize(tester, 1180);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            onlineGalleryNotifierProvider.overrideWith(
+              _GelbooruSearchGalleryNotifier.new,
+            ),
+            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+            gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+            danbooruSuggestionNotifierProvider.overrideWith(
+              _EmptyDanbooruSuggestionNotifier.new,
+            ),
+          ],
+          child: const _TestApp(textScaler: TextScaler.linear(3)),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.date_range));
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = Size(width, 900);
+      await tester.pumpAndSettle();
+      final popup = find.byKey(
+        const ValueKey('online-gallery-date-range-popup'),
+      );
+      expect(popup, findsOneWidget);
+      final popupRect = tester.getRect(popup);
+      expect(popupRect.left, greaterThanOrEqualTo(0));
+      expect(popupRect.top, greaterThanOrEqualTo(0));
+      expect(popupRect.right, lessThanOrEqualTo(width));
+      expect(popupRect.bottom, lessThanOrEqualTo(900));
+
+      await tester.scrollUntilVisible(
+        find.text('Apply'),
+        120,
+        scrollable: find
+            .descendant(
+              of: find.byKey(
+                const ValueKey('online-gallery-date-range-popup-scroll'),
+              ),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(find.text('Apply'), findsOneWidget);
+
+      if (width == 320) {
+        await tester.scrollUntilVisible(
+          find.byIcon(Icons.close),
+          120,
+          scrollable: find
+              .descendant(
+                of: find.byKey(
+                  const ValueKey(
+                    'online-gallery-date-range-popup-horizontal-scroll',
+                  ),
+                ),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        await tester.tap(find.byIcon(Icons.close));
+      } else {
+        await tester.binding.handlePopRoute();
+      }
+      await tester.pumpAndSettle();
+      expect(popup, findsNothing);
+    });
+  }
+
+  for (final width in [320.0, 1180.0]) {
+    testWidgets(
+      'Gelbooru credential error opens adaptive credentials at width $width',
+      (tester) async {
+        await _setViewSize(tester, width);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              onlineGalleryNotifierProvider.overrideWith(
+                _GelbooruCredentialsErrorGalleryNotifier.new,
+              ),
+              danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+              gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+              danbooruSuggestionNotifierProvider.overrideWith(
+                _EmptyDanbooruSuggestionNotifier.new,
+              ),
+            ],
+            child: const _TestApp(),
+          ),
+        );
+        await tester.pump();
+
+        await tester.tap(find.text('Configure Gelbooru API'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(
+            ValueKey(
+              width < 840 ? 'adaptive-bottom-sheet' : 'adaptive-side-sheet',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(find.byType(GelbooruCredentialsDialog), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'multi-select entry shows production bulk actions and enables download for a selected post',
+    (tester) async {
+      await _setViewSize(tester, 1600);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            onlineGalleryNotifierProvider.overrideWith(
+              _AiTagSearchGalleryNotifier.new,
+            ),
+            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+            gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+            danbooruSuggestionNotifierProvider.overrideWith(
+              _EmptyDanbooruSuggestionNotifier.new,
+            ),
+          ],
+          child: const _TestApp(),
+        ),
+      );
+      await tester.pump();
+
+      final multiSelectEntry = find.byKey(
+        const ValueKey('online-gallery-multi-select'),
+      );
+      await tester.ensureVisible(multiSelectEntry);
+      await tester.pump();
+      await tester.tap(multiSelectEntry);
+      await tester.pump();
+
+      expect(find.byType(BulkActionBar), findsOneWidget);
+      expect(find.text('0 selected'), findsOneWidget);
+      final downloadAction = find.widgetWithText(
+        TextButton,
+        'Download Selected',
+      );
+      expect(downloadAction, findsOneWidget);
+      expect(tester.widget<TextButton>(downloadAction).onPressed, isNull);
+
+      final scopeContext = tester.element(find.byType(OnlineGalleryScreen));
+      ProviderScope.containerOf(scopeContext)
+          .read(onlineGallerySelectionNotifierProvider.notifier)
+          .select(_aiTagPost.stableKey);
+      await tester.pump();
+
+      expect(find.text('1 selected'), findsOneWidget);
+      expect(tester.widget<TextButton>(downloadAction).onPressed, isNotNull);
+      expect(find.text('Add to Queue'), findsOneWidget);
+      expect(find.text('Favorite Selected'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('date range popup is removed when its screen is disposed', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1180);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _GelbooruSearchGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.date_range));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('online-gallery-date-range-popup')),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('online-gallery-date-range-popup')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [320.0, 360.0, 700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('Gelbooru search uses its API account entry at width $width', (
       tester,
@@ -129,14 +334,31 @@ void main() {
         await tester.pump(const Duration(milliseconds: 400));
         expect(
           find.byKey(const ValueKey('online-gallery-mobile-blacklist-filter')),
-          findsOneWidget,
+          findsNothing,
         );
         expect(
           find.byKey(const ValueKey('online-gallery-mobile-output-filter')),
+          findsNothing,
+        );
+        final sourceFilters = find.byKey(
+          const ValueKey('online-gallery-mobile-source-filters'),
+        );
+        expect(sourceFilters, findsOneWidget);
+        Navigator.of(tester.element(sourceFilters)).pop();
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey('online-gallery-mobile-more')),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('online-gallery-mobile-blacklist-action')),
           findsOneWidget,
         );
         expect(
-          find.byKey(const ValueKey('online-gallery-mobile-source-filters')),
+          find.byKey(
+            const ValueKey('online-gallery-mobile-output-filter-action'),
+          ),
           findsOneWidget,
         );
         expect(tester.takeException(), isNull);
@@ -197,7 +419,10 @@ void main() {
           find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
         );
         expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
-        expect(accountRect.right, closeTo(primaryRect.right, 0.1));
+        expect(
+          accountRect.right,
+          greaterThanOrEqualTo(primaryRect.right - 0.1),
+        );
       }
       final collapsed = width < 1100;
       expect(
@@ -214,14 +439,13 @@ void main() {
       final secondaryRow = tester.getRect(
         find.byKey(const ValueKey('online-gallery-toolbar-secondary-row')),
       );
-      final expectedPrimaryHeight = PlatformCapabilities.current.isMobile
-          ? 48.0
-          : 40.0;
-      final expectedSecondaryHeight = PlatformCapabilities.current.isMobile
-          ? 56.0
-          : 40.0;
-      expect(primaryRow.height, expectedPrimaryHeight);
-      expect(secondaryRow.height, expectedSecondaryHeight);
+      final interactionPolicy = InteractionPolicyScope.of(
+        tester.element(
+          find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+        ),
+      );
+      expect(primaryRow.height, interactionPolicy.minimumControlExtent);
+      expect(secondaryRow.height, interactionPolicy.minimumControlExtent);
       expect(secondaryRow.top - primaryRow.bottom, 8);
       final visibleKeys = <String>[
         'online-gallery-source-selector',
@@ -239,7 +463,7 @@ void main() {
       ];
       expect(
         find.byKey(const ValueKey('online-gallery-primary-controls-scroll')),
-        width < 1400 ? findsOneWidget : findsNothing,
+        width < 1800 ? findsOneWidget : findsNothing,
       );
       for (final key in visibleKeys) {
         final rect = tester.getRect(find.byKey(ValueKey(key)));
@@ -674,8 +898,12 @@ void main() {
 
     expect(find.text('AI TAG'), findsWidgets);
     expect(find.text('3 images'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('gallery-detail-action-copy')));
-    await tester.pump(const Duration(milliseconds: 200));
+    await _tapGalleryDetailAction(
+      tester,
+      id: 'copy',
+      overflowLabel: 'Copy prompt',
+    );
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('Main / global positive prompt'), findsOneWidget);
     expect(find.text('Main / global negative prompt'), findsOneWidget);
     expect(find.text('Character 1 positive prompt'), findsOneWidget);
@@ -686,16 +914,17 @@ void main() {
     expect(clipboardText, contains('red hair'));
     expect(clipboardText, contains('lowres'));
     expect(clipboardText, contains('bad hands'));
-    expect(
-      find.byKey(const ValueKey('gallery-detail-action-download-all')),
-      findsOneWidget,
+    await _expectGalleryDetailActionAvailable(
+      tester,
+      id: 'download-all',
+      overflowLabel: 'Download all images in this work',
     );
     expect(find.byType(CachedNetworkImage), findsAtLeastNWidgets(4));
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Queue'));
     await tester.pump();
     final container = ProviderScope.containerOf(
-      tester.element(find.byType(Dialog)),
+      tester.element(find.byKey(const ValueKey('adaptive-side-sheet')).first),
     );
     final queuedTask = container
         .read(replicationQueueNotifierProvider)
@@ -739,7 +968,13 @@ void main() {
             _EmptyDanbooruSuggestionNotifier.new,
           ),
         ],
-        child: const _TestApp(),
+        child: const _TestApp(
+          interactionPolicy: InteractionPolicy(
+            modality: InteractionModality.touch,
+            touchAvailable: true,
+            precisePointerAvailable: false,
+          ),
+        ),
       ),
     );
     await tester.pump();
@@ -772,8 +1007,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    await tester.tap(find.byKey(const ValueKey('gallery-detail-action-copy')));
-    await tester.pump(const Duration(milliseconds: 200));
+    await _tapGalleryDetailAction(
+      tester,
+      id: 'copy',
+      overflowLabel: 'Copy prompt',
+    );
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('Main / global positive prompt'), findsOneWidget);
     expect(find.text('Main / global negative prompt'), findsOneWidget);
     expect(find.text('Character 1 positive prompt'), findsOneWidget);
@@ -784,16 +1023,15 @@ void main() {
     expect(clipboardText, contains('1.2::artist:target::'));
     expect(clipboardText, isNot(contains('1girl, solo')));
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(Dialog),
-        matching: find.byIcon(Icons.chevron_right),
-      ),
-    );
+    await tester.tap(find.byKey(const ValueKey('gallery-detail-next-media')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
-    await tester.tap(find.byKey(const ValueKey('gallery-detail-action-copy')));
-    await tester.pump(const Duration(milliseconds: 200));
+    await _tapGalleryDetailAction(
+      tester,
+      id: 'copy',
+      overflowLabel: 'Copy prompt',
+    );
+    await tester.pump(const Duration(seconds: 1));
     await tester.tap(find.widgetWithText(FilledButton, 'Copy'));
     await tester.pump();
     expect(clipboardText, contains('portrait'));
@@ -1263,7 +1501,11 @@ void main() {
             find.byKey(
               const ValueKey('online-gallery-mobile-blacklist-filter'),
             ),
-            findsOneWidget,
+            findsNothing,
+          );
+          expect(
+            find.byKey(const ValueKey('online-gallery-mobile-output-filter')),
+            findsNothing,
           );
           expect(
             find.byKey(const ValueKey('online-gallery-mobile-source-filters')),
@@ -1271,6 +1513,30 @@ void main() {
           );
           expect(find.text('Leaf category'), findsOneWidget);
           expect(find.text('Fallback codex title'), findsNothing);
+          Navigator.of(
+            tester.element(
+              find.byKey(
+                const ValueKey('online-gallery-mobile-source-filters'),
+              ),
+            ),
+          ).pop();
+          await tester.pumpAndSettle();
+          await tester.tap(
+            find.byKey(const ValueKey('online-gallery-mobile-more')),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(
+              const ValueKey('online-gallery-mobile-blacklist-action'),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(
+              const ValueKey('online-gallery-mobile-output-filter-action'),
+            ),
+            findsOneWidget,
+          );
           expect(tester.takeException(), isNull);
           return;
         }
@@ -1335,8 +1601,52 @@ void main() {
             reason: '$key must stay in the primary row at width $width',
           );
         }
+        if (width == 700 || width == 840) {
+          await tester.tap(
+            find.byKey(const ValueKey('online-gallery-source-filters')),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
+          expect(
+            find.byKey(const ValueKey('online-gallery-mobile-source-filters')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(
+              const ValueKey('online-gallery-mobile-blacklist-filter'),
+            ),
+            findsNothing,
+          );
+          expect(
+            find.byKey(const ValueKey('online-gallery-mobile-output-filter')),
+            findsNothing,
+          );
+          expect(tester.takeException(), isNull);
+          return;
+        }
+        if (width >= 1180) {
+          final secondaryRow = find.byKey(
+            const ValueKey('online-gallery-toolbar-secondary-row'),
+          );
+          expect(
+            find.descendant(
+              of: secondaryRow,
+              matching: find.byKey(
+                const ValueKey('online-gallery-secondary-controls'),
+              ),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            tester.getCenter(secondaryRow).dy,
+            isNot(closeTo(primaryRect.center.dy, 1)),
+          );
+        }
         if (width == 1600) {
-          expect(accountRect.right, closeTo(primaryRect.right, 0.1));
+          expect(
+            accountRect.right,
+            greaterThanOrEqualTo(primaryRect.right - 0.1),
+          );
           final searchField = find.descendant(
             of: find.byKey(const ValueKey('online-gallery-primary-search')),
             matching: find.byType(TextField),
@@ -1358,6 +1668,52 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+  }
+
+  for (final width in [700.0, 1180.0, 1600.0]) {
+    testWidgets('QuickTagCloud toolbar supports 3x text at width $width', (
+      tester,
+    ) async {
+      await _setViewSize(tester, width);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            onlineGalleryNotifierProvider.overrideWith(
+              _QuickTagCloudGalleryNotifier.new,
+            ),
+            quickTagCloudGallerySourceAdapterProvider.overrideWithValue(
+              _TrackingQuickTagCloudAdapter(),
+            ),
+            quickTagCloudCatalogProvider.overrideWith(
+              (ref) async => _quickTagCloudCatalog(),
+            ),
+            quickTagCloudFilterProvider.overrideWith(
+              _QuickTagCloudFilterNotifier.new,
+            ),
+            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+            gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+            danbooruSuggestionNotifierProvider.overrideWith(
+              _EmptyDanbooruSuggestionNotifier.new,
+            ),
+          ],
+          child: const _TestApp(
+            locale: Locale('zh'),
+            textScaler: TextScaler.linear(3),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('online-gallery-primary-search')),
+        findsOneWidget,
+      );
+    });
   }
 
   testWidgets('QuickTagCloud reuses rating filter and refresh update check', (
@@ -1475,6 +1831,72 @@ void main() {
     );
   });
 
+  testWidgets('toolbar keeps touch-safe density after mixed pointer input', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1180);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _GelbooruSearchGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(
+          interactionPolicy: InteractionPolicy(
+            modality: InteractionModality.pointer,
+            touchAvailable: false,
+            precisePointerAvailable: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final primaryRow = find.byKey(
+      const ValueKey('online-gallery-toolbar-primary-row'),
+    );
+    final secondaryRow = find.byKey(
+      const ValueKey('online-gallery-toolbar-secondary-row'),
+    );
+    expect(tester.getSize(primaryRow).height, 40);
+    expect(tester.getSize(secondaryRow).height, 40);
+
+    final touch = await tester.createGesture(
+      kind: PointerDeviceKind.touch,
+      pointer: 1,
+    );
+    addTearDown(touch.removePointer);
+    final target = tester.getCenter(primaryRow);
+    await touch.addPointer(location: target);
+    await touch.down(target);
+    await touch.up();
+    await tester.pump();
+    expect(tester.getSize(primaryRow).height, 48);
+    expect(tester.getSize(secondaryRow).height, 48);
+
+    final mouse = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+      pointer: 2,
+    );
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: target);
+    await mouse.moveTo(target + const Offset(1, 0));
+    await tester.pump();
+    expect(tester.getSize(primaryRow).height, 48);
+    expect(tester.getSize(secondaryRow).height, 48);
+    expect(
+      find.byKey(const ValueKey('online-gallery-primary-controls-scroll')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('desktop policy buttons open bounded dialogs', (tester) async {
     await _setViewSize(tester, 1600);
     await tester.pumpWidget(
@@ -1513,8 +1935,14 @@ void main() {
     await mouse.up();
     await tester.pumpAndSettle();
     expect(find.text('Output Filter'), findsOneWidget);
+    _expectBoundedAdaptiveSideSheet(tester, width: 1600, height: 900);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Close'));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('adaptive-side-sheet')),
+        matching: find.byTooltip('Close'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await mouse.moveTo(
@@ -1526,8 +1954,82 @@ void main() {
     await mouse.up();
     await tester.pumpAndSettle();
     expect(find.text('Online Gallery Blacklist Settings'), findsOneWidget);
+    _expectBoundedAdaptiveSideSheet(tester, width: 1600, height: 900);
     expect(tester.takeException(), isNull);
   });
+}
+
+Future<void> _tapGalleryDetailAction(
+  WidgetTester tester, {
+  required String id,
+  required String overflowLabel,
+}) async {
+  await tester.pump(const Duration(seconds: 1));
+  final directAction = find.byKey(ValueKey('gallery-detail-action-$id'));
+  if (directAction.evaluate().isNotEmpty) {
+    await tester.tap(directAction);
+    await tester.pump();
+    return;
+  }
+
+  await tester.tap(
+    find.byKey(const ValueKey('gallery-detail-action-overflow')),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 1));
+  expect(
+    find.ancestor(
+      of: find.text(overflowLabel),
+      matching: find.byType(PopupMenuItem<String>),
+    ),
+    findsOneWidget,
+  );
+  await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+  await tester.pump();
+  await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+  await tester.pump();
+}
+
+Future<void> _expectGalleryDetailActionAvailable(
+  WidgetTester tester, {
+  required String id,
+  required String overflowLabel,
+}) async {
+  await tester.pump(const Duration(seconds: 1));
+  final directAction = find.byKey(ValueKey('gallery-detail-action-$id'));
+  if (directAction.evaluate().isNotEmpty) {
+    expect(directAction, findsOneWidget);
+    return;
+  }
+
+  await tester.tap(
+    find.byKey(const ValueKey('gallery-detail-action-overflow')),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 1));
+  expect(
+    find.ancestor(
+      of: find.text(overflowLabel),
+      matching: find.byType(PopupMenuItem<String>),
+    ),
+    findsOneWidget,
+  );
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+void _expectBoundedAdaptiveSideSheet(
+  WidgetTester tester, {
+  required double width,
+  required double height,
+}) {
+  final sideSheet = find.byKey(const ValueKey('adaptive-side-sheet'));
+  expect(sideSheet, findsOneWidget);
+  final rect = tester.getRect(sideSheet);
+  expect(rect.left, greaterThanOrEqualTo(0));
+  expect(rect.top, greaterThanOrEqualTo(0));
+  expect(rect.right, lessThanOrEqualTo(width));
+  expect(rect.bottom, lessThanOrEqualTo(height));
 }
 
 Future<void> _setViewSize(WidgetTester tester, double width) async {
@@ -1547,17 +2049,31 @@ Color? _selectedModeColor(WidgetTester tester, String key) {
 
 class _TestApp extends StatelessWidget {
   final Locale locale;
+  final TextScaler textScaler;
+  final InteractionPolicy? interactionPolicy;
 
-  const _TestApp({this.locale = const Locale('en')});
+  const _TestApp({
+    this.locale = const Locale('en'),
+    this.textScaler = TextScaler.noScaling,
+    this.interactionPolicy,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    final app = MaterialApp(
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+        child: child!,
+      ),
       home: const OnlineGalleryScreen(),
     );
+    final policy = interactionPolicy;
+    return policy == null
+        ? app
+        : InteractionPolicyScope(initialPolicy: policy, child: app);
   }
 }
 
@@ -1783,6 +2299,17 @@ class _GelbooruSearchGalleryNotifier extends OnlineGalleryNotifier {
       searchCache: ModeCache(posts: [_gelbooruPost], hasMore: false),
     );
   }
+}
+
+class _GelbooruCredentialsErrorGalleryNotifier extends OnlineGalleryNotifier {
+  @override
+  OnlineGalleryState build() => const OnlineGalleryState(
+    sourceId: GallerySourceId.gelbooru,
+    errorCode: OnlineGalleryErrorCode.gelbooruCredentialsRequired,
+  );
+
+  @override
+  Future<void> loadPosts({bool refresh = false}) async {}
 }
 
 class _SafebooruSearchGalleryNotifier extends OnlineGalleryNotifier {

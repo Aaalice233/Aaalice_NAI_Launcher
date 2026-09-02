@@ -9,10 +9,12 @@ import '../../../../core/autocomplete/completion_models.dart';
 import '../../../../core/autocomplete/zh_dictionary_models.dart';
 import '../../../../core/utils/byte_format.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart'
     as generation_settings;
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_confirm_dialog.dart';
 import 'settings_card.dart';
 import 'settings_data_status_tile.dart';
 
@@ -371,37 +373,41 @@ class _CooccurrenceDataPackStatus extends ConsumerWidget {
     CooccurrenceDataPackService service,
   ) async {
     var stopAutomaticDownloads = false;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await AdaptivePresenter.showForm<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(context.l10n.autocomplete_cooccurrenceRemoveTitle),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(context.l10n.autocomplete_cooccurrenceRemoveConfirm),
-              const SizedBox(height: 12),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: stopAutomaticDownloads,
-                onChanged: (value) =>
-                    setState(() => stopAutomaticDownloads = value ?? false),
-                title: Text(
-                  context.l10n.autocomplete_cooccurrenceStopAutoDownload,
-                ),
-                controlAffinity: ListTileControlAffinity.leading,
+      title: context.l10n.autocomplete_cooccurrenceRemoveTitle,
+      builder: (context, scrollController) => StatefulBuilder(
+        builder: (context, setState) => ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(context.l10n.autocomplete_cooccurrenceRemoveConfirm),
+            const SizedBox(height: 12),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: stopAutomaticDownloads,
+              onChanged: (value) =>
+                  setState(() => stopAutomaticDownloads = value ?? false),
+              title: Text(
+                context.l10n.autocomplete_cooccurrenceStopAutoDownload,
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(context.l10n.common_cancel),
+              controlAffinity: ListTileControlAffinity.leading,
             ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(context.l10n.autocomplete_remove),
+            const SizedBox(height: 20),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(context.l10n.common_cancel),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(context.l10n.autocomplete_remove),
+                ),
+              ],
             ),
           ],
         ),
@@ -499,24 +505,15 @@ class _ZhDictionaryStatus extends ConsumerWidget {
           FilledButton.tonal(
             onPressed: () async {
               if (!state.isInstalled) {
-                final confirmed = await showDialog<bool>(
+                final confirmed = await ThemedConfirmDialog.show(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text(context.l10n.autocomplete_zhDictionary),
-                    content: Text(context.l10n.autocomplete_zhInstallPrompt),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: Text(context.l10n.common_cancel),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: Text(context.l10n.autocomplete_install),
-                      ),
-                    ],
-                  ),
+                  title: context.l10n.autocomplete_zhDictionary,
+                  content: context.l10n.autocomplete_zhInstallPrompt,
+                  confirmText: context.l10n.autocomplete_install,
+                  cancelText: context.l10n.common_cancel,
+                  icon: Icons.download_outlined,
                 );
-                if (confirmed != true) return;
+                if (!confirmed) return;
               }
               try {
                 await service.installOrUpdate();
@@ -541,24 +538,16 @@ class _ZhDictionaryStatus extends ConsumerWidget {
             IconButton(
               tooltip: context.l10n.autocomplete_remove,
               onPressed: () async {
-                final confirmed = await showDialog<bool>(
+                final confirmed = await ThemedConfirmDialog.show(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text(context.l10n.autocomplete_remove),
-                    content: Text(context.l10n.autocomplete_removeConfirm),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: Text(context.l10n.common_cancel),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: Text(context.l10n.common_confirm),
-                      ),
-                    ],
-                  ),
+                  title: context.l10n.autocomplete_remove,
+                  content: context.l10n.autocomplete_removeConfirm,
+                  confirmText: context.l10n.common_confirm,
+                  cancelText: context.l10n.common_cancel,
+                  type: ThemedConfirmDialogType.danger,
+                  icon: Icons.delete_outline,
                 );
-                if (confirmed == true) await service.remove();
+                if (confirmed) await service.remove();
               },
               icon: const Icon(Icons.delete_outline),
             ),

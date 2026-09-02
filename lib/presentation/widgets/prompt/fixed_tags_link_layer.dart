@@ -130,7 +130,9 @@ class FixedTagLinkAnchor extends StatelessWidget {
             commands.createLink(details.data, entry.id),
         builder: (_, candidates, _) => AnimatedScale(
           scale: candidates.isNotEmpty ? 1.25 : 1,
-          duration: const Duration(milliseconds: 120),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 120),
           child: visual,
         ),
       ),

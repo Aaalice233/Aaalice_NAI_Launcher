@@ -15,6 +15,7 @@ import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../data/services/precise_ref_library_storage_service.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
 import '../../router/app_routes.dart';
@@ -313,41 +314,75 @@ class _PreciseRefLibraryScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(preciseRefLibraryNotifierProvider);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final columns = (screenWidth / 200).floor().clamp(2, 8);
 
-    final content = Stack(
-      children: [
-        Column(
+    final content = LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final layout = computePreciseRefGridLayout(
+          constraints.maxWidth,
+          textScale,
+        );
+        return Stack(
           children: [
-            _buildToolbar(state),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: PreciseRefTypeFilterChips(
-                  value: state.typeFilter,
-                  onChanged: (type) {
-                    ref
-                        .read(preciseRefLibraryNotifierProvider.notifier)
-                        .setTypeFilter(type);
-                  },
+            Column(
+              children: [
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildToolbar(state),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            layout.padding,
+                            8,
+                            layout.padding,
+                            0,
+                          ),
+                          child: SingleChildScrollView(
+                            key: const Key(
+                              'precise-ref-library-type-filter-scroll',
+                            ),
+                            scrollDirection: Axis.horizontal,
+                            child: PreciseRefTypeFilterChips(
+                              value: state.typeFilter,
+                              onChanged: (type) {
+                                ref
+                                    .read(
+                                      preciseRefLibraryNotifierProvider
+                                          .notifier,
+                                    )
+                                    .setTypeFilter(type);
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                Expanded(
+                  child: state.isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            value: MediaQuery.disableAnimationsOf(context)
+                                ? 0.72
+                                : null,
+                          ),
+                        )
+                      : state.error != null
+                      ? _buildErrorView(state.error!)
+                      : state.filteredEntries.isEmpty
+                      ? _buildEmptyView(state)
+                      : _buildGrid(state, layout),
+                ),
+              ],
             ),
-            Expanded(
-              child: state.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : state.error != null
-                  ? _buildErrorView(state.error!)
-                  : state.filteredEntries.isEmpty
-                  ? _buildEmptyView(state)
-                  : _buildGrid(state, columns),
-            ),
+            if (_isDragging) _buildDropOverlay(),
           ],
-        ),
-        if (_isDragging) _buildDropOverlay(),
-      ],
+        );
+      },
     );
 
     if (!PlatformCapabilities.current.supportsExternalFileDrop) {
@@ -416,7 +451,7 @@ class _PreciseRefLibraryScreenState
   Widget _buildToolbar(PreciseRefLibraryState state) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final touchTarget = PlatformCapabilities.current.hasTouchInput;
+    final touchTarget = context.interactionPolicy.shouldExposeTouchAlternatives;
 
     final title = Row(
       mainAxisSize: MainAxisSize.min,
@@ -606,15 +641,15 @@ class _PreciseRefLibraryScreenState
     );
   }
 
-  Widget _buildGrid(PreciseRefLibraryState state, int columns) {
+  Widget _buildGrid(PreciseRefLibraryState state, PreciseRefGridLayout layout) {
     return GridView.builder(
       key: const PageStorageKey('precise_ref_library_grid'),
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(layout.padding),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
+        crossAxisCount: layout.columns,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.8,
+        mainAxisExtent: layout.mainAxisExtent,
       ),
       itemCount: state.filteredEntries.length,
       itemBuilder: (context, index) {
@@ -653,78 +688,86 @@ class _PreciseRefLibraryScreenState
     // 过滤后无结果：给出条目总数与一键清除过滤
     if (state.hasFilters) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.filter_alt_off_outlined,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '${l10n.localGallery_noMatchingResults} '
-              '(${l10n.preciseRefLib_entryCount(state.totalCount)})',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.filter_alt_off_outlined,
+                size: 48,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.4,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              key: const Key('precise-ref-library-clear-filters'),
-              onPressed: () {
-                _searchController.clear();
-                ref
-                    .read(preciseRefLibraryNotifierProvider.notifier)
-                    .clearFilters();
-              },
-              icon: const Icon(Icons.filter_alt_off, size: 18),
-              label: Text(l10n.localGallery_clearFilters),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                '${l10n.localGallery_noMatchingResults} '
+                '(${l10n.preciseRefLib_entryCount(state.totalCount)})',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                key: const Key('precise-ref-library-clear-filters'),
+                onPressed: () {
+                  _searchController.clear();
+                  ref
+                      .read(preciseRefLibraryNotifierProvider.notifier)
+                      .clearFilters();
+                },
+                icon: const Icon(Icons.filter_alt_off, size: 18),
+                label: Text(l10n.localGallery_clearFilters),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.center_focus_strong,
-            size: 56,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            supportsExternalFileDrop
-                ? l10n.preciseRefLib_empty
-                : l10n.preciseRefLib_emptyTouch,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.center_focus_strong,
+              size: 56,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
             ),
-          ),
-          if (!state.hasFilters) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
             Text(
               supportsExternalFileDrop
-                  ? l10n.preciseRefLib_emptyHint
-                  : l10n.preciseRefLib_emptyHintTouch,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.7,
-                ),
+                  ? l10n.preciseRefLib_empty
+                  : l10n.preciseRefLib_emptyTouch,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              key: const Key('precise-ref-library-empty-import-button'),
-              onPressed: _isPickingFile ? null : _importImages,
-              icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
-              label: Text(l10n.preciseRefLib_import),
-            ),
+            if (!state.hasFilters) ...[
+              const SizedBox(height: 6),
+              Text(
+                supportsExternalFileDrop
+                    ? l10n.preciseRefLib_emptyHint
+                    : l10n.preciseRefLib_emptyHintTouch,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.7,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                key: const Key('precise-ref-library-empty-import-button'),
+                onPressed: _isPickingFile ? null : _importImages,
+                icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                label: Text(l10n.preciseRefLib_import),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -760,4 +803,42 @@ class _PreciseRefLibraryScreenState
       ),
     );
   }
+}
+
+@immutable
+class PreciseRefGridLayout {
+  const PreciseRefGridLayout({
+    required this.columns,
+    required this.mainAxisExtent,
+    required this.padding,
+  });
+
+  final int columns;
+  final double mainAxisExtent;
+  final double padding;
+}
+
+PreciseRefGridLayout computePreciseRefGridLayout(
+  double availableWidth,
+  double textScale,
+) {
+  final padding = availableWidth < 600 ? 12.0 : 16.0;
+  final scale = textScale.clamp(1.0, 3.0);
+  final minCardWidth = 176 + (scale - 1) * 44;
+  final usableWidth = (availableWidth - padding * 2).clamp(
+    0.0,
+    double.infinity,
+  );
+  final columns = ((usableWidth + 12) / (minCardWidth + 12)).floor().clamp(
+    1,
+    8,
+  );
+  final cardWidth = columns == 0
+      ? usableWidth
+      : (usableWidth - (columns - 1) * 12) / columns;
+  return PreciseRefGridLayout(
+    columns: columns,
+    mainAxisExtent: cardWidth * 1.18 + 58 + (scale - 1) * 20,
+    padding: padding,
+  );
 }

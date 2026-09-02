@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/web_access/web_access_models.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../prompt_assistant/providers/web_access_provider.dart';
 
 class WebAccessSettings extends ConsumerStatefulWidget {
@@ -79,7 +80,9 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
           ),
         ],
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
           child: enabled
               ? Padding(
                   key: const ValueKey('web-access-settings-enabled'),
@@ -186,37 +189,9 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
                       ],
                       if (config.mode == WebSearchMode.exaApi) ...[
                         const SizedBox(height: 8),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(
-                            state.hasExaApiKey
-                                ? Icons.key_outlined
-                                : Icons.key_off_outlined,
-                          ),
-                          title: Text(
-                            context.l10n.promptAssistant_webAccessExaApiKey,
-                          ),
-                          subtitle: Text(
-                            state.hasExaApiKey
-                                ? context
-                                      .l10n
-                                      .promptAssistant_webAccessApiKeyConfigured
-                                : context
-                                      .l10n
-                                      .promptAssistant_webAccessApiKeyMissing,
-                          ),
-                          trailing: TextButton.icon(
-                            onPressed: () => _showApiKeyDialog(
-                              notifier,
-                              hasKey: state.hasExaApiKey,
-                            ),
-                            icon: const Icon(Icons.edit_outlined, size: 18),
-                            label: Text(
-                              context
-                                  .l10n
-                                  .promptAssistant_webAccessConfigureKey,
-                            ),
-                          ),
+                        _buildApiKeyEditorEntry(
+                          notifier,
+                          hasKey: state.hasExaApiKey,
                         ),
                       ],
                       const SizedBox(height: 12),
@@ -249,6 +224,40 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildApiKeyEditorEntry(
+    WebAccessConfigNotifier notifier, {
+    required bool hasKey,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final button = TextButton.icon(
+          onPressed: () => _showApiKeyDialog(notifier, hasKey: hasKey),
+          icon: const Icon(Icons.edit_outlined, size: 18),
+          label: Text(context.l10n.promptAssistant_webAccessConfigureKey),
+        );
+        final tile = ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(hasKey ? Icons.key_outlined : Icons.key_off_outlined),
+          title: Text(context.l10n.promptAssistant_webAccessExaApiKey),
+          subtitle: Text(
+            hasKey
+                ? context.l10n.promptAssistant_webAccessApiKeyConfigured
+                : context.l10n.promptAssistant_webAccessApiKeyMissing,
+          ),
+          trailing: constraints.maxWidth >= 420 ? button : null,
+        );
+        if (constraints.maxWidth >= 420) return tile;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            tile,
+            Align(alignment: AlignmentDirectional.centerEnd, child: button),
+          ],
+        );
+      },
     );
   }
 
@@ -292,48 +301,24 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
     WebAccessConfigNotifier notifier, {
     required bool hasKey,
   }) async {
-    final controller = TextEditingController();
-    final action = await showDialog<_ApiKeyAction>(
+    final result = await AdaptivePresenter.showForm<_ApiKeyEditorResult>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.promptAssistant_webAccessExaApiKey),
-        content: SizedBox(
-          width: 420,
-          child: TextField(
-            controller: controller,
-            autofocus: true,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: context.l10n.promptAssistant_webAccessExaApiKey,
-              hintText: hasKey
-                  ? context.l10n.promptAssistant_apiKeyLeaveEmpty
-                  : null,
-            ),
-          ),
-        ),
-        actions: [
-          if (hasKey)
-            TextButton(
-              onPressed: () => Navigator.pop(context, _ApiKeyAction.clear),
-              child: Text(context.l10n.promptAssistant_webAccessClearKey),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, _ApiKeyAction.save),
-            child: Text(context.l10n.common_save),
-          ),
-        ],
+      titleBuilder: (panelContext) => Text(
+        panelContext.l10n.promptAssistant_webAccessExaApiKey,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(panelContext).textTheme.titleMedium,
       ),
+      sideSheetWidth: 420,
+      builder: (panelContext, scrollController) =>
+          _ApiKeyEditorForm(hasKey: hasKey, scrollController: scrollController),
     );
     try {
-      if (action == _ApiKeyAction.clear) {
+      if (result?.action == _ApiKeyAction.clear) {
         await notifier.setExaApiKey('');
-      } else if (action == _ApiKeyAction.save &&
-          controller.text.trim().isNotEmpty) {
-        await notifier.setExaApiKey(controller.text);
+      } else if (result?.action == _ApiKeyAction.save &&
+          result!.value.trim().isNotEmpty) {
+        await notifier.setExaApiKey(result.value);
       }
     } catch (error) {
       if (mounted) {
@@ -341,8 +326,6 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
           SnackBar(content: Text('${context.l10n.common_error}: $error')),
         );
       }
-    } finally {
-      controller.dispose();
     }
   }
 
@@ -379,3 +362,90 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
 }
 
 enum _ApiKeyAction { save, clear }
+
+class _ApiKeyEditorResult {
+  const _ApiKeyEditorResult(this.action, this.value);
+
+  final _ApiKeyAction action;
+  final String value;
+}
+
+class _ApiKeyEditorForm extends StatefulWidget {
+  const _ApiKeyEditorForm({
+    required this.hasKey,
+    required this.scrollController,
+  });
+
+  final bool hasKey;
+  final ScrollController scrollController;
+
+  @override
+  State<_ApiKeyEditorForm> createState() => _ApiKeyEditorFormState();
+}
+
+class _ApiKeyEditorFormState extends State<_ApiKeyEditorForm> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _complete(_ApiKeyAction action) {
+    Navigator.of(context).pop(_ApiKeyEditorResult(action, _controller.text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            controller: widget.scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(20),
+            child: TextField(
+              controller: _controller,
+              autofocus: true,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: context.l10n.promptAssistant_webAccessExaApiKey,
+                hintText: widget.hasKey
+                    ? context.l10n.promptAssistant_apiKeyLeaveEmpty
+                    : null,
+              ),
+            ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (widget.hasKey)
+                  TextButton(
+                    onPressed: () => _complete(_ApiKeyAction.clear),
+                    child: Text(context.l10n.promptAssistant_webAccessClearKey),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(context.l10n.common_cancel),
+                ),
+                FilledButton(
+                  onPressed: () => _complete(_ApiKeyAction.save),
+                  child: Text(context.l10n.common_save),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

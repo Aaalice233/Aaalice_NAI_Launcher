@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../common/themed_checkbox.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/window_size_class.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../data/models/prompt/algorithm_config.dart';
 import '../../../data/models/prompt/character_count_config.dart';
@@ -17,13 +19,22 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 ///
 /// 用于配置单人、双人、三人、多人、无人等类别的权重和标签选项
 class GlobalSettingsDialog extends ConsumerStatefulWidget {
-  const GlobalSettingsDialog({super.key});
+  const GlobalSettingsDialog({super.key, this.scrollController});
+
+  final ScrollController? scrollController;
 
   static Future<void> show(BuildContext context) {
-    return showDialog(
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const GlobalSettingsDialog(),
+      titleBuilder: (context) => Text(
+        context.l10n.characterCountConfig_title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      sideSheetWidth: 720,
+      builder: (context, scrollController) =>
+          GlobalSettingsDialog(scrollController: scrollController),
     );
   }
 
@@ -158,58 +169,50 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
-    return Dialog(
-      child: Container(
-        width: 700,
-        constraints: const BoxConstraints(maxHeight: 700),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题栏
-            _buildHeader(theme, l10n),
-            const ThemedDivider(height: 1),
-            // 类别列表
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: _config.categories.map((category) {
-                    return _buildCategoryCard(category, theme, l10n);
-                  }).toList(),
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        children: [
+          Expanded(
+            child: ListView(
+              controller: widget.scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.all(
+                context.adaptiveWindow.isCompact ? 12 : 16,
               ),
+              children: [
+                _buildHeader(theme, l10n),
+                const SizedBox(height: 8),
+                ..._config.categories.map(
+                  (category) => _buildCategoryCard(category, theme, l10n),
+                ),
+              ],
             ),
-            const ThemedDivider(height: 1),
-            // 底部按钮
-            _buildFooter(theme, l10n),
-          ],
-        ),
+          ),
+          const ThemedDivider(height: 1),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: constraints.maxHeight * 0.45,
+            ),
+            child: SingleChildScrollView(child: _buildFooter(theme, l10n)),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildHeader(ThemeData theme, AppLocalizations l10n) {
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
+      padding: const EdgeInsets.all(12),
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          Icon(Icons.tune, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            l10n.characterCountConfig_title,
-            style: theme.textTheme.titleLarge,
-          ),
-          const SizedBox(width: 12),
-          // 自定义槽位按钮
           OutlinedButton.icon(
             onPressed: () => _showCustomSlotsDialog(theme, l10n),
             icon: const Icon(Icons.person_add_alt_1, size: 18),
             label: Text(l10n.characterCountConfig_customSlots),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
           ),
-          const Spacer(),
           TextButton.icon(
             onPressed: _resetToDefault,
             icon: Icon(
@@ -222,10 +225,6 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
               style: TextStyle(color: theme.colorScheme.error),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
         ],
       ),
     );
@@ -234,14 +233,15 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
   Widget _buildFooter(ThemeData theme, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 12,
+        runSpacing: 8,
         children: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(l10n.common_cancel),
           ),
-          const SizedBox(width: 12),
           FilledButton(onPressed: _saveChanges, child: Text(l10n.common_save)),
         ],
       ),
@@ -254,6 +254,9 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     AppLocalizations l10n,
   ) {
     final isExpanded = _expandedCategories[category.id] ?? false;
+    final stacked =
+        context.adaptiveWindow.isCompact ||
+        MediaQuery.textScalerOf(context).scale(1) >= 1.5;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -269,70 +272,58 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Row(
+              child: Flex(
+                direction: stacked ? Axis.vertical : Axis.horizontal,
+                crossAxisAlignment: stacked
+                    ? CrossAxisAlignment.stretch
+                    : CrossAxisAlignment.center,
                 children: [
-                  Icon(
-                    isExpanded
-                        ? Icons.keyboard_arrow_down
-                        : Icons.keyboard_arrow_right,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _getCategoryDisplayName(category, l10n),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  if (stacked)
+                    _CategoryTitle(
+                      category: category,
+                      expanded: isExpanded,
+                      label: _getCategoryDisplayName(category, l10n),
+                      customizableLabel: l10n.characterCountConfig_customizable,
+                    )
+                  else
+                    Expanded(
+                      child: _CategoryTitle(
+                        category: category,
+                        expanded: isExpanded,
+                        label: _getCategoryDisplayName(category, l10n),
+                        customizableLabel:
+                            l10n.characterCountConfig_customizable,
+                      ),
                     ),
-                  ),
-                  if (category.isMultiPersonContainer)
-                    Container(
-                      margin: const EdgeInsets.only(left: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.tertiaryContainer,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        l10n.characterCountConfig_customizable,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onTertiaryContainer,
+                  if (stacked) const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.characterCountConfig_weight,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                    ),
-                  const Spacer(),
-                  // 权重输入
-                  Text(
-                    l10n.characterCountConfig_weight,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 60,
-                    child: ThemedFormInput(
-                      initialValue: '${category.weight}',
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 72,
+                        child: ThemedFormInput(
+                          initialValue: '${category.weight}',
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            suffixText: '%',
+                          ),
+                          onChanged: (value) {
+                            final weight =
+                                int.tryParse(value) ?? category.weight;
+                            _updateCategoryWeight(category.id, weight);
+                          },
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        suffixText: '%',
                       ),
-                      onChanged: (value) {
-                        final weight = int.tryParse(value) ?? category.weight;
-                        _updateCategoryWeight(category.id, weight);
-                      },
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -390,6 +381,53 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           .join(' + ');
     }
 
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          option.label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+            color: option.enabled
+                ? null
+                : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
+        Text(
+          characterPromptText != null
+              ? '${l10n.characterCountConfig_mainPrompt}: ${option.mainPromptTags} | ${l10n.characterCountConfig_characterPrompt}: $characterPromptText'
+              : '${l10n.characterCountConfig_mainPrompt}: ${option.mainPromptTags}',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    final weightField = SizedBox(
+      width: 76,
+      child: ThemedFormInput(
+        initialValue: '${option.weight}',
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        decoration: const InputDecoration(isDense: true, suffixText: '%'),
+        onChanged: (value) {
+          final weight = int.tryParse(value) ?? option.weight;
+          _updateTagOptionWeight(categoryId, option.id, weight);
+        },
+      ),
+    );
+    final deleteButton = option.isCustom
+        ? IconButton(
+            tooltip: l10n.common_delete,
+            icon: Icon(
+              Icons.delete_outline,
+              color: theme.colorScheme.error,
+              size: 20,
+            ),
+            onPressed: () => _removeTagOption(categoryId, option.id),
+          )
+        : null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
@@ -399,75 +437,49 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
             : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        children: [
-          // 启用复选框
-          ThemedCheckbox(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked =
+              constraints.maxWidth < 420 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+          final checkbox = ThemedCheckbox(
             value: option.enabled,
             onChanged: (_) => _toggleTagOptionEnabled(categoryId, option.id),
             size: 18,
-          ),
-          // 标签名称和提示词信息
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          );
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  option.label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: option.enabled
-                        ? null
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    checkbox,
+                    const SizedBox(width: 8),
+                    Expanded(child: details),
+                  ],
                 ),
-                // 合并显示主提示词和角色提示词
-                Text(
-                  characterPromptText != null
-                      ? '${l10n.characterCountConfig_mainPrompt}: ${option.mainPromptTags} | ${l10n.characterCountConfig_characterPrompt}: $characterPromptText'
-                      : '${l10n.characterCountConfig_mainPrompt}: ${option.mainPromptTags}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    weightField,
+                    if (deleteButton != null) deleteButton,
+                  ],
                 ),
               ],
-            ),
-          ),
-          // 权重输入
-          SizedBox(
-            width: 70,
-            child: ThemedFormInput(
-              initialValue: '${option.weight}',
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                suffixText: '%',
-              ),
-              onChanged: (value) {
-                final weight = int.tryParse(value) ?? option.weight;
-                _updateTagOptionWeight(categoryId, option.id, weight);
-              },
-            ),
-          ),
-          // 删除按钮（仅自定义选项）
-          if (option.isCustom)
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                color: theme.colorScheme.error,
-                size: 20,
-              ),
-              onPressed: () => _removeTagOption(categoryId, option.id),
-            ),
-        ],
+            );
+          }
+          return Row(
+            children: [
+              checkbox,
+              const SizedBox(width: 8),
+              Expanded(child: details),
+              weightField,
+              if (deleteButton != null) deleteButton,
+            ],
+          );
+        },
       ),
     );
   }
@@ -501,22 +513,22 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     List<String> slotTags = List.filled(slotCount, defaultSlotTag);
 
     try {
-      await showDialog(
+      await AdaptivePresenter.showForm<void>(
         context: context,
-        builder: (context) => StatefulBuilder(
+        title: category.isMultiPersonContainer
+            ? l10n.characterCountConfig_addMultiPersonCombo
+            : l10n.characterCountConfig_addTagOption,
+        sideSheetWidth: 480,
+        builder: (context, scrollController) => StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(
-                category.isMultiPersonContainer
-                    ? l10n.characterCountConfig_addMultiPersonCombo
-                    : l10n.characterCountConfig_addTagOption,
-              ),
-              content: SizedBox(
-                width: 400,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            return Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.all(16),
                     children: [
                       ThemedInput(
                         controller: labelController,
@@ -575,40 +587,59 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                       ...List.generate(slotCount, (i) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Text(
-                                '${l10n.characterCountConfig_slot} ${i + 1}:',
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: slotTags[i],
-                                  decoration: const InputDecoration(
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final stacked =
+                                  constraints.maxWidth < 360 ||
+                                  MediaQuery.textScalerOf(context).scale(1) >=
+                                      2;
+                              final dropdown = DropdownButtonFormField<String>(
+                                initialValue: slotTags[i],
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
                                   ),
-                                  items: _config.customSlotOptions
-                                      .map(
-                                        (slot) => DropdownMenuItem(
-                                          value: slot,
-                                          child: Text(slot),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setDialogState(() {
-                                        slotTags[i] = value;
-                                      });
-                                    }
-                                  },
                                 ),
-                              ),
-                            ],
+                                items: _config.customSlotOptions
+                                    .map(
+                                      (slot) => DropdownMenuItem(
+                                        value: slot,
+                                        child: Text(slot),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setDialogState(() {
+                                      slotTags[i] = value;
+                                    });
+                                  }
+                                },
+                              );
+                              final label = Text(
+                                '${l10n.characterCountConfig_slot} ${i + 1}:',
+                              );
+                              if (stacked) {
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    label,
+                                    const SizedBox(height: 4),
+                                    dropdown,
+                                  ],
+                                );
+                              }
+                              return Row(
+                                children: [
+                                  label,
+                                  const SizedBox(width: 12),
+                                  Expanded(child: dropdown),
+                                ],
+                              );
+                            },
                           ),
                         );
                       }),
@@ -623,37 +654,46 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                     ],
                   ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    if (labelController.text.isEmpty) return;
-
-                    final option = CharacterTagOption(
-                      id: const Uuid().v4(),
-                      label: labelController.text,
-                      mainPromptTags: mainPromptController.text.isNotEmpty
-                          ? mainPromptController.text
-                          : (category.count == 1 ? 'solo' : ''),
-                      slotTags: List.generate(
-                        slotCount,
-                        (i) => CharacterSlotTag(
-                          slotIndex: i,
-                          characterTag: slotTags[i],
-                        ),
+                const ThemedDivider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(l10n.common_cancel),
                       ),
-                      weight: int.tryParse(weightController.text) ?? 50,
-                      isCustom: true,
-                    );
+                      FilledButton(
+                        onPressed: () {
+                          if (labelController.text.isEmpty) return;
 
-                    _addTagOption(category.id, option);
-                    Navigator.of(context).pop();
-                  },
-                  child: Text(l10n.common_add),
+                          final option = CharacterTagOption(
+                            id: const Uuid().v4(),
+                            label: labelController.text,
+                            mainPromptTags: mainPromptController.text.isNotEmpty
+                                ? mainPromptController.text
+                                : (category.count == 1 ? 'solo' : ''),
+                            slotTags: List.generate(
+                              slotCount,
+                              (i) => CharacterSlotTag(
+                                slotIndex: i,
+                                characterTag: slotTags[i],
+                              ),
+                            ),
+                            weight: int.tryParse(weightController.text) ?? 50,
+                            isCustom: true,
+                          );
+
+                          _addTagOption(category.id, option);
+                          Navigator.of(context).pop();
+                        },
+                        child: Text(l10n.common_add),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             );
@@ -676,114 +716,116 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     const builtinSlots = defaultSlotOptions;
 
     try {
-      await showDialog(
+      await AdaptivePresenter.showForm<void>(
         context: context,
-        builder: (context) => StatefulBuilder(
+        title: l10n.characterCountConfig_customSlotsTitle,
+        sideSheetWidth: 480,
+        builder: (context, scrollController) => StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(l10n.characterCountConfig_customSlotsTitle),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.characterCountConfig_customSlotsDesc,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+            return Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      Text(
+                        l10n.characterCountConfig_customSlotsDesc,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    // 添加新槽位
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ThemedInput(
-                            controller: controller,
-                            decoration: InputDecoration(
-                              hintText: l10n.characterCountConfig_addSlotHint,
-                              isDense: true,
+                      const SizedBox(height: 16),
+                      // 添加新槽位
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ThemedInput(
+                              controller: controller,
+                              decoration: InputDecoration(
+                                hintText: l10n.characterCountConfig_addSlotHint,
+                                isDense: true,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: () {
-                            final value = controller.text.trim();
-                            if (value.isEmpty) return;
-                            if (_config.customSlotOptions.contains(value)) {
-                              AppToast.warning(
-                                context,
-                                l10n.characterCountConfig_slotExists,
-                              );
-                              return;
-                            }
-                            setState(() {
-                              _config = _config.copyWith(
-                                customSlotOptions: [
-                                  ..._config.customSlotOptions,
-                                  value,
-                                ],
-                              );
-                            });
-                            setDialogState(() {});
-                            controller.clear();
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // 槽位列表
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 300),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: _config.customSlotOptions.map((slot) {
-                            final isBuiltin = builtinSlots.contains(slot);
-                            return ListTile(
-                              dense: true,
-                              leading: Icon(
-                                isBuiltin ? Icons.lock_outline : Icons.person,
-                                size: 20,
-                                color: isBuiltin
-                                    ? theme.colorScheme.outline
-                                    : theme.colorScheme.primary,
-                              ),
-                              title: Text(slot),
-                              trailing: isBuiltin
-                                  ? null
-                                  : IconButton(
-                                      icon: Icon(
-                                        Icons.delete_outline,
-                                        color: theme.colorScheme.error,
-                                        size: 20,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _config = _config.copyWith(
-                                            customSlotOptions: _config
-                                                .customSlotOptions
-                                                .where((s) => s != slot)
-                                                .toList(),
-                                          );
-                                        });
-                                        setDialogState(() {});
-                                      },
-                                    ),
-                            );
-                          }).toList(),
-                        ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.add),
+                            onPressed: () {
+                              final value = controller.text.trim();
+                              if (value.isEmpty) return;
+                              if (_config.customSlotOptions.contains(value)) {
+                                AppToast.warning(
+                                  context,
+                                  l10n.characterCountConfig_slotExists,
+                                );
+                                return;
+                              }
+                              setState(() {
+                                _config = _config.copyWith(
+                                  customSlotOptions: [
+                                    ..._config.customSlotOptions,
+                                    value,
+                                  ],
+                                );
+                              });
+                              setDialogState(() {});
+                              controller.clear();
+                            },
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      // 槽位列表
+                      ..._config.customSlotOptions.map((slot) {
+                        final isBuiltin = builtinSlots.contains(slot);
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            isBuiltin ? Icons.lock_outline : Icons.person,
+                            size: 20,
+                            color: isBuiltin
+                                ? theme.colorScheme.outline
+                                : theme.colorScheme.primary,
+                          ),
+                          title: Text(slot),
+                          trailing: isBuiltin
+                              ? null
+                              : IconButton(
+                                  icon: Icon(
+                                    Icons.delete_outline,
+                                    color: theme.colorScheme.error,
+                                    size: 20,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _config = _config.copyWith(
+                                        customSlotOptions: _config
+                                            .customSlotOptions
+                                            .where((s) => s != slot)
+                                            .toList(),
+                                      );
+                                    });
+                                    setDialogState(() {});
+                                  },
+                                ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.common_confirm),
+                const ThemedDivider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(l10n.common_confirm),
+                    ),
+                  ),
                 ),
               ],
             );
@@ -793,5 +835,53 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     } finally {
       controller.dispose();
     }
+  }
+}
+
+class _CategoryTitle extends StatelessWidget {
+  const _CategoryTitle({
+    required this.category,
+    required this.expanded,
+    required this.label,
+    required this.customizableLabel,
+  });
+
+  final CharacterCountCategory category;
+  final bool expanded;
+  final String label;
+  final String customizableLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(
+          expanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            label,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        if (category.isMultiPersonContainer)
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(start: 8),
+              child: Text(
+                customizableLabel,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onTertiaryContainer,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }

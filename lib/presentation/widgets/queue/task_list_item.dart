@@ -1,10 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/queue/replication_task_status.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
@@ -42,6 +44,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _shimmerController;
   bool _isHovered = false;
+  bool _disableAnimations = false;
 
   @override
   void initState() {
@@ -54,6 +57,15 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+    _updateAnimation();
+  }
+
+  @override
   void didUpdateWidget(TaskListItem oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.task.status != widget.task.status) {
@@ -62,7 +74,8 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
   }
 
   void _updateAnimation() {
-    if (widget.task.status == ReplicationTaskStatus.running) {
+    if (widget.task.status == ReplicationTaskStatus.running &&
+        !_disableAnimations) {
       _shimmerController.repeat();
     } else {
       _shimmerController.stop();
@@ -81,6 +94,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final isRunning = widget.task.status == ReplicationTaskStatus.running;
+    final interactionPolicy = context.interactionPolicy;
 
     // 获取当前执行任务ID和生成进度
     final (currentTaskId, generationProgress) = _getExecutionProgress();
@@ -97,7 +111,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     return ReorderableDragStartListener(
       index: widget.index,
       enabled:
-          PlatformCapabilities.current.hasPrecisePointer &&
+          interactionPolicy.precisePointerAvailable &&
           !widget.isSelectionMode &&
           canSelect,
       child: MouseRegion(
@@ -110,7 +124,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
           task: widget.task,
           enabled:
               !widget.isSelectionMode &&
-              PlatformCapabilities.current.hasPrecisePointer,
+              interactionPolicy.precisePointerAvailable,
           child: Dismissible(
             key: Key(widget.task.id),
             direction: widget.isSelectionMode || !canDelete
@@ -433,7 +447,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
       return const SizedBox.shrink();
     }
 
-    if (PlatformCapabilities.current.hasTouchInput) {
+    if (context.interactionPolicy.touchAvailable) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -514,7 +528,9 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
 
     return AnimatedOpacity(
       opacity: _isHovered ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 150),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 150),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -627,9 +643,32 @@ class _TaskTooltipWrapper extends StatefulWidget {
   State<_TaskTooltipWrapper> createState() => _TaskTooltipWrapperState();
 }
 
-class _TaskTooltipWrapperState extends State<_TaskTooltipWrapper> {
+class _TaskTooltipWrapperState extends State<_TaskTooltipWrapper>
+    with WidgetsBindingObserver {
   OverlayEntry? _overlayEntry;
   bool _isHovering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didUpdateWidget(_TaskTooltipWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.enabled) {
+      _hideTooltip();
+    } else if (oldWidget.task != widget.task) {
+      _overlayEntry?.markNeedsBuild();
+    }
+  }
+
+  @override
+  void didChangeMetrics() {
+    _isHovering = false;
+    _hideTooltip();
+  }
 
   void _showTooltip() {
     if (!widget.enabled || _overlayEntry != null) return;
@@ -645,49 +684,74 @@ class _TaskTooltipWrapperState extends State<_TaskTooltipWrapper> {
 
   OverlayEntry _createOverlayEntry() {
     final renderBox = context.findRenderObject() as RenderBox;
-    final itemOffset = renderBox.localToGlobal(Offset.zero);
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final itemOffset = renderBox.localToGlobal(
+      Offset.zero,
+      ancestor: overlayBox,
+    );
     final itemSize = renderBox.size;
 
     return OverlayEntry(
-      builder: (context) {
-        final screenSize = MediaQuery.of(context).size;
-        const tooltipWidth = 350.0;
-        const tooltipMaxHeight = 450.0;
-        const gap = 12.0;
+      builder: (context) => Positioned.fill(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final safePadding = MediaQuery.paddingOf(context);
+            final viewportSize = constraints.biggest;
+            const preferredWidth = 420.0;
+            const preferredMaxHeight = 560.0;
+            const gap = 12.0;
+            const edgePadding = 12.0;
 
-        // 计算水平位置：优先显示在右侧，空间不足则显示在左侧
-        double left;
-        final rightSpace =
-            screenSize.width - (itemOffset.dx + itemSize.width + gap);
-        if (rightSpace >= tooltipWidth) {
-          // 右侧空间足够
-          left = itemOffset.dx + itemSize.width + gap;
-        } else {
-          // 显示在左侧
-          left = itemOffset.dx - tooltipWidth - gap;
-          if (left < 0) left = gap; // 确保不超出屏幕左边界
-        }
+            final safeLeft = safePadding.left + edgePadding;
+            final safeTop = safePadding.top + edgePadding;
+            final safeRight =
+                viewportSize.width - safePadding.right - edgePadding;
+            final safeBottom =
+                viewportSize.height - safePadding.bottom - edgePadding;
+            final availableWidth = math.max(0.0, safeRight - safeLeft);
+            final availableHeight = math.max(0.0, safeBottom - safeTop);
+            final tooltipWidth = math.min(preferredWidth, availableWidth);
+            final tooltipHeight = math.min(preferredMaxHeight, availableHeight);
 
-        // 计算垂直位置：确保不超出屏幕底部
-        double top = itemOffset.dy;
-        final bottomSpace = screenSize.height - top;
-        if (bottomSpace < tooltipMaxHeight) {
-          // 向上调整，确保底部不被截断
-          top = screenSize.height - tooltipMaxHeight - 20;
-          if (top < 20) top = 20; // 确保不超出屏幕顶部
-        }
+            final rightCandidate = itemOffset.dx + itemSize.width + gap;
+            final leftCandidate = itemOffset.dx - tooltipWidth - gap;
+            final rightSpace = safeRight - rightCandidate;
+            final leftSpace = itemOffset.dx - gap - safeLeft;
+            final preferredLeft = rightSpace >= tooltipWidth
+                ? rightCandidate
+                : leftSpace >= tooltipWidth
+                ? leftCandidate
+                : rightSpace >= leftSpace
+                ? rightCandidate
+                : leftCandidate;
+            final left = preferredLeft
+                .clamp(safeLeft, math.max(safeLeft, safeRight - tooltipWidth))
+                .toDouble();
+            final top = itemOffset.dy
+                .clamp(safeTop, math.max(safeTop, safeBottom - tooltipHeight))
+                .toDouble();
 
-        return Positioned(
-          left: left,
-          top: top,
-          child: QueueTaskDetailView(task: widget.task),
-        );
-      },
+            return Stack(
+              children: [
+                Positioned(
+                  left: left,
+                  top: top,
+                  width: tooltipWidth,
+                  height: tooltipHeight,
+                  child: QueueTaskDetailView(task: widget.task),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _hideTooltip();
     super.dispose();
   }
@@ -1063,6 +1127,7 @@ class FailedTaskListItem extends ConsumerWidget {
                   alignment: WrapAlignment.end,
                   children: [
                     _buildCompactButton(
+                      context,
                       icon: Icons.delete_outline_rounded,
                       label: l10n.queue_delete,
                       onPressed: () => ref
@@ -1071,6 +1136,7 @@ class FailedTaskListItem extends ConsumerWidget {
                       color: Colors.grey,
                     ),
                     _buildCompactButton(
+                      context,
                       icon: Icons.queue_rounded,
                       label: l10n.queue_requeue,
                       onPressed:
@@ -1092,7 +1158,7 @@ class FailedTaskListItem extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         minimumSize: Size(
                           0,
-                          PlatformCapabilities.current.hasTouchInput ? 48 : 30,
+                          context.interactionPolicy.minimumControlExtent,
                         ),
                       ),
                     ),
@@ -1107,7 +1173,8 @@ class FailedTaskListItem extends ConsumerWidget {
   }
 
   /// 构建紧凑按钮
-  Widget _buildCompactButton({
+  Widget _buildCompactButton(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required VoidCallback onPressed,
@@ -1119,10 +1186,7 @@ class FailedTaskListItem extends ConsumerWidget {
       label: Text(label),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10),
-        minimumSize: Size(
-          0,
-          PlatformCapabilities.current.hasTouchInput ? 48 : 30,
-        ),
+        minimumSize: Size(0, context.interactionPolicy.minimumControlExtent),
         foregroundColor: color,
       ),
     );
@@ -1145,6 +1209,7 @@ class _AnimatedStripeProgress extends StatefulWidget {
 class _AnimatedStripeProgressState extends State<_AnimatedStripeProgress>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -1152,7 +1217,22 @@ class _AnimatedStripeProgressState extends State<_AnimatedStripeProgress>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override

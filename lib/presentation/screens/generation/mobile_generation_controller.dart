@@ -10,11 +10,14 @@ import '../../../core/constants/storage_keys.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/queue/replication_task.dart';
+import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/mobile_shell_overlay_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
+import '../../providers/replication_queue_provider.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../widgets/common/app_toast.dart';
 
@@ -39,12 +42,6 @@ class MobileGenerationController extends ChangeNotifier
         notifyListeners();
       });
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_disposed) return;
-      unawaited(
-        ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
-      );
-    });
   }
 
   static const double verticalShortcutDistance = 88;
@@ -323,6 +320,51 @@ class MobileGenerationController extends ChangeNotifier
 
   void skipCurrentRequest() =>
       ref.read(imageGenerationNotifierProvider.notifier).skipCurrentRequest();
+
+  Future<void> addCurrentPromptToQueue(BuildContext context) async {
+    final params = ref.read(generationParamsNotifierProvider);
+    if (params.prompt.isEmpty) {
+      AppToast.info(context, context.l10n.generation_pleaseInputPrompt);
+      return;
+    }
+    final queuedParams = params.copyWith(nSamples: 1);
+    final task = ReplicationTask.create(
+      prompt: params.prompt,
+      negativePrompt: params.negativePrompt,
+      applyNegativePrompt: true,
+      characterPrompts: params.characters
+          .map(
+            (character) => ReplicationCharacterPromptSnapshot(
+              prompt: character.prompt,
+              negativePrompt: character.negativePrompt,
+              positionX: params.useCoords ? character.positionX : null,
+              positionY: params.useCoords ? character.positionY : null,
+            ),
+          )
+          .toList(growable: false),
+      generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
+        queuedParams,
+        batchSize: ref.read(imagesPerRequestProvider),
+      ),
+      source: ReplicationTaskSource.local,
+      seed: params.seed,
+      sampler: params.sampler,
+      steps: params.steps,
+      cfgScale: params.scale,
+      model: params.model,
+      width: params.width,
+      height: params.height,
+    );
+    final added = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .add(task);
+    if (_disposed || !context.mounted) return;
+    if (!added) {
+      AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
+      return;
+    }
+    AppToast.success(context, context.l10n.queue_taskAdded);
+  }
 
   @override
   void dispose() {

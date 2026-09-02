@@ -1,36 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
+import 'package:nai_launcher/presentation/adaptive/window_size_class.dart';
 
 /// NAI 随机规则说明弹窗
 ///
 /// 展示 Prompt 生成器的内置规则逻辑
 class NaiRulesDialog extends StatelessWidget {
-  const NaiRulesDialog({super.key});
+  const NaiRulesDialog({super.key, this.scrollController});
+
+  final ScrollController? scrollController;
 
   /// 显示弹窗
   static Future<void> show(BuildContext context) {
-    return showDialog<void>(
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => const NaiRulesDialog(),
+      sideSheetWidth: 600,
+      titleBuilder: (context) => Row(
+        children: [
+          const Icon(Icons.info_outline),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              context.l10n.naiRules_title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      builder: (context, scrollController) =>
+          NaiRulesDialog(scrollController: scrollController),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final compact = context.adaptiveWindow.isCompact;
 
-    return AlertDialog(
-      title: Row(
-        children: [
-          const Icon(Icons.info_outline),
-          const SizedBox(width: 8),
-          Text(l10n.naiRules_title),
-        ],
-      ),
-      content: SizedBox(
-        width: 600,
-        child: SingleChildScrollView(
-          child: Column(
+    return Column(
+      key: const ValueKey('nai-rules-content'),
+      children: [
+        Expanded(
+          child: ListView(
+            key: const ValueKey('nai-rules-scroll'),
+            controller: scrollController,
+            padding: EdgeInsets.all(compact ? 12 : 24),
             children: [
               _buildSection(
                 context,
@@ -97,11 +114,22 @@ class NaiRulesDialog extends StatelessWidget {
             ],
           ),
         ),
-      ),
-      actions: [
-        FilledButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(l10n.common_gotIt),
+        const Divider(height: 1),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 12 : 24,
+              vertical: compact ? 8 : 12,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(l10n.common_gotIt),
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -119,16 +147,11 @@ class NaiRulesDialog extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: ExpansionTile(
         leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         childrenPadding: const EdgeInsets.only(bottom: 8),
         children: children,
       ),

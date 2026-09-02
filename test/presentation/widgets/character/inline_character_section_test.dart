@@ -3,10 +3,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_card.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
@@ -124,6 +124,8 @@ void main() {
     ProviderContainer container,
     double width, {
     Widget child = const InlineCharacterSection(),
+    InteractionPolicy? interactionPolicy,
+    TextScaler textScaler = TextScaler.noScaling,
   }) {
     return UncontrolledProviderScope(
       container: container,
@@ -131,8 +133,15 @@ void main() {
         locale: const Locale('zh'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: Scaffold(
-          body: SizedBox(width: width, child: child),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+          child: child!,
+        ),
+        home: InteractionPolicyScope(
+          initialPolicy: interactionPolicy,
+          child: Scaffold(
+            body: SizedBox(width: width, child: child),
+          ),
         ),
       ),
     );
@@ -341,10 +350,6 @@ void main() {
   });
 
   testWidgets('角色提示词可拖拽调整高度且正负输入分别保留尺寸', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
     final container = createContainer();
 
     await tester.pumpWidget(
@@ -360,6 +365,11 @@ void main() {
               prompt: 'girl, red hair',
             ),
           ),
+        ),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
         ),
       ),
     );
@@ -406,10 +416,6 @@ void main() {
   });
 
   testWidgets('角色助手收起显示入口，展开后复用同一行', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
     final container = createContainer();
 
     await tester.pumpWidget(
@@ -425,6 +431,11 @@ void main() {
               prompt: 'girl, red hair',
             ),
           ),
+        ),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
         ),
       ),
     );
@@ -483,8 +494,8 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
-    await tester.pump();
+    await tester.tap(collapsedButton, kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
 
     final expandedToolbar = find.byKey(
       const ValueKey(
@@ -540,12 +551,16 @@ void main() {
       closeTo(collapsedAreaTop, 0.1),
     );
 
-    await tester.tap(
-      find.descendant(
-        of: expandedToolbar,
-        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
-      ),
+    final collapseAssistantIcon = find.descendant(
+      of: expandedToolbar,
+      matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
     );
+    final collapseAssistantButton = find.ancestor(
+      of: collapseAssistantIcon,
+      matching: find.byType(IconButton),
+    );
+    expect(collapseAssistantButton.hitTestable(), findsOneWidget);
+    await tester.tap(collapseAssistantButton, kind: PointerDeviceKind.mouse);
     await tester.pump();
     expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
     expect(find.text('助手'), findsOneWidget);
@@ -559,10 +574,12 @@ void main() {
           .top,
       closeTo(collapsedAreaTop, 0.1),
     );
-    await tester.tap(clearButton);
+    final clearAction = tester.widget<IconButton>(clearButton).onPressed;
+    expect(clearAction, isNotNull);
+    clearAction!();
     await tester.pumpAndSettle();
     expect(find.text('确定要清空输入内容吗？'), findsOneWidget);
-    await tester.tap(find.text('清除').last);
+    await tester.tap(find.text('清除').last, kind: PointerDeviceKind.mouse);
     await tester.pumpAndSettle();
     expect(clearButton, findsNothing);
     final editable = tester.widget<EditableText>(
@@ -577,10 +594,6 @@ void main() {
   });
 
   testWidgets('点击角色助手不会退出角色编辑态', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
     final container = createContainer();
     const character = CharacterPrompt(
       id: 'alice',
@@ -596,30 +609,41 @@ void main() {
           padding: EdgeInsets.all(12),
           child: InlineCharacterCard(character: character, index: 0, total: 1),
         ),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
       ),
     );
     await tester.pump();
-    await tester.tap(find.text('girl, red hair'));
+    await tester.tap(
+      find.text('girl, red hair'),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pumpAndSettle();
     expect(find.byType(CharacterPromptEditor), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
+    await tester.tap(
+      find.byIcon(Icons.auto_awesome_rounded),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pump();
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded));
+    await tester.tap(
+      find.byIcon(Icons.keyboard_arrow_down_rounded),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pump();
     await tester.pump();
 
     expect(container.read(selectedCharacterIdProvider), 'alice');
     expect(find.byType(CharacterPromptEditor), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 250));
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('窄屏角色助手完整显示且 resize 受视口上限约束', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.android,
-    );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
     await tester.binding.setSurfaceSize(const Size(320, 640));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final container = createContainer();
@@ -637,6 +661,11 @@ void main() {
               prompt: 'girl, red hair',
             ),
           ),
+        ),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.touch,
+          touchAvailable: true,
+          precisePointerAvailable: false,
         ),
       ),
     );
@@ -694,6 +723,57 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  for (final size in [const Size(320, 480), const Size(1200, 800)]) {
+    testWidgets('清空角色真实入口在 $size 自适应并保留返回语义', (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = size;
+      final container = createContainer();
+      await tester.pumpWidget(
+        subject(
+          container,
+          size.width,
+          textScaler: size.width < 600
+              ? const TextScaler.linear(1.5)
+              : TextScaler.noScaling,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('collapsible-chevron-角色')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('character-clear-all')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          ValueKey(
+            size.width < 600 ? 'adaptive-bottom-sheet' : 'adaptive-side-sheet',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('清空所有角色'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      if (size.width < 600) {
+        await tester.tap(find.widgetWithText(TextButton, '取消'));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(characterPromptNotifierProvider).characters,
+          hasLength(2),
+        );
+      } else {
+        await tester.tap(find.widgetWithText(FilledButton, '清除'));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(characterPromptNotifierProvider).characters,
+          isEmpty,
+        );
+      }
+    });
+  }
 
   for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('角色菜单在 $width 宽度无 RenderFlex overflow', (tester) async {

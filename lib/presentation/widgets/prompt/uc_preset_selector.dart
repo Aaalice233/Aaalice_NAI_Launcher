@@ -89,8 +89,10 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
           onTap: () => _showMenu(context, presetState, customEntries),
           child: AnimatedContainer(
             key: _buttonKey,
-            duration: const Duration(milliseconds: 150),
-            constraints: const BoxConstraints(minHeight: 44),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
+            constraints: const BoxConstraints(minHeight: 48),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: isEnabled
@@ -280,11 +282,9 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
   }
 
   Future<void> _showTagLibraryPicker() async {
-    final entry = await showDialog<TagLibraryEntry>(
-      context: context,
-      builder: (context) => TagLibraryPickerDialog(
-        title: context.l10n.ucPreset_selectFromLibrary,
-      ),
+    final entry = await TagLibraryPickerDialog.show(
+      context,
+      title: context.l10n.ucPreset_selectFromLibrary,
     );
     if (entry != null) {
       ref.read(ucPresetNotifierProvider.notifier).setCustomEntry(entry.id);

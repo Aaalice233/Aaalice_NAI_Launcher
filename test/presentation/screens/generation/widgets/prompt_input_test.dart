@@ -10,6 +10,7 @@ import 'package:nai_launcher/core/services/prompt_token_counter_service.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_state_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
@@ -18,7 +19,6 @@ import 'package:nai_launcher/presentation/providers/character_prompt_provider.da
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_toggle_button.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
-import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_type_switch.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -28,11 +28,6 @@ import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
 void main() {
-  test('Windows 下提示词切换按钮不使用富文本 Tooltip', () {
-    expect(shouldUseRichPromptTypeTooltip(TargetPlatform.windows), isFalse);
-    expect(shouldUseRichPromptTypeTooltip(TargetPlatform.macOS), isTrue);
-  });
-
   testWidgets('冷启动时切换到负面提示词不会抛出异常', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -75,6 +70,66 @@ void main() {
       find.byKey(const ValueKey('generation_prompt_negative_input')),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('响应式壳层切换保持提示词控制器、选区与焦点', (tester) async {
+    final harnessKey = GlobalKey<_ResponsivePromptHarnessState>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _TestLocalStorageService(),
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.negative,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+        ],
+        child: MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(body: _ResponsivePromptHarness(key: harnessKey)),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final editableFinder = find.descendant(
+      of: find.byKey(const ValueKey('responsive-prompt-host')),
+      matching: find.byType(EditableText),
+    );
+    await tester.enterText(editableFinder.first, 'one, two, three');
+    await tester.showKeyboard(editableFinder.first);
+    final before = tester.widget<EditableText>(editableFinder.first);
+    before.controller.selection = const TextSelection(
+      baseOffset: 5,
+      extentOffset: 8,
+    );
+    expect(before.focusNode.hasFocus, isTrue);
+
+    harnessKey.currentState!.toggleLayout();
+    await tester.pump();
+    await tester.pump();
+
+    final after = tester.widget<EditableText>(editableFinder.first);
+    expect(identical(after.controller, before.controller), isTrue);
+    expect(after.controller.text, 'one, two, three');
+    expect(
+      after.controller.selection,
+      const TextSelection(baseOffset: 5, extentOffset: 8),
+    );
+    expect(after.focusNode.hasFocus, isTrue);
     expect(tester.takeException(), isNull);
   });
 
@@ -121,7 +176,7 @@ void main() {
       const ValueKey('generation_prompt_compact_surface'),
     );
     final input = tester.widget<UnifiedPromptInput>(
-      find.byKey(const ValueKey('generation_prompt_compact_input')),
+      find.byKey(const ValueKey('generation_prompt_positive_input')),
     );
     expect(surface, findsOneWidget);
     expect(
@@ -201,11 +256,11 @@ void main() {
       findsNothing,
     );
     expect(secondaryScroll, findsOneWidget);
-    expect(tester.getSize(secondaryScroll).height, 44);
+    expect(tester.getSize(secondaryScroll).height, greaterThanOrEqualTo(48));
     expect(tester.getSize(secondaryScroll).width, 380);
     for (final action in secondaryActions) {
       expect(action, findsOneWidget);
-      expect(tester.getSize(action).height, 44);
+      expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
       expect(
         tester.getCenter(action).dy,
         closeTo(tester.getCenter(secondaryActions.first).dy, 0.1),
@@ -292,7 +347,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('手机多角色管理先显示概览，选择角色后展开编辑器', (tester) async {
+  testWidgets('手机多角色管理使用全屏表单并保持概览到编辑器状态', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(380, 800);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -314,17 +369,21 @@ void main() {
     final sheet = find.byKey(
       const ValueKey('generation_mobile_character_manager_sheet'),
     );
-    final overviewHeight = tester.getSize(sheet).height;
+    final formHeight = tester.getSize(sheet).height;
+    expect(
+      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      findsOneWidget,
+    );
     expect(find.text('角色甲'), findsOneWidget);
     expect(find.text('角色乙'), findsOneWidget);
     expect(find.byType(CharacterPromptEditor), findsNothing);
-    expect(overviewHeight, lessThan(600));
+    expect(formHeight, greaterThan(600));
 
     await tester.tap(find.text('角色乙'));
     await tester.pumpAndSettle();
 
     expect(find.byType(CharacterPromptEditor), findsOneWidget);
-    expect(tester.getSize(sheet).height, greaterThan(overviewHeight + 100));
+    expect(tester.getSize(sheet).height, formHeight);
     expect(tester.takeException(), isNull);
   });
 
@@ -522,10 +581,17 @@ void main() {
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           home: Scaffold(
-            body: SizedBox(
-              width: 320,
-              height: 420,
-              child: PromptInputWidget(isMaximized: true),
+            body: InteractionPolicyScope(
+              initialPolicy: InteractionPolicy(
+                modality: InteractionModality.touch,
+                touchAvailable: true,
+                precisePointerAvailable: false,
+              ),
+              child: SizedBox(
+                width: 320,
+                height: 420,
+                child: PromptInputWidget(isMaximized: true),
+              ),
             ),
           ),
         ),
@@ -1052,6 +1118,40 @@ Future<ProviderContainer> _pumpMobilePromptHarness(WidgetTester tester) async {
   await tester.pump();
   return ProviderScope.containerOf(
     tester.element(find.byType(PromptInputWidget)),
+  );
+}
+
+class _ResponsivePromptHarness extends StatefulWidget {
+  const _ResponsivePromptHarness({super.key});
+
+  @override
+  State<_ResponsivePromptHarness> createState() =>
+      _ResponsivePromptHarnessState();
+}
+
+class _ResponsivePromptHarnessState extends State<_ResponsivePromptHarness> {
+  final _promptKey = GlobalKey();
+  var _compact = false;
+
+  void toggleLayout() => setState(() => _compact = !_compact);
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      TextButton(
+        key: const ValueKey('toggle-responsive-prompt'),
+        onPressed: toggleLayout,
+        child: const Text('toggle'),
+      ),
+      Expanded(
+        child: Container(
+          key: const ValueKey('responsive-prompt-host'),
+          alignment: Alignment.topCenter,
+          padding: EdgeInsets.all(_compact ? 8 : 0),
+          child: PromptInputWidget(key: _promptKey, compact: _compact),
+        ),
+      ),
+    ],
   );
 }
 

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +14,7 @@ import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
@@ -143,18 +145,20 @@ void main() {
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Center(
-              child: LocalImageCard3D(
-                record: LocalImageRecord(
-                  path: file.path,
-                  size: stat.size,
-                  modifiedAt: stat.modified,
+          home: InteractionPolicyScope(
+            child: Scaffold(
+              body: Center(
+                child: LocalImageCard3D(
+                  record: LocalImageRecord(
+                    path: file.path,
+                    size: stat.size,
+                    modifiedAt: stat.modified,
+                  ),
+                  width: 160,
+                  height: 200,
+                  onTap: () {},
+                  onSendAction: (action) async => actions.add(action),
                 ),
-                width: 160,
-                height: 200,
-                onTap: () {},
-                onSendAction: (action) async => actions.add(action),
               ),
             ),
           ),
@@ -162,6 +166,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await _observeTouch(tester);
     await tester.tap(find.byIcon(Icons.more_vert_rounded));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump();
@@ -213,13 +218,15 @@ void main() {
           locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Center(
-              child: LocalImageCard3D(
-                record: record,
-                width: 132,
-                height: 184,
-                onTap: () {},
+          home: InteractionPolicyScope(
+            child: Scaffold(
+              body: Center(
+                child: LocalImageCard3D(
+                  record: record,
+                  width: 132,
+                  height: 184,
+                  onTap: () {},
+                ),
               ),
             ),
           ),
@@ -227,6 +234,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await _observeTouch(tester);
 
     expect(
       find.byKey(const ValueKey('local-image-card-actions')),
@@ -283,18 +291,20 @@ void main() {
           locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Center(
-              child: LocalImageCard3D(
-                record: LocalImageRecord(
-                  path: file.path,
-                  size: stat.size,
-                  modifiedAt: stat.modified,
+          home: InteractionPolicyScope(
+            child: Scaffold(
+              body: Center(
+                child: LocalImageCard3D(
+                  record: LocalImageRecord(
+                    path: file.path,
+                    size: stat.size,
+                    modifiedAt: stat.modified,
+                  ),
+                  width: 132,
+                  height: 184,
+                  onTap: () {},
+                  onSendAction: (action) async => selected = action,
                 ),
-                width: 132,
-                height: 184,
-                onTap: () {},
-                onSendAction: (action) async => selected = action,
               ),
             ),
           ),
@@ -302,6 +312,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await _observeTouch(tester);
 
     await tester.tap(find.byIcon(Icons.more_vert_rounded));
     await tester.pump();
@@ -318,4 +329,15 @@ void main() {
     await tester.pump();
     expect(selected, LocalImageContextAction.saveToSystemGallery);
   });
+}
+
+Future<void> _observeTouch(WidgetTester tester) async {
+  final position =
+      tester.getBottomRight(find.byType(Scaffold)) - const Offset(1, 1);
+  final touch = await tester.createGesture(kind: PointerDeviceKind.touch);
+  await touch.addPointer(location: position);
+  await touch.down(position);
+  await tester.pump();
+  await touch.up();
+  await tester.pump();
 }

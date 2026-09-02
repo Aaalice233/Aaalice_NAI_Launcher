@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/router/mobile_more_panel.dart';
 
 class _MockNavigationShell extends Mock implements StatefulNavigationShell {
@@ -30,6 +31,11 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            accountManagerNotifierProvider.overrideWith(
+              _EmptyAccountManagerNotifier.new,
+            ),
+          ],
           child: MaterialApp(
             locale: const Locale('zh'),
             supportedLocales: AppLocalizations.supportedLocales,
@@ -58,6 +64,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
+      expect(find.byKey(const ValueKey('mobile-more-account')), findsOneWidget);
       const entryKey = ValueKey('mobile-more-read-image-metadata');
       final entry = find.byKey(entryKey);
       expect(entry, findsOneWidget);
@@ -70,10 +77,14 @@ void main() {
       final title = tile.title! as Text;
       expect(title.maxLines, 1);
       expect(find.byType(Scrollbar), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('mobile-more-settings')).hitTestable(),
-        findsOneWidget,
+      final settings = find.byKey(const ValueKey('mobile-more-settings'));
+      await tester.scrollUntilVisible(
+        settings,
+        100,
+        scrollable: find.byType(Scrollable).first,
       );
+      await tester.pumpAndSettle();
+      expect(settings.hitTestable(), findsOneWidget);
 
       for (final key in const [
         ValueKey('mobile-more-discord'),
@@ -84,6 +95,12 @@ void main() {
         expect(tester.getRect(button).bottom, lessThanOrEqualTo(768));
       }
 
+      await tester.scrollUntilVisible(
+        entry,
+        -100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(entry);
       await tester.pumpAndSettle();
 
@@ -91,4 +108,9 @@ void main() {
       expect(find.byKey(entryKey), findsNothing);
     },
   );
+}
+
+class _EmptyAccountManagerNotifier extends AccountManagerNotifier {
+  @override
+  AccountManagerState build() => const AccountManagerState();
 }

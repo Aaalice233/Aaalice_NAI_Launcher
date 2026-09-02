@@ -10,6 +10,7 @@ import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/gallery/index.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_confirm_dialog.dart';
 import 'cache_statistics_tile.dart';
 
 /// 画廊重新扫描按钮
@@ -31,6 +32,7 @@ class GalleryCacheActions extends ConsumerStatefulWidget {
 class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
     with TickerProviderStateMixin {
   late AnimationController _scanController;
+  bool _disableAnimations = false;
 
   bool _isScanning = false;
 
@@ -50,6 +52,21 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _scanController
+        ..stop()
+        ..reset();
+    } else if (_isScanning) {
+      _scanController.repeat();
+    }
+  }
+
+  @override
   void dispose() {
     _scanController.dispose();
     super.dispose();
@@ -64,31 +81,16 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
   Future<void> _rescanGallery() async {
     if (_isScanning) return;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(
-          Icons.refresh_rounded,
-          color: Colors.green,
-          size: 48,
-        ),
-        title: Text(context.l10n.galleryCache_rescanTitle),
-        content: Text(context.l10n.galleryCache_rescanContent),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            icon: const Icon(Icons.refresh),
-            label: Text(context.l10n.galleryCache_startScan),
-          ),
-        ],
-      ),
+      title: context.l10n.galleryCache_rescanTitle,
+      content: context.l10n.galleryCache_rescanContent,
+      confirmText: context.l10n.galleryCache_startScan,
+      cancelText: context.l10n.common_cancel,
+      icon: Icons.refresh_rounded,
     );
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     if (!mounted) return;
 
@@ -105,7 +107,7 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
       _processedCount = 0;
       _totalCount = 0;
     });
-    _scanController.repeat();
+    if (!_disableAnimations) _scanController.repeat();
 
     try {
       final rootPath = await GalleryFolderRepository.instance.getRootPath();
@@ -251,8 +253,9 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
                 LinearProgressIndicator(
                   value: _scanProgress,
                   backgroundColor: colorScheme.surfaceContainerHighest,
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    colorScheme.primary,
+                  ),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 if (_totalCount > 0) ...[
@@ -278,8 +281,10 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
                   ),
                 )
               : Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -295,11 +300,7 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.refresh,
-                        size: 16,
-                        color: colorScheme.primary,
-                      ),
+                      Icon(Icons.refresh, size: 16, color: colorScheme.primary),
                       const SizedBox(width: 4),
                       Text(
                         context.l10n.galleryCache_scanAction,

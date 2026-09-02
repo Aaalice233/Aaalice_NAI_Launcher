@@ -1,10 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/weight_adjust_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
@@ -323,42 +324,46 @@ void main() {
   testWidgets(
     'mounted unified input uses replacement controller for wheel exclusivity',
     (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-      try {
-        final originalA = List<String>.filled(40, 'old').join('\n');
-        final originalB = List<String>.filled(40, 'tag').join('\n');
-        final controllerA = TextEditingController(text: originalA)
-          ..selection = TextSelection.collapsed(offset: originalA.length);
-        final controllerB = TextEditingController(text: originalB)
-          ..selection = const TextSelection(baseOffset: 0, extentOffset: 3);
-        final focus = FocusNode();
-        final page = ScrollController(initialScrollOffset: 100);
-        var activeController = controllerA;
-        late StateSetter setHarnessState;
+      final originalA = List<String>.filled(40, 'old').join('\n');
+      final originalB = List<String>.filled(40, 'tag').join('\n');
+      final controllerA = TextEditingController(text: originalA)
+        ..selection = TextSelection.collapsed(offset: originalA.length);
+      final controllerB = TextEditingController(text: originalB)
+        ..selection = const TextSelection(baseOffset: 0, extentOffset: 3);
+      final focus = FocusNode();
+      final page = ScrollController(initialScrollOffset: 100);
+      var activeController = controllerA;
+      late StateSetter setHarnessState;
 
-        addTearDown(() async {
-          if (controllerB.selection.isValid) {
-            controllerB.selection = TextSelection.collapsed(
-              offset: controllerB.text.length,
-            );
-          }
-          focus.unfocus();
-          await tester.pump();
-          await tester.pumpWidget(const SizedBox.shrink());
-          await tester.pump(const Duration(milliseconds: 250));
-          page.dispose();
-          focus.dispose();
-          controllerB.dispose();
-          controllerA.dispose();
-        });
+      addTearDown(() async {
+        if (controllerB.selection.isValid) {
+          controllerB.selection = TextSelection.collapsed(
+            offset: controllerB.text.length,
+          );
+        }
+        focus.unfocus();
+        await tester.pump();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 250));
+        page.dispose();
+        focus.dispose();
+        controllerB.dispose();
+        controllerA.dispose();
+      });
 
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              localStorageServiceProvider.overrideWith(
-                (ref) => _WheelEnabledStorage(),
-              ),
-            ],
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith(
+              (ref) => _WheelEnabledStorage(),
+            ),
+          ],
+          child: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
             child: MaterialApp(
               supportedLocales: AppLocalizations.supportedLocales,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -398,45 +403,60 @@ void main() {
               ),
             ),
           ),
-        );
-        focus.requestFocus();
-        await tester.pump();
+        ),
+      );
+      focus.requestFocus();
+      await tester.pump();
 
-        final innerFinder = find.descendant(
-          of: find.byKey(_fieldKey),
-          matching: find.byType(Scrollable),
-        );
-        expect(innerFinder, findsOneWidget);
-        final mountedInner = tester.state<ScrollableState>(innerFinder);
+      final innerFinder = find.descendant(
+        of: find.byKey(_fieldKey),
+        matching: find.byType(Scrollable),
+      );
+      expect(innerFinder, findsOneWidget);
+      final mountedInner = tester.state<ScrollableState>(innerFinder);
 
-        setHarnessState(() {
-          activeController = controllerB;
-        });
-        await tester.pump();
+      setHarnessState(() {
+        activeController = controllerB;
+      });
+      await tester.pump();
 
-        expect(tester.state<ScrollableState>(innerFinder), same(mountedInner));
-        final innerOffsetBefore = mountedInner.position.pixels;
-        final pageOffsetBefore = page.offset;
+      expect(tester.state<ScrollableState>(innerFinder), same(mountedInner));
+      final innerOffsetBefore = mountedInner.position.pixels;
+      final pageOffsetBefore = page.offset;
 
-        await _sendWheel(tester);
+      await _sendWheel(tester);
 
-        expect(controllerA.text, originalA);
-        expect(controllerB.text, startsWith('0.95::tag::\n'));
-        expect(mountedInner.position.pixels, innerOffsetBefore);
-        expect(page.offset, pageOffsetBefore);
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
+      expect(controllerA.text, originalA);
+      expect(controllerB.text, startsWith('0.95::tag::\n'));
+      expect(mountedInner.position.pixels, innerOffsetBefore);
+      expect(page.offset, pageOffsetBefore);
     },
   );
 
-  test('exclusive prompt physics is desktop-only', () {
-    expect(supportsPromptWeightScrollPhysics(TargetPlatform.windows), isTrue);
-    expect(supportsPromptWeightScrollPhysics(TargetPlatform.macOS), isTrue);
-    expect(supportsPromptWeightScrollPhysics(TargetPlatform.linux), isTrue);
-    expect(supportsPromptWeightScrollPhysics(TargetPlatform.android), isFalse);
-    expect(supportsPromptWeightScrollPhysics(TargetPlatform.iOS), isFalse);
-    expect(supportsPromptWeightScrollPhysics(TargetPlatform.fuchsia), isFalse);
+  test('exclusive prompt physics follows observed precise-pointer input', () {
+    const windowsTouch = InteractionPolicy(
+      modality: InteractionModality.touch,
+      touchAvailable: true,
+      precisePointerAvailable: false,
+    );
+    const androidMouse = InteractionPolicy(
+      modality: InteractionModality.pointer,
+      touchAvailable: false,
+      precisePointerAvailable: true,
+    );
+    const mixedInput = InteractionPolicy(
+      modality: InteractionModality.touch,
+      touchAvailable: true,
+      precisePointerAvailable: true,
+    );
+
+    expect(supportsPromptWeightScrollPhysics(windowsTouch), isFalse);
+    expect(supportsPromptWeightScrollPhysics(androidMouse), isTrue);
+    expect(supportsPromptWeightScrollPhysics(mixedInput), isTrue);
+    expect(
+      supportsPromptWeightScrollPhysics(InteractionPolicy.neutral),
+      isFalse,
+    );
   });
 
   testWidgets('floating toolbar wheel obeys the wheel setting', (tester) async {
@@ -590,6 +610,69 @@ void main() {
     await tester.pump();
 
     expect(find.byType(TextField), findsNWidgets(2));
+  });
+
+  testWidgets('narrow 3x toolbar stays on-screen and supports keyboard', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 3;
+    tester.view.physicalSize = const Size(960, 1800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final prompt = TextEditingController(text: 'cat');
+    final focus = FocusNode();
+    addTearDown(prompt.dispose);
+    addTearDown(focus.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: const TextScaler.linear(3),
+            padding: const EdgeInsets.only(left: 8, right: 8, bottom: 24),
+            viewInsets: const EdgeInsets.only(bottom: 120),
+          ),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(
+              height: 120,
+              child: WeightAdjustToolbarWrapper(
+                controller: prompt,
+                focusNode: focus,
+                child: ThemedInput(controller: prompt, focusNode: focus),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    focus.requestFocus();
+    prompt.selection = const TextSelection(baseOffset: 0, extentOffset: 3);
+    await tester.pump();
+    await tester.pump();
+
+    final toolbarMaterial = find.descendant(
+      of: find.byType(CompositedTransformFollower),
+      matching: find.byType(Material),
+    );
+    expect(tester.getSize(toolbarMaterial.first).width, lessThanOrEqualTo(304));
+    expect(tester.takeException(), isNull);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(prompt.text, isNot('cat'));
+
+    prompt.selection = TextSelection.collapsed(offset: prompt.text.length);
+    focus.unfocus();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 250));
   });
 }
 

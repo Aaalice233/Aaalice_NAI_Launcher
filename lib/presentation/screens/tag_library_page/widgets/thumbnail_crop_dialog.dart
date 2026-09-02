@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 
 /// 缩略图裁剪调整结果
 class ThumbnailCropResult {
@@ -192,107 +193,70 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final mediaQuery = MediaQuery.of(context);
-    final isCompact =
-        mediaQuery.size.width < 600 || mediaQuery.size.height < 600;
 
-    final content = SafeArea(
-      child: Column(
-        children: [
-          _buildHeader(theme, l10n),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                isCompact ? 12 : 16,
-                12,
-                isCompact ? 12 : 16,
-                12,
-              ),
-              child: Column(
-                children: [
-                  _buildHint(theme, l10n),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final displaySize = isCompact
-                            ? Size(constraints.maxWidth, constraints.maxHeight)
-                            : Size(
-                                constraints.maxWidth.clamp(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final compact = constraints.maxWidth < 600;
+        final short = constraints.maxHeight < 400;
+        final compactActions =
+            constraints.maxWidth < 360 ||
+            constraints.maxHeight < 360 ||
+            textScale >= 2;
+
+        return Align(
+          child: SizedBox(
+            key: const ValueKey('thumbnail-crop-frame'),
+            width: constraints.maxWidth.clamp(0, 720).toDouble(),
+            height: constraints.maxHeight.clamp(0, 566).toDouble(),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      compact ? 12 : 16,
+                      short ? 8 : 12,
+                      compact ? 12 : 16,
+                      short ? 8 : 12,
+                    ),
+                    child: Column(
+                      children: [
+                        if (!short) ...[
+                          _buildHint(theme, l10n),
+                          const SizedBox(height: 12),
+                        ],
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, previewConstraints) {
+                              final displaySize = Size(
+                                previewConstraints.maxWidth.clamp(
                                   1,
                                   _desktopDisplaySize.width,
                                 ),
-                                constraints.maxHeight.clamp(
+                                previewConstraints.maxHeight.clamp(
                                   1,
                                   _desktopDisplaySize.height,
                                 ),
                               );
-                        return Center(
-                          child: ScrollConfiguration(
-                            behavior: const _NoScrollBehavior(),
-                            child: _buildAdjustArea(displaySize),
+                              return Center(
+                                child: ScrollConfiguration(
+                                  behavior: const _NoScrollBehavior(),
+                                  child: _buildAdjustArea(displaySize),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                _buildFooter(theme, l10n, compactActions: compactActions),
+              ],
             ),
           ),
-          _buildFooter(theme, l10n),
-        ],
-      ),
-    );
-
-    if (isCompact) {
-      return Dialog.fullscreen(child: content);
-    }
-
-    final availableHeight =
-        mediaQuery.size.height -
-        mediaQuery.padding.vertical -
-        mediaQuery.viewInsets.bottom -
-        48;
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: 720,
-        height: availableHeight.clamp(360, 566),
-        child: content,
-      ),
-    );
-  }
-
-  /// 构建标题栏
-  Widget _buildHeader(ThemeData theme, AppLocalizations l10n) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.crop_free, color: theme.colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              l10n.tagLibrary_adjustThumbnailTitle,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close),
-            tooltip: l10n.common_cancel,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -326,7 +290,11 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
         width: displaySize.width,
         height: displaySize.height,
         decoration: decoration,
-        child: const Center(child: CircularProgressIndicator()),
+        child: Center(
+          child: CircularProgressIndicator(
+            value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+          ),
+        ),
       );
     }
 
@@ -435,9 +403,51 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
   }
 
   /// 构建底部按钮
-  Widget _buildFooter(ThemeData theme, AppLocalizations l10n) {
+  Widget _buildFooter(
+    ThemeData theme,
+    AppLocalizations l10n, {
+    required bool compactActions,
+  }) {
+    final actions = compactActions
+        ? <Widget>[
+            IconButton(
+              onPressed: _reset,
+              icon: const Icon(Icons.restart_alt),
+              tooltip: l10n.common_reset,
+            ),
+            IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close),
+              tooltip: l10n.common_cancel,
+            ),
+            IconButton.filled(
+              onPressed: _confirm,
+              icon: const Icon(Icons.check),
+              tooltip: l10n.common_confirm,
+            ),
+          ]
+        : <Widget>[
+            TextButton.icon(
+              onPressed: _reset,
+              icon: const Icon(Icons.restart_alt),
+              label: Text(l10n.common_reset),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.common_cancel),
+            ),
+            FilledButton.icon(
+              onPressed: _confirm,
+              icon: const Icon(Icons.check),
+              label: Text(l10n.common_confirm),
+            ),
+          ];
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: compactActions ? 12 : 16,
+        vertical: compactActions ? 4 : 8,
+      ),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(color: theme.colorScheme.outlineVariant),
@@ -448,22 +458,7 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: 8,
         runSpacing: 8,
-        children: [
-          TextButton.icon(
-            onPressed: _reset,
-            icon: const Icon(Icons.restart_alt),
-            label: Text(l10n.common_reset),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.common_cancel),
-          ),
-          FilledButton.icon(
-            onPressed: _confirm,
-            icon: const Icon(Icons.check),
-            label: Text(l10n.common_confirm),
-          ),
-        ],
+        children: actions,
       ),
     );
   }
@@ -559,9 +554,27 @@ Future<void> showThumbnailCropDialog({
   double initialScale = 1.0,
   required ValueChanged<ThumbnailCropResult> onConfirm,
 }) async {
-  await showDialog<void>(
+  await AdaptivePresenter.showForm<void>(
     context: context,
-    builder: (context) => ThumbnailCropDialog(
+    titleBuilder: (panelContext) => Row(
+      children: [
+        Icon(
+          Icons.crop_free,
+          color: Theme.of(panelContext).colorScheme.primary,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            panelContext.l10n.tagLibrary_adjustThumbnailTitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(panelContext).textTheme.titleLarge,
+          ),
+        ),
+      ],
+    ),
+    sideSheetWidth: 720,
+    builder: (_, __) => ThumbnailCropDialog(
       imagePath: imagePath,
       initialOffsetX: initialOffsetX,
       initialOffsetY: initialOffsetY,

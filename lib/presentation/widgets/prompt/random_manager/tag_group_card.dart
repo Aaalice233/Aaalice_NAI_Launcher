@@ -4,6 +4,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
@@ -274,9 +275,44 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
   }
 
   void _showEditDialog(BuildContext context, {int initialTabIndex = 0}) {
-    showDialog(
+    AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => _TagGroupEditDialog(
+      sideSheetWidth: 640,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.tune_rounded,
+            size: 20,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  panelContext.l10n.randomManager_editTagGroup,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(panelContext).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  panelContext.l10n.randomTagGroupName(widget.tagGroup),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(panelContext).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(panelContext).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      builder: (panelContext, scrollController) => _TagGroupEditDialog(
         tagGroup: widget.tagGroup,
         categoryId: widget.categoryId,
         presetId: widget.presetId,
@@ -351,115 +387,92 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
-    return Dialog(
-      backgroundColor: colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: 640,
-        height: 640,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 18, 12, 12),
+    return Column(
+      children: [
+        TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          dividerColor: Colors.transparent,
+          indicatorSize: TabBarIndicatorSize.label,
+          tabs: [
+            Tab(
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.tune_rounded,
-                    size: 20,
-                    color: colorScheme.primary,
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.randomManager_editTagGroup,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          l10n.randomTagGroupName(widget.tagGroup),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                  const Icon(Icons.tune_rounded, size: 17),
+                  const SizedBox(width: 8),
+                  Text(l10n.randomManager_basicTab),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.sell_outlined, size: 17),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.randomManager_tagsTab(
+                      ref.watch(groupTagCountProvider(_editingTagGroup)),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    tooltip: l10n.common_close,
-                    icon: const Icon(Icons.close_rounded, size: 20),
                   ),
                 ],
               ),
             ),
-            TabBar(
-              controller: _tabController,
-              dividerColor: Colors.transparent,
-              indicatorSize: TabBarIndicatorSize.label,
-              tabs: [
-                Tab(
-                  icon: const Icon(Icons.tune_rounded, size: 17),
-                  text: l10n.randomManager_basicTab,
-                ),
-                Tab(
-                  icon: const Icon(Icons.sell_outlined, size: 17),
-                  text: l10n.randomManager_tagsTab(
-                    ref.watch(groupTagCountProvider(_editingTagGroup)),
-                  ),
-                ),
-                Tab(
-                  icon: const Icon(Icons.account_tree_outlined, size: 17),
-                  text: l10n.randomManager_diyAbilitiesTab,
-                ),
-              ],
-            ),
-            Expanded(
-              child: ColoredBox(
-                color: colorScheme.surfaceContainerLow,
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildBasicTab(context),
-                    _buildTagsTab(context),
-                    _buildDiyTab(context),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            Tab(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      widget.isPresetDefault
-                          ? l10n.common_close
-                          : l10n.common_cancel,
-                    ),
-                  ),
-                  if (!widget.isPresetDefault) ...[
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: _saveChanges,
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: Text(l10n.common_save),
-                    ),
-                  ],
+                  const Icon(Icons.account_tree_outlined, size: 17),
+                  const SizedBox(width: 8),
+                  Text(l10n.randomManager_diyAbilitiesTab),
                 ],
               ),
             ),
           ],
         ),
-      ),
+        Expanded(
+          child: ColoredBox(
+            color: colorScheme.surfaceContainerLow,
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildBasicTab(context),
+                _buildTagsTab(context),
+                _buildDiyTab(context),
+              ],
+            ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    widget.isPresetDefault
+                        ? l10n.common_close
+                        : l10n.common_cancel,
+                  ),
+                ),
+                if (!widget.isPresetDefault)
+                  FilledButton.icon(
+                    onPressed: _saveChanges,
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: Text(l10n.common_save),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -498,101 +511,131 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
           ),
           const SizedBox(height: 16),
           // 概率
-          Row(
-            children: [
-              Text(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 420 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 2;
+              final label = Text(
                 '${l10n.randomManager_probability}:',
                 style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Opacity(
-                  opacity: isReadOnly ? 0.6 : 1.0,
-                  child: Slider(
-                    value: _editingTagGroup.probability,
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    label: '${(_editingTagGroup.probability * 100).toInt()}%',
-                    onChanged: isReadOnly
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _editingTagGroup = _editingTagGroup.copyWith(
-                                probability: value,
-                              );
-                            });
-                          },
-                  ),
+              );
+              final slider = Opacity(
+                opacity: isReadOnly ? 0.6 : 1.0,
+                child: Slider(
+                  value: _editingTagGroup.probability,
+                  min: 0,
+                  max: 1,
+                  divisions: 20,
+                  label: '${(_editingTagGroup.probability * 100).toInt()}%',
+                  onChanged: isReadOnly
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _editingTagGroup = _editingTagGroup.copyWith(
+                              probability: value,
+                            );
+                          });
+                        },
                 ),
-              ),
-              SizedBox(
-                width: 48,
-                child: Text(
-                  '${(_editingTagGroup.probability * 100).toInt()}%',
-                  textAlign: TextAlign.right,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              );
+              final value = Text(
+                '${(_editingTagGroup.probability * 100).toInt()}%',
+                textAlign: TextAlign.right,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-              ),
-            ],
+              );
+              if (stacked) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    label,
+                    Row(
+                      children: [
+                        Expanded(child: slider),
+                        value,
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  label,
+                  const SizedBox(width: 16),
+                  Expanded(child: slider),
+                  SizedBox(width: 48, child: value),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           // 选择模式
-          Row(
-            children: [
-              Text(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final label = Text(
                 '${l10n.randomManager_selectionMode}:',
                 style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: DropdownButton<SelectionMode>(
-                  value: _editingTagGroup.selectionMode,
-                  isExpanded: true,
-                  items: SelectionMode.values.map((mode) {
-                    final (label, desc) = switch (mode) {
-                      SelectionMode.single => (
-                        l10n.randomManager_selectionSingle,
-                        l10n.randomManager_selectionSingleDesc,
-                      ),
-                      SelectionMode.all => (
-                        l10n.randomManager_selectionAll,
-                        l10n.randomManager_selectionAllDesc,
-                      ),
-                      SelectionMode.multipleNum => (
-                        l10n.randomManager_selectionMultipleCount,
-                        l10n.randomManager_selectionMultipleCountDesc,
-                      ),
-                      SelectionMode.multipleProb => (
-                        l10n.randomManager_selectionMultipleProbability,
-                        l10n.randomManager_selectionMultipleProbabilityDesc,
-                      ),
-                      SelectionMode.sequential => (
-                        l10n.randomManager_selectionSequential,
-                        l10n.randomManager_selectionSequentialDesc,
-                      ),
-                    };
-                    return DropdownMenuItem(
-                      value: mode,
-                      child: Text('$label - $desc'),
-                    );
-                  }).toList(),
-                  onChanged: isReadOnly
-                      ? null
-                      : (mode) {
-                          if (mode != null) {
-                            setState(() {
-                              _editingTagGroup = _editingTagGroup.copyWith(
-                                selectionMode: mode,
-                              );
-                            });
-                          }
-                        },
-                ),
-              ),
-            ],
+              );
+              final selector = DropdownButton<SelectionMode>(
+                value: _editingTagGroup.selectionMode,
+                isExpanded: true,
+                items: SelectionMode.values.map((mode) {
+                  final (label, desc) = switch (mode) {
+                    SelectionMode.single => (
+                      l10n.randomManager_selectionSingle,
+                      l10n.randomManager_selectionSingleDesc,
+                    ),
+                    SelectionMode.all => (
+                      l10n.randomManager_selectionAll,
+                      l10n.randomManager_selectionAllDesc,
+                    ),
+                    SelectionMode.multipleNum => (
+                      l10n.randomManager_selectionMultipleCount,
+                      l10n.randomManager_selectionMultipleCountDesc,
+                    ),
+                    SelectionMode.multipleProb => (
+                      l10n.randomManager_selectionMultipleProbability,
+                      l10n.randomManager_selectionMultipleProbabilityDesc,
+                    ),
+                    SelectionMode.sequential => (
+                      l10n.randomManager_selectionSequential,
+                      l10n.randomManager_selectionSequentialDesc,
+                    ),
+                  };
+                  return DropdownMenuItem(
+                    value: mode,
+                    child: Text('$label - $desc'),
+                  );
+                }).toList(),
+                onChanged: isReadOnly
+                    ? null
+                    : (mode) {
+                        if (mode != null) {
+                          setState(() {
+                            _editingTagGroup = _editingTagGroup.copyWith(
+                              selectionMode: mode,
+                            );
+                          });
+                        }
+                      },
+              );
+              if (constraints.maxWidth < 420 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 2) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [label, const SizedBox(height: 8), selector],
+                );
+              }
+              return Row(
+                children: [
+                  label,
+                  const SizedBox(width: 16),
+                  Expanded(child: selector),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -795,65 +838,71 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: colorScheme.tertiaryContainer.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    Icons.bolt,
-                    size: 18,
-                    color: colorScheme.tertiary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final label = Text(
                   '${l10n.randomManager_emphasisProbability}:',
                   style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 4,
-                      activeTrackColor: colorScheme.tertiary,
-                      inactiveTrackColor: colorScheme.tertiaryContainer
-                          .withValues(alpha: 0.3),
-                      thumbColor: colorScheme.tertiary,
-                      overlayColor: colorScheme.tertiary.withValues(alpha: 0.1),
-                    ),
-                    child: Slider(
-                      value: _editingTagGroup.emphasisProbability,
-                      min: 0,
-                      max: 0.1,
-                      divisions: 10,
-                      label:
-                          '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
-                      onChanged: (value) {
-                        setState(() {
-                          _editingTagGroup = _editingTagGroup.copyWith(
-                            emphasisProbability: value,
-                          );
-                        });
-                      },
-                    ),
+                );
+                final slider = SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 4,
+                    activeTrackColor: colorScheme.tertiary,
+                    inactiveTrackColor: colorScheme.tertiaryContainer
+                        .withValues(alpha: 0.3),
+                    thumbColor: colorScheme.tertiary,
+                    overlayColor: colorScheme.tertiary.withValues(alpha: 0.1),
                   ),
-                ),
-                SizedBox(
-                  width: 48,
-                  child: Text(
-                    '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
-                    textAlign: TextAlign.right,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.tertiary,
-                    ),
+                  child: Slider(
+                    value: _editingTagGroup.emphasisProbability,
+                    min: 0,
+                    max: 0.1,
+                    divisions: 10,
+                    label:
+                        '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
+                    onChanged: (value) {
+                      setState(() {
+                        _editingTagGroup = _editingTagGroup.copyWith(
+                          emphasisProbability: value,
+                        );
+                      });
+                    },
                   ),
-                ),
-              ],
+                );
+                final value = Text(
+                  '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
+                  textAlign: TextAlign.right,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.tertiary,
+                  ),
+                );
+                if (constraints.maxWidth < 420 ||
+                    MediaQuery.textScalerOf(context).scale(1) >= 2) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      label,
+                      Row(
+                        children: [
+                          Expanded(child: slider),
+                          value,
+                        ],
+                      ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Icon(Icons.bolt, size: 18, color: colorScheme.tertiary),
+                    const SizedBox(width: 12),
+                    label,
+                    const SizedBox(width: 16),
+                    Expanded(child: slider),
+                    SizedBox(width: 48, child: value),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -861,105 +910,147 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     );
   }
 
-  /// 显示条件分支编辑对话框
+  /// 显示条件分支编辑面板
   void _showConditionalBranchDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_conditionalBranch,
-        child: ConditionalBranchPanel(
-          config: _editingTagGroup.conditionalBranchConfig,
-          onConfigChanged: (config) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                conditionalBranchConfig: config,
-              );
-            });
-          },
-        ),
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_conditionalBranch,
+      child: ConditionalBranchPanel(
+        config: _editingTagGroup.conditionalBranchConfig,
+        onConfigChanged: (config) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              conditionalBranchConfig: config,
+            );
+          });
+        },
       ),
     );
   }
 
-  /// 显示依赖配置编辑对话框
+  /// 显示依赖配置编辑面板
   void _showDependencyConfigDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_dependencyConfig,
-        child: DependencyConfigPanel(
-          config: _editingTagGroup.dependencyConfig,
-          onConfigChanged: (config) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                dependencyConfig: config,
-              );
-            });
-          },
-          availableCategories: _availableCategories,
-        ),
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_dependencyConfig,
+      child: DependencyConfigPanel(
+        config: _editingTagGroup.dependencyConfig,
+        onConfigChanged: (config) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              dependencyConfig: config,
+            );
+          });
+        },
+        availableCategories: _availableCategories,
       ),
     );
   }
 
-  /// 显示可见性规则编辑对话框
+  /// 显示可见性规则编辑面板
   void _showVisibilityRuleDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_visibilityRules,
-        child: VisibilityRulePanel(
-          rules: _editingTagGroup.visibilityRules,
-          onRulesChanged: (rules) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                visibilityRules: rules,
-              );
-            });
-          },
-          availableCategories: _availableCategories,
-        ),
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_visibilityRules,
+      child: VisibilityRulePanel(
+        rules: _editingTagGroup.visibilityRules,
+        onRulesChanged: (rules) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              visibilityRules: rules,
+            );
+          });
+        },
+        availableCategories: _availableCategories,
       ),
     );
   }
 
-  /// 显示时间条件编辑对话框
+  /// 显示时间条件编辑面板
   void _showTimeConditionDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_timeCondition,
-        child: TimeConditionPanel(
-          condition: _editingTagGroup.timeCondition,
-          onConditionChanged: (condition) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                timeCondition: condition,
-              );
-            });
-          },
-        ),
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_timeCondition,
+      child: TimeConditionPanel(
+        condition: _editingTagGroup.timeCondition,
+        onConditionChanged: (condition) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              timeCondition: condition,
+            );
+          });
+        },
       ),
     );
   }
 
-  /// 显示后处理规则编辑对话框
+  /// 显示后处理规则编辑面板
   void _showPostProcessRuleDialog() {
-    showDialog(
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_postProcessRules,
+      child: PostProcessRulePanel(
+        rules: _editingTagGroup.postProcessRules,
+        onRulesChanged: (rules) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              postProcessRules: rules,
+            );
+          });
+        },
+        availableCategories: _availableCategories,
+      ),
+    );
+  }
+
+  Future<void> _showDiyConfigForm({
+    required String title,
+    required Widget child,
+  }) {
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_postProcessRules,
-        child: PostProcessRulePanel(
-          rules: _editingTagGroup.postProcessRules,
-          onRulesChanged: (rules) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                postProcessRules: rules,
-              );
-            });
-          },
-          availableCategories: _availableCategories,
-        ),
+      sideSheetWidth: 620,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.auto_awesome,
+            color: Theme.of(panelContext).colorScheme.secondary,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                panelContext,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      builder: (panelContext, scrollController) => Column(
+        children: [
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(16),
+              children: [child],
+            ),
+          ),
+          const Divider(height: 1),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.pop(panelContext),
+                  icon: const Icon(Icons.check, size: 18),
+                  label: Text(panelContext.l10n.common_confirm),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1010,7 +1101,9 @@ class _DiySectionState extends State<_DiySection> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: widget.enabled
@@ -1029,9 +1122,12 @@ class _DiySectionState extends State<_DiySection> {
             ),
           ],
         ),
-        child: Row(
-          children: [
-            Container(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final stackContent =
+                constraints.maxWidth < 420 ||
+                MediaQuery.textScalerOf(context).scale(1) >= 2;
+            final icon = Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: widget.enabled
@@ -1046,207 +1142,70 @@ class _DiySectionState extends State<_DiySection> {
                     ? colorScheme.primary
                     : colorScheme.onSurfaceVariant,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: widget.enabled
-                          ? colorScheme.primary
-                          : colorScheme.onSurface,
-                    ),
+            );
+            final description = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: widget.enabled
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.description,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (widget.enabled)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.check,
-                      color: colorScheme.primary,
-                      size: 16,
-                    ),
-                  ),
-                  if (widget.onEdit != null) ...[
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(
-                      onPressed: widget.onEdit,
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(AppLocalizations.of(context)!.common_edit),
-                    ),
-                  ],
-                ],
-              )
-            else
-              FilledButton.tonal(
-                onPressed: widget.onAdd,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(AppLocalizations.of(context)!.common_add),
+                const SizedBox(height: 2),
+                Text(
+                  widget.description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            );
+            final action = FilledButton.tonal(
+              onPressed: widget.enabled ? widget.onEdit : widget.onAdd,
+              child: Text(
+                widget.enabled
+                    ? AppLocalizations.of(context)!.common_edit
+                    : AppLocalizations.of(context)!.common_add,
               ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+            );
 
-/// DIY 配置对话框
-class _DiyConfigDialog extends StatelessWidget {
-  const _DiyConfigDialog({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        width: 620,
-        height: 560,
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.16),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // 标题栏 - 渐变背景
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    colorScheme.secondaryContainer.withValues(alpha: 0.3),
-                    colorScheme.tertiaryContainer.withValues(alpha: 0.2),
-                  ],
-                ),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(8),
-                ),
-                border: Border(
-                  bottom: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-                  ),
-                ),
-              ),
-              child: Row(
+            if (stackContent) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: colorScheme.secondary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.auto_awesome,
-                      color: colorScheme.secondary,
-                      size: 20,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      icon,
+                      const SizedBox(width: 12),
+                      Expanded(child: description),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                    iconSize: 20,
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                    ),
-                  ),
+                  const SizedBox(height: 12),
+                  action,
                 ],
-              ),
-            ),
-            // 内容
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: child,
-              ),
-            ),
-            // 底部按钮
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(8),
-                ),
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-                  ),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  FilledButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.check, size: 18),
-                    label: Text(AppLocalizations.of(context)!.common_confirm),
-                  ),
+              );
+            }
+            return Row(
+              children: [
+                icon,
+                const SizedBox(width: 12),
+                Expanded(child: description),
+                if (widget.enabled) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.check, color: colorScheme.primary, size: 20),
                 ],
-              ),
-            ),
-          ],
+                if (!widget.enabled || widget.onEdit != null) ...[
+                  const SizedBox(width: 8),
+                  action,
+                ],
+              ],
+            );
+          },
         ),
       ),
     );

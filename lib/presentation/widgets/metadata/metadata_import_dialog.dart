@@ -4,6 +4,8 @@ import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../common/adaptive_dialog_frame.dart';
 
 /// 元数据导入对话框
 ///
@@ -11,17 +13,46 @@ import '../../../../data/models/metadata/metadata_import_options.dart';
 /// 新设计：按类型分组复选框，支持父子选项联动
 class MetadataImportDialog extends StatefulWidget {
   final NaiImageMetadata metadata;
+  final ScrollController? scrollController;
 
-  const MetadataImportDialog({super.key, required this.metadata});
+  const MetadataImportDialog({
+    super.key,
+    required this.metadata,
+    this.scrollController,
+  });
 
   /// 显示对话框并返回用户选择的导入选项
   static Future<MetadataImportOptions?> show(
     BuildContext context, {
     required NaiImageMetadata metadata,
   }) {
-    return showDialog<MetadataImportOptions>(
+    return AdaptivePresenter.showForm<MetadataImportOptions>(
       context: context,
-      builder: (context) => MetadataImportDialog(metadata: metadata),
+      sideSheetWidth: 560,
+      titleBuilder: (context) {
+        final theme = Theme.of(context);
+        return Row(
+          children: [
+            Icon(
+              Icons.file_download_outlined,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                context.l10n.metadataImport_title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+          ],
+        );
+      },
+      builder: (context, scrollController) => MetadataImportDialog(
+        metadata: metadata,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -71,89 +102,107 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
     final theme = Theme.of(context);
     final selectedCount = _options.selectedCountFor(widget.metadata);
 
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.file_download_outlined, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(l10n.metadataImport_title),
-        ],
-      ),
-      content: SizedBox(
-        width: 520,
-        height: 600,
-        child: Column(
+    return AdaptiveDialogFrame(
+      key: const Key('metadata-import-dialog-frame'),
+      maxWidth: 560,
+      maxHeight: 700,
+      reservedVerticalSpace: 0,
+      horizontalMargin: 0,
+      child: LayoutBuilder(
+        builder: (context, frameConstraints) => Column(
           children: [
-            // 快速预设按钮
-            _buildQuickPresets(),
-            const SizedBox(height: 12),
-            Divider(color: theme.colorScheme.outlineVariant),
-            const SizedBox(height: 8),
-            // 可滚动的选项列表
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 提示词分组
-                    _buildPromptSection(),
-                    if (_hasReferenceData()) ...[
-                      const SizedBox(height: 16),
-                      Divider(color: theme.colorScheme.outlineVariant),
-                      const SizedBox(height: 8),
-                      _buildReferenceSection(),
-                    ],
+              child: ListView(
+                key: const Key('metadata-import-options-list'),
+                controller: widget.scrollController,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                children: [
+                  _buildQuickPresets(),
+                  const SizedBox(height: 12),
+                  Divider(color: theme.colorScheme.outlineVariant),
+                  const SizedBox(height: 8),
+                  _buildPromptSection(),
+                  if (_hasReferenceData()) ...[
                     const SizedBox(height: 16),
                     Divider(color: theme.colorScheme.outlineVariant),
                     const SizedBox(height: 8),
-                    // 生成参数分组
-                    _buildGenerationSection(),
+                    _buildReferenceSection(),
                   ],
-                ),
-              ),
-            ),
-            // 底部统计
-            Container(
-              padding: const EdgeInsets.only(top: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: theme.colorScheme.outlineVariant),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.check_circle_outline,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    l10n.metadataImport_selectedCount(selectedCount),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  const SizedBox(height: 16),
+                  Divider(color: theme.colorScheme.outlineVariant),
+                  const SizedBox(height: 8),
+                  _buildGenerationSection(),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 16,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          l10n.metadataImport_selectedCount(selectedCount),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
+              ),
+            ),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: frameConstraints.maxHeight * 0.8,
+              ),
+              child: SingleChildScrollView(
+                key: const Key('metadata-import-actions-scroll'),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final stackActions =
+                            constraints.maxWidth < 360 ||
+                            MediaQuery.textScalerOf(context).scale(1) >= 2;
+                        final cancel = TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text(l10n.common_cancel),
+                        );
+                        final confirm = FilledButton(
+                          onPressed: selectedCount == 0
+                              ? null
+                              : () => Navigator.of(context).pop(_options),
+                          child: Text(l10n.common_confirm),
+                        );
+                        if (stackActions) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [confirm, cancel],
+                          );
+                        }
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [cancel, const SizedBox(width: 8), confirm],
+                        );
+                      },
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: selectedCount == 0
-              ? null
-              : () => Navigator.of(context).pop(_options),
-          child: Text(l10n.common_confirm),
-        ),
-      ],
     );
   }
 
@@ -647,11 +696,15 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
       children: [
         Icon(icon, size: 18, color: theme.colorScheme.primary),
         const SizedBox(width: 6),
-        Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.primary,
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+            ),
           ),
         ),
       ],

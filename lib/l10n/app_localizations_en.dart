@@ -1906,6 +1906,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_directorRunning => 'Processing...';
 
   @override
+  String get img2img_directorConfirmTitle => 'Confirm Anlas usage';
+
+  @override
+  String img2img_directorConfirmContent(Object tool, int cost) {
+    return 'Running $tool is estimated to cost $cost Anlas. Do you want to continue?';
+  }
+
+  @override
   String get img2img_directorResult => 'Result';
 
   @override

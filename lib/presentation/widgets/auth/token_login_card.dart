@@ -117,10 +117,13 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
             child: FilledButton.icon(
               onPressed: authState.isLoading ? null : _handleLogin,
               icon: authState.isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 18,
                       width: 18,
                       child: CircularProgressIndicator(
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.75
+                            : null,
                         strokeWidth: 2,
                         color: Colors.white,
                       ),
@@ -216,11 +219,16 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
                     color: theme.colorScheme.primary,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    context.l10n.auth_tokenGuide,
-                    style: TextStyle(
-                      color: theme.colorScheme.primary,
-                      fontSize: 13,
+                  Flexible(
+                    child: Text(
+                      context.l10n.auth_tokenGuide,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],

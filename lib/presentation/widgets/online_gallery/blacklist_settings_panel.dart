@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/online_gallery/gallery_blacklist.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/services/danbooru_auth_service.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/online_gallery_blacklist_provider.dart';
 import '../autocomplete/autocomplete_config.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
@@ -226,6 +230,7 @@ class _OnlineGalleryBlacklistSettingsPanelState
   }
 
   Widget _buildTagList(ThemeData theme, List<String> tags) {
+    final controlExtent = context.interactionPolicy.minimumControlExtent;
     return Container(
       width: double.infinity,
       height: 250,
@@ -245,21 +250,28 @@ class _OnlineGalleryBlacklistSettingsPanelState
           : ListView.builder(
               key: const ValueKey('online-gallery-blacklist-virtual-list'),
               padding: const EdgeInsets.symmetric(vertical: 4),
-              itemExtent: 40,
+              itemExtent: controlExtent,
               itemCount: tags.length,
               itemBuilder: (context, index) {
                 final tag = tags[index];
                 return ListTile(
+                  key: ValueKey('online-gallery-blacklist-item-$tag'),
                   dense: true,
-                  minTileHeight: 40,
+                  minTileHeight: controlExtent,
                   title: Text(
                     tag,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: IconButton(
+                    key: ValueKey('online-gallery-blacklist-delete-$tag'),
                     tooltip: context.l10n.common_delete,
-                    visualDensity: VisualDensity.compact,
+                    visualDensity: VisualDensity.standard,
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints.tightFor(
+                      width: controlExtent,
+                      height: controlExtent,
+                    ),
                     onPressed: () => _removeTag(tag),
                     icon: const Icon(Icons.close, size: 17),
                   ),
@@ -270,14 +282,16 @@ class _OnlineGalleryBlacklistSettingsPanelState
   }
 
   Widget _buildListActions(OnlineGalleryBlacklistState state) {
-    return Row(
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      runSpacing: 4,
+      spacing: 8,
       children: [
         OutlinedButton.icon(
           onPressed: _showImportDialog,
           icon: const Icon(Icons.playlist_add, size: 17),
           label: Text(context.l10n.common_import),
         ),
-        const Spacer(),
         TextButton.icon(
           onPressed: state.tags.isEmpty ? null : _confirmClear,
           icon: const Icon(Icons.delete_sweep_outlined, size: 17),
@@ -470,36 +484,14 @@ class _OnlineGalleryBlacklistSettingsPanelState
   }
 
   Future<void> _showImportDialog() async {
-    final controller = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final text = await AdaptivePresenter.showForm<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(dialogContext.l10n.onlineGallery_blacklistImportTitle),
-        content: TextField(
-          controller: controller,
-          minLines: 5,
-          maxLines: 10,
-          autofocus: true,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            hintText: dialogContext.l10n.onlineGallery_blacklistImportHint,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(dialogContext.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(dialogContext.l10n.common_import),
-          ),
-        ],
-      ),
+      title: context.l10n.onlineGallery_blacklistImportTitle,
+      sideSheetWidth: 560,
+      builder: (panelContext, scrollController) =>
+          _BlacklistImportForm(scrollController: scrollController),
     );
-    final text = controller.text;
-    controller.dispose();
-    if (confirmed != true || !mounted) return;
+    if (text == null || !mounted) return;
     try {
       final count = await ref
           .read(onlineGalleryBlacklistNotifierProvider.notifier)
@@ -519,6 +511,9 @@ class _OnlineGalleryBlacklistSettingsPanelState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        constraints: _responsiveDialogConstraints(dialogContext, 560),
+        insetPadding: _responsiveDialogInsetPadding,
+        scrollable: true,
         title: Text(dialogContext.l10n.onlineGallery_blacklistClearTitle),
         content: Text(dialogContext.l10n.onlineGallery_blacklistClearBody),
         actions: [
@@ -604,97 +599,22 @@ class _OnlineGalleryBlacklistSettingsPanelState
       return;
     }
 
-    final requiresEmptyConfirmation = preview.requiresEmptyConfirmation;
-    final requiresMigrationConfirmation = preview.containsLegacyUnscopedData;
-    var emptyConfirmed = false;
-    var migrationConfirmed = false;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(
-            dialogContext.l10n.onlineGallery_pushBlacklistConfirmTitle,
+    final confirmation =
+        await AdaptivePresenter.showForm<_BlacklistPushReviewResult>(
+          context: context,
+          title: context.l10n.onlineGallery_pushBlacklistConfirmTitle,
+          sideSheetWidth: 620,
+          builder: (panelContext, scrollController) => _BlacklistPushReviewForm(
+            preview: preview,
+            scrollController: scrollController,
           ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dialogContext.l10n.onlineGallery_blacklistPushDiff(
-                    preview.addedTags.length,
-                    preview.removedTags.length,
-                    preview.opaqueRulesToRemove.length,
-                  ),
-                ),
-                if (preview.opaqueRulesToRemove.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    dialogContext.l10n.onlineGallery_pushBlacklistConfirmBody,
-                    style: TextStyle(
-                      color: Theme.of(dialogContext).colorScheme.error,
-                    ),
-                  ),
-                ],
-                if (requiresMigrationConfirmation) ...[
-                  const SizedBox(height: 10),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: migrationConfirmed,
-                    onChanged: (value) => setDialogState(
-                      () => migrationConfirmed = value ?? false,
-                    ),
-                    title: Text(
-                      dialogContext
-                          .l10n
-                          .onlineGallery_blacklistMigrationConfirm,
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ],
-                if (requiresEmptyConfirmation) ...[
-                  const SizedBox(height: 10),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: emptyConfirmed,
-                    onChanged: (value) =>
-                        setDialogState(() => emptyConfirmed = value ?? false),
-                    title: Text(
-                      dialogContext
-                          .l10n
-                          .onlineGallery_blacklistCloudEmptyConfirm,
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(dialogContext.l10n.common_cancel),
-            ),
-            FilledButton.icon(
-              onPressed:
-                  (requiresEmptyConfirmation && !emptyConfirmed) ||
-                      (requiresMigrationConfirmation && !migrationConfirmed)
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-              label: Text(dialogContext.l10n.onlineGallery_pushBlacklist),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+        );
+    if (confirmation == null || !mounted) return;
 
     final succeeded = await notifier.pushToCloud(
       preview,
-      confirmEmptyReplacement: emptyConfirmed,
-      confirmLegacyMigration: migrationConfirmed,
+      confirmEmptyReplacement: confirmation.emptyConfirmed,
+      confirmLegacyMigration: confirmation.migrationConfirmed,
     );
     if (!mounted) return;
     if (succeeded) {
@@ -710,10 +630,208 @@ class _OnlineGalleryBlacklistSettingsPanelState
     }
   }
 
-  void _openLogin() {
-    showDialog<void>(
+  Future<void> _openLogin() {
+    return AdaptivePresenter.showPanel<bool>(
       context: context,
-      builder: (_) => const DanbooruLoginDialog(),
+      title: context.l10n.danbooru_loginTitle,
+      initialChildSize: 0.82,
+      minChildSize: 0.58,
+      maxChildSize: 0.96,
+      sideSheetWidth: 440,
+      builder: (_, scrollController) => DanbooruLoginDialog(
+        embedded: true,
+        scrollController: scrollController,
+      ),
+    );
+  }
+}
+
+class _BlacklistPushReviewResult {
+  const _BlacklistPushReviewResult({
+    required this.emptyConfirmed,
+    required this.migrationConfirmed,
+  });
+
+  final bool emptyConfirmed;
+  final bool migrationConfirmed;
+}
+
+class _BlacklistPushReviewForm extends StatefulWidget {
+  const _BlacklistPushReviewForm({
+    required this.preview,
+    required this.scrollController,
+  });
+
+  final GalleryBlacklistPushPreview preview;
+  final ScrollController scrollController;
+
+  @override
+  State<_BlacklistPushReviewForm> createState() =>
+      _BlacklistPushReviewFormState();
+}
+
+class _BlacklistPushReviewFormState extends State<_BlacklistPushReviewForm> {
+  bool _emptyConfirmed = false;
+  bool _migrationConfirmed = false;
+
+  bool get _canSubmit =>
+      (!widget.preview.requiresEmptyConfirmation || _emptyConfirmed) &&
+      (!widget.preview.containsLegacyUnscopedData || _migrationConfirmed);
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = widget.preview;
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            key: const ValueKey('online-gallery-blacklist-push-review-scroll'),
+            controller: widget.scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.l10n.onlineGallery_blacklistPushDiff(
+                    preview.addedTags.length,
+                    preview.removedTags.length,
+                    preview.opaqueRulesToRemove.length,
+                  ),
+                ),
+                if (preview.opaqueRulesToRemove.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    context.l10n.onlineGallery_pushBlacklistConfirmBody,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+                if (preview.containsLegacyUnscopedData) ...[
+                  const SizedBox(height: 10),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _migrationConfirmed,
+                    onChanged: (value) =>
+                        setState(() => _migrationConfirmed = value ?? false),
+                    title: Text(
+                      context.l10n.onlineGallery_blacklistMigrationConfirm,
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+                if (preview.requiresEmptyConfirmation) ...[
+                  const SizedBox(height: 10),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _emptyConfirmed,
+                    onChanged: (value) =>
+                        setState(() => _emptyConfirmed = value ?? false),
+                    title: Text(
+                      context.l10n.onlineGallery_blacklistCloudEmptyConfirm,
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(context.l10n.common_cancel),
+              ),
+              FilledButton.icon(
+                key: const ValueKey(
+                  'online-gallery-blacklist-push-review-submit',
+                ),
+                onPressed: _canSubmit
+                    ? () => Navigator.pop(
+                        context,
+                        _BlacklistPushReviewResult(
+                          emptyConfirmed: _emptyConfirmed,
+                          migrationConfirmed: _migrationConfirmed,
+                        ),
+                      )
+                    : null,
+                icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                label: Text(context.l10n.onlineGallery_pushBlacklist),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BlacklistImportForm extends StatefulWidget {
+  const _BlacklistImportForm({required this.scrollController});
+
+  final ScrollController scrollController;
+
+  @override
+  State<_BlacklistImportForm> createState() => _BlacklistImportFormState();
+}
+
+class _BlacklistImportFormState extends State<_BlacklistImportForm> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            key: const ValueKey('online-gallery-blacklist-import-scroll'),
+            controller: widget.scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            child: TextField(
+              controller: _controller,
+              minLines: 5,
+              maxLines: 10,
+              autofocus: true,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: context.l10n.onlineGallery_blacklistImportHint,
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(context.l10n.common_cancel),
+              ),
+              FilledButton(
+                key: const ValueKey('online-gallery-blacklist-import-submit'),
+                onPressed: () => Navigator.pop(context, _controller.text),
+                child: Text(context.l10n.common_import),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -729,26 +847,38 @@ Future<void> showOnlineGalleryBlacklistDialog(
         .ensureInitialized(),
   );
 
-  await showDialog<void>(
+  await AdaptivePresenter.showForm<void>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(dialogContext.l10n.onlineGallery_blacklistSettingsTitle),
-      content: SizedBox(
-        width: 680,
-        child: SingleChildScrollView(
-          child: OnlineGalleryBlacklistSettingsPanel(
-            compact: true,
-            showSyncStatus: true,
-            sourceId: sourceId,
-          ),
-        ),
+    title: context.l10n.onlineGallery_blacklistSettingsTitle,
+    sideSheetWidth: 728,
+    builder: (panelContext, scrollController) => SingleChildScrollView(
+      key: const ValueKey('online-gallery-blacklist-form-scroll'),
+      controller: scrollController,
+      padding: const EdgeInsets.all(16),
+      child: OnlineGalleryBlacklistSettingsPanel(
+        compact: true,
+        showSyncStatus: true,
+        sourceId: sourceId,
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: Text(dialogContext.l10n.common_close),
-        ),
-      ],
     ),
+  );
+}
+
+const _responsiveDialogInsetPadding = EdgeInsets.symmetric(
+  horizontal: 12,
+  vertical: 12,
+);
+
+BoxConstraints _responsiveDialogConstraints(
+  BuildContext context,
+  double maxWidth,
+) {
+  final unobscuredSize = context.adaptiveWindow.unobscuredSize;
+  final safeWidth = unobscuredSize.width - 24;
+  final safeHeight = unobscuredSize.height - 24;
+  return BoxConstraints(
+    minWidth: safeWidth.clamp(0, 280).toDouble(),
+    maxWidth: safeWidth.clamp(0, maxWidth).toDouble(),
+    maxHeight: safeHeight.clamp(0, double.infinity).toDouble(),
   );
 }

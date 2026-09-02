@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../core/autocomplete/tag_translation_lookup.dart';
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/nai_prompt_parser.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../app_toast.dart';
 import 'selection_copy_shortcuts.dart';
 
@@ -99,7 +99,9 @@ class _PromptSectionState extends State<PromptSection> {
         _buildHeader(colorScheme, theme, hasContent),
         ClipRect(
           child: AnimatedSize(
-            duration: const Duration(milliseconds: 160),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
             curve: Curves.easeOutCubic,
             alignment: Alignment.topCenter,
             child: _isExpanded && hasContent
@@ -119,9 +121,7 @@ class _PromptSectionState extends State<PromptSection> {
     ThemeData theme,
     bool hasContent,
   ) {
-    final actionTargetSize = PlatformCapabilities.current.hasTouchInput
-        ? 48.0
-        : 28.0;
+    final actionTargetSize = context.interactionPolicy.minimumControlExtent;
     final accentColor = widget.allTagsAreFixed
         ? colorScheme.tertiary
         : widget.isNegative
@@ -144,9 +144,7 @@ class _PromptSectionState extends State<PromptSection> {
                   : SystemMouseCursors.basic,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: PlatformCapabilities.current.hasTouchInput
-                      ? 48
-                      : 0,
+                  minHeight: context.interactionPolicy.minimumControlExtent,
                 ),
                 child: Row(
                   children: [
@@ -156,11 +154,15 @@ class _PromptSectionState extends State<PromptSection> {
                       color: hasContent ? accentColor : titleColor,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      widget.title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: titleColor,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        widget.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: titleColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -448,10 +450,12 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
         onTap: widget.onTap,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 0,
+            minHeight: context.interactionPolicy.minimumControlExtent,
           ),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: bgColor,
@@ -592,7 +596,7 @@ class CharacterPromptCard extends StatelessWidget {
           style: IconButton.styleFrom(
             padding: const EdgeInsets.all(4),
             minimumSize: Size.square(
-              PlatformCapabilities.current.hasTouchInput ? 48 : 24,
+              context.interactionPolicy.minimumControlExtent,
             ),
           ),
         ),

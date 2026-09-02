@@ -16,6 +16,7 @@ import 'package:nai_launcher/presentation/providers/queue_execution_provider.dar
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/collapsed_panel.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_controller.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/web_left_panel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -157,6 +158,13 @@ Future<void> _pumpPanel(
   final effectiveStorage =
       storage ?? _MemoryLocalStorageService(expanded: expanded);
   final negativeModeNotifier = ValueNotifier<bool>(false);
+  final promptInputController = PromptInputController(
+    prompt: '',
+    negativePrompt: '',
+    negativeModeNotifier: negativeModeNotifier,
+  );
+  final promptInputKey = GlobalKey();
+  addTearDown(promptInputController.dispose);
   addTearDown(negativeModeNotifier.dispose);
 
   await tester.pumpWidget(
@@ -196,7 +204,11 @@ Future<void> _pumpPanel(
               child: SizedBox(
                 width: width,
                 height: 900,
-                child: WebLeftPanel(negativeModeNotifier: negativeModeNotifier),
+                child: WebLeftPanel(
+                  negativeModeNotifier: negativeModeNotifier,
+                  promptInputController: promptInputController,
+                  promptInputKey: promptInputKey,
+                ),
               ),
             ),
           ),

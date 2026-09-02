@@ -66,6 +66,7 @@ class CloudSyncField extends StatelessWidget {
     required this.label,
     this.obscureText = false,
     this.keyboardType,
+    this.textInputAction,
     this.onChanged,
   });
 
@@ -73,6 +74,7 @@ class CloudSyncField extends StatelessWidget {
   final String label;
   final bool obscureText;
   final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
   final ValueChanged<String>? onChanged;
 
   @override
@@ -82,6 +84,7 @@ class CloudSyncField extends StatelessWidget {
     enableSuggestions: !obscureText,
     autocorrect: !obscureText,
     keyboardType: keyboardType,
+    textInputAction: textInputAction,
     onChanged: onChanged,
     decoration: InputDecoration(labelText: label, filled: true),
   );

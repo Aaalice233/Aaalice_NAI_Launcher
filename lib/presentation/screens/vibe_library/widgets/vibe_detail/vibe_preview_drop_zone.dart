@@ -8,6 +8,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/decoded_memory_image.dart';
 import '../../../../widgets/common/image_picker_card/_internal/picker_handler.dart';
@@ -185,6 +186,7 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
   @override
   Widget build(BuildContext context) {
     final capabilities = PlatformCapabilities.current;
+    final interactionPolicy = context.interactionPolicy;
     final content = Stack(
       children: [
         // 图片预览
@@ -223,7 +225,7 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (capabilities.hasPrecisePointer) ...[
+              if (interactionPolicy.precisePointerAvailable) ...[
                 _buildIconButton(
                   icon: Icons.add,
                   onPressed: _zoomIn,

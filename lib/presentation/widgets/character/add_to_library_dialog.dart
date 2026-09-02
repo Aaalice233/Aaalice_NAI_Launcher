@@ -5,6 +5,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/tag_library/tag_library_category.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/app_toast.dart';
 import '../common/image_picker_card/image_picker_card.dart';
@@ -19,11 +20,13 @@ class AddToLibraryDialog extends ConsumerStatefulWidget {
 
   /// 提示词内容
   final String content;
+  final ScrollController? scrollController;
 
   const AddToLibraryDialog({
     super.key,
     required this.defaultName,
     required this.content,
+    this.scrollController,
   });
 
   /// 显示收藏弹窗
@@ -32,10 +35,20 @@ class AddToLibraryDialog extends ConsumerStatefulWidget {
     required String name,
     required String content,
   }) {
-    return showDialog<bool>(
+    return AdaptivePresenter.showForm<bool>(
       context: context,
-      builder: (context) =>
-          AddToLibraryDialog(defaultName: name, content: content),
+      titleBuilder: (context) => Text(
+        context.l10n.tagLibrary_addToLibrary,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      sideSheetWidth: 520,
+      builder: (context, scrollController) => AddToLibraryDialog(
+        defaultName: name,
+        content: content,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -99,114 +112,63 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
     final l10n = AppLocalizations.of(context)!;
     final categories = ref.watch(tagLibraryPageCategoriesProvider);
 
-    return Dialog(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 480,
-        constraints: const BoxConstraints(maxHeight: 500),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 头部
-            _buildHeader(theme, colorScheme, l10n),
-            // 内容
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 预览图 + 名称/分类 横向布局
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // 左侧预览图
-                          _buildThumbnailSection(theme, colorScheme, l10n),
-                          const SizedBox(width: 16),
-                          // 右侧表单
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 名称输入
-                                _buildNameField(theme, colorScheme, l10n),
-                                const SizedBox(height: 12),
-                                // 分类选择
-                                _buildCategoryField(
-                                  theme,
-                                  colorScheme,
-                                  l10n,
-                                  categories,
-                                ),
-                              ],
-                            ),
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            controller: widget.scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(16),
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked =
+                      constraints.maxWidth < 400 ||
+                      MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+                  final form = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildNameField(theme, colorScheme, l10n),
+                      const SizedBox(height: 12),
+                      _buildCategoryField(theme, colorScheme, l10n, categories),
+                    ],
+                  );
+                  if (stacked) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: _buildThumbnailSection(
+                            theme,
+                            colorScheme,
+                            l10n,
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 16),
+                        form,
+                      ],
+                    );
+                  }
+                  return IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildThumbnailSection(theme, colorScheme, l10n),
+                        const SizedBox(width: 16),
+                        Expanded(child: form),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    // 内容预览
-                    _buildContentPreview(theme, colorScheme, l10n),
-                  ],
-                ),
+                  );
+                },
               ),
-            ),
-            // 底部按钮
-            _buildFooter(theme, colorScheme, l10n),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(
-    ThemeData theme,
-    ColorScheme colorScheme,
-    AppLocalizations l10n,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-            width: 1,
+              const SizedBox(height: 16),
+              _buildContentPreview(theme, colorScheme, l10n),
+            ],
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: colorScheme.errorContainer.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(Icons.favorite, size: 18, color: colorScheme.error),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              l10n.tagLibrary_addToLibrary,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close),
-            tooltip: l10n.common_close,
-            style: IconButton.styleFrom(
-              foregroundColor: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+        _buildFooter(theme, colorScheme, l10n),
+      ],
     );
   }
 
@@ -215,13 +177,14 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
     ColorScheme colorScheme,
     AppLocalizations l10n,
   ) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 2;
     return SizedBox(
-      width: 100,
+      width: largeText ? 160 : 100,
       child: ImagePickerCard(
         icon: Icons.add_photo_alternate_outlined,
         label: l10n.tagLibrary_selectImage,
         hintText: '(${l10n.common_optional})',
-        height: 100,
+        height: largeText ? 160 : 100,
         selectedImage: _thumbnailBytes,
         selectedPath: _thumbnailPath,
         onImageSelected: (bytes, fileName, path) {
@@ -387,15 +350,16 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
           ),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          TextButton(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked =
+              constraints.maxWidth < 360 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 2;
+          final cancel = TextButton(
             onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
             child: Text(l10n.common_cancel),
-          ),
-          const SizedBox(width: 12),
-          FilledButton.icon(
+          );
+          final submit = FilledButton.icon(
             onPressed: _isSaving ? null : _save,
             icon: _isSaving
                 ? SizedBox(
@@ -408,8 +372,18 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                   )
                 : const Icon(Icons.favorite, size: 18),
             label: Text(l10n.tagLibrary_confirmAdd),
-          ),
-        ],
+          );
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [submit, cancel],
+            );
+          }
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [cancel, const SizedBox(width: 12), submit],
+          );
+        },
       ),
     );
   }

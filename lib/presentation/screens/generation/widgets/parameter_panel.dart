@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/draggable_number_input.dart';
+import '../../../widgets/generation/auto_save_toggle_chip.dart';
+import 'generation_controls/batch_settings_button.dart';
 import 'generation_param_sections.dart';
 import 'img2img_panel.dart';
 import 'precise_reference_panel.dart';
@@ -20,8 +23,9 @@ class ParameterPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final advancedOptionsExpanded = ref.watch(
-      generationParamsNotifierProvider
-          .select((params) => params.advancedOptionsExpanded),
+      generationParamsNotifierProvider.select(
+        (params) => params.advancedOptionsExpanded,
+      ),
     );
 
     return ListView(
@@ -52,6 +56,10 @@ class ParameterPanel extends ConsumerWidget {
 
         // CFG Scale
         const CfgScaleSection(),
+
+        const SizedBox(height: 16),
+
+        const _GenerationOutputSettingsSection(),
 
         const SizedBox(height: 16),
 
@@ -95,8 +103,50 @@ class ParameterPanel extends ConsumerWidget {
                 .read(generationParamsNotifierProvider.notifier)
                 .setAdvancedOptionsExpanded(expanded);
           },
-          children: const [
-            AdvancedSamplingOptions(),
+          children: const [AdvancedSamplingOptions()],
+        ),
+      ],
+    );
+  }
+}
+
+class _GenerationOutputSettingsSection extends ConsumerWidget {
+  const _GenerationOutputSettingsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final nSamples = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.nSamples),
+    );
+    final batchSize = ref.watch(imagesPerRequestProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ParamSectionTitle(context.l10n.generation_generate),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Semantics(
+              label: context.l10n.batchSize_formula(
+                nSamples,
+                batchSize,
+                nSamples * batchSize,
+              ),
+              child: DraggableNumberInput(
+                value: nSamples,
+                min: 1,
+                prefix: '×',
+                onChanged: (value) => ref
+                    .read(generationParamsNotifierProvider.notifier)
+                    .updateNSamples(value),
+              ),
+            ),
+            const BatchSettingsButton(showLabel: true),
+            const AutoSaveToggleChip(),
           ],
         ),
       ],

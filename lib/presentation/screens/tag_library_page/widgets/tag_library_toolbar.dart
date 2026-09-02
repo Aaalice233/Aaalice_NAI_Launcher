@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/tag_library_selection_provider.dart';
 import '../../../widgets/autocomplete/autocomplete_config.dart';
@@ -162,7 +162,9 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 900;
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final compact = constraints.maxWidth < 900 || textScale > 1.5;
+          final stackPrimary = textScale > 1.5;
           final addButton = FilledButton.icon(
             onPressed: widget.onAddEntry,
             icon: const Icon(Icons.add, size: 18),
@@ -170,7 +172,9 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
             style: FilledButton.styleFrom(
               minimumSize: Size(
                 48,
-                PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+                context.interactionPolicy.shouldExposeTouchAlternatives
+                    ? 48
+                    : 36,
               ),
             ),
           );
@@ -233,20 +237,34 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
           }
 
           if (compact) {
+            final primaryControls = stackPrimary
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSearchField(theme, state),
+                      const SizedBox(height: 8),
+                      if (categoriesButton != null) ...[
+                        categoriesButton,
+                        const SizedBox(height: 8),
+                      ],
+                      addButton,
+                    ],
+                  )
+                : Row(
+                    children: [
+                      if (categoriesButton != null) ...[
+                        categoriesButton,
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(child: _buildSearchField(theme, state)),
+                      const SizedBox(width: 8),
+                      addButton,
+                    ],
+                  );
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    if (categoriesButton != null) ...[
-                      categoriesButton,
-                      const SizedBox(width: 8),
-                    ],
-                    Expanded(child: _buildSearchField(theme, state)),
-                    const SizedBox(width: 8),
-                    addButton,
-                  ],
-                ),
+                primaryControls,
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
@@ -318,7 +336,9 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
       ),
       onSuggestionSelected: updateSearch,
       child: InputSurfaceContainer(
-        height: PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+        height: context.interactionPolicy.shouldExposeTouchAlternatives
+            ? 48
+            : 36,
         borderRadius: 18,
         isFocused: _searchFocusNode.hasFocus,
         child: TextField(
@@ -469,7 +489,9 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
             onTap: controller.isOpen ? controller.close : controller.open,
             borderRadius: BorderRadius.circular(8),
             child: Container(
-              height: PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+              height: context.interactionPolicy.shouldExposeTouchAlternatives
+                  ? 48
+                  : 36,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               alignment: Alignment.center,
               child: Row(
@@ -526,8 +548,12 @@ class _ViewModeButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Container(
           constraints: BoxConstraints(
-            minWidth: PlatformCapabilities.current.hasTouchInput ? 48 : 34,
-            minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 34,
+            minWidth: context.interactionPolicy.shouldExposeTouchAlternatives
+                ? 48
+                : 34,
+            minHeight: context.interactionPolicy.shouldExposeTouchAlternatives
+                ? 48
+                : 34,
           ),
           alignment: Alignment.center,
           decoration: BoxDecoration(
@@ -664,7 +690,8 @@ class _CompactIconButtonState extends State<_CompactIconButton>
                       : const Duration(milliseconds: 180),
                   curve: Curves.easeOutCubic,
                   constraints: BoxConstraints(
-                    minHeight: PlatformCapabilities.current.hasTouchInput
+                    minHeight:
+                        context.interactionPolicy.shouldExposeTouchAlternatives
                         ? 48
                         : 34,
                   ),

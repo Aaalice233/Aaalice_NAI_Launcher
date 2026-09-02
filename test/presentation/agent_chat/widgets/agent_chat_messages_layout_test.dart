@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/harness/harness_messages.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_messages.dart';
@@ -165,7 +166,7 @@ void main() {
             tester.getSize(
               find.byKey(const ValueKey('agent-user-message-copy-0')),
             ),
-            Size(48, width < 600 ? 48 : 32),
+            const Size(40, 40),
           );
         }
         expect(textHeights.last, greaterThan(textHeights.first));
@@ -173,6 +174,34 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('touch policy keeps user message actions touch safe', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    await _pumpMessages(
+      tester,
+      width: 840,
+      controller: controller,
+      state: AgentChatState(
+        initialized: true,
+        routeReady: true,
+        messages: [UserMessage.text('Touch message')],
+      ),
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: true,
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byKey(const ValueKey('agent-user-message-copy-0'))),
+      const Size(48, 48),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   for (final width in [320.0, 840.0]) {
     testWidgets(
@@ -337,6 +366,11 @@ void main() {
         routeReady: true,
         messages: [message],
       ),
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
     );
 
     final reference = find.byKey(
@@ -457,6 +491,11 @@ Future<void> _pumpMessages(
   required AgentChatPanelController controller,
   required AgentChatState state,
   AgentChatPanelCommands? commands,
+  InteractionPolicy interactionPolicy = const InteractionPolicy(
+    modality: InteractionModality.pointer,
+    touchAvailable: false,
+    precisePointerAvailable: true,
+  ),
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -469,27 +508,29 @@ Future<void> _pumpMessages(
         ).copyWith(textScaler: const TextScaler.linear(2)),
         child: child!,
       ),
-      home: Scaffold(
-        body: SizedBox(
-          width: width,
-          height: 900,
-          child: AgentChatMessages(
-            viewData: AgentChatPanelViewData(
-              state: state,
-              config: PromptAssistantConfigState.defaults(),
-              agentSettings: const AgentSettingsState(initialized: true),
-              webAccess: const WebAccessConfigState(initialized: true),
-              mobile: width < 600,
-              fullScreen: width < 600,
-              compactMobile: width < 420,
-              width: width,
-              height: 900,
-              onClose: null,
-              onOpenSettings: null,
-              mobileHeaderWrapper: null,
+      home: InteractionPolicyScope(
+        initialPolicy: interactionPolicy,
+        child: Scaffold(
+          body: SizedBox(
+            width: width,
+            height: 900,
+            child: AgentChatMessages(
+              viewData: AgentChatPanelViewData(
+                state: state,
+                config: PromptAssistantConfigState.defaults(),
+                agentSettings: const AgentSettingsState(initialized: true),
+                webAccess: const WebAccessConfigState(initialized: true),
+                fullScreen: width < 600,
+                compactHeight: false,
+                width: width,
+                height: 900,
+                onClose: null,
+                onOpenSettings: null,
+                mobileHeaderWrapper: null,
+              ),
+              commands: commands ?? _commands,
+              controller: controller,
             ),
-            commands: commands ?? _commands,
-            controller: controller,
           ),
         ),
       ),

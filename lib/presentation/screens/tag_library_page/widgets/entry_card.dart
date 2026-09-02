@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
@@ -76,7 +76,9 @@ class _EntryCardState extends State<EntryCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entry = widget.entry;
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final cardHeight = 80 + (textScale.clamp(1.0, 3.0) - 1) * 12;
 
     // 构建卡片主体内容（在GestureDetector内）
     final cardBody = GestureDetector(
@@ -88,7 +90,7 @@ class _EntryCardState extends State<EntryCard> {
               widget.onToggleSelection?.call();
             },
       child: SizedBox(
-        height: 80,
+        height: cardHeight,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -156,9 +158,11 @@ class _EntryCardState extends State<EntryCard> {
       onEnter: (_) => _onEnter(),
       onExit: (_) => _onExit(),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        height: cardHeight,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         curve: Curves.easeOut,
-        height: 80,
         transform: Matrix4.identity()
           ..translateByDouble(0, _isHovering ? -2 : 0, 0, 1),
         transformAlignment: Alignment.center,
@@ -287,7 +291,7 @@ class _EntryCardState extends State<EntryCard> {
 
   /// 构建名称显示区域
   Widget _buildNameArea(ThemeData theme, TagLibraryEntry entry) {
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 12, isTouch ? 52 : 16, 12),
       child: Align(
@@ -584,7 +588,9 @@ class _ActionIconState extends State<_ActionIcon> {
           onTap: widget.onTap,
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: _isHovering ? hoverBgColor : bgColor,

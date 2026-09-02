@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../themes/design_tokens.dart';
+import '../../../../themes/theme_extension.dart';
 import '../../../../widgets/common/decoded_memory_image.dart';
 
 /// Bundle 画廊条
@@ -114,12 +115,14 @@ class BundleGalleryStrip extends StatelessWidget {
   /// "使用全部"按钮
   Widget _buildUseAllButton(BuildContext context, ThemeData theme) {
     final isSelected = selectedIndex == -1;
+    final motion = theme.appTheme;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
     return GestureDetector(
       onTap: onUseAll,
       child: AnimatedContainer(
-        duration: DesignTokens.animationNormal,
-        curve: DesignTokens.curveStandard,
+        duration: reducedMotion ? Duration.zero : motion.normalDuration,
+        curve: motion.standardCurve,
         width: 72,
         margin: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spacingXs,
@@ -168,6 +171,8 @@ class BundleGalleryStrip extends StatelessWidget {
   /// 子 vibe 缩略图项
   Widget _buildVibeItem(BuildContext context, int index) {
     final theme = Theme.of(context);
+    final motion = theme.appTheme;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
     final isSelected = selectedIndex == index;
     final preview = vibePreviews != null && index < vibePreviews!.length
         ? vibePreviews![index]
@@ -191,8 +196,8 @@ class BundleGalleryStrip extends StatelessWidget {
                 ? '\n${context.l10n.vibeDetail_longPressSetCover}'
                 : ''),
         child: AnimatedContainer(
-          duration: DesignTokens.animationNormal,
-          curve: DesignTokens.curveStandard,
+          duration: reducedMotion ? Duration.zero : motion.normalDuration,
+          curve: motion.standardCurve,
           width: itemExtent,
           height: itemExtent,
           margin: EdgeInsets.symmetric(

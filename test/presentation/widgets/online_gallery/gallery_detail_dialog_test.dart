@@ -8,6 +8,7 @@ import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_prompt_projection.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_overview_card.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_prompt_copy_dialog.dart';
@@ -312,6 +313,160 @@ void main() {
     );
   });
 
+  testWidgets('320x568 detail avoids SafeArea and IME insets', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    const item = GalleryItem(
+      id: 47,
+      sourceId: GallerySourceId.quickTagCloud,
+      title: 'Compact detail',
+      tags: ['solo'],
+    );
+    const safePadding = EdgeInsets.fromLTRB(0, 24, 0, 16);
+    const viewInsets = EdgeInsets.only(bottom: 220);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              padding: safePadding,
+              viewPadding: safePadding,
+              viewInsets: viewInsets,
+            ),
+            child: child!,
+          ),
+          home: Scaffold(
+            resizeToAvoidBottomInset: false,
+            body: GalleryDetailDialog(
+              item: item,
+              detail: const GalleryDetail(item: item, media: []),
+              isFavorited: false,
+              favoriteLoading: false,
+              canUseGenerationActions: true,
+              labels: _labels(),
+              onCopyPrompt: (_) {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: (_) {},
+              onAddToQueue: (_) async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (_) {},
+              onBlacklistChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final dialogRect = tester.getRect(find.byType(Dialog));
+    expect(dialogRect.left, greaterThanOrEqualTo(0));
+    expect(dialogRect.right, lessThanOrEqualTo(320));
+    expect(dialogRect.top, greaterThanOrEqualTo(safePadding.top));
+    expect(
+      dialogRect.bottom,
+      lessThanOrEqualTo(568 - viewInsets.bottom - safePadding.bottom),
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('gallery-detail-info-list')))
+          .height,
+      greaterThan(0),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('compact landscape dialog stays within the viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(600, 360));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    const item = GalleryItem(
+      id: 45,
+      sourceId: GallerySourceId.quickTagCloud,
+      title: 'A deliberately long gallery title for responsive layout',
+      tags: ['solo'],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: GalleryDetailDialog(
+              item: item,
+              detail: const GalleryDetail(
+                item: item,
+                media: [
+                  GalleryMedia(id: 'landscape-1'),
+                  GalleryMedia(id: 'landscape-2'),
+                ],
+              ),
+              isFavorited: false,
+              favoriteLoading: false,
+              canUseGenerationActions: true,
+              labels: _labels(),
+              onCopyPrompt: (_) {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: (_) {},
+              onAddToQueue: (_) async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (_) {},
+              onBlacklistChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsOneWidget);
+    final dialogRect = tester.getRect(find.byType(Dialog));
+    expect(dialogRect.left, greaterThanOrEqualTo(0));
+    expect(dialogRect.top, greaterThanOrEqualTo(0));
+    expect(dialogRect.right, lessThanOrEqualTo(600));
+    expect(dialogRect.bottom, lessThanOrEqualTo(360));
+
+    final mediaRect = tester.getRect(find.byType(PageView));
+    final infoRect = tester.getRect(
+      find.byKey(const ValueKey('gallery-detail-info-list')),
+    );
+    expect(mediaRect.bottom, lessThanOrEqualTo(infoRect.top));
+    expect(mediaRect.height, greaterThan(0));
+    expect(infoRect.height, greaterThan(0));
+    final nextMedia = find.byKey(const ValueKey('gallery-detail-next-media'));
+    final actionOverflow = find.byKey(
+      const ValueKey('gallery-detail-action-overflow'),
+    );
+    expect(nextMedia, findsOneWidget);
+    expect(actionOverflow, findsOneWidget);
+    expect(
+      tester.getRect(nextMedia).right,
+      lessThanOrEqualTo(tester.getRect(actionOverflow).left),
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.binding.setSurfaceSize(const Size(600, 180));
+    await tester.pumpAndSettle();
+    final shortDialogRect = tester.getRect(find.byType(Dialog));
+    expect(shortDialogRect.top, greaterThanOrEqualTo(0));
+    expect(shortDialogRect.bottom, lessThanOrEqualTo(180));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('narrow detail collapses actions without overflow', (
     tester,
   ) async {
@@ -355,12 +510,78 @@ void main() {
       find.byKey(const ValueKey('gallery-detail-action-rail')),
       findsOneWidget,
     );
+    final generate = find.byKey(const ValueKey('gallery-detail-generate'));
+    final queue = find.byKey(const ValueKey('gallery-detail-queue'));
+    expect(generate, findsOneWidget);
+    expect(queue, findsOneWidget);
     expect(
-      find.byKey(const ValueKey('gallery-detail-generate')),
-      findsOneWidget,
+      tester.getRect(generate).bottom,
+      lessThan(tester.getRect(queue).top),
     );
-    expect(find.byKey(const ValueKey('gallery-detail-queue')), findsOneWidget);
+    expect(find.text('Generate'), findsOneWidget);
+    expect(find.text('Queue'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('header keeps every action at 320 and 390 with large text', (
+    tester,
+  ) async {
+    const item = GalleryItem(
+      id: 46,
+      sourceId: GallerySourceId.quickTagCloud,
+      title: 'A deliberately long title that must remain constrained',
+      tags: ['solo'],
+    );
+
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in [320.0, 390.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 700));
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(3)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: GalleryDetailDialog(
+                item: item,
+                detail: const GalleryDetail(item: item, media: []),
+                isFavorited: false,
+                favoriteLoading: false,
+                canUseGenerationActions: true,
+                labels: _labels(sourceName: 'A very long gallery source name'),
+                onCopyPrompt: (_) {},
+                onToggleFavorite: () async => true,
+                onOpenSource: () {},
+                onSendToGenerate: (_) {},
+                onAddToQueue: (_) async {},
+                onDownloadCurrentOriginal: (_) async {},
+                onTagSearch: (_) {},
+                onBlacklistChanged: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Add favorite'), findsOneWidget);
+      expect(find.byTooltip('Open source'), findsOneWidget);
+      expect(find.byTooltip('Close'), findsOneWidget);
+      expect(
+        tester.getRect(find.byTooltip('Close')).right,
+        lessThanOrEqualTo(width),
+      );
+      final queue = find.byKey(const ValueKey('gallery-detail-queue'));
+      await tester.ensureVisible(queue);
+      await tester.pump();
+      expect(tester.getRect(queue).left, greaterThanOrEqualTo(0));
+      expect(tester.getRect(queue).right, lessThanOrEqualTo(width));
+      expect(tester.takeException(), isNull);
+    }
   });
 
   testWidgets('conflicting video metadata renders a stable placeholder', (
@@ -622,7 +843,7 @@ void main() {
 
     final optionScroll = find
         .descendant(
-          of: find.byType(AlertDialog),
+          of: find.byKey(const ValueKey('adaptive-centered-form')),
           matching: find.byType(Scrollable),
         )
         .first;
@@ -708,11 +929,73 @@ void main() {
     expect(find.text('2 / 2'), findsOneWidget);
     expect(tester.widget<PageView>(find.byType(PageView)).controller?.page, 1);
   });
+
+  testWidgets('embedded detail composes with the adaptive presenter', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const item = GalleryItem(
+      id: 9,
+      workId: 'embedded-detail',
+      sourceId: GallerySourceId.aiTag,
+      title: 'Embedded detail',
+    );
+    const detail = GalleryDetail(item: item, media: []);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => AdaptivePresenter.showForm<void>(
+                  context: context,
+                  showHeader: false,
+                  builder: (context, _) => GalleryDetailDialog(
+                    embedded: true,
+                    item: item,
+                    detail: detail,
+                    isFavorited: false,
+                    favoriteLoading: false,
+                    canUseGenerationActions: false,
+                    labels: _labels(),
+                    onCopyPrompt: (_) {},
+                    onToggleFavorite: () async => true,
+                    onOpenSource: () {},
+                    onSendToGenerate: (_) {},
+                    onAddToQueue: (_) async {},
+                    onDownloadCurrentOriginal: (_) async {},
+                    onTagSearch: (_) {},
+                    onBlacklistChanged: () {},
+                  ),
+                ),
+                child: const Text('Open embedded detail'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open embedded detail'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      findsOneWidget,
+    );
+    expect(find.text('Embedded detail'), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
-GalleryDetailDialogLabels _labels() {
+GalleryDetailDialogLabels _labels({String sourceName = 'Codex'}) {
   return GalleryDetailDialogLabels(
-    sourceName: 'Codex',
+    sourceName: sourceName,
     untitled: 'Untitled',
     codex: 'Codex',
     category: 'Category',

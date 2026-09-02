@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 
 /// 抽卡模式开关
@@ -18,6 +19,7 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _rotateAnimation;
+  bool _disableAnimations = false;
 
   @override
   void initState() {
@@ -33,6 +35,19 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (disableAnimations == _disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller.stop();
+      _controller.value = 1;
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -42,6 +57,15 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
   void didUpdateWidget(RandomModeToggle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.enabled && !oldWidget.enabled) {
+      _playEnableAnimation();
+    }
+  }
+
+  void _playEnableAnimation() {
+    if (_disableAnimations) {
+      _controller.stop();
+      _controller.value = 1;
+    } else {
       _controller.forward(from: 0);
     }
   }
@@ -50,6 +74,7 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final controlExtent = context.interactionPolicy.minimumControlExtent;
 
     return IconButton(
       tooltip: widget.enabled
@@ -57,13 +82,13 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
           : context.l10n.randomMode_disabledTip,
       onPressed: () {
         ref.read(randomPromptModeProvider.notifier).toggle();
-        if (!widget.enabled && !reducedMotion) {
-          _controller.forward(from: 0);
+        if (!widget.enabled) {
+          _playEnableAnimation();
         }
       },
       style: IconButton.styleFrom(
-        minimumSize: const Size(40, 40),
-        maximumSize: const Size(40, 40),
+        minimumSize: Size.square(controlExtent),
+        maximumSize: Size.square(controlExtent),
         backgroundColor: widget.enabled
             ? theme.colorScheme.primaryContainer
             : Colors.transparent,

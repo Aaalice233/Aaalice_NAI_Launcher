@@ -273,7 +273,7 @@ print('updated');
   testWidgets('keeps desktop update actions horizontally grouped', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 700);
+    tester.view.physicalSize = const Size(840, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -331,6 +331,67 @@ print('updated');
       ),
       isTrue,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keeps actions reachable at 320 width with 3x text and IME', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 480);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 12, bottom: 12);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+
+    const info = VersionInfo(
+      version: '2.0.0',
+      currentVersion: '1.0.0',
+      isNewer: true,
+      htmlUrl: 'https://example.com/release',
+      downloadUrl: 'https://example.com/update.apk',
+    );
+    const state = UpdateState(
+      status: UpdateStatus.available,
+      versionInfo: info,
+      notificationVisible: true,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateStateNotifierProvider.overrideWith(
+            () => _DialogUpdateNotifier(state),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(3),
+              viewInsets: const EdgeInsets.only(bottom: 120),
+            ),
+            child: child!,
+          ),
+          home: const Scaffold(body: UpdateCheckDialog()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (final label in [
+      'Remind Me in 4 Hours',
+      'Skip This Version',
+      'View Release',
+      'Go to Download',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+      await tester.ensureVisible(find.text(label));
+      await tester.pump();
+      expect(find.text(label).hitTestable(), findsOneWidget);
+    }
     expect(tester.takeException(), isNull);
   });
 

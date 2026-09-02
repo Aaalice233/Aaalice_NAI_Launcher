@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_detail/vibe_detail_param_panel.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_detail/vibe_preview_drop_zone.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
@@ -187,6 +190,196 @@ void main() {
     expect(decodedImage.gaplessPlayback, isTrue);
   });
 
+  testWidgets('Windows 触屏下详情侧栏仍按局部 compact constraints 上下布局', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    tester.view.physicalSize = const Size(1000, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final entry = _buildEntry();
+    await tester.pumpWidget(
+      _wrapWithHost(
+        entry: entry,
+        storage: _FakeVibeLibraryStorageService(entry),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.touch,
+          touchAvailable: true,
+          precisePointerAvailable: false,
+        ),
+        onSaveParams: (_, __, ___) async => entry,
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final previewCenter = tester.getCenter(find.byType(VibePreviewDropZone));
+    final panelCenter = tester.getCenter(find.byType(VibeDetailParamPanel));
+    expect(previewCenter.dy, lessThan(panelCenter.dy));
+    expect(previewCenter.dx, closeTo(panelCenter.dx, 1));
+  });
+
+  testWidgets('Android 鼠标在 compact constraints 下仍使用上下布局', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    tester.view.physicalSize = const Size(500, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final entry = _buildEntry();
+    await tester.pumpWidget(
+      _wrapWithHost(
+        entry: entry,
+        storage: _FakeVibeLibraryStorageService(entry),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+        onSaveParams: (_, __, ___) async => entry,
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final previewCenter = tester.getCenter(find.byType(VibePreviewDropZone));
+    final panelCenter = tester.getCenter(find.byType(VibeDetailParamPanel));
+    expect(previewCenter.dy, lessThan(panelCenter.dy));
+    expect(previewCenter.dx, closeTo(panelCenter.dx, 1));
+  });
+
+  testWidgets(
+    '320px 3x text with IME and SafeArea keeps detail and rename form usable',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 720);
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPadding();
+        tester.view.resetViewInsets();
+      });
+
+      final entry = _buildEntry().copyWith(
+        vibeThumbnail: _pngBytes(20, 40, 60),
+        rawImageData: _pngBytes(20, 40, 60),
+      );
+      String? renamedTo;
+      await tester.pumpWidget(
+        _wrapWithHost(
+          entry: entry,
+          storage: _FakeVibeLibraryStorageService(entry),
+          textScale: 3,
+          callbacks: VibeDetailCallbacks(
+            onRename: (_, name) async {
+              renamedTo = name;
+              return null;
+            },
+          ),
+          onSaveParams: (_, __, ___) async => entry,
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      final detailSurface = find.byKey(
+        const ValueKey('adaptive-full-screen-form'),
+      );
+      expect(detailSurface, findsOneWidget);
+      expect(tester.getRect(detailSurface).top, greaterThanOrEqualTo(24));
+      expect(tester.getRect(detailSurface).bottom, lessThanOrEqualTo(696));
+      expect(find.byIcon(Icons.image_outlined), findsWidgets);
+      expect(find.byIcon(Icons.tune), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pumpAndSettle();
+      expect(find.byType(VibeDetailParamPanel), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      tester.view.viewInsets = const FakeViewPadding(bottom: 220);
+      tester
+          .widget<VibeDetailParamPanel>(find.byType(VibeDetailParamPanel))
+          .onRename!();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('vibe-rename-form')), findsOneWidget);
+      final renameSurface = tester.getRect(
+        find.byKey(const ValueKey('adaptive-full-screen-form')).last,
+      );
+      expect(renameSurface.bottom, lessThanOrEqualTo(500));
+
+      await tester.enterText(
+        find.byKey(const ValueKey('vibe-rename-field')),
+        'Renamed Vibe',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(renamedTo, 'Renamed Vibe');
+      expect(find.byKey(const ValueKey('vibe-rename-form')), findsNothing);
+      expect(find.byType(VibeDetailParamPanel), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('wide detail uses a bounded side sheet and keeps actions wired', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final entry = _buildEntry();
+    var exportCount = 0;
+    await tester.pumpWidget(
+      _wrapWithHost(
+        entry: entry,
+        storage: _FakeVibeLibraryStorageService(entry),
+        callbacks: VibeDetailCallbacks(
+          onExport: (_) => exportCount++,
+          onDelete: (_) {},
+          onRename: (_, __) async => null,
+          onSendToGeneration:
+              (
+                _,
+                __,
+                ___,
+                ____, {
+                required applyParamOverrides,
+                bundleChildParamOverrideIndex,
+              }) {},
+        ),
+        onSaveParams: (_, __, ___) async => entry,
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-side-sheet'));
+    expect(surface, findsOneWidget);
+    expect(tester.getSize(surface).width, 608);
+    final panel = tester.widget<VibeDetailParamPanel>(
+      find.byType(VibeDetailParamPanel),
+    );
+    expect(panel.onSendToGeneration, isNotNull);
+    expect(panel.onExport, isNotNull);
+    expect(panel.onDelete, isNotNull);
+    expect(panel.onRename, isNotNull);
+    panel.onExport!();
+    expect(exportCount, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('后台解析详情时立即显示加载层，完成后只使用解析结果', (tester) async {
     tester.view.physicalSize = const Size(1400, 1800);
     tester.view.devicePixelRatio = 1.0;
@@ -245,6 +438,9 @@ Widget _wrapWithHost({
     double infoExtracted,
   )
   onSaveParams,
+  InteractionPolicy? interactionPolicy,
+  double textScale = 1,
+  VibeDetailCallbacks? callbacks,
 }) {
   return ProviderScope(
     overrides: [
@@ -253,33 +449,48 @@ Widget _wrapWithHost({
         _FakeShortcutConfigNotifier.new,
       ),
     ],
-    child: MaterialApp(
-      locale: const Locale('zh'),
-      supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: Builder(
-        builder: (context) {
-          return Scaffold(
-            body: Center(
-              child: TextButton(
-                onPressed: () {
-                  VibeDetailViewer.show(
-                    context,
-                    entry: entry,
-                    detailDataFuture: detailDataFuture,
-                    bundleVibes: bundleVibes,
-                    callbacks: VibeDetailCallbacks(
-                      onSaveParams: (entry, strength, infoExtracted, _) {
-                        return onSaveParams(entry, strength, infoExtracted);
-                      },
-                    ),
-                  );
-                },
-                child: const Text('open'),
+    child: InteractionPolicyScope(
+      initialPolicy: interactionPolicy,
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () {
+                    VibeDetailViewer.show(
+                      context,
+                      entry: entry,
+                      detailDataFuture: detailDataFuture,
+                      bundleVibes: bundleVibes,
+                      callbacks:
+                          callbacks ??
+                          VibeDetailCallbacks(
+                            onSaveParams: (entry, strength, infoExtracted, _) {
+                              return onSaveParams(
+                                entry,
+                                strength,
+                                infoExtracted,
+                              );
+                            },
+                          ),
+                    );
+                  },
+                  child: const Text('open'),
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     ),
   );

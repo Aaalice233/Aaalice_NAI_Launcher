@@ -6,6 +6,8 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../core/services/avatar_service.dart';
 import '../../../data/models/auth/saved_account.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/account_avatar.dart';
@@ -24,19 +26,42 @@ import 'nickname_edit_dialog.dart';
 class AccountProfileBottomSheet extends ConsumerStatefulWidget {
   /// 当前账号
   final SavedAccount account;
+  final bool presentationManaged;
 
-  const AccountProfileBottomSheet({super.key, required this.account});
+  const AccountProfileBottomSheet({
+    super.key,
+    required this.account,
+    this.presentationManaged = false,
+  });
 
   /// 显示底部操作面板
   static Future<void> show({
     required BuildContext context,
     required SavedAccount account,
   }) {
-    return showModalBottomSheet(
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AccountProfileBottomSheet(account: account),
+      sideSheetWidth: 520,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          const Icon(Icons.manage_accounts_outlined, size: 21),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              panelContext.l10n.settings_account,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                panelContext,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      builder: (panelContext, scrollController) => AccountProfileBottomSheet(
+        account: account,
+        presentationManaged: true,
+      ),
     );
   }
 
@@ -249,15 +274,12 @@ class _AccountProfileBottomSheetState
     final isDefaultAccount = defaultAccount?.id == currentAccount.id;
     final hasMultipleAccounts = accounts.length > 1;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 拖动指示条
+    final content = Column(
+      mainAxisSize: widget.presentationManaged
+          ? MainAxisSize.max
+          : MainAxisSize.min,
+      children: [
+        if (!widget.presentationManaged)
           Container(
             width: 40,
             height: 4,
@@ -267,51 +289,57 @@ class _AccountProfileBottomSheetState
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          // 内容
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 16),
+                // 大头像
+                _buildAvatarSection(context),
+                const SizedBox(height: 24),
+                // 头像操作按钮
+                _buildAvatarActions(context),
+                const SizedBox(height: 16),
+                // 分割线
+                const ThemedDivider(),
+                const SizedBox(height: 16),
+                // 昵称行
+                _buildNicknameRow(context),
+                const SizedBox(height: 8),
+                // 账号详情
+                _buildAccountDetails(context),
+                const SizedBox(height: 16),
+                // 设为默认（多账号时显示）
+                if (hasMultipleAccounts) ...[
+                  _buildSetAsDefaultRow(context, isDefaultAccount),
                   const SizedBox(height: 16),
-                  // 大头像
-                  _buildAvatarSection(context),
-                  const SizedBox(height: 24),
-                  // 头像操作按钮
-                  _buildAvatarActions(context),
-                  const SizedBox(height: 16),
-                  // 分割线
-                  const ThemedDivider(),
-                  const SizedBox(height: 16),
-                  // 昵称行
-                  _buildNicknameRow(context),
-                  const SizedBox(height: 8),
-                  // 账号详情
-                  _buildAccountDetails(context),
-                  const SizedBox(height: 16),
-                  // 设为默认（多账号时显示）
-                  if (hasMultipleAccounts) ...[
-                    _buildSetAsDefaultRow(context, isDefaultAccount),
-                    const SizedBox(height: 16),
-                  ],
-                  // 多账号列表
-                  if (hasMultipleAccounts) ...[
-                    _buildAccountsList(
-                      context,
-                      accounts,
-                      currentAccountId,
-                      currentAccount,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
                 ],
-              ),
+                // 多账号列表
+                if (hasMultipleAccounts) ...[
+                  _buildAccountsList(
+                    context,
+                    accounts,
+                    currentAccountId,
+                    currentAccount,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ],
             ),
           ),
-          if (isCurrentAccount) _buildLogoutFooter(context),
-        ],
+        ),
+        if (isCurrentAccount) _buildLogoutFooter(context),
+      ],
+    );
+    if (widget.presentationManaged) return content;
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      child: content,
     );
   }
 
@@ -367,9 +395,14 @@ class _AccountProfileBottomSheetState
                       color: theme.colorScheme.scrim.withValues(alpha: 0.38),
                     ),
                     alignment: Alignment.center,
-                    child: const SizedBox.square(
+                    child: SizedBox.square(
                       dimension: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.72
+                            : null,
+                      ),
                     ),
                   ),
               ],
@@ -392,6 +425,8 @@ class _AccountProfileBottomSheetState
   Widget _buildAvatarActions(BuildContext context) {
     final theme = Theme.of(context);
     final hasCustomAvatar = currentAccount.avatarPath != null;
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final minimumHeight = policyExtent < 44 ? 44.0 : policyExtent;
 
     return Wrap(
       alignment: WrapAlignment.center,
@@ -402,7 +437,7 @@ class _AccountProfileBottomSheetState
           onPressed: _isOperationInProgress ? null : _changeAvatar,
           icon: const Icon(Icons.photo_library_outlined),
           label: Text(context.l10n.settings_changeAvatar),
-          style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+          style: TextButton.styleFrom(minimumSize: Size(0, minimumHeight)),
         ),
         if (hasCustomAvatar)
           TextButton.icon(
@@ -411,7 +446,7 @@ class _AccountProfileBottomSheetState
             label: Text(context.l10n.settings_removeAvatar),
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.error,
-              minimumSize: const Size(0, 44),
+              minimumSize: Size(0, minimumHeight),
             ),
           ),
       ],
@@ -427,36 +462,58 @@ class _AccountProfileBottomSheetState
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        child: Row(
-          children: [
-            Icon(
-              Icons.badge_outlined,
-              size: 20,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 12),
-            Text(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact =
+                constraints.maxWidth < 420 ||
+                MediaQuery.textScalerOf(context).scale(1) >= 2;
+            final label = Text(
               context.l10n.settings_nickname,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.outline,
               ),
-            ),
-            const Spacer(),
-            Flexible(
-              child: Text(
-                currentAccount.displayName,
-                style: theme.textTheme.bodyMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              size: 20,
-              color: theme.colorScheme.outline,
-            ),
-          ],
+            );
+            final value = Text(
+              currentAccount.displayName,
+              style: theme.textTheme.bodyMedium,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: compact ? TextAlign.start : TextAlign.end,
+            );
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.badge_outlined,
+                    size: 20,
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [label, const SizedBox(height: 2), value],
+                        )
+                      : Row(
+                          children: [
+                            label,
+                            const SizedBox(width: 16),
+                            Expanded(child: value),
+                          ],
+                        ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: theme.colorScheme.outline,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -572,40 +629,67 @@ class _AccountProfileBottomSheetState
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        child: Row(
-          children: [
-            Icon(
-              Icons.star_border_outlined,
-              size: 20,
-              color: isDefault
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 12),
-            Text(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final label = Text(
               context.l10n.settings_setAsDefault,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: isDefault
                     ? theme.colorScheme.primary
                     : theme.colorScheme.outline,
               ),
-            ),
-            const Spacer(),
-            if (isDefault)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  context.l10n.settings_defaultAccount,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
+            );
+            final badge = isDefault
+                ? Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      context.l10n.settings_defaultAccount,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  )
+                : null;
+            final compact =
+                constraints.maxWidth < 420 ||
+                MediaQuery.textScalerOf(context).scale(1) >= 2;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.star_border_outlined,
+                    size: 20,
+                    color: isDefault
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline,
                   ),
                 ),
-              ),
-          ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: compact && badge != null
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [label, const SizedBox(height: 8), badge],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(child: label),
+                            if (badge != null) badge,
+                          ],
+                        ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

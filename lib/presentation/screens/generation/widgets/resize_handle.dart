@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../adaptive/interaction_policy.dart';
+
 export '../../../widgets/common/vertical_resize_handle.dart';
 
 /// 水平拖拽分隔条
@@ -24,6 +26,12 @@ class ResizeHandle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final interactionPolicy = context.interactionPolicy;
+    final hitWidth =
+        interactionPolicy.prefersTouchPresentation &&
+            width < interactionPolicy.minimumControlExtent
+        ? interactionPolicy.minimumControlExtent
+        : width;
 
     return MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
@@ -39,7 +47,7 @@ class ResizeHandle extends StatelessWidget {
           onDrag(delta);
         },
         child: Container(
-          width: width,
+          width: hitWidth,
           color: Colors.transparent,
           child: Center(
             child: Container(

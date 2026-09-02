@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../themes/design_tokens.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
@@ -82,7 +83,10 @@ class MobileGenerationChrome extends ConsumerWidget {
     final theme = Theme.of(context);
     return Drawer(
       key: const ValueKey('generation-parameters-drawer'),
-      width: MediaQuery.sizeOf(context).width * 0.9,
+      width: (AdaptiveWindowMetrics.of(context).usableSize.width * 0.9).clamp(
+        0.0,
+        520.0,
+      ),
       child: SafeArea(
         child: Column(
           children: [
@@ -125,7 +129,10 @@ class MobileGenerationChrome extends ConsumerWidget {
     if (data.isPromptMaximized || controller.agentFullScreen) return null;
     return Drawer(
       key: const ValueKey('generation-history-drawer'),
-      width: MediaQuery.sizeOf(context).width * 0.9,
+      width: (AdaptiveWindowMetrics.of(context).usableSize.width * 0.9).clamp(
+        0.0,
+        520.0,
+      ),
       child: SafeArea(
         child: HistoryPanel(
           onClose: controller.closeHistoryDrawer,
@@ -151,18 +158,25 @@ class MobileGenerationChrome extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 const OpusUsageChip(compact: true),
-                const SizedBox(width: 4),
                 const AnlasBalanceChip(compact: true),
-                if (data.showRandomTools) ...[
-                  const Spacer(),
+                if (data.showRandomTools)
                   _MobileRandomModeToggle(
                     enabled: data.randomModeEnabled,
                     showLabel: true,
                   ),
-                ],
+                IconButton(
+                  key: const ValueKey('generation-add-current-to-queue'),
+                  onPressed: () => controller.addCurrentPromptToQueue(context),
+                  icon: const Icon(Icons.playlist_add_rounded),
+                  tooltip: context.l10n.queue_addCurrentTask,
+                ),
               ],
             ),
             const SizedBox(height: 5),
@@ -257,10 +271,12 @@ class _MobileRandomModeToggle extends ConsumerWidget {
                   ? Duration.zero
                   : const Duration(milliseconds: 140),
               curve: Curves.easeOutCubic,
-              width: showLabel ? null : 44,
-              height: 44,
+              constraints: BoxConstraints(
+                minWidth: showLabel ? 0 : 48,
+                minHeight: 48,
+              ),
               padding: showLabel
-                  ? const EdgeInsets.symmetric(horizontal: 12)
+                  ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
                   : EdgeInsets.zero,
               decoration: BoxDecoration(
                 color: enabled
@@ -281,13 +297,17 @@ class _MobileRandomModeToggle extends ConsumerWidget {
                   ),
                   if (showLabel) ...[
                     const SizedBox(width: 7),
-                    Text(
-                      context.l10n.toolbar_randomPrompt,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: enabled
-                            ? theme.colorScheme.onPrimaryContainer
-                            : theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        context.l10n.toolbar_randomPrompt,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: enabled
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],

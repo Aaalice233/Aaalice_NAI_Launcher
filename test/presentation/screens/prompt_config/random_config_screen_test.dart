@@ -11,6 +11,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_provider.dart';
 import 'package:nai_launcher/presentation/screens/prompt_config/prompt_config_screen.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/random_manager/preset_selector_bar.dart';
 
 void main() {
   late Directory hiveDir;
@@ -112,7 +113,16 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final width in [420.0, 700.0, 840.0, 1180.0, 1600.0]) {
+  for (final width in [
+    320.0,
+    400.0,
+    420.0,
+    600.0,
+    700.0,
+    840.0,
+    1180.0,
+    1600.0,
+  ]) {
     testWidgets('random library remains usable at ${width.toInt()} px', (
       tester,
     ) async {
@@ -167,8 +177,16 @@ void main() {
         );
 
         expect(selector.top, greaterThan(heading.bottom));
-        expect((selector.center.dy - preview.center.dy).abs(), lessThan(1));
-        expect(selector.width, greaterThan(preview.width));
+        final stacksControls = shouldStackWorkspacePresetControls(
+          width - 40,
+          1,
+        );
+        if (stacksControls) {
+          expect(preview.top, greaterThan(selector.bottom));
+        } else {
+          expect((selector.center.dy - preview.center.dy).abs(), lessThan(1));
+          expect(selector.width, greaterThan(preview.width));
+        }
         expect(selector.height, greaterThanOrEqualTo(44));
         expect(preview.height, greaterThanOrEqualTo(44));
         expect(more.width, greaterThanOrEqualTo(44));
@@ -176,6 +194,80 @@ void main() {
       }
       expect(tester.takeException(), isNull);
     });
+  }
+
+  for (final textScale in [2.0, 3.0]) {
+    for (final width in [320.0, 400.0, 600.0, 840.0]) {
+      testWidgets(
+        'workspace preset controls reflow at ${width.toInt()} px and ${textScale.toInt()}x text',
+        (tester) async {
+          tester.view.physicalSize = Size(width, 1200);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          var previewRequested = false;
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                randomPresetNotifierProvider.overrideWith(
+                  _ScreenTestRandomPresetNotifier.new,
+                ),
+              ],
+              child: MaterialApp(
+                locale: const Locale('zh'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: TextScaler.linear(textScale)),
+                  child: child!,
+                ),
+                home: Scaffold(
+                  body: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: PresetSelectorBar(
+                          showWorkspaceHeading: true,
+                          onGeneratePreview: () => previewRequested = true,
+                          onImportExport: () {},
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await _pumpBounded(tester);
+
+          final selector = tester.getRect(
+            find.byKey(const ValueKey('random-manager-mode-selector')),
+          );
+          final preview = tester.getRect(
+            find.byKey(const ValueKey('random-manager-preview-action')),
+          );
+          final stacksControls = shouldStackWorkspacePresetControls(
+            width - 24,
+            textScale,
+          );
+          if (stacksControls) {
+            expect(preview.top, greaterThan(selector.bottom));
+          } else {
+            expect((selector.center.dy - preview.center.dy).abs(), lessThan(1));
+          }
+          expect(find.byTooltip('更多操作'), findsOneWidget);
+          await tester.tap(
+            find.byKey(const ValueKey('random-manager-preview-action')),
+          );
+          expect(previewRequested, isTrue);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
   }
 
   testWidgets('random library only wraps its primary action at extreme width', (

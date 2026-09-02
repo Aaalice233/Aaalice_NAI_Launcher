@@ -8,6 +8,7 @@ import 'package:nai_launcher/data/datasources/remote/online_gallery/quick_tag_cl
 import 'package:nai_launcher/data/models/online_gallery/quick_tag_cloud_catalog.dart';
 import 'package:nai_launcher/data/models/online_gallery/quick_tag_cloud_codex.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/quick_tag_cloud_toolbar.dart';
@@ -125,6 +126,87 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final width in [320.0, 360.0, 700.0, 840.0, 1180.0, 1600.0]) {
+    testWidgets(
+      'keeps every source action reachable at 3x text and width $width',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 1800);
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              quickTagCloudCatalogProvider.overrideWith(
+                (ref) async => _catalog(),
+              ),
+              quickTagCloudCodexProvider.overrideWith(
+                (ref, id) async => _codex(),
+              ),
+              quickTagCloudFilterProvider.overrideWith(
+                _TestQuickTagCloudFilterNotifier.new,
+              ),
+            ],
+            child: MaterialApp(
+              locale: const Locale('en'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(3)),
+                child: InteractionPolicyScope(
+                  initialPolicy: const InteractionPolicy(
+                    modality: InteractionModality.touch,
+                    touchAvailable: true,
+                    precisePointerAvailable: false,
+                  ),
+                  child: child!,
+                ),
+              ),
+              home: Scaffold(
+                body: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: _toolbar(
+                      wrapControls: true,
+                      onFiltersChanged: () async {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final finder in [
+          find.text('Browse'),
+          find.text('Latest update'),
+          find.text('Recently viewed'),
+          find.text('Artist Codex'),
+          find.text('All categories'),
+          find.text('Filter'),
+          find.byKey(const ValueKey('quick-tag-cloud-contributors')),
+        ]) {
+          expect(finder, findsOneWidget);
+          final rect = tester.getRect(finder);
+          expect(rect.left, greaterThanOrEqualTo(0));
+          expect(rect.right, lessThanOrEqualTo(width));
+        }
+        expect(
+          tester
+              .getRect(
+                find.byKey(const ValueKey('quick-tag-cloud-contributors')),
+              )
+              .height,
+          greaterThanOrEqualTo(48),
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('opens category picker from the first click while loading', (
     tester,
   ) async {
@@ -156,7 +238,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Category'), findsOneWidget);
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
   });
 
   testWidgets('switches to all categories with one selection click', (
@@ -270,20 +352,20 @@ void main() {
 
     await _scrollToAndTap(tester, find.text('Artist Codex'));
     await tester.pumpAndSettle();
-    await mouse.moveTo(tester.getCenter(find.byType(AlertDialog)));
+    await mouse.moveTo(tester.getCenter(find.byType(DraggableScrollableSheet)));
     await tester.pump();
     expect(find.text('Select codex'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    Navigator.of(tester.element(find.byType(AlertDialog))).pop();
+    Navigator.of(tester.element(find.byType(DraggableScrollableSheet))).pop();
     await tester.pumpAndSettle();
 
     await _scrollToAndTap(tester, find.text('All categories'));
     await tester.pumpAndSettle();
-    await mouse.moveTo(tester.getCenter(find.byType(AlertDialog)));
+    await mouse.moveTo(tester.getCenter(find.byType(DraggableScrollableSheet)));
     await tester.pump();
     expect(find.text('Category'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    Navigator.of(tester.element(find.byType(AlertDialog))).pop();
+    Navigator.of(tester.element(find.byType(DraggableScrollableSheet))).pop();
     await tester.pumpAndSettle();
 
     await _scrollToAndTap(
@@ -291,9 +373,9 @@ void main() {
       find.byKey(const ValueKey('quick-tag-cloud-contributors')),
     );
     await tester.pumpAndSettle();
-    await mouse.moveTo(tester.getCenter(find.byType(AlertDialog)));
+    await mouse.moveTo(tester.getCenter(find.byType(DraggableScrollableSheet)));
     await tester.pump();
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
     expect(
       find.byKey(const ValueKey('quick-tag-cloud-open-origin')),
       findsOneWidget,

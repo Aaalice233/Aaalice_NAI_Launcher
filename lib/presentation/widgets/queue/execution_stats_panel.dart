@@ -26,6 +26,7 @@ class ExecutionStatsPanel extends ConsumerStatefulWidget {
 class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
+  bool _disableAnimations = false;
 
   @override
   void initState() {
@@ -34,6 +35,19 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _animController
+        ..stop()
+        ..reset();
+    }
   }
 
   @override
@@ -71,145 +85,195 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
     final remaining = queueState.count;
     final progress = executionState.progress;
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.35,
-        ),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 标题行
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final compact = constraints.maxWidth < 420 || textScale > 1.3;
+        final singleColumnStats = textScale > 1.3 || constraints.maxWidth < 360;
+        final statCards = [
+          _buildStatCard(
+            context,
+            label: l10n.queue_totalTasks,
+            value: total.toString(),
+            icon: Icons.format_list_numbered_rounded,
+            color: theme.colorScheme.primary,
+          ),
+          _buildStatCard(
+            context,
+            label: l10n.queue_completedTasks,
+            value: completed.toString(),
+            icon: Icons.check_circle_outline_rounded,
+            color: Colors.green,
+          ),
+          _buildStatCard(
+            context,
+            label: l10n.queue_failedTasks,
+            value: failed.toString(),
+            icon: Icons.error_outline_rounded,
+            color: failed > 0 ? Colors.red : theme.disabledColor,
+          ),
+          _buildStatCard(
+            context,
+            label: l10n.queue_remainingTasks,
+            value: remaining.toString(),
+            icon: Icons.pending_outlined,
+            color: theme.colorScheme.secondary,
+          ),
+        ];
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.35,
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
+              // 标题行
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
-                  Icon(
-                    Icons.analytics_outlined,
-                    size: 16,
-                    color: theme.colorScheme.primary,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.analytics_outlined,
+                        size: 16,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          l10n.queue_executionProgress,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    l10n.queue_executionProgress,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  _buildStatusChip(context, l10n, executionState),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // 统计数字行
+              if (compact)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final card in statCards)
+                      SizedBox(
+                        width: singleColumnStats
+                            ? constraints.maxWidth - 48
+                            : (constraints.maxWidth - 56) / 2,
+                        child: card,
+                      ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    for (var index = 0; index < statCards.length; index++) ...[
+                      Expanded(child: statCards[index]),
+                      if (index < statCards.length - 1)
+                        const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+
+              const SizedBox(height: 12),
+
+              // 进度条
+              Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${(progress * 100).toStringAsFixed(1)}%',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      if (executionState.sessionStartTime != null &&
+                          completed > 0)
+                        Text(
+                          _estimateRemainingTime(
+                            context,
+                            l10n,
+                            executionState,
+                            remaining,
+                          ),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 5,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
                     ),
                   ),
                 ],
               ),
-              _buildStatusChip(context, l10n, executionState),
-            ],
-          ),
 
-          const SizedBox(height: 12),
-
-          // 统计数字行
-          Row(
-            children: [
-              _buildStatCard(
-                context,
-                label: l10n.queue_totalTasks,
-                value: total.toString(),
-                icon: Icons.format_list_numbered_rounded,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              _buildStatCard(
-                context,
-                label: l10n.queue_completedTasks,
-                value: completed.toString(),
-                icon: Icons.check_circle_outline_rounded,
-                color: Colors.green,
-              ),
-              const SizedBox(width: 8),
-              _buildStatCard(
-                context,
-                label: l10n.queue_failedTasks,
-                value: failed.toString(),
-                icon: Icons.error_outline_rounded,
-                color: failed > 0 ? Colors.red : theme.disabledColor,
-              ),
-              const SizedBox(width: 8),
-              _buildStatCard(
-                context,
-                label: l10n.queue_remainingTasks,
-                value: remaining.toString(),
-                icon: Icons.pending_outlined,
-                color: theme.colorScheme.secondary,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // 进度条
-          Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${(progress * 100).toStringAsFixed(1)}%',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary,
+              const SizedBox(height: 12),
+              if (compact)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildExecutionButton(context, executionState, queueState),
+                    const SizedBox(height: 8),
+                    FilledButton.tonalIcon(
+                      key: const Key('queue-add-current-task'),
+                      onPressed: widget.onAddCurrentTask,
+                      icon: const Icon(Icons.playlist_add_rounded, size: 19),
+                      label: Text(l10n.queue_addCurrentTask),
                     ),
-                  ),
-                  if (executionState.sessionStartTime != null && completed > 0)
-                    Text(
-                      _estimateRemainingTime(
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildExecutionButton(
                         context,
-                        l10n,
                         executionState,
-                        remaining,
-                      ),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.outline,
+                        queueState,
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 5,
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        key: const Key('queue-add-current-task'),
+                        onPressed: widget.onAddCurrentTask,
+                        icon: const Icon(Icons.playlist_add_rounded, size: 19),
+                        label: Text(l10n.queue_addCurrentTask),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
             ],
           ),
-
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildExecutionButton(
-                  context,
-                  executionState,
-                  queueState,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  key: const Key('queue-add-current-task'),
-                  onPressed: widget.onAddCurrentTask,
-                  icon: const Icon(Icons.playlist_add_rounded, size: 19),
-                  label: Text(l10n.queue_addCurrentTask),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -222,38 +286,37 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
     required Color color,
   }) {
     final theme = Theme.of(context);
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(14) / 14 > 1.3;
 
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color,
-                height: 1.1,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+              height: 1.1,
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.outline,
-                fontSize: 10,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.outline,
             ),
-          ],
-        ),
+            maxLines: usesLargeText ? 2 : 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
@@ -292,7 +355,7 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
   }
 
   void _updateAnimationState(QueueExecutionState executionState) {
-    final shouldAnimate = executionState.isRunning;
+    final shouldAnimate = executionState.isRunning && !_disableAnimations;
     if (shouldAnimate && !_animController.isAnimating) {
       _animController.repeat();
     } else if (!shouldAnimate && _animController.isAnimating) {
@@ -303,7 +366,9 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
   }
 
   Widget _buildAnimatedIcon(IconData icon, Color color, bool isRunning) {
-    if (!isRunning) return Icon(icon, size: 16, color: color);
+    if (!isRunning || _disableAnimations) {
+      return Icon(icon, size: 16, color: color);
+    }
     return AnimatedBuilder(
       animation: _animController,
       builder: (context, child) => Transform.rotate(

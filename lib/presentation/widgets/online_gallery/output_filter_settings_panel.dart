@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../autocomplete/autocomplete_config.dart';
 import '../tag_chip.dart';
@@ -160,7 +162,10 @@ class _OnlineGalleryOutputFilterSettingsPanelState
                 ),
         ),
         const SizedBox(height: 12),
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          runSpacing: 4,
+          spacing: 8,
           children: [
             TextButton.icon(
               onPressed: _resetDefaults,
@@ -169,7 +174,6 @@ class _OnlineGalleryOutputFilterSettingsPanelState
                 context.l10n.onlineGallery_outputFilterRestoreDefaults,
               ),
             ),
-            const Spacer(),
             TextButton.icon(
               onPressed: tags.isEmpty ? null : _clearAll,
               icon: const Icon(Icons.delete_outline, size: 18),
@@ -206,6 +210,9 @@ class _OnlineGalleryOutputFilterSettingsPanelState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        constraints: _responsiveDialogConstraints(context, 560),
+        insetPadding: _responsiveDialogInsetPadding,
+        scrollable: true,
         title: Text(context.l10n.onlineGallery_outputFilterClearTitle),
         content: Text(context.l10n.onlineGallery_outputFilterClearConfirm),
         actions: [
@@ -226,21 +233,35 @@ class _OnlineGalleryOutputFilterSettingsPanelState
   }
 }
 
-Future<void> showOnlineGalleryOutputFilterDialog(BuildContext context) async {
-  await showDialog<void>(
+Future<void> showOnlineGalleryOutputFilterDialog(BuildContext context) {
+  return AdaptivePresenter.showForm<void>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(context.l10n.onlineGallery_outputFilter),
-      content: const SizedBox(
-        width: 720,
-        child: OnlineGalleryOutputFilterSettingsPanel(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(context.l10n.common_close),
-        ),
-      ],
+    title: context.l10n.onlineGallery_outputFilter,
+    sideSheetWidth: 768,
+    builder: (panelContext, scrollController) => SingleChildScrollView(
+      key: const ValueKey('online-gallery-output-filter-form-scroll'),
+      controller: scrollController,
+      padding: const EdgeInsets.all(20),
+      child: const OnlineGalleryOutputFilterSettingsPanel(),
     ),
+  );
+}
+
+const _responsiveDialogInsetPadding = EdgeInsets.symmetric(
+  horizontal: 12,
+  vertical: 12,
+);
+
+BoxConstraints _responsiveDialogConstraints(
+  BuildContext context,
+  double maxWidth,
+) {
+  final unobscuredSize = context.adaptiveWindow.unobscuredSize;
+  final safeWidth = unobscuredSize.width - 24;
+  final safeHeight = unobscuredSize.height - 24;
+  return BoxConstraints(
+    minWidth: safeWidth.clamp(0, 280).toDouble(),
+    maxWidth: safeWidth.clamp(0, maxWidth).toDouble(),
+    maxHeight: safeHeight.clamp(0, double.infinity).toDouble(),
   );
 }

@@ -1427,6 +1427,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     details: _details,
   );
 
+  GalleryDetail? peekDetail(GalleryItem item) =>
+      _favoriteActions.peekDetail(item);
+
   Future<GalleryDetail> loadDetail(
     GalleryItem item, {
     bool forceRefresh = false,

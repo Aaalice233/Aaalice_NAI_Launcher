@@ -718,6 +718,14 @@
     }
   },
   "img2img_directorRunning": "正在处理...",
+  "img2img_directorConfirmTitle": "确认 Anlas 消耗",
+  "img2img_directorConfirmContent": "运行{tool}预计消耗 {cost} Anlas，是否继续？",
+  "@img2img_directorConfirmContent": {
+    "placeholders": {
+      "tool": {},
+      "cost": {"type": "int"}
+    }
+  },
   "img2img_directorResult": "处理结果",
   "img2img_directorResultReady": "{tool} 处理完成",
   "@img2img_directorResultReady": {

@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import 'vibe_category_item.dart';
 
@@ -247,7 +247,7 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
       setState(() => _hoveredCategoryId = null);
     }
 
-    if (PlatformCapabilities.current.hasTouchInput) {
+    if (context.interactionPolicy.shouldExposeTouchAlternatives) {
       return LongPressDraggable<VibeLibraryCategory>(
         data: category,
         feedback: feedback,
@@ -330,7 +330,9 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
         final isRejected = rejectedData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             color: isAccepting
                 ? theme.colorScheme.primary.withValues(alpha: 0.1)

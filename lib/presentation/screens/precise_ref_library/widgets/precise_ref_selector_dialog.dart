@@ -9,6 +9,7 @@ import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/precise_ref_library_provider.dart';
 import 'precise_ref_type_filter_chips.dart';
 
@@ -18,17 +19,32 @@ import 'precise_ref_type_filter_chips.dart';
 /// [multiSelect] 为 false 时点击条目直接返回单个条目。
 /// 搜索与类型过滤为对话框内部状态，不影响库页面的过滤条件。
 class PreciseRefSelectorDialog extends ConsumerStatefulWidget {
-  const PreciseRefSelectorDialog({super.key, this.multiSelect = true});
+  const PreciseRefSelectorDialog({
+    super.key,
+    this.multiSelect = true,
+    this.scrollController,
+  });
 
   final bool multiSelect;
+  final ScrollController? scrollController;
 
   static Future<List<PreciseRefLibraryEntry>?> show(
     BuildContext context, {
     bool multiSelect = true,
   }) {
-    return showDialog<List<PreciseRefLibraryEntry>>(
+    return AdaptivePresenter.showForm<List<PreciseRefLibraryEntry>>(
       context: context,
-      builder: (context) => PreciseRefSelectorDialog(multiSelect: multiSelect),
+      titleBuilder: (panelContext) => Text(
+        panelContext.l10n.preciseRefLib_selectorTitle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(panelContext).textTheme.titleLarge,
+      ),
+      sideSheetWidth: 720,
+      builder: (panelContext, scrollController) => PreciseRefSelectorDialog(
+        multiSelect: multiSelect,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -104,114 +120,138 @@ class _PreciseRefSelectorDialogState
     final state = ref.watch(preciseRefLibraryNotifierProvider);
     final entries = _visibleEntries(state.entries);
 
-    final mediaQuery = MediaQuery.of(context);
-    final dialogWidth = (mediaQuery.size.width - 48).clamp(280.0, 560.0);
-    final dialogHeight =
-        ((mediaQuery.size.height - mediaQuery.viewInsets.bottom) * 0.62).clamp(
-          280.0,
-          520.0,
-        );
-
-    return AlertDialog(
-      title: Text(l10n.preciseRefLib_selectorTitle),
-      content: SizedBox(
-        width: dialogWidth,
-        height: dialogHeight,
-        child: Column(
-          children: [
-            TextField(
-              key: const Key('precise-ref-selector-search'),
-              textAlignVertical: TextAlignVertical.center,
-              decoration: InputDecoration(
-                hintText: l10n.preciseRefLib_searchHint,
-                prefixIcon: const Icon(Icons.search, size: 20),
-                isDense: true,
-                border: const OutlineInputBorder(),
+    return LayoutBuilder(
+      key: const Key('precise-ref-selector-dialog'),
+      builder: (context, constraints) {
+        final crossAxisCount = constraints.maxWidth < 340
+            ? 2
+            : constraints.maxWidth < 500
+            ? 3
+            : constraints.maxWidth < 680
+            ? 4
+            : 5;
+        return CustomScrollView(
+          controller: widget.scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              sliver: SliverList.list(
+                children: [
+                  TextField(
+                    key: const Key('precise-ref-selector-search'),
+                    textAlignVertical: TextAlignVertical.center,
+                    decoration: InputDecoration(
+                      hintText: l10n.preciseRefLib_searchHint,
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      isDense: true,
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: _onSearchChanged,
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    key: const Key('precise-ref-selector-type-scroll'),
+                    scrollDirection: Axis.horizontal,
+                    child: PreciseRefTypeFilterChips(
+                      value: _typeFilter,
+                      onChanged: (type) => setState(() => _typeFilter = type),
+                    ),
+                  ),
+                ],
               ),
-              onChanged: _onSearchChanged,
             ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: PreciseRefTypeFilterChips(
-                value: _typeFilter,
-                onChanged: (type) => setState(() => _typeFilter = type),
+            if (state.isLoading)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    value: MediaQuery.disableAnimationsOf(context)
+                        ? 0.72
+                        : null,
+                  ),
+                ),
+              )
+            else if (state.error != null)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _buildErrorView(state.error!),
+              )
+            else if (entries.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Text(
+                    l10n.preciseRefLib_emptyTouch,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverGrid.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 0.85,
+                  ),
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) {
+                    final entry = entries[index];
+                    return _SelectorItem(
+                      entry: entry,
+                      selected:
+                          widget.multiSelect && _selectedIds.contains(entry.id),
+                      onTap: () {
+                        if (!widget.multiSelect) {
+                          Navigator.of(context).pop([entry]);
+                          return;
+                        }
+                        setState(() {
+                          if (!_selectedIds.remove(entry.id)) {
+                            _selectedIds.add(entry.id);
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: state.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : state.error != null
-                  ? _buildErrorView(state.error!)
-                  : entries.isEmpty
-                  ? Center(
-                      child: Text(
-                        l10n.preciseRefLib_emptyTouch,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              sliver: SliverToBoxAdapter(
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(l10n.common_cancel),
+                    ),
+                    if (widget.multiSelect)
+                      FilledButton(
+                        key: const Key('precise-ref-selector-confirm'),
+                        onPressed: _selectedIds.isEmpty
+                            ? null
+                            : () => _confirm(state.entries),
+                        child: Text(
+                          l10n.preciseRefLib_selectorConfirm(
+                            _selectedIds.length,
+                          ),
                         ),
                       ),
-                    )
-                  : LayoutBuilder(
-                      builder: (context, constraints) {
-                        final crossAxisCount = constraints.maxWidth < 340
-                            ? 2
-                            : constraints.maxWidth < 500
-                            ? 3
-                            : 4;
-                        return GridView.builder(
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: crossAxisCount,
-                                mainAxisSpacing: 8,
-                                crossAxisSpacing: 8,
-                                childAspectRatio: 0.85,
-                              ),
-                          itemCount: entries.length,
-                          itemBuilder: (context, index) {
-                            final entry = entries[index];
-                            return _SelectorItem(
-                              entry: entry,
-                              selected:
-                                  widget.multiSelect &&
-                                  _selectedIds.contains(entry.id),
-                              onTap: () {
-                                if (!widget.multiSelect) {
-                                  Navigator.of(context).pop([entry]);
-                                  return;
-                                }
-                                setState(() {
-                                  if (!_selectedIds.remove(entry.id)) {
-                                    _selectedIds.add(entry.id);
-                                  }
-                                });
-                              },
-                            );
-                          },
-                        );
-                      },
-                    ),
+                  ],
+                ),
+              ),
             ),
           ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
-        ),
-        if (widget.multiSelect)
-          FilledButton(
-            key: const Key('precise-ref-selector-confirm'),
-            onPressed: _selectedIds.isEmpty
-                ? null
-                : () => _confirm(state.entries),
-            child: Text(
-              l10n.preciseRefLib_selectorConfirm(_selectedIds.length),
-            ),
-          ),
-      ],
+        );
+      },
     );
   }
 

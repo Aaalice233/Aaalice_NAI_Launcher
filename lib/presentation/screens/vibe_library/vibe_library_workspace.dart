@@ -8,6 +8,7 @@ import '../../../data/models/vibe/vibe_import_progress.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/novelai_vibe_codec.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../providers/vibe_library_category_provider.dart';
 import '../../providers/vibe_library_provider.dart';
@@ -49,15 +50,14 @@ class VibeLibraryWorkspace extends StatelessWidget {
         final contentWidth =
             constraints.maxWidth - (showCategories ? categoryPanelWidth : 0);
         const gridPadding = 32.0;
-        const gridSpacing = vibeLibraryGridSpacing;
         final gridWidth = (contentWidth - gridPadding).clamp(
           0.0,
           double.infinity,
         );
-        final columns = ((gridWidth + gridSpacing) / (170 + gridSpacing))
-            .floor()
-            .clamp(1, 8);
-        final itemWidth = (gridWidth - gridSpacing * (columns - 1)) / columns;
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final gridLayout = computeVibeLibraryGridLayout(gridWidth, textScale);
+        final columns = gridLayout.columns;
+        final itemWidth = gridLayout.itemWidth;
 
         final content = Stack(
           children: [
@@ -72,15 +72,21 @@ class VibeLibraryWorkspace extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
-                      _Toolbar(
-                        libraryState: libraryState,
-                        selectionState: selectionState,
-                        currentModel: currentModel,
-                        controller: controller,
-                        compact: contentWidth < 1050,
-                        showCategoryPanel: showCategories,
-                        usePersistentCategories: persistent,
-                        onCommand: onCommand,
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: SingleChildScrollView(
+                          key: const Key('vibe-library-toolbar-scroll'),
+                          child: _Toolbar(
+                            libraryState: libraryState,
+                            selectionState: selectionState,
+                            currentModel: currentModel,
+                            controller: controller,
+                            compact: contentWidth < 1050 || textScale > 1.5,
+                            showCategoryPanel: showCategories,
+                            usePersistentCategories: persistent,
+                            onCommand: onCommand,
+                          ),
+                        ),
                       ),
                       Expanded(
                         child: _Body(
@@ -132,6 +138,29 @@ class VibeLibraryWorkspace extends StatelessWidget {
       },
     );
   }
+}
+
+@immutable
+class VibeLibraryGridLayout {
+  const VibeLibraryGridLayout({required this.columns, required this.itemWidth});
+
+  final int columns;
+  final double itemWidth;
+}
+
+VibeLibraryGridLayout computeVibeLibraryGridLayout(
+  double gridWidth,
+  double textScale,
+) {
+  const spacing = vibeLibraryGridSpacing;
+  final scale = textScale.clamp(1.0, 3.0);
+  final minExtent = 170 + (scale - 1) * 44;
+  final columns = ((gridWidth + spacing) / (minExtent + spacing)).floor().clamp(
+    1,
+    8,
+  );
+  final itemWidth = (gridWidth - spacing * (columns - 1)) / columns;
+  return VibeLibraryGridLayout(columns: columns, itemWidth: itemWidth);
 }
 
 class _CategoryPanel extends StatelessWidget {
@@ -314,7 +343,7 @@ class _Toolbar extends StatelessWidget {
                           isLoading: controller.isPickingFile,
                           onPressed: controller.isBusy
                               ? null
-                              : () => onCommand(const ImportVibesCommand()),
+                              : () => _handleImportPressed(context),
                         ),
                       ),
                     ],
@@ -427,17 +456,29 @@ class _Toolbar extends StatelessWidget {
             _SortButton(state: libraryState, onCommand: onCommand, touch: true),
             if (libraryState.entries.isNotEmpty) ...[
               const SizedBox(width: 4),
-              IconButton.filledTonal(
-                onPressed: controller.isBusy
+              GestureDetector(
+                onSecondaryTapUp: controller.isBusy
                     ? null
-                    : () => onCommand(const ImportVibesCommand()),
-                tooltip: context.l10n.vibeLibrary_importTooltip,
-                icon: controller.isPickingFile
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.file_download_outlined),
+                    : (details) => onCommand(
+                        ShowImportMenuCommand(details.globalPosition),
+                      ),
+                child: IconButton.filledTonal(
+                  onPressed: controller.isBusy
+                      ? null
+                      : () => _handleImportPressed(context),
+                  tooltip: context.l10n.vibeLibrary_importTooltip,
+                  icon: controller.isPickingFile
+                      ? SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            value: MediaQuery.disableAnimationsOf(context)
+                                ? 0.5
+                                : null,
+                          ),
+                        )
+                      : const Icon(Icons.file_download_outlined),
+                ),
               ),
             ],
             const SizedBox(width: 4),
@@ -449,6 +490,14 @@ class _Toolbar extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  void _handleImportPressed(BuildContext context) {
+    onCommand(
+      context.interactionPolicy.prefersTouchPresentation
+          ? const ShowImportMenuCommand(Offset.zero)
+          : const ImportVibesCommand(),
     );
   }
 
@@ -548,8 +597,9 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     return InputSurfaceContainer(
-      height: touch ? 48 : 36,
+      height: touch ? 48 + (textScale - 1).clamp(0, 2) * 8 : 36,
       constraints: touch ? null : const BoxConstraints(maxWidth: 300),
       borderRadius: touch ? 16 : 18,
       child: TextField(
@@ -713,9 +763,12 @@ class _RefreshButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox.square(
+              SizedBox.square(
                 dimension: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  value: MediaQuery.disableAnimationsOf(context) ? 0.5 : null,
+                ),
               ),
               if (!touch) ...[
                 const SizedBox(width: 6),
@@ -909,47 +962,63 @@ class _ImportOverlay extends StatelessWidget {
     return Positioned.fill(
       child: ColoredBox(
         color: Colors.black.withValues(alpha: 0.3),
-        child: Center(
-          child: Container(
-            width: 320,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox.square(
-                  dimension: 48,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 4,
-                    value: progress.progress,
+        child: SafeArea(
+          minimum: const EdgeInsets.all(16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: SingleChildScrollView(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 24,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox.square(
+                        dimension: 48,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 4,
+                          value:
+                              progress.progress ??
+                              (MediaQuery.disableAnimationsOf(context)
+                                  ? 0.5
+                                  : null),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        context.l10n.vibeLibrary_importing,
+                        style: theme.textTheme.titleMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      if (progress.isActive) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          '${progress.current} / ${progress.total}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ],
+                      if (progress.message.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          progress.message,
+                          style: const TextStyle(color: Colors.white70),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  context.l10n.vibeLibrary_importing,
-                  style: theme.textTheme.titleMedium,
-                ),
-                if (progress.isActive) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '${progress.current} / ${progress.total}',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ],
-                if (progress.message.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    progress.message,
-                    style: const TextStyle(color: Colors.white70),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
         ),

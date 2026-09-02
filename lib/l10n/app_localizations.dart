@@ -3527,6 +3527,18 @@ abstract class AppLocalizations {
   /// **'Processing...'**
   String get img2img_directorRunning;
 
+  /// No description provided for @img2img_directorConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Anlas usage'**
+  String get img2img_directorConfirmTitle;
+
+  /// No description provided for @img2img_directorConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Running {tool} is estimated to cost {cost} Anlas. Do you want to continue?'**
+  String img2img_directorConfirmContent(Object tool, int cost);
+
   /// No description provided for @img2img_directorResult.
   ///
   /// In en, this message translates to:

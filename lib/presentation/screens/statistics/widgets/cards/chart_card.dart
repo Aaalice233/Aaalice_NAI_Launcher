@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../adaptive/window_size_class.dart';
+
 /// Section header widget
 /// 章节标题组件
 class SectionHeader extends StatelessWidget {
@@ -85,73 +87,84 @@ class _ChartCardState extends State<ChartCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDesktop = MediaQuery.of(context).size.width >= 900;
     final isDark = theme.brightness == Brightness.dark;
     final accentColor = widget.accentColor ?? colorScheme.primary;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        transform: _isHovered
-            ? (Matrix4.identity()..translateByDouble(0.0, -2.0, 0, 1))
-            : Matrix4.identity(),
-        decoration: BoxDecoration(
-          color: _isHovered
-              ? colorScheme.surfaceContainer
-              : colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: widget.padding ?? EdgeInsets.all(isDesktop ? 22 : 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.title != null) ...[
-                  Row(
-                    children: [
-                      if (widget.titleIcon != null) ...[
-                        // 深度层叠风格：简洁图标容器
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: accentColor.withValues(
-                              alpha: isDark ? 0.15 : 0.1,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+        final useExpandedSpacing = sizeClass.isExpandedOrWider;
+
+        return MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: reducedMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            transform: _isHovered && !reducedMotion
+                ? (Matrix4.identity()..translateByDouble(0.0, -2.0, 0, 1))
+                : Matrix4.identity(),
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? colorScheme.surfaceContainer
+                  : colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding:
+                    widget.padding ??
+                    EdgeInsets.all(useExpandedSpacing ? 22 : 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.title != null) ...[
+                      Row(
+                        children: [
+                          if (widget.titleIcon != null) ...[
+                            // 深度层叠风格：简洁图标容器
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: accentColor.withValues(
+                                  alpha: isDark ? 0.15 : 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                widget.titleIcon,
+                                size: 18,
+                                color: accentColor,
+                              ),
                             ),
-                            borderRadius: BorderRadius.circular(6),
+                            const SizedBox(width: 12),
+                          ],
+                          Expanded(
+                            child: Text(
+                              widget.title!,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
                           ),
-                          child: Icon(
-                            widget.titleIcon,
-                            size: 18,
-                            color: accentColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        child: Text(
-                          widget.title!,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
+                          if (widget.trailing != null) widget.trailing!,
+                        ],
                       ),
-                      if (widget.trailing != null) widget.trailing!,
+                      SizedBox(height: useExpandedSpacing ? 18 : 14),
                     ],
-                  ),
-                  SizedBox(height: isDesktop ? 18 : 14),
-                ],
-                widget.child,
-              ],
+                    widget.child,
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

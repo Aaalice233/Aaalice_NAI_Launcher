@@ -382,7 +382,9 @@ class _TooltipCopyButtonState extends State<_TooltipCopyButton> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.onCopy,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: _isHovering

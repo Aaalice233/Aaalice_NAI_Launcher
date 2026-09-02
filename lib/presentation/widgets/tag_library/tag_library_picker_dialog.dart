@@ -9,6 +9,7 @@ import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../data/models/tag_library/tag_library_category.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/thumbnail_display.dart';
 
@@ -16,10 +17,37 @@ import '../common/thumbnail_display.dart';
 ///
 /// 用于从词库中选择一个条目，返回选中的 [TagLibraryEntry]
 class TagLibraryPickerDialog extends ConsumerStatefulWidget {
-  /// 对话框标题
-  final String? title;
+  const TagLibraryPickerDialog({super.key});
 
-  const TagLibraryPickerDialog({super.key, this.title});
+  /// 统一使用自适应选择面呈现词库：紧凑宽度全屏，其他宽度保持有界。
+  static Future<TagLibraryEntry?> show(BuildContext context, {String? title}) {
+    final resolvedTitle = title ?? context.l10n.tagLibraryPicker_title;
+    return AdaptivePresenter.showForm<TagLibraryEntry>(
+      context: context,
+      titleBuilder: (context) => Row(
+        children: [
+          Icon(
+            Icons.library_books_outlined,
+            color: Theme.of(context).colorScheme.primary,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              resolvedTitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      sideSheetWidth: 800,
+      builder: (context, scrollController) => const TagLibraryPickerDialog(),
+    );
+  }
 
   @override
   ConsumerState<TagLibraryPickerDialog> createState() =>
@@ -47,122 +75,79 @@ class _TagLibraryPickerDialogState
     final theme = Theme.of(context);
     final state = ref.watch(tagLibraryPageNotifierProvider);
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      child: Container(
-        width: 800,
-        height: 600,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题栏
-            _buildHeader(theme),
-            const SizedBox(height: 16),
-
-            // 搜索和筛选栏
-            _buildFilterBar(theme, state),
-            const SizedBox(height: 16),
-
-            // 条目网格
-            Expanded(child: _buildEntryGrid(theme, state)),
-
-            const SizedBox(height: 16),
-
-            // 底部按钮
-            _buildFooter(theme),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFilterBar(theme, state),
+          const SizedBox(height: 16),
+          Expanded(child: _buildEntryGrid(theme, state)),
+          const SizedBox(height: 12),
+          _buildFooter(theme),
+        ],
       ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme) {
-    return Row(
-      children: [
-        Icon(
-          Icons.library_books_outlined,
-          color: theme.colorScheme.primary,
-          size: 24,
-        ),
-        const SizedBox(width: 12),
-        Text(
-          widget.title ?? context.l10n.tagLibraryPicker_title,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const Spacer(),
-        IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.close),
-          tooltip: context.l10n.common_close,
-        ),
-      ],
     );
   }
 
   Widget _buildFilterBar(ThemeData theme, TagLibraryPageState state) {
     final selectedCategoryId = _effectiveSelectedCategoryId(state);
-    return Row(
-      children: [
-        // 搜索框
-        Expanded(
-          flex: 2,
-          child: TextField(
-            textAlignVertical: TextAlignVertical.center,
-            decoration: InputDecoration(
-              hintText: context.l10n.tagLibraryPicker_searchHint,
-              prefixIcon: const Icon(Icons.search, size: 20),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              isDense: true,
-            ),
-            onChanged: (value) {
-              setState(() => _searchQuery = value);
-            },
-          ),
+    final searchField = TextField(
+      textAlignVertical: TextAlignVertical.center,
+      decoration: InputDecoration(
+        hintText: context.l10n.tagLibraryPicker_searchHint,
+        prefixIcon: const Icon(Icons.search, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
         ),
-        const SizedBox(width: 12),
-
-        // 分类筛选
-        Expanded(
-          flex: 1,
-          child: DropdownButtonFormField<String?>(
-            initialValue: selectedCategoryId,
-            isExpanded: true,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              isDense: true,
-            ),
-            hint: Text(context.l10n.tagLibraryPicker_allCategories),
-            items: [
-              DropdownMenuItem<String?>(
-                value: null,
-                child: Text(context.l10n.tagLibraryPicker_allCategories),
-              ),
-              ...state.categories.map(
-                (category) => DropdownMenuItem<String?>(
-                  value: category.id,
-                  child: Text(category.name, overflow: TextOverflow.ellipsis),
-                ),
-              ),
-            ],
-            onChanged: _setSelectedCategory,
+        isDense: true,
+      ),
+      onChanged: (value) => setState(() => _searchQuery = value),
+    );
+    final categoryField = DropdownButtonFormField<String?>(
+      initialValue: selectedCategoryId,
+      isExpanded: true,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        isDense: true,
+      ),
+      hint: Text(context.l10n.tagLibraryPicker_allCategories),
+      items: [
+        DropdownMenuItem<String?>(
+          value: null,
+          child: Text(context.l10n.tagLibraryPicker_allCategories),
+        ),
+        ...state.categories.map(
+          (category) => DropdownMenuItem<String?>(
+            value: category.id,
+            child: Text(category.name, overflow: TextOverflow.ellipsis),
           ),
         ),
       ],
+      onChanged: _setSelectedCategory,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 560) {
+          return Column(
+            children: [searchField, const SizedBox(height: 10), categoryField],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(flex: 2, child: searchField),
+            const SizedBox(width: 12),
+            Expanded(child: categoryField),
+          ],
+        );
+      },
     );
   }
 
@@ -210,19 +195,30 @@ class _TagLibraryPickerDialogState
       );
     }
 
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 0.85,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        return _EntrySelectCard(
-          entry: entry,
-          onTap: () => Navigator.of(context).pop(entry),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 12.0;
+        const minimumCardWidth = 150.0;
+        final crossAxisCount =
+            ((constraints.maxWidth + spacing) / (minimumCardWidth + spacing))
+                .floor()
+                .clamp(1, 4);
+        return GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 0.85,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
+          ),
+          itemCount: entries.length,
+          itemBuilder: (context, index) {
+            final entry = entries[index];
+            return _EntrySelectCard(
+              key: ValueKey('tag-library-picker-entry-${entry.id}'),
+              entry: entry,
+              onTap: () => Navigator.of(context).pop(entry),
+            );
+          },
         );
       },
     );
@@ -282,7 +278,7 @@ class _EntrySelectCard extends StatefulWidget {
   final TagLibraryEntry entry;
   final VoidCallback onTap;
 
-  const _EntrySelectCard({required this.entry, required this.onTap});
+  const _EntrySelectCard({super.key, required this.entry, required this.onTap});
 
   @override
   State<_EntrySelectCard> createState() => _EntrySelectCardState();

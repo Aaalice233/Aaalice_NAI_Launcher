@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../adaptive/interaction_policy.dart';
+import '../../../../../data/models/vibe/vibe_reference.dart';
 import '../../app_toast.dart';
 
 /// Vibe Transfer 数据展示组件
@@ -89,7 +90,9 @@ class _VibeSectionState extends State<VibeSection> {
           crossFadeState: _isExpanded && hasVibes
               ? CrossFadeState.showSecond
               : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
         ),
       ],
     );
@@ -174,7 +177,9 @@ class _VibeSectionState extends State<VibeSection> {
             tooltip: context.l10n.detail_copyAllVibeData,
             style: IconButton.styleFrom(
               padding: const EdgeInsets.all(6),
-              minimumSize: const Size(28, 28),
+              minimumSize: Size.square(
+                context.interactionPolicy.minimumControlExtent,
+              ),
             ),
           ),
         ],
@@ -305,7 +310,9 @@ class _VibeCard extends StatelessWidget {
               tooltip: context.l10n.detail_saveToVibeLibrary,
               style: IconButton.styleFrom(
                 padding: const EdgeInsets.all(6),
-                minimumSize: const Size(32, 32),
+                minimumSize: Size.square(
+                  context.interactionPolicy.minimumControlExtent,
+                ),
               ),
             ),
         ],

@@ -118,7 +118,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= 1050) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        if (useExpandedPromptConfigLayout(constraints.maxWidth, textScale)) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -249,13 +250,17 @@ class _StudioHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     return Container(
       constraints: const BoxConstraints(minHeight: 72),
       color: colors.surfaceContainerLow,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: textScale > 1.5 ? 12 : 20,
+        vertical: 12,
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 840;
+          final compact = constraints.maxWidth < 840 || textScale > 1.5;
           final title = Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,7 +394,13 @@ class _CompactWorkspace extends StatelessWidget {
         if (showPreview) ...[
           const SizedBox(height: 14),
           SizedBox(
-            height: 360,
+            height:
+                360 +
+                (MediaQuery.textScalerOf(context).scale(14) / 14 - 1).clamp(
+                      0,
+                      2,
+                    ) *
+                    48,
             child: _PreviewSection(onClose: onClosePreview),
           ),
         ],
@@ -471,37 +482,56 @@ class _RecipeHeading extends ConsumerWidget {
     final officialData = mode == RandomGenerationMode.custom
         ? null
         : ref.watch(officialWordlistDataProvider).valueOrNull;
-    return Row(
+    final heading = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.randomManager_recipeTitle,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                context.l10n.randomManager_recipeSubtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-            ],
+        Text(
+          context.l10n.randomManager_recipeTitle,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
         ),
-        if (libraryState.library case final library?)
-          _LibraryStatusButton(
+        const SizedBox(height: 3),
+        Text(
+          context.l10n.randomManager_recipeSubtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    final library = libraryState.library;
+    final status = library == null
+        ? null
+        : _LibraryStatusButton(
             library: library,
             mode: mode,
             profile: profile,
             officialData: officialData,
-          ),
-      ],
+          );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        if (constraints.maxWidth < 600 || textScale > 1.5) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              heading,
+              if (status != null) ...[
+                const SizedBox(height: 8),
+                Align(alignment: Alignment.centerLeft, child: status),
+              ],
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: heading),
+            if (status != null) status,
+          ],
+        );
+      },
     );
   }
 }
@@ -635,8 +665,7 @@ class _LibraryStatusButton extends StatelessWidget {
                 color: unsupported ? colors.error : colors.primary,
               ),
               const SizedBox(width: 7),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 230),
+              Flexible(
                 child: Text(
                   label,
                   maxLines: 1,
@@ -668,18 +697,60 @@ Future<void> _showSourceDetails(
   required RandomGenerationMode mode,
   required RandomPromptProfile profile,
   required OfficialWordlistData? officialData,
-}) {
-  final includesOfficial = mode != RandomGenerationMode.custom;
-  final includesCatalog = mode != RandomGenerationMode.naiOfficial;
-  return showDialog<void>(
+}) => PromptSourceDetailsDialog.show(
+  context,
+  library: library,
+  mode: mode,
+  profile: profile,
+  officialData: officialData,
+);
+
+class PromptSourceDetailsDialog extends StatelessWidget {
+  const PromptSourceDetailsDialog({
+    super.key,
+    required this.library,
+    required this.mode,
+    required this.profile,
+    required this.officialData,
+    this.scrollController,
+  });
+
+  final TagLibrary library;
+  final RandomGenerationMode mode;
+  final RandomPromptProfile profile;
+  final OfficialWordlistData? officialData;
+  final ScrollController? scrollController;
+
+  static Future<void> show(
+    BuildContext context, {
+    required TagLibrary library,
+    required RandomGenerationMode mode,
+    required RandomPromptProfile profile,
+    required OfficialWordlistData? officialData,
+  }) => AdaptivePresenter.showForm<void>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(context.l10n.randomManager_sourceDetails),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620),
-        child: SelectionArea(
+    title: context.l10n.randomManager_sourceDetails,
+    sideSheetWidth: 680,
+    builder: (context, scrollController) => PromptSourceDetailsDialog(
+      library: library,
+      mode: mode,
+      profile: profile,
+      officialData: officialData,
+      scrollController: scrollController,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final includesOfficial = mode != RandomGenerationMode.custom;
+    final includesCatalog = mode != RandomGenerationMode.naiOfficial;
+    return ListView(
+      controller: scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(20),
+      children: [
+        SelectionArea(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _SourceDetailRow(
@@ -740,15 +811,17 @@ Future<void> _showSourceDetails(
             ],
           ),
         ),
-      ),
-      actions: [
-        FilledButton.tonal(
-          onPressed: () => Navigator.pop(context),
-          child: Text(context.l10n.common_close),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.tonal(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.l10n.common_close),
+          ),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 String _officialProfileName(
@@ -908,6 +981,10 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+bool useExpandedPromptConfigLayout(double availableWidth, double textScale) {
+  return availableWidth >= 1050 && textScale <= 1.5;
 }
 
 class _FocusSearchIntent extends Intent {

@@ -53,8 +53,6 @@ class PlatformCapabilities {
   bool get isLinux => platform == TargetPlatform.linux;
   bool get isDesktop => isWindows || isMacOS || isLinux;
 
-  bool get hasTouchInput => isMobile;
-  bool get hasPrecisePointer => isDesktop;
   bool get supportsDesktopWindowControls => isDesktop;
   bool get supportsSystemTray => isDesktop;
   bool get supportsExternalFileDrop => isDesktop;

@@ -330,7 +330,13 @@ class _LocalImageHoverPreviewCardState
                 child: ColoredBox(
                   color: theme.colorScheme.surfaceContainerLowest,
                   child: imageProvider == null
-                      ? const Center(child: CircularProgressIndicator())
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            value: MediaQuery.disableAnimationsOf(context)
+                                ? 0.72
+                                : null,
+                          ),
+                        )
                       : Image(
                           image: imageProvider,
                           fit: BoxFit.contain,
@@ -343,8 +349,13 @@ class _LocalImageHoverPreviewCardState
                                       .releasePendingOwner(imageProvider);
                                   return child;
                                 }
-                                return const Center(
-                                  child: CircularProgressIndicator(),
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    value:
+                                        MediaQuery.disableAnimationsOf(context)
+                                        ? 0.72
+                                        : null,
+                                  ),
                                 );
                               },
                           errorBuilder: (_, __, ___) {

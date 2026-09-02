@@ -23,6 +23,7 @@ import '../../../core/watermark/watermark_render_service.dart';
 import '../../../core/watermark/watermark_scene.dart';
 import '../../../data/models/watermark/watermark_settings.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../adaptive/adaptive_layout.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
@@ -624,16 +625,13 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
       },
       child: Material(
         color: Theme.of(context).colorScheme.surface,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: keyboardInset),
-          child: SafeArea(
-            child: Column(
-              children: [
-                if (keyboardInset == 0) _buildHeader(),
-                Expanded(child: _buildBody()),
-                _buildActions(),
-              ],
-            ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              if (keyboardInset == 0) _buildHeader(),
+              Expanded(child: _buildBody()),
+              _buildActions(),
+            ],
           ),
         ),
       ),
@@ -660,7 +658,13 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
   );
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return Center(
+        child: CircularProgressIndicator(
+          value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+        ),
+      );
+    }
     if (_loadError != null || _sourceImage == null) {
       return Center(
         child: ConstrainedBox(
@@ -729,7 +733,9 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
               setState(() => _selectedLayer = value),
           onChooseLogo: _chooseLogo,
         );
-        if (constraints.maxWidth >= 840) {
+        if (AdaptiveBreakpoints.classifyWidth(
+          constraints.maxWidth,
+        ).isExpandedOrWider) {
           return Row(
             children: [
               Expanded(child: preview),
@@ -923,10 +929,16 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
                 const SizedBox(width: 4),
                 const Spacer(),
                 if (widget.defaultsOnly)
-                  FilledButton.icon(
-                    onPressed: _saving || !ready ? null : _setDefault,
-                    icon: const Icon(Icons.bookmark_add_outlined),
-                    label: Text(context.l10n.watermark_setDefault),
+                  Flexible(
+                    child: FilledButton.icon(
+                      onPressed: _saving || !ready ? null : _setDefault,
+                      icon: const Icon(Icons.bookmark_add_outlined),
+                      label: Text(
+                        context.l10n.watermark_setDefault,
+                        textAlign: TextAlign.center,
+                        softWrap: true,
+                      ),
+                    ),
                   )
                 else if (compact)
                   IconButton(
@@ -946,9 +958,14 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
                     FilledButton.icon(
                       onPressed: _saving || !ready ? null : _saveCopy,
                       icon: _saving
-                          ? const SizedBox.square(
+                          ? SizedBox.square(
                               dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                value: MediaQuery.disableAnimationsOf(context)
+                                    ? 0.72
+                                    : null,
+                              ),
                             )
                           : const Icon(Icons.save_alt),
                       label: Text(context.l10n.common_save),
@@ -957,9 +974,14 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
                     FilledButton.icon(
                       onPressed: _saving || !ready ? null : _saveCopy,
                       icon: _saving
-                          ? const SizedBox.square(
+                          ? SizedBox.square(
                               dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                value: MediaQuery.disableAnimationsOf(context)
+                                    ? 0.72
+                                    : null,
+                              ),
                             )
                           : const Icon(Icons.save_alt),
                       label: Text(

@@ -277,8 +277,9 @@ void main() {
 
   testWidgets('新增服务商弹窗在移动端完整适配窄屏', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    await tester.binding.setSurfaceSize(const Size(390, 700));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 700);
+    addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -304,11 +305,17 @@ void main() {
             _FakeSubscriptionNotifier.new,
           ),
         ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
+        child: MaterialApp(
+          locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: SettingsScreen(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.6)),
+            child: child!,
+          ),
+          home: const SettingsScreen(),
         ),
       ),
     );
@@ -339,15 +346,40 @@ void main() {
       const ValueKey('prompt-assistant-provider-dialog'),
     );
     expect(dialog, findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget.key == const ValueKey('adaptive-full-screen-form') ||
+            widget.key == const ValueKey('adaptive-centered-form') ||
+            widget.key == const ValueKey('adaptive-side-sheet'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(AlertDialog), findsNothing);
     expect(find.text('OpenAI Chat Completions'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     final selectedProtocolRect = tester.getRect(
       find.text('OpenAI Chat Completions'),
     );
-    expect(selectedProtocolRect.left, greaterThanOrEqualTo(36));
-    expect(selectedProtocolRect.right, lessThanOrEqualTo(330));
+    expect(selectedProtocolRect.left, greaterThanOrEqualTo(16));
+    expect(selectedProtocolRect.right, lessThanOrEqualTo(374));
 
+    tester.view.viewInsets = const FakeViewPadding(bottom: 240);
+    await tester.pumpAndSettle();
+    expect(find.text('保存'), findsOneWidget);
+    final dialogContext = tester.element(dialog);
+    final visibleBottom =
+        MediaQuery.sizeOf(dialogContext).height -
+        MediaQuery.viewInsetsOf(dialogContext).bottom;
+    expect(
+      tester.getBottomRight(find.text('保存')).dy,
+      lessThanOrEqualTo(visibleBottom),
+    );
+    expect(tester.takeException(), isNull);
+
+    tester.view.viewInsets = const FakeViewPadding();
+    await tester.pumpAndSettle();
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 

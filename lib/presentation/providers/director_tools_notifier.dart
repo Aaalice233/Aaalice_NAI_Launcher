@@ -114,7 +114,7 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
       sourceImage: sourceImage,
       prompt: initialPrompt ?? '',
     );
-    _resolveImageDimensions(sourceImage);
+    await _resolveImageDimensions(sourceImage);
   }
 
   Future<void> _resolveImageDimensions(Uint8List bytes) async {

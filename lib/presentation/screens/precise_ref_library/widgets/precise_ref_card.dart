@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../core/extensions/precise_ref_type_extensions.dart';
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
 
 enum _PreciseRefCardAction { sendToPreciseRef, sendToImg2Img, edit, delete }
@@ -160,7 +160,9 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
                   semanticLabel: _typeDisplayName(context),
                   color: theme.colorScheme.primary,
                 ),
-                if (!PlatformCapabilities.current.hasTouchInput) ...[
+                if (!context
+                    .interactionPolicy
+                    .shouldExposeTouchAlternatives) ...[
                   const SizedBox(width: 3),
                   Text(
                     _typeDisplayName(context),
@@ -177,10 +179,11 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
           right: 2,
           child: IconButton(
             key: Key('precise-ref-card-favorite-${entry.id}'),
-            visualDensity: PlatformCapabilities.current.hasTouchInput
+            visualDensity:
+                context.interactionPolicy.shouldExposeTouchAlternatives
                 ? VisualDensity.standard
                 : VisualDensity.compact,
-            constraints: PlatformCapabilities.current.hasTouchInput
+            constraints: context.interactionPolicy.shouldExposeTouchAlternatives
                 ? const BoxConstraints.tightFor(width: 48, height: 48)
                 : null,
             iconSize: 18,
@@ -251,7 +254,7 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
 
   Widget _buildInfoArea(ThemeData theme) {
     final entry = widget.entry;
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
     return Padding(
       padding: EdgeInsets.fromLTRB(8, isTouch ? 2 : 6, 4, isTouch ? 2 : 6),
       child: Row(

@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/character/character_prompt.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
 import '../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/generation/character_editor_layout_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../common/themed_confirm_dialog.dart';
 import '../common/vertical_resize_handle.dart';
@@ -50,8 +52,6 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
 
   /// 0 = 正向提示词，1 = 负向提示词
   int _tabIndex = 0;
-  double? _positiveEditorHeight;
-  double? _negativeEditorHeight;
 
   @override
   void initState() {
@@ -145,8 +145,10 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
         (states) => states[assistantSessionId]?.expanded ?? false,
       ),
     );
-    final assistantToolbarHeight = PromptAssistantOverlay.inlineToolbarHeight;
-    final assistantIconOnly = PlatformCapabilities.current.hasTouchInput;
+    final interactionPolicy = context.interactionPolicy;
+    final assistantToolbarHeight =
+        PromptAssistantOverlay.effectiveInlineToolbarHeight(interactionPolicy);
+    final assistantIconOnly = interactionPolicy.prefersTouchPresentation;
     final collapsedAssistantWidth = assistantIconOnly
         ? assistantToolbarHeight
         : PromptAssistantOverlay.collapsedInlineButtonWidth(
@@ -317,14 +319,14 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       minimumHeight,
       math.min(viewportHeight * 0.5, widget.compact ? 360.0 : 480.0),
     );
-    final storedHeight = isNegative
-        ? _negativeEditorHeight
-        : _positiveEditorHeight;
+    final heightKey = (characterId: widget.character.id, negative: isNegative);
+    final storedHeight = ref.watch(characterEditorHeightProvider(heightKey));
     final editorHeight = (storedHeight ?? minimumHeight)
         .clamp(minimumHeight, maximumHeight)
         .toDouble();
-    final resizeHandleHeight = PlatformCapabilities.current.hasTouchInput
-        ? 40.0
+    final resizeHandleHeight =
+        context.interactionPolicy.prefersTouchPresentation
+        ? context.interactionPolicy.minimumControlExtent
         : 20.0;
     final fieldName = isNegative ? 'negative' : 'positive';
 
@@ -354,19 +356,11 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
           key: ValueKey('character-prompt-resize-handle-$fieldName'),
           height: resizeHandleHeight,
           onDrag: (delta) {
-            setState(() {
-              final currentHeight = isNegative
-                  ? (_negativeEditorHeight ?? editorHeight)
-                  : (_positiveEditorHeight ?? editorHeight);
-              final nextHeight = (currentHeight + delta)
-                  .clamp(minimumHeight, maximumHeight)
-                  .toDouble();
-              if (isNegative) {
-                _negativeEditorHeight = nextHeight;
-              } else {
-                _positiveEditorHeight = nextHeight;
-              }
-            });
+            final nextHeight = ((storedHeight ?? editorHeight) + delta)
+                .clamp(minimumHeight, maximumHeight)
+                .toDouble();
+            ref.read(characterEditorHeightProvider(heightKey).notifier).state =
+                nextHeight;
           },
         ),
       ],
@@ -424,22 +418,34 @@ Future<void> confirmClearAllCharacters(
   WidgetRef ref,
 ) async {
   final l10n = AppLocalizations.of(context)!;
-  final confirmed = await showDialog<bool>(
+  final confirmed = await AdaptivePresenter.showPanel<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(l10n.characterEditor_clearAllTitle),
-      content: Text(l10n.characterEditor_clearAllConfirm),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-          child: Text(l10n.common_clear),
+    title: l10n.characterEditor_clearAllTitle,
+    initialChildSize: 0.46,
+    minChildSize: 0.38,
+    sideSheetWidth: 440,
+    builder: (panelContext, scrollController) => ListView(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      children: [
+        Text(l10n.characterEditor_clearAllConfirm),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(panelContext).pop(false),
+              child: Text(l10n.common_cancel),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: () => Navigator.of(panelContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(panelContext).colorScheme.error,
+              ),
+              child: Text(l10n.common_clear),
+            ),
+          ],
         ),
       ],
     ),

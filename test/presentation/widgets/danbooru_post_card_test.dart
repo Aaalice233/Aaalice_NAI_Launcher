@@ -10,6 +10,7 @@ import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
@@ -27,13 +28,9 @@ void main() {
     PlatformCapabilities.debugOverride = null;
   });
 
-  testWidgets('touch action menu does not overlap the rating badge', (
+  testWidgets('mixed input keeps touch action menu clear of rating badge', (
     tester,
   ) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.android,
-    );
-
     const post = DanbooruPost(
       id: 121,
       width: 600,
@@ -45,18 +42,25 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: DanbooruPostCard(
-                post: post,
-                itemWidth: 150,
-                isFavorited: false,
-                onTap: () {},
-                onTagTap: (_) {},
+        child: InteractionPolicyScope(
+          initialPolicy: const InteractionPolicy(
+            modality: InteractionModality.pointer,
+            touchAvailable: true,
+            precisePointerAvailable: true,
+          ),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: DanbooruPostCard(
+                  post: post,
+                  itemWidth: 150,
+                  isFavorited: false,
+                  onTap: () {},
+                  onTagTap: (_) {},
+                ),
               ),
             ),
           ),
@@ -73,6 +77,59 @@ void main() {
 
     expect(actions.overlaps(rating), isFalse);
     expect(rating.right, lessThanOrEqualTo(actions.left));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rating and video badges do not overlap at text scale 3', (
+    tester,
+  ) async {
+    const post = DanbooruPost(
+      id: 130,
+      width: 600,
+      height: 900,
+      rating: 'g',
+      fileExt: 'mp4',
+      fileUrl: 'https://example.com/video.mp4',
+      previewFileUrl: 'https://example.com/video.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(3)),
+            child: child!,
+          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: DanbooruPostCard(
+                post: post,
+                itemWidth: 200,
+                isFavorited: false,
+                onTap: () {},
+                onTagTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final rating = tester.getRect(
+      find.byKey(const ValueKey('online-gallery-card-rating-badge')),
+    );
+    final mediaType = tester.getRect(
+      find.byKey(const ValueKey('online-gallery-card-media-type-badge')),
+    );
+
+    expect(rating.overlaps(mediaType), isFalse);
+    expect(rating.bottom, lessThanOrEqualTo(mediaType.top));
     expect(tester.takeException(), isNull);
   });
 
@@ -123,6 +180,7 @@ void main() {
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp.router(
+            builder: (context, child) => _pointerPolicy(child!),
             routerConfig: router,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
@@ -133,6 +191,7 @@ void main() {
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       addTearDown(mouse.removePointer);
       await mouse.addPointer(location: tester.getCenter(card));
+      await mouse.moveTo(tester.getCenter(card));
       await tester.pump();
       await tester.tap(find.byTooltip('Send to Text to Image'));
       await tester.pump(const Duration(milliseconds: 500));
@@ -255,6 +314,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
+          builder: (context, child) => _pointerPolicy(child!),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
@@ -399,6 +459,7 @@ void main() {
           ),
         ],
         child: MaterialApp(
+          builder: (context, child) => _pointerPolicy(child!),
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -421,6 +482,7 @@ void main() {
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(location: tester.getCenter(card));
+    await mouse.moveTo(tester.getCenter(card));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 301));
     await tester.tap(find.byTooltip('Add to Queue'));
@@ -453,6 +515,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
+          builder: (context, child) => _pointerPolicy(child!),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
@@ -538,6 +601,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
+          builder: (context, child) => _pointerPolicy(child!),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
@@ -595,6 +659,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            builder: (context, child) => _pointerPolicy(child!),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
@@ -698,6 +763,17 @@ void main() {
     expect(find.byTooltip('Read-only favorites'), findsOneWidget);
     expect(find.byTooltip('Unfavorite'), findsNothing);
   });
+}
+
+Widget _pointerPolicy(Widget child) {
+  return InteractionPolicyScope(
+    initialPolicy: const InteractionPolicy(
+      modality: InteractionModality.pointer,
+      touchAvailable: false,
+      precisePointerAvailable: true,
+    ),
+    child: child,
+  );
 }
 
 class _TestCharacterPromptNotifier extends CharacterPromptNotifier {

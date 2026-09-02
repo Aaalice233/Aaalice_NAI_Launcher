@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 
 /// 随机词库管理器的键盘快捷键配置
@@ -119,102 +120,63 @@ class RandomManagerShortcuts extends ConsumerWidget {
 ///
 /// 显示当前可用的键盘快捷键列表
 class ShortcutHelpDialog extends StatelessWidget {
-  const ShortcutHelpDialog({super.key});
+  const ShortcutHelpDialog({super.key, this.scrollController});
+
+  final ScrollController? scrollController;
 
   static Future<void> show(BuildContext context) {
-    return showDialog(
+    return AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (context) => const ShortcutHelpDialog(),
+      titleBuilder: (context) => Text(
+        context.l10n.randomManager_keyboardShortcuts,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      initialChildSize: 0.8,
+      minChildSize: 0.5,
+      sideSheetWidth: 440,
+      builder: (context, scrollController) =>
+          ShortcutHelpDialog(scrollController: scrollController),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        width: 400,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
+    return ListView(
+      controller: scrollController,
+      padding: const EdgeInsets.all(20),
+      children: [
+        _ShortcutSection(
+          title: l10n.randomManager_generalShortcuts,
+          shortcuts: [
+            _ShortcutItem('Esc', l10n.randomManager_closeWindow),
+            _ShortcutItem('Ctrl+S', l10n.randomManager_syncDanbooruTags),
+            _ShortcutItem('F5', l10n.randomManager_refreshOrSync),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.keyboard,
-                    size: 20,
-                    color: colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  l10n.randomManager_keyboardShortcuts,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            // 快捷键列表
-            _ShortcutSection(
-              title: l10n.randomManager_generalShortcuts,
-              shortcuts: [
-                _ShortcutItem('Esc', l10n.randomManager_closeWindow),
-                _ShortcutItem('Ctrl+S', l10n.randomManager_syncDanbooruTags),
-                _ShortcutItem('F5', l10n.randomManager_refreshOrSync),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _ShortcutSection(
-              title: l10n.randomManager_presetActions,
-              shortcuts: [
-                _ShortcutItem('Ctrl+N', l10n.shortcut_action_new_preset),
-                _ShortcutItem('Ctrl+D', l10n.shortcut_action_duplicate_preset),
-                _ShortcutItem('Ctrl+G', l10n.randomManager_generatePreview),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _ShortcutSection(
-              title: l10n.randomManager_selectionActions,
-              shortcuts: [
-                _ShortcutItem('Ctrl+F', l10n.common_search),
-                _ShortcutItem('Ctrl+A', l10n.common_selectAll),
-                _ShortcutItem('Ctrl+Shift+A', l10n.common_deselectAll),
-                _ShortcutItem('Delete', l10n.randomManager_deleteSelected),
-              ],
-            ),
+        const SizedBox(height: 16),
+        _ShortcutSection(
+          title: l10n.randomManager_presetActions,
+          shortcuts: [
+            _ShortcutItem('Ctrl+N', l10n.shortcut_action_new_preset),
+            _ShortcutItem('Ctrl+D', l10n.shortcut_action_duplicate_preset),
+            _ShortcutItem('Ctrl+G', l10n.randomManager_generatePreview),
           ],
         ),
-      ),
+        const SizedBox(height: 16),
+        _ShortcutSection(
+          title: l10n.randomManager_selectionActions,
+          shortcuts: [
+            _ShortcutItem('Ctrl+F', l10n.common_search),
+            _ShortcutItem('Ctrl+A', l10n.common_selectAll),
+            _ShortcutItem('Ctrl+Shift+A', l10n.common_deselectAll),
+            _ShortcutItem('Delete', l10n.randomManager_deleteSelected),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -244,13 +206,34 @@ class _ShortcutSection extends StatelessWidget {
         const SizedBox(height: 8),
         ...shortcuts.map(
           (s) => Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              children: [
-                _KeyBadge(keys: s.keys),
-                const SizedBox(width: 12),
-                Text(s.description, style: theme.textTheme.bodySmall),
-              ],
+            padding: const EdgeInsets.only(bottom: 8),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked =
+                    constraints.maxWidth < 360 ||
+                    MediaQuery.textScalerOf(context).scale(1) >= 2;
+                final description = Text(
+                  s.description,
+                  style: theme.textTheme.bodySmall,
+                );
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _KeyBadge(keys: s.keys),
+                      const SizedBox(height: 4),
+                      description,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    _KeyBadge(keys: s.keys),
+                    const SizedBox(width: 12),
+                    Expanded(child: description),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -351,7 +334,10 @@ class _ShortcutHelpButtonState extends State<ShortcutHelpButton> {
         child: Tooltip(
           message: context.l10n.randomManager_keyboardShortcutsHint,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: _isHovered

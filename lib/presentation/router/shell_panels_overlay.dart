@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/windowing/workspace_side_panel_contract.dart';
 import '../agent_chat/widgets/agent_chat_panel.dart';
+import '../themes/theme_extension.dart';
 import '../widgets/queue/queue_management_page.dart';
 
 /// Shell 级持久面板。单一状态所有者保证智能体与队列不会重叠。
@@ -76,22 +77,21 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
         : const Offset(0, 1);
     final duration = reduceMotion
         ? Duration.zero
-        : const Duration(milliseconds: 220);
+        : theme.appTheme.normalDuration;
+    final motionCurve = theme.appTheme.standardCurve;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(
           children: [
-            if (isVisible)
+            if (isVisible && !widget.desktop)
               Positioned.fill(
                 child: GestureDetector(
                   key: const ValueKey('shell-panel-scrim'),
                   behavior: HitTestBehavior.opaque,
                   onTap: widget.onClose,
                   child: ColoredBox(
-                    color: theme.colorScheme.scrim.withValues(
-                      alpha: widget.desktop ? 0.28 : 0.36,
-                    ),
+                    color: theme.colorScheme.scrim.withValues(alpha: 0.36),
                   ),
                 ),
               ),
@@ -101,7 +101,7 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
                 end: isVisible ? Offset.zero : hiddenOffset,
               ),
               duration: duration,
-              curve: Curves.easeOutCubic,
+              curve: motionCurve,
               builder: (context, offset, panel) {
                 final hidden = widget.desktop
                     ? offset.dx >= 0.5
@@ -124,7 +124,7 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
                 child: AnimatedContainer(
                   key: const ValueKey('shell-panel-surface'),
                   duration: duration,
-                  curve: Curves.easeOutCubic,
+                  curve: motionCurve,
                   width: widget.desktop
                       ? showingAgent
                             ? WorkspaceSidePanelContract.overlayWidth(
@@ -140,7 +140,7 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
                         ? theme.colorScheme.surfaceContainerHigh
                         : theme.scaffoldBackgroundColor,
                     elevation: 18,
-                    shadowColor: Colors.black.withValues(alpha: 0.28),
+                    shadowColor: theme.shadowColor.withValues(alpha: 0.28),
                     borderRadius: widget.desktop
                         ? const BorderRadius.horizontal(
                             left: Radius.circular(18),
@@ -171,7 +171,6 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
                                         key: const ValueKey(
                                           'agent-drawer-chat-panel',
                                         ),
-                                        mobile: !widget.desktop,
                                         fullScreen: !widget.desktop,
                                         onClose: widget.onClose,
                                         onOpenSettings:

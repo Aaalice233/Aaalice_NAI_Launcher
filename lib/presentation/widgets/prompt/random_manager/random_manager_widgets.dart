@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
+import '../../../adaptive/interaction_policy.dart';
 
 /// 随机词库管理器公共组件库
 ///
@@ -168,8 +168,9 @@ class DialogTitleBar extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final controlExtent = PlatformCapabilities.current.hasTouchInput
-        ? 48.0
+    final interactionPolicy = context.interactionPolicy;
+    final controlExtent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
         : 32.0;
     return Container(
       constraints: BoxConstraints(minHeight: controlExtent),
@@ -197,7 +198,7 @@ class DialogTitleBar extends StatelessWidget {
             iconSize: 18,
             splashRadius: 20,
             padding: EdgeInsets.zero,
-            visualDensity: PlatformCapabilities.current.hasTouchInput
+            visualDensity: interactionPolicy.touchAvailable
                 ? VisualDensity.standard
                 : VisualDensity.compact,
             constraints: BoxConstraints.tightFor(
@@ -273,7 +274,9 @@ class ProbabilityBar extends StatelessWidget {
               alignment: Alignment.centerLeft,
               widthFactor: probability,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,

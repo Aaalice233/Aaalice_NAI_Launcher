@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -16,6 +16,8 @@ class CategoryTreeView extends StatefulWidget {
   final List<TagLibraryCategory> categories;
   final List<TagLibraryEntry> entries;
   final String? selectedCategoryId;
+  final Set<String> expandedCategoryIds;
+  final ValueChanged<Set<String>> onExpandedCategoryIdsChanged;
   final ValueChanged<String?> onCategorySelected;
   final void Function(String id, String newName) onCategoryRename;
   final ValueChanged<String> onCategoryDelete;
@@ -36,6 +38,8 @@ class CategoryTreeView extends StatefulWidget {
     required this.categories,
     required this.entries,
     this.selectedCategoryId,
+    required this.expandedCategoryIds,
+    required this.onExpandedCategoryIdsChanged,
     required this.onCategorySelected,
     required this.onCategoryRename,
     required this.onCategoryDelete,
@@ -50,8 +54,6 @@ class CategoryTreeView extends StatefulWidget {
 }
 
 class _CategoryTreeViewState extends State<CategoryTreeView> {
-  final Set<String> _expandedIds = {};
-
   /// 当前正在被拖拽悬停的分类ID
   String? _hoveredCategoryId;
 
@@ -68,11 +70,20 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
     _autoExpandTimer?.cancel();
     _autoExpandTimer = Timer(const Duration(milliseconds: 800), () {
       if (_hoveredCategoryId == categoryId && mounted) {
-        setState(() {
-          _expandedIds.add(categoryId);
-        });
+        _setCategoryExpanded(categoryId, true);
       }
     });
+  }
+
+  void _setCategoryExpanded(String categoryId, bool expanded) {
+    if (widget.expandedCategoryIds.contains(categoryId) == expanded) return;
+    final nextExpandedIds = Set<String>.of(widget.expandedCategoryIds);
+    if (expanded) {
+      nextExpandedIds.add(categoryId);
+    } else {
+      nextExpandedIds.remove(categoryId);
+    }
+    widget.onExpandedCategoryIdsChanged(nextExpandedIds);
   }
 
   void _cancelAutoExpandTimer() {
@@ -155,7 +166,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
   ) {
     final children = widget.categories.getChildren(category.id).sortedByOrder();
     final hasChildren = children.isNotEmpty;
-    final isExpanded = _expandedIds.contains(category.id);
+    final isExpanded = widget.expandedCategoryIds.contains(category.id);
     final entryCount = _getCategoryEntryCount(category.id);
 
     // 构建分类项内容
@@ -171,15 +182,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
       isExpanded: isExpanded,
       onTap: () => widget.onCategorySelected(category.id),
       onExpand: hasChildren
-          ? () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedIds.remove(category.id);
-                } else {
-                  _expandedIds.add(category.id);
-                }
-              });
-            }
+          ? () => _setCategoryExpanded(category.id, !isExpanded)
           : null,
       onRename: (newName) => widget.onCategoryRename(category.id, newName),
       onDelete: () => widget.onCategoryDelete(category.id),
@@ -261,7 +264,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
       setState(() => _hoveredCategoryId = null);
     }
 
-    if (PlatformCapabilities.current.hasTouchInput) {
+    if (context.interactionPolicy.shouldExposeTouchAlternatives) {
       return LongPressDraggable<TagLibraryCategory>(
         data: category,
         feedback: feedback,
@@ -311,10 +314,8 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
         HapticFeedback.heavyImpact();
         widget.onCategoryMove?.call(details.data.id, targetCategory.id);
         // 自动展开目标分类
-        setState(() {
-          _expandedIds.add(targetCategory.id);
-          _hoveredCategoryId = null;
-        });
+        _setCategoryExpanded(targetCategory.id, true);
+        setState(() => _hoveredCategoryId = null);
         _cancelAutoExpandTimer();
       },
       onMove: (details) {
@@ -326,7 +327,8 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
           final hasChildren = widget.categories
               .getChildren(targetCategory.id)
               .isNotEmpty;
-          if (hasChildren && !_expandedIds.contains(targetCategory.id)) {
+          if (hasChildren &&
+              !widget.expandedCategoryIds.contains(targetCategory.id)) {
             _startAutoExpandTimer(targetCategory.id);
           }
         }
@@ -344,7 +346,9 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
         final isRejected = rejectedData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             color: isAccepting
                 ? theme.colorScheme.primary.withValues(alpha: 0.1)
@@ -388,7 +392,9 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
         final isAccepting = candidateData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             gradient: isAccepting
                 ? LinearGradient(
@@ -485,7 +491,7 @@ class _CategoryItemState extends State<_CategoryItem> {
     final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
     final showActions =
         widget.onRename != null &&
-        (!PlatformCapabilities.current.hasPrecisePointer || _isHovering);
+        (!context.interactionPolicy.precisePointerAvailable || _isHovering);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),

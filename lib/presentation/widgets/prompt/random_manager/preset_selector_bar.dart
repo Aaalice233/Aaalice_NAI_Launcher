@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/random_prompt_result.dart';
 import '../../../../data/models/prompt/random_preset.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/random_mode_provider.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
@@ -53,16 +54,25 @@ class PresetSelectorBar extends ConsumerWidget {
           syncState,
           includeSync: !showDescription,
         );
+        final policyExtent = context.interactionPolicy.minimumControlExtent;
+        final previewMinimumHeight = policyExtent < 44 ? 44.0 : policyExtent;
         final previewButton = FilledButton.icon(
           key: const ValueKey('random-manager-preview-action'),
           onPressed: onGeneratePreview,
           icon: const Icon(Icons.shuffle_rounded),
           label: Text(context.l10n.randomManager_generatePreview),
-          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+          style: FilledButton.styleFrom(
+            minimumSize: Size(0, previewMinimumHeight),
+          ),
         );
 
         if (showWorkspaceHeading) {
-          final controls = constraints.maxWidth < 360
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final stackControls = shouldStackWorkspacePresetControls(
+            constraints.maxWidth,
+            textScale,
+          );
+          final controls = stackControls
               ? Column(
                   key: const ValueKey('random-manager-controls-row'),
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -80,35 +90,48 @@ class PresetSelectorBar extends ConsumerWidget {
                     previewButton,
                   ],
                 );
+          final title = Text(
+            context.l10n.randomManager_workspaceTitle,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+          );
+          final modeLabel = Text(
+            '${context.l10n.randomManager_currentMode} · ${mode.getName(context.l10n)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+          final heading = stackControls
+              ? Column(
+                  key: const ValueKey('random-manager-heading-row'),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: title),
+                        menu,
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    modeLabel,
+                  ],
+                )
+              : Row(
+                  key: const ValueKey('random-manager-heading-row'),
+                  children: [
+                    title,
+                    const SizedBox(width: 12),
+                    Expanded(child: modeLabel),
+                    menu,
+                  ],
+                );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                key: const ValueKey('random-manager-heading-row'),
-                children: [
-                  Text(
-                    context.l10n.randomManager_workspaceTitle,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '${context.l10n.randomManager_currentMode} · ${mode.getName(context.l10n)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  menu,
-                ],
-              ),
-              const SizedBox(height: 8),
-              controls,
-            ],
+            children: [heading, const SizedBox(height: 8), controls],
           );
         }
 
@@ -504,6 +527,14 @@ class _ToolbarAction extends StatelessWidget {
           : Icon(icon, size: 19),
     );
   }
+}
+
+bool shouldStackWorkspacePresetControls(
+  double availableWidth,
+  double textScale,
+) {
+  final scaleAdjustment = (textScale - 1).clamp(0, 2) * 100;
+  return availableWidth < 360 + scaleAdjustment;
 }
 
 enum _PresetAction { importExport, create, sync, reset, delete }

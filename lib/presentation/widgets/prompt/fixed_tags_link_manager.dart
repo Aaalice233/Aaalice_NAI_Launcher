@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../common/adaptive_dialog_frame.dart';
 import '../common/app_toast.dart';
 
 void showFixedTagLinkManager({
@@ -12,35 +15,124 @@ void showFixedTagLinkManager({
   required WidgetRef ref,
   required FixedTagEntry entry,
 }) {
-  if (MediaQuery.sizeOf(context).width < 600) {
-    _showCompactLinkManager(context: context, ref: ref, entry: entry);
-  } else {
-    _showDesktopLinkManager(context: context, ref: ref, entry: entry);
-  }
-}
-
-void _showDesktopLinkManager({
-  required BuildContext context,
-  required WidgetRef ref,
-  required FixedTagEntry entry,
-}) {
+  final isCompact = AdaptiveWindowMetrics.of(context).isCompact;
   final state = ref.read(fixedTagsNotifierProvider);
   final linkedEntries = entry.promptType == FixedTagPromptType.positive
       ? state.linkedNegativesOf(entry.id)
       : state.linkedPositivesOf(entry.id);
-  if (linkedEntries.isEmpty) {
+  if (!isCompact && linkedEntries.isEmpty) {
     AppToast.info(context, context.l10n.fixedTags_linkInstruction);
     return;
   }
-  showDialog<void>(
+
+  final oppositeType = entry.promptType == FixedTagPromptType.positive
+      ? FixedTagPromptType.negative
+      : FixedTagPromptType.positive;
+  AdaptivePresenter.showPanel<void>(
     context: context,
-    builder: (dialogContext) => SimpleDialog(
-      title: Text(dialogContext.l10n.fixedTags_manageLinks),
+    titleBuilder: (panelContext) =>
+        _LinkManagerTitle(entry: entry, oppositeType: oppositeType),
+    initialChildSize: 0.72,
+    minChildSize: 0.38,
+    maxChildSize: 0.94,
+    sideSheetWidth: 420,
+    builder: (panelContext, scrollController) => Align(
+      alignment: Alignment.topCenter,
+      child: AdaptiveDialogFrame(
+        maxWidth: 420,
+        maxHeight: 480,
+        reservedVerticalSpace: 104,
+        horizontalMargin: isCompact ? 12 : 24,
+        child: _FixedTagLinkManagerBody(
+          entry: entry,
+          showAllCandidates: isCompact,
+          scrollController: scrollController,
+        ),
+      ),
+    ),
+  );
+}
+
+class _LinkManagerTitle extends StatelessWidget {
+  const _LinkManagerTitle({required this.entry, required this.oppositeType});
+
+  final FixedTagEntry entry;
+  final FixedTagPromptType oppositeType;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final oppositeTitle = oppositeType == FixedTagPromptType.positive
+        ? context.l10n.fixedTags_positiveTitle
+        : context.l10n.fixedTags_negativeTitle;
+    return Row(
       children: [
-        for (final linkedEntry in linkedEntries)
-          SimpleDialogOption(
+        Icon(Icons.link_rounded, color: theme.colorScheme.secondary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.l10n.fixedTags_manageLinks,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '${entry.displayName} · $oppositeTitle',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FixedTagLinkManagerBody extends ConsumerWidget {
+  const _FixedTagLinkManagerBody({
+    required this.entry,
+    required this.showAllCandidates,
+    required this.scrollController,
+  });
+
+  final FixedTagEntry entry;
+  final bool showAllCandidates;
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(fixedTagsNotifierProvider);
+    final oppositeType = entry.promptType == FixedTagPromptType.positive
+        ? FixedTagPromptType.negative
+        : FixedTagPromptType.positive;
+    final oppositeTitle = oppositeType == FixedTagPromptType.positive
+        ? context.l10n.fixedTags_positiveTitle
+        : context.l10n.fixedTags_negativeTitle;
+    final linkedEntries = entry.promptType == FixedTagPromptType.positive
+        ? state.linkedNegativesOf(entry.id)
+        : state.linkedPositivesOf(entry.id);
+
+    if (!showAllCandidates) {
+      return ListView.builder(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: linkedEntries.length,
+        itemBuilder: (context, index) {
+          final linkedEntry = linkedEntries[index];
+          return SimpleDialogOption(
+            key: ValueKey('fixed-tag-linked-entry-${linkedEntry.id}'),
             onPressed: () async {
-              Navigator.of(dialogContext).pop();
+              Navigator.of(context).pop();
               final notifier = ref.read(fixedTagsNotifierProvider.notifier);
               if (entry.promptType == FixedTagPromptType.positive) {
                 await notifier.removeLinkByPair(
@@ -60,165 +152,73 @@ void _showDesktopLinkManager({
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    dialogContext.l10n.fixedTags_removeLink(
-                      linkedEntry.displayName,
-                    ),
+                    context.l10n.fixedTags_removeLink(linkedEntry.displayName),
                   ),
                 ),
               ],
             ),
-          ),
-      ],
-    ),
-  );
-}
+          );
+        },
+      );
+    }
 
-void _showCompactLinkManager({
-  required BuildContext context,
-  required WidgetRef ref,
-  required FixedTagEntry entry,
-}) {
-  showModalBottomSheet<void>(
-    context: context,
-    useRootNavigator: true,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (sheetContext) => Consumer(
-      builder: (context, ref, _) {
-        final state = ref.watch(fixedTagsNotifierProvider);
-        final oppositeType = entry.promptType == FixedTagPromptType.positive
-            ? FixedTagPromptType.negative
-            : FixedTagPromptType.positive;
-        final oppositeTitle = oppositeType == FixedTagPromptType.positive
-            ? context.l10n.fixedTags_positiveTitle
-            : context.l10n.fixedTags_negativeTitle;
-        final candidates = state.entries
-            .where((candidate) => candidate.promptType == oppositeType)
-            .toList()
-            .sortedByOrder();
-        final linkedIds = entry.promptType == FixedTagPromptType.positive
-            ? state.linkedNegativesOf(entry.id).map((item) => item.id).toSet()
-            : state.linkedPositivesOf(entry.id).map((item) => item.id).toSet();
-        return SafeArea(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.72,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 8, 12),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.link_rounded,
-                        color: Theme.of(context).colorScheme.secondary,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.l10n.fixedTags_manageLinks,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            Text(
-                              '${entry.displayName} · $oppositeTitle',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: MaterialLocalizations.of(
-                          context,
-                        ).closeButtonTooltip,
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  ),
+    final candidates = state.entries
+        .where((candidate) => candidate.promptType == oppositeType)
+        .toList()
+        .sortedByOrder();
+    final linkedIds = linkedEntries.map((item) => item.id).toSet();
+    if (candidates.isEmpty) {
+      return SingleChildScrollView(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: Text(
+          context.l10n.fixedTags_emptyTarget(oppositeTitle),
+          style: TextStyle(color: Theme.of(context).colorScheme.outline),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: scrollController,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: candidates.length,
+      itemBuilder: (context, index) {
+        final candidate = candidates[index];
+        final linked = linkedIds.contains(candidate.id);
+        return CheckboxListTile(
+          key: ValueKey('fixed-tag-link-option-${candidate.id}'),
+          value: linked,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(candidate.displayName),
+          subtitle: candidate.content.isEmpty
+              ? null
+              : Text(
+                  candidate.content.replaceAll('\n', ' '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const Divider(height: 1),
-                if (candidates.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 40,
-                    ),
-                    child: Text(
-                      context.l10n.fixedTags_emptyTarget(oppositeTitle),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                    ),
-                  )
-                else
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: candidates.length,
-                      itemBuilder: (context, index) {
-                        final candidate = candidates[index];
-                        final linked = linkedIds.contains(candidate.id);
-                        return CheckboxListTile(
-                          key: ValueKey(
-                            'fixed-tag-link-option-${candidate.id}',
-                          ),
-                          value: linked,
-                          controlAffinity: ListTileControlAffinity.leading,
-                          title: Text(candidate.displayName),
-                          subtitle: candidate.content.isEmpty
-                              ? null
-                              : Text(
-                                  candidate.content.replaceAll('\n', ' '),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                          onChanged: (selected) async {
-                            final notifier = ref.read(
-                              fixedTagsNotifierProvider.notifier,
-                            );
-                            final positiveId =
-                                entry.promptType == FixedTagPromptType.positive
-                                ? entry.id
-                                : candidate.id;
-                            final negativeId =
-                                entry.promptType == FixedTagPromptType.negative
-                                ? entry.id
-                                : candidate.id;
-                            if (selected ?? false) {
-                              await notifier.createLink(
-                                positiveEntryId: positiveId,
-                                negativeEntryId: negativeId,
-                              );
-                            } else {
-                              await notifier.removeLinkByPair(
-                                positiveEntryId: positiveId,
-                                negativeEntryId: negativeId,
-                              );
-                            }
-                          },
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          onChanged: (selected) async {
+            final notifier = ref.read(fixedTagsNotifierProvider.notifier);
+            final positiveId = entry.promptType == FixedTagPromptType.positive
+                ? entry.id
+                : candidate.id;
+            final negativeId = entry.promptType == FixedTagPromptType.negative
+                ? entry.id
+                : candidate.id;
+            if (selected ?? false) {
+              await notifier.createLink(
+                positiveEntryId: positiveId,
+                negativeEntryId: negativeId,
+              );
+            } else {
+              await notifier.removeLinkByPair(
+                positiveEntryId: positiveId,
+                negativeEntryId: negativeId,
+              );
+            }
+          },
         );
       },
-    ),
-  );
+    );
+  }
 }

@@ -64,25 +64,30 @@ class GenerateButtonWithCost extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final primaryButton = _buildPrimaryButton(context);
 
-    return SizedBox(
-      height: height,
-      child: _canSkipCurrentBatch
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ThemedButton(
-                  onPressed: onSkipCurrent,
-                  icon: const Icon(Icons.skip_next),
-                  label: Text(
-                    '${context.l10n.generation_skipCurrentBatch} ${_progressText()}',
-                  ),
-                  style: ThemedButtonStyle.outlined,
-                ),
-                const SizedBox(width: 8),
-                primaryButton,
-              ],
+    final skipButton = ThemedButton(
+      onPressed: onSkipCurrent,
+      icon: const Icon(Icons.skip_next),
+      label: Text(
+        '${context.l10n.generation_skipCurrentBatch} ${_progressText()}',
+        textAlign: TextAlign.center,
+      ),
+      style: ThemedButtonStyle.outlined,
+    );
+    final largeText = MediaQuery.textScalerOf(context).scale(14) > 18.2;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height),
+      child: !_canSkipCurrentBatch
+          ? primaryButton
+          : largeText
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [skipButton, const SizedBox(height: 8), primaryButton],
             )
-          : primaryButton,
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [skipButton, const SizedBox(width: 8), primaryButton],
+            ),
     );
   }
 
@@ -100,7 +105,9 @@ class GenerateButtonWithCost extends ConsumerWidget {
 
     return AnimatedTheme(
       data: showCancel ? cancelTheme : theme,
-      duration: const Duration(milliseconds: 160),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 160),
       curve: Curves.easeOut,
       child: ThemedButton(
         onPressed: showCancel

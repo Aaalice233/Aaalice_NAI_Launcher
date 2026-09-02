@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/local_gallery_provider.dart';
+import '../common/app_state_view.dart';
 
 /// Error state view for gallery
 /// 画廊错误状态视图
@@ -15,46 +16,16 @@ class GalleryErrorView extends StatelessWidget {
   /// 重试按钮回调
   final VoidCallback? onRetry;
 
-  const GalleryErrorView({
-    super.key,
-    this.error,
-    this.onRetry,
-  });
+  const GalleryErrorView({super.key, this.error, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 48,
-            color: theme.colorScheme.error,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            context.l10n.localGallery_loadFailed(
-              error ?? context.l10n.localGallery_unknownError,
-            ),
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onRetry,
-            child: Text(
-              context.l10n.common_retry,
-              style: TextStyle(
-                color: theme.colorScheme.onPrimary,
-              ),
-            ),
-          ),
-        ],
+    return AppStateView.error(
+      title: context.l10n.localGallery_loadFailed(
+        error ?? context.l10n.localGallery_unknownError,
       ),
+      actionLabel: context.l10n.common_retry,
+      onAction: onRetry,
     );
   }
 }
@@ -66,31 +37,12 @@ class GalleryLoadingView extends StatelessWidget {
   /// 显示的加载信息
   final String? message;
 
-  const GalleryLoadingView({
-    super.key,
-    this.message,
-  });
+  const GalleryLoadingView({super.key, this.message});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            message ?? context.l10n.localGallery_indexingLocalImages,
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
+    return AppStateView.loading(
+      title: message ?? context.l10n.localGallery_indexingLocalImages,
     );
   }
 }
@@ -119,36 +71,10 @@ class GalleryEmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 64,
-            color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: isDark ? 0.6 : 1.0),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title ?? context.l10n.localGallery_emptyTitle,
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle ?? context.l10n.localGallery_emptySubtitle,
-            style: TextStyle(
-              color: theme.colorScheme.onSurfaceVariant
-                  .withValues(alpha: isDark ? 0.7 : 1.0),
-            ),
-          ),
-        ],
-      ),
+    return AppStateView.empty(
+      title: title ?? context.l10n.localGallery_emptyTitle,
+      message: subtitle ?? context.l10n.localGallery_emptySubtitle,
+      icon: icon,
     );
   }
 }
@@ -182,51 +108,17 @@ class GalleryNoResultsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon ?? Icons.search_off,
-            size: 48,
-            color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: isDark ? 0.6 : 0.5),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title ?? context.l10n.localGallery_noMatchingResults,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: onClearFilters ??
-                () {
-                  ref
-                      .read(localGalleryNotifierProvider.notifier)
-                      .clearAllFilters();
-                },
-            icon: const Icon(Icons.filter_alt_off, size: 16),
-            label: Text(context.l10n.localGallery_clearFilters),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.primary,
-            ),
-          ),
-        ],
-      ),
+    return AppStateView.empty(
+      title: title ?? context.l10n.localGallery_noMatchingResults,
+      message: subtitle,
+      icon: icon ?? Icons.search_off,
+      actionLabel: context.l10n.localGallery_clearFilters,
+      actionIcon: Icons.filter_alt_off,
+      onAction:
+          onClearFilters ??
+          () {
+            ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+          },
     );
   }
 }
@@ -238,24 +130,8 @@ class GalleryGroupedLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            context.l10n.localGallery_loadingGroupedImages,
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
+    return AppStateView.loading(
+      title: context.l10n.localGallery_loadingGroupedImages,
     );
   }
 }

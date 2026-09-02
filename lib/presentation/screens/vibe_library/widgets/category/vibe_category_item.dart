@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
+import '../../../../adaptive/interaction_policy.dart';
 
 enum _VibeCategoryAction { rename, addSubCategory, delete }
 
@@ -88,7 +88,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
     // Preserve a usable label/action area for deeply nested imported trees.
     final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
 
@@ -103,7 +103,9 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
           decoration: BoxDecoration(
             color: widget.isSelected

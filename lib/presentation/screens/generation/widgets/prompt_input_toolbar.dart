@@ -69,9 +69,9 @@ class PromptInputToolbar extends ConsumerWidget {
         showRandom: false,
         settings: () => _showSettingsMenu(context, ref),
       );
-      return FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
+      return SingleChildScrollView(
+        key: const ValueKey('generation_prompt_auto_grow_toolbar_scroll'),
+        scrollDirection: Axis.horizontal,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -98,25 +98,32 @@ class PromptInputToolbar extends ConsumerWidget {
             settings: () => _showSettingsMenu(context, ref),
           );
           final random = _randomToolbar(showRandomTools);
+          final typeSwitch = PromptTypeSwitch(
+            controller: controller,
+            commands: commands,
+            expand: true,
+            compact: true,
+          );
+          final stackPrimary =
+              constraints.maxWidth < 360 ||
+              MediaQuery.textScalerOf(context).scale(14) > 21;
           return Column(
             key: const ValueKey('generation_prompt_mobile_toolbar'),
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                key: const ValueKey('generation_prompt_mobile_primary_row'),
-                children: [
-                  Expanded(
-                    child: PromptTypeSwitch(
-                      controller: controller,
-                      commands: commands,
-                      expand: true,
-                      compact: true,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  primary,
-                ],
-              ),
+              if (stackPrimary) ...[
+                typeSwitch,
+                const SizedBox(height: 4),
+                Align(alignment: Alignment.centerRight, child: primary),
+              ] else
+                Row(
+                  key: const ValueKey('generation_prompt_mobile_primary_row'),
+                  children: [
+                    Expanded(child: typeSwitch),
+                    const SizedBox(width: 6),
+                    primary,
+                  ],
+                ),
               const SizedBox(height: 4),
               SizedBox(
                 height: 48,
@@ -426,81 +433,101 @@ class _MobileFullscreenToolbar extends StatelessWidget {
           ? commands.showRandomModeSelector
           : null,
     );
-    return Column(
+    return LayoutBuilder(
       key: const ValueKey('generation_prompt_mobile_workbench'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          key: const ValueKey('generation_prompt_mobile_primary_row'),
+      builder: (context, constraints) {
+        final typeSwitch = PromptTypeSwitch(
+          controller: controller,
+          commands: commands,
+          expand: true,
+          compact: true,
+        );
+        final stackPrimary =
+            constraints.maxWidth < 360 ||
+            MediaQuery.textScalerOf(context).scale(14) > 21;
+        Widget buildWorkbench() => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: PromptTypeSwitch(
-                controller: controller,
-                commands: commands,
-                expand: true,
-                compact: true,
+            if (stackPrimary) ...[
+              typeSwitch,
+              const SizedBox(height: 4),
+              Align(alignment: Alignment.centerRight, child: primary),
+            ] else
+              Row(
+                key: const ValueKey('generation_prompt_mobile_primary_row'),
+                children: [
+                  Expanded(child: typeSwitch),
+                  const SizedBox(width: 4),
+                  primary,
+                ],
+              ),
+            const SizedBox(height: 8),
+            Expanded(child: editor),
+            footer,
+            const SizedBox(height: 8),
+            SizedBox(
+              key: const ValueKey('generation_prompt_mobile_context_bar'),
+              height: 48,
+              child: SingleChildScrollView(
+                key: const ValueKey(
+                  'generation_prompt_mobile_secondary_scroll',
+                ),
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  key: const ValueKey('generation_prompt_mobile_secondary_row'),
+                  children: [
+                    _MobilePromptToolbarAction(
+                      actionKey: const ValueKey(
+                        'generation_prompt_mobile_character_action',
+                      ),
+                      child: CharacterPromptButton(
+                        onManage: commands.showMobileCharacterManager,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const _MobilePromptToolbarAction(
+                      actionKey: ValueKey(
+                        'generation_prompt_mobile_fixed_tags_action',
+                      ),
+                      child: FixedTagsButton(),
+                    ),
+                    const SizedBox(width: 6),
+                    _MobilePromptToolbarAction(
+                      actionKey: const ValueKey(
+                        'generation_prompt_mobile_quality_action',
+                      ),
+                      child: QualityTagsSelector(model: model),
+                    ),
+                    const SizedBox(width: 6),
+                    _MobilePromptToolbarAction(
+                      actionKey: const ValueKey(
+                        'generation_prompt_mobile_uc_action',
+                      ),
+                      child: UcPresetSelector(model: model),
+                    ),
+                    if (showRandomTools) ...[
+                      const SizedBox(width: 4),
+                      _MobilePromptToolbarAction(
+                        actionKey: const ValueKey(
+                          'generation_prompt_mobile_random_action',
+                        ),
+                        child: random,
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 4),
-            primary,
           ],
-        ),
-        const SizedBox(height: 8),
-        Expanded(child: editor),
-        footer,
-        const SizedBox(height: 8),
-        SizedBox(
-          key: const ValueKey('generation_prompt_mobile_context_bar'),
-          height: 44,
-          child: SingleChildScrollView(
-            key: const ValueKey('generation_prompt_mobile_secondary_scroll'),
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              key: const ValueKey('generation_prompt_mobile_secondary_row'),
-              children: [
-                _MobilePromptToolbarAction(
-                  actionKey: const ValueKey(
-                    'generation_prompt_mobile_character_action',
-                  ),
-                  child: CharacterPromptButton(
-                    onManage: commands.showMobileCharacterManager,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const _MobilePromptToolbarAction(
-                  actionKey: ValueKey(
-                    'generation_prompt_mobile_fixed_tags_action',
-                  ),
-                  child: FixedTagsButton(),
-                ),
-                const SizedBox(width: 6),
-                _MobilePromptToolbarAction(
-                  actionKey: const ValueKey(
-                    'generation_prompt_mobile_quality_action',
-                  ),
-                  child: QualityTagsSelector(model: model),
-                ),
-                const SizedBox(width: 6),
-                _MobilePromptToolbarAction(
-                  actionKey: const ValueKey(
-                    'generation_prompt_mobile_uc_action',
-                  ),
-                  child: UcPresetSelector(model: model),
-                ),
-                if (showRandomTools) ...[
-                  const SizedBox(width: 4),
-                  _MobilePromptToolbarAction(
-                    actionKey: const ValueKey(
-                      'generation_prompt_mobile_random_action',
-                    ),
-                    child: random,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ],
+        );
+
+        if (constraints.maxHeight >= 240) return buildWorkbench();
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final scrollableHeight = 140 * textScale.clamp(1, 3).toDouble();
+        return SingleChildScrollView(
+          child: SizedBox(height: scrollableHeight, child: buildWorkbench()),
+        );
+      },
     );
   }
 }
@@ -516,5 +543,5 @@ class _MobilePromptToolbarAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      SizedBox(key: actionKey, height: 44, child: child);
+      SizedBox(key: actionKey, height: 48, child: child);
 }

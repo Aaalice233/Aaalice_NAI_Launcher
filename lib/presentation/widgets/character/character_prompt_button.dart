@@ -42,7 +42,7 @@ class CharacterPromptButton extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
 
     final buttonContent = Container(
-      constraints: const BoxConstraints(minHeight: 44),
+      constraints: const BoxConstraints(minHeight: 48),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
@@ -178,10 +178,7 @@ class _AddCharacterMenu extends ConsumerWidget {
       return;
     }
 
-    final entry = await showDialog(
-      context: context,
-      builder: (context) => const TagLibraryPickerDialog(),
-    );
+    final entry = await TagLibraryPickerDialog.show(context);
     if (entry != null) {
       final parsed = CharacterPromptBlockParser.parse(entry.content);
       ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);

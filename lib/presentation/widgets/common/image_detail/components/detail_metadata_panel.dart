@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../core/utils/nai_prompt_parser.dart';
@@ -15,6 +14,7 @@ import '../../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../../data/models/gallery/nai_prompt_export_codec.dart';
 import '../../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../providers/fixed_tags_provider.dart';
 import '../../../../utils/fixed_tag_metadata_matcher.dart';
 import '../../add_to_library_dialog.dart';
@@ -247,7 +247,9 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     final colorScheme = theme.colorScheme;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       width: !widget.collapsible || _isExpanded
           ? widget.expandedWidth
@@ -340,6 +342,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
             child: CircularProgressIndicator(
               strokeWidth: 2,
               color: colorScheme.primary,
+              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
             ),
           ),
           const SizedBox(height: 16),
@@ -355,23 +358,31 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
   /// 构建无元数据状态
   Widget _buildNoMetadataState(ThemeData theme) {
     final colorScheme = theme.colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.info_outline,
-              size: 48,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 48,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    context.l10n.detail_noMetadata,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              context.l10n.detail_noMetadata,
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -727,11 +738,15 @@ class _InfoSection extends StatelessWidget {
           children: [
             Icon(icon, size: 16, color: colorScheme.primary),
             const SizedBox(width: 6),
-            Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -772,33 +787,43 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final labelWidget = Text(
+      label,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: colorScheme.onSurfaceVariant,
+        fontSize: 11,
+      ),
+    );
+    final valueWidget = SelectionCopyShortcuts(
+      child: SelectableText(
+        value,
+        style: theme.textTheme.bodySmall?.copyWith(
+          fontWeight: FontWeight.w500,
+          fontSize: 11,
+        ),
+      ),
+    );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 70,
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontSize: 11,
-            ),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Flexible(
-          child: SelectionCopyShortcuts(
-            child: SelectableText(
-              value,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w500,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked =
+            constraints.maxWidth < 280 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [labelWidget, const SizedBox(height: 2), valueWidget],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 70, child: labelWidget),
+            const SizedBox(width: 4),
+            Flexible(child: valueWidget),
+          ],
+        );
+      },
     );
   }
 }
@@ -938,9 +963,11 @@ class _ActionButtonState extends State<_ActionButton> {
       child: GestureDetector(
         onTap: widget.onPressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           constraints: BoxConstraints(
-            minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 0,
+            minHeight: context.interactionPolicy.minimumControlExtent,
           ),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
@@ -960,13 +987,18 @@ class _ActionButtonState extends State<_ActionButton> {
                     : colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
-              Text(
-                widget.label,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: _isHovered
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  widget.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: _isHovered
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],

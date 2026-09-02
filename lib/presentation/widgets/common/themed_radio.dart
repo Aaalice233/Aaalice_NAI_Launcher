@@ -43,6 +43,7 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
   late Animation<double> _scale;
 
   bool _isHovered = false;
+  bool _disableAnimations = false;
 
   bool get _isSelected => widget.value == widget.groupValue;
 
@@ -58,11 +59,25 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller.stop();
+      _controller.value = _isSelected ? 1 : 0;
+    }
+  }
+
+  @override
   void didUpdateWidget(ThemedRadio<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     final wasSelected = oldWidget.value == oldWidget.groupValue;
     if (wasSelected != _isSelected) {
-      if (_isSelected) {
+      if (_disableAnimations) {
+        _controller.value = _isSelected ? 1 : 0;
+      } else if (_isSelected) {
         _controller.forward();
       } else {
         _controller.reverse();
@@ -113,7 +128,9 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
         child: Opacity(
           opacity: opacity,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: _disableAnimations
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
             width: widget.size,
             height: widget.size,
             decoration: BoxDecoration(
@@ -129,29 +146,32 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
   }
 
   Widget _buildInnerDot(Color activeColor) {
+    Widget buildDot(double scale) {
+      if (scale == 0) return const SizedBox.shrink();
+      final dotSize = widget.size * 0.45 * scale;
+      return Center(
+        child: Container(
+          width: dotSize,
+          height: dotSize,
+          decoration: BoxDecoration(
+            color: activeColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: activeColor.withValues(alpha: 0.3),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_disableAnimations) return buildDot(_isSelected ? 1 : 0);
     return AnimatedBuilder(
       animation: _scale,
-      builder: (context, child) {
-        if (_scale.value == 0) return const SizedBox.shrink();
-        final dotSize = widget.size * 0.45 * _scale.value;
-        return Center(
-          child: Container(
-            width: dotSize,
-            height: dotSize,
-            decoration: BoxDecoration(
-              color: activeColor,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: activeColor.withValues(alpha: 0.3),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (context, child) => buildDot(_scale.value),
     );
   }
 }

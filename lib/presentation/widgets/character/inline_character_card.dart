@@ -143,10 +143,15 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
     final enabled = widget.character.enabled;
     final showInlineEditor = isEditing && widget.inlineEditor;
     final genderColor = _genderColor(widget.character.effectiveGender);
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final animationDuration = disableAnimations ? Duration.zero : _animDuration;
+    final switchDuration = disableAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 120);
 
     // 性别色只承担识别与层级，不大面积染色；选中态仍统一使用主题主色。
     final card = AnimatedContainer(
-      duration: _animDuration,
+      duration: animationDuration,
       curve: _animCurve,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -168,11 +173,11 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
           _buildHeader(context, theme, showInlineEditor),
           // 预览 ↔ 编辑器：高度平滑生长 + 内容交叉淡化，替代瞬时替换
           AnimatedSize(
-            duration: _animDuration,
+            duration: animationDuration,
             curve: _animCurve,
             alignment: Alignment.topCenter,
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 120),
+              duration: switchDuration,
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
               // AnimatedSwitcher 默认用居中 Stack 布局，子项会缩成内容宽，
@@ -203,7 +208,7 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
     // TapRegion/Focus 恒挂，保持子树结构稳定（条件包装会让 Element
     // 无法复用、整卡重建闪一帧）；是否响应由回调内部判断
     return AnimatedOpacity(
-      duration: _animDuration,
+      duration: animationDuration,
       opacity: enabled ? 1.0 : 0.48,
       child: Focus(
         focusNode: _cardFocusNode,
@@ -232,7 +237,11 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
         File(character.thumbnailPath!).existsSync();
     final gender = character.effectiveGender;
     final genderColor = _genderColor(gender);
-    final headerHeight = widget.compact ? 36.0 : 42.0;
+    final scaledLabelHeight = MediaQuery.textScalerOf(context).scale(14) * 1.35;
+    final headerHeight = math.max(
+      widget.compact ? 48.0 : 52.0,
+      scaledLabelHeight + 16,
+    );
     // 缩略图铺满头部时文字压图，统一转白色
     final onHeader = hasThumbnail ? Colors.white : colorScheme.onSurfaceVariant;
 
@@ -605,10 +614,9 @@ class _HeaderIconButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
-        child: SizedBox(
-          width: 34,
-          height: 34,
-          child: Icon(icon, size: 17, color: color),
+        child: SizedBox.square(
+          dimension: 44,
+          child: Icon(icon, size: 18, color: color),
         ),
       ),
     );

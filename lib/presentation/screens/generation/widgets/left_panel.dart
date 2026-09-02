@@ -12,26 +12,19 @@ import 'parameter_panel.dart';
 class LeftPanel extends ConsumerWidget {
   final bool isResizing;
 
-  const LeftPanel({
-    super.key,
-    this.isResizing = false,
-  });
+  const LeftPanel({super.key, this.isResizing = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final layoutState = ref.watch(layoutStateNotifierProvider);
 
-    final width =
-        layoutState.leftPanelExpanded ? layoutState.leftPanelWidth : 40.0;
+    final width = layoutState.leftPanelExpanded
+        ? layoutState.leftPanelWidth
+        : 40.0;
     final decoration = BoxDecoration(
       color: theme.colorScheme.surface,
-      border: Border(
-        right: BorderSide(
-          color: theme.dividerColor,
-          width: 1,
-        ),
-      ),
+      border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
     );
 
     final child = layoutState.leftPanelExpanded
@@ -61,15 +54,13 @@ class LeftPanel extends ConsumerWidget {
 
     // 拖拽时不使用动画，避免粘滞感
     if (isResizing) {
-      return Container(
-        width: width,
-        decoration: decoration,
-        child: child,
-      );
+      return Container(width: width, decoration: decoration, child: child);
     }
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
       width: width,
       decoration: decoration,
       child: child,

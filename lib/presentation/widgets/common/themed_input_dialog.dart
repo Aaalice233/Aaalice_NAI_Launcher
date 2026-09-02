@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
+import '../../adaptive/adaptive_presenter.dart';
+import 'adaptive_dialog_frame.dart';
+
 /// 通用输入对话框
 ///
 /// 用于需要用户输入单行文本的场景，如重命名、输入名称等。
@@ -44,6 +47,9 @@ class ThemedInputDialog extends StatefulWidget {
   /// 多行输入时的最大行数
   final int maxLines;
 
+  final bool presentationManaged;
+  final ScrollController? scrollController;
+
   const ThemedInputDialog({
     super.key,
     required this.title,
@@ -55,6 +61,8 @@ class ThemedInputDialog extends StatefulWidget {
     this.cancelText,
     this.multiline = false,
     this.maxLines = 5,
+    this.presentationManaged = false,
+    this.scrollController,
   });
 
   /// 显示输入对话框
@@ -72,9 +80,11 @@ class ThemedInputDialog extends StatefulWidget {
     bool multiline = false,
     int maxLines = 5,
   }) {
-    return showDialog<String>(
+    return AdaptivePresenter.showForm<String>(
       context: context,
-      builder: (ctx) => ThemedInputDialog(
+      title: title,
+      sideSheetWidth: multiline ? 440 : 380,
+      builder: (context, scrollController) => ThemedInputDialog(
         title: title,
         labelText: labelText,
         hintText: hintText,
@@ -84,6 +94,8 @@ class ThemedInputDialog extends StatefulWidget {
         cancelText: cancelText,
         multiline: multiline,
         maxLines: maxLines,
+        presentationManaged: true,
+        scrollController: scrollController,
       ),
     );
   }
@@ -143,20 +155,16 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
     final confirmText = widget.confirmText ?? l10n.common_confirm;
     final cancelText = widget.cancelText ?? l10n.common_cancel;
 
-    return AlertDialog(
-      backgroundColor: theme.colorScheme.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      title: Text(
-        widget.title,
-        style: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-          color: theme.colorScheme.onSurface,
-        ),
-      ),
-      content: SizedBox(
-        width: widget.multiline ? 400 : 280,
+    final contentWidth = widget.multiline ? 400.0 : 320.0;
+
+    final content = AdaptiveDialogFrame(
+      maxWidth: contentWidth,
+      maxHeight: widget.multiline ? 280 : 120,
+      reservedVerticalSpace: widget.presentationManaged ? 80 : 120,
+      scaleReservedVerticalSpace: true,
+      horizontalMargin: widget.presentationManaged ? 0 : 24,
+      child: SingleChildScrollView(
+        controller: widget.scrollController,
         child: ThemedInput(
           controller: _controller,
           autofocus: true,
@@ -176,19 +184,55 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
           onSubmitted: widget.multiline ? null : (_) => _submit(),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(
-            cancelText,
-            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+    );
+    final actions = <Widget>[
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: Text(
+          cancelText,
+          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ),
+      FilledButton(
+        onPressed: _canSubmit ? _submit : null,
+        child: Text(confirmText),
+      ),
+    ];
+
+    if (!widget.presentationManaged) {
+      return AlertDialog(
+        scrollable: true,
+        backgroundColor: theme.colorScheme.surfaceContainerHigh,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        title: Text(
+          widget.title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        FilledButton(
-          onPressed: _canSubmit ? _submit : null,
-          child: Text(confirmText),
-        ),
-      ],
+        content: content,
+        actions: actions,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        children: [
+          Expanded(
+            child: Align(alignment: Alignment.topCenter, child: content),
+          ),
+          const SizedBox(height: 8),
+          SafeArea(
+            top: false,
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(spacing: 8, runSpacing: 8, children: actions),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

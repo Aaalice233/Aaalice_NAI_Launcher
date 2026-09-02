@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/services/date_formatting_service.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../../../data/services/gelbooru_auth_service.dart';
 import '../../../../../data/services/online_gallery/quick_tag_cloud_access.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../providers/online_gallery_blacklist_provider.dart';
 import '../../../../providers/online_gallery_output_filter_provider.dart';
 import '../../../../providers/online_gallery_prompt_tag_settings_provider.dart';
@@ -64,7 +64,16 @@ class OnlineGalleryToolbarSourceControls {
   }) =>
       _buildGalleryPolicyControls(theme, sourceId: sourceId, compact: compact);
 
-  Future<void> showSourceFilters() => _showSourceFilters();
+  Future<void> showSourceFilters({bool includeGlobalPolicy = false}) =>
+      _showSourceFilters(includeGlobalPolicy: includeGlobalPolicy);
+
+  void showBlacklist() => showOnlineGalleryBlacklistDialog(
+    context,
+    ref,
+    sourceId: _activeSource(state),
+  );
+
+  void showOutputFilter() => showOnlineGalleryOutputFilterDialog(context);
 
   Widget buildSecondaryControls(ThemeData theme, {bool wrapControls = false}) =>
       _buildSecondaryControls(theme, state, wrapControls: wrapControls);
@@ -96,7 +105,7 @@ class OnlineGalleryToolbarSourceControls {
                 ? theme.colorScheme.onPrimaryContainer
                 : theme.colorScheme.onSurfaceVariant,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            visualDensity: PlatformCapabilities.current.isMobile
+            visualDensity: context.interactionPolicy.prefersTouchPresentation
                 ? VisualDensity.standard
                 : VisualDensity.compact,
           ),
@@ -237,7 +246,7 @@ class OnlineGalleryToolbarSourceControls {
           child: Chip(
             avatar: Icon(icon, size: 16),
             label: Text(label),
-            visualDensity: PlatformCapabilities.current.isMobile
+            visualDensity: context.interactionPolicy.prefersTouchPresentation
                 ? VisualDensity.standard
                 : VisualDensity.compact,
           ),
@@ -248,8 +257,8 @@ class OnlineGalleryToolbarSourceControls {
         child: Semantics(
           label: '$label. $tooltip',
           child: Container(
-            width: galleryToolbarControlHeight,
-            height: galleryToolbarControlHeight,
+            width: galleryToolbarControlHeightFor(context),
+            height: galleryToolbarControlHeightFor(context),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest.withValues(
                 alpha: 0.4,
@@ -320,7 +329,7 @@ class OnlineGalleryToolbarSourceControls {
           alpha: 0.4,
         ),
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
-        visualDensity: PlatformCapabilities.current.isMobile
+        visualDensity: context.interactionPolicy.prefersTouchPresentation
             ? VisualDensity.standard
             : VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -370,8 +379,10 @@ class OnlineGalleryToolbarSourceControls {
     );
   }
 
-  Future<void> _showSourceFilters() =>
-      OnlineGalleryToolbarDialogs(bindings).showSourceFilters();
+  Future<void> _showSourceFilters({required bool includeGlobalPolicy}) =>
+      OnlineGalleryToolbarDialogs(
+        bindings,
+      ).showSourceFilters(includeGlobalPolicy: includeGlobalPolicy);
 
   Widget _buildSecondaryControls(
     ThemeData theme,
@@ -508,7 +519,7 @@ class OnlineGalleryToolbarSourceControls {
                     prompt: '',
                   ),
             icon: const Icon(Icons.refresh_rounded, size: 17),
-            visualDensity: PlatformCapabilities.current.isMobile
+            visualDensity: context.interactionPolicy.prefersTouchPresentation
                 ? VisualDensity.standard
                 : VisualDensity.compact,
           ),
@@ -603,7 +614,7 @@ class OnlineGalleryToolbarSourceControls {
               backgroundColor: theme.colorScheme.surfaceContainerHighest
                   .withValues(alpha: 0.4),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              visualDensity: PlatformCapabilities.current.isMobile
+              visualDensity: context.interactionPolicy.prefersTouchPresentation
                   ? VisualDensity.standard
                   : VisualDensity.compact,
             ),
@@ -680,7 +691,7 @@ class OnlineGalleryToolbarSourceControls {
                   alpha: 0.4,
                 ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          visualDensity: PlatformCapabilities.current.isMobile
+          visualDensity: context.interactionPolicy.prefersTouchPresentation
               ? VisualDensity.standard
               : VisualDensity.compact,
         ),

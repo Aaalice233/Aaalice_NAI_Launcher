@@ -17,6 +17,7 @@ import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
@@ -88,9 +89,12 @@ class OnlineGalleryDetailLauncher {
       final isFavorited = ref
           .read(onlineGalleryNotifierProvider.notifier)
           .isFavorited(item);
-      await showDialog<void>(
+      await AdaptivePresenter.showForm<void>(
         context: context,
-        builder: (dialogContext) => GalleryDetailDialog(
+        showHeader: false,
+        sideSheetWidth: 960,
+        builder: (dialogContext, _) => GalleryDetailDialog(
+          embedded: true,
           item: item,
           detail: detail,
           isFavorited: isFavorited,

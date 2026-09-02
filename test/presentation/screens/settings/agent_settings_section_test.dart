@@ -1,11 +1,13 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:nai_launcher/core/agent/skill_archive_service.dart';
 import 'package:nai_launcher/core/agent/skill_catalog.dart';
 import 'package:nai_launcher/core/agent/agent_profile_service.dart';
 import 'package:nai_launcher/core/agent/harness/harness_types.dart';
@@ -150,11 +152,17 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(
-            locale: Locale('zh'),
+          child: MaterialApp(
+            locale: const Locale('zh'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(3)),
+              child: child!,
+            ),
+            home: const Scaffold(
               body: SingleChildScrollView(
                 padding: EdgeInsets.all(16),
                 child: AgentSettingsSection(),
@@ -501,7 +509,238 @@ void main() {
     }
   });
 
-  testWidgets('配置导入预览在 360 和 400dp 内受约束且内容可滚动', (tester) async {
+  testWidgets('Skill 导出表单在紧凑与宽屏保持选择和有界呈现', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 640));
+    final root = Directory('tool/.tmp/agent-skill-export-form-test')
+      ..createSync(recursive: true);
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: root,
+            workspaceDirectory: root,
+            environment: const {},
+            skillCatalogService: const _ManySkillCatalogService(),
+          ),
+        ),
+      ],
+    );
+
+    Future<void> openExport() async {
+      await tester.tap(find.byType(PopupMenuButton<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('导出所选 Skills'));
+      await tester.pumpAndSettle();
+    }
+
+    Widget buildApp(Size size) => UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(size: size, textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: const Scaffold(
+          body: SingleChildScrollView(child: SkillManagementPanel()),
+        ),
+      ),
+    );
+
+    try {
+      await tester.runAsync(() async {
+        container.read(agentSettingsProvider);
+        for (var attempt = 0; attempt < 100; attempt++) {
+          if (container.read(agentSettingsProvider).initialized) return;
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        fail('Agent settings did not initialize.');
+      });
+      await tester.pumpWidget(buildApp(const Size(360, 640)));
+      await tester.pumpAndSettle();
+
+      await openExport();
+      expect(
+        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('skill-export-selection-list')),
+        findsOneWidget,
+      );
+      var continueButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, '继续导出'),
+      );
+      expect(continueButton.onPressed, isNull);
+      await tester.tap(find.widgetWithText(CheckboxListTile, 'skill-0'));
+      await tester.pump();
+      continueButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, '继续导出'),
+      );
+      expect(continueButton.onPressed, isNotNull);
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.widgetWithText(CheckboxListTile, 'skill-0'),
+            )
+            .value,
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.widgetWithText(TextButton, '取消'));
+      await tester.pumpAndSettle();
+
+      await tester.binding.setSurfaceSize(const Size(1180, 760));
+      await tester.pumpWidget(buildApp(const Size(1180, 760)));
+      await tester.pumpAndSettle();
+      await openExport();
+      expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+      final panelRect = tester.getRect(
+        find.byKey(const ValueKey('adaptive-side-sheet')),
+      );
+      expect(panelRect.width, lessThanOrEqualTo(560));
+      expect(panelRect.right, lessThanOrEqualTo(1180));
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.widgetWithText(TextButton, '取消'));
+      await tester.pumpAndSettle();
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.binding.setSurfaceSize(null);
+      root.deleteSync(recursive: true);
+    }
+  });
+
+  testWidgets('Skill 导入冲突表单在最坏文本与列表组合下可替换和取消', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 640));
+    final root = Directory('tool/.tmp/agent-skill-import-form-test')
+      ..createSync(recursive: true);
+    final target = Directory('${root.path}/pi-user/skills');
+    Directory('${target.path}/a-conflict').createSync(recursive: true);
+    final archive = Archive();
+    for (var index = 0; index < 30; index++) {
+      final name = index == 0 ? 'a-conflict' : 'skill-import-$index';
+      final manifest = Uint8List.fromList(
+        ('---\nname: $name\n'
+                'description: A deliberately long imported Skill description '
+                'for adaptive conflict layout verification $index.\n---\n'
+                'Instructions $index')
+            .codeUnits,
+      );
+      archive.addFile(ArchiveFile('$name/SKILL.md', manifest.length, manifest));
+    }
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final preview = (await tester.runAsync(
+      () => const SkillArchiveService().previewImport(
+        bytes: bytes,
+        targetDirectory: target,
+      ),
+    ))!;
+    expect(preview.items, hasLength(30));
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: root,
+            workspaceDirectory: root,
+            environment: const {},
+            skillCatalogService: const _EmptySkillCatalogService(),
+          ),
+        ),
+      ],
+    );
+
+    try {
+      await tester.runAsync(() async {
+        container.read(agentSettingsProvider);
+        for (var attempt = 0; attempt < 100; attempt++) {
+          if (container.read(agentSettingsProvider).initialized) return;
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        fail('Agent settings did not initialize.');
+      });
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                size: const Size(360, 640),
+                textScaler: const TextScaler.linear(3),
+              ),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () =>
+                      SkillImportConflictForm.show(context, preview),
+                  child: const Text('打开冲突表单'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('打开冲突表单'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('skill-import-conflict-list')),
+        findsOneWidget,
+      );
+      var installButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, '安装'),
+      );
+      expect(installButton.onPressed, isNull);
+      final conflictTile = find.widgetWithText(CheckboxListTile, 'a-conflict');
+      await tester.ensureVisible(conflictTile);
+      await tester.pumpAndSettle();
+      await tester.tap(conflictTile);
+      await tester.pump();
+      installButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, '安装'),
+      );
+      expect(installButton.onPressed, isNotNull);
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.widgetWithText(CheckboxListTile, 'a-conflict'),
+            )
+            .value,
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.widgetWithText(TextButton, '取消'));
+      await tester.pumpAndSettle();
+      expect(target.listSync().single.path, endsWith('a-conflict'));
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.binding.setSurfaceSize(null);
+      root.deleteSync(recursive: true);
+    }
+  });
+
+  testWidgets('配置导入审阅器在极端尺寸保留滚动内容和应用取消操作', (tester) async {
     FilePicker? originalFilePicker;
     try {
       originalFilePicker = FilePicker.platform;
@@ -551,46 +790,75 @@ void main() {
         }
         fail('Agent settings did not initialize.');
       });
-      for (final width in const [360.0, 400.0]) {
-        await tester.binding.setSurfaceSize(Size(width, 700));
+      for (final scenario in <({Size size, double scale, String surface})>[
+        (
+          size: const Size(360, 480),
+          scale: 1,
+          surface: 'adaptive-full-screen-form',
+        ),
+        (
+          size: const Size(599.9, 700),
+          scale: 1,
+          surface: 'adaptive-full-screen-form',
+        ),
+        (
+          size: const Size(600, 500),
+          scale: 2,
+          surface: 'adaptive-full-screen-form',
+        ),
+        (
+          size: const Size(839.9, 700),
+          scale: 1,
+          surface: 'adaptive-centered-form',
+        ),
+        (size: const Size(840, 500), scale: 2, surface: 'adaptive-side-sheet'),
+        (size: const Size(1600, 900), scale: 1, surface: 'adaptive-side-sheet'),
+      ]) {
+        await tester.binding.setSurfaceSize(scenario.size);
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const MaterialApp(
-              locale: Locale('zh'),
+            child: MaterialApp(
+              locale: const Locale('zh'),
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
-              home: Scaffold(body: AgentProfileActions()),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  size: scenario.size,
+                  textScaler: TextScaler.linear(scenario.scale),
+                ),
+                child: child!,
+              ),
+              home: const Scaffold(body: AgentProfileActions()),
             ),
           ),
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.text('导入配置'));
+        final importButton = find.widgetWithText(OutlinedButton, '导入配置');
+        expect(importButton.hitTestable(), findsOneWidget);
+        await tester.tap(importButton);
         await tester.pumpAndSettle();
 
-        final dialog = find.byType(AlertDialog);
-        expect(dialog, findsOneWidget);
-        final dialogMaterial = find.descendant(
-          of: dialog,
-          matching: find.byWidgetPredicate(
-            (widget) => widget is Material && widget.type == MaterialType.card,
-          ),
-        );
-        expect(dialogMaterial, findsOneWidget);
-        final rect = tester.getRect(dialogMaterial);
-        expect(rect.left, greaterThanOrEqualTo(16));
-        expect(rect.right, lessThanOrEqualTo(width - 16));
+        expect(find.byKey(ValueKey(scenario.surface)), findsOneWidget);
         expect(
-          find.descendant(
-            of: dialog,
-            matching: find.byType(SingleChildScrollView),
-          ),
+          find.byKey(const Key('agent-profile-import-review-list')),
           findsOneWidget,
         );
+        expect(
+          find.byKey(const Key('agent-profile-import-actions-scroll')),
+          findsOneWidget,
+        );
+        expect(find.widgetWithText(FilledButton, '应用').hitTestable(), findsOne);
+        expect(find.widgetWithText(TextButton, '取消').hitTestable(), findsOne);
         expect(tester.takeException(), isNull);
 
-        await tester.tap(find.text('取消'));
+        if (scenario.size.width == 1600) {
+          await tester.tap(find.widgetWithText(FilledButton, '应用'));
+        } else {
+          await tester.tap(find.widgetWithText(TextButton, '取消'));
+        }
         await tester.pumpAndSettle();
+        expect(find.byKey(ValueKey(scenario.surface)), findsNothing);
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pumpAndSettle();
       }

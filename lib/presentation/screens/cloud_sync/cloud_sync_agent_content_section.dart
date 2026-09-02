@@ -90,17 +90,15 @@ class _CloudSyncAgentContentSectionState
             style: Theme.of(context).textTheme.labelLarge,
           ),
           if (missingIds.isNotEmpty)
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    context.l10n.cloudSync_missingSelectedSkills(
-                      missingIds.length,
-                    ),
-                    style: Theme.of(context).textTheme.bodySmall,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final message = Text(
+                  context.l10n.cloudSync_missingSelectedSkills(
+                    missingIds.length,
                   ),
-                ),
-                TextButton(
+                  style: Theme.of(context).textTheme.bodySmall,
+                );
+                final action = TextButton(
                   onPressed: () => widget.onChanged(
                     widget.selection.copyWith(
                       selectedSkillIds: widget.selection.selectedSkillIds
@@ -108,8 +106,24 @@ class _CloudSyncAgentContentSectionState
                     ),
                   ),
                   child: Text(context.l10n.cloudSync_removeMissingSkills),
-                ),
-              ],
+                );
+                if (constraints.maxWidth < 420 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.6) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      message,
+                      Align(alignment: Alignment.centerRight, child: action),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: message),
+                    action,
+                  ],
+                );
+              },
             ),
           const SizedBox(height: 8),
           TextField(

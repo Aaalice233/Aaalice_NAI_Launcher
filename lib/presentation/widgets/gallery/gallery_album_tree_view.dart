@@ -6,6 +6,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -380,7 +381,9 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
         final dragging =
             candidate.isNotEmpty || _superDraggingAlbumIds.contains(album.id);
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: dragging
               ? BoxDecoration(
                   color: Theme.of(
@@ -484,7 +487,9 @@ class _GalleryAllImagesItemState extends State<GalleryAllImagesItem> {
         onEnter: (_) => setState(() => _isHovering = true),
         onExit: (_) => setState(() => _isHovering = false),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             gradient: widget.isSelected
@@ -515,7 +520,9 @@ class _GalleryAllImagesItemState extends State<GalleryAllImagesItem> {
                 child: Row(
                   children: [
                     AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 150),
                       width: 30,
                       height: 30,
                       decoration: BoxDecoration(
@@ -678,7 +685,9 @@ class _AlbumItemState extends State<_AlbumItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final interactionPolicy = context.interactionPolicy;
+    final isTouch = interactionPolicy.touchAvailable;
+    final controlExtent = interactionPolicy.minimumControlExtent;
     final backgroundInset = (24.0 + widget.depth * 12.0)
         .clamp(24.0, 48.0)
         .toDouble();
@@ -698,12 +707,12 @@ class _AlbumItemState extends State<_AlbumItem> {
             ),
             padding: EdgeInsets.zero,
             constraints: BoxConstraints.tightFor(
-              width: isTouch ? 48 : 20,
-              height: isTouch ? 48 : 20,
+              width: controlExtent,
+              height: controlExtent,
             ),
           )
         else
-          SizedBox(width: isTouch ? 48 : 20, height: isTouch ? 48 : 0),
+          SizedBox(width: controlExtent, height: controlExtent),
         Icon(
           widget.icon,
           size: 18,
@@ -834,7 +843,9 @@ class _AlbumItemState extends State<_AlbumItem> {
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           margin: EdgeInsets.only(
             left: backgroundInset,
             right: 8,
@@ -854,7 +865,7 @@ class _AlbumItemState extends State<_AlbumItem> {
               hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(8),
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: isTouch ? 48 : 36),
+                constraints: BoxConstraints(minHeight: controlExtent),
                 child: Padding(
                   padding: EdgeInsets.only(
                     left: 4,

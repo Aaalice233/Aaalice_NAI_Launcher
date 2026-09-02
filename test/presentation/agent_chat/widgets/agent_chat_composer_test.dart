@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'package:nai_launcher/core/windowing/agent_chat_shared_widgets.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_composer.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_controller.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_view_data.dart';
@@ -120,7 +122,7 @@ void main() {
     final target = tester.getSize(
       find.byKey(const ValueKey('agent-chat-context-target')),
     );
-    expect(target, const Size.square(44));
+    expect(target, const Size.square(48));
     expect(tester.takeException(), isNull);
   });
 
@@ -306,10 +308,6 @@ void main() {
           );
           for (final key in const [
             'agent-chat-more-actions',
-            'agent-chat-thinking-selector',
-            'agent-chat-permission-mode',
-            'agent-chat-web-access-toggle',
-            'agent-chat-context-target',
             'agent-chat-send',
           ]) {
             final size = tester.getSize(find.byKey(ValueKey(key)));
@@ -318,6 +316,28 @@ void main() {
               greaterThanOrEqualTo(44),
               reason: '$key at width=$width, scale=$scale',
             );
+          }
+          final compactControls = find.byKey(
+            const ValueKey('agent-chat-compact-controls'),
+          );
+          if (compactControls.evaluate().isNotEmpty) {
+            expect(
+              tester.getSize(compactControls).shortestSide,
+              greaterThanOrEqualTo(44),
+            );
+          } else {
+            for (final key in const [
+              'agent-chat-thinking-selector',
+              'agent-chat-permission-mode',
+              'agent-chat-web-access-toggle',
+              'agent-chat-context-target',
+            ]) {
+              expect(
+                tester.getSize(find.byKey(ValueKey(key))).shortestSide,
+                greaterThanOrEqualTo(44),
+                reason: '$key at width=$width, scale=$scale',
+              );
+            }
           }
         }
       }
@@ -402,9 +422,19 @@ void main() {
       onAttachCurrentCanvas: () async => attached++,
     );
 
-    await tester.tap(find.byKey(const ValueKey('agent-chat-more-actions')));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    await mouse.moveTo(
+      tester.getCenter(find.byKey(const ValueKey('agent-chat-more-actions'))),
+    );
+    await mouse.down(
+      tester.getCenter(find.byKey(const ValueKey('agent-chat-more-actions'))),
+    );
+    await mouse.up();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Current canvas'));
+    await mouse.moveTo(tester.getCenter(find.text('Current canvas')));
+    await mouse.down(tester.getCenter(find.text('Current canvas')));
+    await mouse.up();
     await tester.pumpAndSettle();
 
     expect(attached, 1);
@@ -815,8 +845,8 @@ void main() {
       await _pumpComposer(
         tester,
         width: width,
-        state: _skilledState,
         mobile: mobile,
+        state: _skilledState,
       );
       await tester.enterText(_input, '/');
       await tester.pump();
@@ -925,18 +955,26 @@ Future<void> _pumpComposer(
           resizeToAvoidBottomInset: true,
           body: Align(
             alignment: Alignment.bottomCenter,
-            child: _ComposerHarness(
-              state: state,
-              width: width,
-              height: height - viewInsets.bottom,
-              controller: controller,
-              onSend: onSend,
-              onAttachCurrentCanvas: onAttachCurrentCanvas,
-              onMoreAction: onMoreAction,
-              currentCanvasReference: currentCanvasReference,
-              config: config,
-              agentSettings: agentSettings,
-              mobile: mobile,
+            child: InteractionPolicyScope(
+              initialPolicy: InteractionPolicy(
+                modality: mobile
+                    ? InteractionModality.touch
+                    : InteractionModality.pointer,
+                touchAvailable: mobile,
+                precisePointerAvailable: !mobile,
+              ),
+              child: _ComposerHarness(
+                state: state,
+                width: width,
+                height: height - viewInsets.bottom,
+                controller: controller,
+                onSend: onSend,
+                onAttachCurrentCanvas: onAttachCurrentCanvas,
+                onMoreAction: onMoreAction,
+                currentCanvasReference: currentCanvasReference,
+                config: config,
+                agentSettings: agentSettings,
+              ),
             ),
           ),
         ),
@@ -958,7 +996,6 @@ class _ComposerHarness extends StatefulWidget {
     this.currentCanvasReference,
     this.config,
     this.agentSettings,
-    this.mobile = true,
   });
 
   final AgentChatState state;
@@ -971,7 +1008,6 @@ class _ComposerHarness extends StatefulWidget {
   final AgentChatResourceReference? currentCanvasReference;
   final PromptAssistantConfigState? config;
   final AgentSettingsState? agentSettings;
-  final bool mobile;
 
   @override
   State<_ComposerHarness> createState() => _ComposerHarnessState();
@@ -1044,9 +1080,8 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
         agentSettings:
             widget.agentSettings ?? const AgentSettingsState(initialized: true),
         webAccess: const WebAccessConfigState(initialized: true),
-        mobile: widget.mobile,
         fullScreen: true,
-        compactMobile: widget.height < 480,
+        compactHeight: widget.height < 520,
         width: widget.width,
         height: widget.height,
         onClose: null,

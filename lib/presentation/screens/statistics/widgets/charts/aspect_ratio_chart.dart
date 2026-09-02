@@ -52,6 +52,7 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
     if (widget.items.isEmpty) {
       return SizedBox(
@@ -60,65 +61,76 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
       );
     }
 
-    return Column(
-      children: [
-        SizedBox(
+    final chart = PieChart(
+      PieChartData(
+        pieTouchData: PieTouchData(
+          touchCallback: (event, response) {
+            setState(() {
+              if (!event.isInterestedForInteractions ||
+                  response?.touchedSection == null) {
+                _touchedIndex = null;
+                return;
+              }
+              _touchedIndex = response!.touchedSection!.touchedSectionIndex;
+            });
+          },
+        ),
+        sectionsSpace: 2,
+        centerSpaceRadius: 36,
+        sections: widget.items.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          final isTouched = _touchedIndex == index;
+          final color =
+              item.color ?? _defaultColors[index % _defaultColors.length];
+
+          return PieChartSectionData(
+            color: color,
+            value: item.count.toDouble(),
+            title: isTouched ? '${item.percentage.toStringAsFixed(1)}%' : '',
+            radius: isTouched ? 50 : 42,
+            titleStyle: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          );
+        }).toList(),
+      ),
+      swapAnimationDuration: reducedMotion
+          ? Duration.zero
+          : PieChart.defaultDuration,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final stackLegend =
+            constraints.maxWidth / textScale.clamp(1.0, 3.0) < 360;
+        if (widget.showLegend && stackLegend) {
+          return Column(
+            children: [
+              SizedBox(height: widget.height, child: chart),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: widget.height),
+                child: _buildLegend(context),
+              ),
+            ],
+          );
+        }
+        return SizedBox(
           height: widget.height,
           child: Row(
             children: [
-              // Pie chart
-              Expanded(
-                flex: 2,
-                child: PieChart(
-                  PieChartData(
-                    pieTouchData: PieTouchData(
-                      touchCallback: (event, response) {
-                        setState(() {
-                          if (!event.isInterestedForInteractions ||
-                              response?.touchedSection == null) {
-                            _touchedIndex = null;
-                            return;
-                          }
-                          _touchedIndex =
-                              response!.touchedSection!.touchedSectionIndex;
-                        });
-                      },
-                    ),
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 36,
-                    sections: widget.items.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      final isTouched = _touchedIndex == index;
-                      final color =
-                          item.color ??
-                          _defaultColors[index % _defaultColors.length];
-
-                      return PieChartSectionData(
-                        color: color,
-                        value: item.count.toDouble(),
-                        title: isTouched
-                            ? '${item.percentage.toStringAsFixed(1)}%'
-                            : '',
-                        radius: isTouched ? 50 : 42,
-                        titleStyle: theme.textTheme.labelMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-              // Aspect ratio preview cards
+              Expanded(flex: 2, child: chart),
               if (widget.showLegend) ...[
                 const SizedBox(width: 12),
                 SizedBox(width: 140, child: _buildLegend(context)),
               ],
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -166,12 +178,16 @@ class _AspectRatioLegendItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        constraints: const BoxConstraints(minHeight: 48),
+        duration: reducedMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: isHighlighted

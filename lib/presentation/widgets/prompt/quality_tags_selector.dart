@@ -77,8 +77,10 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
             key: _buttonKey,
             link: _layerLink,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              constraints: const BoxConstraints(minHeight: 44),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 150),
+              constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: isEnabled
@@ -335,11 +337,9 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
   }
 
   Future<void> _showTagLibraryPicker() async {
-    final entry = await showDialog<TagLibraryEntry>(
-      context: context,
-      builder: (context) => TagLibraryPickerDialog(
-        title: context.l10n.qualityTags_selectFromLibrary,
-      ),
+    final entry = await TagLibraryPickerDialog.show(
+      context,
+      title: context.l10n.qualityTags_selectFromLibrary,
     );
     if (entry != null) {
       ref.read(qualityPresetNotifierProvider.notifier).setCustomEntry(entry.id);

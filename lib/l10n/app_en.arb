@@ -788,6 +788,14 @@
     }
   },
   "img2img_directorRunning": "Processing...",
+  "img2img_directorConfirmTitle": "Confirm Anlas usage",
+  "img2img_directorConfirmContent": "Running {tool} is estimated to cost {cost} Anlas. Do you want to continue?",
+  "@img2img_directorConfirmContent": {
+    "placeholders": {
+      "tool": {},
+      "cost": {"type": "int"}
+    }
+  },
   "img2img_directorResult": "Result",
   "img2img_directorResultReady": "{tool} completed",
   "@img2img_directorResultReady": {

@@ -9,6 +9,7 @@ import '../../../core/cache/online_gallery_detail_coordinator.dart';
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/online_gallery_provider.dart';
 import 'online_gallery_masonry_layout.dart';
 import 'online_gallery_screen_controller.dart';
@@ -212,7 +213,8 @@ class OnlineGalleryScrollPrefetchCoordinator {
       scopeKey: scope,
       cursor: cache.nextCursor,
       viewportDimension:
-          position?.viewportDimension ?? MediaQuery.sizeOf(context).height,
+          position?.viewportDimension ??
+          context.adaptiveWindow.unobscuredSize.height,
     );
     if (requestToken == null) return;
     if (kDebugMode) {
@@ -320,7 +322,7 @@ class OnlineGalleryScrollPrefetchCoordinator {
     }
 
     final viewportWidth =
-        context.size?.width ?? MediaQuery.sizeOf(context).width;
+        context.size?.width ?? context.adaptiveWindow.safeUsableSize.width;
     const horizontalPadding = 24.0;
     const spacing = 6.0;
     final availableWidth = (viewportWidth - horizontalPadding).clamp(

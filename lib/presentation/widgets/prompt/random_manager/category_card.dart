@@ -104,13 +104,11 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
     ref.read(randomPresetNotifierProvider.notifier).updateCategory(category);
   }
 
-  void _addTagGroup(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AddTagGroupDialog(
-        category: widget.category,
-        presetId: widget.presetId,
-      ),
+  Future<void> _addTagGroup(BuildContext context) {
+    return AddTagGroupDialog.show(
+      context,
+      category: widget.category,
+      presetId: widget.presetId,
     );
   }
 }

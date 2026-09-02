@@ -1837,6 +1837,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_directorRunning => '正在处理...';
 
   @override
+  String get img2img_directorConfirmTitle => '确认 Anlas 消耗';
+
+  @override
+  String img2img_directorConfirmContent(Object tool, int cost) {
+    return '运行$tool预计消耗 $cost Anlas，是否继续？';
+  }
+
+  @override
   String get img2img_directorResult => '处理结果';
 
   @override
@@ -15471,6 +15479,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get img2img_directorRunning => '正在處理...';
+
+  @override
+  String get img2img_directorConfirmTitle => '確認 Anlas 消耗';
+
+  @override
+  String img2img_directorConfirmContent(Object tool, int cost) {
+    return '執行$tool預計消耗 $cost Anlas，是否繼續？';
+  }
 
   @override
   String get img2img_directorResult => '處理結果';

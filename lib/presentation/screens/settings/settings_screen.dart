@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/window_size_class.dart';
 import '../../widgets/common/owned_scroll_controller.dart';
+import '../../widgets/common/themed_confirm_dialog.dart';
 import '../cloud_sync/cloud_sync_screen.dart';
 import 'sections/account_settings_section.dart';
 import 'sections/appearance_settings_section.dart';
@@ -219,24 +220,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final existing = _discardConfirmation;
     if (existing != null) return existing;
     final confirmation = () async {
-      final discard = await showDialog<bool>(
+      final discard = await ThemedConfirmDialog.show(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text(context.l10n.agentSettings_discardPromptTitle),
-          content: Text(context.l10n.agentSettings_discardPromptBody),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(context.l10n.agentSettings_keepEditing),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(context.l10n.agentSettings_discardChanges),
-            ),
-          ],
-        ),
+        title: context.l10n.agentSettings_discardPromptTitle,
+        content: context.l10n.agentSettings_discardPromptBody,
+        confirmText: context.l10n.agentSettings_discardChanges,
+        cancelText: context.l10n.agentSettings_keepEditing,
+        type: ThemedConfirmDialogType.warning,
+        icon: Icons.warning_amber_rounded,
       );
-      if (discard == true) {
+      if (discard) {
         ref.read(agentPromptDraftProvider.notifier).discard();
         return true;
       }
@@ -289,7 +282,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             body: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildNavigationRail(context, sizeClass.isExpanded, sections),
+                _buildNavigationRail(context, sizeClass.isWide, sections),
                 const VerticalDivider(thickness: 1, width: 1),
                 Expanded(
                   child: _buildSectionContent(

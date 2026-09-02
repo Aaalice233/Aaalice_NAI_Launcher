@@ -13,9 +13,9 @@ import '../../../core/autocomplete/cooccurrence_data_pack_provider.dart';
 import '../../../core/autocomplete/completion_models.dart';
 import '../../../core/autocomplete/completion_orchestrator.dart';
 import '../../../core/autocomplete/prompt_token_parser.dart';
-import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../router/app_routes.dart';
 import 'autocomplete_config.dart';
 import 'autocomplete_utils.dart';
@@ -176,7 +176,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (!position.hasContentDimensions || position.viewportDimension <= 0) {
       return;
     }
-    final itemExtent = effectiveAutocompleteCandidateExtent;
+    final itemExtent = effectiveAutocompleteCandidateExtent(context);
     final firstIndex = (position.pixels / itemExtent).floor();
     final lastIndex =
         ((position.pixels + position.viewportDimension - 0.5) / itemExtent)
@@ -524,7 +524,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     const viewportInset = 8.0;
     const caretGap = 8.0;
     final touchCompact =
-        PlatformCapabilities.current.hasTouchInput && screen.width < 600;
+        context.interactionPolicy.touchAvailable && screen.width < 600;
     final flutterView = View.of(overlayContext);
     final rawKeyboardInset =
         flutterView.viewInsets.bottom / flutterView.devicePixelRatio;
@@ -540,10 +540,18 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final placeBelow = below >= 180 || below >= above;
     final availableHeight = placeBelow ? below : above;
     final minimumUsableHeight = touchCompact ? 152.0 : 90.0;
-    if (availableHeight < minimumUsableHeight) {
+    final useViewportFallback = availableHeight < minimumUsableHeight;
+    final viewportFallbackHeight = math.max(
+      visibleBottom - viewportInset * 2,
+      0.0,
+    );
+    if (useViewportFallback && viewportFallbackHeight < 72) {
       return const SizedBox.shrink();
     }
-    final maxHeight = math.min(availableHeight, touchCompact ? 320.0 : 410.0);
+    final maxHeight = math.min(
+      useViewportFallback ? viewportFallbackHeight : availableHeight,
+      touchCompact ? 320.0 : 410.0,
+    );
 
     // Phone completion is a stable edge-aligned panel. Roomy viewports retain
     // the editor-style footprint and keep some leading text visible.
@@ -565,8 +573,16 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
     return Positioned(
       left: left,
-      top: placeBelow ? caretBottom + caretGap : null,
-      bottom: placeBelow ? null : screen.height - caretTop + caretGap,
+      top: useViewportFallback
+          ? viewportInset
+          : placeBelow
+          ? caretBottom + caretGap
+          : null,
+      bottom: useViewportFallback
+          ? null
+          : placeBelow
+          ? null
+          : screen.height - caretTop + caretGap,
       width: width,
       child: TextFieldTapRegion(
         child: CompletionOverlay(
@@ -663,7 +679,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final position = _scrollController.position;
     if (!position.hasContentDimensions) return;
 
-    final itemExtent = effectiveAutocompleteCandidateExtent;
+    final itemExtent = effectiveAutocompleteCandidateExtent(context);
     final itemTop = _selectedIndex * itemExtent;
     final itemBottom = itemTop + itemExtent;
     final viewportTop = position.pixels;

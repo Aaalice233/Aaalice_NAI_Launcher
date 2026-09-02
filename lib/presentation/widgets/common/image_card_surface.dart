@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../themes/theme_extension.dart';
 import 'animated_favorite_button.dart';
@@ -128,8 +128,10 @@ class ImageCardSurface extends StatelessWidget {
                     Positioned.fill(
                       child: TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0, end: 1),
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOut,
+                        duration: reducedMotion
+                            ? Duration.zero
+                            : motion.fastDuration,
+                        curve: motion.standardCurve,
                         builder: (context, glowIntensity, _) => AnimatedBuilder(
                           animation: controller.glossAnimation,
                           builder: (context, _) => ImageCardEffects(
@@ -231,7 +233,9 @@ class ImageCardSurface extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (PlatformCapabilities.current.hasTouchInput &&
+                  if (context.interactionPolicy.shouldExposeTouchAlternatives &&
+                      (!controller.isHovering ||
+                          context.interactionPolicy.prefersTouchPresentation) &&
                       capabilities.enableContextMenu &&
                       actions.isNotEmpty)
                     Positioned(
@@ -269,7 +273,9 @@ class ImageCardHoverActionBar extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.7),
+          color: Theme.of(
+            context,
+          ).colorScheme.inverseSurface.withValues(alpha: 0.88),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Wrap(
@@ -298,7 +304,10 @@ class _HoverActionState extends State<_HoverAction> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final primary = colors.primary;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
     return MouseRegion(
       onEnter: (_) => setState(() => hovered = true),
       onExit: (_) => setState(() => hovered = false),
@@ -307,13 +316,15 @@ class _HoverActionState extends State<_HoverAction> {
         child: GestureDetector(
           onTap: widget.action.invoke,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: reducedMotion
+                ? Duration.zero
+                : theme.appTheme.fastDuration,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: widget.action.isPrimary
                   ? (hovered ? primary : primary.withValues(alpha: 0.9))
                   : (hovered
-                        ? Colors.white.withValues(alpha: 0.2)
+                        ? colors.onInverseSurface.withValues(alpha: 0.2)
                         : Colors.transparent),
               borderRadius: BorderRadius.circular(20),
             ),
@@ -321,8 +332,10 @@ class _HoverActionState extends State<_HoverAction> {
               widget.action.icon,
               size: 20,
               color: widget.action.isPrimary
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: hovered ? 1 : 0.8),
+                  ? colors.onPrimary
+                  : colors.onInverseSurface.withValues(
+                      alpha: hovered ? 1 : 0.8,
+                    ),
             ),
           ),
         ),
@@ -342,8 +355,10 @@ class _DragPreparationOverlay extends StatelessWidget {
       child: IgnorePointer(
         child: AnimatedOpacity(
           key: const ValueKey('drag-preparation-preview-overlay-opacity'),
-          duration: ImageCardController.dragPreparationOverlayFadeDuration,
-          curve: Curves.easeOutCubic,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : ImageCardController.dragPreparationOverlayFadeDuration,
+          curve: Theme.of(context).appTheme.standardCurve,
           opacity: data.dragPreparationReady ? 0 : 1,
           onEnd: controller.markPreparedIndexBadgeVisible,
           child: Stack(
@@ -356,7 +371,9 @@ class _DragPreparationOverlay extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withValues(alpha: 0.38),
+                      Theme.of(
+                        context,
+                      ).colorScheme.scrim.withValues(alpha: 0.38),
                     ],
                   ),
                 ),
@@ -367,15 +384,19 @@ class _DragPreparationOverlay extends StatelessWidget {
                 bottom: 8,
                 child: Row(
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                        key: ValueKey('drag-preparation-preview-progress-ring'),
+                        key: const ValueKey(
+                          'drag-preparation-preview-progress-ring',
+                        ),
                         value: ImageCardController.dragPreparationProgressValue,
                         strokeWidth: 2,
-                        backgroundColor: Color(0x33FFFFFF),
-                        color: Colors.white,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onInverseSurface.withValues(alpha: 0.2),
+                        color: Theme.of(context).colorScheme.onInverseSurface,
                       ),
                     ),
                     const Spacer(),
@@ -384,7 +405,10 @@ class _DragPreparationOverlay extends StatelessWidget {
                       key: const ValueKey(
                         'drag-preparation-preview-progress-percent',
                       ),
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onInverseSurface,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -410,15 +434,17 @@ class _StatusBadge extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 120),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.62),
+          color: Theme.of(
+            context,
+          ).colorScheme.inverseSurface.withValues(alpha: 0.82),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onInverseSurface,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
@@ -450,14 +476,14 @@ class _SelectionCheckbox extends StatelessWidget {
           (states) => BorderSide(
             color: states.contains(WidgetState.selected)
                 ? theme.colorScheme.primary
-                : Colors.white70,
+                : theme.colorScheme.onInverseSurface.withValues(alpha: 0.7),
             width: 1.5,
           ),
         ),
         fillColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? theme.colorScheme.primary
-              : Colors.black45,
+              : theme.colorScheme.inverseSurface.withValues(alpha: 0.72),
         ),
         checkColor: theme.colorScheme.onPrimary,
       ),

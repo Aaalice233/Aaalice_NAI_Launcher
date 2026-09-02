@@ -1,8 +1,8 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/prompt_tag.dart';
 import '../../core/prompt_tag_colors.dart';
@@ -34,6 +34,9 @@ class TagBottomActionSheet extends StatefulWidget {
   /// 是否已收藏
   final bool isFavorite;
 
+  /// 由 [AdaptivePresenter] 提供的面板滚动控制器。
+  final ScrollController? scrollController;
+
   const TagBottomActionSheet({
     super.key,
     required this.tag,
@@ -44,6 +47,7 @@ class TagBottomActionSheet extends StatefulWidget {
     this.onCopy,
     this.onToggleFavorite,
     this.isFavorite = false,
+    this.scrollController,
   });
 
   /// 显示底部面板
@@ -59,11 +63,15 @@ class TagBottomActionSheet extends StatefulWidget {
     bool isFavorite = false,
   }) {
     HapticFeedback.mediumImpact();
-    return showModalBottomSheet(
+    return AdaptivePresenter.showPanel<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => TagBottomActionSheet(
+      titleBuilder: (context) => Text(
+        tag.displayName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      builder: (context, scrollController) => TagBottomActionSheet(
         tag: tag,
         onWeightChanged: onWeightChanged,
         onToggleEnabled: onToggleEnabled,
@@ -72,6 +80,7 @@ class TagBottomActionSheet extends StatefulWidget {
         onCopy: onCopy,
         onToggleFavorite: onToggleFavorite,
         isFavorite: isFavorite,
+        scrollController: scrollController,
       ),
     );
   }
@@ -101,56 +110,16 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
     final theme = Theme.of(context);
     final tagColor = PromptTagColors.getByCategory(widget.tag.category);
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withValues(alpha: 0.95),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            border: Border(
-              top: BorderSide(
-                color: theme.colorScheme.outline.withValues(alpha: 0.1),
-              ),
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 拖动指示条
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(top: 12, bottom: 16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-
-                // 标签预览
-                _buildTagPreview(theme, tagColor),
-
-                const SizedBox(height: 24),
-
-                // 权重调整滑块
-                _buildWeightSlider(theme),
-
-                const SizedBox(height: 24),
-
-                // 操作按钮
-                _buildActionButtons(theme),
-
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return ListView(
+      controller: widget.scrollController,
+      padding: const EdgeInsets.only(top: 16, bottom: 16),
+      children: [
+        _buildTagPreview(theme, tagColor),
+        const SizedBox(height: 24),
+        _buildWeightSlider(theme),
+        const SizedBox(height: 24),
+        _buildActionButtons(),
+      ],
     );
   }
 
@@ -161,9 +130,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
       decoration: BoxDecoration(
         color: tagColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: tagColor.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: tagColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -180,8 +147,9 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
                     color: widget.tag.enabled
                         ? theme.colorScheme.onSurface
                         : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    decoration:
-                        widget.tag.enabled ? null : TextDecoration.lineThrough,
+                    decoration: widget.tag.enabled
+                        ? null
+                        : TextDecoration.lineThrough,
                   ),
                 ),
                 if (widget.tag.translation != null) ...[
@@ -249,31 +217,31 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                context.l10n.weight_title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-                ),
-              ),
-              // 权重值和重置按钮
-              Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final policyExtent =
+                  context.interactionPolicy.minimumControlExtent;
+              final minimumControlExtent = policyExtent < 44
+                  ? 44.0
+                  : policyExtent;
+              final valueControls = Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: isIncrease
-                          ? PromptTagColors.weightIncrease
-                              .withValues(alpha: 0.15)
+                          ? PromptTagColors.weightIncrease.withValues(
+                              alpha: 0.15,
+                            )
                           : isDecrease
-                              ? PromptTagColors.weightDecrease
-                                  .withValues(alpha: 0.15)
-                              : theme.colorScheme.surfaceContainerHighest,
+                          ? PromptTagColors.weightDecrease.withValues(
+                              alpha: 0.15,
+                            )
+                          : theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -284,41 +252,62 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
                         color: isIncrease
                             ? PromptTagColors.weightIncrease
                             : isDecrease
-                                ? PromptTagColors.weightDecrease
-                                : theme.colorScheme.onSurface,
+                            ? PromptTagColors.weightDecrease
+                            : theme.colorScheme.onSurface,
                       ),
                     ),
                   ),
                   if (_currentWeight != 1.0) ...[
                     const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () {
+                    TextButton(
+                      onPressed: () {
                         _onWeightChanged(1.0);
                         HapticFeedback.lightImpact();
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          context.l10n.weight_reset,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                        ),
+                      style: TextButton.styleFrom(
+                        minimumSize: Size.square(minimumControlExtent),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        foregroundColor: theme.colorScheme.onSurfaceVariant,
+                        backgroundColor:
+                            theme.colorScheme.surfaceContainerHighest,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        context.l10n.weight_reset,
+                        style: theme.textTheme.labelSmall,
                       ),
                     ),
                   ],
                 ],
-              ),
-            ],
+              );
+              final title = Text(
+                context.l10n.weight_title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                ),
+              );
+              final largeText =
+                  MediaQuery.textScalerOf(context).scale(14) >= 20;
+              if (constraints.maxWidth < 360 || largeText) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    title,
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: valueControls,
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [title, valueControls],
+              );
+            },
           ),
           const SizedBox(height: 12),
           // 滑块
@@ -328,29 +317,31 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
               activeTrackColor: isIncrease
                   ? PromptTagColors.weightIncrease
                   : isDecrease
-                      ? PromptTagColors.weightDecrease
-                      : theme.colorScheme.primary,
+                  ? PromptTagColors.weightDecrease
+                  : theme.colorScheme.primary,
               inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
               thumbColor: isIncrease
                   ? PromptTagColors.weightIncrease
                   : isDecrease
-                      ? PromptTagColors.weightDecrease
-                      : theme.colorScheme.primary,
-              overlayColor: (isIncrease
-                      ? PromptTagColors.weightIncrease
-                      : isDecrease
+                  ? PromptTagColors.weightDecrease
+                  : theme.colorScheme.primary,
+              overlayColor:
+                  (isIncrease
+                          ? PromptTagColors.weightIncrease
+                          : isDecrease
                           ? PromptTagColors.weightDecrease
                           : theme.colorScheme.primary)
-                  .withValues(alpha: 0.2),
+                      .withValues(alpha: 0.2),
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
             ),
             child: Slider(
               value: _currentWeight,
               min: PromptTag.minWeight,
               max: PromptTag.maxWeight,
-              divisions: ((PromptTag.maxWeight - PromptTag.minWeight) /
-                      PromptTag.weightStep)
-                  .round(),
+              divisions:
+                  ((PromptTag.maxWeight - PromptTag.minWeight) /
+                          PromptTag.weightStep)
+                      .round(),
               onChanged: (value) {
                 _onWeightChanged(value);
                 HapticFeedback.selectionClick();
@@ -359,29 +350,22 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
           ),
           // 权重刻度提示
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${(PromptTag.minWeight * 100).round()}%',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+              for (final entry in <(String, TextAlign)>[
+                ('${(PromptTag.minWeight * 100).round()}%', TextAlign.left),
+                ('100%', TextAlign.center),
+                ('${(PromptTag.maxWeight * 100).round()}%', TextAlign.right),
+              ])
+                Expanded(
+                  child: Text(
+                    entry.$1,
+                    textAlign: entry.$2,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
                 ),
-              ),
-              Text(
-                '100%',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-              ),
-              Text(
-                '${(PromptTag.maxWeight * 100).round()}%',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-              ),
             ],
           ),
         ],
@@ -389,83 +373,79 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
     );
   }
 
-  Widget _buildActionButtons(ThemeData theme) {
+  Widget _buildActionButtons() {
+    final actions = <Widget>[
+      if (widget.onToggleFavorite != null)
+        _ActionButton(
+          icon: widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+          label: widget.isFavorite
+              ? context.l10n.common_unfavorite
+              : context.l10n.common_favorite,
+          onTap: () {
+            widget.onToggleFavorite?.call();
+            Navigator.pop(context);
+          },
+        ),
+      _ActionButton(
+        icon: widget.tag.enabled
+            ? Icons.visibility_off_outlined
+            : Icons.visibility_outlined,
+        label: widget.tag.enabled
+            ? context.l10n.tag_disable
+            : context.l10n.tag_enable,
+        onTap: () {
+          widget.onToggleEnabled?.call();
+          Navigator.pop(context);
+        },
+      ),
+      if (widget.onEdit != null)
+        _ActionButton(
+          icon: Icons.edit_outlined,
+          label: context.l10n.tooltip_edit,
+          onTap: () {
+            Navigator.pop(context);
+            widget.onEdit?.call();
+          },
+        ),
+      if (widget.onCopy != null)
+        _ActionButton(
+          icon: Icons.copy_outlined,
+          label: context.l10n.tooltip_copy,
+          onTap: () {
+            widget.onCopy?.call();
+            Navigator.pop(context);
+          },
+        ),
+      _ActionButton(
+        icon: Icons.delete_outline,
+        label: context.l10n.tag_delete,
+        isDestructive: true,
+        onTap: () {
+          widget.onDelete?.call();
+          Navigator.pop(context);
+        },
+      ),
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          // 收藏
-          if (widget.onToggleFavorite != null) ...[
-            Expanded(
-              child: _ActionButton(
-                icon:
-                    widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                label: widget.isFavorite ? 'Unfavorite' : 'Favorite',
-                onTap: () {
-                  widget.onToggleFavorite?.call();
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          // 启用/禁用
-          Expanded(
-            child: _ActionButton(
-              icon: widget.tag.enabled
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
-              label: widget.tag.enabled
-                  ? context.l10n.tag_disable
-                  : context.l10n.tag_enable,
-              onTap: () {
-                widget.onToggleEnabled?.call();
-                Navigator.pop(context);
-              },
-            ),
-          ),
-          const SizedBox(width: 12),
-          // 编辑
-          if (widget.onEdit != null) ...[
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.edit_outlined,
-                label: context.l10n.tooltip_edit,
-                onTap: () {
-                  Navigator.pop(context);
-                  widget.onEdit?.call();
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          // 复制
-          if (widget.onCopy != null) ...[
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.copy_outlined,
-                label: context.l10n.tooltip_copy,
-                onTap: () {
-                  widget.onCopy?.call();
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          // 删除
-          Expanded(
-            child: _ActionButton(
-              icon: Icons.delete_outline,
-              label: context.l10n.tag_delete,
-              isDestructive: true,
-              onTap: () {
-                widget.onDelete?.call();
-                Navigator.pop(context);
-              },
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const spacing = 12.0;
+          final columns = ((constraints.maxWidth + spacing) / 132)
+              .floor()
+              .clamp(2, actions.length);
+          final itemWidth =
+              (constraints.maxWidth - spacing * (columns - 1)) / columns;
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              for (final action in actions)
+                SizedBox(width: itemWidth, child: action),
+            ],
+          );
+        },
       ),
     );
   }
@@ -488,8 +468,9 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color =
-        isDestructive ? theme.colorScheme.error : theme.colorScheme.onSurface;
+    final color = isDestructive
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurface;
 
     return Material(
       color: Colors.transparent,
@@ -504,8 +485,9 @@ class _ActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: isDestructive
                 ? theme.colorScheme.error.withValues(alpha: 0.1)
-                : theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.5),
+                : theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isDestructive

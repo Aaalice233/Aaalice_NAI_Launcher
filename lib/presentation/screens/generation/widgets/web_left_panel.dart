@@ -15,6 +15,7 @@ import 'generation_param_sections.dart';
 import 'img2img_panel.dart';
 import 'precise_reference_panel.dart';
 import 'prompt_input.dart';
+import 'prompt_input_controller.dart';
 import 'reverse_prompt_panel.dart';
 import 'unified_reference_panel.dart';
 
@@ -27,11 +28,15 @@ import 'unified_reference_panel.dart';
 /// 悬浮于滚动内容之上（官网式，不与提示词等模块同层）。
 class WebLeftPanel extends ConsumerStatefulWidget {
   final ValueNotifier<bool> negativeModeNotifier;
+  final PromptInputController promptInputController;
+  final GlobalKey promptInputKey;
   final bool isResizing;
 
   const WebLeftPanel({
     super.key,
     required this.negativeModeNotifier,
+    required this.promptInputController,
+    required this.promptInputKey,
     this.isResizing = false,
   });
 
@@ -162,7 +167,9 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
       return Container(width: width, decoration: decoration, child: child);
     }
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
       width: width,
       decoration: decoration,
       child: child,
@@ -230,6 +237,8 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
 
                         // 提示词：随内容自由增高（官网式）
                         PromptInputWidget(
+                          key: widget.promptInputKey,
+                          controller: widget.promptInputController,
                           autoGrow: true,
                           showMaximizeButton: false,
                           negativeModeNotifier: widget.negativeModeNotifier,

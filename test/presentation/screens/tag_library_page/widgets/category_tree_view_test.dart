@@ -40,6 +40,8 @@ void main() {
                 categories: categories,
                 entries: const [],
                 selectedCategoryId: 'selected',
+                expandedCategoryIds: const <String>{},
+                onExpandedCategoryIdsChanged: (_) {},
                 onCategorySelected: (_) {},
                 onCategoryRename: (_, _) {},
                 onCategoryDelete: (_) {},

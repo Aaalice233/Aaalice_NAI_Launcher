@@ -158,7 +158,6 @@ class AgentChatThreadModel {
   final List<AgentChatTurnModel> turns;
 }
 
-
 class AgentChatTurnModel {
   AgentChatTurnModel({
     required this.ordinal,
@@ -443,9 +442,14 @@ class _AgentChatWorkTrailState extends State<AgentChatWorkTrail> {
                     child: Row(
                       children: [
                         if (widget.running)
-                          const SizedBox.square(
+                          SizedBox.square(
                             dimension: 14,
-                            child: CircularProgressIndicator(strokeWidth: 1.7),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.7,
+                              value: MediaQuery.disableAnimationsOf(context)
+                                  ? 0.75
+                                  : null,
+                            ),
                           )
                         else
                           Icon(

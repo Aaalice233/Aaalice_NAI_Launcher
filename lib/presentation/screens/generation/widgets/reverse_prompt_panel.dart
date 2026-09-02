@@ -8,7 +8,6 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/character/character_prompt.dart';
-import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../data/services/local_onnx_model_service.dart';
 import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
@@ -440,11 +439,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
   }
 
   Future<void> _selectReverseCharacterFromLibrary() async {
-    final entry = await showDialog<TagLibraryEntry>(
-      context: context,
-      builder: (context) => TagLibraryPickerDialog(
-        title: context.l10n.reversePrompt_selectReplacementTargetTitle,
-      ),
+    final entry = await TagLibraryPickerDialog.show(
+      context,
+      title: context.l10n.reversePrompt_selectReplacementTargetTitle,
     );
 
     if (entry == null) {

@@ -309,36 +309,41 @@ class CfgScaleSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
           children: [
             ParamSectionTitle(
               context.l10n.generation_cfgScale(data.scale.toStringAsFixed(1)),
             ),
-            const Spacer(),
-            // Decrisp (仅 V3 模型)
-            if (data.isV3Model) ...[
-              GenerationToggleButton(
-                label: 'Decrisp',
-                isEnabled: data.decrisp,
-                onChanged: (value) {
-                  ref
-                      .read(generationParamsNotifierProvider.notifier)
-                      .updateDecrisp(value);
-                },
-              ),
-              const SizedBox(width: 8),
-            ],
-            // Variety+ (V3 起；V5 网页端隐藏，启动器刻意保留)
-            if (data.supportsVarietyPlus)
-              GenerationToggleButton(
-                label: 'Variety+',
-                isEnabled: data.varietyPlus,
-                onChanged: (value) {
-                  ref
-                      .read(generationParamsNotifierProvider.notifier)
-                      .updateVarietyPlus(value);
-                },
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (data.isV3Model)
+                  GenerationToggleButton(
+                    label: 'Decrisp',
+                    isEnabled: data.decrisp,
+                    onChanged: (value) {
+                      ref
+                          .read(generationParamsNotifierProvider.notifier)
+                          .updateDecrisp(value);
+                    },
+                  ),
+                if (data.supportsVarietyPlus)
+                  GenerationToggleButton(
+                    label: 'Variety+',
+                    isEnabled: data.varietyPlus,
+                    onChanged: (value) {
+                      ref
+                          .read(generationParamsNotifierProvider.notifier)
+                          .updateVarietyPlus(value);
+                    },
+                  ),
+              ],
+            ),
           ],
         ),
         ThemedSlider(
@@ -584,7 +589,10 @@ class AdvancedSamplingOptions extends ConsumerWidget {
           // 选项行
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 8,
               children: [
                 _SmeaAutoButton(
                   isAuto: data.smeaAuto,
@@ -594,7 +602,6 @@ class AdvancedSamplingOptions extends ConsumerWidget {
                         .updateSmeaAuto(value);
                   },
                 ),
-                const SizedBox(width: 16),
                 _SmeaOptions(
                   smea: data.smea,
                   smeaDyn: data.smeaDyn,

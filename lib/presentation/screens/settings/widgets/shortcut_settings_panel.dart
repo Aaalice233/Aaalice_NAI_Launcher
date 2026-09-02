@@ -4,29 +4,47 @@ import '../../../../core/shortcuts/default_shortcuts.dart';
 import '../../../../core/shortcuts/shortcut_config.dart';
 import '../../../../core/shortcuts/shortcut_manager.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/shortcuts_provider.dart';
+import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/shortcuts/shortcut_binding_editor.dart';
 import '../../../widgets/shortcuts/shortcut_help_dialog.dart';
 
 /// 快捷键设置面板
 /// 用于自定义和管理快捷键
 class ShortcutSettingsPanel extends ConsumerStatefulWidget {
-  const ShortcutSettingsPanel({super.key});
+  const ShortcutSettingsPanel({super.key, this.presented = false});
+
+  final bool presented;
 
   static Future<void> show(BuildContext context) {
-    return showModalBottomSheet(
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return const ShortcutSettingsPanel();
-        },
-      ),
+      titleBuilder: (context) {
+        final theme = Theme.of(context);
+        return Row(
+          children: [
+            Icon(Icons.keyboard, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                context.l10n.shortcut_settings_title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.help_outline),
+              tooltip: context.l10n.shortcut_settings_help,
+              onPressed: () => ShortcutHelpDialog.show(context),
+            ),
+          ],
+        );
+      },
+      sideSheetWidth: 720,
+      builder: (context, scrollController) =>
+          const ShortcutSettingsPanel(presented: true),
     );
   }
 
@@ -69,10 +87,48 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
     ShortcutConfig config,
     Map<ShortcutContext, List<ShortcutBinding>> bindingsByContext,
   ) {
-    return Column(
-      children: [
-        // 标题栏
-        Container(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactHeader =
+            constraints.maxWidth < 520 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.6;
+        final searchField = TextField(
+          controller: _searchController,
+          textAlignVertical: TextAlignVertical.center,
+          decoration: InputDecoration(
+            hintText: context.l10n.shortcut_settings_search,
+            prefixIcon: const Icon(Icons.search, size: 20),
+            isDense: true,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+          ),
+          onChanged: (value) => setState(() {
+            _searchQuery = value.toLowerCase();
+          }),
+        );
+        final enabledSwitch = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                context.l10n.shortcut_settings_enable,
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Switch(
+              value: config.enableShortcuts,
+              onChanged: (value) => ref
+                  .read(shortcutConfigNotifierProvider.notifier)
+                  .updateSettings(enableShortcuts: value),
+            ),
+          ],
+        );
+
+        final header = Container(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
@@ -84,90 +140,55 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
           ),
           child: Column(
             children: [
-              // 拖动条
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+              if (!widget.presented) ...[
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.keyboard, color: theme.colorScheme.primary),
-                  const SizedBox(width: 12),
-                  Text(
-                    context.l10n.shortcut_settings_title,
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  const Spacer(),
-                  // 帮助按钮
-                  IconButton(
-                    icon: const Icon(Icons.help_outline),
-                    tooltip: context.l10n.shortcut_settings_help,
-                    onPressed: () => ShortcutHelpDialog.show(context),
-                  ),
-                  // 关闭按钮
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // 搜索框和全局设置
-              Row(
-                children: [
-                  // 搜索框
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      textAlignVertical: TextAlignVertical.center,
-                      decoration: InputDecoration(
-                        hintText: context.l10n.shortcut_settings_search,
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.keyboard, color: theme.colorScheme.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        context.l10n.shortcut_settings_title,
+                        style: theme.textTheme.titleLarge,
                       ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value.toLowerCase();
-                        });
-                      },
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  // 全局开关
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        context.l10n.shortcut_settings_enable,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      const SizedBox(width: 4),
-                      Switch(
-                        value: config.enableShortcuts,
-                        onChanged: (value) {
-                          ref
-                              .read(shortcutConfigNotifierProvider.notifier)
-                              .updateSettings(enableShortcuts: value);
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    IconButton(
+                      icon: const Icon(Icons.help_outline),
+                      tooltip: context.l10n.shortcut_settings_help,
+                      onPressed: () => ShortcutHelpDialog.show(context),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (compactHeader) ...[
+                searchField,
+                const SizedBox(height: 8),
+                Align(alignment: Alignment.centerLeft, child: enabledSwitch),
+              ] else
+                Row(
+                  children: [
+                    Expanded(child: searchField),
+                    const SizedBox(width: 12),
+                    enabledSwitch,
+                  ],
+                ),
               const SizedBox(height: 8),
-              // 这些选项在手机宽度下需要自然换行，不能把末项挤出面板。
               Align(
                 alignment: Alignment.centerLeft,
                 child: Wrap(
@@ -181,33 +202,27 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
                       ),
                       selected: config.showShortcutInTooltip,
                       onSelected: config.enableShortcuts
-                          ? (value) {
-                              ref
-                                  .read(shortcutConfigNotifierProvider.notifier)
-                                  .updateSettings(showShortcutInTooltip: value);
-                            }
+                          ? (value) => ref
+                                .read(shortcutConfigNotifierProvider.notifier)
+                                .updateSettings(showShortcutInTooltip: value)
                           : null,
                     ),
                     FilterChip(
                       label: Text(context.l10n.shortcut_settings_show_badges),
                       selected: config.showShortcutBadges,
                       onSelected: config.enableShortcuts
-                          ? (value) {
-                              ref
-                                  .read(shortcutConfigNotifierProvider.notifier)
-                                  .updateSettings(showShortcutBadges: value);
-                            }
+                          ? (value) => ref
+                                .read(shortcutConfigNotifierProvider.notifier)
+                                .updateSettings(showShortcutBadges: value)
                           : null,
                     ),
                     FilterChip(
                       label: Text(context.l10n.shortcut_settings_show_in_menus),
                       selected: config.showInMenus,
                       onSelected: config.enableShortcuts
-                          ? (value) {
-                              ref
-                                  .read(shortcutConfigNotifierProvider.notifier)
-                                  .updateSettings(showInMenus: value);
-                            }
+                          ? (value) => ref
+                                .read(shortcutConfigNotifierProvider.notifier)
+                                .updateSettings(showInMenus: value)
                           : null,
                     ),
                     TextButton.icon(
@@ -220,15 +235,24 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
               ),
             ],
           ),
-        ),
+        );
 
-        // 快捷键列表
-        Expanded(
-          child: _searchQuery.isNotEmpty
-              ? _buildSearchResults(config)
-              : _buildShortcutsList(config, bindingsByContext),
-        ),
-      ],
+        return Column(
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: constraints.maxHeight * 0.58,
+              ),
+              child: SingleChildScrollView(child: header),
+            ),
+            Expanded(
+              child: _searchQuery.isNotEmpty
+                  ? _buildSearchResults(config)
+                  : _buildShortcutsList(config, bindingsByContext),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -236,6 +260,10 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
     ShortcutConfig config,
     Map<ShortcutContext, List<ShortcutBinding>> bindingsByContext,
   ) {
+    if (bindingsByContext.values.every((bindings) => bindings.isEmpty)) {
+      return _buildEmptyState();
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: ShortcutContext.values.length,
@@ -325,106 +353,98 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
       );
     }
 
-    return ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
-      title: Text(
-        _getActionDisplayName(binding),
-        style: theme.textTheme.bodyMedium,
-      ),
-      subtitle: binding.hasCustomShortcut
-          ? Text(
-              context.l10n.shortcut_settings_defaultShortcut(
-                AppShortcutManager.getDisplayLabel(binding.defaultShortcut),
-              ),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            )
-          : null,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 快捷键标签
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: binding.hasCustomShortcut
-                  ? theme.colorScheme.primaryContainer
-                  : theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: binding.hasCustomShortcut
-                    ? theme.colorScheme.primary.withValues(alpha: 0.3)
-                    : theme.colorScheme.outline.withValues(alpha: 0.2),
-              ),
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_getActionDisplayName(binding), style: theme.textTheme.bodyMedium),
+        if (binding.hasCustomShortcut)
+          Text(
+            context.l10n.shortcut_settings_defaultShortcut(
+              AppShortcutManager.getDisplayLabel(binding.defaultShortcut),
             ),
-            child: Text(
-              shortcut != null
-                  ? AppShortcutManager.getDisplayLabel(shortcut)
-                  : context.l10n.shortcut_settings_unassigned,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontFamily: 'monospace',
-                fontWeight: FontWeight.w600,
-                color: binding.hasCustomShortcut
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface,
-              ),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
             ),
           ),
-          const SizedBox(width: 8),
-          // 编辑按钮
+      ],
+    );
+    final shortcutLabel = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: binding.hasCustomShortcut
+            ? theme.colorScheme.primaryContainer
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        shortcut != null
+            ? AppShortcutManager.getDisplayLabel(shortcut)
+            : context.l10n.shortcut_settings_unassigned,
+        style: theme.textTheme.bodySmall?.copyWith(
+          fontFamily: 'monospace',
+          fontWeight: FontWeight.w600,
+          color: binding.hasCustomShortcut
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurface,
+        ),
+      ),
+    );
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        shortcutLabel,
+        const SizedBox(width: 4),
+        IconButton(
+          icon: const Icon(Icons.edit, size: 18),
+          tooltip: context.l10n.common_edit,
+          onPressed: () => setState(() => _editingId = binding.id),
+        ),
+        if (binding.hasCustomShortcut)
           IconButton(
-            icon: const Icon(Icons.edit, size: 18),
-            tooltip: context.l10n.common_edit,
-            visualDensity: VisualDensity.compact,
-            onPressed: () {
-              setState(() {
-                _editingId = binding.id;
-              });
-            },
+            icon: const Icon(Icons.refresh, size: 18),
+            tooltip: context.l10n.shortcut_settings_reset_to_default,
+            onPressed: () => ref
+                .read(shortcutConfigNotifierProvider.notifier)
+                .resetToDefault(binding.id),
           ),
-          // 重置按钮（仅当有自定义快捷键时显示）
-          if (binding.hasCustomShortcut)
-            IconButton(
-              icon: const Icon(Icons.refresh, size: 18),
-              tooltip: context.l10n.shortcut_settings_reset_to_default,
-              visualDensity: VisualDensity.compact,
-              onPressed: () async {
-                await ref
-                    .read(shortcutConfigNotifierProvider.notifier)
-                    .resetToDefault(binding.id);
-              },
-            ),
-        ],
-      ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack =
+            constraints.maxWidth < 520 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.6;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+          child: stack
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleBlock,
+                    const SizedBox(height: 4),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: actions,
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: titleBlock),
+                    const SizedBox(width: 8),
+                    actions,
+                  ],
+                ),
+        );
+      },
     );
   }
 
   Widget _buildSearchResults(ShortcutConfig config) {
     final searchResults = ref.watch(searchShortcutsProvider(_searchQuery));
 
-    if (searchResults.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 48,
-              color: Theme.of(context).colorScheme.outline,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              context.l10n.shortcut_settings_no_matches,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    if (searchResults.isEmpty) return _buildEmptyState();
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -435,31 +455,41 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
     );
   }
 
-  void _showResetConfirmDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.shortcut_settings_reset_all_title),
-        content: Text(context.l10n.shortcut_settings_reset_all_confirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await ref
-                  .read(shortcutConfigNotifierProvider.notifier)
-                  .resetAllToDefault();
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: Text(context.l10n.common_reset),
-          ),
-        ],
+  Widget _buildEmptyState() {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off, size: 48, color: theme.colorScheme.outline),
+            const SizedBox(height: 16),
+            Text(
+              context.l10n.shortcut_settings_no_matches,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _showResetConfirmDialog() async {
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: context.l10n.shortcut_settings_reset_all_title,
+      content: context.l10n.shortcut_settings_reset_all_confirm,
+      confirmText: context.l10n.common_reset,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.warning,
+      icon: Icons.restart_alt_rounded,
+    );
+    if (!confirmed) return;
+    await ref.read(shortcutConfigNotifierProvider.notifier).resetAllToDefault();
   }
 
   String _getActionDisplayName(ShortcutBinding binding) {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../core/utils/localization_extension.dart';
+import 'adaptive_dialog_frame.dart';
 
 class PreciseReferenceTypeDialog extends StatelessWidget {
   const PreciseReferenceTypeDialog({super.key});
@@ -17,24 +18,31 @@ class PreciseReferenceTypeDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
       title: Text(context.l10n.preciseRef_referenceType),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: PreciseRefType.values.map((type) {
-          return ListTile(
-            key: ValueKey('precise-reference-type-${type.name}'),
-            leading: Icon(type.icon),
-            title: Text(
-              type.getDisplayName(
-                character: context.l10n.preciseRef_typeCharacter,
-                style: context.l10n.preciseRef_typeStyle,
-                characterAndStyle:
-                    context.l10n.preciseRef_typeCharacterAndStyle,
+      content: AdaptiveDialogFrame(
+        maxWidth: 420,
+        maxHeight: 320,
+        reservedVerticalSpace: 120,
+        scaleReservedVerticalSpace: true,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: PreciseRefType.values.map((type) {
+            return ListTile(
+              key: ValueKey('precise-reference-type-${type.name}'),
+              leading: Icon(type.icon),
+              title: Text(
+                type.getDisplayName(
+                  character: context.l10n.preciseRef_typeCharacter,
+                  style: context.l10n.preciseRef_typeStyle,
+                  characterAndStyle:
+                      context.l10n.preciseRef_typeCharacterAndStyle,
+                ),
               ),
-            ),
-            onTap: () => Navigator.of(context).pop(type),
-          );
-        }).toList(),
+              onTap: () => Navigator.of(context).pop(type),
+            );
+          }).toList(),
+        ),
       ),
       actions: [
         TextButton(

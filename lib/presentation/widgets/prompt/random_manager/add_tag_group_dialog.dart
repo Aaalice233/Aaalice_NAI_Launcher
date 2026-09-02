@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
@@ -19,10 +20,64 @@ class AddTagGroupDialog extends ConsumerStatefulWidget {
     super.key,
     required this.category,
     required this.presetId,
+    this.scrollController,
   });
 
   final RandomCategory category;
   final String presetId;
+  final ScrollController? scrollController;
+
+  static Future<void> show(
+    BuildContext context, {
+    required RandomCategory category,
+    required String presetId,
+  }) {
+    return AdaptivePresenter.showForm<void>(
+      context: context,
+      sideSheetWidth: 580,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.add_rounded,
+            color: Theme.of(panelContext).colorScheme.primary,
+            size: 21,
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  panelContext.l10n.randomManager_addTagGroup,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(panelContext).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  panelContext.l10n.randomManager_addTagGroupSubtitle(
+                    panelContext.l10n.randomCategoryName(category),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(panelContext).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(panelContext).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      builder: (panelContext, scrollController) => AddTagGroupDialog(
+        category: category,
+        presetId: presetId,
+        scrollController: scrollController,
+      ),
+    );
+  }
 
   @override
   ConsumerState<AddTagGroupDialog> createState() => _AddTagGroupDialogState();
@@ -113,26 +168,28 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Dialog(
-      backgroundColor: colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: 580,
-        height: 660,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Form(
+      key: _formKey,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final minimumTabHeight = 220 + (textScale - 1).clamp(0, 2) * 140;
+          final preferredTabHeight = constraints.maxHeight - 170;
+          final tabHeight = preferredTabHeight
+              .clamp(minimumTabHeight, 660)
+              .toDouble();
+          return ListView(
+            key: const ValueKey('add-tag-group-form-scroll'),
+            controller: widget.scrollController,
+            padding: EdgeInsets.zero,
             children: [
-              _buildHeader(context),
               _buildNameSection(context),
               _buildSourceTabs(context),
               if (_sourceTabIndex > 0) _buildSearchBar(context),
-              Expanded(
+              SizedBox(
+                height: tabHeight,
                 child: ColoredBox(
                   color: colorScheme.surfaceContainerLow,
                   child: _buildTabContent(context),
@@ -140,49 +197,8 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
               ),
               _buildFooter(context),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 18, 12, 10),
-      child: Row(
-        children: [
-          Icon(Icons.add_rounded, color: colorScheme.primary, size: 21),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.randomManager_addTagGroup,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  context.l10n.randomManager_addTagGroupSubtitle(
-                    context.l10n.randomCategoryName(widget.category),
-                  ),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            tooltip: context.l10n.common_close,
-            icon: const Icon(Icons.close_rounded, size: 20),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -211,6 +227,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
                 return null;
               },
               autofocus: true,
+              onChanged: (_) => setState(() {}),
             ),
           ),
           const SizedBox(width: 8),
@@ -233,45 +250,59 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: TabBar(
-        controller: _tabController,
-        indicatorSize: TabBarIndicatorSize.label,
-        dividerColor: Colors.transparent,
-        labelColor: colorScheme.primary,
-        unselectedLabelColor: colorScheme.onSurfaceVariant,
-        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.edit_note, size: 16),
-                const SizedBox(width: 4),
-                Text(context.l10n.randomManager_customTab),
-              ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactTabs =
+              constraints.maxWidth < 460 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3;
+          return TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabAlignment: compactTabs
+                ? TabAlignment.start
+                : TabAlignment.center,
+            indicatorSize: TabBarIndicatorSize.label,
+            dividerColor: Colors.transparent,
+            labelColor: colorScheme.primary,
+            unselectedLabelColor: colorScheme.onSurfaceVariant,
+            labelStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
-          ),
-          Tab(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.label_outline, size: 16),
-                const SizedBox(width: 4),
-                Text(context.l10n.addGroup_tagGroupTab),
-              ],
-            ),
-          ),
-          Tab(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.photo_library_outlined, size: 16),
-                const SizedBox(width: 4),
-                Text(context.l10n.addGroup_poolTab),
-              ],
-            ),
-          ),
-        ],
+            tabs: [
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.edit_note, size: 16),
+                    const SizedBox(width: 4),
+                    Text(context.l10n.randomManager_customTab),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.label_outline, size: 16),
+                    const SizedBox(width: 4),
+                    Text(context.l10n.addGroup_tagGroupTab),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.photo_library_outlined, size: 16),
+                    const SizedBox(width: 4),
+                    Text(context.l10n.addGroup_poolTab),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -487,14 +518,15 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   Widget _buildFooter(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      child: OverflowBar(
+        alignment: MainAxisAlignment.end,
+        spacing: 8,
+        overflowSpacing: 8,
         children: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(context.l10n.common_cancel),
           ),
-          const SizedBox(width: 8),
           FilledButton.icon(
             onPressed: _canSubmit() ? _addGroup : null,
             icon: const Icon(Icons.add_rounded, size: 18),
@@ -669,7 +701,9 @@ class _DanbooruListTileState extends State<_DanbooruListTile> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           margin: const EdgeInsets.only(bottom: 6),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
