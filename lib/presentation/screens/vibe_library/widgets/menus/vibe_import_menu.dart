@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../widgets/common/pro_context_menu.dart';
+import '../../../../widgets/common/context_menu_anchor.dart';
 
 /// Import menu route that displays import options as a popup
 class ImportMenu extends PopupRoute<void> {
@@ -36,23 +37,25 @@ class ImportMenu extends PopupRoute<void> {
       removeBottom: true,
       child: Builder(
         builder: (context) {
-          // Calculate menu position to ensure it stays within screen bounds
-          final screenSize = MediaQuery.of(context).size;
+          // position 是窗口全局坐标；路由页面铺在最近 Overlay 上，
+          // 需换算到 overlay 局部坐标并按 overlay 尺寸收拢
+          final overlaySize = contextMenuOverlaySize(context);
+          final local = contextMenuLocalPosition(context, position);
           const menuWidth = 180.0;
           final menuHeight = items.where((i) => !i.isDivider).length * 36.0 +
               items.where((i) => i.isDivider).length * 1.0;
 
-          double left = position.dx;
-          double top = position.dy;
+          double left = local.dx;
+          double top = local.dy;
 
           // Adjust horizontal position
-          if (left + menuWidth > screenSize.width) {
-            left = screenSize.width - menuWidth - 16;
+          if (left + menuWidth > overlaySize.width) {
+            left = overlaySize.width - menuWidth - 16;
           }
 
           // Adjust vertical position
-          if (top + menuHeight > screenSize.height) {
-            top = screenSize.height - menuHeight - 16;
+          if (top + menuHeight > overlaySize.height) {
+            top = overlaySize.height - menuHeight - 16;
           }
 
           return GestureDetector(

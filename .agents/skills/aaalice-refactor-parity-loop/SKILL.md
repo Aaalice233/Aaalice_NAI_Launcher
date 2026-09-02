@@ -1,14 +1,15 @@
 ---
 name: aaalice-refactor-parity-loop
 description: 对 Aaalice NAI Launcher 的大型文件拆分型重构执行多子代理等价性闭环。当任务目标是把大型业务文件按职责拆分、同时保持功能、交互与布局不变时自动使用；不用于普通重构、功能开发、单点 Bug 修复或常规代码审查。
-compatibility: Aaalice NAI Launcher 项目、Git、Flutter/Dart，以及可用的 Pi 内置 subagent 工具。
 ---
 
 # Aaalice 重构等价性闭环
 
+运行环境需要 Git、Flutter/Dart 与可用的 Codex 多代理协作工具。
+
 本 Skill 验证的是“重构前后行为等价”，不是代码是否看起来更整洁。当前主 Agent 对范围、结论、修改、验证和最终交付负责；子代理只提供独立证据或执行边界清晰的修复。
 
-本 Skill 可以自动启用，也可以由用户通过 `/skill:aaalice-refactor-parity-loop` 明确调用。
+本 Skill 可以自动启用，也可以由用户通过 `$aaalice-refactor-parity-loop` 明确调用。
 
 ## 启动门禁
 
@@ -44,7 +45,7 @@ compatibility: Aaalice NAI Launcher 项目、Git、Flutter/Dart，以及可用�
 
 ## 强制原则
 
-1. 必须使用 Pi 内置 `subagent`；除非用户明确要求 Orca，不得用 Orca worktree、额外终端或外部 Agent 代替。
+1. 必须使用 Codex 内置多代理协作工具；不得用外部编排器、额外工作树、独立 Codex task 或外部 Agent 代替。项目开发 Runner 使用 `aaalice-dev-sessions` 管理的独立命令行窗口，不属于子代理替代方案。
 2. 审查代理和确认代理必须是不同的新代理；任何代理不得确认自己的结论。
 3. 审查默认只读；没有经过反证确认的问题不得进入修复。
 4. 不把文件行数、个人风格、抽象偏好或“可能以后出错”单独当成回归。
@@ -68,7 +69,7 @@ tool/.tmp/refactor-parity/<task-slug>/workers/
 $ErrorActionPreference = 'Stop'
 $root = 'tool/.tmp/refactor-parity/<task-slug>'
 New-Item -ItemType Directory -Force "$root/workers" | Out-Null
-Copy-Item '.pi/skills/aaalice-refactor-parity-loop/references/progress-template.md' "$root/progress.md"
+Copy-Item '.agents/skills/aaalice-refactor-parity-loop/references/progress-template.md' "$root/progress.md"
 ```
 
 记录是审计轨迹，不是事实来源。后续代理必须重新检查代码、diff、测试和运行证据，不能因为 Markdown 中写了“已确认”就接受结论。
@@ -115,7 +116,7 @@ tool/.tmp/refactor-parity/<task-slug>/workers/round-<N>-<worker-name>.md
 
 ## 阶段 2：多代理独立审查
 
-并行派发 3～5 个只读 `Explore` 子代理，范围尽量不重叠：
+在当前可用并发槽内优先并行派发 3 个只读子代理；无法同时覆盖的维度在子代理完成后继续派发，范围尽量不重叠：
 
 1. **功能与 API 契约**：调用链、输入输出、回调、副作用、错误和兼容性。
 2. **状态与生命周期**：Provider/Controller/State、异步取消、初始化、销毁、导航和资源释放。
@@ -137,7 +138,7 @@ tool/.tmp/refactor-parity/<task-slug>/workers/round-<N>-<worker-name>.md
 
 ## 阶段 3：多代理对抗性确认
 
-派发至少 2 个新的只读 `Explore` 子代理。将候选发现按调用链或文件簇分配，重要问题至少由两个确认代理独立检查。
+派发至少 2 个新的只读子代理。将候选发现按调用链或文件簇分配，重要问题至少由两个确认代理独立检查。
 
 确认代理必须先尝试反证：
 
@@ -161,7 +162,7 @@ tool/.tmp/refactor-parity/<task-slug>/workers/round-<N>-<worker-name>.md
 ## 阶段 4：分组修复已确认问题
 
 1. 只修复 `已确认` 且由本次重构引入的问题。
-2. 按互不重叠的文件和调用链建立修复簇，派发多个 `general-purpose` 子代理；强耦合问题由一个代理完整处理。
+2. 按互不重叠的文件和调用链建立修复簇，派发多个修复子代理；强耦合问题由一个代理完整处理。
 3. 每个修复代理获得：问题 ID、基线契约、允许修改文件、禁止范围、预期验证和独立报告路径。
 4. 修复代理不得扩大功能、修改 Changelog、隐藏异常、降低测试或自行宣布整轮通过。
 5. 主 Agent 逐个检查 worker 报告、实际 diff、调用方和测试，解决冲突并执行必要整合。

@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../widgets/common/context_menu_anchor.dart';
 import '../../../widgets/common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -131,12 +132,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
   void _showEmptyAreaContextMenu(BuildContext context, Offset position) {
     showMenu(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: contextMenuAnchorAt(context, position),
       items: [
         PopupMenuItem(
           onTap: () => widget.onAddSubCategory(null),
@@ -629,12 +625,7 @@ class _CategoryItemState extends State<_CategoryItem> {
   Future<void> _showContextMenu(BuildContext context, Offset position) async {
     final action = await showMenu<_CategoryAction>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: contextMenuAnchorAt(context, position),
       items: _buildActionItems(context),
     );
     if (mounted && action != null) _handleAction(action);

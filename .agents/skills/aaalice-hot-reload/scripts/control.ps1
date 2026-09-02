@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('Status', 'Reload', 'Restart', 'Logs')]
+    [ValidateSet('Status', 'Reload', 'Restart', 'Logs', 'Stop')]
     [string]$Action = 'Status',
     [ValidateSet('All', 'Windows', 'Android')]
     [string]$Target = 'All',
@@ -22,6 +22,22 @@ $targets = if ($Target -eq 'All') { @('Windows', 'Android') } else { @($Target) 
 function Get-SessionStatus {
     param([Parameter(Mandatory = $true)][string]$SessionTarget)
 
+    $runnerName = if ($SessionTarget -eq 'Windows') {
+        'windows_runner.ps1'
+    }
+    else {
+        'android_runner.ps1'
+    }
+    $runnerPath = Join-Path $repoRoot ".agents/skills/aaalice-dev-sessions/scripts/$runnerName"
+    $runnerProcess = Get-CimInstance Win32_Process |
+        Where-Object {
+            $_.Name -eq 'pwsh.exe' -and
+            -not [string]::IsNullOrWhiteSpace($_.CommandLine) -and
+            $_.CommandLine.Contains([string]$runnerPath, [StringComparison]::OrdinalIgnoreCase)
+        } |
+        Sort-Object CreationDate -Descending |
+        Select-Object -First 1
+
     $fileName = if ($SessionTarget -eq 'Windows') {
         'windows_hot_reload_session.json'
     }
@@ -30,6 +46,13 @@ function Get-SessionStatus {
     }
     $sessionPath = Join-Path $repoRoot "tool/.tmp/$fileName"
     if (-not (Test-Path -LiteralPath $sessionPath -PathType Leaf)) {
+        if ($runnerProcess) {
+            return [pscustomobject]@{
+                Target = $SessionTarget
+                Ready = $false
+                Summary = "starting, PID $($runnerProcess.ProcessId)"
+            }
+        }
         return [pscustomobject]@{
             Target = $SessionTarget
             Ready = $false
@@ -45,7 +68,12 @@ function Get-SessionStatus {
         ).ToUnixTimeMilliseconds()
         $sameProcess = $process.ProcessName -eq 'pwsh' -and
             [Math]::Abs($processStartUnixMs - [int64]$session.processStartedAtUnixMs) -lt 1000
-        if (-not $sameProcess -or [string]$session.repoRoot -ne [string]$repoRoot) {
+        $sameRunner = $runnerProcess -and [int]$runnerProcess.ProcessId -eq [int]$session.processId
+        if (
+            -not $sameProcess -or
+            -not $sameRunner -or
+            [string]$session.repoRoot -ne [string]$repoRoot
+        ) {
             throw 'stale session marker'
         }
 
@@ -63,6 +91,13 @@ function Get-SessionStatus {
     }
     catch {
         Remove-Item -LiteralPath $sessionPath -Force -ErrorAction SilentlyContinue
+        if ($runnerProcess) {
+            return [pscustomobject]@{
+                Target = $SessionTarget
+                Ready = $false
+                Summary = "starting, PID $($runnerProcess.ProcessId) (removed stale marker)"
+            }
+        }
         return [pscustomobject]@{
             Target = $SessionTarget
             Ready = $false
@@ -106,9 +141,9 @@ $failures = [System.Collections.Generic.List[string]]::new()
 if ($Action -in @('Reload', 'Restart')) {
     foreach ($currentTarget in $targets) {
         try {
-            $triggerArguments = @{ Target = $currentTarget }
-            if ($Action -eq 'Restart') {
-                $triggerArguments.Restart = $true
+            $triggerArguments = @{
+                Target = $currentTarget
+                Action = $Action
             }
             & (Join-Path $scriptDir 'trigger.ps1') @triggerArguments
             if ($LASTEXITCODE -ne 0) {
@@ -131,6 +166,40 @@ if ($Action -in @('Reload', 'Restart')) {
             catch {
                 $failures.Add("$currentTarget logs: $($_.Exception.Message)")
             }
+        }
+    }
+}
+elseif ($Action -eq 'Stop') {
+    foreach ($currentTarget in $targets) {
+        try {
+            $initialStatus = Get-SessionStatus -SessionTarget $currentTarget
+            if (-not $initialStatus.Ready -and $initialStatus.Summary -like 'not started*') {
+                Write-Output "$currentTarget development session is not running."
+                continue
+            }
+            & (Join-Path $scriptDir 'trigger.ps1') `
+                -Target $currentTarget `
+                -Action Quit
+            if ($LASTEXITCODE -ne 0) {
+                throw 'Quit command failed.'
+            }
+
+            $deadline = (Get-Date).AddSeconds(15)
+            do {
+                Start-Sleep -Milliseconds 250
+                $status = Get-SessionStatus -SessionTarget $currentTarget
+                if (-not $status.Ready -and $status.Summary -like 'not started*') {
+                    break
+                }
+            } while ((Get-Date) -lt $deadline)
+
+            if ($status.Ready -or $status.Summary -notlike 'not started*') {
+                throw 'Development console did not exit within 15 seconds.'
+            }
+            Write-Output "$currentTarget development session stopped."
+        }
+        catch {
+            $failures.Add("$currentTarget`: $($_.Exception.Message)")
         }
     }
 }

@@ -1,10 +1,11 @@
 ---
 name: aaalice-launcher-release
 description: 为 Aaalice NAI Launcher 准备并发布新版本，包括同步 main、更新版本号、生成并逐项审查 Changelog 材料、撰写用户更新日志、执行发布前验证、提交、创建并推送 v* tag。用户提到发布 Launcher 版本、准备 Release、写 CHANGELOG、更新日志或 release notes 时使用。
-compatibility: 必须位于 Aaalice_NAI_Launcher 仓库，并具备 git、Git LFS、Flutter、Dart 与 PowerShell。
 ---
 
 # Aaalice NAI Launcher 版本发布
+
+必须位于 Aaalice_NAI_Launcher 仓库，并具备 Git、Git LFS、Flutter、Dart 与 PowerShell。
 
 本 skill 是 Aaalice NAI Launcher 应用版本发布与 Changelog 撰写的唯一流程文档。`AGENTS.md` 只保留通用工程、资源和验证约束；执行发布时同时遵守这些通用约束，但不得在其他文档复制本流程。
 

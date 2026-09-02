@@ -108,7 +108,7 @@ if ($LASTEXITCODE -ne 0 -or $state -ne 'device') {
 
 if ($HotReload) {
     $pwshCommand = (Get-Command pwsh -ErrorAction Stop).Source
-    $reloadScript = Join-Path $repoRoot '.pi/skills/aaalice-hot-reload/scripts/control.ps1'
+    $reloadScript = Join-Path $repoRoot '.agents/skills/aaalice-hot-reload/scripts/control.ps1'
     & $pwshCommand -NoProfile -ExecutionPolicy Bypass -File $reloadScript `
         -Action Reload `
         -Target Android `

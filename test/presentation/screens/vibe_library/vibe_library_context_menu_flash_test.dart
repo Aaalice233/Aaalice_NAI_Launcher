@@ -12,6 +12,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_library_content_view.dart';
+import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
 import 'package:super_native_extensions/raw_drag_drop.dart' as raw;
 
@@ -56,7 +57,10 @@ class _ProbeNotifier extends VibeLibraryNotifier {
   Future<void> initialize() async {}
 }
 
-Future<_ProbeStorage> _pumpVibeGrid(WidgetTester tester) async {
+Future<_ProbeStorage> _pumpVibeGrid(
+  WidgetTester tester, {
+  Widget Function(Widget content)? shell,
+}) async {
   await tester.binding.setSurfaceSize(const Size(1280, 800));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -78,12 +82,14 @@ Future<_ProbeStorage> _pumpVibeGrid(WidgetTester tester) async {
         vibeLibraryStorageServiceProvider.overrideWithValue(storage),
         vibeLibraryNotifierProvider.overrideWith(() => _ProbeNotifier(entries)),
       ],
-      child: const MaterialApp(
-        locale: Locale('zh'),
+      child: MaterialApp(
+        locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: VibeLibraryContentView(columns: 4, itemWidth: 280),
+          body: shell == null
+              ? const VibeLibraryContentView(columns: 4, itemWidth: 280)
+              : shell(const VibeLibraryContentView(columns: 4, itemWidth: 280)),
         ),
       ),
     ),
@@ -172,5 +178,51 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.byType(Image).evaluate().length, imagesBefore);
+  });
+
+  testWidgets('壳层偏移 overlay 下 Vibe 卡片菜单出现在点击位置', (tester) async {
+    // 生产壳层结构：真实 DesktopWindowFrame 提供 40px 自绘标题栏，
+    // 内容区 Navigator 在 200px 主导航栏右侧。Vibe 卡片的自定义
+    // _ContextMenuRoute 铺在该 Navigator 的 overlay 上，直接把手势
+    // 窗口全局坐标当 overlay 局部坐标会让菜单偏移一个壳层边距。
+    final storage = await _pumpVibeGrid(
+      tester,
+      shell: (content) => DesktopWindowFrame(
+        enabled: true,
+        child: Row(
+          children: [
+            const SizedBox(width: 200),
+            Expanded(
+              child: Navigator(
+                onGenerateRoute: (_) => PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => content,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    expect(storage, isNotNull);
+
+    final cardCenter = tester.getCenter(find.byType(VibeCard).first);
+    final tapPosition = cardCenter - const Offset(60, 0);
+    final gesture = await tester.startGesture(
+      tapPosition,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryButton,
+    );
+    addTearDown(gesture.removePointer);
+    await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.byType(ProContextMenu), findsOneWidget);
+    final menuTopLeft = tester.getTopLeft(find.byType(ProContextMenu));
+    expect((menuTopLeft - tapPosition).distance, lessThan(1.0));
+
+    // 点击空白关闭菜单，避免遗留路由
+    await tester.tapAt(const Offset(1200, 760), kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
   });
 }

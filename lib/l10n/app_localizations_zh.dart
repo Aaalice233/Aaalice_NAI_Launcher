@@ -5843,6 +5843,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_moveAlbumToRoot => '移到根级';
 
   @override
+  String get localGallery_moveAlbumUp => '移到上一级';
+
+  @override
+  String get localGallery_moveCategoryUp => '移到上一级';
+
+  @override
   String get localGallery_createAlbumTitle => '新建相簿';
 
   @override
@@ -5850,9 +5856,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_createAlbumHint => '输入相簿名称';
-
-  @override
-  String get localGallery_renameAlbumTitle => '重命名相簿';
 
   @override
   String get localGallery_deleteAlbumTitle => '删除相簿';
@@ -19476,6 +19479,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_moveAlbumToRoot => '移到根級';
 
   @override
+  String get localGallery_moveAlbumUp => '移到上一級';
+
+  @override
+  String get localGallery_moveCategoryUp => '移到上一級';
+
+  @override
   String get localGallery_createAlbumTitle => '新建相簿';
 
   @override
@@ -19483,9 +19492,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_createAlbumHint => '輸入相簿名稱';
-
-  @override
-  String get localGallery_renameAlbumTitle => '重新命名相簿';
 
   @override
   String get localGallery_deleteAlbumTitle => '刪除相簿';

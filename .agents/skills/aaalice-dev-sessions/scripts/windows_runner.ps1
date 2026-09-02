@@ -16,6 +16,10 @@ Set-Location -LiteralPath $repoRoot
 $sessionDirectory = Join-Path $repoRoot 'tool/.tmp'
 $sessionPath = Join-Path $sessionDirectory 'windows_hot_reload_session.json'
 
+if ($Host.Name -eq 'ConsoleHost') {
+    $Host.UI.RawUI.WindowTitle = 'PC热重载'
+}
+
 function Resolve-ToolCommand {
     param(
         [Parameter(Mandatory = $true)][string]$EnvironmentVariable,
@@ -73,7 +77,7 @@ function Write-SessionMarker {
             $currentProcess.StartTime.ToUniversalTime()
         ).ToUnixTimeMilliseconds()
         repoRoot = [string]$repoRoot
-        terminalHandle = [string]$env:ORCA_TERMINAL_HANDLE
+        controller = 'codex'
         startedAt = (Get-Date).ToUniversalTime().ToString('o')
     } | ConvertTo-Json | Set-Content -LiteralPath $sessionPath -Encoding UTF8
 }
