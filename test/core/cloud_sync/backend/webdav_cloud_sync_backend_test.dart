@@ -206,23 +206,31 @@ void main() {
 
   test('failed If-Match semantics downgrade to manual backup only', () async {
     final values = <String, Uint8List>{};
+    final etags = <String, String>{};
+    var revision = 0;
     final adapter = RecordingAdapter((request) {
+      final path = request.uri.path;
       if (request.method == 'MKCOL') return const TestHttpResponse(201);
       if (request.method == 'DELETE') {
-        values.remove(request.uri.path);
+        if (request.headers['If-Match'] != null &&
+            request.headers['If-Match'] != etags[path]) {
+          return const TestHttpResponse(412);
+        }
+        values.remove(path);
+        etags.remove(path);
         return const TestHttpResponse(204);
       }
       if (request.method == 'GET') {
-        final value = values[request.uri.path];
+        final value = values[path];
         if (value == null) return const TestHttpResponse(404);
-        return TestHttpResponse(200, latin1.decode(value), const {
-          'etag': ['"v2"'],
+        return TestHttpResponse(200, latin1.decode(value), {
+          'etag': [etags[path]!],
         });
       }
       if (request.method == 'HEAD') {
-        return values.containsKey(request.uri.path)
-            ? const TestHttpResponse(200, '', {
-                'etag': ['"v1"'],
+        return values.containsKey(path)
+            ? TestHttpResponse(200, '', {
+                'etag': [etags[path]!],
               })
             : const TestHttpResponse(404);
       }
@@ -235,22 +243,21 @@ void main() {
         ]);
       }
       if (request.method == 'PUT') {
-        values[request.uri.path] = Uint8List.fromList(
-          request.data as List<int>,
-        );
-        return const TestHttpResponse(201, '', {
-          'etag': ['"v1"'],
+        values[path] = Uint8List.fromList(request.data as List<int>);
+        final etag = '"v${++revision}"';
+        etags[path] = etag;
+        return TestHttpResponse(201, '', {
+          'etag': [etag],
         });
       }
-      return const TestHttpResponse(200, '', {
-        'etag': ['"v1"'],
-      });
+      return const TestHttpResponse(200);
     });
 
     final result = await _backend(adapter).testCapability();
 
     expect(result.mode, CloudBackendMode.manualBackupOnly);
     expect(result.message, contains('If-Match'));
+    expect(values, isEmpty);
   });
 
   test('manual immutable PUT never replays an ambiguous write', () async {

@@ -131,6 +131,13 @@ class WebDavCapabilityProbe {
       final historyListed = await _historyContains(id);
       if (historyCreateRejected.statusCode != 412) {
         manualReason ??= '服务器未可靠执行历史对象的 If-None-Match。';
+        // Some WebDAV services overwrite the probe while reporting success.
+        // Refresh the ETag before cleanup instead of deleting with the stale
+        // revision returned by the first write.
+        manifestEtag =
+            await _readEtag(manifest) ??
+            historyCreateRejected.headers.value('etag') ??
+            manifestEtag;
       }
       final expectedHistoryByte = historyCreateRejected.statusCode == 412
           ? 4
