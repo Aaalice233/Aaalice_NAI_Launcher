@@ -63,7 +63,10 @@ void main() {
     );
 
     expect(find.byType(AlertDialog), findsNothing);
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(
       tester
           .getSize(

@@ -177,14 +177,12 @@ class FixedTagsLinkLayer extends StatelessWidget {
                 ),
                 positiveAnchorX: columnWidth - _anchorInset,
                 negativeAnchorX: columnWidth + fixedTagColumnGap + _anchorInset,
-                positiveScrollOffset:
-                    controller.positiveListController.hasClients
-                    ? controller.positiveListController.offset
-                    : 0,
-                negativeScrollOffset:
-                    controller.negativeListController.hasClients
-                    ? controller.negativeListController.offset
-                    : 0,
+                positiveScrollOffset: controller.scrollOffsetFor(
+                  FixedTagPromptType.positive,
+                ),
+                negativeScrollOffset: controller.scrollOffsetFor(
+                  FixedTagPromptType.negative,
+                ),
               ),
             ),
           ),

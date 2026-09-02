@@ -139,9 +139,12 @@ void main() {
 
     await tester.tap(find.text('Open album'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     final albumSheet = tester.getRect(
-      find.byKey(const ValueKey('adaptive-side-sheet')),
+      find.byKey(const ValueKey('adaptive-centered-form')),
     );
     expect(albumSheet.width, 450);
     expect(tester.takeException(), isNull);

@@ -405,9 +405,7 @@ void main() {
       await _pumpAuthenticatedRail(tester, mediaQuery: mediaQuery);
       await _openAddAccountForm(tester);
 
-      final surfaceKey = width < 840
-          ? const ValueKey('adaptive-centered-form')
-          : const ValueKey('adaptive-side-sheet');
+      const surfaceKey = ValueKey('adaptive-centered-form');
       final surface = find.byKey(surfaceKey);
       expect(surface, findsOneWidget);
       expect(tester.getSize(surface).width, lessThanOrEqualTo(450));

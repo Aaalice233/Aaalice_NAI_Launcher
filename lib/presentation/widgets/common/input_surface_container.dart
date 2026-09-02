@@ -71,24 +71,26 @@ class InputSurfaceContainer extends StatelessWidget {
         ? Duration.zero
         : const Duration(milliseconds: 120);
 
-    return AnimatedContainer(
-      duration: duration,
-      curve: Curves.easeOutCubic,
+    return Container(
       width: width,
       height: height,
       constraints: constraints,
-      clipBehavior: Clip.antiAlias,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: backgroundColor ?? inputSurfaceFillColor(colors),
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(
-          color: effectiveBorderColor,
-          width: effectiveBorderWidth,
-          strokeAlign: BorderSide.strokeAlignInside,
+      child: AnimatedContainer(
+        duration: duration,
+        curve: Curves.easeOutCubic,
+        clipBehavior: Clip.antiAlias,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: backgroundColor ?? inputSurfaceFillColor(colors),
+          borderRadius: BorderRadius.circular(borderRadius),
+          border: Border.all(
+            color: effectiveBorderColor,
+            width: effectiveBorderWidth,
+            strokeAlign: BorderSide.strokeAlignInside,
+          ),
         ),
+        child: child,
       ),
-      child: child,
     );
   }
 }

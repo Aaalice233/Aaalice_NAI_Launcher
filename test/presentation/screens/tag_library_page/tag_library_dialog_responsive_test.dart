@@ -216,7 +216,7 @@ void main() {
     },
   );
 
-  testWidgets('1180px import and export forms use bounded side sheets', (
+  testWidgets('1180px import and export forms use centered dialogs', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1180, 800);
@@ -258,17 +258,17 @@ void main() {
 
     await tester.tap(find.text('导入'));
     await tester.pumpAndSettle();
-    var panel = find.byKey(const ValueKey('adaptive-side-sheet'));
+    var panel = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panel, findsOneWidget);
-    expect(tester.getSize(panel).width, 520);
+    expect(tester.getSize(panel).width, 700);
     await tester.tap(find.byIcon(Icons.close));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('导出'));
     await tester.pumpAndSettle();
-    panel = find.byKey(const ValueKey('adaptive-side-sheet'));
+    panel = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panel, findsOneWidget);
-    expect(tester.getSize(panel).width, 520);
+    expect(tester.getSize(panel).width, 600);
     expect(find.text('宽屏条目'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

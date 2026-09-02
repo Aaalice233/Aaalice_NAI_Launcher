@@ -154,6 +154,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    _expectSettingsAppBarBottomDivider(tester);
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
     expect(rail.destinations.length, 11);
 
@@ -433,6 +434,7 @@ void main() {
     );
     await pumpTransition();
 
+    _expectSettingsAppBarBottomDivider(tester);
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('账户'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
@@ -851,4 +853,15 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
     await tester.binding.setSurfaceSize(null);
   });
+}
+
+void _expectSettingsAppBarBottomDivider(WidgetTester tester) {
+  final appBarFinder = find.byType(AppBar);
+  final appBar = tester.widget<AppBar>(appBarFinder);
+  final border = appBar.shape! as Border;
+  final theme = Theme.of(tester.element(appBarFinder));
+
+  expect(border.bottom.width, 1);
+  expect(border.bottom.color, theme.dividerColor);
+  expect(border.bottom.style, BorderStyle.solid);
 }

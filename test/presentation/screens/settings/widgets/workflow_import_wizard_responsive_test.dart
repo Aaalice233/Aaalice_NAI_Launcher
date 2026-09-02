@@ -49,7 +49,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    final panel = find.byKey(const ValueKey('adaptive-side-sheet'));
+    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panel, findsOneWidget);
     expect(tester.getSize(panel).width, lessThanOrEqualTo(600));
     expect(find.byType(WorkflowImportWizard), findsOneWidget);

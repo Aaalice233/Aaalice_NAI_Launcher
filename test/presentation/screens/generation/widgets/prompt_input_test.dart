@@ -685,6 +685,67 @@ void main() {
     }
   });
 
+  testWidgets('441 宽自动增长工具栏保留单行且不会横向溢出', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    try {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith(
+              (ref) => _TestLocalStorageService(),
+            ),
+            characterPromptNotifierProvider.overrideWith(
+              _TestCharacterPromptNotifier.new,
+            ),
+            promptTokenUsageProvider(
+              PromptTokenCountTarget.positive,
+            ).overrideWith(
+              (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 703),
+            ),
+            promptTokenUsageProvider(
+              PromptTokenCountTarget.negative,
+            ).overrideWith(
+              (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 703),
+            ),
+          ],
+          child: const MaterialApp(
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 441,
+                  height: 420,
+                  child: PromptInputWidget(autoGrow: true),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final toolbar = find.byKey(
+        const ValueKey('generation_prompt_compact_single_row'),
+      );
+      final typeSwitch = find.byKey(
+        const ValueKey('generation_prompt_type_switch'),
+      );
+      expect(toolbar, findsOneWidget);
+      expect(tester.getSize(toolbar).width, 441);
+      expect(tester.getRect(typeSwitch).right, lessThanOrEqualTo(441));
+      expect(find.widgetWithIcon(IconButton, Icons.casino_outlined), findsOne);
+      expect(find.widgetWithIcon(IconButton, Icons.fullscreen), findsOne);
+      expect(find.widgetWithIcon(IconButton, Icons.clear), findsOne);
+      expect(find.widgetWithIcon(IconButton, Icons.settings), findsOne);
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('手机提示词助手在 footer 同栏展开且不侵占编辑区', (tester) async {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.android,
@@ -820,8 +881,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 160));
 
-    expect(count, findsNothing);
-    expect(find.text('259 / 1471'), findsNothing);
+    expect(count, findsOneWidget);
+    expect(find.text('259 / 1471'), findsOneWidget);
     expect(
       find.descendant(
         of: assistant,
@@ -829,7 +890,7 @@ void main() {
       ),
       findsNothing,
     );
-    expect(transparent, findsNothing);
+    expect(transparent, findsOneWidget);
     expect(assistant, findsOneWidget);
     expect(tester.getSize(footer).height, collapsedFooterHeight);
     expect(

@@ -22,6 +22,8 @@ import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
+import '../../widgets/gallery/gallery_album_tree_view.dart';
+import '../../widgets/gallery/gallery_sidebar.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'widgets/category_tree_view.dart';
 import 'widgets/entry_card.dart';
@@ -57,6 +59,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   );
   final ValueNotifier<Set<String>> _expandedCategoryIds =
       ValueNotifier<Set<String>>(<String>{});
+  bool _categoriesExpanded = true;
 
   @override
   void dispose() {
@@ -155,14 +158,14 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
               final showSidebar = constraints.maxWidth >= 840;
               return Row(
                 children: [
-                  if (showSidebar) _buildCategorySidebar(theme, state),
+                  if (showSidebar) _buildCategorySidebar(state),
                   Expanded(
                     child: Column(
                       children: [
                         TagLibraryToolbar(
                           onShowCategories: showSidebar
                               ? null
-                              : () => _showCategoryPanel(theme, state),
+                              : () => _showCategoryPanel(state),
                           onEnterSelectionMode: () => ref
                               .read(
                                 tagLibrarySelectionNotifierProvider.notifier,
@@ -247,132 +250,122 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
   /// 构建分类侧边栏
   Widget _buildCategorySidebar(
-    ThemeData theme,
     TagLibraryPageState state, {
     bool forPanel = false,
     VoidCallback? onCategorySelectionComplete,
   }) {
-    return Container(
-      key: forPanel ? null : const Key('tag-library-category-sidebar'),
-      width: forPanel ? double.infinity : 240,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: forPanel
-            ? null
-            : Border(
-                right: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.3,
-                  ),
-                ),
-              ),
+    void selectCategory(String? id) {
+      ref.read(tagLibraryPageNotifierProvider.notifier).selectCategory(id);
+      onCategorySelectionComplete?.call();
+    }
+
+    final allEntriesItem = GalleryAllImagesItem(
+      key: const Key('tag-library-all-entries'),
+      icon: Icons.folder_outlined,
+      selectedIcon: Icons.folder,
+      label: context.l10n.tagLibrary_allEntries,
+      count: state.entries.length,
+      isSelected: state.selectedCategoryId == null,
+      onTap: () => selectCategory(null),
+    );
+    final allEntries = DragTarget<TagLibraryEntry>(
+      onWillAcceptWithDetails: (details) => details.data.categoryId != null,
+      onAcceptWithDetails: (details) {
+        HapticFeedback.heavyImpact();
+        ref
+            .read(tagLibraryPageNotifierProvider.notifier)
+            .moveEntryToCategory(details.data.id, null);
+        AppToast.success(context, context.l10n.tagLibrary_entryMoved);
+      },
+      builder: (context, candidateData, _) => AnimatedContainer(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          color: candidateData.isEmpty
+              ? null
+              : Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withValues(alpha: 0.32),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: allEntriesItem,
       ),
+    );
+
+    return GallerySidebarSurface(
+      key: forPanel ? null : const Key('tag-library-category-sidebar'),
+      modal: forPanel,
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            constraints: const BoxConstraints(minHeight: 62),
-            child: Row(
-              children: [
-                if (!forPanel) ...[
-                  Icon(
-                    Icons.folder_outlined,
-                    size: 20,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      context.l10n.tagLibrary_categories,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ] else
-                  const Spacer(),
-                FilledButton.tonalIcon(
-                  onPressed: () => _showAddCategoryDialog(),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: Text(
-                    context.l10n.common_new,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                  ),
+          allEntries,
+          GallerySidebarSectionHeader(
+            toggleKey: const Key('tag-library-category-section-toggle'),
+            icon: Icons.folder_outlined,
+            title: context.l10n.tagLibrary_categories,
+            isExpanded: _categoriesExpanded,
+            onToggle: () =>
+                setState(() => _categoriesExpanded = !_categoriesExpanded),
+            onCreate: _showAddCategoryDialog,
+          ),
+          if (_categoriesExpanded)
+            Expanded(
+              child: ValueListenableBuilder<Set<String>>(
+                valueListenable: _expandedCategoryIds,
+                builder: (context, expandedCategoryIds, _) => CategoryTreeView(
+                  categories: state.categories,
+                  entries: state.entries,
+                  selectedCategoryId: state.selectedCategoryId,
+                  expandedCategoryIds: expandedCategoryIds,
+                  includeAllEntries: false,
+                  onExpandedCategoryIdsChanged: (ids) {
+                    _expandedCategoryIds.value = ids;
+                  },
+                  onCategorySelected: selectCategory,
+                  onCategoryRename: (id, name) {
+                    ref
+                        .read(tagLibraryPageNotifierProvider.notifier)
+                        .renameCategory(id, name);
+                  },
+                  onCategoryDelete: _showDeleteCategoryConfirmation,
+                  onAddSubCategory: (parentId) {
+                    _showAddCategoryDialog(parentId: parentId);
+                  },
+                  onCategoryMove: (categoryId, newParentId) {
+                    ref
+                        .read(tagLibraryPageNotifierProvider.notifier)
+                        .moveCategory(categoryId, newParentId);
+                  },
+                  onCategoryReorder: (parentId, oldIndex, newIndex) {
+                    ref
+                        .read(tagLibraryPageNotifierProvider.notifier)
+                        .reorderCategories(parentId, oldIndex, newIndex);
+                  },
+                  onEntryDrop: (entryId, categoryId) {
+                    ref
+                        .read(tagLibraryPageNotifierProvider.notifier)
+                        .moveEntryToCategory(entryId, categoryId);
+                    AppToast.success(
+                      context,
+                      context.l10n.tagLibrary_entryMoved,
+                    );
+                  },
                 ),
-              ],
-            ),
-          ),
-
-          const Divider(height: 1),
-
-          // 分类树
-          Expanded(
-            child: ValueListenableBuilder<Set<String>>(
-              valueListenable: _expandedCategoryIds,
-              builder: (context, expandedCategoryIds, _) => CategoryTreeView(
-                categories: state.categories,
-                entries: state.entries,
-                selectedCategoryId: state.selectedCategoryId,
-                expandedCategoryIds: expandedCategoryIds,
-                onExpandedCategoryIdsChanged: (ids) {
-                  _expandedCategoryIds.value = ids;
-                },
-                onCategorySelected: (id) {
-                  ref
-                      .read(tagLibraryPageNotifierProvider.notifier)
-                      .selectCategory(id);
-                  onCategorySelectionComplete?.call();
-                },
-                onCategoryRename: (id, name) {
-                  ref
-                      .read(tagLibraryPageNotifierProvider.notifier)
-                      .renameCategory(id, name);
-                },
-                onCategoryDelete: (id) {
-                  _showDeleteCategoryConfirmation(id);
-                },
-                onAddSubCategory: (parentId) {
-                  _showAddCategoryDialog(parentId: parentId);
-                },
-                onCategoryMove: (categoryId, newParentId) {
-                  ref
-                      .read(tagLibraryPageNotifierProvider.notifier)
-                      .moveCategory(categoryId, newParentId);
-                },
-                onCategoryReorder: (parentId, oldIndex, newIndex) {
-                  ref
-                      .read(tagLibraryPageNotifierProvider.notifier)
-                      .reorderCategories(parentId, oldIndex, newIndex);
-                },
-                onEntryDrop: (entryId, categoryId) {
-                  ref
-                      .read(tagLibraryPageNotifierProvider.notifier)
-                      .moveEntryToCategory(entryId, categoryId);
-                  AppToast.success(context, context.l10n.tagLibrary_entryMoved);
-                },
               ),
-            ),
-          ),
+            )
+          else
+            const Spacer(),
         ],
       ),
     );
   }
 
-  Future<void> _showCategoryPanel(ThemeData theme, TagLibraryPageState state) {
+  Future<void> _showCategoryPanel(TagLibraryPageState state) {
     return AdaptivePresenter.showPanel<void>(
       context: context,
       title: context.l10n.tagLibrary_categories,
       initialChildSize: 0.76,
       builder: (panelContext, scrollController) => _buildCategorySidebar(
-        theme,
         state,
         forPanel: true,
         onCategorySelectionComplete: () => Navigator.of(panelContext).pop(),

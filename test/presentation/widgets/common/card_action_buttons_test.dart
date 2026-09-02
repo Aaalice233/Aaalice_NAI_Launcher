@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_surface.dart';
 
 void main() {
   setUp(() {
@@ -265,5 +267,84 @@ void main() {
     await tester.pump();
 
     expect(find.text('download'), findsNothing);
+  });
+
+  testWidgets('图像覆盖按钮在明暗主题下都使用高对比半透明样式', (tester) async {
+    for (final brightness in Brightness.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(brightness: brightness),
+          home: Center(
+            child: CardActionButtons(
+              visible: true,
+              buttons: [
+                CardActionButtonConfig(
+                  icon: Icons.download,
+                  tooltip: 'download',
+                  onPressed: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final button = tester.widget<IconButton>(find.byType(IconButton));
+      final style = button.style!;
+      expect(
+        style.backgroundColor!.resolve(const {}),
+        ImageOverlayControlStyle.surface,
+      );
+      expect(
+        style.backgroundColor!.resolve(const {WidgetState.hovered}),
+        ImageOverlayControlStyle.hoveredSurface,
+      );
+      expect(
+        style.foregroundColor!.resolve(const {}),
+        ImageOverlayControlStyle.foreground,
+      );
+      expect(
+        style.side!.resolve(const {})!.color,
+        ImageOverlayControlStyle.border,
+      );
+    }
+  });
+
+  testWidgets('工作台图像卡片底栏复用半透明图像覆盖层', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: ImageCardHoverActionBar(
+            actions: [
+              ImageCardAction(
+                id: ImageCardActionId.copy,
+                icon: Icons.copy,
+                label: 'copy',
+                menuLabel: 'copy',
+                invoke: () {},
+                group: 0,
+                showOnHover: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final surface = tester.widget<Container>(
+      find.byKey(const ValueKey('image-card-hover-action-bar-surface')),
+    );
+    final decoration = surface.decoration! as BoxDecoration;
+    expect(decoration.color, ImageOverlayControlStyle.toolbarSurface);
+    expect(
+      (decoration.border! as Border).top.color,
+      ImageOverlayControlStyle.border,
+    );
+    expect(tester.widget<Icon>(find.byIcon(Icons.copy)).color, isNull);
+    final actionButton = tester.widget<IconButton>(find.byType(IconButton));
+    expect(
+      actionButton.style!.foregroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.foreground,
+    );
   });
 }

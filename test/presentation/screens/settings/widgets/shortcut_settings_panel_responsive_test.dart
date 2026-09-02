@@ -189,9 +189,9 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    final pane = find.byKey(const ValueKey('adaptive-side-sheet'));
+    final pane = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(pane, findsOneWidget);
-    expect(tester.getSize(pane).width, 608);
+    expect(tester.getSize(pane).width, 720);
     expect(find.byType(ShortcutSettingsPanel), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

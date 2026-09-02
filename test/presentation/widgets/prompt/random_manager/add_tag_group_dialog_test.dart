@@ -88,11 +88,11 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      final surface = find.byKey(const ValueKey('adaptive-side-sheet'));
+      final surface = find.byKey(const ValueKey('adaptive-centered-form'));
       expect(surface, findsOneWidget);
       final surfaceRect = tester.getRect(surface);
       expect(surfaceRect.width, lessThanOrEqualTo(580));
-      expect(surfaceRect.right, 1200);
+      expect(surfaceRect.center.dx, moreOrLessEquals(600));
       expect(find.byType(Dialog), findsNothing);
       expect(find.text('Custom'), findsOneWidget);
       expect(find.text('Tag Group'), findsOneWidget);

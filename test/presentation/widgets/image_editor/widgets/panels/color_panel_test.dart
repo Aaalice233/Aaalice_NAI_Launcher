@@ -88,7 +88,7 @@ void main() {
     await tester.tap(find.byKey(const Key('color_panel_foreground_preview')));
     await tester.pumpAndSettle();
 
-    final sideSheet = find.byKey(const ValueKey('adaptive-side-sheet'));
+    final sideSheet = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(sideSheet, findsOneWidget);
     expect(tester.getSize(sideSheet).width, lessThanOrEqualTo(440));
     expect(find.byKey(const Key('color_picker_confirm')), findsOneWidget);

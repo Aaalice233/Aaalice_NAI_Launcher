@@ -4,8 +4,56 @@ import '../../../l10n/app_localizations.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
 
+/// 图像明暗不可预测，覆盖操作统一使用半透明暗色面与亮色前景，避免主题色
+/// 在浅色图片上失去边界。
+abstract final class ImageOverlayControlStyle {
+  static const foreground = Colors.white;
+  static const surface = Color(0x8F000000);
+  static const hoveredSurface = Color(0xB8000000);
+  static const disabledSurface = Color(0x66000000);
+  static const border = Color(0x33FFFFFF);
+  static const hoveredBorder = Color(0x52FFFFFF);
+  static const toolbarSurface = Color(0x99000000);
+
+  static ButtonStyle iconButton({
+    required double extent,
+    Color? foregroundColor,
+  }) {
+    final resolvedForeground = foregroundColor ?? foreground;
+    return ButtonStyle(
+      minimumSize: WidgetStatePropertyAll(Size.square(extent)),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+      shape: const WidgetStatePropertyAll(CircleBorder()),
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) return disabledSurface;
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused) ||
+            states.contains(WidgetState.pressed)) {
+          return hoveredSurface;
+        }
+        return surface;
+      }),
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        return states.contains(WidgetState.disabled)
+            ? resolvedForeground.withValues(alpha: 0.55)
+            : resolvedForeground;
+      }),
+      side: WidgetStateProperty.resolveWith((states) {
+        final emphasized =
+            states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused) ||
+            states.contains(WidgetState.pressed);
+        return BorderSide(color: emphasized ? hoveredBorder : border);
+      }),
+    );
+  }
+}
+
 /// 卡片操作按钮配置
 class CardActionButtonConfig {
+  final Key? key;
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
@@ -15,6 +63,7 @@ class CardActionButtonConfig {
   final bool isLoading;
 
   const CardActionButtonConfig({
+    this.key,
     required this.icon,
     required this.tooltip,
     required this.onPressed,
@@ -49,28 +98,15 @@ class CardActionButtons extends StatelessWidget {
     // Once touch capability is observed, the explicit alternative remains
     // available when the user later switches to keyboard or mouse input.
     if (interactionPolicy.shouldExposeTouchAlternatives) {
-      final colorScheme = Theme.of(context).colorScheme;
       final extent = interactionPolicy.minimumControlExtent;
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: colorScheme.inverseSurface.withValues(alpha: 0.82),
-          shape: BoxShape.circle,
-        ),
-        child: IconButton(
-          tooltip:
-              AppLocalizations.of(context)?.common_moreActions ??
-              MaterialLocalizations.of(context).showMenuTooltip,
-          onPressed: () => _showTouchActions(context, loadingLabel),
-          constraints: BoxConstraints.tightFor(width: extent, height: extent),
-          style: ButtonStyle(
-            minimumSize: WidgetStatePropertyAll(Size.square(extent)),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            foregroundColor: WidgetStatePropertyAll(
-              colorScheme.onInverseSurface,
-            ),
-          ),
-          icon: const Icon(Icons.more_vert_rounded),
-        ),
+      return IconButton(
+        tooltip:
+            AppLocalizations.of(context)?.common_moreActions ??
+            MaterialLocalizations.of(context).showMenuTooltip,
+        onPressed: () => _showTouchActions(context, loadingLabel),
+        constraints: BoxConstraints.tightFor(width: extent, height: extent),
+        style: ImageOverlayControlStyle.iconButton(extent: extent),
+        icon: const Icon(Icons.more_vert_rounded),
       );
     }
 
@@ -172,7 +208,6 @@ class _CardActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canActivate = config.enabled && !config.isLoading;
-    final colorScheme = Theme.of(context).colorScheme;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
     return Semantics(
       button: true,
@@ -184,26 +219,13 @@ class _CardActionButton extends StatelessWidget {
           : config.semanticLabel ?? config.tooltip,
       child: ExcludeSemantics(
         child: IconButton(
+          key: config.key,
           tooltip: config.tooltip,
           onPressed: canActivate ? config.onPressed : null,
           constraints: BoxConstraints.tightFor(width: extent, height: extent),
-          padding: EdgeInsets.zero,
-          style: ButtonStyle(
-            minimumSize: WidgetStatePropertyAll(Size.square(extent)),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.hovered) ||
-                  states.contains(WidgetState.focused)) {
-                return colorScheme.inverseSurface.withValues(alpha: 0.92);
-              }
-              return colorScheme.inverseSurface.withValues(alpha: 0.82);
-            }),
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              final color = config.iconColor ?? colorScheme.onInverseSurface;
-              return states.contains(WidgetState.disabled)
-                  ? color.withValues(alpha: 0.65)
-                  : color;
-            }),
+          style: ImageOverlayControlStyle.iconButton(
+            extent: extent,
+            foregroundColor: config.iconColor,
           ),
           icon: config.isLoading
               ? SizedBox.square(
@@ -211,7 +233,8 @@ class _CardActionButton extends StatelessWidget {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     value: reducedMotion ? 0.72 : null,
-                    color: colorScheme.onInverseSurface,
+                    color:
+                        config.iconColor ?? ImageOverlayControlStyle.foreground,
                   ),
                 )
               : Icon(config.icon, size: 16),

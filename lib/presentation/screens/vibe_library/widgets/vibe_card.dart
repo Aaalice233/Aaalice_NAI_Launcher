@@ -14,6 +14,11 @@ import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/animated_favorite_button.dart';
 import '../../../widgets/common/card_hover_preview_controller.dart';
 
+/// Vibe 图像卡片统一采用 4:5 纵向比例，为缩略图和底部参数保留稳定空间。
+const double vibeCardAspectRatio = 4 / 5;
+
+double computeVibeCardHeight(double width) => width / vibeCardAspectRatio;
+
 enum _VibeCardAction { select, favorite, send, export, edit, delete }
 
 /// 统一 Vibe 卡片组件

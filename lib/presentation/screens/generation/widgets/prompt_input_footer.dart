@@ -149,12 +149,6 @@ class PromptInputFooter extends ConsumerWidget {
                   final expandedWidth = assistantExpandedWidth
                       .clamp(0.0, constraints.maxWidth)
                       .toDouble();
-                  final textScale = MediaQuery.textScalerOf(context).scale(1);
-                  final minimumSupportingWidth =
-                      176 * textScale.clamp(1.0, 2.0);
-                  final showSupporting =
-                      constraints.maxWidth - expandedWidth - 8 >=
-                      minimumSupportingWidth;
                   final expandedAssistant = SizedBox(
                     width: expandedWidth,
                     child: KeyedSubtree(
@@ -162,17 +156,32 @@ class PromptInputFooter extends ConsumerWidget {
                       child: assistant!,
                     ),
                   );
-                  if (!showSupporting) {
-                    return Align(
-                      alignment: Alignment.centerRight,
-                      child: expandedAssistant,
+                  final remainingWidth =
+                      constraints.maxWidth - expandedWidth - 8;
+                  final canShareRow =
+                      remainingWidth >= kMinInteractiveDimension * 3;
+                  if (canShareRow) {
+                    return Row(
+                      children: [
+                        Expanded(child: supportingContent),
+                        const SizedBox(width: 8),
+                        expandedAssistant,
+                      ],
                     );
                   }
-                  return Row(
+                  return Stack(
+                    clipBehavior: Clip.hardEdge,
                     children: [
-                      Expanded(child: supportingContent),
-                      const SizedBox(width: 8),
-                      expandedAssistant,
+                      Positioned.fill(child: supportingContent),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Material(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          clipBehavior: Clip.antiAlias,
+                          child: expandedAssistant,
+                        ),
+                      ),
                     ],
                   );
                 },

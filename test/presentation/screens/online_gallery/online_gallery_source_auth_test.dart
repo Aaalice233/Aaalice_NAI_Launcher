@@ -924,7 +924,9 @@ void main() {
     await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Queue'));
     await tester.pump();
     final container = ProviderScope.containerOf(
-      tester.element(find.byKey(const ValueKey('adaptive-side-sheet')).first),
+      tester.element(
+        find.byKey(const ValueKey('adaptive-centered-form')).first,
+      ),
     );
     final queuedTask = container
         .read(replicationQueueNotifierProvider)
@@ -1935,11 +1937,11 @@ void main() {
     await mouse.up();
     await tester.pumpAndSettle();
     expect(find.text('Output Filter'), findsOneWidget);
-    _expectBoundedAdaptiveSideSheet(tester, width: 1600, height: 900);
+    _expectBoundedAdaptiveCenteredForm(tester, width: 1600, height: 900);
     expect(tester.takeException(), isNull);
     await tester.tap(
       find.descendant(
-        of: find.byKey(const ValueKey('adaptive-side-sheet')),
+        of: find.byKey(const ValueKey('adaptive-centered-form')),
         matching: find.byTooltip('Close'),
       ),
     );
@@ -1954,7 +1956,7 @@ void main() {
     await mouse.up();
     await tester.pumpAndSettle();
     expect(find.text('Online Gallery Blacklist Settings'), findsOneWidget);
-    _expectBoundedAdaptiveSideSheet(tester, width: 1600, height: 900);
+    _expectBoundedAdaptiveCenteredForm(tester, width: 1600, height: 900);
     expect(tester.takeException(), isNull);
   });
 }
@@ -2018,18 +2020,20 @@ Future<void> _expectGalleryDetailActionAvailable(
   await tester.pump(const Duration(milliseconds: 300));
 }
 
-void _expectBoundedAdaptiveSideSheet(
+void _expectBoundedAdaptiveCenteredForm(
   WidgetTester tester, {
   required double width,
   required double height,
 }) {
-  final sideSheet = find.byKey(const ValueKey('adaptive-side-sheet'));
-  expect(sideSheet, findsOneWidget);
-  final rect = tester.getRect(sideSheet);
+  final centeredForm = find.byKey(const ValueKey('adaptive-centered-form'));
+  expect(centeredForm, findsOneWidget);
+  final rect = tester.getRect(centeredForm);
   expect(rect.left, greaterThanOrEqualTo(0));
   expect(rect.top, greaterThanOrEqualTo(0));
   expect(rect.right, lessThanOrEqualTo(width));
   expect(rect.bottom, lessThanOrEqualTo(height));
+  expect(rect.center.dx, moreOrLessEquals(width / 2));
+  expect(rect.center.dy, moreOrLessEquals(height / 2));
 }
 
 Future<void> _setViewSize(WidgetTester tester, double width) async {

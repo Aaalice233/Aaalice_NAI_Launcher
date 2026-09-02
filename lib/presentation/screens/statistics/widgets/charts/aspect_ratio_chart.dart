@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Aspect ratio item data
 class AspectRatioItem {
@@ -85,10 +86,10 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
               item.color ?? _defaultColors[index % _defaultColors.length];
 
           return PieChartSectionData(
-            color: color,
+            color: isTouched ? color : color.withValues(alpha: 0.88),
             value: item.count.toDouble(),
             title: isTouched ? '${item.percentage.toStringAsFixed(1)}%' : '',
-            radius: isTouched ? 50 : 42,
+            radius: 44,
             titleStyle: theme.textTheme.labelMedium?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -98,7 +99,7 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
       ),
       swapAnimationDuration: reducedMotion
           ? Duration.zero
-          : PieChart.defaultDuration,
+          : theme.appTheme.fastDuration,
     );
 
     return LayoutBuilder(
@@ -185,9 +186,8 @@ class _AspectRatioLegendItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
       child: AnimatedContainer(
         constraints: const BoxConstraints(minHeight: 48),
-        duration: reducedMotion
-            ? Duration.zero
-            : const Duration(milliseconds: 200),
+        duration: reducedMotion ? Duration.zero : theme.appTheme.fastDuration,
+        curve: theme.appTheme.standardCurve,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: isHighlighted

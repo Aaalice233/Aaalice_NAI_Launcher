@@ -130,7 +130,7 @@ class _VibeLibraryContentViewState
         crossAxisCount: widget.columns,
         mainAxisSpacing: vibeLibraryGridSpacing,
         crossAxisSpacing: vibeLibraryGridSpacing,
-        childAspectRatio: 1.0,
+        childAspectRatio: vibeCardAspectRatio,
       ),
       itemCount: entries.length,
       itemBuilder: (context, index) {
@@ -157,7 +157,7 @@ class _VibeLibraryContentViewState
             child: VibeCard(
               entry: entry,
               width: widget.itemWidth,
-              height: widget.itemWidth,
+              height: computeVibeCardHeight(widget.itemWidth),
               isSelected: isSelected,
               showFavoriteIndicator: true,
               onTap: () {
@@ -862,7 +862,8 @@ class _VibeLibraryContentViewState
   }
 }
 
-double computeVibeGridCacheExtent(double itemWidth) => itemWidth * 0.5;
+double computeVibeGridCacheExtent(double itemWidth) =>
+    computeVibeCardHeight(itemWidth) * 0.5;
 
 Future<VibeLibraryDetailData> resolveVibeDetailDataForOpen(
   VibeLibraryStorageService storage,

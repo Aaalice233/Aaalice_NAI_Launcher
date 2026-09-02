@@ -84,6 +84,8 @@ void main() {
     infoSlider.onChanged?.call(0.1);
     await tester.pump();
 
+    await tester.tap(find.byTooltip('更多操作'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('保存参数'));
     await tester.pump();
 
@@ -190,7 +192,7 @@ void main() {
     expect(decodedImage.gaplessPlayback, isTrue);
   });
 
-  testWidgets('Windows 触屏下详情侧栏仍按局部 compact constraints 上下布局', (tester) async {
+  testWidgets('Windows 触屏下宽幅居中详情使用左右布局', (tester) async {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.windows,
     );
@@ -219,8 +221,8 @@ void main() {
 
     final previewCenter = tester.getCenter(find.byType(VibePreviewDropZone));
     final panelCenter = tester.getCenter(find.byType(VibeDetailParamPanel));
-    expect(previewCenter.dy, lessThan(panelCenter.dy));
-    expect(previewCenter.dx, closeTo(panelCenter.dx, 1));
+    expect(previewCenter.dx, lessThan(panelCenter.dx));
+    expect(previewCenter.dy, closeTo(panelCenter.dy, 1));
   });
 
   testWidgets('Android 鼠标在 compact constraints 下仍使用上下布局', (tester) async {
@@ -330,55 +332,56 @@ void main() {
     },
   );
 
-  testWidgets('wide detail uses a bounded side sheet and keeps actions wired', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1600, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'wide detail uses a bounded centered dialog and keeps actions wired',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final entry = _buildEntry();
-    var exportCount = 0;
-    await tester.pumpWidget(
-      _wrapWithHost(
-        entry: entry,
-        storage: _FakeVibeLibraryStorageService(entry),
-        callbacks: VibeDetailCallbacks(
-          onExport: (_) => exportCount++,
-          onDelete: (_) {},
-          onRename: (_, __) async => null,
-          onSendToGeneration:
-              (
-                _,
-                __,
-                ___,
-                ____, {
-                required applyParamOverrides,
-                bundleChildParamOverrideIndex,
-              }) {},
+      final entry = _buildEntry();
+      var exportCount = 0;
+      await tester.pumpWidget(
+        _wrapWithHost(
+          entry: entry,
+          storage: _FakeVibeLibraryStorageService(entry),
+          callbacks: VibeDetailCallbacks(
+            onExport: (_) => exportCount++,
+            onDelete: (_) {},
+            onRename: (_, __) async => null,
+            onSendToGeneration:
+                (
+                  _,
+                  __,
+                  ___,
+                  ____, {
+                  required applyParamOverrides,
+                  bundleChildParamOverrideIndex,
+                }) {},
+          ),
+          onSaveParams: (_, __, ___) async => entry,
         ),
-        onSaveParams: (_, __, ___) async => entry,
-      ),
-    );
+      );
 
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-side-sheet'));
-    expect(surface, findsOneWidget);
-    expect(tester.getSize(surface).width, 608);
-    final panel = tester.widget<VibeDetailParamPanel>(
-      find.byType(VibeDetailParamPanel),
-    );
-    expect(panel.onSendToGeneration, isNotNull);
-    expect(panel.onExport, isNotNull);
-    expect(panel.onDelete, isNotNull);
-    expect(panel.onRename, isNotNull);
-    panel.onExport!();
-    expect(exportCount, 1);
-    expect(tester.takeException(), isNull);
-  });
+      final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+      expect(surface, findsOneWidget);
+      expect(tester.getSize(surface).width, 960);
+      final panel = tester.widget<VibeDetailParamPanel>(
+        find.byType(VibeDetailParamPanel),
+      );
+      expect(panel.onSendToGeneration, isNotNull);
+      expect(panel.onExport, isNotNull);
+      expect(panel.onDelete, isNotNull);
+      expect(panel.onRename, isNotNull);
+      panel.onExport!();
+      expect(exportCount, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('后台解析详情时立即显示加载层，完成后只使用解析结果', (tester) async {
     tester.view.physicalSize = const Size(1400, 1800);

@@ -96,7 +96,7 @@ void main() {
 
         final surfaceFinder = size.width < 840
             ? find.byKey(const ValueKey('adaptive-centered-form'))
-            : find.byKey(const ValueKey('adaptive-side-sheet'));
+            : find.byKey(const ValueKey('adaptive-centered-form'));
         expect(surfaceFinder, findsOneWidget);
         expect(tester.getSize(surfaceFinder).width, lessThan(size.width));
         expect(tester.takeException(), isNull, reason: '$size');

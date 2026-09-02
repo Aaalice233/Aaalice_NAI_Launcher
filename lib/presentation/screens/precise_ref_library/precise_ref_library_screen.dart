@@ -15,6 +15,7 @@ import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../data/services/precise_ref_library_storage_service.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
@@ -22,10 +23,12 @@ import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/input_surface_container.dart';
+import '../../widgets/common/pagination_bar.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'widgets/precise_ref_card.dart';
 import 'widgets/precise_ref_entry_edit_dialog.dart';
-import 'widgets/precise_ref_type_filter_chips.dart';
+import 'widgets/precise_ref_library_sidebar.dart';
 
 /// 精准参考库页面
 ///
@@ -41,10 +44,14 @@ class PreciseRefLibraryScreen extends ConsumerStatefulWidget {
 
 class _PreciseRefLibraryScreenState
     extends ConsumerState<PreciseRefLibraryScreen> {
+  static const List<int> _pageSizeOptions = [20, 50, 100];
+
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounceTimer;
   bool _isDragging = false;
   bool _isPickingFile = false;
+  int _currentPage = 0;
+  int _pageSize = 50;
 
   @override
   void initState() {
@@ -64,6 +71,7 @@ class _PreciseRefLibraryScreenState
   void _onSearchChanged(String value) {
     _searchDebounceTimer?.cancel();
     _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _currentPage = 0);
       ref
           .read(preciseRefLibraryNotifierProvider.notifier)
           .setSearchQuery(value);
@@ -317,65 +325,42 @@ class _PreciseRefLibraryScreenState
 
     final content = LayoutBuilder(
       builder: (context, constraints) {
+        final showSidebar = constraints.maxWidth >= 840;
+        final mainWidth = constraints.maxWidth - (showSidebar ? 250 : 0);
         final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-        final layout = computePreciseRefGridLayout(
-          constraints.maxWidth,
-          textScale,
-        );
+        final layout = computePreciseRefGridLayout(mainWidth, textScale);
         return Stack(
           children: [
-            Column(
+            Row(
               children: [
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildToolbar(state),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            layout.padding,
-                            8,
-                            layout.padding,
-                            0,
-                          ),
-                          child: SingleChildScrollView(
-                            key: const Key(
-                              'precise-ref-library-type-filter-scroll',
-                            ),
-                            scrollDirection: Axis.horizontal,
-                            child: PreciseRefTypeFilterChips(
-                              value: state.typeFilter,
-                              onChanged: (type) {
-                                ref
-                                    .read(
-                                      preciseRefLibraryNotifierProvider
-                                          .notifier,
-                                    )
-                                    .setTypeFilter(type);
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                if (showSidebar)
+                  PreciseRefLibrarySidebar(
+                    state: state,
+                    onFilterChanged: _selectSidebarFilter,
                   ),
-                ),
                 Expanded(
-                  child: state.isLoading
-                      ? Center(
-                          child: CircularProgressIndicator(
-                            value: MediaQuery.disableAnimationsOf(context)
-                                ? 0.72
-                                : null,
-                          ),
-                        )
-                      : state.error != null
-                      ? _buildErrorView(state.error!)
-                      : state.filteredEntries.isEmpty
-                      ? _buildEmptyView(state)
-                      : _buildGrid(state, layout),
+                  child: Column(
+                    children: [
+                      _buildToolbar(state, showCategoryButton: !showSidebar),
+                      Expanded(
+                        child: state.isLoading
+                            ? Center(
+                                child: CircularProgressIndicator(
+                                  value: MediaQuery.disableAnimationsOf(context)
+                                      ? 0.72
+                                      : null,
+                                ),
+                              )
+                            : state.error != null
+                            ? _buildErrorView(state.error!)
+                            : state.filteredEntries.isEmpty
+                            ? _buildEmptyView(state)
+                            : _buildGrid(state, layout),
+                      ),
+                      if (!state.isLoading && state.filteredEntries.isNotEmpty)
+                        _buildPagination(state, mainWidth),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -417,6 +402,32 @@ class _PreciseRefLibraryScreenState
     );
   }
 
+  void _selectSidebarFilter({
+    required bool favoritesOnly,
+    PreciseRefType? type,
+  }) {
+    setState(() => _currentPage = 0);
+    ref
+        .read(preciseRefLibraryNotifierProvider.notifier)
+        .setSidebarFilter(favoritesOnly: favoritesOnly, type: type);
+  }
+
+  Future<void> _showCategoryPanel(PreciseRefLibraryState state) {
+    return AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.tagLibrary_categories,
+      initialChildSize: 0.72,
+      builder: (panelContext, scrollController) => PreciseRefLibrarySidebar(
+        state: state,
+        modal: true,
+        onFilterChanged: ({required bool favoritesOnly, PreciseRefType? type}) {
+          _selectSidebarFilter(favoritesOnly: favoritesOnly, type: type);
+          Navigator.of(panelContext).pop();
+        },
+      ),
+    );
+  }
+
   Widget _buildErrorView(String error) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
@@ -448,7 +459,10 @@ class _PreciseRefLibraryScreenState
     );
   }
 
-  Widget _buildToolbar(PreciseRefLibraryState state) {
+  Widget _buildToolbar(
+    PreciseRefLibraryState state, {
+    required bool showCategoryButton,
+  }) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final touchTarget = context.interactionPolicy.shouldExposeTouchAlternatives;
@@ -487,22 +501,42 @@ class _PreciseRefLibraryScreenState
         ),
       ],
     );
-    final search = TextField(
-      key: const Key('precise-ref-library-search'),
-      controller: _searchController,
-      textAlignVertical: TextAlignVertical.center,
-      decoration: InputDecoration(
-        hintText: l10n.preciseRefLib_searchHint,
-        prefixIcon: const Icon(Icons.search, size: 18),
-        isDense: !touchTarget,
-        constraints: BoxConstraints(minHeight: touchTarget ? 48 : 40),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: touchTarget ? 12 : 8,
+    final search = InputSurfaceContainer(
+      key: const Key('precise-ref-library-search-surface'),
+      height: touchTarget ? 48 : 40,
+      borderRadius: 999,
+      child: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: _searchController,
+        builder: (context, value, _) => TextField(
+          key: const Key('precise-ref-library-search'),
+          controller: _searchController,
+          textAlignVertical: TextAlignVertical.center,
+          style: theme.textTheme.bodyMedium,
+          decoration: InputDecoration(
+            hintText: l10n.preciseRefLib_searchHint,
+            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55),
+            ),
+            prefixIcon: const Icon(Icons.search_rounded, size: 18),
+            suffixIcon: value.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: l10n.common_clear,
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    onPressed: () {
+                      _searchController.clear();
+                      _onSearchChanged('');
+                    },
+                  ),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          ),
+          onChanged: _onSearchChanged,
         ),
       ),
-      onChanged: _onSearchChanged,
     );
     final favorites = IconButton(
       key: const Key('precise-ref-library-favorites-toggle'),
@@ -511,17 +545,24 @@ class _PreciseRefLibraryScreenState
         state.favoritesOnly ? Icons.star : Icons.star_border,
         color: state.favoritesOnly ? Colors.amber : null,
       ),
-      onPressed: () => ref
-          .read(preciseRefLibraryNotifierProvider.notifier)
-          .toggleFavoritesOnly(),
+      onPressed: () {
+        setState(() => _currentPage = 0);
+        ref
+            .read(preciseRefLibraryNotifierProvider.notifier)
+            .toggleFavoritesOnly();
+      },
+      style: _toolbarIconButtonStyle(theme),
     );
     final sort = PopupMenuButton<PreciseRefLibrarySortOrder>(
       key: const Key('precise-ref-library-sort-menu'),
       tooltip: l10n.preciseRefLib_sortBy,
       icon: const Icon(Icons.sort),
-      onSelected: (order) => ref
-          .read(preciseRefLibraryNotifierProvider.notifier)
-          .setSortOrder(order),
+      onSelected: (order) {
+        setState(() => _currentPage = 0);
+        ref
+            .read(preciseRefLibraryNotifierProvider.notifier)
+            .setSortOrder(order);
+      },
       itemBuilder: (context) => [
         _sortMenuItem(
           PreciseRefLibrarySortOrder.createdAt,
@@ -544,6 +585,7 @@ class _PreciseRefLibraryScreenState
           state,
         ),
       ],
+      style: _toolbarIconButtonStyle(theme),
     );
     final importButton = FilledButton.icon(
       key: const Key('precise-ref-library-import-button'),
@@ -552,13 +594,36 @@ class _PreciseRefLibraryScreenState
       label: Text(l10n.preciseRefLib_import),
       style: FilledButton.styleFrom(
         minimumSize: Size(64, touchTarget ? 48 : 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
     final showToolbarImport = state.totalCount > 0 || state.hasFilters;
+    final categories = IconButton(
+      key: const Key('precise-ref-library-categories-button'),
+      tooltip: l10n.localGallery_showCategoryPanel,
+      onPressed: () => _showCategoryPanel(state),
+      icon: const Icon(Icons.folder_outlined),
+      style: _toolbarIconButtonStyle(theme),
+    );
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        favorites,
+        const SizedBox(width: 2),
+        sort,
+        if (showToolbarImport) ...[const SizedBox(width: 8), importButton],
+      ],
+    );
+    final utilityActions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [favorites, const SizedBox(width: 2), sort],
+    );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      key: const Key('precise-ref-library-unified-toolbar'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
         border: Border(
           bottom: BorderSide(
             color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
@@ -567,56 +632,61 @@ class _PreciseRefLibraryScreenState
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth >= 760) {
+          final largeText = MediaQuery.textScalerOf(context).scale(14) > 18;
+          if (constraints.maxWidth >= 700 && !largeText) {
             return Row(
               children: [
-                Expanded(child: title),
-                SizedBox(width: 220, child: search),
-                const SizedBox(width: 8),
-                favorites,
-                sort,
-                if (showToolbarImport) ...[
-                  const SizedBox(width: 4),
-                  importButton,
+                if (showCategoryButton) ...[
+                  categories,
+                  const SizedBox(width: 8),
                 ],
+                SizedBox(width: 210, child: title),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: search,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                actions,
               ],
             );
           }
 
-          final stackImport =
-              constraints.maxWidth < 400 ||
-              MediaQuery.textScalerOf(context).scale(14) > 18;
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
+                  if (showCategoryButton) ...[
+                    categories,
+                    const SizedBox(width: 4),
+                  ],
                   Expanded(child: title),
-                  favorites,
-                  sort,
+                  utilityActions,
                 ],
               ),
-              const SizedBox(height: 8),
-              if (stackImport) ...[
-                search,
-                if (showToolbarImport) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(width: double.infinity, child: importButton),
-                ],
-              ] else
-                Row(
-                  children: [
-                    Expanded(child: search),
-                    if (showToolbarImport) ...[
-                      const SizedBox(width: 8),
-                      importButton,
-                    ],
-                  ],
-                ),
+              const SizedBox(height: 10),
+              search,
+              if (showToolbarImport) ...[
+                const SizedBox(height: 10),
+                SizedBox(width: double.infinity, child: importButton),
+              ],
             ],
           );
         },
       ),
+    );
+  }
+
+  ButtonStyle _toolbarIconButtonStyle(ThemeData theme) {
+    return IconButton.styleFrom(
+      minimumSize: Size.square(context.interactionPolicy.minimumControlExtent),
+      foregroundColor: theme.colorScheme.onSurfaceVariant,
+      hoverColor: theme.colorScheme.surfaceContainerHighest,
+      focusColor: theme.colorScheme.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 
@@ -642,6 +712,11 @@ class _PreciseRefLibraryScreenState
   }
 
   Widget _buildGrid(PreciseRefLibraryState state, PreciseRefGridLayout layout) {
+    final totalPages = _totalPagesFor(state.filteredEntries.length);
+    final page = _currentPage.clamp(0, totalPages - 1);
+    final start = page * _pageSize;
+    final end = (start + _pageSize).clamp(0, state.filteredEntries.length);
+    final entries = state.filteredEntries.sublist(start, end);
     return GridView.builder(
       key: const PageStorageKey('precise_ref_library_grid'),
       padding: EdgeInsets.all(layout.padding),
@@ -651,9 +726,9 @@ class _PreciseRefLibraryScreenState
         crossAxisSpacing: 12,
         mainAxisExtent: layout.mainAxisExtent,
       ),
-      itemCount: state.filteredEntries.length,
+      itemCount: entries.length,
       itemBuilder: (context, index) {
-        final entry = state.filteredEntries[index];
+        final entry = entries[index];
         return AgentResourceDragSource(
           key: Key('precise-ref-card-${entry.id}'),
           reference: AgentChatResourceReference(
@@ -678,6 +753,35 @@ class _PreciseRefLibraryScreenState
       },
     );
   }
+
+  Widget _buildPagination(PreciseRefLibraryState state, double contentWidth) {
+    final totalItems = state.filteredEntries.length;
+    final totalPages = _totalPagesFor(totalItems);
+    final currentPage = _currentPage.clamp(0, totalPages - 1);
+    return PaginationBar(
+      key: const Key('precise-ref-library-pagination'),
+      currentPage: currentPage,
+      totalPages: totalPages,
+      totalItems: totalItems,
+      itemsPerPage: _pageSize,
+      itemsPerPageOptions: _pageSizeOptions,
+      onPageChanged: (page) => setState(() => _currentPage = page),
+      onItemsPerPageChanged: (size) {
+        setState(() {
+          _pageSize = size;
+          _currentPage = 0;
+        });
+      },
+      showItemsPerPage: true,
+      showTotalInfo: true,
+      compact: contentWidth < 680,
+      totalIcon: Icons.center_focus_strong,
+      totalItemsLabel: context.l10n.preciseRefLib_entryCount(totalItems),
+    );
+  }
+
+  int _totalPagesFor(int totalItems) =>
+      ((totalItems + _pageSize - 1) ~/ _pageSize).clamp(1, 1 << 30);
 
   Widget _buildEmptyView(PreciseRefLibraryState state) {
     final l10n = context.l10n;
@@ -713,6 +817,7 @@ class _PreciseRefLibraryScreenState
                 key: const Key('precise-ref-library-clear-filters'),
                 onPressed: () {
                   _searchController.clear();
+                  setState(() => _currentPage = 0);
                   ref
                       .read(preciseRefLibraryNotifierProvider.notifier)
                       .clearFilters();
@@ -838,7 +943,7 @@ PreciseRefGridLayout computePreciseRefGridLayout(
       : (usableWidth - (columns - 1) * 12) / columns;
   return PreciseRefGridLayout(
     columns: columns,
-    mainAxisExtent: cardWidth * 1.18 + 58 + (scale - 1) * 20,
+    mainAxisExtent: cardWidth * 1.22 + (scale - 1) * 24,
     padding: padding,
   );
 }

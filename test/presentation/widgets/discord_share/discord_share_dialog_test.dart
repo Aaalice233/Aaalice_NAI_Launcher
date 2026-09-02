@@ -170,7 +170,7 @@ void main() {
       scale: 1.0,
       keyboard: 0.0,
       padding: EdgeInsets.zero,
-      surfaceKey: const ValueKey('adaptive-side-sheet'),
+      surfaceKey: const ValueKey('adaptive-centered-form'),
     ),
   ]) {
     testWidgets('${scenario.name} 可验证并进入分享编辑器', (tester) async {

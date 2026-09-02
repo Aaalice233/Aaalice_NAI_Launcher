@@ -10,6 +10,7 @@ import 'package:nai_launcher/data/services/precise_ref_library_storage_service.d
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 
 class _FakeStorage extends PreciseRefLibraryStorageService {
   @override
@@ -88,8 +89,21 @@ void main() {
       ),
       findsOneWidget,
     );
-    // 收藏态显示实心星标
+    // 精确指针下操作只在悬浮时出现，避免常驻按钮遮挡图像。
+    expect(find.byIcon(Icons.star), findsNothing);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(find.byType(PreciseRefCard)),
+    );
+    await tester.pump();
     expect(find.byIcon(Icons.star), findsOneWidget);
+    expect(
+      tester
+          .widget<ImageCardHoverMotion>(find.byType(ImageCardHoverMotion))
+          .hovered,
+      isTrue,
+    );
   });
 
   testWidgets('点击卡片触发发送回调，点击星标触发收藏回调', (tester) async {
@@ -101,6 +115,12 @@ void main() {
       onToggleFavorite: () => favoriteCount++,
     );
 
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(find.byType(PreciseRefCard)),
+    );
+    await tester.pump();
     await tester.tap(
       find.byKey(const Key('precise-ref-card-favorite-entry-1')),
     );
@@ -188,10 +208,9 @@ void main() {
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(
-      location: tester.getCenter(
-        find.byKey(const Key('precise-ref-card-favorite-entry-1')),
-      ),
+      location: tester.getCenter(find.byType(PreciseRefCard)),
     );
+    await tester.pump();
     await mouse.down(
       tester.getCenter(
         find.byKey(const Key('precise-ref-card-favorite-entry-1')),
@@ -205,7 +224,7 @@ void main() {
     );
     expect(
       find.byKey(const Key('precise-ref-card-img2img-entry-1')),
-      findsNothing,
+      findsOneWidget,
     );
 
     await mouse.moveTo(tester.getCenter(find.byType(PreciseRefCard)));

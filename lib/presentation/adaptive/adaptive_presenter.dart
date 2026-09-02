@@ -13,8 +13,8 @@ typedef AdaptivePanelBuilder =
 class AdaptivePresenter {
   AdaptivePresenter._();
 
-  /// Presents long-form editing flows full-screen on compact panes while
-  /// retaining the regular adaptive panel treatment elsewhere.
+  /// Presents dialog-style editing flows full-screen on compact panes and in
+  /// a bounded, centered surface at every larger width.
   static Future<T?> showForm<T>({
     required BuildContext context,
     String? title,
@@ -28,20 +28,6 @@ class AdaptivePresenter {
   }) async {
     assert(!showHeader || title != null || titleBuilder != null);
     final metrics = context.adaptiveWindow;
-    if (metrics.isExpandedOrWider) {
-      return showPanel<T>(
-        context: context,
-        title: title,
-        titleBuilder: titleBuilder,
-        builder: builder,
-        sideSheetWidth: sideSheetWidth,
-        barrierDismissible: barrierDismissible,
-        requestFocus: requestFocus,
-        restoreFocus: restoreFocus,
-        showHeader: showHeader,
-      );
-    }
-
     final resolvedTitleBuilder =
         titleBuilder ??
         (context) =>

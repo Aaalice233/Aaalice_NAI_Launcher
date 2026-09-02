@@ -124,7 +124,7 @@ void main() {
 
   for (final formFactor in [
     (width: 700.0, surface: 'adaptive-centered-form'),
-    (width: 1200.0, surface: 'adaptive-side-sheet'),
+    (width: 1200.0, surface: 'adaptive-centered-form'),
   ]) {
     testWidgets(
       '字体选择与缩放在 ${formFactor.width.toInt()} 宽度使用 ${formFactor.surface}',

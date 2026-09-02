@@ -26,6 +26,8 @@ class PaginationBar extends StatefulWidget {
   final bool compact;
   final bool enabled;
   final bool loading;
+  final IconData? totalIcon;
+  final String? totalItemsLabel;
 
   const PaginationBar({
     super.key,
@@ -41,6 +43,8 @@ class PaginationBar extends StatefulWidget {
     this.compact = false,
     this.enabled = true,
     this.loading = false,
+    this.totalIcon,
+    this.totalItemsLabel,
   });
 
   @override
@@ -259,9 +263,9 @@ class _PaginationBarState extends State<PaginationBar> {
     ColorScheme colorScheme, {
     required bool veryNarrow,
   }) {
-    final itemCountLabel = context.l10n.onlineGallery_imageCount(
-      widget.totalItems.toString(),
-    );
+    final itemCountLabel =
+        widget.totalItemsLabel ??
+        context.l10n.onlineGallery_imageCount(widget.totalItems.toString());
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -292,7 +296,7 @@ class _PaginationBarState extends State<PaginationBar> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.photo_library_outlined,
+                    widget.totalIcon ?? Icons.photo_library_outlined,
                     size: 16,
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -428,7 +432,7 @@ class _PaginationBarState extends State<PaginationBar> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          Icons.image_outlined,
+          widget.totalIcon ?? Icons.image_outlined,
           size: 16,
           color: colorScheme.onSurfaceVariant,
         ),

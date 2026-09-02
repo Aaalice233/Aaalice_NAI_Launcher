@@ -61,9 +61,7 @@ final class SelectCategoryCommand extends VibeLibraryCommand {
 }
 
 final class CreateCategoryCommand extends VibeLibraryCommand {
-  const CreateCategoryCommand({this.parentId});
-
-  final String? parentId;
+  const CreateCategoryCommand();
 }
 
 final class RenameCategoryCommand extends VibeLibraryCommand {
@@ -77,13 +75,6 @@ final class DeleteCategoryCommand extends VibeLibraryCommand {
   const DeleteCategoryCommand(this.categoryId);
 
   final String categoryId;
-}
-
-final class MoveCategoryCommand extends VibeLibraryCommand {
-  const MoveCategoryCommand(this.categoryId, this.parentId);
-
-  final String categoryId;
-  final String? parentId;
 }
 
 final class EnterSelectionModeCommand extends VibeLibraryCommand {
@@ -112,12 +103,10 @@ final class ChangePageSizeCommand extends VibeLibraryCommand {
   final int size;
 }
 
-final class PreviousPageCommand extends VibeLibraryCommand {
-  const PreviousPageCommand();
-}
+final class ChangePageCommand extends VibeLibraryCommand {
+  const ChangePageCommand(this.page);
 
-final class NextPageCommand extends VibeLibraryCommand {
-  const NextPageCommand();
+  final int page;
 }
 
 final class SendSelectionToGenerationCommand extends VibeLibraryCommand {

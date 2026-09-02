@@ -135,7 +135,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Expanded 映射规则编辑使用有界侧栏并可取消返回', (tester) async {
+  testWidgets('Expanded 映射规则编辑使用居中弹窗并可取消返回', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -148,11 +148,11 @@ void main() {
     await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pumpAndSettle();
 
-    final sideSheet = tester.getRect(
-      find.byKey(const ValueKey('adaptive-side-sheet')),
+    final dialog = tester.getRect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
     );
-    expect(sideSheet.width, lessThanOrEqualTo(480));
-    expect(sideSheet.right, 1600);
+    expect(dialog.width, lessThanOrEqualTo(480));
+    expect(dialog.center.dx, moreOrLessEquals(800));
 
     await tester.enterText(
       find.byKey(const ValueKey('mapping-rule-source')),
@@ -166,7 +166,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Expanded 使用受限宽度侧栏且保留完整动作', (tester) async {
+  testWidgets('Expanded 使用受限宽度居中弹窗且保留完整动作', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -182,7 +182,7 @@ void main() {
       find.byKey(const ValueKey('dependency-config-dialog')),
     );
     expect(dialog.width, lessThanOrEqualTo(560));
-    expect(dialog.left, greaterThanOrEqualTo(1040));
+    expect(dialog.center.dx, moreOrLessEquals(800));
     expect(find.widgetWithText(TextButton, '取消'), findsOneWidget);
     expect(find.widgetWithText(TextButton, '清除'), findsWidgets);
     expect(find.widgetWithText(FilledButton, '保存'), findsOneWidget);

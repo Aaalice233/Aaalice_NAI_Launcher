@@ -166,14 +166,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         unawaited(_showCategoryPanel());
       case SelectCategoryCommand(:final categoryId):
         _selectCategory(categoryId);
-      case CreateCategoryCommand(:final parentId):
-        unawaited(_createCategory(parentId));
+      case CreateCategoryCommand():
+        unawaited(_createCategory());
       case RenameCategoryCommand(:final categoryId, :final name):
         unawaited(categories.renameCategory(categoryId, name));
       case DeleteCategoryCommand(:final categoryId):
         unawaited(_deleteCategory(categoryId));
-      case MoveCategoryCommand(:final categoryId, :final parentId):
-        unawaited(categories.moveCategory(categoryId, parentId));
       case EnterSelectionModeCommand():
         selection.enter();
       case ExitSelectionModeCommand():
@@ -189,10 +187,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         unawaited(library.setSortOrder(order));
       case ChangePageSizeCommand(:final size):
         unawaited(library.setPageSize(size));
-      case PreviousPageCommand():
-        unawaited(library.loadPreviousPage());
-      case NextPageCommand():
-        unawaited(library.loadNextPage());
+      case ChangePageCommand(:final page):
+        unawaited(library.loadPage(page));
       case SendSelectionToGenerationCommand():
         unawaited(_sendSelection());
       case MoveSelectionCommand():
@@ -229,6 +225,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           categories: categories.categories,
           totalEntryCount: library.entries.length,
           favoriteCount: library.favoriteCount,
+          categoryEntryCounts: library.categoryEntryCounts,
           selectedCategoryId: categories.selectedCategoryId,
           onCategorySelected: (id) {
             _selectCategory(id);
@@ -238,22 +235,17 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
               .read(vibeLibraryCategoryNotifierProvider.notifier)
               .renameCategory(id, name),
           onCategoryDelete: _deleteCategory,
-          onAddSubCategory: (id) => _createCategory(id),
-          onCategoryMove: (id, parent) => panelRef
-              .read(vibeLibraryCategoryNotifierProvider.notifier)
-              .moveCategory(id, parent),
+          onCreateCategory: _createCategory,
         );
       },
     ),
   );
 
-  Future<void> _createCategory(String? parentId) async {
+  Future<void> _createCategory() async {
     final name = await _controller.runDialogLocked(
       () => ThemedInputDialog.show(
         context: context,
-        title: parentId == null
-            ? context.l10n.vibeLibrary_createCategoryTitle
-            : context.l10n.vibeLibrary_createSubCategoryTitle,
+        title: context.l10n.vibeLibrary_createCategoryTitle,
         hintText: context.l10n.vibeLibrary_categoryNameHint,
         confirmText: context.l10n.vibeLibrary_createCategoryConfirm,
         cancelText: context.l10n.common_cancel,
@@ -262,7 +254,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     if (name?.isNotEmpty == true && mounted) {
       await ref
           .read(vibeLibraryCategoryNotifierProvider.notifier)
-          .createCategory(name!, parentId: parentId);
+          .createCategory(name!);
     }
   }
 

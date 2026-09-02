@@ -65,16 +65,22 @@ class PromptInputToolbar extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (viewData.autoGrow && constraints.maxWidth >= 440) {
+        final usesLargeText = MediaQuery.textScalerOf(context).scale(14) > 21;
+        final usesCompactSingleRow =
+            viewData.autoGrow && constraints.maxWidth >= 440 && !usesLargeText;
+        if (usesCompactSingleRow) {
           return SizedBox(
             key: const ValueKey('generation_prompt_compact_single_row'),
             height: 48,
             child: Row(
               children: [
-                PromptTypeSwitch(
-                  controller: controller,
-                  commands: commands,
-                  compact: true,
+                Expanded(
+                  child: PromptTypeSwitch(
+                    controller: controller,
+                    commands: commands,
+                    expand: true,
+                    compact: true,
+                  ),
                 ),
                 const SizedBox(width: 4),
                 const FixedTagsButton(compact: true, iconOnly: true),
@@ -88,7 +94,6 @@ class PromptInputToolbar extends ConsumerWidget {
                 UcPresetSelector(model: model, compact: true, iconOnly: true),
                 const SizedBox(width: 4),
                 const CharacterPromptButton(compact: true, iconOnly: true),
-                const Spacer(),
                 toolbar,
               ],
             ),
@@ -107,9 +112,7 @@ class PromptInputToolbar extends ConsumerWidget {
             expand: true,
             compact: true,
           );
-          final stackPrimary =
-              constraints.maxWidth < 360 ||
-              MediaQuery.textScalerOf(context).scale(14) > 21;
+          final stackPrimary = constraints.maxWidth < 360 || usesLargeText;
           return Column(
             key: const ValueKey('generation_prompt_mobile_toolbar'),
             crossAxisAlignment: CrossAxisAlignment.stretch,

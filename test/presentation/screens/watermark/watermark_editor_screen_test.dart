@@ -143,7 +143,7 @@ void main() {
       for (final scenario in <({double width, String surfaceKey})>[
         (width: 320, surfaceKey: 'adaptive-full-screen-form'),
         (width: 700, surfaceKey: 'adaptive-centered-form'),
-        (width: 1200, surfaceKey: 'adaptive-side-sheet'),
+        (width: 1200, surfaceKey: 'adaptive-centered-form'),
       ]) {
         await tester.binding.setSurfaceSize(Size(scenario.width, 760));
         await tester.pumpWidget(

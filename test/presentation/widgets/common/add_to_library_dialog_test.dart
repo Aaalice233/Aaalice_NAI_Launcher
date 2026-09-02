@@ -69,7 +69,7 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-side-sheet'));
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(surface, findsOneWidget);
     expect(tester.getSize(surface).width, lessThan(1200));
     expect(tester.getSize(surface).width, lessThanOrEqualTo(520));

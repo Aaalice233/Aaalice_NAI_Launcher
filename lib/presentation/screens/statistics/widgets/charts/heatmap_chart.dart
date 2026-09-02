@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 import '../../utils/chart_colors.dart';
 
@@ -207,7 +208,8 @@ class _HeatmapChartState extends State<HeatmapChart>
                                   child: AnimatedContainer(
                                     duration: _reducedMotion
                                         ? Duration.zero
-                                        : const Duration(milliseconds: 150),
+                                        : theme.appTheme.fastDuration,
+                                    curve: theme.appTheme.standardCurve,
                                     width: cellSize,
                                     height: cellSize,
                                     margin: EdgeInsets.all(
@@ -221,7 +223,7 @@ class _HeatmapChartState extends State<HeatmapChart>
                                           : colorScheme.surfaceContainerHighest
                                                 .withValues(alpha: 0.5),
                                       borderRadius: BorderRadius.circular(
-                                        isHovered || isToday ? 4 : 3,
+                                        isToday ? 4 : 3,
                                       ),
                                       border: Border.all(
                                         color: isToday
@@ -232,32 +234,9 @@ class _HeatmapChartState extends State<HeatmapChart>
                                               )
                                             : colorScheme.outlineVariant
                                                   .withValues(alpha: 0.3),
-                                        width: isToday
-                                            ? 2
-                                            : (isHovered ? 1.5 : 0.5),
+                                        width: isToday ? 2 : 1,
                                       ),
-                                      boxShadow: isHovered && value > 0
-                                          ? [
-                                              BoxShadow(
-                                                color:
-                                                    ChartColors.getHeatmapColor(
-                                                      value,
-                                                    ).withValues(alpha: 0.4),
-                                                blurRadius: 6,
-                                                spreadRadius: 1,
-                                              ),
-                                            ]
-                                          : null,
                                     ),
-                                    transform: isHovered && !_reducedMotion
-                                        ? Matrix4.identity().scaledByDouble(
-                                            1.15,
-                                            1.15,
-                                            1.0,
-                                            1,
-                                          )
-                                        : null,
-                                    transformAlignment: Alignment.center,
                                   ),
                                 ),
                               ),
@@ -301,15 +280,6 @@ class _HeatmapChartState extends State<HeatmapChart>
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(3),
-              boxShadow: index > 0
-                  ? [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
-                      ),
-                    ]
-                  : null,
             ),
           );
         }),

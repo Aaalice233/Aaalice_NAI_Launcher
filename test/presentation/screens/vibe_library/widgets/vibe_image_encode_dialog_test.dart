@@ -18,7 +18,7 @@ void main() {
         final surfaceKey = switch (width) {
           < 600 => 'adaptive-full-screen-form',
           < 840 => 'adaptive-centered-form',
-          _ => 'adaptive-side-sheet',
+          _ => 'adaptive-centered-form',
         };
         final surface = find.byKey(ValueKey(surfaceKey));
         expect(surface, findsOneWidget);

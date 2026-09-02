@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/providers/precise_ref_library_provider
 import 'package:nai_launcher/presentation/screens/precise_ref_library/precise_ref_library_screen.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_entry_edit_dialog.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_selector_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
 
 void main() {
   setUp(() {
@@ -48,10 +49,42 @@ void main() {
           find.byKey(const Key('precise-ref-library-favorites-toggle')),
           findsOneWidget,
         );
+        if (width < 840) {
+          final categoriesButton = find.byKey(
+            const Key('precise-ref-library-categories-button'),
+          );
+          expect(categoriesButton, findsOneWidget);
+          expect(
+            find.byKey(const Key('precise-ref-library-category-sidebar')),
+            findsNothing,
+          );
+          await tester.tap(categoriesButton);
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const Key('precise-ref-library-category-panel')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const Key('precise-ref-sidebar-type-characterAndStyle')),
+            findsOneWidget,
+          );
+          await tester.tap(find.byKey(const Key('precise-ref-sidebar-all')));
+          await tester.pumpAndSettle();
+        } else {
+          expect(
+            find.byKey(const Key('precise-ref-library-category-sidebar')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const Key('precise-ref-sidebar-type-characterAndStyle')),
+            findsOneWidget,
+          );
+        }
         expect(
-          find.byKey(const Key('precise-ref-type-filter-all')),
+          find.byKey(const Key('precise-ref-library-unified-toolbar')),
           findsOneWidget,
         );
+        expect(find.byType(PaginationBar), findsOneWidget);
 
         await tester.enterText(
           find.byKey(const Key('precise-ref-library-search')),
@@ -78,7 +111,7 @@ void main() {
         final surfaceKey = switch (width) {
           < 600 => 'adaptive-full-screen-form',
           < 840 => 'adaptive-centered-form',
-          _ => 'adaptive-side-sheet',
+          _ => 'adaptive-centered-form',
         };
         final surface = find.byKey(ValueKey(surfaceKey));
         expect(surface, findsOneWidget);
@@ -89,6 +122,29 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'shared pagination slices the precise reference grid and changes pages',
+    (tester) async {
+      await _setViewport(tester, const Size(1180, 800));
+      await _pumpLibrary(tester, notifier: _ManyPreciseRefNotifier.new);
+
+      expect(find.byKey(const Key('precise-ref-card-entry-0')), findsOneWidget);
+      expect(find.byKey(const Key('precise-ref-card-entry-50')), findsNothing);
+      final pagination = tester.widget<PaginationBar>(
+        find.byKey(const Key('precise-ref-library-pagination')),
+      );
+      expect(pagination.totalPages, 2);
+      pagination.onPageChanged(1);
+      await tester.pump();
+      expect(find.byKey(const Key('precise-ref-card-entry-0')), findsNothing);
+      expect(
+        find.byKey(const Key('precise-ref-card-entry-50')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     '320px 3x text selector remains searchable and confirms a local selection above IME',
@@ -192,7 +248,7 @@ void main() {
 
   for (final (width, surfaceKey) in [
     (700.0, 'adaptive-centered-form'),
-    (1200.0, 'adaptive-side-sheet'),
+    (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('${width.toInt()}px selector uses a bounded adaptive surface', (
       tester,
@@ -301,7 +357,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(const Key('precise-ref-type-filter-all')),
+        find.byKey(const Key('precise-ref-library-categories-button')),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);
@@ -356,12 +412,16 @@ Future<void> _pumpSelectorHost(WidgetTester tester) async {
   await tester.pump();
 }
 
-Future<void> _pumpLibrary(WidgetTester tester, {double textScale = 1}) async {
+Future<void> _pumpLibrary(
+  WidgetTester tester, {
+  double textScale = 1,
+  PreciseRefLibraryNotifier Function()? notifier,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         preciseRefLibraryNotifierProvider.overrideWith(
-          _PopulatedPreciseRefNotifier.new,
+          notifier ?? _PopulatedPreciseRefNotifier.new,
         ),
         preciseRefLibraryStorageServiceProvider.overrideWithValue(
           _ThumbnailFreeStorage(),
@@ -409,6 +469,26 @@ class _PopulatedPreciseRefNotifier extends PreciseRefLibraryNotifier {
       createdAt: DateTime(2026),
     ),
   ];
+
+  @override
+  PreciseRefLibraryState build() =>
+      PreciseRefLibraryState(entries: entries, filteredEntries: entries);
+
+  @override
+  Future<void> initialize() async {}
+}
+
+class _ManyPreciseRefNotifier extends PreciseRefLibraryNotifier {
+  static final entries = List.generate(
+    51,
+    (index) => PreciseRefLibraryEntry(
+      id: 'entry-$index',
+      name: '参考 $index',
+      imagePath: '$index.png',
+      typeIndex: PreciseRefType.character.index,
+      createdAt: DateTime(2026, 1, 1).add(Duration(minutes: index)),
+    ),
+  );
 
   @override
   PreciseRefLibraryState build() =>

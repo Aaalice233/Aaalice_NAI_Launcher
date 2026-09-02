@@ -295,7 +295,7 @@ void main() {
         expect(scrollPosition.maxScrollExtent, greaterThan(0));
         final presentationKey = scenario.size.width < 600
             ? const ValueKey('adaptive-full-screen-form')
-            : const ValueKey('adaptive-side-sheet');
+            : const ValueKey('adaptive-centered-form');
         expect(find.byKey(presentationKey), findsNWidgets(2));
         expect(tester.takeException(), isNull);
 
@@ -346,9 +346,7 @@ void main() {
       final availableHeight = scenario.size.height - scenario.keyboard;
       final presentation = scenario.size.width < 600 || availableHeight < 560
           ? find.byKey(const ValueKey('adaptive-full-screen-form'))
-          : scenario.size.width < 840
-          ? find.byKey(const ValueKey('adaptive-centered-form'))
-          : find.byKey(const ValueKey('adaptive-side-sheet'));
+          : find.byKey(const ValueKey('adaptive-centered-form'));
       expect(presentation, findsOneWidget);
       expect(
         tester.getRect(presentation).height,
@@ -381,9 +379,9 @@ void main() {
         tester.view.devicePixelRatio = 1;
         await _openMetadataDialog(tester, metadata: metadata);
 
-        final presentation = width < 840
-            ? find.byKey(const ValueKey('adaptive-centered-form'))
-            : find.byKey(const ValueKey('adaptive-side-sheet'));
+        final presentation = find.byKey(
+          const ValueKey('adaptive-centered-form'),
+        );
         expect(presentation, findsOneWidget);
         expect(tester.getSize(presentation).width, lessThan(width));
         expect(find.byType(Dialog), findsNothing);

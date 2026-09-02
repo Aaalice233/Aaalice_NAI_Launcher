@@ -78,7 +78,7 @@ void main() {
     expect(find.text('Cancel'), findsNothing);
   });
 
-  testWidgets('validated input returns through the expanded side sheet', (
+  testWidgets('validated input returns through the centered desktop dialog', (
     tester,
   ) async {
     String? result;
@@ -99,7 +99,10 @@ void main() {
 
     await tester.tap(find.text('Open input'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(find.byType(Dialog), findsNothing);
 
     await tester.enterText(find.byType(TextField), 'bad');
@@ -118,7 +121,7 @@ void main() {
   });
 
   testWidgets(
-    'update manager keeps its non-dismissible barrier in a side sheet',
+    'update manager keeps its non-dismissible barrier in a centered dialog',
     (tester) async {
       await pumpHost(
         tester,
@@ -135,7 +138,10 @@ void main() {
       await tester.tap(find.text('Open update'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('adaptive-centered-form')),
+        findsOneWidget,
+      );
       expect(find.byType(Dialog), findsNothing);
 
       await tester.tapAt(const Offset(50, 400));

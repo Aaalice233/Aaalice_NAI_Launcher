@@ -77,7 +77,10 @@ void main() {
     await openLibraryMenuItem(tester);
 
     expect(find.byType(TagLibraryPickerDialog), findsOneWidget);
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(find.byType(Dialog), findsNothing);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();

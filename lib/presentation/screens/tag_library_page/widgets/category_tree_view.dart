@@ -6,9 +6,10 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
-import '../../../widgets/common/context_menu_anchor.dart';
 import '../../../adaptive/interaction_policy.dart';
+import '../../../widgets/common/context_menu_anchor.dart';
 import '../../../widgets/common/themed_divider.dart';
+import '../../../widgets/gallery/gallery_album_tree_view.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 分类树视图
@@ -32,6 +33,7 @@ class CategoryTreeView extends StatefulWidget {
 
   /// 词条拖拽到分类
   final void Function(String entryId, String? categoryId)? onEntryDrop;
+  final bool includeAllEntries;
 
   const CategoryTreeView({
     super.key,
@@ -47,6 +49,7 @@ class CategoryTreeView extends StatefulWidget {
     this.onCategoryMove,
     this.onCategoryReorder,
     this.onEntryDrop,
+    this.includeAllEntries = true,
   });
 
   @override
@@ -102,23 +105,23 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
       child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          // 全部条目 - 可接收词条拖拽（移动到无分类）
-          _buildEntryDropTarget(
-            categoryId: null,
-            child: _CategoryItem(
-              icon: Icons.folder_outlined,
-              label: context.l10n.tagLibrary_allEntries,
-              count: widget.entries.length,
-              isSelected: widget.selectedCategoryId == null,
-              onTap: () => widget.onCategorySelected(null),
+          if (widget.includeAllEntries)
+            _buildEntryDropTarget(
+              categoryId: null,
+              child: GalleryAllImagesItem(
+                icon: Icons.folder_outlined,
+                selectedIcon: Icons.folder,
+                label: context.l10n.tagLibrary_allEntries,
+                count: widget.entries.length,
+                isSelected: widget.selectedCategoryId == null,
+                onTap: () => widget.onCategorySelected(null),
+              ),
             ),
-          ),
 
           // 收藏 - 不接收拖拽
-          _CategoryItem(
-            icon: widget.selectedCategoryId == 'favorites'
-                ? Icons.favorite
-                : Icons.favorite_border,
+          GalleryAllImagesItem(
+            icon: Icons.favorite_border,
+            selectedIcon: Icons.favorite,
             iconColor: Colors.red.shade400,
             label: context.l10n.tagLibrary_favorites,
             count: widget.entries.where((e) => e.isFavorite).length,
@@ -431,7 +434,6 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
 /// 分类项
 class _CategoryItem extends StatefulWidget {
   final IconData icon;
-  final Color? iconColor;
   final String label;
   final int count;
   final bool isSelected;
@@ -447,7 +449,6 @@ class _CategoryItem extends StatefulWidget {
 
   const _CategoryItem({
     required this.icon,
-    this.iconColor,
     required this.label,
     required this.count,
     required this.isSelected,
@@ -551,11 +552,9 @@ class _CategoryItemState extends State<_CategoryItem> {
                     Icon(
                       widget.icon,
                       size: 18,
-                      color:
-                          widget.iconColor ??
-                          (widget.isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant),
+                      color: widget.isSelected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 8),
 

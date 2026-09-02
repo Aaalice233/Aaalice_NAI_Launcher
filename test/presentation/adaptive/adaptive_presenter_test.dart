@@ -427,7 +427,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('expanded boundary uses the shared side-sheet width', (
+  testWidgets('expanded boundary uses the shared centered-form width', (
     tester,
   ) async {
     await pumpHost(tester, const Size(840, 800));
@@ -443,15 +443,19 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('wide windows grow the side sheet within the shared contract', (
-    tester,
-  ) async {
+  testWidgets('wide long forms use a bounded centered dialog', (tester) async {
     await pumpHost(tester, const Size(1600, 900), longForm: true);
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(tester.getSize(find.byKey(const Key('panel-content'))).width, 608);
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsNothing);
+    expect(tester.getSize(find.byKey(const Key('panel-content'))).width, 560);
+    final rect = tester.getRect(surface);
+    expect(rect.center.dx, moreOrLessEquals(800));
+    expect(rect.center.dy, moreOrLessEquals(450));
   });
 
   testWidgets(

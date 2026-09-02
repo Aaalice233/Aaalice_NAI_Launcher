@@ -51,7 +51,7 @@ void main() {
     (
       name: 'Expanded',
       size: const Size(1000, 800),
-      surfaceKey: const ValueKey('adaptive-side-sheet'),
+      surfaceKey: const ValueKey('adaptive-centered-form'),
     ),
   ]) {
     testWidgets('${scenario.name} 使用共享有界面板', (tester) async {

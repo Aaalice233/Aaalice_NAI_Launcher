@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Polar activity chart for 24-hour distribution
 /// Enhanced with animations and improved visual effects
@@ -204,7 +205,7 @@ class _PolarChartPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawPath(path, gradientPaint);
 
-    // Draw stroke with glow effect
+    // 清晰的单层描边比发光更适合高频查看的数据图表。
     final strokePaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
@@ -212,14 +213,6 @@ class _PolarChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(path, strokePaint);
-
-    // Draw subtle glow
-    final glowPaint = Paint()
-      ..color = color.withValues(alpha: 0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-    canvas.drawPath(path, glowPaint);
 
     // Draw hour labels
     if (showLabels) {
@@ -291,51 +284,15 @@ class PeakTimeIndicator extends StatefulWidget {
   State<PeakTimeIndicator> createState() => _PeakTimeIndicatorState();
 }
 
-class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _pulseAnimation;
+class _PeakTimeIndicatorState extends State<PeakTimeIndicator> {
   bool _isHovered = false;
-  bool _reducedMotion = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    );
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.08,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reducedMotion = MediaQuery.disableAnimationsOf(context);
-    if (reducedMotion == _reducedMotion && _controller.isAnimating) return;
-    _reducedMotion = reducedMotion;
-    if (reducedMotion) {
-      _controller.stop();
-      _controller.value = 0;
-    } else {
-      _controller.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
     String timeLabel;
     IconData timeIcon;
@@ -371,87 +328,65 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedBuilder(
-        animation: _pulseAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _isHovered && !_reducedMotion ? _pulseAnimation.value : 1.0,
-            child: AnimatedContainer(
-              duration: _reducedMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: AnimatedContainer(
+        duration: reducedMotion ? Duration.zero : theme.appTheme.fastDuration,
+        curve: theme.appTheme.standardCurve,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              primaryColor.withValues(
+                alpha: isDark
+                    ? (_isHovered ? 0.24 : 0.2)
+                    : (_isHovered ? 0.14 : 0.11),
+              ),
+              secondaryColor.withValues(alpha: isDark ? 0.1 : 0.06),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: primaryColor.withValues(alpha: _isHovered ? 0.42 : 0.24),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    primaryColor.withValues(alpha: isDark ? 0.25 : 0.15),
-                    secondaryColor.withValues(alpha: isDark ? 0.15 : 0.08),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: primaryColor.withValues(alpha: _isHovered ? 0.5 : 0.3),
-                  width: _isHovered ? 1.5 : 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryColor.withValues(
-                      alpha: _isHovered ? 0.25 : 0.15,
-                    ),
-                    blurRadius: _isHovered ? 16 : 10,
-                    offset: const Offset(0, 4),
-                    spreadRadius: _isHovered ? 0 : -2,
-                  ),
-                ],
+                color: primaryColor.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(6),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: primaryColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(timeIcon, color: primaryColor, size: 24),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.label ?? context.l10n.statistics_peakActivity,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${widget.peakHour.toString().padLeft(2, '0')}:00 - $timeLabel',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              child: Icon(timeIcon, color: primaryColor, size: 24),
             ),
-          );
-        },
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.label ?? context.l10n.statistics_peakActivity,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.peakHour.toString().padLeft(2, '0')}:00 - $timeLabel',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

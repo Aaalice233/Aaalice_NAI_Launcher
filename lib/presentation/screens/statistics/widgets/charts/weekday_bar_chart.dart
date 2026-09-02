@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Weekday bar chart for showing activity distribution across days
 class WeekdayBarChart extends StatefulWidget {
@@ -283,9 +284,8 @@ class _DaySummaryCardState extends State<_DaySummaryCard> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: reducedMotion
-            ? Duration.zero
-            : const Duration(milliseconds: 200),
+        duration: reducedMotion ? Duration.zero : theme.appTheme.fastDuration,
+        curve: theme.appTheme.standardCurve,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -299,17 +299,8 @@ class _DaySummaryCardState extends State<_DaySummaryCard> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: widget.color.withValues(alpha: _isHovered ? 0.4 : 0.2),
-            width: _isHovered ? 1.5 : 1,
+            width: 1,
           ),
-          boxShadow: _isHovered
-              ? [
-                  BoxShadow(
-                    color: widget.color.withValues(alpha: 0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
         ),
         child: Row(
           children: [

@@ -161,6 +161,25 @@ void main() {
     expect(find.byKey(const Key('character-add-from-library')), findsOneWidget);
   });
 
+  testWidgets('角色标题栏有足够空间时添加入口保持同一行', (tester) async {
+    final container = createContainer(empty: true);
+
+    await tester.pumpWidget(subject(container, 500));
+    await tester.pumpAndSettle();
+
+    final buttons = [
+      find.byKey(const Key('character-add-female')),
+      find.byKey(const Key('character-add-male')),
+      find.byKey(const Key('character-add-other')),
+      find.byKey(const Key('character-add-from-library')),
+    ];
+    final top = tester.getTopLeft(buttons.first).dy;
+    for (final button in buttons.skip(1)) {
+      expect(tester.getTopLeft(button).dy, closeTo(top, 0.1));
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('默认折叠显示实时摘要，展开内容与生成角色状态不变', (tester) async {
     final container = createContainer();
     final before = container.read(characterPromptNotifierProvider);

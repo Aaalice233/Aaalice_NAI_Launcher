@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../adaptive/interaction_policy.dart';
 import '../../providers/gallery_album_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/local_gallery_provider.dart';
@@ -12,6 +11,7 @@ import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../widgets/gallery/gallery_album_tree_view.dart';
 import '../../widgets/gallery/gallery_category_tree_view.dart';
 import '../../widgets/gallery/gallery_scan_progress_panel.dart';
+import '../../widgets/gallery/gallery_sidebar.dart';
 
 /// 本地图库左栏：全部图像 + 相簿（逻辑引用）+ 文件夹（物理分类）。
 class LocalGalleryCategoryPanel extends StatefulWidget {
@@ -96,108 +96,88 @@ class _LocalGalleryCategoryPanelState extends State<LocalGalleryCategoryPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: widget.modal ? double.infinity : 250,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: widget.modal
-            ? null
-            : Border(
-                right: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.3,
-                  ),
-                  width: 1,
-                ),
-              ),
-      ),
-      child: Column(
+    return GallerySidebarSurface(
+      modal: widget.modal,
+      footer: const GalleryScanProgressPanel(),
+      child: ListView(
+        controller: widget.scrollController,
+        padding: const EdgeInsets.only(top: 4),
         children: [
-          Expanded(
-            child: ListView(
-              controller: widget.scrollController,
-              padding: const EdgeInsets.only(top: 4),
-              children: [
-                GalleryAllImagesItem(
-                  key: const ValueKey('local-gallery-all-images'),
-                  count: widget.galleryState.totalCount,
-                  isSelected: _allImagesSelected,
-                  onTap: _selectAllImages,
-                ),
-                _wrapRootDropTarget<GalleryAlbum>(
-                  _PanelSectionHeader(
-                    toggleKey: const ValueKey('local-gallery-albums-toggle'),
-                    icon: Icons.photo_album_outlined,
-                    title: context.l10n.localGallery_albumSectionTitle,
-                    isExpanded: _albumsExpanded,
-                    onToggle: () =>
-                        setState(() => _albumsExpanded = !_albumsExpanded),
-                    onCreate: () => widget.onCreateAlbum(null),
-                  ),
-                  (album) => album.id,
-                  (albumId) => widget.onAlbumMove(albumId, null),
-                ),
-                if (_albumsExpanded)
-                  FutureBuilder<int>(
-                    future: widget.favoriteCount,
-                    builder: (context, snapshot) => GalleryAlbumTreeView(
-                      albums: widget.albumState.albums,
-                      totalImageCount: widget.galleryState.totalCount,
-                      favoriteCount: snapshot.data ?? 0,
-                      selectedAlbumId: widget.albumState.selectedAlbumId,
-                      includeAllImages: false,
-                      embedded: true,
-                      onAlbumSelected: (id) {
-                        widget.onAlbumSelected(id);
-                        widget.afterSelection?.call();
-                      },
-                      onAlbumRename: widget.onAlbumRename,
-                      onAlbumDeleteRequest: widget.onAlbumDeleteRequest,
-                      onAddAlbumRequest: widget.onAddAlbumRequest,
-                      onAlbumMove: widget.onAlbumMove,
-                      onAlbumMoveToSlot: widget.onAlbumMoveToSlot,
-                      onImageDrop: widget.onImageDropToAlbum,
-                      onCreateAlbumRequest: () => widget.onCreateAlbum(null),
-                    ),
-                  ),
-                _wrapRootDropTarget<GalleryCategory>(
-                  _PanelSectionHeader(
-                    toggleKey: const ValueKey('local-gallery-folders-toggle'),
-                    icon: Icons.folder_outlined,
-                    title: context.l10n.localGallery_folderSectionTitle,
-                    isExpanded: _foldersExpanded,
-                    onToggle: () =>
-                        setState(() => _foldersExpanded = !_foldersExpanded),
-                    onCreate: widget.onCreateCategory,
-                  ),
-                  (category) => category.id,
-                  (categoryId) => widget.onCategoryMove(categoryId, null),
-                ),
-                if (_foldersExpanded)
-                  GalleryCategoryTreeView(
-                    categories: widget.categoryState.categories,
-                    totalImageCount: widget.galleryState.totalCount,
-                    selectedCategoryId: widget.categoryState.selectedCategoryId,
-                    includeRootNodes: false,
-                    embedded: true,
-                    showScanProgress: false,
-                    onCategorySelected: (id) {
-                      widget.onCategorySelected(id);
-                      widget.afterSelection?.call();
-                    },
-                    onCategoryRename: widget.onCategoryRename,
-                    onCategoryDelete: widget.onCategoryDelete,
-                    onAddSubCategory: widget.onAddSubCategory,
-                    onCategoryMove: widget.onCategoryMove,
-                    onCategoryMoveToSlot: widget.onCategoryMoveToSlot,
-                    onImageDrop: widget.onImageDrop,
-                    onSyncWithFileSystem: widget.onSyncWithFileSystem,
-                  ),
-              ],
-            ),
+          GalleryAllImagesItem(
+            key: const ValueKey('local-gallery-all-images'),
+            count: widget.galleryState.totalCount,
+            isSelected: _allImagesSelected,
+            onTap: _selectAllImages,
           ),
-          const GalleryScanProgressPanel(),
+          _wrapRootDropTarget<GalleryAlbum>(
+            GallerySidebarSectionHeader(
+              toggleKey: const ValueKey('local-gallery-albums-toggle'),
+              icon: Icons.photo_album_outlined,
+              title: context.l10n.localGallery_albumSectionTitle,
+              isExpanded: _albumsExpanded,
+              onToggle: () =>
+                  setState(() => _albumsExpanded = !_albumsExpanded),
+              onCreate: () => widget.onCreateAlbum(null),
+            ),
+            (album) => album.id,
+            (albumId) => widget.onAlbumMove(albumId, null),
+          ),
+          if (_albumsExpanded)
+            FutureBuilder<int>(
+              future: widget.favoriteCount,
+              builder: (context, snapshot) => GalleryAlbumTreeView(
+                albums: widget.albumState.albums,
+                totalImageCount: widget.galleryState.totalCount,
+                favoriteCount: snapshot.data ?? 0,
+                selectedAlbumId: widget.albumState.selectedAlbumId,
+                includeAllImages: false,
+                embedded: true,
+                onAlbumSelected: (id) {
+                  widget.onAlbumSelected(id);
+                  widget.afterSelection?.call();
+                },
+                onAlbumRename: widget.onAlbumRename,
+                onAlbumDeleteRequest: widget.onAlbumDeleteRequest,
+                onAddAlbumRequest: widget.onAddAlbumRequest,
+                onAlbumMove: widget.onAlbumMove,
+                onAlbumMoveToSlot: widget.onAlbumMoveToSlot,
+                onImageDrop: widget.onImageDropToAlbum,
+                onCreateAlbumRequest: () => widget.onCreateAlbum(null),
+              ),
+            ),
+          _wrapRootDropTarget<GalleryCategory>(
+            GallerySidebarSectionHeader(
+              toggleKey: const ValueKey('local-gallery-folders-toggle'),
+              icon: Icons.folder_outlined,
+              title: context.l10n.localGallery_folderSectionTitle,
+              isExpanded: _foldersExpanded,
+              onToggle: () =>
+                  setState(() => _foldersExpanded = !_foldersExpanded),
+              onCreate: widget.onCreateCategory,
+            ),
+            (category) => category.id,
+            (categoryId) => widget.onCategoryMove(categoryId, null),
+          ),
+          if (_foldersExpanded)
+            GalleryCategoryTreeView(
+              categories: widget.categoryState.categories,
+              totalImageCount: widget.galleryState.totalCount,
+              selectedCategoryId: widget.categoryState.selectedCategoryId,
+              includeRootNodes: false,
+              embedded: true,
+              showScanProgress: false,
+              onCategorySelected: (id) {
+                widget.onCategorySelected(id);
+                widget.afterSelection?.call();
+              },
+              onCategoryRename: widget.onCategoryRename,
+              onCategoryDelete: widget.onCategoryDelete,
+              onAddSubCategory: widget.onAddSubCategory,
+              onCategoryMove: widget.onCategoryMove,
+              onCategoryMoveToSlot: widget.onCategoryMoveToSlot,
+              onImageDrop: widget.onImageDrop,
+              onSyncWithFileSystem: widget.onSyncWithFileSystem,
+            ),
         ],
       ),
     );
@@ -240,123 +220,4 @@ Widget _wrapRootDropTarget<T extends Object>(
       );
     },
   );
-}
-
-class _PanelSectionHeader extends StatefulWidget {
-  const _PanelSectionHeader({
-    required this.toggleKey,
-    required this.icon,
-    required this.title,
-    required this.isExpanded,
-    required this.onToggle,
-    required this.onCreate,
-  });
-
-  final Key toggleKey;
-  final IconData icon;
-  final String title;
-  final bool isExpanded;
-  final VoidCallback onToggle;
-  final VoidCallback onCreate;
-
-  @override
-  State<_PanelSectionHeader> createState() => _PanelSectionHeaderState();
-}
-
-class _PanelSectionHeaderState extends State<_PanelSectionHeader> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final minimumControlExtent = context.interactionPolicy.minimumControlExtent;
-    final toggleLabel = widget.isExpanded
-        ? context.l10n.common_collapse
-        : context.l10n.common_expand;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        key: widget.toggleKey,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 150),
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.onSurface.withValues(
-            alpha: _isHovered ? 0.11 : 0.06,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: Semantics(
-                  button: true,
-                  expanded: widget.isExpanded,
-                  label: '${widget.title}，$toggleLabel',
-                  child: Tooltip(
-                    message: toggleLabel,
-                    child: InkWell(
-                      onTap: widget.onToggle,
-                      borderRadius: BorderRadius.circular(8),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(minHeight: 48),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 4),
-                            Icon(
-                              widget.isExpanded
-                                  ? Icons.expand_more
-                                  : Icons.chevron_right,
-                              size: 18,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              widget.icon,
-                              size: 20,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                widget.title,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.tonalIcon(
-                onPressed: widget.onCreate,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(context.l10n.common_new),
-                style: FilledButton.styleFrom(
-                  minimumSize: Size(0, minimumControlExtent),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  textStyle: theme.textTheme.labelMedium,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

@@ -105,7 +105,7 @@ void main() {
     (
       name: 'Expanded',
       size: const Size(1200, 900),
-      surfaceKey: const ValueKey('adaptive-side-sheet'),
+      surfaceKey: const ValueKey('adaptive-centered-form'),
     ),
   ]) {
     testWidgets('${scenario.name} 使用共享有界呈现', (tester) async {

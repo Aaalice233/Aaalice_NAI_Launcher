@@ -15,8 +15,11 @@ import 'package:nai_launcher/presentation/screens/vibe_library/vibe_library_comm
 import 'package:nai_launcher/presentation/screens/vibe_library/vibe_library_screen.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/vibe_library_screen_controller.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/vibe_library_workspace.dart';
+import 'package:nai_launcher/presentation/screens/vibe_library/widgets/category/vibe_category_item.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/menus/vibe_import_menu.dart';
+import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
+import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
 
 void main() {
   test('vibe grid uses fewer larger cards at 3x text scale', () {
@@ -43,6 +46,11 @@ void main() {
         await _pumpWorkspace(tester, controller, commands);
 
         expect(find.text('测试 Vibe'), findsOneWidget);
+        final cardSize = tester.getSize(find.byType(VibeCard).first);
+        expect(
+          cardSize.width / cardSize.height,
+          closeTo(vibeCardAspectRatio, 0.001),
+        );
         expect(find.byTooltip('进入选择模式'), findsOneWidget);
         expect(
           find.byTooltip('导入 Vibe 文件或 PNG/JPG/JPEG/WEBP 图片（右键查看更多选项）'),
@@ -84,6 +92,60 @@ void main() {
 
     expect(commands.whereType<ShowImportMenuCommand>(), hasLength(1));
     expect(commands.whereType<ImportVibesCommand>(), isEmpty);
+  });
+
+  testWidgets('desktop reuses gallery sidebar and pagination contracts', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1600, 900));
+    final commands = <VibeLibraryCommand>[];
+    final controller = VibeLibraryScreenController(onSearch: (_) async {});
+    addTearDown(controller.dispose);
+    final category = VibeLibraryCategory(
+      id: 'portraits',
+      name: '肖像',
+      sortOrder: 0,
+      createdAt: DateTime(2026),
+    );
+    final template = _PopulatedVibeLibraryNotifier.initialState.entries.single;
+    final entries = List.generate(
+      120,
+      (index) => template.copyWith(
+        id: 'vibe-$index',
+        name: 'Vibe $index',
+        categoryId: index < 3 ? category.id : null,
+        isFavorite: index < 2,
+      ),
+    );
+    await _pumpWorkspace(
+      tester,
+      controller,
+      commands,
+      libraryState: VibeLibraryState(entries: entries, pageSize: 20),
+      categoryState: VibeLibraryCategoryState(categories: [category]),
+    );
+
+    expect(find.byKey(const ValueKey('vibe-library-all')), findsOneWidget);
+    expect(find.text('全部 Vibe'), findsOneWidget);
+    expect(find.text('收藏'), findsOneWidget);
+    expect(find.text('肖像'), findsOneWidget);
+    expect(find.text('文件夹'), findsNothing);
+    expect(
+      tester
+          .widget<VibeCategoryItem>(
+            find.byKey(const ValueKey('vibe-library-category-portraits')),
+          )
+          .count,
+      3,
+    );
+    expect(find.byType(PaginationBar), findsOneWidget);
+
+    final pagination = tester.widget<PaginationBar>(find.byType(PaginationBar));
+    expect(pagination.totalPages, 6);
+    expect(pagination.totalItems, 120);
+    pagination.onPageChanged(1);
+    expect(commands.whereType<ChangePageCommand>().single.page, 1);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('touch import choices use an adaptive action panel', (
@@ -248,7 +310,7 @@ void main() {
     },
   );
 
-  testWidgets('category destination list uses a bounded wide side sheet', (
+  testWidgets('category destination list uses a bounded centered form', (
     tester,
   ) async {
     await _setViewport(tester, const Size(1600, 900));
@@ -262,7 +324,7 @@ void main() {
     await tester.tap(find.text('open categories'));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-side-sheet'));
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(surface, findsOneWidget);
     expect(tester.getSize(surface).width, 440);
     await tester.tap(find.text('Category 2'));
@@ -406,8 +468,10 @@ Future<void> _pumpWorkspace(
   List<VibeLibraryCommand> commands, {
   double textScale = 1,
   InteractionPolicy interactionPolicy = InteractionPolicy.neutral,
+  VibeLibraryState? libraryState,
+  VibeLibraryCategoryState categoryState = const VibeLibraryCategoryState(),
 }) async {
-  final state = _PopulatedVibeLibraryNotifier.initialState;
+  final state = libraryState ?? _PopulatedVibeLibraryNotifier.initialState;
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -430,7 +494,7 @@ Future<void> _pumpWorkspace(
           child: Scaffold(
             body: VibeLibraryWorkspace(
               libraryState: state,
-              categoryState: const VibeLibraryCategoryState(),
+              categoryState: categoryState,
               selectionState: const SelectionModeState(),
               currentModel: 'nai-diffusion-4-full',
               controller: controller,

@@ -991,6 +991,70 @@ void main() {
     expect(find.byType(Dialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('embedded detail uses a wide centered dialog on desktop', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const item = GalleryItem(
+      id: 10,
+      workId: 'desktop-embedded-detail',
+      sourceId: GallerySourceId.aiTag,
+      title: 'Desktop embedded detail',
+    );
+    const detail = GalleryDetail(item: item, media: []);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => AdaptivePresenter.showForm<void>(
+                  context: context,
+                  showHeader: false,
+                  sideSheetWidth: 960,
+                  builder: (context, _) => GalleryDetailDialog(
+                    embedded: true,
+                    item: item,
+                    detail: detail,
+                    isFavorited: false,
+                    favoriteLoading: false,
+                    canUseGenerationActions: false,
+                    labels: _labels(),
+                    onCopyPrompt: (_) {},
+                    onToggleFavorite: () async => true,
+                    onOpenSource: () {},
+                    onSendToGenerate: (_) {},
+                    onAddToQueue: (_) async {},
+                    onDownloadCurrentOriginal: (_) async {},
+                    onTagSearch: (_) {},
+                    onBlacklistChanged: () {},
+                  ),
+                ),
+                child: const Text('Open desktop embedded detail'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open desktop embedded detail'));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsNothing);
+    final rect = tester.getRect(surface);
+    expect(rect.width, 960);
+    expect(rect.center, const Offset(800, 450));
+    expect(find.text('Desktop embedded detail'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 GalleryDetailDialogLabels _labels({String sourceName = 'Codex'}) {

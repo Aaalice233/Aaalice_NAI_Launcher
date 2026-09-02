@@ -601,9 +601,12 @@ void main() {
       await tester.pumpWidget(buildApp(const Size(1180, 760)));
       await tester.pumpAndSettle();
       await openExport();
-      expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('adaptive-centered-form')),
+        findsOneWidget,
+      );
       final panelRect = tester.getRect(
-        find.byKey(const ValueKey('adaptive-side-sheet')),
+        find.byKey(const ValueKey('adaptive-centered-form')),
       );
       expect(panelRect.width, lessThanOrEqualTo(560));
       expect(panelRect.right, lessThanOrEqualTo(1180));
@@ -811,8 +814,16 @@ void main() {
           scale: 1,
           surface: 'adaptive-centered-form',
         ),
-        (size: const Size(840, 500), scale: 2, surface: 'adaptive-side-sheet'),
-        (size: const Size(1600, 900), scale: 1, surface: 'adaptive-side-sheet'),
+        (
+          size: const Size(840, 500),
+          scale: 2,
+          surface: 'adaptive-full-screen-form',
+        ),
+        (
+          size: const Size(1600, 900),
+          scale: 1,
+          surface: 'adaptive-centered-form',
+        ),
       ]) {
         await tester.binding.setSurfaceSize(scenario.size);
         await tester.pumpWidget(

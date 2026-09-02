@@ -72,6 +72,12 @@ void main() {
     await _setViewport(tester, const Size(840, 700));
     await _pumpTagLibrary(tester, _TestTagLibraryPageNotifier.new);
 
+    expect(
+      find.byKey(const Key('tag-library-category-section-toggle')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('tag-library-all-entries')), findsOneWidget);
+
     await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pump();
     expect(find.text('测试子类别'), findsOneWidget);
@@ -122,7 +128,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-side-sheet')),
+        find.byKey(const ValueKey('adaptive-centered-form')),
         findsOneWidget,
         reason: label,
       );

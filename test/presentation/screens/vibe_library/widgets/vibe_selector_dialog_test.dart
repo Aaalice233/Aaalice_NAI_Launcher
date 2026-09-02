@@ -137,7 +137,7 @@ void main() {
 
   for (final (width, surfaceKey) in [
     (700.0, 'adaptive-centered-form'),
-    (1200.0, 'adaptive-side-sheet'),
+    (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('$width 宽度使用 AdaptivePresenter 有界选择面', (tester) async {
       await _openDialog(

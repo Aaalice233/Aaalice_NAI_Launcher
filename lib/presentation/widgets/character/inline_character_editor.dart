@@ -185,10 +185,6 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
                 currentController.text.isNotEmpty &&
                 availableBesideAssistant >=
                     minimumTabsWidth + clearButtonSize + 6;
-            final showTabs =
-                availableBesideAssistant -
-                    (canShowClear ? clearButtonSize + 6 : 0) >=
-                minimumTabsWidth;
             final reservedActionsWidth =
                 assistantWidth + (canShowClear ? clearButtonSize + 6 : 0);
 
@@ -198,34 +194,31 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
                 alignment: Alignment.centerRight,
                 children: [
                   Positioned.fill(
-                    right: reservedActionsWidth + 8,
-                    child: Offstage(
-                      offstage: !showTabs,
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: _EditorTab(
-                              label: l10n.prompt_positivePrompt,
-                              selected: _tabIndex == 0,
-                              onTap: () {
-                                setState(() => _tabIndex = 0);
-                                _focusCurrentTab();
-                              },
-                            ),
+                    right: assistantExpanded ? 0 : reservedActionsWidth + 8,
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: _EditorTab(
+                            label: l10n.prompt_positivePrompt,
+                            selected: _tabIndex == 0,
+                            onTap: () {
+                              setState(() => _tabIndex = 0);
+                              _focusCurrentTab();
+                            },
                           ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: _EditorTab(
-                              label: l10n.prompt_negativePrompt,
-                              selected: _tabIndex == 1,
-                              onTap: () {
-                                setState(() => _tabIndex = 1);
-                                _focusCurrentTab();
-                              },
-                            ),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: _EditorTab(
+                            label: l10n.prompt_negativePrompt,
+                            selected: _tabIndex == 1,
+                            onTap: () {
+                              setState(() => _tabIndex = 1);
+                              _focusCurrentTab();
+                            },
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                   if (canShowClear)

@@ -76,7 +76,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Expanded 使用有界侧栏并保留关闭结果', (tester) async {
+  testWidgets('Expanded 使用居中弹窗并保留关闭结果', (tester) async {
     var completed = false;
     await _pumpLauncher(
       tester,
@@ -87,11 +87,11 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    final panelFinder = find.byKey(const ValueKey('adaptive-side-sheet'));
+    final panelFinder = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panelFinder, findsOneWidget);
     final panel = tester.getRect(panelFinder);
-    expect(panel.width, 520);
-    expect(panel.right, 1180);
+    expect(panel.width, 700);
+    expect(panel.center.dx, moreOrLessEquals(590));
     expect(find.byType(Dialog), findsNothing);
 
     await tester.tap(find.byTooltip('关闭'));

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 import '../../../../adaptive/window_size_class.dart';
 
@@ -102,11 +103,8 @@ class _ChartCardState extends State<ChartCard> {
           child: AnimatedContainer(
             duration: reducedMotion
                 ? Duration.zero
-                : const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            transform: _isHovered && !reducedMotion
-                ? (Matrix4.identity()..translateByDouble(0.0, -2.0, 0, 1))
-                : Matrix4.identity(),
+                : theme.appTheme.fastDuration,
+            curve: theme.appTheme.standardCurve,
             decoration: BoxDecoration(
               color: _isHovered
                   ? colorScheme.surfaceContainer

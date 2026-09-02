@@ -70,7 +70,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Expanded 使用受限侧栏并保留完整表单与动作', (tester) async {
+  testWidgets('Expanded 使用居中弹窗并保留完整表单与动作', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -83,13 +83,16 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('open-canvas-size')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(find.byType(AlertDialog), findsNothing);
     final dialog = tester.getRect(
       find.byKey(const ValueKey('canvas-size-dialog')),
     );
     expect(dialog.width, lessThanOrEqualTo(480));
-    expect(dialog.left, greaterThanOrEqualTo(1120));
+    expect(dialog.center.dx, moreOrLessEquals(800));
     expect(
       find.byType(DropdownButtonFormField<CanvasSizePreset>),
       findsOneWidget,

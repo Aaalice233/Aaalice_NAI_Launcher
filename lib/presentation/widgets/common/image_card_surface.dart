@@ -6,6 +6,7 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../themes/theme_extension.dart';
 import 'animated_favorite_button.dart';
+import 'card_action_buttons.dart';
 import 'decoded_memory_image.dart';
 import 'image_card_actions.dart';
 import 'image_card_controller.dart';
@@ -241,7 +242,7 @@ class ImageCardSurface extends StatelessWidget {
                     Positioned(
                       right: 8,
                       bottom: 8,
-                      child: IconButton.filledTonal(
+                      child: IconButton(
                         onPressed: () =>
                             unawaited(onShowContextMenu(Offset.zero)),
                         tooltip: context.l10n.common_moreActions,
@@ -249,6 +250,7 @@ class ImageCardSurface extends StatelessWidget {
                           width: 48,
                           height: 48,
                         ),
+                        style: ImageOverlayControlStyle.iconButton(extent: 48),
                         icon: const Icon(Icons.more_horiz_rounded),
                       ),
                     ),
@@ -271,12 +273,19 @@ class ImageCardHoverActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
+        key: const ValueKey('image-card-hover-action-bar-surface'),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: Theme.of(
-            context,
-          ).colorScheme.inverseSurface.withValues(alpha: 0.88),
+          color: ImageOverlayControlStyle.toolbarSurface,
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: ImageOverlayControlStyle.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Wrap(
           spacing: 6,
@@ -291,55 +300,46 @@ class ImageCardHoverActionBar extends StatelessWidget {
   }
 }
 
-class _HoverAction extends StatefulWidget {
+class _HoverAction extends StatelessWidget {
   const _HoverAction({required this.action});
   final ImageCardAction action;
-
-  @override
-  State<_HoverAction> createState() => _HoverActionState();
-}
-
-class _HoverActionState extends State<_HoverAction> {
-  bool hovered = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final primary = colors.primary;
-    final reducedMotion = MediaQuery.disableAnimationsOf(context);
-    return MouseRegion(
-      onEnter: (_) => setState(() => hovered = true),
-      onExit: (_) => setState(() => hovered = false),
-      child: Tooltip(
-        message: widget.action.label,
-        child: GestureDetector(
-          onTap: widget.action.invoke,
-          child: AnimatedContainer(
-            duration: reducedMotion
-                ? Duration.zero
-                : theme.appTheme.fastDuration,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: widget.action.isPrimary
-                  ? (hovered ? primary : primary.withValues(alpha: 0.9))
-                  : (hovered
-                        ? colors.onInverseSurface.withValues(alpha: 0.2)
-                        : Colors.transparent),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              widget.action.icon,
-              size: 20,
-              color: widget.action.isPrimary
-                  ? colors.onPrimary
-                  : colors.onInverseSurface.withValues(
-                      alpha: hovered ? 1 : 0.8,
-                    ),
-            ),
-          ),
+    final action = this.action;
+    return IconButton(
+      tooltip: action.label,
+      onPressed: action.invoke,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size.square(40)),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          final emphasized =
+              states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.focused) ||
+              states.contains(WidgetState.pressed);
+          if (action.isPrimary) {
+            return colors.primary.withValues(alpha: emphasized ? 1 : 0.9);
+          }
+          return emphasized
+              ? ImageOverlayControlStyle.foreground.withValues(alpha: 0.16)
+              : Colors.transparent;
+        }),
+        foregroundColor: WidgetStatePropertyAll(
+          action.isPrimary
+              ? colors.onPrimary
+              : ImageOverlayControlStyle.foreground,
         ),
       ),
+      icon: Icon(action.icon, size: 20),
     );
   }
 }

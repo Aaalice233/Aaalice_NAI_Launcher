@@ -13,7 +13,7 @@ void main() {
       final expectedSurface = switch (width) {
         < 600 => 'adaptive-full-screen-form',
         < 840 => 'adaptive-centered-form',
-        _ => 'adaptive-side-sheet',
+        _ => 'adaptive-centered-form',
       };
       final surface = tester.getRect(find.byKey(ValueKey(expectedSurface)));
       expect(surface.left, greaterThanOrEqualTo(0));

@@ -67,7 +67,7 @@ void main() {
           ? find.byKey(const ValueKey('adaptive-full-screen-form'))
           : width < 840
           ? find.byKey(const ValueKey('adaptive-centered-form'))
-          : find.byKey(const ValueKey('adaptive-side-sheet'));
+          : find.byKey(const ValueKey('adaptive-centered-form'));
       expect(presentation, findsOneWidget, reason: 'width=$width');
       expect(find.byType(Dialog), findsNothing);
       expect(find.text('Cancel').hitTestable(), findsOneWidget);

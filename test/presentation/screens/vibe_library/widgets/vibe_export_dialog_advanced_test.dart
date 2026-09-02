@@ -102,7 +102,7 @@ void main() {
 
   for (final (width, surfaceKey) in [
     (700.0, 'adaptive-centered-form'),
-    (1200.0, 'adaptive-side-sheet'),
+    (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('${width.toInt()} 宽完整导出管理器使用共享自适应表单', (tester) async {
       tester.view.devicePixelRatio = 1;

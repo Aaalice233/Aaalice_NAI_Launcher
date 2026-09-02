@@ -870,7 +870,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     return SliverGrid.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columnCount,
-        childAspectRatio: 0.8, // 稍微调整宽高比，让卡片更紧凑
+        childAspectRatio: vibeCardAspectRatio,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),

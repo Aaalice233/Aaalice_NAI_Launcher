@@ -458,11 +458,19 @@ class GalleryAllImagesItem extends StatefulWidget {
     required this.count,
     required this.isSelected,
     required this.onTap,
+    this.label,
+    this.icon = Icons.photo_library_outlined,
+    this.selectedIcon = Icons.photo_library_rounded,
+    this.iconColor,
   });
 
   final int count;
   final bool isSelected;
   final VoidCallback onTap;
+  final String? label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final Color? iconColor;
 
   @override
   State<GalleryAllImagesItem> createState() => _GalleryAllImagesItemState();
@@ -533,19 +541,19 @@ class _GalleryAllImagesItemState extends State<GalleryAllImagesItem> {
                       ),
                       alignment: Alignment.center,
                       child: Icon(
-                        widget.isSelected
-                            ? Icons.photo_library_rounded
-                            : Icons.photo_library_outlined,
+                        widget.isSelected ? widget.selectedIcon : widget.icon,
                         size: 18,
-                        color: widget.isSelected
-                            ? colors.primary
-                            : colors.onSurfaceVariant,
+                        color:
+                            widget.iconColor ??
+                            (widget.isSelected
+                                ? colors.primary
+                                : colors.onSurfaceVariant),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        context.l10n.localGallery_allImages,
+                        widget.label ?? context.l10n.localGallery_allImages,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: foreground,

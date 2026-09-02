@@ -77,7 +77,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(ComfyUIWorkflowDialog), findsOneWidget);
 
-    final panel = find.byKey(const ValueKey('adaptive-side-sheet'));
+    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panel, findsOneWidget);
     expect(tester.getSize(panel).width, lessThanOrEqualTo(560));
     expect(find.text('采样器'), findsOneWidget);

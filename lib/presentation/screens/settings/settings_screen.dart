@@ -278,6 +278,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ? theme.colorScheme.surfaceContainerHighest
                   : null,
               surfaceTintColor: Colors.transparent,
+              shape: Border(
+                bottom: BorderSide(color: theme.dividerColor, width: 1),
+              ),
             ),
             body: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -328,6 +331,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ? theme.colorScheme.surfaceContainerHighest
               : null,
           surfaceTintColor: Colors.transparent,
+          shape: Border(
+            bottom: BorderSide(color: theme.dividerColor, width: 1),
+          ),
         ),
         body: AnimatedSwitcher(
           duration: MediaQuery.disableAnimationsOf(context)

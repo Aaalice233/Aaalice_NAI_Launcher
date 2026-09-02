@@ -173,7 +173,7 @@ void main() {
 
       final presentation = scenario.size.width < 600
           ? find.byKey(const ValueKey('adaptive-full-screen-form'))
-          : find.byKey(const ValueKey('adaptive-side-sheet'));
+          : find.byKey(const ValueKey('adaptive-centered-form'));
       expect(presentation, findsOneWidget);
       expect(find.byType(AlertDialog), findsNothing);
       final scrollable = find.descendant(

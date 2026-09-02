@@ -24,6 +24,7 @@ class VibeCategoryItem extends StatefulWidget {
   final void Function(String)? onRename;
   final VoidCallback? onDelete;
   final VoidCallback? onAddSubCategory;
+  final bool reserveExpansionSpace;
 
   const VibeCategoryItem({
     super.key,
@@ -40,6 +41,7 @@ class VibeCategoryItem extends StatefulWidget {
     this.onRename,
     this.onDelete,
     this.onAddSubCategory,
+    this.reserveExpansionSpace = true,
   });
 
   @override
@@ -119,13 +121,15 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: isTouch ? 48 : 0),
+              constraints: BoxConstraints(
+                minHeight: isTouch || !widget.reserveExpansionSpace ? 48 : 0,
+              ),
               child: Padding(
                 padding: EdgeInsets.only(
                   left: indent,
                   right: isTouch ? 0 : 8,
-                  top: isTouch ? 0 : 8,
-                  bottom: isTouch ? 0 : 8,
+                  top: isTouch || !widget.reserveExpansionSpace ? 0 : 8,
+                  bottom: isTouch || !widget.reserveExpansionSpace ? 0 : 8,
                 ),
                 child: Row(
                   children: [
@@ -149,7 +153,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                           height: 48,
                         ),
                       )
-                    else
+                    else if (widget.reserveExpansionSpace)
                       const SizedBox(width: 48, height: 48),
 
                     // 图标
@@ -212,7 +216,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                       Padding(
                         padding: const EdgeInsets.only(right: 4),
                         child: Icon(
-                          Icons.drag_indicator,
+                          Icons.edit_outlined,
                           size: 14,
                           color: theme.colorScheme.outline.withAlpha(128),
                         ),

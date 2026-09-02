@@ -260,6 +260,43 @@ void main() {
     },
   );
 
+  testWidgets('desktop fixed-tag manager opens as a centered dialog', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    )..fixedSidebarExpanded = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: Center(child: FixedTagsButton())),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(FixedTagsButton));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsNothing);
+    final rect = tester.getRect(surface);
+    expect(rect.width, 980);
+    expect(rect.center, const Offset(800, 450));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'mobile fixed-tag manager uses one adaptive column without overflow',
     (tester) async {

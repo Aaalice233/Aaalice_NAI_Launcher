@@ -49,7 +49,10 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(
       tester.getSize(find.byKey(const ValueKey('new-preset-dialog-frame'))),
       const Size(420, 560),

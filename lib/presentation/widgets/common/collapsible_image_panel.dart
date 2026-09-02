@@ -391,24 +391,37 @@ class _CollapsibleImagePanelState extends State<CollapsibleImagePanel>
                                             (widget.headerActions?.isNotEmpty ??
                                                 false))
                                           Expanded(
-                                            child: Row(
-                                              children: [
-                                                Flexible(child: title),
-                                                const SizedBox(width: 8),
-                                                Expanded(
-                                                  child: Align(
-                                                    alignment:
-                                                        Alignment.centerLeft,
-                                                    child: Wrap(
-                                                      key: ValueKey(
-                                                        'collapsible-leading-actions-${widget.title}',
-                                                      ),
-                                                      children:
-                                                          widget.headerActions!,
+                                            child: LayoutBuilder(
+                                              builder: (context, constraints) {
+                                                final titleMaxWidth =
+                                                    constraints.maxWidth * 0.4;
+                                                return Row(
+                                                  children: [
+                                                    ConstrainedBox(
+                                                      constraints:
+                                                          BoxConstraints(
+                                                            maxWidth:
+                                                                titleMaxWidth,
+                                                          ),
+                                                      child: title,
                                                     ),
-                                                  ),
-                                                ),
-                                              ],
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Align(
+                                                        alignment: Alignment
+                                                            .centerLeft,
+                                                        child: Wrap(
+                                                          key: ValueKey(
+                                                            'collapsible-leading-actions-${widget.title}',
+                                                          ),
+                                                          children: widget
+                                                              .headerActions!,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
                                             ),
                                           )
                                         else
