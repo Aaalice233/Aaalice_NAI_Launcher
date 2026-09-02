@@ -71,6 +71,7 @@ class EntryAddDialog extends ConsumerStatefulWidget {
       context: context,
       titleBuilder: title,
       sideSheetWidth: 700,
+      maxCenteredHeight: 680,
       builder: (dialogContext, scrollController) => EntryAddDialog._(
         categories: categories,
         initialCategoryId: initialCategoryId,
@@ -289,7 +290,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                 controller: _scrollController,
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                 children: [
                   LayoutBuilder(
                     builder: (context, constraints) {
@@ -323,7 +324,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
-                    height: 150,
+                    key: const Key('entry-add-dialog-content-editor'),
+                    height: 176,
                     child: PromptFormatterWrapper(
                       controller: _contentController,
                       focusNode: _contentFocusNode,
@@ -405,77 +407,81 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   }
 
   Widget _buildThumbnailSection(ThemeData theme, {bool expand = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          context.l10n.tagLibrary_thumbnail,
-          style: theme.textTheme.labelLarge,
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _thumbnailPath != null
-              ? _showThumbnailOptions
-              : _selectThumbnail,
-          child: Container(
-            width: expand ? double.infinity : 200,
-            height: expand ? 112 : 80,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: _thumbnailPath != null
-                ? Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(11),
-                        child: _buildThumbnailImage(),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: IconButton.filled(
-                          icon: const Icon(Icons.close, size: 16),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.black54,
-                            foregroundColor: Colors.white,
-                            minimumSize: Size.square(
-                              context.interactionPolicy.minimumControlExtent,
-                            ),
-                            padding: EdgeInsets.zero,
-                          ),
-                          onPressed: _clearThumbnail,
+    return SizedBox(
+      key: const Key('entry-add-dialog-thumbnail-section'),
+      width: expand ? double.infinity : 220,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.tagLibrary_thumbnail,
+            style: theme.textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _thumbnailPath != null
+                ? _showThumbnailOptions
+                : _selectThumbnail,
+            child: Container(
+              width: double.infinity,
+              height: expand ? 112 : 124,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: _thumbnailPath != null
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: _buildThumbnailImage(),
                         ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 36,
-                        color: theme.colorScheme.outline,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        context.l10n.tagLibrary_selectImage,
-                        style: TextStyle(
-                          fontSize: 12,
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: IconButton.filled(
+                            icon: const Icon(Icons.close, size: 16),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black54,
+                              foregroundColor: Colors.white,
+                              minimumSize: Size.square(
+                                context.interactionPolicy.minimumControlExtent,
+                              ),
+                              padding: EdgeInsets.zero,
+                            ),
+                            onPressed: _clearThumbnail,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 36,
                           color: theme.colorScheme.outline,
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(height: 8),
+                        Text(
+                          context.l10n.tagLibrary_selectImage,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          context.l10n.tagLibrary_thumbnailHint,
-          style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.tagLibrary_thumbnailHint,
+            style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+          ),
+        ],
+      ),
     );
   }
 
@@ -585,13 +591,15 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     );
 
     // 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
-    return ThumbnailDisplay(
-      imagePath: _thumbnailPath!,
-      offsetX: _thumbnailOffsetX,
-      offsetY: _thumbnailOffsetY,
-      scale: _thumbnailScale,
-      width: 200,
-      height: 80,
+    return LayoutBuilder(
+      builder: (context, constraints) => ThumbnailDisplay(
+        imagePath: _thumbnailPath!,
+        offsetX: _thumbnailOffsetX,
+        offsetY: _thumbnailOffsetY,
+        scale: _thumbnailScale,
+        width: constraints.maxWidth,
+        height: constraints.maxHeight,
+      ),
     );
   }
 

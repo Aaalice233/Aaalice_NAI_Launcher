@@ -91,8 +91,21 @@ void main() {
     expect(panelFinder, findsOneWidget);
     final panel = tester.getRect(panelFinder);
     expect(panel.width, 700);
+    expect(panel.height, 680);
     expect(panel.center.dx, moreOrLessEquals(590));
+    expect(panel.center.dy, moreOrLessEquals(400));
     expect(find.byType(Dialog), findsNothing);
+
+    final thumbnailSection = tester.getRect(
+      find.byKey(const Key('entry-add-dialog-thumbnail-section')),
+    );
+    final editor = tester.getRect(
+      find.byKey(const Key('entry-add-dialog-content-editor')),
+    );
+    expect(thumbnailSection.width, 220);
+    expect(thumbnailSection.height, lessThan(210));
+    expect(editor.height, 176);
+    expect(editor.top, lessThan(490));
 
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();
