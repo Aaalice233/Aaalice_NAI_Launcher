@@ -922,6 +922,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_disableWebAccess => '关闭联网';
 
   @override
+  String get agentChat_webAccessLabel => '联网';
+
+  @override
+  String get agentChat_contextUsageLabel => '上下文';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支持的图片格式：$fileName';
   }
@@ -934,6 +940,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_send => '发送';
+
+  @override
+  String get agentChat_sendEmptyHint => '输入消息或添加图片后即可发送';
+
+  @override
+  String get agentChat_sendUnavailableHint => 'AI 助手尚未准备好发送消息';
 
   @override
   String get agentChat_stop => '停止';
@@ -14566,6 +14578,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_disableWebAccess => '關閉聯網';
 
   @override
+  String get agentChat_webAccessLabel => '聯網';
+
+  @override
+  String get agentChat_contextUsageLabel => '上下文';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支援的圖片格式：$fileName';
   }
@@ -14578,6 +14596,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_send => '傳送';
+
+  @override
+  String get agentChat_sendEmptyHint => '輸入訊息或加入圖片後即可傳送';
+
+  @override
+  String get agentChat_sendUnavailableHint => 'AI 助手尚未準備好傳送訊息';
 
   @override
   String get agentChat_stop => '停止';

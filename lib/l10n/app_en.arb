@@ -363,6 +363,8 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "Enable web access",
   "agentChat_disableWebAccess": "Disable web access",
+  "agentChat_webAccessLabel": "Web access",
+  "agentChat_contextUsageLabel": "Context",
   "agentChat_unsupportedImageFormat": "Unsupported image format: {fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -372,6 +374,8 @@
   "agentChat_newChat": "New chat",
   "agentChat_searchSessions": "Search chats",
   "agentChat_send": "Send",
+  "agentChat_sendEmptyHint": "Enter a message or add an image to send",
+  "agentChat_sendUnavailableHint": "The AI assistant is not ready to send yet",
   "agentChat_stop": "Stop",
   "agentChat_queued": "Queued",
   "agentChat_queueSteering": "Steer current work",

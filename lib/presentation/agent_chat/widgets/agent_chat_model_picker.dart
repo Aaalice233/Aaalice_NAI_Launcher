@@ -142,12 +142,14 @@ class AgentChatThinkingControl extends StatelessWidget {
     required this.availableLevels,
     required this.enabled,
     required this.onSelected,
+    this.showLabel = true,
   });
 
   final ThinkingLevel level;
   final List<ThinkingLevel> availableLevels;
   final bool enabled;
   final Future<void> Function(ThinkingLevel level) onSelected;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -198,17 +200,19 @@ class AgentChatThinkingControl extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Flexible(
-                child: Text(
-                  '${l10n.agentChat_reasoningLevel}:',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+              if (showLabel) ...[
+                Flexible(
+                  child: Text(
+                    '${l10n.agentChat_reasoningLevel}:',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(width: 4),
+                const SizedBox(width: 4),
+              ],
               Text(
                 value,
                 style: Theme.of(

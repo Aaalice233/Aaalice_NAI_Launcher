@@ -348,6 +348,8 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "开启联网",
   "agentChat_disableWebAccess": "关闭联网",
+  "agentChat_webAccessLabel": "联网",
+  "agentChat_contextUsageLabel": "上下文",
   "agentChat_unsupportedImageFormat": "不支持的图片格式：{fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -357,6 +359,8 @@
   "agentChat_newChat": "新建聊天",
   "agentChat_searchSessions": "搜索聊天",
   "agentChat_send": "发送",
+  "agentChat_sendEmptyHint": "输入消息或添加图片后即可发送",
+  "agentChat_sendUnavailableHint": "AI 助手尚未准备好发送消息",
   "agentChat_stop": "停止",
   "agentChat_queued": "已排队",
   "agentChat_queueSteering": "插入当前工作",

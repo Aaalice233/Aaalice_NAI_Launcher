@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
@@ -77,7 +78,7 @@ void main() {
       );
     }
     expect(
-      find.byKey(const ValueKey('agent-chat-composer-controls-wrap')),
+      find.byKey(const ValueKey('agent-chat-composer-status-stacked')),
       findsOneWidget,
     );
     expect(find.byType(SingleChildScrollView), findsOneWidget);
@@ -85,7 +86,9 @@ void main() {
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
     );
-    expect(find.text('23%'), findsOneWidget);
+    expect(find.text('Ask'), findsOneWidget);
+    expect(find.text('Web access'), findsOneWidget);
+    expect(find.text('Context · 23%'), findsOneWidget);
 
     final surfaceFinder = find.byKey(
       const ValueKey('agent-chat-composer-surface'),
@@ -116,6 +119,29 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('input boundary and disabled send reason stay explicit', (
+    tester,
+  ) async {
+    await _pumpComposer(tester, width: 520, mobile: false);
+
+    final input = tester.widget<TextField>(
+      find.byKey(const ValueKey('agent-chat-input')),
+    );
+    final decoration = input.decoration!;
+    expect(decoration.filled, isTrue);
+    expect(decoration.enabledBorder, isA<OutlineInputBorder>());
+    expect(decoration.focusedBorder, isA<OutlineInputBorder>());
+    expect(
+      (decoration.focusedBorder! as OutlineInputBorder).borderSide.color,
+      isNot((decoration.enabledBorder! as OutlineInputBorder).borderSide.color),
+    );
+    expect(
+      find.byTooltip('Enter a message or add an image to send'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('unavailable context stays compact and has no empty ring', (
     tester,
   ) async {
@@ -129,12 +155,13 @@ void main() {
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
     );
-    expect(find.text('—'), findsOneWidget);
+    expect(find.text('Context · —'), findsOneWidget);
     expect(find.text('Context usage unavailable'), findsNothing);
     final target = tester.getSize(
       find.byKey(const ValueKey('agent-chat-context-target')),
     );
-    expect(target, const Size.square(48));
+    expect(target.height, 48);
+    expect(target.width, greaterThan(48));
     expect(tester.takeException(), isNull);
   });
 
@@ -172,10 +199,10 @@ void main() {
       );
     }
     expect(
-      find.byKey(const ValueKey('agent-chat-composer-controls-wrap')),
+      find.byKey(const ValueKey('agent-chat-composer-status-stacked')),
       findsNothing,
     );
-    expect(find.text('—'), findsOneWidget);
+    expect(find.text('Context · —'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
@@ -197,7 +224,7 @@ void main() {
     expect(toolbar, settings);
     expect(toolbar.height, greaterThan(40));
     expect(
-      find.byKey(const ValueKey('agent-chat-composer-controls-wrap')),
+      find.byKey(const ValueKey('agent-chat-composer-status-stacked')),
       findsOneWidget,
     );
     for (final key in const [
@@ -260,7 +287,13 @@ void main() {
 
     final selector = find.byKey(const ValueKey('agent-chat-model-selector'));
     expect(find.textContaining(modelName), findsOneWidget);
-    expect(tester.getSize(selector).width, greaterThan(120));
+    expect(tester.getSize(selector).width, greaterThan(180));
+    expect(
+      tester
+          .renderObject<RenderParagraph>(find.text(modelName))
+          .didExceedMaxLines,
+      isFalse,
+    );
 
     await tester.tap(selector);
     await tester.pumpAndSettle();
@@ -295,8 +328,12 @@ void main() {
       find.byKey(const ValueKey('agent-chat-context-unavailable')),
       findsNothing,
     );
+    expect(
+      find.byKey(const ValueKey('agent-chat-context-loading-label')),
+      findsOneWidget,
+    );
     expect(find.text('Context usage unavailable'), findsNothing);
-    expect(find.text('Compacting context…'), findsNothing);
+    expect(find.text('Compacting context…'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -363,7 +400,11 @@ void main() {
         find.byKey(const ValueKey('agent-chat-model-selector')),
       );
       expect(input.bottom, lessThanOrEqualTo(controls.top));
-      expect(controls.height, scale == 1 ? 84 : 104);
+      if (scale == 1) {
+        expect(controls.height, 84);
+      } else {
+        expect(controls.height, inInclusiveRange(104, 128));
+      }
       expect(more.dx, lessThan(model.dx));
       expect(
         find.byKey(const ValueKey('agent-chat-composer-controls-scroll')),
@@ -555,7 +596,7 @@ void main() {
     expect(queue.bottom, lessThanOrEqualTo(input.top));
     expect(input.bottom, lessThanOrEqualTo(actions.top));
     expect(actions, settings);
-    expect(find.text('61%'), findsOneWidget);
+    expect(find.text('Context · 61%'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -663,8 +704,8 @@ void main() {
     );
     expect(stop.overlaps(expand), isFalse);
     expect(stop.top, greaterThanOrEqualTo(editor.bottom));
-    expect(expand.top, closeTo(editor.top + 2, 0.01));
-    expect(expand.right, lessThanOrEqualTo(editor.right - 4));
+    expect(expand.top, closeTo(editor.top + 6, 0.01));
+    expect(expand.right, lessThanOrEqualTo(editor.right - 6));
     expect(find.byKey(const ValueKey('agent-chat-stop')), findsNothing);
     expect(find.bySemanticsLabel('Stop'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('agent-chat-send')));

@@ -937,6 +937,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_disableWebAccess => 'ウェブアクセスを無効にする';
 
   @override
+  String get agentChat_webAccessLabel => 'ウェブ';
+
+  @override
+  String get agentChat_contextUsageLabel => 'コンテキスト';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return 'サポートされていない画像形式です: $fileName';
   }
@@ -949,6 +955,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_send => '送信';
+
+  @override
+  String get agentChat_sendEmptyHint => 'メッセージを入力するか画像を追加してください';
+
+  @override
+  String get agentChat_sendUnavailableHint => 'AI アシスタントはまだ送信できません';
 
   @override
   String get agentChat_stop => '停止';

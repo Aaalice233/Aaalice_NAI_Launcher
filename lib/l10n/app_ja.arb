@@ -355,6 +355,8 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "ウェブアクセスを有効にする",
   "agentChat_disableWebAccess": "ウェブアクセスを無効にする",
+  "agentChat_webAccessLabel": "ウェブ",
+  "agentChat_contextUsageLabel": "コンテキスト",
   "agentChat_unsupportedImageFormat": "サポートされていない画像形式です: {fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -364,6 +366,8 @@
   "agentChat_newChat": "新しいチャット",
   "agentChat_searchSessions": "チャットを検索",
   "agentChat_send": "送信",
+  "agentChat_sendEmptyHint": "メッセージを入力するか画像を追加してください",
+  "agentChat_sendUnavailableHint": "AI アシスタントはまだ送信できません",
   "agentChat_stop": "停止",
   "agentChat_queued": "待機中",
   "agentChat_queueSteering": "現在の作業に割り込む",

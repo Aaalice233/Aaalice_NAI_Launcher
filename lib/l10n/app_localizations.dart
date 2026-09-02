@@ -1853,6 +1853,18 @@ abstract class AppLocalizations {
   /// **'Disable web access'**
   String get agentChat_disableWebAccess;
 
+  /// No description provided for @agentChat_webAccessLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Web access'**
+  String get agentChat_webAccessLabel;
+
+  /// No description provided for @agentChat_contextUsageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Context'**
+  String get agentChat_contextUsageLabel;
+
   /// No description provided for @agentChat_unsupportedImageFormat.
   ///
   /// In en, this message translates to:
@@ -1876,6 +1888,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send'**
   String get agentChat_send;
+
+  /// No description provided for @agentChat_sendEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a message or add an image to send'**
+  String get agentChat_sendEmptyHint;
+
+  /// No description provided for @agentChat_sendUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI assistant is not ready to send yet'**
+  String get agentChat_sendUnavailableHint;
 
   /// No description provided for @agentChat_stop.
   ///

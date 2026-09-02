@@ -279,7 +279,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             ? l10n.agentChat_inputHint
             : l10n.agentChat_inputHintWithSlash,
         hintStyle: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.68),
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.82),
         ),
         contentPadding: EdgeInsets.fromLTRB(
           viewData.compactWidth ? 14 : 13,
@@ -287,12 +287,32 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           target * trailingControls + 6,
           10,
         ),
-        filled: false,
-        fillColor: Colors.transparent,
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        disabledBorder: InputBorder.none,
+        filled: true,
+        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.34,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.42),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.primary.withValues(alpha: 0.78),
+          ),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
+        ),
       ),
     );
 
@@ -375,8 +395,8 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             child: editor,
           ),
           Positioned(
-            top: 2,
-            right: 4,
+            top: 6,
+            right: 6,
             child: AgentChatComposerExpandButton(
               key: const ValueKey('agent-chat-composer-expand'),
               expanded: _editorExpanded,
@@ -407,70 +427,67 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             .toDouble();
         const gap = 4.0;
         final locallyCompact = constraints.maxWidth < 600;
-        final thinkingWidth = switch (textScale) {
-          >= 3 => 280.0,
-          >= 2 => 220.0,
-          _ => locallyCompact ? 120.0 : 132.0,
-        };
-        final modelWidth = switch (textScale) {
-          >= 3 => 260.0,
-          >= 2 => 220.0,
-          _ => locallyCompact ? 160.0 : 220.0,
-        };
-        final primaryRequiredWidth =
-            target * 3 + modelWidth + thinkingWidth + gap * 4;
         final hasDraft =
             controller.inputController.text.trim().isNotEmpty ||
             controller.pendingImages.isNotEmpty;
-        final quietControlTheme = theme.copyWith(
-          colorScheme: theme.colorScheme.copyWith(
-            surfaceContainerHighest: theme.colorScheme.surfaceContainerLow,
-          ),
-        );
-
         final sendButton = _SendButton(
           running: viewData.running,
           enabled: viewData.running || (viewData.canSend && hasDraft),
+          disabledReason: hasDraft
+              ? l10n.agentChat_sendUnavailableHint
+              : l10n.agentChat_sendEmptyHint,
           onSend: commands.send,
           onStop: commands.stop,
         );
 
-        final primaryControls = constraints.maxWidth >= primaryRequiredWidth
-            ? SizedBox(
-                height: target,
-                child: Row(
-                  children: [
-                    _attachmentSourceButton(theme, l10n),
-                    const SizedBox(width: gap),
-                    SizedBox(width: modelWidth, child: _modelSelector()),
-                    const SizedBox(width: gap),
-                    SizedBox(width: thinkingWidth, child: _thinkingSelector()),
-                    const Spacer(),
-                    _permissionModeButton(theme, l10n),
-                    const SizedBox(width: gap),
-                    sendButton,
-                  ],
-                ),
-              )
-            : Wrap(
-                key: const ValueKey('agent-chat-composer-controls-wrap'),
-                spacing: gap,
-                runSpacing: gap,
-                crossAxisAlignment: WrapCrossAlignment.center,
+        final primaryControls = SizedBox(
+          height: target,
+          child: Row(
+            children: [
+              _attachmentSourceButton(theme, l10n),
+              const SizedBox(width: gap),
+              Expanded(child: _modelSelector(showLabel: !locallyCompact)),
+              const SizedBox(width: gap),
+              sendButton,
+            ],
+          ),
+        );
+        final settingsControls = <Widget>[
+          _thinkingSelector(),
+          _permissionModeButton(theme, l10n, showLabel: true),
+          _webAccessToggle(theme, l10n, showLabel: true),
+          _contextIndicator(theme, l10n, showLabel: true),
+        ];
+        final statusControls = constraints.maxWidth < 400
+            ? Column(
+                key: const ValueKey('agent-chat-composer-status-stacked'),
                 children: [
-                  _attachmentSourceButton(theme, l10n),
-                  SizedBox(
-                    width: modelWidth.clamp(0, constraints.maxWidth).toDouble(),
-                    child: _modelSelector(),
+                  Row(
+                    children: [
+                      Expanded(child: settingsControls[0]),
+                      const SizedBox(width: gap),
+                      Expanded(child: settingsControls[1]),
+                    ],
                   ),
-                  SizedBox(
-                    width: thinkingWidth
-                        .clamp(0, constraints.maxWidth)
-                        .toDouble(),
-                    child: _thinkingSelector(),
+                  const SizedBox(height: gap),
+                  Row(
+                    children: [
+                      Expanded(child: settingsControls[2]),
+                      const SizedBox(width: gap),
+                      Expanded(flex: 2, child: settingsControls[3]),
+                    ],
                   ),
-                  _permissionModeButton(theme, l10n),
-                  sendButton,
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(flex: 3, child: settingsControls[0]),
+                  const SizedBox(width: gap),
+                  Expanded(flex: 2, child: settingsControls[1]),
+                  const SizedBox(width: gap),
+                  Expanded(flex: 2, child: settingsControls[2]),
+                  const SizedBox(width: gap),
+                  Expanded(flex: 4, child: settingsControls[3]),
                 ],
               );
         final controls = Column(
@@ -478,32 +495,27 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           children: [
             primaryControls,
             const SizedBox(height: gap),
-            Row(
-              children: [
-                _webAccessToggle(theme, l10n),
-                const SizedBox(width: gap),
-                _contextIndicator(theme, l10n),
-              ],
-            ),
+            statusControls,
           ],
         );
 
-        return Theme(
-          data: quietControlTheme,
-          child: SizedBox(
-            key: const ValueKey('agent-chat-session-controls'),
-            width: double.infinity,
-            child: KeyedSubtree(
-              key: const ValueKey('agent-chat-message-actions'),
-              child: controls,
-            ),
+        return SizedBox(
+          key: const ValueKey('agent-chat-session-controls'),
+          width: double.infinity,
+          child: KeyedSubtree(
+            key: const ValueKey('agent-chat-message-actions'),
+            child: controls,
           ),
         );
       },
     );
   }
 
-  Widget _contextIndicator(ThemeData theme, AppLocalizations l10n) {
+  Widget _contextIndicator(
+    ThemeData theme,
+    AppLocalizations l10n, {
+    bool showLabel = false,
+  }) {
     final usage = viewData.state.contextUsage;
     final tokens = usage.tokens;
     final window = usage.contextWindow;
@@ -524,7 +536,11 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         ? () => commands.moreAction(AgentChatMoreAction.compact)
         : null;
     final target = context.interactionPolicy.minimumControlExtent;
-    final ringSize = context.interactionPolicy.touchAvailable ? 36.0 : 32.0;
+    final meterColor = available && percent != null && percent >= 100
+        ? theme.colorScheme.error
+        : available && percent != null && percent >= 80
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.primary;
 
     return Semantics(
       button: onPressed != null,
@@ -533,66 +549,97 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       child: Tooltip(
         message: label,
         child: Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: onPressed == null ? 0.28 : 0.5,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onPressed,
-            customBorder: const CircleBorder(),
-            child: SizedBox.square(
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
               key: const ValueKey('agent-chat-context-target'),
-              dimension: target,
-              child: Center(
-                child: SizedBox.square(
-                  key: const ValueKey('agent-chat-context-ring'),
-                  dimension: ringSize,
-                  child: loading
-                      ? Padding(
-                          padding: const EdgeInsets.all(6),
-                          child: CircularProgressIndicator(
-                            key: const ValueKey('agent-chat-context-loading'),
-                            strokeWidth: 2,
-                            value: MediaQuery.disableAnimationsOf(context)
-                                ? 0.75
-                                : null,
-                            color: theme.colorScheme.primary,
-                            backgroundColor:
-                                theme.colorScheme.surfaceContainerHighest,
-                          ),
-                        )
-                      : Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CircularProgressIndicator(
-                              strokeWidth: 2.5,
+              constraints: BoxConstraints(minHeight: target),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: showLabel ? 10 : 0),
+                child: Row(
+                  mainAxisSize: showLabel ? MainAxisSize.max : MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox.square(
+                      key: const ValueKey('agent-chat-context-ring'),
+                      dimension: 20,
+                      child: loading
+                          ? Padding(
+                              padding: const EdgeInsets.all(2),
+                              child: CircularProgressIndicator(
+                                key: const ValueKey(
+                                  'agent-chat-context-loading',
+                                ),
+                                strokeWidth: 2,
+                                value: MediaQuery.disableAnimationsOf(context)
+                                    ? 0.75
+                                    : null,
+                                color: meterColor,
+                                backgroundColor:
+                                    theme.colorScheme.surfaceContainerHighest,
+                              ),
+                            )
+                          : CircularProgressIndicator(
+                              strokeWidth: 2.25,
                               value: available
                                   ? (tokens! / window!).clamp(0.0, 1.0)
                                   : 0,
-                              color: theme.colorScheme.primary,
+                              color: meterColor,
                               backgroundColor:
                                   theme.colorScheme.surfaceContainerHighest,
                             ),
-                            Center(
-                              child: Text(
-                                available ? '$percent%' : '—',
-                                key: available
-                                    ? const ValueKey(
-                                        'agent-chat-context-token-label',
-                                      )
-                                    : const ValueKey(
-                                        'agent-chat-context-unavailable',
-                                      ),
-                                maxLines: 1,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  fontSize: available && percent! >= 100
-                                      ? 8
-                                      : 9,
-                                  fontWeight: FontWeight.w600,
+                    ),
+                    if (showLabel) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          loading
+                              ? (viewData.state.compacting
+                                    ? l10n.agentChat_compacting
+                                    : l10n.common_loading)
+                              : '${l10n.agentChat_contextUsageLabel} · ${available ? '$percent%' : '—'}',
+                          key: loading
+                              ? const ValueKey(
+                                  'agent-chat-context-loading-label',
+                                )
+                              : available
+                              ? const ValueKey('agent-chat-context-token-label')
+                              : const ValueKey(
+                                  'agent-chat-context-unavailable',
                                 ),
-                              ),
-                            ),
-                          ],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: available
+                                ? theme.colorScheme.onSurface
+                                : theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
+                      ),
+                    ] else
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          available ? '$percent%' : '—',
+                          key: available
+                              ? const ValueKey('agent-chat-context-token-label')
+                              : const ValueKey(
+                                  'agent-chat-context-unavailable',
+                                ),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -935,8 +982,13 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     };
   }
 
-  Widget _permissionModeButton(ThemeData theme, AppLocalizations l10n) {
+  Widget _permissionModeButton(
+    ThemeData theme,
+    AppLocalizations l10n, {
+    bool showLabel = false,
+  }) {
     final mode = viewData.agentSettings.settings.chat.permissionMode;
+    final modeLabel = agentPermissionModeLabel(l10n, mode);
     final icon = switch (mode) {
       AgentPermissionMode.safe => Icons.shield_outlined,
       AgentPermissionMode.askBeforeSensitiveActions => Icons.gpp_maybe_outlined,
@@ -945,8 +997,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     return PopupMenuButton<AgentPermissionMode>(
       key: const ValueKey('agent-chat-permission-mode'),
       enabled: _agentSettingsInteractive,
-      tooltip:
-          '${l10n.agentChat_permissionMode}: ${agentPermissionModeLabel(l10n, mode)}',
+      tooltip: '${l10n.agentChat_permissionMode}: $modeLabel',
       onSelected: commands.selectPermissionMode,
       itemBuilder: (context) => [
         for (final value in AgentPermissionMode.values)
@@ -993,11 +1044,15 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           ),
       ],
       child: Container(
-        width: context.interactionPolicy.minimumControlExtent,
+        width: showLabel
+            ? double.infinity
+            : context.interactionPolicy.minimumControlExtent,
         height: context.interactionPolicy.minimumControlExtent,
-        padding: EdgeInsets.zero,
+        padding: EdgeInsets.symmetric(horizontal: showLabel ? 10 : 0),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: _agentSettingsInteractive ? 0.5 : 0.28,
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -1011,13 +1066,33 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                 alpha: _agentSettingsInteractive ? 0.7 : 0.25,
               ),
             ),
+            if (showLabel) ...[
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  modeLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: _agentSettingsInteractive
+                        ? theme.colorScheme.onSurface
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _webAccessToggle(ThemeData theme, AppLocalizations l10n) {
+  Widget _webAccessToggle(
+    ThemeData theme,
+    AppLocalizations l10n, {
+    bool showLabel = false,
+  }) {
     final state = viewData.webAccess;
     final enabled = viewData.agentSettings.settings.chat.webAccessEnabled;
     final interactive = state.initialized && _agentSettingsInteractive;
@@ -1032,12 +1107,16 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       toggled: enabled,
       label: tooltip,
       child: Container(
-        width: context.interactionPolicy.minimumControlExtent,
+        width: showLabel
+            ? double.infinity
+            : context.interactionPolicy.minimumControlExtent,
         height: context.interactionPolicy.minimumControlExtent,
         decoration: BoxDecoration(
           color: enabled
-              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.32)
-              : Colors.transparent,
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.42)
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -1085,6 +1164,23 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                 }),
               ),
             ),
+            if (showLabel)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Text(
+                    l10n.agentChat_webAccessLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: interactive
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -1102,11 +1198,12 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     showLabel: showLabel,
   );
 
-  Widget _thinkingSelector() => AgentChatThinkingControl(
+  Widget _thinkingSelector({bool showLabel = true}) => AgentChatThinkingControl(
     level: viewData.state.thinkingLevel,
     availableLevels: viewData.state.availableThinkingLevels,
     enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
     onSelected: commands.selectThinkingLevel,
+    showLabel: showLabel,
   );
 
   bool get _agentSettingsInteractive =>
@@ -1119,12 +1216,14 @@ class _SendButton extends StatelessWidget {
   const _SendButton({
     required this.running,
     required this.enabled,
+    required this.disabledReason,
     required this.onSend,
     required this.onStop,
   });
 
   final bool running;
   final bool enabled;
+  final String disabledReason;
   final VoidCallback onSend;
   final VoidCallback onStop;
 
@@ -1142,12 +1241,14 @@ class _SendButton extends StatelessWidget {
         ? theme.colorScheme.onPrimary
         : theme.colorScheme.onSurface.withValues(alpha: 0.34);
     final label = running ? l10n.agentChat_stop : l10n.agentChat_send;
+    final tooltip = enabled ? label : disabledReason;
     return Semantics(
       button: true,
       enabled: enabled,
       label: label,
+      hint: enabled ? null : disabledReason,
       child: Tooltip(
-        message: label,
+        message: tooltip,
         waitDuration: const Duration(milliseconds: 500),
         child: SizedBox(
           key: const ValueKey('agent-chat-send'),

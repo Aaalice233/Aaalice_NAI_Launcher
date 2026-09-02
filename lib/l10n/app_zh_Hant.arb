@@ -343,6 +343,8 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "開啟聯網",
   "agentChat_disableWebAccess": "關閉聯網",
+  "agentChat_webAccessLabel": "聯網",
+  "agentChat_contextUsageLabel": "上下文",
   "agentChat_unsupportedImageFormat": "不支援的圖片格式：{fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -352,6 +354,8 @@
   "agentChat_newChat": "新對話",
   "agentChat_searchSessions": "搜尋對話",
   "agentChat_send": "傳送",
+  "agentChat_sendEmptyHint": "輸入訊息或加入圖片後即可傳送",
+  "agentChat_sendUnavailableHint": "AI 助手尚未準備好傳送訊息",
   "agentChat_stop": "停止",
   "agentChat_queued": "已排隊",
   "agentChat_queueSteering": "插入目前工作",

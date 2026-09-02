@@ -90,16 +90,24 @@ class AgentChatComposerExpandButton extends StatelessWidget {
       label: label,
       child: Tooltip(
         message: label,
-        child: IconButton(
-          onPressed: onPressed,
-          icon: Icon(
-            expanded
-                ? Icons.close_fullscreen_rounded
-                : Icons.open_in_full_rounded,
+        child: Material(
+          color: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.52),
+          borderRadius: BorderRadius.circular(8),
+          clipBehavior: Clip.antiAlias,
+          child: IconButton(
+            onPressed: onPressed,
+            icon: Icon(
+              expanded
+                  ? Icons.close_fullscreen_rounded
+                  : Icons.open_in_full_rounded,
+            ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            iconSize: touchOptimized ? 20 : 18,
+            padding: EdgeInsets.zero,
+            constraints: BoxConstraints.tightFor(width: size, height: size),
           ),
-          iconSize: touchOptimized ? 19 : 17,
-          padding: EdgeInsets.zero,
-          constraints: BoxConstraints.tightFor(width: size, height: size),
         ),
       ),
     );
