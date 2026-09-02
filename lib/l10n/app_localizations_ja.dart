@@ -706,6 +706,27 @@ class AppLocalizationsJa extends AppLocalizations {
       'デフォルトではオフ。トラブルシューティングの場合にのみ有効にします。有効にすると、ログはDocuments/NAI_Launcher/logsに書き込まれます。無効にすると、ログ ファイルは作成または書き込まれなくなります。';
 
   @override
+  String get settings_exportDiagnosticLogs => '診断ログをエクスポート';
+
+  @override
+  String get settings_exportDiagnosticLogsSubtitle =>
+      '最近のログと基本的なデバイス情報をエクスポートします。認証情報とローカルパスは自動的に非表示になります。';
+
+  @override
+  String get settings_exportDiagnosticLogsInProgress => '診断ログをエクスポートしています';
+
+  @override
+  String get settings_exportDiagnosticLogsSuccess => '診断ログをエクスポートしました';
+
+  @override
+  String get settings_exportDiagnosticLogsEmpty =>
+      'エクスポートできるログがありません。ログ記録を有効にして問題を再現してください。';
+
+  @override
+  String get settings_exportDiagnosticLogsFailed =>
+      '診断ログをエクスポートできませんでした。もう一度お試しください。';
+
+  @override
   String get settings_pathReset => 'デフォルトの場所にリセット';
 
   @override

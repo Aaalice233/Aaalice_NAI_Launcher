@@ -9,27 +9,27 @@ class PrivateDataGuard {
     caseSensitive: false,
   );
   static final RegExp _windowsPathPattern = RegExp(
-    r'(?:^|[\s"\x27`(=])(?:[a-z]:[\\/])[^\s"\x27`<>]*',
+    r'(?:^|[^A-Za-z0-9])(?:[a-z]:[\\/])[^\s"\x27`<>]*',
     caseSensitive: false,
     multiLine: true,
   );
   static final RegExp _backslashUncPattern = RegExp(
-    r'(?:^|[\s"\x27`(=])\\\\[^\\/\s]+[\\/][^\s"\x27`<>]+',
+    r'(?:^|[^A-Za-z0-9])\\\\[^\\/\s]+[\\/][^\s"\x27`<>]+',
     multiLine: true,
   );
   static final RegExp _slashUncPattern = RegExp(
-    r'(?:^|[\s"\x27`(=])//[^/\s:]+/[^\s"\x27`<>]+',
+    r'(?:^|[\s"\x27`(=\[\]{},])//[^/\s:]+/[^\s"\x27`<>]+',
     multiLine: true,
   );
   static final RegExp _unixPathPattern = RegExp(
-    r'(?:^|[\s"\x27`(=])/(?:Users|home|root|srv|var|tmp|opt|etc|mnt|media|Volumes|workspace|workspaces|usr|bin|sbin|lib|lib64|dev|run|proc|sys|boot)(?:/[^\s"\x27`<>]*)?',
+    r'(?:^|[^A-Za-z0-9])/(?:Users|home|root|srv|var|tmp|opt|etc|mnt|media|Volumes|workspace|workspaces|usr|bin|sbin|lib|lib64|dev|run|proc|sys|boot|data|storage|sdcard)(?:/[^\s"\x27`<>]*)?',
     caseSensitive: false,
     multiLine: true,
   );
 
   static String? detect(String value) {
     if (RegExp(
-      r'-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----',
+      r'-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----',
       caseSensitive: false,
     ).hasMatch(value)) {
       return 'private key';
@@ -38,7 +38,13 @@ class PrivateDataGuard {
       return 'authorization token';
     }
     if (RegExp(
-      r'\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|auth(?:orization)?|password|passwd|client[_-]?secret|private[_-]?key|token)\b["\x27]?\s*[:=]\s*["\x27]?\S+',
+      r'\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|auth(?:orization)?|password|passwd|client[_-]?secret|private[_-]?key|token|cookies?|session(?:id|[_-]?(?:token|key))?)\b["\x27]?\s*[:=]\s*["\x27]?\S+',
+      caseSensitive: false,
+    ).hasMatch(value)) {
+      return 'credential';
+    }
+    if (RegExp(
+      r'\b(?:set-cookie|cookies?)\s*:\s*\S+',
       caseSensitive: false,
     ).hasMatch(value)) {
       return 'credential';
@@ -129,13 +135,7 @@ class PrivateDataGuard {
       _unixPathPattern.hasMatch(value);
 
   static bool _isDelimiter(int codeUnit) =>
-      codeUnit == 0x20 ||
-      codeUnit == 0x09 ||
-      codeUnit == 0x0a ||
-      codeUnit == 0x0d ||
-      codeUnit == 0x22 ||
-      codeUnit == 0x27 ||
-      codeUnit == 0x60 ||
-      codeUnit == 0x28 ||
-      codeUnit == 0x3d;
+      !(codeUnit >= 0x30 && codeUnit <= 0x39) &&
+      !(codeUnit >= 0x41 && codeUnit <= 0x5a) &&
+      !(codeUnit >= 0x61 && codeUnit <= 0x7a);
 }

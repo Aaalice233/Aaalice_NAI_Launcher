@@ -692,6 +692,25 @@ class AppLocalizationsZh extends AppLocalizations {
       '默认关闭；仅在排查问题时开启。开启后会写入 Documents/NAI_Launcher/logs，关闭后不再创建或写入日志文件。';
 
   @override
+  String get settings_exportDiagnosticLogs => '导出诊断日志';
+
+  @override
+  String get settings_exportDiagnosticLogsSubtitle =>
+      '导出最近日志和基础设备信息；会自动隐藏凭据与本地路径。';
+
+  @override
+  String get settings_exportDiagnosticLogsInProgress => '正在导出诊断日志';
+
+  @override
+  String get settings_exportDiagnosticLogsSuccess => '诊断日志已导出';
+
+  @override
+  String get settings_exportDiagnosticLogsEmpty => '暂无可导出的日志，请先开启日志记录并复现问题';
+
+  @override
+  String get settings_exportDiagnosticLogsFailed => '诊断日志导出失败，请重试';
+
+  @override
   String get settings_pathReset => '已重置为默认路径';
 
   @override
@@ -14465,6 +14484,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get settings_fileLoggingSubtitle =>
       '預設關閉；僅在排查問題時開啟。開啟後會寫入 Documents/NAI_Launcher/logs，關閉後不再建立或寫入日誌檔案。';
+
+  @override
+  String get settings_exportDiagnosticLogs => '匯出診斷日誌';
+
+  @override
+  String get settings_exportDiagnosticLogsSubtitle =>
+      '匯出最近日誌和基本裝置資訊；會自動隱藏憑證與本機路徑。';
+
+  @override
+  String get settings_exportDiagnosticLogsInProgress => '正在匯出診斷日誌';
+
+  @override
+  String get settings_exportDiagnosticLogsSuccess => '診斷日誌已匯出';
+
+  @override
+  String get settings_exportDiagnosticLogsEmpty => '暫無可匯出的日誌，請先開啟日誌記錄並重現問題';
+
+  @override
+  String get settings_exportDiagnosticLogsFailed => '診斷日誌匯出失敗，請重試';
 
   @override
   String get settings_pathReset => '已重置為預設路徑';
