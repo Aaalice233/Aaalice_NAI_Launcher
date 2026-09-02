@@ -308,6 +308,86 @@ void main() {
       );
     });
 
+    test('隐藏分支和后台状态都会暂停新的缩略图解码', () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'nai_local_thumbnail_pause_',
+      );
+      addTearDown(() async {
+        LocalGalleryThumbnailProvider.setAppForeground(true);
+        LocalGalleryThumbnailProvider.setGalleryVisible(true);
+        LocalGalleryThumbnailMemoryCache.instance.clear();
+        await tempDir.delete(recursive: true);
+      });
+      final file = File('${tempDir.path}${Platform.pathSeparator}source.png');
+      await file.writeAsBytes(
+        img.encodePng(img.Image(width: 64, height: 64)),
+        flush: true,
+      );
+      final stat = await file.stat();
+      final source = LocalGallerySourceIdentity.fromRecord(
+        path: file.path,
+        size: stat.size,
+        modifiedAt: stat.modified,
+      );
+      final releaseDecoder = Completer<void>();
+      Future<ui.Codec> delayedDecoder(
+        ui.ImmutableBuffer buffer, {
+        ui.TargetImageSize Function(int, int)? getTargetSize,
+      }) async {
+        await releaseDecoder.future;
+        return PaintingBinding.instance.instantiateImageCodecWithSize(
+          buffer,
+          getTargetSize: getTargetSize,
+        );
+      }
+
+      LocalGalleryThumbnailProvider.setAppForeground(false);
+      LocalGalleryThumbnailProvider.setGalleryVisible(true);
+      final provider = LocalGalleryThumbnailProvider(
+        source: source,
+        target: const LocalGalleryThumbnailTarget(width: 128, height: 128),
+      );
+      LocalGalleryThumbnailMemoryCache.instance.register(provider);
+      provider.loadImage(provider.cacheKey, delayedDecoder);
+
+      expect(
+        LocalGalleryThumbnailMemoryCache.instance.statistics.activeDecodes,
+        0,
+      );
+      expect(
+        LocalGalleryThumbnailMemoryCache.instance.statistics.queuedDecodes,
+        1,
+      );
+
+      LocalGalleryThumbnailProvider.setGalleryVisible(false);
+      LocalGalleryThumbnailProvider.setAppForeground(true);
+      expect(
+        LocalGalleryThumbnailMemoryCache.instance.statistics.activeDecodes,
+        0,
+      );
+
+      LocalGalleryThumbnailProvider.setGalleryVisible(true);
+      expect(
+        LocalGalleryThumbnailMemoryCache.instance.statistics.activeDecodes,
+        1,
+      );
+      releaseDecoder.complete();
+      for (var attempt = 0; attempt < 100; attempt++) {
+        if (LocalGalleryThumbnailMemoryCache
+                .instance
+                .statistics
+                .activeDecodes ==
+            0) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(
+        LocalGalleryThumbnailMemoryCache.instance.statistics.activeDecodes,
+        0,
+      );
+    });
+
     test('共享同一缓存键的卡片只在最后一个 owner 离开时取消', () async {
       final sourceFile = File('assets/icons/tray_icon.png');
       final stat = await sourceFile.stat();

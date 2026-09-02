@@ -98,10 +98,265 @@ void main() {
       final params = container.read(generationParamsNotifierProvider);
 
       expect(workflow.mode, ImageWorkflowMode.base);
-      expect(params.width, equals(832));
-      expect(params.height, equals(1216));
+      // 源图仍在，尺寸跟随源图而不是载入前的 832x1216
+      expect(params.width, equals(768));
+      expect(params.height, equals(1024));
       expect(params.strength, equals(0.63));
       expect(params.noise, equals(0.04));
+    });
+
+    test(
+      'manual strength and noise edits should survive an enhance round-trip',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final paramsNotifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+
+        paramsNotifier.updateSize(832, 1216, persist: false);
+        paramsNotifier.updateStrength(0.7);
+        paramsNotifier.updateNoise(0.0);
+        controller.replaceSourceImage(
+          _validImageBytes(width: 768, height: 1024),
+          sourceWidth: 768,
+          sourceHeight: 1024,
+        );
+
+        paramsNotifier.updateStrength(0.4);
+        paramsNotifier.updateNoise(0.12);
+
+        controller.enterEnhanceMode();
+        final enhanced = container.read(generationParamsNotifierProvider);
+        expect(enhanced.strength, equals(0.5));
+        expect(enhanced.noise, equals(0.0));
+
+        controller.exitEnhanceMode();
+
+        final params = container.read(generationParamsNotifierProvider);
+        expect(params.strength, equals(0.4));
+        expect(params.noise, equals(0.12));
+      },
+    );
+
+    test(
+      'manual strength and noise edits should survive an upscale round-trip',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final paramsNotifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+
+        paramsNotifier.updateSize(832, 1216, persist: false);
+        paramsNotifier.updateStrength(0.7);
+        paramsNotifier.updateNoise(0.0);
+        controller.replaceSourceImage(
+          _validImageBytes(width: 768, height: 1024),
+          sourceWidth: 768,
+          sourceHeight: 1024,
+        );
+
+        paramsNotifier.updateStrength(0.4);
+        paramsNotifier.updateNoise(0.12);
+
+        controller.enterUpscaleMode();
+        controller.exitUpscaleMode();
+
+        final params = container.read(generationParamsNotifierProvider);
+        expect(params.strength, equals(0.4));
+        expect(params.noise, equals(0.12));
+      },
+    );
+
+    test(
+      'manual strength and noise edits should survive an inpaint round-trip',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final paramsNotifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+
+        paramsNotifier.updateSize(832, 1216, persist: false);
+        paramsNotifier.updateStrength(0.7);
+        paramsNotifier.updateNoise(0.0);
+        controller.replaceSourceImage(
+          _validImageBytes(width: 768, height: 1024),
+          sourceWidth: 768,
+          sourceHeight: 1024,
+        );
+
+        paramsNotifier.updateStrength(0.4);
+        paramsNotifier.updateNoise(0.12);
+
+        controller.applyInpaintEditorResult(
+          maskImage: _validMaskBytes(width: 768, height: 1024),
+          focusedInpaintEnabled: false,
+          focusedSelectionRect: null,
+          minimumContextMegaPixels: 88,
+        );
+        controller.enterBaseMode();
+
+        final params = container.read(generationParamsNotifierProvider);
+        expect(params.strength, equals(0.4));
+        expect(params.noise, equals(0.12));
+      },
+    );
+
+    test(
+      'variation strength applied after the source load should survive an enhance round-trip',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final paramsNotifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+
+        paramsNotifier.updateStrength(0.7);
+        paramsNotifier.updateNoise(0.0);
+        // 变体入口的顺序：先装源图并回到 base，再写入变体强度
+        controller.replaceSourceImage(
+          _validImageBytes(width: 768, height: 1024),
+          sourceWidth: 768,
+          sourceHeight: 1024,
+        );
+        controller.enterBaseMode(clearMask: true);
+        paramsNotifier.updateStrength(0.45);
+        paramsNotifier.updateNoise(0.0);
+
+        controller.enterEnhanceMode();
+        controller.exitEnhanceMode();
+
+        final params = container.read(generationParamsNotifierProvider);
+        expect(params.strength, equals(0.45));
+      },
+    );
+
+    test(
+      'leaving enhance for upscale should consume the enhance entry snapshot',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final paramsNotifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+
+        paramsNotifier.updateStrength(0.4);
+        paramsNotifier.updateNoise(0.12);
+        paramsNotifier.setSourceImage(
+          _validImageBytes(width: 768, height: 1024),
+        );
+
+        controller.enterEnhanceMode();
+        expect(
+          container.read(imageWorkflowControllerProvider).enhanceEntryStrength,
+          equals(0.4),
+        );
+
+        controller.enterUpscaleMode();
+
+        final workflow = container.read(imageWorkflowControllerProvider);
+        expect(workflow.mode, ImageWorkflowMode.upscale);
+        expect(workflow.enhanceEntryStrength, isNull);
+        expect(workflow.enhanceEntryNoise, isNull);
+
+        final params = container.read(generationParamsNotifierProvider);
+        expect(params.strength, equals(0.4));
+        expect(params.noise, equals(0.12));
+      },
+    );
+
+    test('exitEnhanceMode should keep the loaded source resolution', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.updateSize(832, 1216, persist: false);
+      controller.replaceSourceImage(
+        _validImageBytes(width: 768, height: 1024),
+        sourceWidth: 768,
+        sourceHeight: 1024,
+      );
+
+      final loaded = container.read(generationParamsNotifierProvider);
+      final loadedSize = (loaded.width, loaded.height);
+      expect(loadedSize, isNot(equals((832, 1216))));
+
+      controller.enterEnhanceMode();
+      controller.updateEnhanceUpscaleFactor(1.5);
+      final enhanced = container.read(generationParamsNotifierProvider);
+      expect((enhanced.width, enhanced.height), isNot(equals(loadedSize)));
+
+      controller.exitEnhanceMode();
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect((params.width, params.height), equals(loadedSize));
+    });
+
+    test('exitUpscaleMode should keep the loaded source resolution', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.updateSize(832, 1216, persist: false);
+      controller.replaceSourceImage(
+        _validImageBytes(width: 768, height: 1024),
+        sourceWidth: 768,
+        sourceHeight: 1024,
+      );
+
+      final loaded = container.read(generationParamsNotifierProvider);
+      final loadedSize = (loaded.width, loaded.height);
+      expect(loadedSize, isNot(equals((832, 1216))));
+
+      controller.enterUpscaleMode();
+      controller.exitUpscaleMode();
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect((params.width, params.height), equals(loadedSize));
+    });
+
+    test('both routes out of enhance should agree on the resulting size', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.updateSize(832, 1216, persist: false);
+      controller.replaceSourceImage(
+        _validImageBytes(width: 768, height: 1024),
+        sourceWidth: 768,
+        sourceHeight: 1024,
+      );
+
+      controller.enterEnhanceMode();
+      controller.updateEnhanceUpscaleFactor(1.5);
+      controller.exitEnhanceMode();
+      final viaExit = container.read(generationParamsNotifierProvider);
+
+      controller.enterEnhanceMode();
+      controller.updateEnhanceUpscaleFactor(1.5);
+      controller.enterBaseMode(clearMask: false);
+      final viaBaseMode = container.read(generationParamsNotifierProvider);
+
+      expect((
+        viaExit.width,
+        viaExit.height,
+      ), equals((viaBaseMode.width, viaBaseMode.height)));
     });
 
     test(

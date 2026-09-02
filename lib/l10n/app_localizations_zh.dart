@@ -1075,6 +1075,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_toolUpdateGenerationSettings => '更新生成设置';
 
   @override
+  String get agentChat_toolGetGenerationSourceImage => '查看图生图源图';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage => '载入图生图源图';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage => '清除图生图源图';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings => '调整图生图强度';
+
+  @override
   String get agentChat_toolPromptState => '查看提示词状态';
 
   @override
@@ -1159,6 +1171,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_toolSubmitInpaint => '提交局部重绘任务';
 
   @override
+  String get agentChat_toolCreateInpaintMask => '创建重绘蒙版';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => '扩展画布';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => '装载重绘草稿到面板';
+
+  @override
   String get agentChat_manualInpaintTitle => '手动局部重绘';
 
   @override
@@ -1227,7 +1248,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_errorDetails => '错误详情';
 
   @override
-  String get agentChat_model => '选择模型';
+  String get agentChat_modelLabel => '模型';
+
+  @override
+  String get agentChat_modelPickerTitle => '选择模型';
+
+  @override
+  String get agentChat_searchModels => '搜索模型';
+
+  @override
+  String get agentChat_searchModelsHint => '模型名称、ID 或提供商';
+
+  @override
+  String get agentChat_clearModelSearch => '清除模型搜索';
+
+  @override
+  String get agentChat_noModelResults => '没有符合搜索条件的模型。';
 
   @override
   String get agentChat_noModel => '未配置模型';
@@ -5807,6 +5843,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_moveAlbumToRoot => '移到根级';
 
   @override
+  String get localGallery_moveAlbumUp => '移到上一级';
+
+  @override
+  String get localGallery_moveCategoryUp => '移到上一级';
+
+  @override
   String get localGallery_createAlbumTitle => '新建相簿';
 
   @override
@@ -5814,9 +5856,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_createAlbumHint => '输入相簿名称';
-
-  @override
-  String get localGallery_renameAlbumTitle => '重命名相簿';
 
   @override
   String get localGallery_deleteAlbumTitle => '删除相簿';
@@ -5835,6 +5874,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String get localGallery_removeFromAlbum => '移出相簿';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return '已移出 $count 张图片';
+  }
+
+  @override
+  String get localGallery_albumNoMembers => '所选图片不在此相簿中';
 
   @override
   String localGallery_addedToAlbumWithName(Object count, Object name) {
@@ -14800,6 +14850,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_toolUpdateGenerationSettings => '更新生成設定';
 
   @override
+  String get agentChat_toolGetGenerationSourceImage => '檢視圖生圖來源圖';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage => '載入圖生圖來源圖';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage => '清除圖生圖來源圖';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings => '調整圖生圖強度';
+
+  @override
   String get agentChat_toolPromptState => '檢視提示詞狀態';
 
   @override
@@ -14884,6 +14946,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_toolSubmitInpaint => '提交局部重繪任務';
 
   @override
+  String get agentChat_toolCreateInpaintMask => '建立重繪遮罩';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => '擴展畫布';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => '載入重繪草稿到面板';
+
+  @override
   String get agentChat_manualInpaintTitle => '手動局部重繪';
 
   @override
@@ -14952,7 +15023,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_errorDetails => '錯誤詳情';
 
   @override
-  String get agentChat_model => '選擇模型';
+  String get agentChat_modelLabel => '模型';
+
+  @override
+  String get agentChat_modelPickerTitle => '選擇模型';
+
+  @override
+  String get agentChat_searchModels => '搜尋模型';
+
+  @override
+  String get agentChat_searchModelsHint => '模型名稱、ID 或提供者';
+
+  @override
+  String get agentChat_clearModelSearch => '清除模型搜尋';
+
+  @override
+  String get agentChat_noModelResults => '沒有符合搜尋條件的模型。';
 
   @override
   String get agentChat_noModel => '未配置模型';
@@ -19532,6 +19618,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_moveAlbumToRoot => '移到根級';
 
   @override
+  String get localGallery_moveAlbumUp => '移到上一級';
+
+  @override
+  String get localGallery_moveCategoryUp => '移到上一級';
+
+  @override
   String get localGallery_createAlbumTitle => '新建相簿';
 
   @override
@@ -19539,9 +19631,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_createAlbumHint => '輸入相簿名稱';
-
-  @override
-  String get localGallery_renameAlbumTitle => '重新命名相簿';
 
   @override
   String get localGallery_deleteAlbumTitle => '刪除相簿';
@@ -19560,6 +19649,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String get localGallery_removeFromAlbum => '移出相簿';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return '已移出 $count 張圖片';
+  }
+
+  @override
+  String get localGallery_albumNoMembers => '所選圖片不在此相簿中';
 
   @override
   String localGallery_addedToAlbumWithName(Object count, Object name) {

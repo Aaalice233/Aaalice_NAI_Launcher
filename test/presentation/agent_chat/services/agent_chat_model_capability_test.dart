@@ -280,17 +280,32 @@ void main() {
     );
   });
 
-  test('Gemini 3 missing reasoning uses Pi hidden minimum', () {
-    final capability = AgentChatModelCapability.resolve(
-      ProviderPreset.gemini.createConfig(id: 'google'),
+  test('Gemini 3 missing reasoning uses its supported hidden minimum', () {
+    final provider = ProviderPreset.gemini.createConfig(id: 'google');
+    final proCapability = AgentChatModelCapability.resolve(
+      provider,
       'gemini-3.1-pro-preview',
     );
+    final flashCapability = AgentChatModelCapability.resolve(
+      provider,
+      'gemini-3.7-flash',
+    );
 
-    final request = capability.resolveReasoningRequest(null);
+    final proRequest = proCapability.resolveReasoningRequest(null);
+    final flashRequest = flashCapability.resolveReasoningRequest(null);
 
-    expect(request?.enabled, isFalse);
-    expect(request?.sendWhenDisabled, isTrue);
-    expect(request?.effort, 'LOW');
+    expect(proRequest?.enabled, isFalse);
+    expect(proRequest?.sendWhenDisabled, isTrue);
+    expect(proRequest?.effort, 'LOW');
+    expect(flashCapability.levels, [
+      ThinkingLevel.low,
+      ThinkingLevel.medium,
+      ThinkingLevel.high,
+    ]);
+    expect(flashRequest?.enabled, isFalse);
+    expect(flashRequest?.sendWhenDisabled, isTrue);
+    expect(flashRequest?.effort, 'LOW');
+    expect(flashCapability.resolveReasoningRequest('minimal')?.effort, 'LOW');
   });
 
   test('omits missing reasoning on models whose off mapping is null', () {

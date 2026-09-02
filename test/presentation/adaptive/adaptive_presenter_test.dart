@@ -51,6 +51,52 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('compact panel keeps content above the system navigation bar', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.padding = const FakeViewPadding(bottom: 32);
+    addTearDown(() {
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPhysicalSize();
+      tester.view.resetPadding();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () {
+                unawaited(
+                  AdaptivePresenter.showPanel<void>(
+                    context: context,
+                    title: 'Safe panel',
+                    builder: (context, scrollController) => ListView(
+                      key: const Key('safe-panel-content'),
+                      controller: scrollController,
+                      children: const [Text('Safe panel body')],
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Open safe panel'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open safe panel'));
+    await tester.pumpAndSettle();
+
+    final contentRect = tester.getRect(
+      find.byKey(const Key('safe-panel-content')),
+    );
+    expect(contentRect.bottom, lessThanOrEqualTo(768));
+  });
+
   testWidgets('compact panel uses root navigator and blocks shell navigation', (
     tester,
   ) async {

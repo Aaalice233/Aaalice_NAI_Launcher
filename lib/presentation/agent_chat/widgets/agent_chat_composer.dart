@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/token_count_format.dart';
@@ -13,6 +12,7 @@ import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../models/agent_chat_slash_command.dart';
 import '../providers/agent_chat_state.dart';
 import 'agent_chat_header.dart';
+import 'agent_chat_model_picker.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
 import 'agent_chat_resource_widgets.dart';
@@ -232,6 +232,10 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   ) {
     final target = viewData.mobile ? 44.0 : 40.0;
     final trailingControls = viewData.running ? 2 : 1;
+    final availableHeight = viewData.height
+        .clamp(0, AgentChatComposerLayout.availableViewportHeight(context))
+        .toDouble();
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
     final editor = TextField(
       key: const ValueKey('agent-chat-input'),
       controller: controller.inputController,
@@ -240,12 +244,18 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       expands: _editorExpanded,
       minLines: _editorExpanded
           ? null
-          : AgentChatComposerLayout.defaultMinLines,
+          : AgentChatComposerLayout.collapsedEditorMinLines(
+              availableHeight: availableHeight,
+              textScale: textScale,
+              touchOptimized: viewData.mobile,
+            ),
       maxLines: _editorExpanded
           ? null
-          : viewData.mobile
-          ? AgentChatComposerLayout.defaultMobileMaxLines
-          : AgentChatComposerLayout.defaultDesktopMaxLines,
+          : AgentChatComposerLayout.collapsedEditorMaxLines(
+              availableHeight: availableHeight,
+              textScale: textScale,
+              touchOptimized: viewData.mobile,
+            ),
       style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
       textInputAction: TextInputAction.newline,
       textAlignVertical: TextAlignVertical.top,
@@ -266,9 +276,6 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         border: InputBorder.none,
       ),
     );
-    final availableHeight = viewData.height
-        .clamp(0, AgentChatComposerLayout.availableViewportHeight(context))
-        .toDouble();
 
     return Focus(
       onKeyEvent: (node, event) {
@@ -384,11 +391,17 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         final target = viewData.mobile ? 48.0 : 40.0;
         final compactTarget = viewData.mobile ? 44.0 : 40.0;
         const gap = 4.0;
-        // The attachment target is larger than the other compact controls on
-        // mobile, while the model selector absorbs the remaining width.
+        final thinkingWidth = viewData.mobile ? 124.0 : 132.0;
+        // Model and reasoning remain independent, readable controls. The model
+        // takes the flexible space while reasoning keeps enough room for its
+        // persistent label and current value.
         final modelWidth =
-            (constraints.maxWidth - target - compactTarget * 4 - gap * 5)
-                .clamp(compactTarget, viewData.mobile ? 220.0 : 280.0)
+            (constraints.maxWidth -
+                    target -
+                    compactTarget * 4 -
+                    thinkingWidth -
+                    gap * 6)
+                .clamp(120.0, viewData.mobile ? 220.0 : 280.0)
                 .toDouble();
         final hasDraft =
             controller.inputController.text.trim().isNotEmpty ||
@@ -400,7 +413,8 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           onSend: commands.send,
         );
 
-        final minimumSingleRowWidth = target + compactTarget * 5 + gap * 4;
+        final minimumSingleRowWidth =
+            target + compactTarget * 4 + thinkingWidth + 120 + gap * 6;
         if (constraints.maxWidth < minimumSingleRowWidth) {
           return SizedBox(
             key: const ValueKey('agent-chat-session-controls'),
@@ -408,6 +422,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             child: Column(
               key: const ValueKey('agent-chat-message-actions'),
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SizedBox(
                   height: target,
@@ -415,9 +430,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                     children: [
                       _attachmentSourceButton(theme, l10n),
                       const SizedBox(width: gap),
-                      Expanded(
-                        child: _modelSelector(theme, l10n, iconOnly: false),
-                      ),
+                      Expanded(child: _modelSelector()),
                     ],
                   ),
                 ),
@@ -427,6 +440,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                   spacing: gap,
                   runSpacing: gap,
                   children: [
+                    SizedBox(width: thinkingWidth, child: _thinkingSelector()),
                     _permissionModeButton(theme, l10n),
                     _webAccessToggle(theme, l10n),
                     _contextIndicator(theme, l10n),
@@ -446,10 +460,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             children: [
               _attachmentSourceButton(theme, l10n),
               const SizedBox(width: gap),
-              SizedBox(
-                width: modelWidth,
-                child: _modelSelector(theme, l10n, iconOnly: modelWidth < 76),
-              ),
+              SizedBox(width: modelWidth, child: _modelSelector()),
+              const SizedBox(width: gap),
+              SizedBox(width: thinkingWidth, child: _thinkingSelector()),
               const Spacer(),
               _permissionModeButton(theme, l10n),
               const SizedBox(width: gap),
@@ -474,9 +487,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         viewData.state.compacting ||
         viewData.state.sessionContentLoading ||
         (!viewData.state.routeReady && viewData.state.routeError.isEmpty);
-    final percent = available
-        ? (tokens! / window! * 100).clamp(0, 999).round()
-        : null;
+    final percent = usage.percent?.clamp(0, 999).round();
     final label = loading
         ? viewData.state.compacting
               ? l10n.agentChat_compacting
@@ -1050,218 +1061,24 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     );
   }
 
-  Widget _modelSelector(
-    ThemeData theme,
-    AppLocalizations l10n, {
-    required bool iconOnly,
-  }) {
-    final config = viewData.config;
-    final enabled = config.providers
-        .where((provider) => provider.enabled)
-        .toList();
-    if (enabled.isEmpty || !viewData.state.routeReady) {
-      return Tooltip(
-        key: const ValueKey('agent-chat-model-selector'),
-        message: viewData.state.routeError.isNotEmpty
-            ? viewData.state.routeError
-            : l10n.agentChat_noModel,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              size: 14,
-              color: theme.colorScheme.error.withValues(alpha: 0.8),
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                l10n.agentChat_noModel,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    final modelReference = viewData.agentSettings.settings.chat.modelReference;
-    final activeProviderId = modelReference.providerId;
-    final activeModel = modelReference.model;
-    var label = '';
-    for (final provider in enabled) {
-      if (provider.id != activeProviderId) continue;
-      for (final model in config.modelsForProviderTask(
-        providerId: provider.id,
-        taskType: AssistantTaskType.chat,
-      )) {
-        if (model.name == activeModel) {
-          label = model.displayName;
-          break;
-        }
-      }
-      if (label.isNotEmpty) break;
-    }
-    if (label.isEmpty) {
-      label = activeModel.isEmpty ? viewData.state.routeLabel : activeModel;
-    }
-    final displayLabel = label.trim().split('/').last;
-    return PopupMenuButton<(String, String)>(
-      enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
-      tooltip: '${l10n.agentChat_model}: $label',
-      constraints: BoxConstraints(
-        minWidth: viewData.mobile ? 280 : 320,
-        maxWidth: viewData.mobile ? 360 : 420,
-      ),
-      onSelected: (route) => route.$1 == '__thinking__'
-          ? commands.selectThinkingLevel(
-              ThinkingLevel.values.firstWhere(
-                (level) => level.name == route.$2,
-              ),
-            )
-          : commands.selectModel(route.$1, route.$2),
-      itemBuilder: (context) => [
-        for (final provider in enabled) ...[
-          PopupMenuItem<(String, String)>(
-            enabled: false,
-            height: viewData.mobile ? 40 : 30,
-            child: Text(
-              provider.name,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          for (final model
-              in config
-                  .modelsForProviderTask(
-                    providerId: provider.id,
-                    taskType: AssistantTaskType.chat,
-                  )
-                  .where((model) => !model.isPlaceholder))
-            PopupMenuItem(
-              value: (provider.id, model.name),
-              height: viewData.mobile ? 48 : 36,
-              child: Row(
-                children: [
-                  if (provider.id == activeProviderId &&
-                      model.name == activeModel)
-                    Icon(
-                      Icons.check,
-                      size: 14,
-                      color: theme.colorScheme.primary,
-                    )
-                  else
-                    const SizedBox(width: 14),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      model.displayName,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (provider == enabled.last &&
-              viewData.state.availableThinkingLevels.isNotEmpty) ...[
-            const PopupMenuDivider(),
-            PopupMenuItem<(String, String)>(
-              enabled: false,
-              height: viewData.mobile ? 40 : 30,
-              child: Text(
-                l10n.agentChat_reasoningLevel,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            for (final level in viewData.state.availableThinkingLevels)
-              PopupMenuItem(
-                value: ('__thinking__', level.name),
-                height: viewData.mobile ? 48 : 36,
-                child: Row(
-                  children: [
-                    if (level == viewData.state.thinkingLevel)
-                      Icon(
-                        Icons.check,
-                        size: 14,
-                        color: theme.colorScheme.primary,
-                      )
-                    else
-                      const SizedBox(width: 14),
-                    const SizedBox(width: 6),
-                    Text(_thinkingLevelLabel(l10n, level)),
-                  ],
-                ),
-              ),
-          ],
-        ],
-      ],
-      child: Container(
-        key: const ValueKey('agent-chat-model-selector'),
-        height: viewData.mobile ? 44 : 40,
-        padding: EdgeInsets.symmetric(horizontal: iconOnly ? 0 : 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: iconOnly
-              ? [
-                  Expanded(
-                    child: Icon(
-                      Icons.smart_toy_outlined,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ]
-              : [
-                  Flexible(
-                    child: Text(
-                      displayLabel,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.8,
-                        ),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.expand_more,
-                    size: 13,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ],
-        ),
-      ),
-    );
-  }
+  Widget _modelSelector() => AgentChatModelControl(
+    config: viewData.config,
+    agentSettings: viewData.agentSettings,
+    routeLabel: viewData.state.routeLabel,
+    routeError: viewData.state.routeError,
+    enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
+    touchOptimized: viewData.mobile,
+    onSelected: commands.selectModel,
+    restoreFocusNode: controller.inputFocus,
+  );
 
-  String _thinkingLevelLabel(AppLocalizations l10n, ThinkingLevel level) =>
-      switch (level) {
-        ThinkingLevel.off => l10n.agentChat_reasoningOff,
-        ThinkingLevel.minimal => l10n.agentChat_reasoningMinimal,
-        ThinkingLevel.low => l10n.agentChat_reasoningLow,
-        ThinkingLevel.medium => l10n.agentChat_reasoningMedium,
-        ThinkingLevel.high => l10n.agentChat_reasoningHigh,
-        ThinkingLevel.xhigh => l10n.agentChat_reasoningXHigh,
-        ThinkingLevel.max => l10n.agentChat_reasoningMax,
-      };
+  Widget _thinkingSelector() => AgentChatThinkingControl(
+    level: viewData.state.thinkingLevel,
+    availableLevels: viewData.state.availableThinkingLevels,
+    enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
+    touchOptimized: viewData.mobile,
+    onSelected: commands.selectThinkingLevel,
+  );
 
   bool get _agentSettingsInteractive =>
       viewData.agentSettings.initialized &&

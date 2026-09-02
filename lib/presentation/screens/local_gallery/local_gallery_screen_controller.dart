@@ -14,7 +14,6 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/permission_utils.dart';
-import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../adaptive/adaptive_presenter.dart';
@@ -62,7 +61,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
   }
 
   static const Duration _refreshDebounce = Duration(milliseconds: 500);
-  static const Duration _minimumRefreshInterval = Duration(seconds: 5);
+  static const Duration _minimumRefreshInterval = Duration(seconds: 30);
 
   final WidgetRef _ref;
   final BuildContext Function() _context;
@@ -214,7 +213,9 @@ class LocalGalleryScreenController extends ChangeNotifier {
         }
 
         final now = DateTime.now();
-        final lastRefreshTime = _lastRefreshTime;
+        final lastRefreshTime =
+            _lastRefreshTime ??
+            _ref.read(localGalleryNotifierProvider.notifier).lastSynchronizedAt;
         if (lastRefreshTime != null &&
             now.difference(lastRefreshTime) < _minimumRefreshInterval) {
           AppLogger.d(
@@ -294,19 +295,24 @@ class LocalGalleryScreenController extends ChangeNotifier {
       onCategoryMove: (id, parentId) => _ref
           .read(galleryCategoryNotifierProvider.notifier)
           .moveCategory(id, parentId),
-      onCategoryReorder: (parentId, oldIndex, newIndex) => _ref
+      onCategoryMoveToSlot: (id, targetId, slot) => _ref
           .read(galleryCategoryNotifierProvider.notifier)
-          .reorderCategories(parentId, oldIndex, newIndex),
+          .moveCategoryToSlot(id, targetId, slot),
       onImageDrop: handleImageDrop,
       onSyncWithFileSystem: handleSyncWithFileSystem,
       onCreateAlbum: (parentId) => createAlbum(parentId),
       onAlbumSelected: (id) => unawaited(handleAlbumSelected(id)),
-      onAlbumRenameRequest: handleAlbumRename,
+      onAlbumRename: (id, newName) => _ref
+          .read(galleryAlbumNotifierProvider.notifier)
+          .renameAlbum(id, newName),
       onAlbumDeleteRequest: handleAlbumDelete,
       onAddAlbumRequest: (parentId) => createAlbum(parentId),
       onAlbumMove: (id, parentId) => _ref
           .read(galleryAlbumNotifierProvider.notifier)
           .moveAlbum(id, parentId),
+      onAlbumMoveToSlot: (id, targetId, slot) => _ref
+          .read(galleryAlbumNotifierProvider.notifier)
+          .moveAlbumToSlot(id, targetId, slot),
       onImageDropToAlbum: handleImageDropToAlbum,
     );
   }
@@ -330,24 +336,6 @@ class LocalGalleryScreenController extends ChangeNotifier {
 
   Future<void> handleAlbumSelected(String? id) async {
     await _ref.read(galleryAlbumNotifierProvider.notifier).selectAlbum(id);
-  }
-
-  Future<void> handleAlbumRename(String albumId) async {
-    final context = _context();
-    final albums = _ref.read(galleryAlbumNotifierProvider).albums;
-    final album = albums.findById(albumId);
-    if (album == null) return;
-    final name = await ThemedInputDialog.show(
-      context: context,
-      title: context.l10n.localGallery_renameAlbumTitle,
-      initialValue: album.name,
-      confirmText: context.l10n.common_confirm,
-      cancelText: context.l10n.common_cancel,
-    );
-    if (name == null || name.trim().isEmpty || !_mounted()) return;
-    await _ref
-        .read(galleryAlbumNotifierProvider.notifier)
-        .renameAlbum(albumId, name.trim());
   }
 
   Future<void> handleAlbumDelete(String albumId) async {

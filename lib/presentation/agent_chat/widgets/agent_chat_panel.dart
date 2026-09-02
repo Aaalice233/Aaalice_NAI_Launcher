@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -64,6 +66,12 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       controller: _controller,
       isMounted: () => mounted,
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        ref.read(agentChatNotifierProvider.notifier).ensureInitialized(),
+      );
+    });
   }
 
   void _refresh() {

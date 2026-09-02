@@ -25,16 +25,16 @@ void main() {
     await AppVersion.initialize();
   });
 
-  testWidgets('Splash 先渲染，再按迁移、数据库、关键服务顺序进入主应用', (tester) async {
+  testWidgets('Splash 先渲染，关键初始化完成后进入主应用', (tester) async {
     final migration = Completer<void>();
     final database = Completer<void>();
     final criticalServices = Completer<void>();
+    final mainShellData = Completer<void>();
     final calls = <String>[];
 
     await tester.pumpWidget(
       _buildApp(
         tasks: StartupInitializationTasks(
-          enablePostWarmupTasks: false,
           initializeRuntimeConfiguration: () async {
             calls.add('runtimeConfiguration');
           },
@@ -51,6 +51,11 @@ void main() {
             calls.add('criticalServices');
             await criticalServices.future;
           },
+          initializeMainShellData: () async {
+            calls.add('mainShellData');
+            await mainShellData.future;
+          },
+          runDeferredDataMaintenance: () async {},
         ),
       ),
     );
@@ -76,9 +81,16 @@ void main() {
 
     criticalServices.complete();
     await _pumpAsync(tester);
+    expect(calls.last, 'mainShellData');
+    expect(find.byType(SplashScreen), findsOneWidget);
+
+    mainShellData.complete();
+    await _pumpAsync(tester);
     expect(find.byKey(const ValueKey('main_app')), findsOneWidget);
+    expect(_splashOverlayOpacity(tester), 0);
     expect(calls.where((call) => call == 'migration'), hasLength(1));
     expect(calls.where((call) => call == 'database'), hasLength(1));
+    expect(calls.where((call) => call == 'criticalServices'), hasLength(1));
   });
 
   testWidgets('主应用显示后自动执行更新检测且自定义构建器不会绕过', (tester) async {
@@ -86,13 +98,7 @@ void main() {
 
     await tester.pumpWidget(
       _buildApp(
-        tasks: StartupInitializationTasks(
-          enablePostWarmupTasks: false,
-          initializeRuntimeConfiguration: () async {},
-          runDataMigration: (_) async => _successfulMigration(),
-          initializeDatabase: () async {},
-          initializeCriticalServices: () async {},
-        ),
+        tasks: _successfulTasks(),
         autoUpdateDelay: Duration.zero,
         autoUpdateCheckRunner: (_) async {
           updateChecks++;
@@ -115,7 +121,6 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         tasks: StartupInitializationTasks(
-          enablePostWarmupTasks: false,
           initializeRuntimeConfiguration: () async {},
           runDataMigration: (_) async => _successfulMigration(),
           initializeDatabase: () async {
@@ -127,6 +132,8 @@ void main() {
           initializeCriticalServices: () async {
             criticalServiceCalls++;
           },
+          initializeMainShellData: () async {},
+          runDeferredDataMaintenance: () async {},
         ),
       ),
     );
@@ -145,12 +152,91 @@ void main() {
     expect(criticalServiceCalls, 1);
     expect(find.byKey(const ValueKey('main_app')), findsOneWidget);
   });
+
+  testWidgets('移除 Splash 时保持主应用 Element，不重新挂载路由树', (tester) async {
+    var initCount = 0;
+    var buildCount = 0;
+    var disposeCount = 0;
+
+    await tester.pumpWidget(
+      _buildApp(
+        tasks: _successfulTasks(),
+        mainAppBuilder: (_) => _LifecycleProbe(
+          onInit: () => initCount++,
+          onBuild: () => buildCount++,
+          onDispose: () => disposeCount++,
+        ),
+      ),
+    );
+    await _pumpAsync(tester);
+
+    expect(_splashOverlayOpacity(tester), 0);
+    expect(initCount, 1);
+    expect(buildCount, 1);
+    expect(disposeCount, 0);
+  });
+
+  testWidgets('完成回调发生在主页首帧后，主页不被额外 Splash 覆盖', (tester) async {
+    var mainAppBuilt = false;
+    var completionSawBuiltMainApp = false;
+    var tapCount = 0;
+
+    await tester.pumpWidget(
+      _buildApp(
+        tasks: _successfulTasks(),
+        onWarmupComplete: () {
+          completionSawBuiltMainApp = mainAppBuilt;
+        },
+        mainAppBuilder: (_) {
+          mainAppBuilt = true;
+          return MaterialApp(
+            home: TextButton(
+              key: const ValueKey('ready_action'),
+              onPressed: () {
+                tapCount++;
+              },
+              child: const Text('ready'),
+            ),
+          );
+        },
+      ),
+    );
+    await _pumpAsync(tester);
+
+    expect(completionSawBuiltMainApp, isTrue);
+    expect(_splashOverlayOpacity(tester), 0);
+    expect(
+      find.byKey(const ValueKey('ready_action'), skipOffstage: false),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('ready_action')));
+    expect(tapCount, 1);
+  });
+}
+
+StartupInitializationTasks _successfulTasks() {
+  return StartupInitializationTasks(
+    initializeRuntimeConfiguration: () async {},
+    runDataMigration: (_) async => _successfulMigration(),
+    initializeDatabase: () async {},
+    initializeCriticalServices: () async {},
+    initializeMainShellData: () async {},
+    runDeferredDataMaintenance: () async {},
+  );
+}
+
+double _splashOverlayOpacity(WidgetTester tester) {
+  return tester
+      .widget<Opacity>(find.byKey(const ValueKey('splash_overlay')))
+      .opacity;
 }
 
 Widget _buildApp({
   required StartupInitializationTasks tasks,
   Duration autoUpdateDelay = const Duration(seconds: 3),
   AutomaticUpdateCheckRunner? autoUpdateCheckRunner,
+  VoidCallback? onWarmupComplete,
+  WidgetBuilder? mainAppBuilder,
 }) {
   return ProviderScope(
     overrides: [
@@ -160,12 +246,50 @@ Widget _buildApp({
     child: AppBootstrap(
       autoUpdateDelay: autoUpdateDelay,
       autoUpdateCheckRunner: autoUpdateCheckRunner,
-      mainAppBuilder: (_) => const Directionality(
-        textDirection: TextDirection.ltr,
-        child: SizedBox(key: ValueKey('main_app')),
-      ),
+      onWarmupComplete: onWarmupComplete,
+      mainAppBuilder:
+          mainAppBuilder ??
+          (_) => const Directionality(
+            textDirection: TextDirection.ltr,
+            child: SizedBox(key: ValueKey('main_app')),
+          ),
     ),
   );
+}
+
+class _LifecycleProbe extends StatefulWidget {
+  const _LifecycleProbe({
+    required this.onInit,
+    required this.onBuild,
+    required this.onDispose,
+  });
+
+  final VoidCallback onInit;
+  final VoidCallback onBuild;
+  final VoidCallback onDispose;
+
+  @override
+  State<_LifecycleProbe> createState() => _LifecycleProbeState();
+}
+
+class _LifecycleProbeState extends State<_LifecycleProbe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onInit();
+  }
+
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    widget.onBuild();
+    return const SizedBox();
+  }
 }
 
 MigrationResult _successfulMigration() {
@@ -179,6 +303,8 @@ Future<void> _pumpAsync(WidgetTester tester) async {
   for (var i = 0; i < 8; i++) {
     await tester.pump();
   }
+  await tester.pump(const Duration(milliseconds: 1));
+  await tester.pump();
 }
 
 class _MemoryStorage extends LocalStorageService {

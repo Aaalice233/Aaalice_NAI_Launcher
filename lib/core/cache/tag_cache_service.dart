@@ -73,6 +73,7 @@ class TagCacheService {
 
   /// L2: Hive Box（懒加载）
   Box? _cacheBox;
+  Future<void>? _initialization;
 
   /// 缓存配置
   static const int maxMemoryCacheSize = 500;
@@ -83,8 +84,18 @@ class TagCacheService {
   static const String boxName = 'tag_cache';
   static const String cacheDataKey = 'tag_cache_data';
 
-  /// 初始化（加载本地缓存到内存）
-  Future<void> init() async {
+  /// 初始化（加载本地缓存到内存）。并发调用共享同一 Future，失败后可重试。
+  Future<void> init() {
+    return _initialization ??= _initialize().onError((
+      Object error,
+      StackTrace stackTrace,
+    ) {
+      _initialization = null;
+      Error.throwWithStackTrace(error, stackTrace);
+    });
+  }
+
+  Future<void> _initialize() async {
     try {
       _cacheBox = await Hive.openBox(boxName);
       await _loadFromStorage();
@@ -92,13 +103,14 @@ class TagCacheService {
         'TagCacheService initialized, memory cache size: ${_memoryCache.length}',
         'Cache',
       );
-    } catch (e, stack) {
+    } catch (error, stackTrace) {
       AppLogger.e(
-        'Failed to initialize TagCacheService: $e',
-        e,
-        stack,
+        'Failed to initialize TagCacheService',
+        error,
+        stackTrace,
         'Cache',
       );
+      Error.throwWithStackTrace(error, stackTrace);
     }
   }
 
@@ -145,8 +157,26 @@ class TagCacheService {
           'Cache',
         );
       }
-    } catch (e, stack) {
-      AppLogger.e('Failed to load cache from storage: $e', e, stack, 'Cache');
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to load cache from storage',
+        error,
+        stackTrace,
+        'Cache',
+      );
+      _memoryCache.clear();
+      try {
+        await _cacheBox!.delete(cacheDataKey);
+        AppLogger.w('Invalid tag cache was reset', 'Cache');
+      } catch (recoveryError, recoveryStackTrace) {
+        AppLogger.e(
+          'Failed to reset invalid tag cache',
+          recoveryError,
+          recoveryStackTrace,
+          'Cache',
+        );
+        Error.throwWithStackTrace(error, stackTrace);
+      }
     }
   }
 
@@ -292,7 +322,7 @@ class TagCacheService {
 }
 
 /// TagCacheService Provider
-@riverpod
+@Riverpod(keepAlive: true)
 TagCacheService tagCacheService(Ref ref) {
   final service = TagCacheService();
   // 初始化在 LocalStorageService 中进行

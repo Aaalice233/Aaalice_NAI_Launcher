@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/network/critical_network_activity.dart';
+import '../../core/services/interactive_work_gate.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/user/user_subscription.dart';
@@ -170,8 +171,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       );
       _hasInitiallyLoaded = true;
       _networkFailureCount = 0;
+      // Token validation already returned this exact subscription payload.
+      // Start the regular cadence without issuing a duplicate request during
+      // the first interactive seconds of the main application.
       _startAutoRefresh();
-      Future.microtask(() => unawaited(refreshBalance()));
       return SubscriptionState.loaded(subscription);
     } catch (e) {
       AppLogger.w(
@@ -207,8 +210,26 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       'Subscription',
     );
     _refreshTimer = Timer(delay, () {
-      unawaited(_runRefreshCycle());
+      unawaited(_runScheduledRefresh());
     });
+  }
+
+  Future<void> _runScheduledRefresh() async {
+    try {
+      await InteractiveWorkGate.instance.runWhenIdle(
+        priority: InteractiveWorkPriority.maintenance,
+        action: () async {
+          if (!_isAppForeground) return;
+          await _runRefreshCycle();
+        },
+      );
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Scheduled subscription refresh failed: $error',
+        'Subscription',
+      );
+      AppLogger.d('$stackTrace', 'Subscription');
+    }
   }
 
   Duration _computeBackoffDuration() {
@@ -264,6 +285,13 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
     if (!isForeground) {
       _stopAutoRefresh();
+      if (_activeBalanceRefreshPriority ==
+              SubscriptionRefreshPriority.background &&
+          _inflightBalanceRefreshCancelToken?.isCancelled == false) {
+        _inflightBalanceRefreshCancelToken?.cancel(
+          'Subscription background refresh paused with application lifecycle',
+        );
+      }
       return;
     }
 

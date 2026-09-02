@@ -441,6 +441,7 @@ void main() {
         ),
       );
       await tester.pump();
+      await tester.pump();
       expect(
         _selectedModeColor(tester, 'online-gallery-mode-favorites'),
         const Color(0xFFBE185D),
@@ -634,6 +635,19 @@ void main() {
     tester,
   ) async {
     await _setViewSize(tester, 1200);
+    String? clipboardText;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        clipboardText =
+            (call.arguments as Map<Object?, Object?>)['text'] as String?;
+      }
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -653,16 +667,25 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
     await tester.tap(find.byType(DanbooruPostCard));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('AI TAG'), findsWidgets);
     expect(find.text('3 images'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('gallery-detail-action-copy')),
-      findsOneWidget,
-    );
+    await tester.tap(find.byKey(const ValueKey('gallery-detail-action-copy')));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Main / global positive prompt'), findsOneWidget);
+    expect(find.text('Main / global negative prompt'), findsOneWidget);
+    expect(find.text('Character 1 positive prompt'), findsOneWidget);
+    expect(find.text('Character 1 negative prompt'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Copy'));
+    await tester.pump();
+    expect(clipboardText, contains('1girl, solo'));
+    expect(clipboardText, contains('red hair'));
+    expect(clipboardText, contains('lowres'));
+    expect(clipboardText, contains('bad hands'));
     expect(
       find.byKey(const ValueKey('gallery-detail-action-download-all')),
       findsOneWidget,
@@ -720,6 +743,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
 
     expect(find.byKey(const ValueKey('ai_tag:801')), findsOneWidget);
     expect(find.text('1 artists'), findsOneWidget);
@@ -748,15 +772,32 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    final copyAction = find.byKey(const ValueKey('gallery-detail-action-copy'));
-    await tester.tap(copyAction);
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const ValueKey('gallery-detail-action-copy')));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Main / global positive prompt'), findsOneWidget);
+    expect(find.text('Main / global negative prompt'), findsOneWidget);
+    expect(find.text('Character 1 positive prompt'), findsOneWidget);
+    expect(find.text('Character 1 negative prompt'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Copy'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      clipboardText,
-      'landscape, 1.2::artist:target:: | red hair\n\nlowres | bad hands',
+    await tester.pump();
+    expect(clipboardText, contains('landscape'));
+    expect(clipboardText, contains('1.2::artist:target::'));
+    expect(clipboardText, isNot(contains('1girl, solo')));
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byIcon(Icons.chevron_right),
+      ),
     );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.byKey(const ValueKey('gallery-detail-action-copy')));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(FilledButton, 'Copy'));
+    await tester.pump();
+    expect(clipboardText, contains('portrait'));
+    expect(clipboardText, isNot(contains('artist:target')));
     await tester.pump(const Duration(seconds: 3));
     expect(tester.takeException(), isNull);
   });
@@ -875,6 +916,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
 
     expect(
       find.byKey(const ValueKey('grid-item:danbooru:401')),
@@ -889,6 +931,7 @@ void main() {
     );
 
     await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pump();
     await tester.pump();
 
     final container = ProviderScope.containerOf(
@@ -910,6 +953,7 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
 
     expect(
       find.byKey(const ValueKey('grid-item:danbooru:401')),

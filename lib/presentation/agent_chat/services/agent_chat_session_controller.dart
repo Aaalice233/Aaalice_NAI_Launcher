@@ -40,8 +40,11 @@ class AgentChatRewindCheckpoint {
 
 class AgentChatSessionController {
   static const sessionSummaryLimit = 100;
-  static const recentHistoryEntryLimit = 200;
-  static const historyPageEntryLimit = 120;
+  // The durable session and Agent context remain complete. The UI restores a
+  // bounded window and prepends further pages on demand so a large JSONL does
+  // not become one synchronous transcript projection/frame.
+  static const recentHistoryEntryLimit = 48;
+  static const historyPageEntryLimit = 48;
   static const historyRecordLimit = 800;
   AgentChatSessionController({
     required JsonlSessionRepo repository,

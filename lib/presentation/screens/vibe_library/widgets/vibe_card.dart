@@ -10,6 +10,7 @@ import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/animated_favorite_button.dart';
 import '../../../widgets/common/card_hover_preview_controller.dart';
 
@@ -61,6 +62,7 @@ class VibeCard extends ConsumerStatefulWidget {
 class _VibeCardState extends ConsumerState<VibeCard>
     with SingleTickerProviderStateMixin {
   bool _isHovered = false;
+  bool _branchVisible = true;
   Uint8List? _lazyThumbnailData;
   Future<void>? _thumbnailLoadFuture;
   Future<VibeLibraryDetailData?>? _hoverDetailFuture;
@@ -81,7 +83,20 @@ class _VibeCardState extends ConsumerState<VibeCard>
       parent: _animationController,
       curve: Curves.easeOutCubic,
     );
-    _loadThumbnailIfNeeded();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final wasVisible = _branchVisible;
+    _branchVisible = AppBranchVisibility.of(context);
+    if (_branchVisible) {
+      _loadThumbnailIfNeeded();
+    } else if (wasVisible) {
+      ref
+          .read(vibeLibraryStorageServiceProvider)
+          .cancelPendingDisplayThumbnailLoads();
+    }
   }
 
   @override
@@ -110,7 +125,9 @@ class _VibeCardState extends ConsumerState<VibeCard>
   }
 
   void _loadThumbnailIfNeeded() {
-    if (_thumbnailData != null || _thumbnailLoadFuture != null) {
+    if (!_branchVisible ||
+        _thumbnailData != null ||
+        _thumbnailLoadFuture != null) {
       return;
     }
 

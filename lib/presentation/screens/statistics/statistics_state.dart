@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/database/database_providers.dart';
@@ -43,11 +41,18 @@ class StatisticsData {
 @Riverpod(keepAlive: true)
 class StatisticsNotifier extends _$StatisticsNotifier {
   Future<void>? _loadFuture;
+  bool _needsRefreshAfterWarmup = false;
 
   @override
-  StatisticsData build() {
-    unawaited(Future.microtask(_loadStatistics));
-    return const StatisticsData();
+  StatisticsData build() => const StatisticsData();
+
+  Future<void> whenLoaded() {
+    if (_needsRefreshAfterWarmup) {
+      _needsRefreshAfterWarmup = false;
+      return _loadStatistics(usePersistentCache: false);
+    }
+    if (state.statistics != null) return Future<void>.value();
+    return _loadStatistics();
   }
 
   Future<void> _loadStatistics({bool usePersistentCache = true}) async {
@@ -95,6 +100,7 @@ class StatisticsNotifier extends _$StatisticsNotifier {
           .read(statisticsServiceProvider)
           .fromDashboardSnapshot(snapshot);
 
+      _needsRefreshAfterWarmup = false;
       state = StatisticsData(
         statistics: statistics,
         isLoading: false,
@@ -150,5 +156,55 @@ class StatisticsNotifier extends _$StatisticsNotifier {
     await _loadStatistics(usePersistentCache: false);
   }
 
-  Future<void> preloadForWarmup() => _loadStatistics();
+  Future<void> preloadForWarmup() async {
+    final existingLoad = _loadFuture;
+    if (existingLoad != null) {
+      await existingLoad;
+      return;
+    }
+
+    final load = _restoreCacheOrLoadStatistics();
+    _loadFuture = load;
+    try {
+      await load;
+    } finally {
+      if (identical(_loadFuture, load)) {
+        _loadFuture = null;
+      }
+    }
+  }
+
+  Future<void> _restoreCacheOrLoadStatistics() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final dataSource = await _getDataSource();
+      final cacheService = ref.read(statisticsCacheServiceProvider);
+      final imageCount = await dataSource.countImages();
+      final cachedStatistics = cacheService.getCache();
+      if (cachedStatistics != null &&
+          cacheService.isCacheValid(imageCount) &&
+          _hasCompleteDashboardData(cachedStatistics)) {
+        _needsRefreshAfterWarmup = true;
+        state = StatisticsData(
+          statistics: cachedStatistics,
+          isLoading: false,
+          lastUpdate: cachedStatistics.calculatedAt,
+        );
+        AppLogger.i(
+          'Restored warmup statistics cache for $imageCount images',
+          'Statistics',
+        );
+        return;
+      }
+      await _performLoad(usePersistentCache: false);
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to restore warmup statistics',
+        e,
+        stack,
+        'Statistics',
+      );
+      state = state.copyWith(error: e.toString(), isLoading: false);
+    }
+  }
 }

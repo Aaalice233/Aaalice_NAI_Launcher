@@ -6,6 +6,7 @@ import '../../../core/agent/harness/env/dart_io_execution_env.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/tools/tools_index.dart';
 import '../../utils/reverse_prompt_image_normalizer.dart';
+import 'agent_image_observation_ledger.dart';
 
 /// 把 [AgentHarnessTool]（需要 ExecutionToolContext）适配成 loop 可直接
 /// 调用的 [AgentTool]：注入 env 上下文并透传 signal / onUpdate /
@@ -53,23 +54,41 @@ class ContextAgentTool extends AgentTool {
 /// AgentChatNotifier._init），相对路径在其下解析，Agent 因此能直接
 /// 读取导出的生成图片。
 class ExecutionToolbox {
-  ExecutionToolbox(String workspaceDir, {bool allowOutsideWorkspace = false})
-    : _env = DartIoExecutionEnv(
-        workingDirectory: workspaceDir,
-        allowOutsideWorkingDirectory: allowOutsideWorkspace,
-      );
+  ExecutionToolbox(
+    String workspaceDir, {
+    bool allowOutsideWorkspace = false,
+    AgentImageObservationLedger? observationLedger,
+    String Function()? activeSessionId,
+  }) : _env = DartIoExecutionEnv(
+         workingDirectory: workspaceDir,
+         allowOutsideWorkingDirectory: allowOutsideWorkspace,
+       ),
+       _observationLedger = observationLedger,
+       _activeSessionId = activeSessionId;
 
   final ExecutionEnv _env;
+  final AgentImageObservationLedger? _observationLedger;
+  final String Function()? _activeSessionId;
 
   List<AgentTool> tools() {
     final context = ExecutionToolContext(env: _env);
+    final read = ContextAgentTool(
+      createReadTool(const ReadToolOptions(imageProcessor: _processReadImage)),
+      context,
+    );
+    final ledger = _observationLedger;
+    final sessionId = _activeSessionId;
     return [
-      ContextAgentTool(
-        createReadTool(
-          const ReadToolOptions(imageProcessor: _processReadImage),
-        ),
-        context,
-      ),
+      // 观察记录挂在这层而不是 harness 的 read 工具里：harness 以 Pi 上游为准，
+      // 不得掺入 Launcher 语义。
+      if (ledger != null && sessionId != null)
+        ImageObservingAgentTool(
+          read,
+          ledger: ledger,
+          activeSessionId: sessionId,
+        )
+      else
+        read,
     ];
   }
 }

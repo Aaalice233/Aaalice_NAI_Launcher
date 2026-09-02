@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 
+import '../../helpers/image_pixel_matchers.dart';
+
 void main() {
   group('InpaintMaskUtils', () {
     test('normalizeMaskBytes should output an opaque black white mask', () {
@@ -559,7 +561,11 @@ void main() {
         expect(softPixel.b.toInt(), equals(220));
         expect(patch.getPixel(0, 0).a.toInt(), equals(0));
         expect(patch.getPixel(128, 128).a.toInt(), equals(255));
-        _expectSamePixels(reconstructed, display);
+        expectPixelsWithin(
+          reconstructed,
+          display,
+          tolerance: inpaintQuantizationTolerance,
+        );
       },
     );
 
@@ -593,6 +599,13 @@ void main() {
         expect(display.getPixel(0, 0).r.toInt(), equals(10));
         expect(display.getPixel(0, 0).g.toInt(), equals(20));
         expect(display.getPixel(0, 0).b.toInt(), equals(30));
+
+        // over 合成永远擦不掉源像素，所以 patch 的消费方拿不到上面的清除效果。
+        final patch = img.decodeImage(result.transparentPatchBytes!)!;
+        final reconstructed = source.convert(numChannels: 4, noAnimation: true);
+        img.compositeImage(reconstructed, patch, blend: img.BlendMode.alpha);
+        expect(reconstructed.getPixel(1, 1).a.toInt(), equals(255));
+        expect(reconstructed.getPixel(2, 1).a.toInt(), equals(255));
       },
     );
 
@@ -629,36 +642,6 @@ void main() {
     b: pixel.b.toInt(),
     a: pixel.a.toInt(),
   );
-}
-
-void _expectSamePixels(img.Image actual, img.Image expected) {
-  expect((actual.width, actual.height), (expected.width, expected.height));
-  // image's integer source-over path can differ from rounded replacement
-  // compositing by up to two RGB levels; alpha remains an exact contract.
-  const maxRgbQuantizationDelta = 2;
-  for (var y = 0; y < actual.height; y++) {
-    for (var x = 0; x < actual.width; x++) {
-      final actualPixel = _rgbaAt(actual, x, y);
-      final expectedPixel = _rgbaAt(expected, x, y);
-      final reason = 'Pixel mismatch at $x,$y';
-      expect(
-        (actualPixel.r - expectedPixel.r).abs(),
-        lessThanOrEqualTo(maxRgbQuantizationDelta),
-        reason: reason,
-      );
-      expect(
-        (actualPixel.g - expectedPixel.g).abs(),
-        lessThanOrEqualTo(maxRgbQuantizationDelta),
-        reason: reason,
-      );
-      expect(
-        (actualPixel.b - expectedPixel.b).abs(),
-        lessThanOrEqualTo(maxRgbQuantizationDelta),
-        reason: reason,
-      );
-      expect(actualPixel.a, expectedPixel.a, reason: reason);
-    }
-  }
 }
 
 img.Image _buildParityMask({required int width, required int height}) {

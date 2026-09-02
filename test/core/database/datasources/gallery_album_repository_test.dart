@@ -6,7 +6,42 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:nai_launcher/core/database/connection_pool_holder.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
+import 'package:nai_launcher/data/models/gallery/gallery_tree_drop_slot.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
+
+class _TrackingGateway implements GalleryDatabaseGateway {
+  _TrackingGateway(this.database);
+
+  final Database database;
+  int activeCalls = 0;
+  int maxActiveCalls = 0;
+
+  @override
+  Future<T> execute<T>(
+    String operationName,
+    Future<T> Function(Database db) operation, {
+    Duration? timeout,
+    int? maxRetries,
+  }) async {
+    activeCalls++;
+    if (activeCalls > maxActiveCalls) maxActiveCalls = activeCalls;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      return await operation(database);
+    } finally {
+      activeCalls--;
+    }
+  }
+
+  @override
+  Future<T> executeTransaction<T>(
+    String operationName,
+    Future<T> Function(Transaction txn) operation, {
+    Duration? timeout,
+  }) {
+    return database.transaction(operation);
+  }
+}
 
 /// 相簿数据访问层单元测试
 ///
@@ -392,6 +427,131 @@ void main() {
       expect((await dataSource.albums.getAlbums()).single.id, existing.id);
     },
   );
+
+  test('moveAlbumToSlot child slot appends under target', () async {
+    final a = await dataSource.albums.createAlbum(name: 'A');
+    final b = await dataSource.albums.createAlbum(name: 'B');
+    final c = await dataSource.albums.createAlbum(name: 'C');
+
+    final changed = await dataSource.albums.moveAlbumToSlot(
+      albumId: a,
+      targetId: b,
+      slot: GalleryTreeDropSlot.child,
+    );
+
+    expect(changed, isTrue);
+    final albums = await dataSource.albums.getAlbums();
+    final moved = albums.firstWhere((x) => x.id == a);
+    expect(moved.parentId, b);
+    expect(albums.firstWhere((x) => x.id == c).parentId, isNull);
+  });
+
+  test('moveAlbumToSlot before slot reorders and moves up one level', () async {
+    final root = await dataSource.albums.createAlbum(name: 'root');
+    final childA = await dataSource.albums.createAlbum(
+      name: 'childA',
+      parentId: root,
+    );
+    await dataSource.albums.createAlbum(name: 'childB', parentId: root);
+    final sibling = await dataSource.albums.createAlbum(name: 'sibling');
+
+    final changed = await dataSource.albums.moveAlbumToSlot(
+      albumId: childA,
+      targetId: sibling,
+      slot: GalleryTreeDropSlot.before,
+    );
+
+    expect(changed, isTrue);
+    final albums = await dataSource.albums.getAlbums();
+    expect(albums.firstWhere((x) => x.id == childA).parentId, isNull);
+    final rootIds = albums
+        .where((x) => x.parentId == null)
+        .map((x) => x.id)
+        .toList();
+    expect(rootIds.indexOf(childA), lessThan(rootIds.indexOf(sibling)));
+  });
+
+  test('moveAlbumToSlot rejects cycles and self', () async {
+    final parent = await dataSource.albums.createAlbum(name: 'parent');
+    final child = await dataSource.albums.createAlbum(
+      name: 'child',
+      parentId: parent,
+    );
+
+    expect(
+      await dataSource.albums.moveAlbumToSlot(
+        albumId: parent,
+        targetId: child,
+        slot: GalleryTreeDropSlot.child,
+      ),
+      isFalse,
+    );
+    expect(
+      await dataSource.albums.moveAlbumToSlot(
+        albumId: parent,
+        targetId: parent,
+        slot: GalleryTreeDropSlot.child,
+      ),
+      isFalse,
+    );
+  });
+
+  test('moveAlbumToSlot adjacent same-position drop is a no-op', () async {
+    final a = await dataSource.albums.createAlbum(name: 'A');
+    final b = await dataSource.albums.createAlbum(name: 'B');
+
+    final changed = await dataSource.albums.moveAlbumToSlot(
+      albumId: b,
+      targetId: a,
+      slot: GalleryTreeDropSlot.after,
+    );
+
+    expect(changed, isFalse);
+  });
+
+  test('moveAlbumToSlot serializes concurrent reorder requests', () async {
+    final database = await databaseFactory.openDatabase(inMemoryDatabasePath);
+    addTearDown(database.close);
+    await database.execute('''
+      CREATE TABLE gallery_albums (
+        id TEXT PRIMARY KEY,
+        parent_id TEXT,
+        sort_order INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+    for (var index = 0; index < 4; index++) {
+      await database.insert('gallery_albums', {
+        'id': String.fromCharCode('a'.codeUnitAt(0) + index),
+        'parent_id': null,
+        'sort_order': index,
+        'updated_at': 0,
+      });
+    }
+    final gateway = _TrackingGateway(database);
+    final repository = SqliteGalleryAlbumRepository(
+      gateway: gateway,
+      context: GalleryStoreContext(),
+    );
+
+    final results = await Future.wait([
+      repository.moveAlbumToSlot(
+        albumId: 'd',
+        targetId: 'a',
+        slot: GalleryTreeDropSlot.before,
+      ),
+      repository.moveAlbumToSlot(
+        albumId: 'c',
+        targetId: 'a',
+        slot: GalleryTreeDropSlot.after,
+      ),
+    ]);
+
+    expect(results, [true, true]);
+    expect(gateway.maxActiveCalls, 1);
+    final rows = await database.query('gallery_albums', orderBy: 'sort_order');
+    expect(rows.map((row) => row['id']).toList(), ['d', 'a', 'c', 'b']);
+  });
 
   test(
     'pendingPaths persist and rebindPendingPaths binds resolved ones',

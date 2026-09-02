@@ -24,6 +24,8 @@ typedef OutpaintFrameResizeCommitted =
 
 class OutpaintEdgeDragOverlay extends StatefulWidget {
   static const double edgeHitSlop = 48;
+  static const double handleSize = 22;
+  static const double cornerHandleSize = 24;
 
   final Size canvasSize;
   final CanvasController controller;
@@ -56,10 +58,67 @@ class OutpaintEdgeDragOverlay extends StatefulWidget {
       controller: controller,
       canvasSize: canvasSize,
     );
-    return _resizeZoneRects(
-      canvasRect,
-      viewportSize,
-    ).any((rect) => rect.contains(localPosition));
+    // 手柄可能被 clamp 到视口边缘、落在边缘条之外，必须一并算作拖拽热区，
+    // 否则画布会在手柄上开始一笔，和拖拽同时发生。
+    return [
+      ..._resizeZoneRects(canvasRect, viewportSize),
+      ..._handleSpecsFor(canvasRect).map((spec) => spec.rect(viewportSize)),
+    ].any((rect) => rect.contains(localPosition));
+  }
+
+  static List<_OutpaintHandleSpec> _handleSpecsFor(Rect canvasRect) {
+    return [
+      _OutpaintHandleSpec(
+        _OutpaintDragHandle.left,
+        Offset(canvasRect.left, canvasRect.center.dy),
+      ),
+      _OutpaintHandleSpec(
+        _OutpaintDragHandle.right,
+        Offset(canvasRect.right, canvasRect.center.dy),
+      ),
+      _OutpaintHandleSpec(
+        _OutpaintDragHandle.top,
+        Offset(canvasRect.center.dx, canvasRect.top),
+      ),
+      _OutpaintHandleSpec(
+        _OutpaintDragHandle.bottom,
+        Offset(canvasRect.center.dx, canvasRect.bottom),
+      ),
+      _OutpaintHandleSpec(
+        _OutpaintDragHandle.topLeft,
+        canvasRect.topLeft,
+        isCorner: true,
+      ),
+      _OutpaintHandleSpec(
+        _OutpaintDragHandle.topRight,
+        canvasRect.topRight,
+        isCorner: true,
+      ),
+      _OutpaintHandleSpec(
+        _OutpaintDragHandle.bottomLeft,
+        canvasRect.bottomLeft,
+        isCorner: true,
+      ),
+      _OutpaintHandleSpec(
+        _OutpaintDragHandle.bottomRight,
+        canvasRect.bottomRight,
+        isCorner: true,
+      ),
+    ];
+  }
+
+  static Offset _clampHandleCenter(
+    Offset center,
+    double size,
+    Size viewportSize,
+  ) {
+    final halfSize = size / 2;
+    final maxX = math.max(halfSize, viewportSize.width - halfSize);
+    final maxY = math.max(halfSize, viewportSize.height - halfSize);
+    return Offset(
+      center.dx.clamp(halfSize, maxX).toDouble(),
+      center.dy.clamp(halfSize, maxY).toDouble(),
+    );
   }
 
   static Rect _screenCanvasRectFor({
@@ -135,9 +194,6 @@ class OutpaintEdgeDragOverlay extends StatefulWidget {
 }
 
 class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
-  static const double _handleSize = 22;
-  static const double _cornerHandleSize = 24;
-
   _OutpaintDragHandle? _activeHandle;
   _OutpaintDragHandle? _hoveredHandle;
   int? _activePointer;
@@ -242,60 +298,9 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
   }
 
   List<Widget> _buildHandles(Rect canvasRect, Size viewportSize) {
-    return [
-      _buildHandle(
-        key: const Key('outpaint_handle_left'),
-        handle: _OutpaintDragHandle.left,
-        center: Offset(canvasRect.left, canvasRect.center.dy),
-        viewportSize: viewportSize,
-      ),
-      _buildHandle(
-        key: const Key('outpaint_handle_right'),
-        handle: _OutpaintDragHandle.right,
-        center: Offset(canvasRect.right, canvasRect.center.dy),
-        viewportSize: viewportSize,
-      ),
-      _buildHandle(
-        key: const Key('outpaint_handle_top'),
-        handle: _OutpaintDragHandle.top,
-        center: Offset(canvasRect.center.dx, canvasRect.top),
-        viewportSize: viewportSize,
-      ),
-      _buildHandle(
-        key: const Key('outpaint_handle_bottom'),
-        handle: _OutpaintDragHandle.bottom,
-        center: Offset(canvasRect.center.dx, canvasRect.bottom),
-        viewportSize: viewportSize,
-      ),
-      _buildHandle(
-        key: const Key('outpaint_handle_top_left'),
-        handle: _OutpaintDragHandle.topLeft,
-        center: canvasRect.topLeft,
-        isCorner: true,
-        viewportSize: viewportSize,
-      ),
-      _buildHandle(
-        key: const Key('outpaint_handle_top_right'),
-        handle: _OutpaintDragHandle.topRight,
-        center: canvasRect.topRight,
-        isCorner: true,
-        viewportSize: viewportSize,
-      ),
-      _buildHandle(
-        key: const Key('outpaint_handle_bottom_left'),
-        handle: _OutpaintDragHandle.bottomLeft,
-        center: canvasRect.bottomLeft,
-        isCorner: true,
-        viewportSize: viewportSize,
-      ),
-      _buildHandle(
-        key: const Key('outpaint_handle_bottom_right'),
-        handle: _OutpaintDragHandle.bottomRight,
-        center: canvasRect.bottomRight,
-        isCorner: true,
-        viewportSize: viewportSize,
-      ),
-    ];
+    return OutpaintEdgeDragOverlay._handleSpecsFor(
+      canvasRect,
+    ).map((spec) => _buildHandle(spec, viewportSize)).toList();
   }
 
   List<Widget> _buildEdgeZones(Rect canvasRect, Size viewportSize) {
@@ -361,13 +366,14 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
       rect: clampedRect,
       child: MouseRegion(
         key: key,
-        opaque: true,
-        hitTestBehavior: HitTestBehavior.opaque,
+        // 不能挡住画布的 MouseRegion 与 hover 事件，否则画笔光标会在画布边缘消失再重现
+        opaque: false,
+        hitTestBehavior: HitTestBehavior.translucent,
         cursor: handle.cursor,
         onEnter: (_) => _setHoveredHandle(handle),
         onExit: (_) => _clearHoveredHandle(handle),
         child: Listener(
-          behavior: HitTestBehavior.opaque,
+          behavior: HitTestBehavior.translucent,
           onPointerDown: (event) => _handlePointerDown(event, handle),
           child: const SizedBox.expand(),
         ),
@@ -375,29 +381,20 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
     );
   }
 
-  Widget _buildHandle({
-    required Key key,
-    required _OutpaintDragHandle handle,
-    required Offset center,
-    required Size viewportSize,
-    bool isCorner = false,
-  }) {
-    final size = isCorner ? _cornerHandleSize : _handleSize;
-    final visibleCenter = _clampHandleCenter(center, size, viewportSize);
-    return Positioned(
-      left: visibleCenter.dx - size / 2,
-      top: visibleCenter.dy - size / 2,
-      width: size,
-      height: size,
+  Widget _buildHandle(_OutpaintHandleSpec spec, Size viewportSize) {
+    final handle = spec.handle;
+    final isCorner = spec.isCorner;
+    return Positioned.fromRect(
+      rect: spec.rect(viewportSize),
       child: MouseRegion(
-        opaque: true,
-        hitTestBehavior: HitTestBehavior.opaque,
+        opaque: false,
+        hitTestBehavior: HitTestBehavior.translucent,
         cursor: handle.cursor,
         onEnter: (_) => _setHoveredHandle(handle),
         onExit: (_) => _clearHoveredHandle(handle),
         child: Listener(
-          key: key,
-          behavior: HitTestBehavior.opaque,
+          key: spec.key,
+          behavior: HitTestBehavior.translucent,
           onPointerDown: (event) => _handlePointerDown(event, handle),
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -472,16 +469,6 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
     }
     _activePointer = null;
     _lastGlobalPosition = null;
-  }
-
-  Offset _clampHandleCenter(Offset center, double size, Size viewportSize) {
-    final halfSize = size / 2;
-    final maxX = math.max(halfSize, viewportSize.width - halfSize);
-    final maxY = math.max(halfSize, viewportSize.height - halfSize);
-    return Offset(
-      center.dx.clamp(halfSize, maxX).toDouble(),
-      center.dy.clamp(halfSize, maxY).toDouble(),
-    );
   }
 
   Rect _clampZoneRect(Rect rect, Size viewportSize) {
@@ -764,6 +751,30 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
     return handle.affectsTop
         ? OutpaintVerticalSnapTarget.top
         : OutpaintVerticalSnapTarget.bottom;
+  }
+}
+
+/// 手柄几何：拖拽热区判定与实际渲染共用同一份，避免两处 clamp 逻辑漂移
+class _OutpaintHandleSpec {
+  const _OutpaintHandleSpec(this.handle, this.center, {this.isCorner = false});
+
+  final _OutpaintDragHandle handle;
+  final Offset center;
+  final bool isCorner;
+
+  double get size => isCorner
+      ? OutpaintEdgeDragOverlay.cornerHandleSize
+      : OutpaintEdgeDragOverlay.handleSize;
+
+  Key get key => Key('outpaint_handle_${handle.keySuffix}');
+
+  Rect rect(Size viewportSize) {
+    final visibleCenter = OutpaintEdgeDragOverlay._clampHandleCenter(
+      center,
+      size,
+      viewportSize,
+    );
+    return Rect.fromCenter(center: visibleCenter, width: size, height: size);
   }
 }
 

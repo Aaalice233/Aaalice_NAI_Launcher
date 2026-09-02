@@ -6,7 +6,6 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../providers/online_gallery_provider.dart';
-import '../../widgets/online_gallery/online_gallery_image_placeholder.dart';
 import 'online_gallery_masonry_layout.dart';
 import 'online_gallery_screen_controller.dart';
 
@@ -25,6 +24,8 @@ typedef OnlineGalleryVisibilityItemBuilder =
       bool isScrolling,
       bool isVisible,
     );
+
+void _revealImmediately(VoidCallback reveal) => reveal();
 
 typedef OnlineGalleryGridFooterBuilder =
     Widget Function(BuildContext context, double itemWidth, int columnCount);
@@ -232,9 +233,11 @@ class OnlineGalleryPendingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: itemWidth,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: const OnlineGalleryImagePlaceholder(loading: true),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }
@@ -250,6 +253,7 @@ class OnlineGalleryVisibilityDrivenItem extends StatefulWidget {
     this.onGeometryMeasured,
     this.onVisibilityTransition,
     this.onVisibilityDrivenRebuild,
+    this.scheduleReveal = _revealImmediately,
     required this.builder,
   });
 
@@ -265,6 +269,7 @@ class OnlineGalleryVisibilityDrivenItem extends StatefulWidget {
   final ValueChanged<Duration>? onGeometryMeasured;
   final VoidCallback? onVisibilityTransition;
   final VoidCallback? onVisibilityDrivenRebuild;
+  final void Function(VoidCallback reveal) scheduleReveal;
   final OnlineGalleryVisibilityItemBuilder builder;
 
   @override
@@ -279,6 +284,7 @@ class OnlineGalleryVisibilityDrivenItemState
   bool _isVisible = false;
   late bool _isScrolling;
   bool _listensForScrolling = false;
+  bool _revealQueued = false;
 
   @override
   void initState() {
@@ -318,10 +324,24 @@ class OnlineGalleryVisibilityDrivenItemState
     _isScrolling = value;
     if (_hasBeenVisible || !mounted) return;
     if (!value && _isVisible) {
+      _queueReveal();
+    }
+  }
+
+  void _queueReveal() {
+    if (_hasBeenVisible || _revealQueued || !mounted) return;
+    _revealQueued = true;
+    widget.scheduleReveal(() {
+      _revealQueued = false;
+      if (!mounted || _hasBeenVisible) return;
+      if (!_isVisible || _isScrolling) {
+        _startListeningForScrolling();
+        return;
+      }
       _stopListeningForScrolling();
       widget.onVisibilityDrivenRebuild?.call();
       setState(() => _hasBeenVisible = true);
-    }
+    });
   }
 
   @override
@@ -367,9 +387,7 @@ class OnlineGalleryVisibilityDrivenItemState
         _isVisible = visible;
         widget.onVisibilityTransition?.call();
         if (visible && !_hasBeenVisible && !_isScrolling && mounted) {
-          _stopListeningForScrolling();
-          widget.onVisibilityDrivenRebuild?.call();
-          setState(() => _hasBeenVisible = true);
+          _queueReveal();
         }
       },
       child: widget.builder(context, _hasBeenVisible, _isScrolling, _isVisible),

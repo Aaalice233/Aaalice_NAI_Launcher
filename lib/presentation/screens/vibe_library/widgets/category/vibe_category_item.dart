@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../widgets/common/context_menu_anchor.dart';
 
 enum _VibeCategoryAction { rename, addSubCategory, delete }
 
@@ -287,12 +288,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
   void _showContextMenu(BuildContext context, Offset position) {
     showMenu(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: contextMenuAnchorAt(context, position),
       items: [
         if (widget.onRename != null)
           PopupMenuItem(

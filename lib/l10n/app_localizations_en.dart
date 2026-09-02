@@ -1106,6 +1106,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Update generation settings';
 
   @override
+  String get agentChat_toolGetGenerationSourceImage =>
+      'View Image2Image source';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage =>
+      'Load Image2Image source';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage =>
+      'Clear Image2Image source';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings =>
+      'Adjust Image2Image strength';
+
+  @override
   String get agentChat_toolPromptState => 'View prompt state';
 
   @override
@@ -1190,6 +1206,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_toolSubmitInpaint => 'Submit manual inpaint draft';
 
   @override
+  String get agentChat_toolCreateInpaintMask => 'Create inpaint mask';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => 'Expand canvas';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => 'Load inpaint draft into panel';
+
+  @override
   String get agentChat_manualInpaintTitle => 'Manual inpaint';
 
   @override
@@ -1263,7 +1288,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_errorDetails => 'Error details';
 
   @override
-  String get agentChat_model => 'Select model';
+  String get agentChat_modelLabel => 'Model';
+
+  @override
+  String get agentChat_modelPickerTitle => 'Select model';
+
+  @override
+  String get agentChat_searchModels => 'Search models';
+
+  @override
+  String get agentChat_searchModelsHint => 'Name, model ID, or provider';
+
+  @override
+  String get agentChat_clearModelSearch => 'Clear model search';
+
+  @override
+  String get agentChat_noModelResults => 'No models match this search.';
 
   @override
   String get agentChat_noModel => 'No model';
@@ -6049,6 +6089,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_moveAlbumToRoot => 'Move to Root';
 
   @override
+  String get localGallery_moveAlbumUp => 'Move Up One Level';
+
+  @override
+  String get localGallery_moveCategoryUp => 'Move Up One Level';
+
+  @override
   String get localGallery_createAlbumTitle => 'New Album';
 
   @override
@@ -6056,9 +6102,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_createAlbumHint => 'Enter album name';
-
-  @override
-  String get localGallery_renameAlbumTitle => 'Rename Album';
 
   @override
   String get localGallery_deleteAlbumTitle => 'Delete Album';
@@ -6078,6 +6121,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_addToAlbum => 'Add to Album';
+
+  @override
+  String get localGallery_removeFromAlbum => 'Remove from Album';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return 'Removed $count images';
+  }
+
+  @override
+  String get localGallery_albumNoMembers =>
+      'Selected images are not in this album';
 
   @override
   String localGallery_addedToAlbumWithName(Object count, Object name) {

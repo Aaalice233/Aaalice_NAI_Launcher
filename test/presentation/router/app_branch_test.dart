@@ -16,13 +16,8 @@ void main() {
     });
   });
 
-  test('keep-alive branches use the semantic route contract', () {
-    expect(keptAliveAppBranches, {
-      AppBranch.localGallery,
-      AppBranch.onlineGallery,
-      AppBranch.vibeLibrary,
-      AppBranch.preciseRefLibrary,
-    });
+  test('every visited shell branch remains mounted', () {
+    expect(keptAliveAppBranches, AppBranch.values.toSet());
   });
 
   test(

@@ -322,6 +322,7 @@ class _OnlineGalleryContentPresenter {
       onTileBuild: _controller.recordTileBuild,
       onVisibilityTransition: _controller.recordVisibilityTransition,
       onVisibilityDrivenRebuild: _controller.recordVisibilityDrivenRebuild,
+      scheduleReveal: _controller.scheduleCardReveal,
       viewportGeneration: _controller.viewportGeneration,
       detailRequestScope: (
         state.currentCacheKey,

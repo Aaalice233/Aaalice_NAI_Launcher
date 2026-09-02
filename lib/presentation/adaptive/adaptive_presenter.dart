@@ -215,9 +215,15 @@ class _PanelSurface extends StatelessWidget {
           ),
           Divider(height: 1, color: theme.colorScheme.outlineVariant),
           Expanded(
-            child: PrimaryScrollController(
-              controller: scrollController,
-              child: child,
+            child: SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              bottom: !sideSheet,
+              child: PrimaryScrollController(
+                controller: scrollController,
+                child: child,
+              ),
             ),
           ),
         ],

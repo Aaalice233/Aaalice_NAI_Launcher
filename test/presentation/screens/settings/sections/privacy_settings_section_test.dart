@@ -124,22 +124,27 @@ void main() {
   testWidgets('在线画廊黑名单与全部主设置卡片宽度一致', (tester) async {
     await pumpSection(tester);
 
-    final primaryCard = find.descendant(
+    final settingsCards = find.descendant(
       of: find.byType(SettingsCard),
       matching: find.byType(Card),
     );
-    final blacklistCard = find.descendant(
-      of: find.byType(OnlineGalleryBlacklistSettingsPanel),
+    final blacklistPanel = find.byType(OnlineGalleryBlacklistSettingsPanel);
+    final blacklistCard = find.ancestor(
+      of: blacklistPanel,
       matching: find.byType(Card),
     );
-    expect(primaryCard, findsNWidgets(3));
+    expect(settingsCards, findsNWidgets(4));
     expect(blacklistCard, findsOneWidget);
+    expect(
+      find.descendant(of: blacklistPanel, matching: find.byType(Card)),
+      findsNothing,
+    );
 
-    final primaryRect = tester.getRect(primaryCard.first);
+    final primaryRect = tester.getRect(settingsCards.first);
     final blacklistRect = tester.getRect(blacklistCard);
 
-    for (var index = 1; index < 3; index++) {
-      final sectionRect = tester.getRect(primaryCard.at(index));
+    for (var index = 1; index < 4; index++) {
+      final sectionRect = tester.getRect(settingsCards.at(index));
       expect(sectionRect.left, primaryRect.left);
       expect(sectionRect.right, primaryRect.right);
       expect(sectionRect.width, primaryRect.width);

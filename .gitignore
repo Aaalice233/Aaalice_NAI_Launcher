@@ -201,6 +201,8 @@ tool/tag_catalog/.tmp/
 .orca/
 .pi-analyze-worktree/
 .pi/openai-codex-images/
+.pi/goals/
+.pi/.goals-pool-snapshot.json
 
 # GSD (Get Shit Done) 工作流
 .planning/

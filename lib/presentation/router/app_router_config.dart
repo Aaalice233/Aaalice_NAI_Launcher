@@ -89,18 +89,12 @@ GoRouter appRouter(Ref ref) {
               GoRoute(
                 path: AppRoutes.home,
                 name: AppRouteNames.home,
-                pageBuilder: (context, state) => _buildFadePage(
-                  state: state,
-                  child: const GenerationScreen(),
-                ),
+                builder: (context, state) => const GenerationScreen(),
               ),
               GoRoute(
                 path: AppRoutes.generation,
                 name: AppRouteNames.generation,
-                pageBuilder: (context, state) => _buildFadePage(
-                  state: state,
-                  child: const GenerationScreen(),
-                ),
+                builder: (context, state) => const GenerationScreen(),
               ),
             ],
           ),
@@ -229,24 +223,6 @@ GoRouter appRouter(Ref ref) {
 
 const _defaultTransitionDuration = Duration(milliseconds: 300);
 const _defaultCurve = Curves.easeOutCubic;
-
-CustomTransitionPage<void> _buildFadePage({
-  required GoRouterState state,
-  required Widget child,
-  Duration duration = _defaultTransitionDuration,
-}) {
-  return CustomTransitionPage(
-    key: state.pageKey,
-    child: child,
-    transitionDuration: duration,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return FadeTransition(
-        opacity: CurveTween(curve: _defaultCurve).animate(animation),
-        child: child,
-      );
-    },
-  );
-}
 
 CustomTransitionPage<void> _buildFadeSlidePage({
   required GoRouterState state,

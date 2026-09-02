@@ -20,7 +20,17 @@ void main() {
       prompt,
       contains(
         'Only retrieve it again when the user explicitly asks to reopen, '
-        'compare, inspect, or analyze the image.',
+        'compare, inspect, or analyze the image, or when you need '
+        'coordinates for create_inpaint_mask.',
+      ),
+    );
+    // 量坐标必须走 read：预览通道是 256px，够看不够量。
+    expect(
+      prompt,
+      contains(
+        'display_images and preview_generated_image return small previews '
+        'meant for the user to look at, and are too coarse to measure a '
+        'region from.',
       ),
     );
     expect(
@@ -37,5 +47,31 @@ void main() {
         'extension.',
       ),
     );
+  });
+
+  test('separates the persistent source-image slot from one-shot img2img', () {
+    final prompt = buildAgentSystemPrompt(
+      workspacePath: 'C:/exports',
+      webAccessEnabled: false,
+      skillBlock: '',
+    );
+
+    expect(
+      prompt,
+      contains(
+        'those are one-shot overrides for that single transaction and leave '
+        'the page untouched',
+      ),
+    );
+    expect(
+      prompt,
+      contains(
+        'Use the source-image tools whenever the user should see the image '
+        'sitting in the Image2Image panel.',
+      ),
+    );
+    expect(prompt, contains('set_generation_source_image'));
+    expect(prompt, contains('clear_generation_source_image'));
+    expect(prompt, contains('update_generation_source_settings'));
   });
 }

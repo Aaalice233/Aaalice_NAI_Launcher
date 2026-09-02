@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/gallery_album.dart';
+import '../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/gallery/gallery_album_sidecar_service.dart';
 import 'gallery_category_provider.dart';
@@ -60,14 +62,18 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
   final GalleryAlbumSidecarService _sidecarService =
       GalleryAlbumSidecarService();
 
+  final _moveLock = Lock();
   Timer? _sidecarExportTimer;
+  late Future<void> _initialLoad;
 
   @override
   GalleryAlbumState build() {
     ref.onDispose(() => _sidecarExportTimer?.cancel());
-    Future.microtask(() => _load());
+    _initialLoad = Future<void>.microtask(_load);
     return const GalleryAlbumState(isLoading: true);
   }
+
+  Future<void> whenLoaded() => _initialLoad;
 
   GalleryAlbumRepository get _albums => _dataSource.albums;
 
@@ -154,6 +160,27 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
     return success;
   }
 
+  /// 按拖放槽位移动相簿（child=移入目标；before/after=同级或跨层排序，
+  /// 跨层时即“上移一级”），成功后刷新并导出 sidecar
+  Future<bool> moveAlbumToSlot(
+    String albumId,
+    String targetId,
+    GalleryTreeDropSlot slot,
+  ) {
+    return _moveLock.synchronized(() async {
+      final changed = await _albums.moveAlbumToSlot(
+        albumId: albumId,
+        targetId: targetId,
+        slot: slot,
+      );
+      if (changed) {
+        await _load();
+        _scheduleSidecarExport();
+      }
+      return changed;
+    });
+  }
+
   /// 移动相簿到新父级（含防环校验）
   Future<bool> moveAlbum(String albumId, String? newParentId) async {
     if (newParentId != null &&
@@ -211,6 +238,10 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
     if (removed > 0) {
       await _load();
       _scheduleSidecarExport();
+      // 当前浏览的正是该相簿时，过滤视图需立即反映成员变化
+      await ref
+          .read(localGalleryNotifierProvider.notifier)
+          .refresh(scan: false);
     }
     return removed;
   }

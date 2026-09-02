@@ -153,7 +153,12 @@ class LocalGalleryState with _$LocalGalleryState {
 class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   LocalGalleryState? _cachedState;
   LocalGalleryService? _service;
+  Future<void>? _initialization;
+  Future<int>? _favoriteCountLoad;
+  DateTime? _lastSynchronizedAt;
   int _filterRequestSerial = 0;
+
+  DateTime? get lastSynchronizedAt => _lastSynchronizedAt;
 
   @override
   LocalGalleryState build() {
@@ -176,61 +181,32 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   void _resetState() {
     _cachedState = null;
     _service = null;
+    _initialization = null;
+    _favoriteCountLoad = null;
+    _lastSynchronizedAt = null;
     _filterRequestSerial++;
     _setState(const LocalGalleryState());
   }
 
-  /// 获取服务实例
-  ///
-  /// 延迟初始化，确保在调用时才获取
+  /// 获取共享服务实例，所有调用方等待同一个初始化 Future。
   Future<LocalGalleryService> getService() async {
-    if (_service == null) {
-      // 等待服务初始化完成（最多10秒）
-      var attempts = 0;
-      const maxAttempts = 100; // 100 * 100ms = 10秒
-      LocalGalleryService? lastService;
-      while (attempts < maxAttempts) {
-        final service = ref.read(galleryServiceProvider);
-        lastService = service;
+    final cached = _service;
+    if (cached != null) return cached;
 
-        // 【调试】记录服务类型变化
-        if (attempts % 10 == 0) {
-          AppLogger.d(
-            'Waiting for gallery service: attempt=$attempts, type=${service.runtimeType}, isInitialized=${service.isInitialized}',
-            'LocalGalleryNotifier',
-          );
-        }
-
-        // 检查是否是错误状态的服务
-        if (service is ErrorGalleryService) {
-          throw GalleryDatabaseException(
-            message: 'Gallery service initialization failed: ${service.error}',
-          );
-        }
-
-        // 使用 isInitialized 检查服务是否已初始化
-        if (service.isInitialized) {
-          _service = service;
-          AppLogger.d(
-            'Gallery service ready after $attempts attempts, type=${service.runtimeType}',
-            'LocalGalleryNotifier',
-          );
-          break;
-        }
-        // 等待后重试
-        await Future.delayed(const Duration(milliseconds: 100));
-        attempts++;
-      }
-      if (_service == null) {
-        final typeInfo = lastService != null
-            ? ' (last type: ${lastService.runtimeType})'
-            : '';
-        throw GalleryDatabaseException(
-          message: 'Gallery service initialization timed out$typeInfo',
-        );
-      }
+    await ref.read(galleryServiceProvider.notifier).ensureInitialized();
+    final service = ref.read(galleryServiceProvider);
+    if (service is ErrorGalleryService) {
+      throw GalleryDatabaseException(
+        message: 'Gallery service initialization failed: ${service.error}',
+      );
     }
-    return _service!;
+    if (!service.isInitialized) {
+      throw const GalleryDatabaseException(
+        message: 'Gallery service initialization completed without readiness',
+      );
+    }
+    _service = service;
+    return service;
   }
 
   // ============================================================
@@ -242,12 +218,24 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 1. 初始化服务
   /// 2. 加载首页数据
   /// 3. 在后台执行索引扫描
-  Future<void> initialize() async {
-    // 检查是否需要初始化
+  Future<void> initialize() {
     if (state.isInitialized && state.error == null) {
-      return;
+      return Future<void>.value();
     }
+    final active = _initialization;
+    if (active != null) return active;
 
+    late final Future<void> operation;
+    operation = _initialize().whenComplete(() {
+      if (state.error != null && identical(_initialization, operation)) {
+        _initialization = null;
+      }
+    });
+    _initialization = operation;
+    return operation;
+  }
+
+  Future<void> _initialize() async {
     _setState(
       state.copyWith(
         isLoading: true,
@@ -289,6 +277,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
       // 后台扫描（通过服务层自动处理）
       _setState(state.copyWith(isIndexing: false, isPageLoading: false));
+      _lastSynchronizedAt = DateTime.now();
     } on GalleryPermissionDeniedException catch (e) {
       AppLogger.e('Gallery permission denied', e, null, 'LocalGalleryNotifier');
       _setState(
@@ -471,8 +460,14 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         ),
       );
 
-      // 刷新当前页
-      await loadPage(state.currentPage, showLoading: false);
+      if (state.isGroupedView) {
+        await _loadGroupedImages();
+      } else {
+        // 刷新当前页
+        await loadPage(state.currentPage, showLoading: false);
+      }
+      _favoriteCountLoad = null;
+      _lastSynchronizedAt = DateTime.now();
     } on GalleryScanException catch (e) {
       _setState(
         state.copyWith(
@@ -990,6 +985,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         await _applyFilters();
       }
 
+      _favoriteCountLoad = null;
       return isFav;
     } on GalleryDatabaseException catch (e) {
       AppLogger.e('Toggle favorite failed', e, null, 'LocalGalleryNotifier');
@@ -1018,14 +1014,30 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
   }
 
-  Future<int> getTotalFavoriteCount() async {
-    try {
-      final service = await getService();
-      return await service.getFavoriteCount();
-    } catch (e) {
-      AppLogger.e('Get favorite count failed', e, null, 'LocalGalleryNotifier');
-      return 0;
-    }
+  Future<int> getTotalFavoriteCount() {
+    final active = _favoriteCountLoad;
+    if (active != null) return active;
+
+    late final Future<int> operation;
+    operation = () async {
+      try {
+        final service = await getService();
+        return await service.getFavoriteCount();
+      } catch (e) {
+        if (identical(_favoriteCountLoad, operation)) {
+          _favoriteCountLoad = null;
+        }
+        AppLogger.e(
+          'Get favorite count failed',
+          e,
+          null,
+          'LocalGalleryNotifier',
+        );
+        return 0;
+      }
+    }();
+    _favoriteCountLoad = operation;
+    return operation;
   }
 
   // ============================================================

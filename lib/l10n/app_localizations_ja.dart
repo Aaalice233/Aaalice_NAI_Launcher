@@ -1090,6 +1090,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_toolUpdateGenerationSettings => '生成設定を更新';
 
   @override
+  String get agentChat_toolGetGenerationSourceImage => 'i2i の元画像を表示';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage => 'i2i の元画像を読み込み';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage => 'i2i の元画像を削除';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings => 'i2i の強度を調整';
+
+  @override
   String get agentChat_toolPromptState => 'プロンプト状態を表示';
 
   @override
@@ -1174,6 +1186,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_toolSubmitInpaint => 'インペイントタスクを送信';
 
   @override
+  String get agentChat_toolCreateInpaintMask => 'インペイントマスクを作成';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => 'キャンバスを拡張';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => 'インペイントドラフトをパネルに読み込む';
+
+  @override
   String get agentChat_manualInpaintTitle => '手動インペイント';
 
   @override
@@ -1243,7 +1264,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_errorDetails => 'エラーの詳細';
 
   @override
-  String get agentChat_model => 'モデルを選択';
+  String get agentChat_modelLabel => 'モデル';
+
+  @override
+  String get agentChat_modelPickerTitle => 'モデルを選択';
+
+  @override
+  String get agentChat_searchModels => 'モデルを検索';
+
+  @override
+  String get agentChat_searchModelsHint => 'モデル名、ID、またはプロバイダー';
+
+  @override
+  String get agentChat_clearModelSearch => 'モデル検索をクリア';
+
+  @override
+  String get agentChat_noModelResults => '検索条件に一致するモデルはありません。';
 
   @override
   String get agentChat_noModel => 'モデル未設定';
@@ -5905,6 +5941,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_moveAlbumToRoot => 'ルートへ移動';
 
   @override
+  String get localGallery_moveAlbumUp => '一つ上へ移動';
+
+  @override
+  String get localGallery_moveCategoryUp => '一つ上へ移動';
+
+  @override
   String get localGallery_createAlbumTitle => 'アルバムを作成';
 
   @override
@@ -5912,9 +5954,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get localGallery_createAlbumHint => 'アルバム名を入力';
-
-  @override
-  String get localGallery_renameAlbumTitle => 'アルバムの名前を変更';
 
   @override
   String get localGallery_deleteAlbumTitle => 'アルバムを削除';
@@ -5934,6 +5973,17 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get localGallery_addToAlbum => 'アルバムに追加';
+
+  @override
+  String get localGallery_removeFromAlbum => 'アルバムから削除';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return '$count 枚の画像を削除しました';
+  }
+
+  @override
+  String get localGallery_albumNoMembers => '選択した画像はこのアルバムにありません';
 
   @override
   String localGallery_addedToAlbumWithName(Object count, Object name) {

@@ -123,6 +123,7 @@ class MainNavRail extends ConsumerWidget {
                 children: [
                   // Navigation Items
                   _NavIcon(
+                    key: const Key('nav-branch-0'),
                     icon: Icons.brush, // Canvas/Edit
                     label: context.l10n.nav_canvas,
                     isSelected: selectedIndex == 0,
@@ -132,6 +133,7 @@ class MainNavRail extends ConsumerWidget {
 
                   // 本地图库（App生成的图片）
                   _NavIcon(
+                    key: const Key('nav-branch-1'),
                     icon: Icons.folder, // Local Generated Images
                     label: context.l10n.nav_localGallery,
                     isSelected: selectedIndex == 1,
@@ -141,6 +143,7 @@ class MainNavRail extends ConsumerWidget {
 
                   // 在线画廊
                   _NavIcon(
+                    key: const Key('nav-branch-2'),
                     icon: Icons.photo_library, // Online Gallery
                     label: context.l10n.nav_onlineGallery,
                     isSelected: selectedIndex == 2,
@@ -150,6 +153,7 @@ class MainNavRail extends ConsumerWidget {
 
                   // Vibe库
                   _NavIcon(
+                    key: const Key('nav-branch-3'),
                     icon: Icons.auto_awesome, // Vibe Library
                     label: context.l10n.vibeLibrary_title,
                     isSelected: selectedIndex == 3,
@@ -159,6 +163,7 @@ class MainNavRail extends ConsumerWidget {
 
                   // 精准参考库
                   _NavIcon(
+                    key: const Key('nav-branch-4'),
                     icon: Icons.center_focus_strong,
                     label: context.l10n.nav_preciseRefLibrary,
                     isSelected: selectedIndex == 4,
@@ -169,6 +174,7 @@ class MainNavRail extends ConsumerWidget {
 
                   // 随机配置
                   _NavIcon(
+                    key: const Key('nav-branch-5'),
                     icon: Icons.casino, // Random prompt config
                     label: context.l10n.nav_randomConfig,
                     isSelected: selectedIndex == 5,
@@ -178,6 +184,7 @@ class MainNavRail extends ConsumerWidget {
 
                   // 词库
                   _NavIcon(
+                    key: const Key('nav-branch-6'),
                     icon: Icons.book,
                     label: context.l10n.nav_dictionary,
                     isSelected: selectedIndex == 6,
@@ -187,6 +194,7 @@ class MainNavRail extends ConsumerWidget {
 
                   // 统计
                   _NavIcon(
+                    key: const Key('nav-branch-7'),
                     icon: Icons.bar_chart, // Gallery Statistics
                     label: context.l10n.nav_statistics,
                     isSelected: selectedIndex == 7,
@@ -242,6 +250,7 @@ class MainNavRail extends ConsumerWidget {
 
           // Bottom Settings
           _NavIcon(
+            key: const Key('nav-branch-8'),
             icon: Icons.settings,
             label: context.l10n.nav_settings,
             isSelected: selectedIndex == 8,
@@ -1081,6 +1090,15 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
         );
       } catch (_) {
         currentAccount = null;
+      }
+    }
+    if (currentAccount == null &&
+        (authState.status == AuthStatus.loading || authState.hasError)) {
+      final sortedAccounts = widget.ref
+          .read(accountManagerNotifierProvider.notifier)
+          .sortedAccounts;
+      if (sortedAccounts.isNotEmpty) {
+        currentAccount = sortedAccounts.first;
       }
     }
 

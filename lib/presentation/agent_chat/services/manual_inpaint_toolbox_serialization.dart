@@ -3,7 +3,9 @@ import 'dart:typed_data';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/tools/image.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/display_thumbnail_utils.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/inpaint/inpaint_draft.dart';
 import '../../../data/services/inpaint_draft_repository.dart';
@@ -34,8 +36,9 @@ Map<String, dynamic> manualInpaintDraftJson(InpaintDraft draft) => {
 Map<String, dynamic> buildManualInpaintParameterSnapshot(
   ImageParams base,
   String prompt,
-  Object? overrides,
-) {
+  Object? overrides, {
+  Uint8List? sourceImage,
+}) {
   final snapshot = <String, dynamic>{...base.toJson()};
   if (overrides != null) {
     if (overrides is! Map<String, dynamic>) {
@@ -45,6 +48,23 @@ Map<String, dynamic> buildManualInpaintParameterSnapshot(
   }
   snapshot['prompt'] = prompt;
   snapshot['action'] = ImageGenerationAction.infill.name;
+  if (sourceImage != null) {
+    // 请求尺寸必须跟随底图：normalizeImageForRequest 是无视宽高比的直接重采样，
+    // 沿用生成页尺寸会把底图拉伸变形。
+    final model = snapshot['model']?.toString() ?? base.model;
+    final imported = NaiResolutionAdapter.describeImageForImport(
+      sourceImage,
+      currentWidth: (snapshot['width'] as num?)?.toInt(),
+      currentHeight: (snapshot['height'] as num?)?.toInt(),
+      isStableDiffusionFamily: ImageModels.usesStableDiffusionImportBounds(
+        model,
+      ),
+    );
+    if (imported != null) {
+      snapshot['width'] = imported.width;
+      snapshot['height'] = imported.height;
+    }
+  }
   return ImageParams.fromJson(snapshot).toJson();
 }
 

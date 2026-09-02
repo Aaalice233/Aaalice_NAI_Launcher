@@ -63,13 +63,32 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
     required CancelToken cancelToken,
   }) async* {
     final endpoint =
-        '${_resolveGenerateEndpoint(request.provider, request.model)}'
+        '${_resolveStreamGenerateEndpoint(request.provider, request.model)}'
         '?alt=sse';
     final pending = <AgentWireEvent>[];
 
-    var stopReason = StopReason.stop;
+    var stopReason = StopReason.pending;
     Usage? usage;
     var sawError = false;
+    var sawFinishReason = false;
+    var generatedToolCallCounter = 0;
+    final seenToolCallIds = <String>{};
+
+    String resolveToolCallId(Map<String, dynamic> functionCall) {
+      final providedId = functionCall['id'];
+      if (providedId is String &&
+          providedId.isNotEmpty &&
+          seenToolCallIds.add(providedId)) {
+        return providedId;
+      }
+      final name = functionCall['name'] as String? ?? 'tool';
+      while (true) {
+        final generated =
+            '${name}_${DateTime.now().millisecondsSinceEpoch}_'
+            '${++generatedToolCallCounter}';
+        if (seenToolCallIds.add(generated)) return generated;
+      }
+    }
 
     final parser = AgentSseParser(
       onEvent: (_, data) {
@@ -97,11 +116,18 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
           if (first is Map<String, dynamic>) {
             final finishReason = first['finishReason'];
             if (finishReason is String) {
+              sawFinishReason = true;
               stopReason = switch (finishReason) {
                 'MAX_TOKENS' => StopReason.length,
                 'STOP' => StopReason.stop,
-                _ => StopReason.stop,
+                _ => StopReason.error,
               };
+              if (stopReason == StopReason.error) {
+                sawError = true;
+                pending.add(
+                  AgentWireError('Provider stopped with: $finishReason'),
+                );
+              }
             }
             final content = first['content'];
             if (content is Map<String, dynamic>) {
@@ -151,9 +177,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                     final args = functionCall['args'];
                     pending.add(
                       AgentWireToolCallDone(
-                        id:
-                            'gemini_${pending.length}_'
-                            '${DateTime.now().microsecondsSinceEpoch}',
+                        id: resolveToolCallId(functionCall),
                         name: functionCall['name'] as String? ?? '',
                         arguments: args is Map<String, dynamic>
                             ? args
@@ -200,7 +224,9 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       return;
     }
 
-    if (sawError) {
+    if (sawError) return;
+    if (!sawFinishReason) {
+      yield const AgentWireError('Google stream ended without a finish reason');
       return;
     }
     yield AgentWireFinish(stopReason: stopReason, usage: usage);
@@ -209,6 +235,9 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
   Map<String, dynamic> _buildAgentPayload(AgentChatRequest request) {
     // Gemini 要求 user/model 交替；相邻同角色合并为一个 turn。
     final turns = <Map<String, dynamic>>[];
+    final requiresToolCallId = _requiresToolCallId(request.model);
+    final supportsMultimodalFunctionResponse =
+        _supportsMultimodalFunctionResponse(request.model);
     void appendTurn(String role, Map<String, dynamic> part) {
       if (turns.isNotEmpty && turns.last['role'] == role) {
         (turns.last['parts'] as List<Map<String, dynamic>>).add(part);
@@ -258,7 +287,11 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
               });
             case ToolCallContent():
               appendTurn('model', {
-                'functionCall': {'name': block.name, 'args': block.arguments},
+                'functionCall': {
+                  'name': block.name,
+                  'args': block.arguments,
+                  if (requiresToolCallId) 'id': _normalizeToolCallId(block.id),
+                },
                 if (sameProviderAndModel &&
                     block.thoughtSignature?.isNotEmpty == true)
                   'thoughtSignature': block.thoughtSignature,
@@ -268,17 +301,29 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
           }
         }
       } else if (message is ToolResultMessage) {
+        final imageParts = <Map<String, dynamic>>[
+          for (final image in toolResultImagesOf(message))
+            if (image.source.base64Data case final data?)
+              {
+                'inlineData': {'mimeType': image.source.mimeType, 'data': data},
+              },
+        ];
         appendTurn('user', {
           'functionResponse': {
             'name': message.toolName,
-            'response': {'result': message.text},
+            'response': message.isError
+                ? {'error': message.text}
+                : {'output': message.text},
+            if (requiresToolCallId)
+              'id': _normalizeToolCallId(message.toolCallId),
+            if (supportsMultimodalFunctionResponse && imageParts.isNotEmpty)
+              'parts': imageParts,
           },
         });
-        for (final image in toolResultImagesOf(message)) {
-          if (image.source.base64Data case final data?) {
-            appendTurn('user', {
-              'inline_data': {'mime_type': image.source.mimeType, 'data': data},
-            });
+        if (!supportsMultimodalFunctionResponse && imageParts.isNotEmpty) {
+          appendTurn('user', {'text': 'Tool result image:'});
+          for (final imagePart in imageParts) {
+            appendTurn('user', imagePart);
           }
         }
       }
@@ -322,7 +367,9 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                 {
                   'name': tool.name,
                   'description': tool.description,
-                  'parameters': sanitizeGeminiSchema(tool.parameters),
+                  // Gemini 原生 API 支持完整 JSON Schema；使用旧 parameters
+                  // 会把 enum 限定成字符串，导致整数枚举在请求校验阶段失败。
+                  'parametersJsonSchema': tool.parameters,
                 },
             ],
           },
@@ -359,6 +406,14 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
         ? model
         : 'models/$model';
     return '$base/$normalizedModel:generateContent';
+  }
+
+  String _resolveStreamGenerateEndpoint(ProviderConfig provider, String model) {
+    final base = _resolveGeminiRoot(provider);
+    final normalizedModel = model.startsWith('models/')
+        ? model
+        : 'models/$model';
+    return '$base/$normalizedModel:streamGenerateContent';
   }
 
   String _resolveModelsEndpoint(ProviderConfig provider) {
@@ -401,51 +456,32 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
   }
 }
 
-/// Gemini 的 Schema 子集：类型名需大写枚举，忽略不支持的键。
-Map<String, dynamic> sanitizeGeminiSchema(Map<String, dynamic> schema) {
-  final type = _geminiTypeName(schema['type']);
-  final result = <String, dynamic>{
-    if (type != null) 'type': type,
-    if (schema['description'] is String)
-      'description': schema['description'] as String,
-    if (schema['enum'] is List) 'enum': schema['enum'],
-    if (schema['required'] is List) 'required': schema['required'],
-    if (schema['properties'] is Map<String, dynamic>)
-      'properties': {
-        for (final entry
-            in (schema['properties'] as Map<String, dynamic>).entries)
-          if (entry.value is Map<String, dynamic>)
-            entry.key: sanitizeGeminiSchema(
-              entry.value as Map<String, dynamic>,
-            ),
-      },
-    if (schema['items'] is Map<String, dynamic>)
-      'items': sanitizeGeminiSchema(schema['items'] as Map<String, dynamic>),
-  };
-  return result;
+bool _requiresToolCallId(String modelId) {
+  final normalized = modelId.startsWith('models/')
+      ? modelId.substring('models/'.length)
+      : modelId;
+  final majorVersion = _geminiMajorVersion(normalized);
+  return normalized.startsWith('claude-') ||
+      normalized.startsWith('gpt-oss-') ||
+      (majorVersion != null && majorVersion >= 3);
 }
 
-String? _geminiTypeName(dynamic type) {
-  switch (type) {
-    case 'string':
-    case 'STRING':
-      return 'STRING';
-    case 'integer':
-    case 'INT64':
-      return 'INTEGER';
-    case 'number':
-    case 'DOUBLE':
-      return 'NUMBER';
-    case 'boolean':
-    case 'BOOL':
-      return 'BOOLEAN';
-    case 'array':
-    case 'ARRAY':
-      return 'ARRAY';
-    case 'object':
-    case 'STRUCT':
-      return 'OBJECT';
-    default:
-      return null;
-  }
+bool _supportsMultimodalFunctionResponse(String modelId) {
+  final normalized = modelId.startsWith('models/')
+      ? modelId.substring('models/'.length)
+      : modelId;
+  final majorVersion = _geminiMajorVersion(normalized);
+  return majorVersion == null || majorVersion >= 3;
 }
+
+int? _geminiMajorVersion(String modelId) {
+  final match = RegExp(
+    r'^gemini(?:-live)?-(\d+)',
+    caseSensitive: false,
+  ).firstMatch(modelId);
+  return int.tryParse(match?.group(1) ?? '');
+}
+
+String _normalizeToolCallId(String id) => id
+    .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')
+    .substring(0, id.length > 64 ? 64 : id.length);

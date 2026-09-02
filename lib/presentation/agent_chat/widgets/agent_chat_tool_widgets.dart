@@ -48,6 +48,12 @@ String agentToolLabel(BuildContext context, String toolName) {
     'get_generation_status' => l10n.agentChat_toolGenerationStatus,
     'get_generation_settings' => l10n.agentChat_toolGetGenerationSettings,
     'update_generation_settings' => l10n.agentChat_toolUpdateGenerationSettings,
+    'get_generation_source_image' => l10n.agentChat_toolGetGenerationSourceImage,
+    'set_generation_source_image' => l10n.agentChat_toolSetGenerationSourceImage,
+    'clear_generation_source_image' =>
+      l10n.agentChat_toolClearGenerationSourceImage,
+    'update_generation_source_settings' =>
+      l10n.agentChat_toolUpdateGenerationSourceSettings,
     'get_prompt_state' => l10n.agentChat_toolPromptState,
     'set_positive_prompt' => l10n.agentChat_toolSetPositivePrompt,
     'set_negative_prompt' => l10n.agentChat_toolSetNegativePrompt,
@@ -73,6 +79,9 @@ String agentToolLabel(BuildContext context, String toolName) {
     'cancel_manual_inpaint_draft' => l10n.agentChat_toolCancelInpaint,
     'reedit_manual_inpaint_draft' => l10n.agentChat_toolReeditInpaint,
     'submit_manual_inpaint_draft' => l10n.agentChat_toolSubmitInpaint,
+    'create_inpaint_mask' => l10n.agentChat_toolCreateInpaintMask,
+    'expand_inpaint_canvas' => l10n.agentChat_toolExpandInpaintCanvas,
+    'load_inpaint_draft_into_panel' => l10n.agentChat_toolLoadInpaintPanel,
     String() when toolName.contains('generated_image') =>
       l10n.agentChat_toolRecentImages,
     String() when toolName.contains('queue') =>
@@ -100,6 +109,8 @@ IconData agentToolIcon(String toolName) => switch (toolName) {
   'get_generation_status' => Icons.image_search_outlined,
   'display_images' => Icons.photo_library_outlined,
   'get_generation_settings' || 'update_generation_settings' => Icons.tune,
+  String() when toolName.contains('generation_source') =>
+    Icons.photo_filter_outlined,
   'get_prompt_state' ||
   'set_positive_prompt' ||
   'set_negative_prompt' => Icons.edit_note_outlined,

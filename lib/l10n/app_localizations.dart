@@ -2123,6 +2123,30 @@ abstract class AppLocalizations {
   /// **'Update generation settings'**
   String get agentChat_toolUpdateGenerationSettings;
 
+  /// No description provided for @agentChat_toolGetGenerationSourceImage.
+  ///
+  /// In en, this message translates to:
+  /// **'View Image2Image source'**
+  String get agentChat_toolGetGenerationSourceImage;
+
+  /// No description provided for @agentChat_toolSetGenerationSourceImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Load Image2Image source'**
+  String get agentChat_toolSetGenerationSourceImage;
+
+  /// No description provided for @agentChat_toolClearGenerationSourceImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Image2Image source'**
+  String get agentChat_toolClearGenerationSourceImage;
+
+  /// No description provided for @agentChat_toolUpdateGenerationSourceSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust Image2Image strength'**
+  String get agentChat_toolUpdateGenerationSourceSettings;
+
   /// No description provided for @agentChat_toolPromptState.
   ///
   /// In en, this message translates to:
@@ -2291,6 +2315,24 @@ abstract class AppLocalizations {
   /// **'Submit manual inpaint draft'**
   String get agentChat_toolSubmitInpaint;
 
+  /// No description provided for @agentChat_toolCreateInpaintMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Create inpaint mask'**
+  String get agentChat_toolCreateInpaintMask;
+
+  /// No description provided for @agentChat_toolExpandInpaintCanvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand canvas'**
+  String get agentChat_toolExpandInpaintCanvas;
+
+  /// No description provided for @agentChat_toolLoadInpaintPanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Load inpaint draft into panel'**
+  String get agentChat_toolLoadInpaintPanel;
+
   /// No description provided for @agentChat_manualInpaintTitle.
   ///
   /// In en, this message translates to:
@@ -2411,11 +2453,41 @@ abstract class AppLocalizations {
   /// **'Error details'**
   String get agentChat_errorDetails;
 
-  /// No description provided for @agentChat_model.
+  /// No description provided for @agentChat_modelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get agentChat_modelLabel;
+
+  /// No description provided for @agentChat_modelPickerTitle.
   ///
   /// In en, this message translates to:
   /// **'Select model'**
-  String get agentChat_model;
+  String get agentChat_modelPickerTitle;
+
+  /// No description provided for @agentChat_searchModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Search models'**
+  String get agentChat_searchModels;
+
+  /// No description provided for @agentChat_searchModelsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name, model ID, or provider'**
+  String get agentChat_searchModelsHint;
+
+  /// No description provided for @agentChat_clearModelSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear model search'**
+  String get agentChat_clearModelSearch;
+
+  /// No description provided for @agentChat_noModelResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No models match this search.'**
+  String get agentChat_noModelResults;
 
   /// No description provided for @agentChat_noModel.
   ///
@@ -10795,6 +10867,18 @@ abstract class AppLocalizations {
   /// **'Move to Root'**
   String get localGallery_moveAlbumToRoot;
 
+  /// No description provided for @localGallery_moveAlbumUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Up One Level'**
+  String get localGallery_moveAlbumUp;
+
+  /// No description provided for @localGallery_moveCategoryUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Up One Level'**
+  String get localGallery_moveCategoryUp;
+
   /// No description provided for @localGallery_createAlbumTitle.
   ///
   /// In en, this message translates to:
@@ -10812,12 +10896,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter album name'**
   String get localGallery_createAlbumHint;
-
-  /// No description provided for @localGallery_renameAlbumTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename Album'**
-  String get localGallery_renameAlbumTitle;
 
   /// No description provided for @localGallery_deleteAlbumTitle.
   ///
@@ -10854,6 +10932,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add to Album'**
   String get localGallery_addToAlbum;
+
+  /// No description provided for @localGallery_removeFromAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Album'**
+  String get localGallery_removeFromAlbum;
+
+  /// No description provided for @localGallery_removedFromAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {count} images'**
+  String localGallery_removedFromAlbum(Object count);
+
+  /// No description provided for @localGallery_albumNoMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected images are not in this album'**
+  String get localGallery_albumNoMembers;
 
   /// No description provided for @localGallery_addedToAlbumWithName.
   ///

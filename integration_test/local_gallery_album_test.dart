@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +15,43 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/gallery_album_provider.dart';
 import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
 import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_category_panel.dart';
+import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
+import 'package:hive/hive.dart';
+
+bool _removedClicked = false;
+
+void _markRemoved() => _removedClicked = true;
+
+class _ToolbarGalleryNotifier extends LocalGalleryNotifier {
+  _ToolbarGalleryNotifier(this._initialState, {required this.filteredPaths});
+
+  final LocalGalleryState _initialState;
+  final List<String> filteredPaths;
+
+  @override
+  LocalGalleryState build() => _initialState;
+
+  @override
+  Future<List<String>> getFilteredImagePaths() async => filteredPaths;
+}
+
+class _ActiveSelectionNotifier extends LocalGallerySelectionNotifier {
+  _ActiveSelectionNotifier(this._initialSelectedIds, {required this.isActive});
+
+  final Set<String> _initialSelectedIds;
+  final bool isActive;
+
+  @override
+  SelectionModeState build() {
+    return SelectionModeState(
+      isActive: isActive,
+      selectedIds: _initialSelectedIds,
+    );
+  }
+}
 
 /// 本地图库相簿侧栏集成测试（Windows 真实窗口）。
 ///
@@ -86,18 +123,19 @@ void main() {
       onCategoryDelete: (_) async {},
       onAddSubCategory: (_) async {},
       onCategoryMove: (_, _) async {},
-      onCategoryReorder: (_, _, _) async {},
       onImageDrop: (_, _) async {},
       onSyncWithFileSystem: () async {},
       onCreateAlbum: (_) async {},
       onAlbumSelected: onAlbumSelected ?? (_) {},
-      onAlbumRenameRequest: (_) async {},
+      onAlbumRename: (_, _) async {},
       onAlbumDeleteRequest: (_) async {},
       onAddAlbumRequest: (_) async {},
       onAlbumMove: (_, _) async => true,
+      onAlbumMoveToSlot: (_, _, _) async => true,
+      onCategoryMoveToSlot: (_, _, _) async => true,
       onImageDropToAlbum: (imagePath, albumId) async {
-            onDrop?.call(albumId, imagePath);
-          },
+        onDrop?.call(albumId, imagePath);
+      },
     );
 
     final gridTile = Draggable<LocalImageRecord>(
@@ -113,7 +151,10 @@ void main() {
         height: 72,
         color: Colors.blueGrey.shade700,
         child: const Center(
-          child: Text('拖我', style: TextStyle(color: Colors.white, fontSize: 12)),
+          child: Text(
+            '拖我',
+            style: TextStyle(color: Colors.white, fontSize: 12),
+          ),
         ),
       ),
     );
@@ -130,10 +171,7 @@ void main() {
               height: 760,
               child: Row(
                 children: [
-                  SizedBox(
-                    width: width >= 600 ? 250 : width,
-                    child: panel,
-                  ),
+                  SizedBox(width: width >= 600 ? 250 : width, child: panel),
                   if (width >= 600)
                     const Expanded(child: ColoredBox(color: Color(0xFF141414))),
                 ],
@@ -161,6 +199,8 @@ void main() {
 
   setUpAll(() async {
     await outputDir.create(recursive: true);
+    final hiveDir = Directory.systemTemp.createTempSync('album_it_hive_');
+    Hive.init(hiveDir.path);
   });
 
   testWidgets('宽屏：层级渲染与相簿选择', (tester) async {
@@ -171,10 +211,7 @@ void main() {
     await tester.pumpWidget(
       wrapBoundary(
         'wide-hierarchy',
-        buildHarness(
-          width: 840,
-          onAlbumSelected: (id) => selected = id,
-        ),
+        buildHarness(width: 840, onAlbumSelected: (id) => selected = id),
       ),
     );
     await tester.pumpAndSettle();
@@ -252,5 +289,109 @@ void main() {
     expect(find.text('测试文件夹'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await savePng('narrow-panel');
+  });
+
+  testWidgets('浏览相簿时多选工具栏的移出按钮可点击', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localGalleryNotifierProvider.overrideWith(
+            () => _ToolbarGalleryNotifier(
+              const LocalGalleryState(
+                currentImages: [],
+                filteredCount: 2,
+                totalCount: 2,
+                totalPages: 1,
+                isInitialized: true,
+              ),
+              filteredPaths: const ['gallery/a.png', 'gallery/b.png'],
+            ),
+          ),
+          localGallerySelectionNotifierProvider.overrideWith(
+            () => _ActiveSelectionNotifier(const {
+              'gallery/a.png',
+            }, isActive: true),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: LocalGalleryToolbar(
+              enableSearchAutocomplete: false,
+              onRemoveFromAlbum: _markRemoved,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = find.text('移出相簿');
+    expect(button, findsOneWidget);
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(_removedClicked, isTrue);
+  });
+
+  testWidgets('生产壳层下右键菜单出现在点击位置', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      wrapBoundary(
+        'context-menu-at-click',
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DesktopWindowFrame(
+              enabled: true,
+              child: Row(
+                children: [
+                  const SizedBox(width: 200),
+                  Expanded(
+                    child: Navigator(
+                      onGenerateRoute: (_) => PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => buildHarness(width: 1000),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final item = find.text('测试文件夹');
+    expect(item, findsOneWidget);
+    final itemCenter = tester.getCenter(item);
+    // 点击行左侧（与生产一致：相簿/文件夹面板位于内容区左侧）
+    final tapPosition = Offset(itemCenter.dx - 40, itemCenter.dy);
+    final gesture = await tester.startGesture(
+      tapPosition,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    // 菜单面板（菜单项最近的 Material 祖先）原点应贴合点击点
+    final menuPanel = find.ancestor(
+      of: find.byWidgetPredicate((widget) => widget is PopupMenuItem),
+      matching: find.byType(Material),
+    ).first;
+    final panelTopLeft = tester.getTopLeft(menuPanel);
+    expect((panelTopLeft - tapPosition).distance, lessThan(1.0));
+    await savePng('context-menu-at-click');
   });
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -11,6 +12,7 @@ import '../../providers/gallery_album_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../widgets/app_branch_visibility.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
@@ -35,6 +37,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       GlobalKey<GroupedGridViewState>();
   late final LocalGalleryActionCoordinator _actions;
   late final LocalGalleryScreenController _controller;
+  bool? _branchVisible;
 
   @override
   void initState() {
@@ -54,7 +57,17 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = AppBranchVisibility.of(context);
+    if (_branchVisible == visible) return;
+    _branchVisible = visible;
+    LocalGalleryThumbnailProvider.setGalleryVisible(visible);
+  }
+
+  @override
   void dispose() {
+    LocalGalleryThumbnailProvider.setGalleryVisible(false);
     _controller.dispose();
     super.dispose();
   }
@@ -176,6 +189,12 @@ class _LocalGalleryShell extends ConsumerWidget {
 
   Widget _buildToolbar(BuildContext context, WidgetRef ref) {
     final bulk = viewModel.bulkOperation;
+    // 浏览具体相簿（非全部/收藏）时才提供“移出相簿”入口
+    final selectedAlbumId = ref.watch(
+      galleryAlbumNotifierProvider.select((value) => value.selectedAlbumId),
+    );
+    final browsingAlbum =
+        selectedAlbumId != null && selectedAlbumId != 'favorites';
     return LocalGalleryToolbar(
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
@@ -187,6 +206,7 @@ class _LocalGalleryShell extends ConsumerWidget {
       onRedo: bulk.canRedo ? actions.redo : null,
       groupedGridViewKey: groupedGridViewKey,
       onAddToAlbum: actions.addSelectedToAlbum,
+      onRemoveFromAlbum: browsingAlbum ? actions.removeSelectedFromAlbum : null,
       onDeleteSelected: actions.deleteSelectedImages,
       onPackSelected: viewModel.isPackingImages
           ? null

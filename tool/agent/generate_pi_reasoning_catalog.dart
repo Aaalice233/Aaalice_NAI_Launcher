@@ -159,19 +159,16 @@ String _generate(Directory root, String version) {
 
     output.writeln("  ${_quote(provider)}: {");
     for (final model in models) {
+      final modelId = model['id'] as String;
       final sourceLevelMap =
           (model['thinkingLevelMap'] as Map<String, dynamic>?) ?? {};
-      final supportedLevels = <String>[
-        for (final level in _levels)
-          if (_supportsLevel(level, sourceLevelMap)) level,
-      ];
       final compat = (model['compat'] as Map<String, dynamic>?) ?? {};
       final api = _reasoningApi(model, compat);
-      final emittedLevelMap = _emittedLevelMap(
-        api,
-        model['id'] as String,
-        sourceLevelMap,
-      );
+      final supportedLevels = <String>[
+        for (final level in _levels)
+          if (_supportsLevel(api, modelId, level, sourceLevelMap)) level,
+      ];
+      final emittedLevelMap = _emittedLevelMap(api, modelId, sourceLevelMap);
       final mapEntries = <String>[
         for (final level in _levels)
           if (emittedLevelMap.containsKey(level))
@@ -205,7 +202,17 @@ String _generate(Directory root, String version) {
   return output.toString();
 }
 
-bool _supportsLevel(String level, Map<String, dynamic> levelMap) {
+bool _supportsLevel(
+  String api,
+  String modelId,
+  String level,
+  Map<String, dynamic> levelMap,
+) {
+  if (api == 'geminiLevel' &&
+      level == 'minimal' &&
+      _geminiMinimumLevel(modelId) == 'LOW') {
+    return false;
+  }
   if (levelMap[level] == null && levelMap.containsKey(level)) return false;
   if ((level == 'xhigh' || level == 'max') && !levelMap.containsKey(level)) {
     return false;
@@ -223,7 +230,7 @@ Map<String, dynamic> _emittedLevelMap(
     for (final level in _levels)
       if (source[level] == null && source.containsKey(level))
         level: null
-      else if (level != 'off' && _supportsLevel(level, source))
+      else if (level != 'off' && _supportsLevel(api, modelId, level, source))
         level: _geminiNativeLevel(
           modelId,
           (source[level] as String?)?.toLowerCase() ?? level,
@@ -258,9 +265,16 @@ Map<String, int> _thinkingBudgets(String api, String modelId) {
 
 String? _disabledEffort(String api, String modelId) {
   if (api != 'geminiLevel') return null;
-  return RegExp(r'gemini-3(?:\.\d+)?-pro').hasMatch(modelId.toLowerCase())
-      ? 'LOW'
-      : 'MINIMAL';
+  return _geminiMinimumLevel(modelId);
+}
+
+String _geminiMinimumLevel(String modelId) {
+  final normalizedId = modelId.toLowerCase();
+  if (RegExp(r'gemini-3(?:\.\d+)?-pro').hasMatch(normalizedId) ||
+      normalizedId == 'gemini-3.7-flash') {
+    return 'LOW';
+  }
+  return 'MINIMAL';
 }
 
 String _reasoningApi(Map<String, dynamic> model, Map<String, dynamic> compat) {

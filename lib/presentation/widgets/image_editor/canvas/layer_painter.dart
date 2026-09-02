@@ -460,19 +460,17 @@ class SelectionPainter extends CustomPainter {
 /// 绘制画笔光标预览和工具图标
 class CursorPainter extends CustomPainter {
   final EditorState state;
-  final Offset? cursorPosition;
 
   /// 缓存的图标 TextPainter
   static final Map<int, TextPainter> _iconCache = {};
 
-  /// 使用 cursorNotifier 而非整个 state
-  /// 这样只有光标位置变化时才会触发重绘
-  /// 避免其他 UI 操作导致光标不必要的重绘
-  CursorPainter({required this.state, this.cursorPosition})
-    : super(repaint: state.cursorNotifier);
+  /// 位置在 paint 时直接读 cursorNotifier，不经构造参数捕获，
+  /// 避免 widget 重建与重绘不同步时画出旧坐标
+  CursorPainter({required this.state}) : super(repaint: state.cursorNotifier);
 
   @override
   void paint(Canvas canvas, Size size) {
+    final cursorPosition = state.cursorNotifier.value;
     if (cursorPosition == null) return;
 
     final tool = state.currentTool;
@@ -488,7 +486,7 @@ class CursorPainter extends CustomPainter {
 
       // 光标圆圈
       canvas.drawCircle(
-        cursorPosition!,
+        cursorPosition,
         scaledRadius,
         Paint()
           ..color = Colors.black
@@ -497,7 +495,7 @@ class CursorPainter extends CustomPainter {
       );
 
       canvas.drawCircle(
-        cursorPosition!,
+        cursorPosition,
         scaledRadius,
         Paint()
           ..color = Colors.white
@@ -506,13 +504,13 @@ class CursorPainter extends CustomPainter {
       );
 
       // 中心点
-      canvas.drawCircle(cursorPosition!, 2, Paint()..color = Colors.black);
+      canvas.drawCircle(cursorPosition, 2, Paint()..color = Colors.black);
 
       // 图标位置：圆圈右下角
-      iconPosition = cursorPosition! + Offset(scaledRadius, scaledRadius);
+      iconPosition = cursorPosition + Offset(scaledRadius, scaledRadius);
     } else {
       // 非绘画工具：图标在光标右下角
-      iconPosition = cursorPosition! + const Offset(8, 8);
+      iconPosition = cursorPosition + const Offset(8, 8);
     }
 
     // 绘制工具图标
@@ -576,9 +574,7 @@ class CursorPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CursorPainter oldDelegate) {
-    // repaint: cursorNotifier 已经处理了光标位置变化的监听
-    // shouldRepaint 只需处理 CustomPainter 本身的属性变化
-    // 返回 false 避免不必要的重绘检查
-    return false;
+    // 位置变化由 repaint: cursorNotifier 驱动，这里只处理 painter 自身依赖的变化
+    return state != oldDelegate.state;
   }
 }
