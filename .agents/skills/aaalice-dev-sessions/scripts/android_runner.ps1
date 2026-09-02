@@ -45,6 +45,35 @@ if (-not $ListDevices -and (Test-Path -LiteralPath $sessionPath -PathType Leaf))
     Remove-Item -LiteralPath $sessionPath -Force -ErrorAction SilentlyContinue
 }
 
+function Get-OAuthConfigValue {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    foreach ($target in @('Process', 'User', 'Machine')) {
+        $value = [Environment]::GetEnvironmentVariable($Name, $target)
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+    return $null
+}
+
+function Get-OptionalOAuthDartDefines {
+    $names = @(
+        'GOOGLE_DRIVE_ANDROID_CLIENT_ID',
+        'ONEDRIVE_ANDROID_CLIENT_ID',
+        'ONEDRIVE_ANDROID_REDIRECT_URI',
+        'ONEDRIVE_TENANT_ID'
+    )
+    $defines = @()
+    foreach ($name in $names) {
+        $value = Get-OAuthConfigValue -Name $name
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $defines += "--dart-define=$name=$value"
+        }
+    }
+    return $defines
+}
+
 function Resolve-ToolCommand {
     param(
         [Parameter(Mandatory = $true)]
@@ -228,6 +257,47 @@ function Start-EmulatorLifetimeMonitor {
     return Start-Process @startParameters
 }
 
+function Enable-AvdHardwareKeyboard {
+    param([Parameter(Mandatory = $true)][string]$Id)
+
+    $avdHome = if ([string]::IsNullOrWhiteSpace($env:ANDROID_AVD_HOME)) {
+        Join-Path $HOME '.android/avd'
+    }
+    else {
+        $env:ANDROID_AVD_HOME
+    }
+    $avdPointerPath = Join-Path $avdHome "$Id.ini"
+    $configPath = Join-Path $avdHome "$Id.avd/config.ini"
+    if (Test-Path -LiteralPath $avdPointerPath -PathType Leaf) {
+        $pathEntry = Get-Content -LiteralPath $avdPointerPath -Encoding UTF8 |
+            Where-Object { $_ -match '^path=(.+)$' } |
+            Select-Object -First 1
+        if ($pathEntry -match '^path=(.+)$') {
+            $configPath = Join-Path $Matches[1] 'config.ini'
+        }
+    }
+    if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
+        throw "Android emulator configuration not found: $configPath"
+    }
+
+    $lines = @(Get-Content -LiteralPath $configPath -Encoding UTF8)
+    $keyboardEntries = @($lines | Where-Object { $_ -match '^hw\.keyboard\s*=' })
+    if ($keyboardEntries.Count -ne 1) {
+        throw "Expected one hw.keyboard entry in Android emulator configuration: $configPath"
+    }
+    if ($keyboardEntries[0] -match '^hw\.keyboard\s*=\s*yes\s*$') {
+        return
+    }
+
+    $updatedLines = @(
+        $lines | ForEach-Object {
+            if ($_ -match '^hw\.keyboard\s*=') { 'hw.keyboard = yes' } else { $_ }
+        }
+    )
+    Set-Content -LiteralPath $configPath -Value $updatedLines -Encoding UTF8
+    Write-Host "Enabled host keyboard input for Android emulator '$Id'." -ForegroundColor Cyan
+}
+
 function Start-AndroidEmulator {
     param(
         [Parameter(Mandatory = $true)][string]$Id,
@@ -380,6 +450,7 @@ if (-not [string]::IsNullOrWhiteSpace($EmulatorId)) {
         $androidDevices = @($runningEmulator)
     }
     else {
+        Enable-AvdHardwareKeyboard -Id $EmulatorId
         $existingDeviceIds = @($androidDevices | ForEach-Object { $_.id })
         $androidDevices = @(
             Start-AndroidEmulator -Id $EmulatorId -ExistingDeviceIds $existingDeviceIds
@@ -420,6 +491,11 @@ else {
 
 Wait-AndroidDeviceBoot -DeviceId $selectedDevice.id -AdbCommand $adbCommand
 if (-not [string]::IsNullOrWhiteSpace($EmulatorId)) {
+    $googlePlayServicesPackage = (& $adbCommand -s $selectedDevice.id shell pm path com.google.android.gms 2>$null | Out-String).Trim()
+    if ([string]::IsNullOrWhiteSpace($googlePlayServicesPackage)) {
+        throw "Android emulator '$EmulatorId' does not include Google Play Services. Recreate it from system-images;android-35;google_apis_playstore;x86_64 before testing Google Drive OAuth."
+    }
+
     # Reused emulators keep their warm system/Gradle caches, but never restore a stale
     # launcher screen as this session's result.
     & $adbCommand -s $selectedDevice.id shell am force-stop com.aaalice.nai_launcher | Out-Null
@@ -468,10 +544,14 @@ $currentProcess = Get-Process -Id $PID
 } | ConvertTo-Json | Set-Content -LiteralPath $sessionPath -Encoding UTF8
 
 try {
-    & $flutterCommand run `
-        --debug `
-        -d $selectedDevice.id `
-        --dart-define=ENABLE_FLUTTER_DRIVER=true
+    $flutterArguments = @(
+        'run',
+        '--debug',
+        '-d',
+        $selectedDevice.id,
+        '--dart-define=ENABLE_FLUTTER_DRIVER=true'
+    ) + @(Get-OptionalOAuthDartDefines)
+    & $flutterCommand @flutterArguments
     if ($LASTEXITCODE -ne 0) {
         throw "flutter run failed for Android target '$($selectedDevice.id)'."
     }

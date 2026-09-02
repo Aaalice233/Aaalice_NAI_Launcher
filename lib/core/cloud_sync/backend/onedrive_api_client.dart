@@ -1,0 +1,693 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
+import '../../utils/app_logger.dart';
+import '../operation.dart';
+import '../telemetry.dart';
+import 'backend_http.dart';
+import 'cloud_sync_backend.dart';
+
+class OneDriveItem {
+  const OneDriveItem({
+    required this.id,
+    required this.name,
+    required this.eTag,
+    required this.size,
+    required this.isFolder,
+  });
+
+  final String? id;
+  final String name;
+  final String eTag;
+  final int size;
+  final bool isFolder;
+}
+
+Dio _createOneDriveDio() => Dio(
+  BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    sendTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
+  ),
+);
+
+class OneDriveApiClient {
+  OneDriveApiClient({
+    required Future<String> Function() accessTokenProvider,
+    Dio? dio,
+    Uri? graphBaseUri,
+  }) : _accessTokenProvider = accessTokenProvider,
+       _dio = dio ?? _createOneDriveDio(),
+       _graphBase =
+           graphBaseUri ?? Uri.parse('https://graph.microsoft.com/v1.0/') {
+    if (!_graphBase.isAbsolute || !_graphBase.path.endsWith('/')) {
+      throw ArgumentError.value(
+        _graphBase,
+        'graphBaseUri',
+        'Graph base must be an absolute directory URI',
+      );
+    }
+    _graphHttp = BackendHttp(
+      dio: _dio,
+      observer: (metric) => CloudSyncTelemetry.recordRequest(
+        bytesRead: metric.responseBytes ?? 0,
+        bytesWritten: metric.requestBytes ?? 0,
+      ),
+    );
+    // Signed upload/download URLs are pre-authenticated. A clean Dio instance
+    // prevents caller-installed Graph interceptors from attaching bearer tokens.
+    _signedHttp = BackendHttp(
+      dio: _createOneDriveDio()..httpClientAdapter = _dio.httpClientAdapter,
+      observer: (metric) => CloudSyncTelemetry.recordRequest(
+        bytesRead: metric.responseBytes ?? 0,
+        bytesWritten: metric.requestBytes ?? 0,
+      ),
+    );
+  }
+
+  static const String _appRoot = 'me/drive/special/approot';
+
+  final Future<String> Function() _accessTokenProvider;
+  final Dio _dio;
+  final Uri _graphBase;
+  late final BackendHttp _graphHttp;
+  late final BackendHttp _signedHttp;
+  Future<OneDriveItem>? _appRootFuture;
+  final Map<String, Future<OneDriveItem>> _folderFutures = {};
+
+  Future<OneDriveItem?> metadata(String path) async {
+    final response = await _graphRequest(
+      'GET',
+      _itemEndpoint(path),
+      action: '读取 OneDrive 文件信息',
+      allowNotFound: true,
+    );
+    if (response == null) return null;
+    return _decodeItem(_decodeMap(response, 'OneDrive 文件信息'));
+  }
+
+  Future<Uint8List> download(
+    String path, {
+    required String expectedETag,
+    required int maxBytes,
+  }) async {
+    final redirect = await _downloadRedirect(
+      _graphUri('${_itemEndpoint(path)}:/content'),
+      expectedETag: expectedETag,
+      maxBytes: maxBytes,
+    );
+    if (redirect.bytes != null) return redirect.bytes!;
+    final response = await _signedHttp.request(
+      'GET',
+      redirect.location!,
+      headers: const {'Accept-Encoding': 'identity'},
+      maxResponseBytes: maxBytes,
+      tooLargeKind: CloudBackendErrorKind.invalidResponse,
+    );
+    if (response.statusCode != 200) {
+      _throwResponse(response, '下载 OneDrive 文件');
+    }
+    return BackendHttp.bytesOf(response);
+  }
+
+  Future<void> validateAppRoot() async {
+    await _ensureAppRoot();
+  }
+
+  void invalidateFolderCache(String path) {
+    _folderFutures.removeWhere(
+      (folderPath, _) => folderPath == path || folderPath.startsWith('$path/'),
+    );
+  }
+
+  Future<OneDriveItem> ensureFolder(String path) {
+    final segments = path.split('/');
+    if (segments.isEmpty || segments.any((segment) => segment.isEmpty)) {
+      throw const FormatException('Invalid OneDrive folder path');
+    }
+    var currentPath = '';
+    Future<OneDriveItem> parent = _ensureAppRoot();
+    for (final name in segments) {
+      currentPath = currentPath.isEmpty ? name : '$currentPath/$name';
+      final folderPath = currentPath;
+      final parentFuture = parent;
+      parent = _folderFutures.putIfAbsent(folderPath, () {
+        final future = _createOrResolveFolder(parentFuture, folderPath, name);
+        unawaited(
+          future.then<void>(
+            (_) {},
+            onError: (Object _, StackTrace __) {
+              if (identical(_folderFutures[folderPath], future)) {
+                _folderFutures.remove(folderPath);
+              }
+            },
+          ),
+        );
+        return future;
+      });
+    }
+    return parent;
+  }
+
+  Future<OneDriveItem> _createOrResolveFolder(
+    Future<OneDriveItem> parentFuture,
+    String path,
+    String name,
+  ) async {
+    final parent = await parentFuture;
+    final parentId = parent.id;
+    if (parentId == null || parentId.isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'OneDrive 父目录响应缺少 id。',
+      );
+    }
+    final response = await _graphRequest(
+      'POST',
+      'me/drive/items/${Uri.encodeComponent(parentId)}/children',
+      action: '创建 OneDrive 应用目录',
+      accepted: const {201},
+      data: {'name': name, 'folder': <String, Object?>{}},
+      allowConflict: true,
+      retryable: false,
+    );
+    final folder = response == null
+        ? await metadata(path)
+        : _decodeItem(_decodeMap(response, 'OneDrive 目录创建结果'));
+    if (folder == null ||
+        !folder.isFolder ||
+        folder.name != name ||
+        folder.id == null ||
+        folder.id!.isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        'OneDrive 中存在同名文件，无法创建同步目录。',
+        statusCode: 409,
+      );
+    }
+    return folder;
+  }
+
+  Future<OneDriveItem> _ensureAppRoot() {
+    final cached = _appRootFuture;
+    if (cached != null) return cached;
+    final future = _loadAppRoot();
+    _appRootFuture = future;
+    unawaited(
+      future.then<void>(
+        (_) {},
+        onError: (Object _, StackTrace __) {
+          if (identical(_appRootFuture, future)) _appRootFuture = null;
+        },
+      ),
+    );
+    return future;
+  }
+
+  Future<OneDriveItem> _loadAppRoot() async {
+    final response = await _graphRequest(
+      'GET',
+      _appRoot,
+      action: '初始化 OneDrive 应用目录',
+      retryable: false,
+    );
+    final item = _decodeItem(_decodeMap(response!, 'OneDrive 应用目录'));
+    if (!item.isFolder || item.id == null || item.id!.isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'OneDrive 应用目录响应缺少文件夹或 id。',
+      );
+    }
+    return item;
+  }
+
+  Future<OneDriveItem> upload(
+    String path,
+    Uint8List bytes, {
+    required String? expectedETag,
+  }) async {
+    final response = await _graphRequest(
+      'POST',
+      '${_itemEndpoint(path)}:/createUploadSession',
+      action: '创建 OneDrive 上传会话',
+      accepted: const {200, 201},
+      headers: {if (expectedETag != null) 'If-Match': expectedETag},
+      data: {
+        'item': {
+          '@microsoft.graph.conflictBehavior': expectedETag == null
+              ? 'fail'
+              : 'replace',
+          'name': path.split('/').last,
+        },
+      },
+      retryable: false,
+    );
+    final session = _decodeMap(response!, 'OneDrive 上传会话');
+    final rawUploadUrl = session['uploadUrl'];
+    if (rawUploadUrl is! String) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'OneDrive 上传会话缺少 uploadUrl。',
+      );
+    }
+    final uploadUri = Uri.tryParse(rawUploadUrl);
+    if (uploadUri == null ||
+        !uploadUri.isAbsolute ||
+        uploadUri.scheme != 'https') {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'OneDrive 返回了不安全的上传地址。',
+      );
+    }
+    final uploaded = await _signedHttp.request(
+      'PUT',
+      uploadUri,
+      headers: {
+        'Content-Length': '${bytes.length}',
+        'Content-Range': bytes.isEmpty
+            ? 'bytes */0'
+            : 'bytes 0-${bytes.length - 1}/${bytes.length}',
+        'Content-Type': 'application/octet-stream',
+      },
+      data: bytes,
+      retryable: false,
+      maxResponseBytes: maxCloudJsonApiResponseBytes,
+    );
+    if (uploaded.statusCode != 200 && uploaded.statusCode != 201) {
+      _throwResponse(uploaded, '上传 OneDrive 文件');
+    }
+    return _decodeItem(_decodeMap(uploaded, 'OneDrive 上传结果'));
+  }
+
+  Future<List<OneDriveItem>> listChildren(String path) async {
+    final items = <OneDriveItem>[];
+    final visited = <Uri>{};
+    Uri? next = _graphUri(
+      '${_itemEndpoint(path)}:/children?%24select=id,name,eTag,size,file,folder&%24top=200',
+    );
+    var accumulatedBytes = 0;
+    while (next != null) {
+      if (!visited.add(next)) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'OneDrive children 分页形成循环。',
+        );
+      }
+      final response = await _graphRequestUri(
+        'GET',
+        next,
+        action: '读取 OneDrive 快照列表',
+        allowNotFound: true,
+      );
+      if (response == null) return const [];
+      accumulatedBytes += BackendHttp.bytesOf(response).length;
+      if (accumulatedBytes > maxCloudListingResponseBytes) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'OneDrive 快照列表超过允许的大小。',
+        );
+      }
+      final decoded = _decodeMap(response, 'OneDrive children');
+      final values = decoded['value'];
+      if (values is! List) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'OneDrive children 响应缺少 value。',
+        );
+      }
+      for (final value in values) {
+        if (value is! Map) {
+          throw const CloudBackendException(
+            CloudBackendErrorKind.invalidResponse,
+            'OneDrive children 包含无效项目。',
+          );
+        }
+        items.add(_decodeItem(value.cast<String, dynamic>(), requireId: true));
+      }
+      final rawNext = decoded['@odata.nextLink'];
+      if (rawNext == null) {
+        next = null;
+      } else if (rawNext is String) {
+        next = _trustedGraphLink(rawNext);
+      } else {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'OneDrive children 分页地址无效。',
+        );
+      }
+    }
+    return items;
+  }
+
+  Future<void> delete(String path) async {
+    final response = await _graphRequest(
+      'DELETE',
+      _itemEndpoint(path),
+      action: '删除 OneDrive 同步数据',
+      accepted: const {204},
+      allowNotFound: true,
+      retryable: false,
+    );
+    if (response == null) return;
+  }
+
+  Future<Response<Uint8List>?> _graphRequest(
+    String method,
+    String endpoint, {
+    required String action,
+    Set<int> accepted = const {200},
+    Map<String, String>? headers,
+    Object? data,
+    bool allowNotFound = false,
+    bool allowConflict = false,
+    bool? retryable,
+  }) => _graphRequestUri(
+    method,
+    _graphUri(endpoint),
+    action: action,
+    accepted: accepted,
+    headers: headers,
+    data: data,
+    allowNotFound: allowNotFound,
+    allowConflict: allowConflict,
+    retryable: retryable,
+  );
+
+  Future<Response<Uint8List>?> _graphRequestUri(
+    String method,
+    Uri uri, {
+    required String action,
+    Set<int> accepted = const {200},
+    Map<String, String>? headers,
+    Object? data,
+    bool allowNotFound = false,
+    bool allowConflict = false,
+    bool? retryable,
+  }) async {
+    _requireTrustedGraphUri(uri);
+    final token = await _waitForAccessToken();
+    if (token.trim().isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.authentication,
+        'Microsoft access token 为空。',
+      );
+    }
+    final stopwatch = Stopwatch()..start();
+    AppLogger.i(
+      'Microsoft Graph request started: action=$action, method=$method',
+      'OneDrive',
+    );
+    final response = await _graphHttp.request(
+      method,
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Accept-Encoding': 'identity',
+        if (data != null) 'Content-Type': 'application/json',
+        ...?headers,
+      },
+      data: data == null ? null : jsonEncode(data),
+      retryable: retryable,
+      maxResponseBytes: maxCloudJsonApiResponseBytes,
+      receiveTimeout: const Duration(seconds: 30),
+    );
+    final status = response.statusCode ?? 0;
+    AppLogger.i(
+      'Microsoft Graph request completed: action=$action, method=$method, '
+          'status=$status, elapsedMs=${stopwatch.elapsedMilliseconds}, '
+          'errorCode=${_graphErrorCode(response) ?? 'none'}, '
+          'errorMessage=${_graphErrorMessage(response) ?? 'none'}',
+      'OneDrive',
+    );
+    if (accepted.contains(status)) return response;
+    if (allowNotFound && status == 404) return null;
+    if (allowConflict && status == 409) return null;
+    _throwResponse(response, action);
+  }
+
+  Future<String> _waitForAccessToken() {
+    final future = _accessTokenProvider();
+    return OperationToken.current?.race(future) ?? future;
+  }
+
+  Future<_DownloadRedirect> _downloadRedirect(
+    Uri uri, {
+    required String expectedETag,
+    required int maxBytes,
+  }) async {
+    _requireTrustedGraphUri(uri);
+    final token = await _waitForAccessToken();
+    if (token.trim().isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.authentication,
+        'Microsoft access token 为空。',
+      );
+    }
+    final response = await _graphHttp.request(
+      'GET',
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'If-Match': expectedETag,
+        'Accept-Encoding': 'identity',
+      },
+      followRedirects: false,
+      maxResponseBytes: maxBytes > maxCloudJsonApiResponseBytes
+          ? maxBytes
+          : maxCloudJsonApiResponseBytes,
+    );
+    final status = response.statusCode ?? 0;
+    if ({301, 302, 303, 307, 308}.contains(status)) {
+      final location = response.headers.value('location');
+      final target = location == null ? null : uri.resolve(location);
+      if (target == null || !target.isAbsolute || target.scheme != 'https') {
+        throw CloudBackendException(
+          CloudBackendErrorKind.redirectRejected,
+          'OneDrive 返回了无效或不安全的下载地址。',
+          statusCode: status,
+        );
+      }
+      return _DownloadRedirect(location: target);
+    }
+    if (status == 200) {
+      final bytes = response.data ?? Uint8List(0);
+      if (bytes.length > maxBytes) {
+        throw CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'OneDrive 文件超过允许的下载大小。',
+          statusCode: status,
+        );
+      }
+      return _DownloadRedirect(bytes: bytes);
+    }
+    _throwResponse(response, '获取 OneDrive 下载地址');
+  }
+
+  Map<String, dynamic> _decodeMap(Response<Uint8List> response, String label) {
+    try {
+      final value = jsonDecode(BackendHttp.rawTextOf(response));
+      if (value is Map) return value.cast<String, dynamic>();
+    } on FormatException {
+      // Report a provider response error below without including its body.
+    }
+    throw CloudBackendException(
+      CloudBackendErrorKind.invalidResponse,
+      '$label 响应格式无效。',
+      statusCode: response.statusCode,
+    );
+  }
+
+  OneDriveItem _decodeItem(
+    Map<String, dynamic> value, {
+    bool requireId = false,
+  }) {
+    final id = value['id'];
+    final name = value['name'];
+    final eTag = value['eTag'] ?? value['@odata.etag'];
+    final size = value['size'];
+    final isFile = value['file'] is Map;
+    final isFolder = value['folder'] is Map;
+    if ((id != null && (id is! String || id.isEmpty)) ||
+        (requireId && (id is! String || id.isEmpty)) ||
+        name is! String ||
+        name.isEmpty ||
+        eTag is! String ||
+        eTag.isEmpty ||
+        size is! int ||
+        size < 0 ||
+        isFile == isFolder) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'OneDrive 文件项目缺少有效的 id、name、eTag、size 或类型。',
+      );
+    }
+    return OneDriveItem(
+      id: id as String?,
+      name: name,
+      eTag: eTag,
+      size: size,
+      isFolder: isFolder,
+    );
+  }
+
+  String _itemEndpoint(String path) =>
+      '$_appRoot:/${path.split('/').map(Uri.encodeComponent).join('/')}';
+
+  Uri _graphUri(String endpoint) => _graphBase.resolve(endpoint);
+
+  Uri _trustedGraphLink(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.isAbsolute) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'OneDrive 返回了无效的分页地址。',
+      );
+    }
+    _requireTrustedGraphUri(uri);
+    return uri;
+  }
+
+  void _requireTrustedGraphUri(Uri uri) {
+    if (uri.scheme.toLowerCase() != _graphBase.scheme.toLowerCase() ||
+        uri.host.toLowerCase() != _graphBase.host.toLowerCase() ||
+        uri.port != _graphBase.port ||
+        !uri.path.startsWith(_graphBase.path)) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.redirectRejected,
+        'OneDrive Graph 地址越过了受信任的 API 边界。',
+      );
+    }
+  }
+
+  static Never _throwResponse(Response<Uint8List> response, String action) {
+    final status = response.statusCode ?? 0;
+    final kind = switch (status) {
+      401 => CloudBackendErrorKind.authentication,
+      403 => CloudBackendErrorKind.authorization,
+      404 => CloudBackendErrorKind.notFound,
+      409 || 412 => CloudBackendErrorKind.conflict,
+      413 || 507 => CloudBackendErrorKind.quota,
+      429 => CloudBackendErrorKind.rateLimited,
+      >= 500 => CloudBackendErrorKind.network,
+      _ => CloudBackendErrorKind.invalidResponse,
+    };
+    final graphCodes = _graphErrorCodes(response);
+    throw CloudBackendException(
+      kind,
+      _graphFailureMessage(
+        action,
+        status,
+        graphCodes,
+        _graphErrorMessage(response),
+      ),
+      statusCode: status,
+      retryAfter: _retryAfter(response.headers),
+    );
+  }
+
+  static String _graphFailureMessage(
+    String action,
+    int status,
+    List<String> codes,
+    String? providerMessage,
+  ) {
+    if (codes.contains('itemDisabledDueToPendingProvisioning')) {
+      return 'Microsoft 正在为此账号开通 OneDrive 应用目录，目前尚未完成，请稍后重试。';
+    }
+    if (codes.contains('serviceReadOnly')) {
+      return 'Microsoft OneDrive 当前处于只读状态，暂时无法建立同步连接，请稍后重试。';
+    }
+    if (codes.contains('serviceNotAvailable')) {
+      return 'Microsoft OneDrive 应用目录服务暂时不可用，请稍后重试。';
+    }
+    final providerDetail = [
+      if (codes.isNotEmpty) codes.join('/'),
+      if (providerMessage != null) providerMessage,
+    ].join(': ');
+    return providerDetail.isEmpty
+        ? '$action失败（HTTP $status）。'
+        : '$action失败（HTTP $status，Microsoft: $providerDetail）。';
+  }
+
+  static String? _graphErrorCode(Response<Uint8List> response) {
+    final codes = _graphErrorCodes(response);
+    return codes.isEmpty ? null : codes.join('/');
+  }
+
+  static String? _graphErrorMessage(Response<Uint8List> response) {
+    try {
+      final decoded = jsonDecode(BackendHttp.rawTextOf(response));
+      if (decoded is! Map || decoded['error'] is! Map) return null;
+      final message = (decoded['error'] as Map)['message'];
+      if (message is! String) return null;
+      final normalized = message.replaceAll(RegExp(r'[\x00-\x1F\x7F]+'), ' ');
+      final withoutAuthorization = normalized.replaceAllMapped(
+        RegExp(r'\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+', caseSensitive: false),
+        (match) => '${match.group(1)} [redacted]',
+      );
+      final sanitized = withoutAuthorization
+          .replaceAllMapped(
+            RegExp(
+              r'\b(access_token|refresh_token|id_token|token|password|secret|api_key|code)=([^&\s]+)',
+              caseSensitive: false,
+            ),
+            (match) => '${match.group(1)}=[redacted]',
+          )
+          .trim();
+      if (sanitized.isEmpty) return null;
+      return sanitized.length <= 300
+          ? sanitized
+          : '${sanitized.substring(0, 300)}…';
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static List<String> _graphErrorCodes(Response<Uint8List> response) {
+    try {
+      final decoded = jsonDecode(BackendHttp.rawTextOf(response));
+      if (decoded is! Map) return const [];
+      final codes = <String>[];
+      Object? current = decoded['error'];
+      for (var depth = 0; depth < 4 && current is Map; depth++) {
+        final code = current['code'];
+        if (code is String &&
+            code.isNotEmpty &&
+            code.length <= 80 &&
+            RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(code)) {
+          codes.add(code);
+        }
+        current = current['innerError'];
+      }
+      return codes;
+    } on FormatException {
+      return const [];
+    }
+  }
+
+  static DateTime? _retryAfter(Headers headers) {
+    final value = headers.value('retry-after');
+    if (value == null) return null;
+    final seconds = int.tryParse(value);
+    if (seconds != null) {
+      return DateTime.now().toUtc().add(Duration(seconds: seconds));
+    }
+    try {
+      return HttpDate.parse(value).toUtc();
+    } on FormatException {
+      return DateTime.tryParse(value)?.toUtc();
+    }
+  }
+}
+
+class _DownloadRedirect {
+  const _DownloadRedirect({this.location, this.bytes});
+
+  final Uri? location;
+  final Uint8List? bytes;
+}

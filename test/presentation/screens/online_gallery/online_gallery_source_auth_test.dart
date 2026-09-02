@@ -692,7 +692,7 @@ void main() {
     );
     expect(find.byType(CachedNetworkImage), findsAtLeastNWidgets(4));
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Queue'));
+    await tester.tap(find.byKey(const ValueKey('gallery-detail-queue')));
     await tester.pump();
     final container = ProviderScope.containerOf(
       tester.element(find.byType(Dialog)),

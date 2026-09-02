@@ -13260,6 +13260,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_saveConnection => 'Save connection';
 
   @override
+  String get cloudSync_operationInProgress =>
+      'Another cloud sync operation is in progress. Try again shortly.';
+
+  @override
   String get cloudSync_fillRequiredFields =>
       'Enter the required connection details for this provider.';
 
@@ -13274,7 +13278,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_chooseBackendDescription =>
-      'Choose a storage service you already use. Account details stay on this device.';
+      'Choose a destination, connect its account, then select what to sync. Credentials stay in this device\'s secure store.';
+
+  @override
+  String cloudSync_oauthDescription(String provider) {
+    return 'Connect a $provider account';
+  }
+
+  @override
+  String get cloudSync_oauthSystemBrowser =>
+      'Secure sign-in opens in your system browser; you never enter the provider password in this app.';
+
+  @override
+  String cloudSync_oauthUnavailable(String details) {
+    return 'This build is missing its OAuth release configuration, so the destination is unavailable. Send this diagnostic to the publisher:\n$details';
+  }
+
+  @override
+  String cloudSync_accountConnected(String provider) {
+    return '$provider connected';
+  }
+
+  @override
+  String get cloudSync_connectAccount => 'Connect account';
+
+  @override
+  String get cloudSync_changeAccount => 'Change account';
+
+  @override
+  String get cloudSync_connectedAccount => 'Connected account';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV URL';
@@ -13309,6 +13341,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_testFailed => 'Connection test failed';
+
+  @override
+  String get cloudSync_operationFailed => 'Cloud sync operation failed';
 
   @override
   String get cloudSync_manualBackupOnly => 'Manual push and pull only';
@@ -13379,6 +13414,62 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get cloudSync_errorAuthentication =>
+      'Your sign-in has expired. Connect the account again.';
+
+  @override
+  String get cloudSync_errorAuthorization =>
+      'This account cannot access the backup location.';
+
+  @override
+  String get cloudSync_errorNotFound =>
+      'The cloud backup folder or file could not be found.';
+
+  @override
+  String get cloudSync_errorConflict =>
+      'Cloud data changed on another device. Pull the latest data and try again.';
+
+  @override
+  String get cloudSync_errorQuota =>
+      'The cloud storage does not have enough free space.';
+
+  @override
+  String get cloudSync_errorRateLimited =>
+      'The storage service is receiving too many requests. Try again later.';
+
+  @override
+  String get cloudSync_errorRedirect =>
+      'The storage service redirected the request to an untrusted address, so the operation was stopped.';
+
+  @override
+  String get cloudSync_errorInvalidResponse =>
+      'The storage service returned data that could not be verified.';
+
+  @override
+  String get cloudSync_errorNetwork =>
+      'Could not reach cloud storage. Check your network and try again.';
+
+  @override
+  String get cloudSync_errorPreviewStale =>
+      'Data changed after the preview. Review the updated changes before continuing.';
+
+  @override
+  String get cloudSync_errorFormat =>
+      'The backup format or integrity check failed.';
+
+  @override
+  String get cloudSync_errorConfiguration =>
+      'The saved sync configuration could not be read.';
+
+  @override
+  String get cloudSync_errorState =>
+      'The sync state changed. Try the operation again.';
+
+  @override
+  String get cloudSync_errorUnknown =>
+      'Sync failed. Check the connection and try again.';
+
+  @override
   String get cloudSync_connectionDetails => 'Storage details';
 
   @override
@@ -13398,11 +13489,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_providerWarning => 'Storage service notice';
 
   @override
-  String get cloudSync_maintenanceWarning => 'Needs attention';
+  String get cloudSync_warningGoogleDriveWeakCas =>
+      'Google Drive cannot guarantee an atomic compare-and-swap for file contents, so this connection is limited to explicit manual push and pull.';
 
   @override
-  String get cloudSync_maintenanceWarningDescription =>
-      'Cloud storage could not be cleaned up automatically. Existing backups are unaffected, and the app will try again later.';
+  String get cloudSync_warningGithubPublicRepository =>
+      'This GitHub repository is public, so its backup contents are public. Use a private repository for private data.';
+
+  @override
+  String get cloudSync_warningWebDavWeakCas =>
+      'This server cannot guarantee safe conditional updates. Only manual backup is available, and a later write may replace the same HEAD.';
+
+  @override
+  String get cloudSync_warningWebDavUnverifiedCas =>
+      'The WebDAV connection passed read-only validation, but safe conditional writes have not been verified. Only manual push and pull are available.';
 
   @override
   String get cloudSync_githubHistoryRetention => 'About GitHub storage';
@@ -13456,10 +13556,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_progress => 'Progress';
 
   @override
+  String get cloudSync_metricsDetails => 'Technical details';
+
+  @override
+  String get cloudSync_metricsElapsed => 'Total time';
+
+  @override
+  String get cloudSync_metricsRequests => 'Service requests';
+
+  @override
+  String get cloudSync_metricsRead => 'Received';
+
+  @override
+  String get cloudSync_metricsWritten => 'Sent';
+
+  @override
+  String get cloudSync_metricsHashPasses => 'Integrity checks';
+
+  @override
+  String get cloudSync_metricsPayloadReads => 'Payload reads';
+
+  @override
+  String get cloudSync_metricsLocalRead => 'Read locally';
+
+  @override
+  String get cloudSync_metricsLocalWritten => 'Written locally';
+
+  @override
+  String get cloudSync_metricsFlushes => 'Disk flushes';
+
+  @override
   String get cloudSync_stage => 'Current step';
 
   @override
   String get cloudSync_objects => 'Items processed';
+
+  @override
+  String get cloudSync_reusedObjects => 'Unchanged items reused';
 
   @override
   String get cloudSync_bytes => 'Transferred';
@@ -13468,16 +13601,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_stagePreparing => 'Preparing';
 
   @override
+  String get cloudSync_stageScanning => 'Scanning selected data';
+
+  @override
+  String get cloudSync_stageHashing => 'Verifying local content';
+
+  @override
   String get cloudSync_stageDownloading => 'Downloading';
+
+  @override
+  String get cloudSync_stageVerifying => 'Verifying downloaded data';
 
   @override
   String get cloudSync_stageMerging => 'Organizing changes';
 
   @override
+  String get cloudSync_stageReusing => 'Reusing unchanged data';
+
+  @override
   String get cloudSync_stageUploading => 'Uploading';
 
   @override
+  String get cloudSync_stageCommitting => 'Publishing backup';
+
+  @override
   String get cloudSync_stageApplying => 'Saving changes';
+
+  @override
+  String get cloudSync_stageSaving => 'Saving recovery state';
+
+  @override
+  String get cloudSync_stageRetryWaiting => 'Waiting to retry';
 
   @override
   String get cloudSync_stageRollingBack => 'Restoring previous state';

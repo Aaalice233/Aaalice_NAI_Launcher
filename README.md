@@ -56,7 +56,7 @@ NAI Launcher 面向长期使用 NovelAI 的创作者：生成图片、反复调�
 
 - **智能代理**：在生成页侧栏或移动端抽屉中对话，让它协助检索标签、整理 Prompt、查看历史并准备生成；所有可能消耗 Anlas 的操作都会单独确认。
 - **桌面联动**：连接 Krita Bridge 与本地 ComfyUI 工作流，把生成和编辑接到已有创作工具中。
-- **同步与备份**：通过 GitHub 或 WebDAV 手动推送、拉取已选择的数据；凭据和 NovelAI Token 不会进入备份。
+- **同步与备份**：可选择 Google Drive、OneDrive、GitHub 或 WebDAV 作为目的地，只同步明确勾选的数据；备份使用应用专属命名空间中的明文快照并复用未变化内容，连接配置与上传、拉取彼此独立，凭据与 NovelAI Token 不会进入备份。
 
 ## 界面预览
 
@@ -202,9 +202,9 @@ NAI Launcher 不把账号系统和作品托管在本项目服务器上。不同�
 | 生成、图生图、编辑、Vibe 编码 | NovelAI；包括对应的 Prompt、参数和参考图/源图。 |
 | 在线画廊搜索与下载 | 你选择的第三方图库；各站点的可用性、限流和内容规则由站点决定。 |
 | AI 翻译或智能代理 | 你配置的模型服务；对话、附加图片和完成任务所需的工具结果可能产生服务费用。 |
-| 同步与备份 | 你配置的 GitHub 或 WebDAV 存储；只上传你明确选择的数据范围。 |
+| 同步与备份 | 你选择的 Google Drive、OneDrive、GitHub 或 WebDAV 存储；只上传你明确选择的数据范围。Google Drive/OneDrive 仅使用应用专属隐藏目录。 |
 
-- NovelAI Token、WebDAV 密码和 GitHub Token 使用设备的安全存储保存，不会写入备份。
+- NovelAI Token、OAuth access/refresh token、WebDAV 密码和 GitHub Token 使用设备的安全存储保存，不会写入备份；备份内容不加密，请确保所选存储空间及 GitHub 仓库的访问权限符合你的隐私需求。
 - 本地 Prompt、图库索引、标签和代理会话默认保存在本机；代理的联网工具默认关闭。
 - 在线图库包含第三方内容，分级筛选不能替代用户判断；请遵守来源站点规则、当地法律和 NovelAI 服务条款。
 - WebDAV 的数据安全取决于你配置的服务和传输方式；同步前请确认服务器可信，并保留重要数据的本地备份。

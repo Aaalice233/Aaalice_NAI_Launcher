@@ -28,7 +28,7 @@ class WebDavEtagReader {
       },
       data: utf8.encode(
         '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
-        '<d:allprop/></d:propfind>',
+        '<d:prop><d:getetag/></d:prop></d:propfind>',
       ),
       maxResponseBytes: 64 * 1024,
     );
@@ -78,6 +78,7 @@ class WebDavEtagReader {
         401 => CloudBackendErrorKind.authentication,
         403 => CloudBackendErrorKind.authorization,
         409 || 412 => CloudBackendErrorKind.conflict,
+        429 => CloudBackendErrorKind.rateLimited,
         507 => CloudBackendErrorKind.quota,
         _ => CloudBackendErrorKind.invalidResponse,
       },

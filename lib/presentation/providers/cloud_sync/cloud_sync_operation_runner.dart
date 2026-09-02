@@ -1,6 +1,7 @@
 import '../../../core/cloud_sync/coordinator.dart';
 import '../../../core/cloud_sync/merge.dart';
 import '../../../core/cloud_sync/operation.dart';
+import '../../../core/cloud_sync/telemetry.dart';
 import 'cloud_sync_conflict_mapper.dart';
 import 'cloud_sync_progress_mapper.dart';
 import 'cloud_sync_ui_provider.dart';
@@ -20,7 +21,6 @@ class CloudSyncOperationRunner {
     required this.writeState,
     required this.recordError,
     required this.readPendingFfdkjIntent,
-    required this.afterSuccessfulWrite,
     required this.persistSyncState,
   });
 
@@ -29,22 +29,21 @@ class CloudSyncOperationRunner {
   final CloudSyncStateWriter writeState;
   final CloudSyncErrorRecorder recordError;
   final bool Function() readPendingFfdkjIntent;
-  final Future<void> Function() afterSuccessfulWrite;
   final Future<void> Function(String revision, DateTime lastSync)
   persistSyncState;
 
   Future<void> previewInitial() async {
     readState().ensureNoPendingPreview();
-    final preview = await buildCloudSyncPreview(_requireCoordinator());
+    final preview = await _trace(
+      'previewInitial',
+      () => buildCloudSyncPreview(_requireCoordinator()),
+    );
     final state = readState();
     writeState(
       state.copyWith(
         remoteRevision: preview.remoteRevision,
         conflicts: preview.conflicts,
-        pendingPreview: CloudSyncPreviewView(
-          title: 'Initial merge',
-          changes: preview.changes,
-        ),
+        pendingPreview: CloudSyncPreviewView(changes: preview.changes),
       ),
     );
   }
@@ -56,35 +55,35 @@ class CloudSyncOperationRunner {
     final coordinator = _requireCoordinator();
     _start();
     try {
-      final outcome = switch (direction) {
-        CloudSyncInitialAction.upload => await coordinator.uploadLocal(
-          token: operation,
-          onProgress: _updateProgress,
-        ),
-        CloudSyncInitialAction.download => await coordinator.downloadRemote(
-          token: operation,
-          onProgress: _updateProgress,
-        ),
-        _ when readState().remoteExists != true =>
-          await coordinator.uploadLocal(
+      final outcome = await _trace(
+        'sync',
+        () async => switch (direction) {
+          CloudSyncInitialAction.upload => await coordinator.uploadLocal(
             token: operation,
             onProgress: _updateProgress,
           ),
-        _
-            when readState().capabilityMode ==
-                CloudSyncCapabilityMode.manualBackupOnly =>
-          await coordinator.uploadLocal(
+          CloudSyncInitialAction.download => await coordinator.downloadRemote(
             token: operation,
             onProgress: _updateProgress,
           ),
-        _ => await coordinator.synchronize(
-          token: operation,
-          onProgress: _updateProgress,
-        ),
-      };
-      final history = readState().supportsHistory
-          ? await coordinator.history()
-          : const <SnapshotHistoryEntry>[];
+          _ when readState().remoteExists != true =>
+            await coordinator.uploadLocal(
+              token: operation,
+              onProgress: _updateProgress,
+            ),
+          _
+              when readState().capabilityMode ==
+                  CloudSyncCapabilityMode.manualBackupOnly =>
+            await coordinator.uploadLocal(
+              token: operation,
+              onProgress: _updateProgress,
+            ),
+          _ => await coordinator.synchronize(
+            token: operation,
+            onProgress: _updateProgress,
+          ),
+        },
+      );
       final lastSync = DateTime.now().toUtc();
       final state = readState();
       writeState(
@@ -95,6 +94,37 @@ class CloudSyncOperationRunner {
           remoteExists: true,
           clearProgress: true,
           conflicts: const [],
+          snapshots: outcome.uploaded
+              ? _prependSnapshot(
+                  state.snapshots,
+                  CloudSyncSnapshotView(
+                    id: outcome.snapshotId,
+                    createdAt: lastSync,
+                    objectCount: outcome.snapshot.records.length,
+                  ),
+                )
+              : state.snapshots,
+          clearPendingPreview: true,
+          pendingFfdkjInstall: readPendingFfdkjIntent(),
+        ),
+      );
+      await persistSyncState(outcome.snapshotId, lastSync);
+    } catch (error) {
+      _recordOperationError(error);
+      rethrow;
+    }
+  }
+
+  Future<void> loadHistory() async {
+    final state = readState();
+    if (!state.supportsHistory) return;
+    try {
+      final history = await _trace(
+        'history',
+        () => _requireCoordinator().history(),
+      );
+      writeState(
+        readState().copyWith(
           snapshots: history
               .map(
                 (entry) => CloudSyncSnapshotView(
@@ -103,17 +133,12 @@ class CloudSyncOperationRunner {
                   objectCount: entry.objectCount,
                 ),
               )
-              .toList(),
-          clearPendingPreview: true,
-          pendingFfdkjInstall: readPendingFfdkjIntent(),
+              .toList(growable: false),
+          clearError: true,
         ),
       );
-      await persistSyncState(outcome.snapshotId, lastSync);
-      if (direction != CloudSyncInitialAction.download) {
-        await afterSuccessfulWrite();
-      }
     } catch (error) {
-      recordError(error, resetActivity: true);
+      recordError(error, resetActivity: false);
       rethrow;
     }
   }
@@ -125,15 +150,18 @@ class CloudSyncOperationRunner {
     final coordinator = _requireCoordinator();
     _start();
     try {
-      final outcome = await coordinator.synchronize(
-        token: operation,
-        onProgress: _updateProgress,
-        resolve: (conflict) => switch (choices[conflict.id]) {
-          CloudSyncConflictChoice.local => ConflictChoice.local,
-          CloudSyncConflictChoice.remote => ConflictChoice.remote,
-          CloudSyncConflictChoice.keepBoth => ConflictChoice.keepBoth,
-          null => ConflictChoice.defer,
-        },
+      final outcome = await _trace(
+        'resolvedMerge',
+        () => coordinator.synchronize(
+          token: operation,
+          onProgress: _updateProgress,
+          resolve: (conflict) => switch (choices[conflict.id]) {
+            CloudSyncConflictChoice.local => ConflictChoice.local,
+            CloudSyncConflictChoice.remote => ConflictChoice.remote,
+            CloudSyncConflictChoice.keepBoth => ConflictChoice.keepBoth,
+            null => ConflictChoice.defer,
+          },
+        ),
       );
       choices.clear();
       final lastSync = DateTime.now().toUtc();
@@ -150,9 +178,9 @@ class CloudSyncOperationRunner {
         ),
       );
       await persistSyncState(outcome.snapshotId, lastSync);
-      await afterSuccessfulWrite();
     } catch (error) {
-      recordError(error, resetActivity: true);
+      if (error is CloudPreviewStaleException) choices.clear();
+      _recordOperationError(error);
       rethrow;
     }
   }
@@ -165,10 +193,13 @@ class CloudSyncOperationRunner {
     final coordinator = _requireCoordinator();
     _start(clearError: false);
     try {
-      final preview = await coordinator.previewRestore(
-        snapshotId,
-        token: operation,
-        onProgress: _updateProgress,
+      final preview = await _trace(
+        'previewRestore',
+        () => coordinator.previewRestore(
+          snapshotId,
+          token: operation,
+          onProgress: _updateProgress,
+        ),
       );
       final counts = <CloudSyncDataKind, List<int>>{};
       for (final change in preview.changes) {
@@ -182,7 +213,6 @@ class CloudSyncOperationRunner {
           activityStatus: CloudSyncActivityStatus.idle,
           clearProgress: true,
           pendingPreview: CloudSyncPreviewView(
-            title: snapshotId,
             snapshotId: snapshotId,
             isRestore: true,
             changes: [
@@ -207,10 +237,13 @@ class CloudSyncOperationRunner {
     final coordinator = _requireCoordinator();
     _start();
     try {
-      final outcome = await coordinator.restore(
-        snapshotId,
-        token: operation,
-        onProgress: _updateProgress,
+      final outcome = await _trace(
+        'restore',
+        () => coordinator.restore(
+          snapshotId,
+          token: operation,
+          onProgress: _updateProgress,
+        ),
       );
       final lastSync = DateTime.now().toUtc();
       final state = readState();
@@ -225,12 +258,29 @@ class CloudSyncOperationRunner {
         ),
       );
       await persistSyncState(outcome.snapshotId, lastSync);
-      await afterSuccessfulWrite();
     } catch (error) {
-      recordError(error, resetActivity: true);
+      _recordOperationError(error);
       rethrow;
     }
   }
+
+  void _recordOperationError(Object error) {
+    if (error is CloudPreviewStaleException) {
+      writeState(
+        readState().copyWith(conflicts: const [], clearPendingPreview: true),
+      );
+    }
+    recordError(error, resetActivity: true);
+  }
+
+  static List<CloudSyncSnapshotView> _prependSnapshot(
+    List<CloudSyncSnapshotView> existing,
+    CloudSyncSnapshotView latest,
+  ) => [
+    latest,
+    for (final snapshot in existing)
+      if (snapshot.id != latest.id) snapshot,
+  ];
 
   SyncCoordinator _requireCoordinator() =>
       coordinator() ?? (throw StateError('Cloud sync is not connected.'));
@@ -248,7 +298,38 @@ class CloudSyncOperationRunner {
     );
   }
 
+  Future<T> _trace<T>(String operation, Future<T> Function() action) =>
+      CloudSyncTelemetry.trace(
+        operation,
+        () {
+          CloudSyncTelemetry.enterStage(SyncPhase.preparing.name);
+          return action();
+        },
+        onComplete: (metrics) {
+          writeState(
+            readState().copyWith(
+              metrics: CloudSyncMetricsView(
+                elapsedMilliseconds: metrics.elapsed.inMilliseconds,
+                requestCount: metrics.requestCount,
+                bytesRead: metrics.bytesRead,
+                bytesWritten: metrics.bytesWritten,
+                hashPasses: metrics.hashPasses,
+                payloadReads: metrics.payloadReads,
+                localBytesRead: metrics.localBytesRead,
+                localBytesWritten: metrics.localBytesWritten,
+                flushes: metrics.flushes,
+                stageMilliseconds: {
+                  for (final entry in metrics.stageDurations.entries)
+                    entry.key: entry.value.inMilliseconds,
+                },
+              ),
+            ),
+          );
+        },
+      );
+
   void _updateProgress(SyncProgress progress) {
+    CloudSyncTelemetry.enterStage(progress.phase.name);
     final state = readState();
     writeState(state.copyWith(progress: mapCloudSyncProgress(progress)));
   }

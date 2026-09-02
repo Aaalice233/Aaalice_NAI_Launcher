@@ -24,10 +24,10 @@ void main() {
       await service.clearCloudSyncSecrets();
 
       await expectLater(
-        service.saveCloudSyncMasterKey('raw-master'),
+        service.saveCloudSyncCredentials('credentials'),
         throwsA(isA<StateError>()),
       );
-      expect(await service.getCloudSyncMasterKey(), isNull);
+      expect(await service.getCloudSyncCredentials(), isNull);
     },
   );
 

@@ -22,22 +22,43 @@ class GitHubBackendSupport {
     }
   }
 
-  static Never throwResponse(Response<Uint8List> response, String action) {
+  static bool isRateLimited(Response<Uint8List> response) {
     final status = response.statusCode ?? 0;
+    if (status == 429) return true;
+    if (status != 403) return false;
     final remaining = int.tryParse(
       response.headers.value('x-ratelimit-remaining') ?? '',
     );
-    if (status == 403 && remaining == 0) {
+    if (remaining == 0 || response.headers.value('retry-after') != null) {
+      return true;
+    }
+    final message = BackendHttp.rawTextOf(response).toLowerCase();
+    return message.contains('secondary rate limit') ||
+        message.contains('abuse detection');
+  }
+
+  static Never throwResponse(Response<Uint8List> response, String action) {
+    final status = response.statusCode ?? 0;
+    if (isRateLimited(response)) {
       final reset = int.tryParse(
         response.headers.value('x-ratelimit-reset') ?? '',
+      );
+      final retryAfterSeconds = int.tryParse(
+        response.headers.value('retry-after') ?? '',
       );
       throw CloudBackendException(
         CloudBackendErrorKind.rateLimited,
         '$action失败：GitHub API 速率限制已用尽，请稍后重试。',
         statusCode: status,
-        retryAfter: reset == null
+        retryAfter: reset != null
+            ? DateTime.fromMillisecondsSinceEpoch(reset * 1000, isUtc: true)
+            : retryAfterSeconds == null
             ? null
-            : DateTime.fromMillisecondsSinceEpoch(reset * 1000, isUtc: true),
+            : DateTime.now().toUtc().add(
+                Duration(
+                  seconds: retryAfterSeconds < 0 ? 0 : retryAfterSeconds,
+                ),
+              ),
       );
     }
     final kind = switch (status) {
@@ -97,7 +118,7 @@ class GitHubBackendSupport {
   }
 
   static bool matchesGitBlobSha(Uint8List bytes, String expected) {
-    if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(expected)) return true;
+    if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(expected)) return false;
     final header = utf8.encode('blob ${bytes.length}\u0000');
     return sha1.convert([...header, ...bytes]).toString() == expected;
   }

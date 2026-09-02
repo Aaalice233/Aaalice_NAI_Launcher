@@ -3,7 +3,8 @@ import 'dart:typed_data';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
 import 'package:nai_launcher/core/cloud_sync/operation.dart';
 
-class CoordinatorTestBackend implements CloudSyncBackend {
+class CoordinatorTestBackend
+    implements CloudSyncBackend, CloudObjectInventoryBackend {
   final Map<String, CloudObjectRead> objects = {};
   final List<String> events = [];
   CloudHeadRead? head;
@@ -11,21 +12,58 @@ class CoordinatorTestBackend implements CloudSyncBackend {
   bool loseFirstObjectResponse = false;
   bool loseHeadResponse = false;
   OperationToken? cancelAfterHeadToken;
+  OperationToken? readHeadOperation;
   final Map<String, List<Uint8List>> putAttempts = {};
+  var inventoryCalls = 0;
+  var objectReads = 0;
 
   @override
-  Future<CloudObjectRead?> readObject(String objectId) async =>
-      objects[objectId];
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
+    inventoryCalls++;
+    final existing = <String>{};
+    for (final entry in expectedObjects.entries) {
+      final remote = objects[entry.key];
+      if (remote == null) continue;
+      if (remote.bytes.length != entry.value) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          'object inventory size conflict',
+        );
+      }
+      existing.add(entry.key);
+    }
+    return CloudObjectInventoryResult(
+      existingObjectIds: existing,
+      verifiedRevisions: {for (final id in existing) id: objects[id]!.revision},
+    );
+  }
+
+  @override
+  Future<CloudObjectRead?> readObject(String objectId) async {
+    objectReads++;
+    return objects[objectId];
+  }
+
   @override
   Future<CloudObjectRead?> readSnapshotManifest(String snapshotId) async =>
       objects['snapshot.$snapshotId'];
   @override
-  Future<CloudHeadRead?> readHead() async => head;
+  Future<CloudHeadRead?> readHead() async {
+    readHeadOperation = OperationToken.current;
+    return head;
+  }
+
   @override
   Future<CloudCommitResult> putObject(
     String objectId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   }) async {
     events.add(objectId);
     putAttempts.putIfAbsent(objectId, () => []).add(Uint8List.fromList(bytes));
@@ -51,7 +89,13 @@ class CoordinatorTestBackend implements CloudSyncBackend {
     String snapshotId,
     Uint8List bytes, {
     required String sha256,
-  }) => putObject('snapshot.$snapshotId', bytes, sha256: sha256);
+    bool payloadVerified = false,
+  }) => putObject(
+    'snapshot.$snapshotId',
+    bytes,
+    sha256: sha256,
+    payloadVerified: payloadVerified,
+  );
 
   @override
   Future<CloudCommitResult> commitHead(

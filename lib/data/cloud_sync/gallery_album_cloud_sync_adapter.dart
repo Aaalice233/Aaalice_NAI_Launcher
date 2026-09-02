@@ -89,6 +89,11 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   }
 
   @override
+  Map<String, Object?> tombstoneData(PortableSyncRecord record) => {
+    'albumId': record.data['albumId'],
+  };
+
+  @override
   void validateRecord(PortableSyncRecord record) {
     final albumId = record.data['albumId'];
     if (albumId is! String || albumId.isEmpty) {
@@ -97,6 +102,7 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
     if (record.id != _portableId(albumId)) {
       throw const CloudSyncPreflightException('Album identity mismatch');
     }
+    if (record.deleted) return;
     if (record.data['name'] is! String) {
       throw const CloudSyncPreflightException('Album record lacks name');
     }

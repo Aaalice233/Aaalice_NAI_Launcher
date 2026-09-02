@@ -1,12 +1,24 @@
 param(
     [switch]$RunPubGet,
     [switch]$RunBuildRunner,
-    [switch]$SkipBuildRunner
+    [switch]$SkipBuildRunner,
+    [string]$OneDriveClientId,
+    [string]$OneDriveRedirectUri,
+    [string]$OneDriveTenantId
 )
 
 $ErrorActionPreference = 'Stop'
 $env:PUB_HOSTED_URL = 'https://pub.dev'
 $env:FLUTTER_STORAGE_BASE_URL = $null
+if (-not [string]::IsNullOrWhiteSpace($OneDriveClientId)) {
+    $env:ONEDRIVE_WINDOWS_CLIENT_ID = $OneDriveClientId
+}
+if (-not [string]::IsNullOrWhiteSpace($OneDriveRedirectUri)) {
+    $env:ONEDRIVE_WINDOWS_REDIRECT_URI = $OneDriveRedirectUri
+}
+if (-not [string]::IsNullOrWhiteSpace($OneDriveTenantId)) {
+    $env:ONEDRIVE_TENANT_ID = $OneDriveTenantId
+}
 
 $scriptDir = Split-Path -Parent $PSCommandPath
 $repoRoot = Resolve-Path -LiteralPath (Join-Path $scriptDir '../../../..')
@@ -41,6 +53,37 @@ function Resolve-ToolCommand {
     }
 
     return $command.Source
+}
+
+function Get-OAuthConfigValue {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    foreach ($target in @('Process', 'User', 'Machine')) {
+        $value = [Environment]::GetEnvironmentVariable($Name, $target)
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+    return $null
+}
+
+function Get-OptionalOAuthDartDefines {
+    $names = @(
+        'GOOGLE_DRIVE_WINDOWS_CLIENT_ID',
+        'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET',
+        'GOOGLE_DRIVE_WINDOWS_REDIRECT_URI',
+        'ONEDRIVE_WINDOWS_CLIENT_ID',
+        'ONEDRIVE_WINDOWS_REDIRECT_URI',
+        'ONEDRIVE_TENANT_ID'
+    )
+    $defines = @()
+    foreach ($name in $names) {
+        $value = Get-OAuthConfigValue -Name $name
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $defines += "--dart-define=$name=$value"
+        }
+    }
+    return $defines
 }
 
 function Test-ExistingSession {
@@ -137,9 +180,13 @@ try {
     Write-Host "[$step/$stepCount] Starting Flutter in Windows debug mode..." -ForegroundColor Cyan
     Write-Host 'Hot reload: r    Hot restart: R    Quit: q' -ForegroundColor DarkGray
     Write-SessionMarker -State 'running'
-    & $flutterCommand run `
-        -d windows `
-        --dart-define=ENABLE_FLUTTER_DRIVER=true
+    $flutterArguments = @(
+        'run',
+        '-d',
+        'windows',
+        '--dart-define=ENABLE_FLUTTER_DRIVER=true'
+    ) + @(Get-OptionalOAuthDartDefines)
+    & $flutterCommand @flutterArguments
     if ($LASTEXITCODE -ne 0) {
         throw 'flutter run failed for Windows.'
     }

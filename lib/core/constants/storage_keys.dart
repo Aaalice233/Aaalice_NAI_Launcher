@@ -7,17 +7,16 @@ class StorageKeys {
   static const String tokenExpiry = 'nai_token_expiry';
   static const String userEmail = 'nai_user_email';
   static const String discordShareSession = 'discord_share_session_v1';
-  static const String cloudSyncMasterKey = 'cloud_sync_master_key_v1';
   static const String cloudSyncCredentials = 'cloud_sync_credentials_v1';
-  static const String cloudSyncKeyEnvelope = 'cloud_sync_key_envelope_v1';
   static const String cloudSyncPendingFfdkjInstall =
       'cloud_sync_pending_ffdkj_install_v1';
   static const String cloudSyncConfiguration = 'cloud_sync_configuration_v1';
+  static const String cloudDriveConfiguration = 'cloud_drive_configuration_v1';
   static const String cloudSyncDeviceId = 'cloud_sync_device_id_v1';
-  static const String cloudSyncLastMaintenanceAt =
-      'cloud_sync_last_maintenance_at_v1';
   static const String cloudSyncContentSelection =
       'cloud_sync_content_selection_v1';
+  static const String cloudDriveOAuthSessionPrefix =
+      'cloud_drive_oauth_session_v1_';
 
   // Token 存储（按账号ID）
   static const String accountTokenPrefix = 'nai_account_token_';

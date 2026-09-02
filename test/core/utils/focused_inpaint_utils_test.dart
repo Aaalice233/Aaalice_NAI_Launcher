@@ -632,25 +632,35 @@ img.Image _buildIrregularMask({required int width, required int height}) {
 
 void _expectImagesMatch(img.Image actual, img.Image expected) {
   expect((actual.width, actual.height), (expected.width, expected.height));
+  // image's integer source-over path can differ from rounded replacement
+  // compositing by up to two RGB levels; alpha remains an exact contract.
+  const maxRgbQuantizationDelta = 2;
   for (var y = 0; y < actual.height; y++) {
     for (var x = 0; x < actual.width; x++) {
       final actualPixel = actual.getPixel(x, y);
       final expectedPixel = expected.getPixel(x, y);
+      final reason =
+          'Pixel mismatch at $x,$y: '
+          '${actualPixel.r.toInt()},${actualPixel.g.toInt()},'
+          '${actualPixel.b.toInt()},${actualPixel.a.toInt()} vs '
+          '${expectedPixel.r.toInt()},${expectedPixel.g.toInt()},'
+          '${expectedPixel.b.toInt()},${expectedPixel.a.toInt()}';
       expect(
-        (
-          actualPixel.r.toInt(),
-          actualPixel.g.toInt(),
-          actualPixel.b.toInt(),
-          actualPixel.a.toInt(),
-        ),
-        (
-          expectedPixel.r.toInt(),
-          expectedPixel.g.toInt(),
-          expectedPixel.b.toInt(),
-          expectedPixel.a.toInt(),
-        ),
-        reason: 'Pixel mismatch at $x,$y',
+        (actualPixel.r.toInt() - expectedPixel.r.toInt()).abs(),
+        lessThanOrEqualTo(maxRgbQuantizationDelta),
+        reason: reason,
       );
+      expect(
+        (actualPixel.g.toInt() - expectedPixel.g.toInt()).abs(),
+        lessThanOrEqualTo(maxRgbQuantizationDelta),
+        reason: reason,
+      );
+      expect(
+        (actualPixel.b.toInt() - expectedPixel.b.toInt()).abs(),
+        lessThanOrEqualTo(maxRgbQuantizationDelta),
+        reason: reason,
+      );
+      expect(actualPixel.a.toInt(), expectedPixel.a.toInt(), reason: reason);
     }
   }
 }

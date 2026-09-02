@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -202,28 +205,58 @@ class SecureStorageService {
     await _storage.delete(key: key);
   }
 
-  Future<void> saveCloudSyncMasterKey(String encodedKey) =>
-      _saveCloudSecret(StorageKeys.cloudSyncMasterKey, encodedKey);
-
-  Future<String?> getCloudSyncMasterKey() =>
-      _getCloudSecret(StorageKeys.cloudSyncMasterKey);
-
   Future<void> saveCloudSyncCredentials(String encodedCredentials) =>
       _saveCloudSecret(StorageKeys.cloudSyncCredentials, encodedCredentials);
 
   Future<String?> getCloudSyncCredentials() =>
       _getCloudSecret(StorageKeys.cloudSyncCredentials);
 
+  String _cloudDriveIdentityKey(
+    String prefix,
+    String providerId,
+    String accountId,
+  ) {
+    final accountHash = sha256.convert(utf8.encode(accountId)).toString();
+    return '$prefix${providerId}_$accountHash';
+  }
+
+  String _cloudDriveOAuthSessionKey(String providerId, String accountId) =>
+      _cloudDriveIdentityKey(
+        StorageKeys.cloudDriveOAuthSessionPrefix,
+        providerId,
+        accountId,
+      );
+
+  Future<void> saveCloudDriveOAuthSession({
+    required String providerId,
+    required String accountId,
+    required String encodedSession,
+  }) => _saveCloudSecret(
+    _cloudDriveOAuthSessionKey(providerId, accountId),
+    encodedSession,
+  );
+
+  Future<String?> getCloudDriveOAuthSession({
+    required String providerId,
+    required String accountId,
+  }) => _getCloudSecret(_cloudDriveOAuthSessionKey(providerId, accountId));
+
+  Future<void> deleteCloudDriveOAuthSession({
+    required String providerId,
+    required String accountId,
+  }) => _deleteCloudSecret(_cloudDriveOAuthSessionKey(providerId, accountId));
+
   Future<void> clearCloudSyncSecrets() async {
-    const keys = [
-      StorageKeys.cloudSyncMasterKey,
-      StorageKeys.cloudSyncCredentials,
-      StorageKeys.cloudSyncKeyEnvelope,
-    ];
+    const keys = [StorageKeys.cloudSyncCredentials];
     for (final key in keys) {
       _memoryCache.remove(key);
     }
     await Future.wait(keys.map((key) => _storage.delete(key: key)));
+  }
+
+  Future<void> _deleteCloudSecret(String key) async {
+    await _storage.delete(key: key);
+    _memoryCache.remove(key);
   }
 
   Future<void> _saveCloudSecret(String key, String value) async {

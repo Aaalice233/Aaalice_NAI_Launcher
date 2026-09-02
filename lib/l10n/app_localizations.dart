@@ -23084,6 +23084,12 @@ abstract class AppLocalizations {
   /// **'Save connection'**
   String get cloudSync_saveConnection;
 
+  /// No description provided for @cloudSync_operationInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Another cloud sync operation is in progress. Try again shortly.'**
+  String get cloudSync_operationInProgress;
+
   /// No description provided for @cloudSync_fillRequiredFields.
   ///
   /// In en, this message translates to:
@@ -23111,8 +23117,50 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_chooseBackendDescription.
   ///
   /// In en, this message translates to:
-  /// **'Choose a storage service you already use. Account details stay on this device.'**
+  /// **'Choose a destination, connect its account, then select what to sync. Credentials stay in this device\'s secure store.'**
   String get cloudSync_chooseBackendDescription;
+
+  /// No description provided for @cloudSync_oauthDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a {provider} account'**
+  String cloudSync_oauthDescription(String provider);
+
+  /// No description provided for @cloudSync_oauthSystemBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure sign-in opens in your system browser; you never enter the provider password in this app.'**
+  String get cloudSync_oauthSystemBrowser;
+
+  /// No description provided for @cloudSync_oauthUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This build is missing its OAuth release configuration, so the destination is unavailable. Send this diagnostic to the publisher:\n{details}'**
+  String cloudSync_oauthUnavailable(String details);
+
+  /// No description provided for @cloudSync_accountConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} connected'**
+  String cloudSync_accountConnected(String provider);
+
+  /// No description provided for @cloudSync_connectAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect account'**
+  String get cloudSync_connectAccount;
+
+  /// No description provided for @cloudSync_changeAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Change account'**
+  String get cloudSync_changeAccount;
+
+  /// No description provided for @cloudSync_connectedAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected account'**
+  String get cloudSync_connectedAccount;
 
   /// No description provided for @cloudSync_webDavUrl.
   ///
@@ -23179,6 +23227,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connection test failed'**
   String get cloudSync_testFailed;
+
+  /// No description provided for @cloudSync_operationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud sync operation failed'**
+  String get cloudSync_operationFailed;
 
   /// No description provided for @cloudSync_manualBackupOnly.
   ///
@@ -23294,6 +23348,90 @@ abstract class AppLocalizations {
   /// **'Action failed: {error}'**
   String cloudSync_actionFailed(Object error);
 
+  /// No description provided for @cloudSync_errorAuthentication.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sign-in has expired. Connect the account again.'**
+  String get cloudSync_errorAuthentication;
+
+  /// No description provided for @cloudSync_errorAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'This account cannot access the backup location.'**
+  String get cloudSync_errorAuthorization;
+
+  /// No description provided for @cloudSync_errorNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The cloud backup folder or file could not be found.'**
+  String get cloudSync_errorNotFound;
+
+  /// No description provided for @cloudSync_errorConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud data changed on another device. Pull the latest data and try again.'**
+  String get cloudSync_errorConflict;
+
+  /// No description provided for @cloudSync_errorQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'The cloud storage does not have enough free space.'**
+  String get cloudSync_errorQuota;
+
+  /// No description provided for @cloudSync_errorRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'The storage service is receiving too many requests. Try again later.'**
+  String get cloudSync_errorRateLimited;
+
+  /// No description provided for @cloudSync_errorRedirect.
+  ///
+  /// In en, this message translates to:
+  /// **'The storage service redirected the request to an untrusted address, so the operation was stopped.'**
+  String get cloudSync_errorRedirect;
+
+  /// No description provided for @cloudSync_errorInvalidResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'The storage service returned data that could not be verified.'**
+  String get cloudSync_errorInvalidResponse;
+
+  /// No description provided for @cloudSync_errorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach cloud storage. Check your network and try again.'**
+  String get cloudSync_errorNetwork;
+
+  /// No description provided for @cloudSync_errorPreviewStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Data changed after the preview. Review the updated changes before continuing.'**
+  String get cloudSync_errorPreviewStale;
+
+  /// No description provided for @cloudSync_errorFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'The backup format or integrity check failed.'**
+  String get cloudSync_errorFormat;
+
+  /// No description provided for @cloudSync_errorConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved sync configuration could not be read.'**
+  String get cloudSync_errorConfiguration;
+
+  /// No description provided for @cloudSync_errorState.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync state changed. Try the operation again.'**
+  String get cloudSync_errorState;
+
+  /// No description provided for @cloudSync_errorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed. Check the connection and try again.'**
+  String get cloudSync_errorUnknown;
+
   /// No description provided for @cloudSync_connectionDetails.
   ///
   /// In en, this message translates to:
@@ -23330,17 +23468,29 @@ abstract class AppLocalizations {
   /// **'Storage service notice'**
   String get cloudSync_providerWarning;
 
-  /// No description provided for @cloudSync_maintenanceWarning.
+  /// No description provided for @cloudSync_warningGoogleDriveWeakCas.
   ///
   /// In en, this message translates to:
-  /// **'Needs attention'**
-  String get cloudSync_maintenanceWarning;
+  /// **'Google Drive cannot guarantee an atomic compare-and-swap for file contents, so this connection is limited to explicit manual push and pull.'**
+  String get cloudSync_warningGoogleDriveWeakCas;
 
-  /// No description provided for @cloudSync_maintenanceWarningDescription.
+  /// No description provided for @cloudSync_warningGithubPublicRepository.
   ///
   /// In en, this message translates to:
-  /// **'Cloud storage could not be cleaned up automatically. Existing backups are unaffected, and the app will try again later.'**
-  String get cloudSync_maintenanceWarningDescription;
+  /// **'This GitHub repository is public, so its backup contents are public. Use a private repository for private data.'**
+  String get cloudSync_warningGithubPublicRepository;
+
+  /// No description provided for @cloudSync_warningWebDavWeakCas.
+  ///
+  /// In en, this message translates to:
+  /// **'This server cannot guarantee safe conditional updates. Only manual backup is available, and a later write may replace the same HEAD.'**
+  String get cloudSync_warningWebDavWeakCas;
+
+  /// No description provided for @cloudSync_warningWebDavUnverifiedCas.
+  ///
+  /// In en, this message translates to:
+  /// **'The WebDAV connection passed read-only validation, but safe conditional writes have not been verified. Only manual push and pull are available.'**
+  String get cloudSync_warningWebDavUnverifiedCas;
 
   /// No description provided for @cloudSync_githubHistoryRetention.
   ///
@@ -23438,6 +23588,66 @@ abstract class AppLocalizations {
   /// **'Progress'**
   String get cloudSync_progress;
 
+  /// No description provided for @cloudSync_metricsDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Technical details'**
+  String get cloudSync_metricsDetails;
+
+  /// No description provided for @cloudSync_metricsElapsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Total time'**
+  String get cloudSync_metricsElapsed;
+
+  /// No description provided for @cloudSync_metricsRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Service requests'**
+  String get cloudSync_metricsRequests;
+
+  /// No description provided for @cloudSync_metricsRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Received'**
+  String get cloudSync_metricsRead;
+
+  /// No description provided for @cloudSync_metricsWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get cloudSync_metricsWritten;
+
+  /// No description provided for @cloudSync_metricsHashPasses.
+  ///
+  /// In en, this message translates to:
+  /// **'Integrity checks'**
+  String get cloudSync_metricsHashPasses;
+
+  /// No description provided for @cloudSync_metricsPayloadReads.
+  ///
+  /// In en, this message translates to:
+  /// **'Payload reads'**
+  String get cloudSync_metricsPayloadReads;
+
+  /// No description provided for @cloudSync_metricsLocalRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read locally'**
+  String get cloudSync_metricsLocalRead;
+
+  /// No description provided for @cloudSync_metricsLocalWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Written locally'**
+  String get cloudSync_metricsLocalWritten;
+
+  /// No description provided for @cloudSync_metricsFlushes.
+  ///
+  /// In en, this message translates to:
+  /// **'Disk flushes'**
+  String get cloudSync_metricsFlushes;
+
   /// No description provided for @cloudSync_stage.
   ///
   /// In en, this message translates to:
@@ -23449,6 +23659,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Items processed'**
   String get cloudSync_objects;
+
+  /// No description provided for @cloudSync_reusedObjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Unchanged items reused'**
+  String get cloudSync_reusedObjects;
 
   /// No description provided for @cloudSync_bytes.
   ///
@@ -23462,11 +23678,29 @@ abstract class AppLocalizations {
   /// **'Preparing'**
   String get cloudSync_stagePreparing;
 
+  /// No description provided for @cloudSync_stageScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning selected data'**
+  String get cloudSync_stageScanning;
+
+  /// No description provided for @cloudSync_stageHashing.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying local content'**
+  String get cloudSync_stageHashing;
+
   /// No description provided for @cloudSync_stageDownloading.
   ///
   /// In en, this message translates to:
   /// **'Downloading'**
   String get cloudSync_stageDownloading;
+
+  /// No description provided for @cloudSync_stageVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying downloaded data'**
+  String get cloudSync_stageVerifying;
 
   /// No description provided for @cloudSync_stageMerging.
   ///
@@ -23474,17 +23708,41 @@ abstract class AppLocalizations {
   /// **'Organizing changes'**
   String get cloudSync_stageMerging;
 
+  /// No description provided for @cloudSync_stageReusing.
+  ///
+  /// In en, this message translates to:
+  /// **'Reusing unchanged data'**
+  String get cloudSync_stageReusing;
+
   /// No description provided for @cloudSync_stageUploading.
   ///
   /// In en, this message translates to:
   /// **'Uploading'**
   String get cloudSync_stageUploading;
 
+  /// No description provided for @cloudSync_stageCommitting.
+  ///
+  /// In en, this message translates to:
+  /// **'Publishing backup'**
+  String get cloudSync_stageCommitting;
+
   /// No description provided for @cloudSync_stageApplying.
   ///
   /// In en, this message translates to:
   /// **'Saving changes'**
   String get cloudSync_stageApplying;
+
+  /// No description provided for @cloudSync_stageSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving recovery state'**
+  String get cloudSync_stageSaving;
+
+  /// No description provided for @cloudSync_stageRetryWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting to retry'**
+  String get cloudSync_stageRetryWaiting;
 
   /// No description provided for @cloudSync_stageRollingBack.
   ///

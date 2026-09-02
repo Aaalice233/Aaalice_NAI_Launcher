@@ -12,14 +12,14 @@ void main() {
         message: 'probe complete',
         supportsHistory: false,
         supportsDelete: false,
-        warnings: ['history remains in Git'],
+        warnings: [CloudBackendWarning.githubPublicRepository],
       ),
     );
 
     expect(result.mode, CloudSyncCapabilityMode.manualBackupOnly);
     expect(result.supportsHistory, isFalse);
     expect(result.supportsDelete, isFalse);
-    expect(result.warnings, ['history remains in Git']);
+    expect(result.warnings, [CloudBackendWarning.githubPublicRepository]);
     expect(result.limit, contains('100 MiB'));
   });
 }

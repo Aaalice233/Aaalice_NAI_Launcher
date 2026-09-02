@@ -1,29 +1,43 @@
 import 'dart:collection';
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as hashes;
 
 import 'models.dart';
+import 'telemetry.dart';
 
 typedef CloudPayloadReader = Stream<List<int>> Function();
 
-/// Maximum payload before record JSON/base64 encoding and AES-GCM framing.
-/// The fixed reserve covers the largest valid record identity and schema.
-const maxCloudRecordPayloadBytes = ((maxCloudClearObjectBytes - 1024) * 3) ~/ 4;
+/// Payload bytes are stored directly as immutable remote objects.
+const maxCloudRecordPayloadBytes = maxCloudObjectBytes;
 
 /// Replayable payload reference. Data sources may point this at a file so a
 /// snapshot can describe an arbitrarily large library without retaining it.
 class CloudSyncPayload {
-  const CloudSyncPayload({
+  CloudSyncPayload({
     required this.length,
     required this.sha256,
     required this.openRead,
-  });
+  }) {
+    if (length < 0 || length > maxCloudRecordPayloadBytes) {
+      throw const CloudFormatException('record payload size is invalid');
+    }
+    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(sha256)) {
+      throw const CloudFormatException('record payload SHA-256 is invalid');
+    }
+  }
 
   final int length;
   final String sha256;
   final CloudPayloadReader openRead;
+
+  Stream<List<int>> readStream() async* {
+    CloudSyncTelemetry.recordPayloadOpen();
+    await for (final chunk in openRead()) {
+      CloudSyncTelemetry.recordLocalRead(chunk.length);
+      yield chunk;
+    }
+  }
 
   Future<Uint8List> readBytes() async {
     if (length > maxCloudRecordPayloadBytes) {
@@ -31,7 +45,7 @@ class CloudSyncPayload {
     }
     final builder = BytesBuilder(copy: false);
     var read = 0;
-    await for (final chunk in openRead()) {
+    await for (final chunk in readStream()) {
       read += chunk.length;
       if (read > length) {
         throw const CloudFormatException('record payload length mismatch');
@@ -50,32 +64,61 @@ class CloudSyncPayload {
 }
 
 class CloudSyncRecord {
-  CloudSyncRecord({
+  factory CloudSyncRecord({
+    required String id,
+    required String kind,
+    required bool binary,
+    required bool deleted,
+    Uint8List? bytes,
+    CloudSyncPayload? payload,
+    String? tombstoneIdentity,
+  }) {
+    final copiedBytes = bytes == null ? null : Uint8List.fromList(bytes);
+    return CloudSyncRecord._(
+      id: id,
+      kind: kind,
+      binary: binary,
+      deleted: deleted,
+      bytes: copiedBytes,
+      payload:
+          payload ??
+          (copiedBytes == null
+              ? null
+              : CloudSyncPayload(
+                  length: copiedBytes.length,
+                  sha256: hashes.sha256.convert(copiedBytes).toString(),
+                  openRead: () => Stream.value(copiedBytes),
+                )),
+      tombstoneIdentity: tombstoneIdentity,
+    );
+  }
+
+  CloudSyncRecord._({
     required this.id,
     required this.kind,
     required this.binary,
     required this.deleted,
-    Uint8List? bytes,
-    CloudSyncPayload? payload,
-  }) : bytes = bytes == null ? null : Uint8List.fromList(bytes),
-       payload =
-           payload ??
-           (bytes == null
-               ? null
-               : CloudSyncPayload(
-                   length: bytes.length,
-                   sha256: hashes.sha256.convert(bytes).toString(),
-                   openRead: () => Stream.value(bytes),
-                 )) {
-    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$').hasMatch(id) ||
+    required this.bytes,
+    required this.payload,
+    required this.tombstoneIdentity,
+  }) {
+    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,65534}$').hasMatch(id) ||
         !RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$').hasMatch(kind)) {
       throw const CloudFormatException('invalid record identity');
     }
-    if (!deleted && this.payload == null) {
-      throw const CloudFormatException('live records must contain data');
+    if (deleted != (payload == null)) {
+      throw const CloudFormatException(
+        'live records require data and tombstones forbid it',
+      );
     }
-    if ((this.payload?.length ?? 0) > maxCloudRecordPayloadBytes) {
-      throw const CloudFormatException('record is too large');
+    if (!deleted && tombstoneIdentity != null) {
+      throw const CloudFormatException(
+        'live records must not contain tombstone identity',
+      );
+    }
+    final identity = tombstoneIdentity;
+    if (identity != null && (identity.isEmpty || identity.length > 64 * 1024)) {
+      throw const CloudFormatException('tombstone identity is invalid');
     }
   }
 
@@ -85,74 +128,7 @@ class CloudSyncRecord {
   final bool deleted;
   final Uint8List? bytes;
   final CloudSyncPayload? payload;
-
-  Map<String, Object?> toJson() => {
-    'version': cloudSyncSchemaVersion,
-    'id': id,
-    'kind': kind,
-    'binary': binary,
-    'deleted': deleted,
-    'data': bytes == null ? null : base64Encode(bytes!),
-  };
-
-  factory CloudSyncRecord.decode(List<int> encoded) {
-    if (encoded.length > maxCloudClearObjectBytes) {
-      throw const CloudFormatException('record object is too large');
-    }
-    try {
-      final json = strictJsonMap(jsonDecode(utf8.decode(encoded)), {
-        'version',
-        'id',
-        'kind',
-        'binary',
-        'deleted',
-        'data',
-      });
-      if (json['version'] != cloudSyncSchemaVersion ||
-          json['id'] is! String ||
-          json['kind'] is! String ||
-          json['binary'] is! bool ||
-          json['deleted'] is! bool ||
-          (json['data'] != null && json['data'] is! String)) {
-        throw const CloudFormatException('invalid record schema');
-      }
-      Uint8List? bytes;
-      if (json['data'] case final String value) {
-        bytes = base64Decode(value);
-      }
-      return CloudSyncRecord(
-        id: json['id']! as String,
-        kind: json['kind']! as String,
-        binary: json['binary']! as bool,
-        deleted: json['deleted']! as bool,
-        bytes: bytes,
-      );
-    } on CloudFormatException {
-      rethrow;
-    } catch (error) {
-      throw CloudFormatException('invalid record JSON: $error');
-    }
-  }
-
-  Uint8List encode() {
-    final encoded = Uint8List.fromList(utf8.encode(jsonEncode(toJson())));
-    if (encoded.length > maxCloudClearObjectBytes) {
-      throw const CloudFormatException('record object is too large');
-    }
-    return encoded;
-  }
-
-  Future<Uint8List> encodeForTransport() async {
-    if (bytes != null || payload == null) return encode();
-    final data = await payload!.readBytes();
-    return CloudSyncRecord(
-      id: id,
-      kind: kind,
-      binary: binary,
-      deleted: deleted,
-      bytes: data,
-    ).encode();
-  }
+  final String? tombstoneIdentity;
 
   Future<Uint8List?> readBytes() async => bytes ?? await payload?.readBytes();
 
@@ -163,10 +139,20 @@ class CloudSyncRecord {
       kind == other.kind &&
       binary == other.binary &&
       deleted == other.deleted &&
-      payload?.sha256 == other.payload?.sha256;
+      payload?.length == other.payload?.length &&
+      payload?.sha256 == other.payload?.sha256 &&
+      tombstoneIdentity == other.tombstoneIdentity;
 
   @override
-  int get hashCode => Object.hash(id, kind, binary, deleted, payload?.sha256);
+  int get hashCode => Object.hash(
+    id,
+    kind,
+    binary,
+    deleted,
+    payload?.length,
+    payload?.sha256,
+    tombstoneIdentity,
+  );
 }
 
 class CloudSyncSnapshotData {
@@ -189,7 +175,11 @@ abstract interface class CloudSyncDataSource {
 
   Future<CloudSyncSnapshotData?> readBase();
 
-  Future<void> stage(String operationId, CloudSyncSnapshotData snapshot);
+  Future<void> stage(
+    String operationId,
+    CloudSyncSnapshotData snapshot, {
+    CloudSyncSnapshotData? recoveryPoint,
+  });
 
   /// Reads the validated, durable target written by [stage].
   Future<CloudSyncSnapshotData> readStaged(String operationId);
@@ -205,6 +195,11 @@ abstract interface class CloudSyncDataSource {
   /// after a process dies while adapters may have been partially applied.
   Future<void> rollbackForRecovery(String operationId);
 
+  /// Restores the base that was current when [stage] began. This is separate
+  /// from local rollback because [saveBase] may have published a new base
+  /// before the operation's completed checkpoint became durable.
+  Future<void> restoreBaseForRecovery(String operationId);
+
   Future<void> saveBase(CloudSyncSnapshotData snapshot, String snapshotId);
 
   Future<void> writeUploadArtifact(
@@ -217,14 +212,87 @@ abstract interface class CloudSyncDataSource {
 
   Future<void> deleteUploadArtifact(String operationId, String name);
 
-  /// Removes staging, recovery, and pending encrypted upload material.
+  /// Removes staging, recovery, and pending upload material.
   Future<void> completeOperation(String operationId);
 }
 
-/// Optional streaming bridge used by coordinators after decrypting one remote
-/// object. The returned record must not retain [record.bytes] in memory.
-abstract interface class CloudSyncPayloadMaterializer {
-  Future<void> beginRemoteMaterialization(String snapshotId);
+/// Durable performance cache for provider revisions whose object bytes have
+/// already been verified against their content-addressed SHA-256 identity.
+abstract interface class CloudObjectVerificationDataSource {
+  Future<Map<String, String>> readVerifiedCloudObjects();
 
-  Future<CloudSyncRecord> materializeRemoteRecord(CloudSyncRecord record);
+  Future<void> writeVerifiedCloudObjects(Map<String, String> revisions);
+}
+
+/// Optional hook for data sources that must augment a captured local recovery
+/// point with allowlisted tombstones for records introduced by [target].
+abstract interface class CloudSyncRecoveryPointBuilder {
+  Future<CloudSyncSnapshotData> buildRecoveryPoint({
+    required CloudSyncSnapshotData local,
+    required CloudSyncSnapshotData target,
+  });
+}
+
+/// Marker contract for payloads whose declared length and SHA-256 were
+/// verified while their immutable backing storage was created.
+abstract interface class VerifiedCloudSyncPayload {}
+
+/// Optional bridge that verifies and durably materializes one remote object.
+abstract interface class CloudSyncPayloadMaterializer {
+  Future<CloudSyncPayload> materializeRemotePayload(
+    List<int> bytes, {
+    required int expectedLength,
+    required String expectedSha256,
+  });
+}
+
+/// Optional bridge for reusing a locally verified content-addressed object
+/// before issuing a remote download.
+abstract interface class CloudSyncLocalPayloadResolver {
+  Future<CloudSyncPayload?> resolveLocalPayload({
+    required int expectedLength,
+    required String expectedSha256,
+  });
+}
+
+class CloudSyncPreparedPreview {
+  const CloudSyncPreparedPreview({
+    required this.local,
+    required this.base,
+    required this.remoteRevision,
+    required this.remoteHead,
+    required this.remote,
+  });
+
+  final CloudSyncSnapshotData local;
+  final CloudSyncSnapshotData base;
+  final String? remoteRevision;
+  final SnapshotHead? remoteHead;
+  final CloudSyncSnapshotData? remote;
+}
+
+class CloudSyncPreparedRestore {
+  const CloudSyncPreparedRestore({
+    required this.local,
+    required this.target,
+    required this.remoteRevision,
+  });
+
+  final CloudSyncSnapshotData local;
+  final CloudSyncSnapshotData target;
+  final String? remoteRevision;
+}
+
+/// Optional durable preview store. Snapshot descriptors reference verified CAS
+/// blobs, so confirmation after coordinator reconstruction does not redownload.
+abstract interface class CloudSyncPreviewStore {
+  Future<void> saveSyncPreview(CloudSyncPreparedPreview preview);
+  Future<CloudSyncPreparedPreview?> readSyncPreview();
+  Future<void> deleteSyncPreview();
+  Future<void> saveRestorePreview(
+    String snapshotId,
+    CloudSyncPreparedRestore preview,
+  );
+  Future<CloudSyncPreparedRestore?> readRestorePreview(String snapshotId);
+  Future<void> deleteRestorePreviews();
 }

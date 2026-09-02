@@ -1,3 +1,20 @@
+const defaultCloudSyncConfiguredPath = 'aaalice-sync';
+const cloudSyncV3NamespaceSuffix = '-v3';
+const defaultCloudSyncV3Namespace =
+    '$defaultCloudSyncConfiguredPath$cloudSyncV3NamespaceSuffix';
+
+String cloudSyncV3Namespace(String configuredPath) {
+  final path = configuredPath.isEmpty
+      ? defaultCloudSyncConfiguredPath
+      : configuredPath;
+  CloudNamespace.validate(path);
+  final segments = path.split('/');
+  segments[segments.length - 1] = '${segments.last}$cloudSyncV3NamespaceSuffix';
+  final namespace = segments.join('/');
+  CloudNamespace.validate(namespace);
+  return namespace;
+}
+
 class CloudNamespace {
   const CloudNamespace._();
 

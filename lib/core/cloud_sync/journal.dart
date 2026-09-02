@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -26,25 +27,28 @@ class SyncJournal {
     required this.targetFingerprint,
     required this.expectedRevision,
     required this.uploadRequired,
-    List<SnapshotObject> completedObjects = const [],
+    List<String> completedObjectIds = const [],
     this.manifestSha256,
     this.error,
     this.stackTrace,
-    this.version = 2,
-  }) : completedObjects = List.unmodifiable(completedObjects) {
-    if (version != 2) {
+    this.version = 3,
+  }) : completedObjectIds = List.unmodifiable(completedObjectIds) {
+    if (version != 3) {
       throw const CloudFormatException('unsupported journal version');
     }
     _identity(operationId, 'operation id');
     _identity(snapshotId, 'snapshot id');
     _sha(targetFingerprint, 'target fingerprint');
     if (manifestSha256 != null) _sha(manifestSha256!, 'manifest SHA-256');
-    if (completedObjects.map((item) => item.id).toSet().length !=
-        completedObjects.length) {
-      throw const CloudFormatException('duplicate journal object');
+    if (completedObjectIds.toSet().length != completedObjectIds.length ||
+        completedObjectIds.any(
+          (id) => !RegExp(r'^[0-9a-f]{64}$').hasMatch(id),
+        ) ||
+        !_isCanonicalObjectSet(completedObjectIds)) {
+      throw const CloudFormatException('invalid journal object checkpoint');
     }
     if (!uploadRequired &&
-        (completedObjects.isNotEmpty || manifestSha256 != null)) {
+        (completedObjectIds.isNotEmpty || manifestSha256 != null)) {
       throw const CloudFormatException('download journal has upload state');
     }
     if ((phase == JournalPhase.committingHead ||
@@ -65,7 +69,7 @@ class SyncJournal {
   final String targetFingerprint;
   final String? expectedRevision;
   final bool uploadRequired;
-  final List<SnapshotObject> completedObjects;
+  final List<String> completedObjectIds;
   final String? manifestSha256;
   final String? error;
   final String? stackTrace;
@@ -74,7 +78,7 @@ class SyncJournal {
 
   SyncJournal copyWith({
     JournalPhase? phase,
-    List<SnapshotObject>? completedObjects,
+    List<String>? completedObjectIds,
     String? manifestSha256,
     Object? error,
     StackTrace? stackTrace,
@@ -88,7 +92,7 @@ class SyncJournal {
     targetFingerprint: targetFingerprint,
     expectedRevision: expectedRevision,
     uploadRequired: uploadRequired,
-    completedObjects: completedObjects ?? this.completedObjects,
+    completedObjectIds: completedObjectIds ?? this.completedObjectIds,
     manifestSha256: manifestSha256 ?? this.manifestSha256,
     error: error?.toString() ?? this.error,
     stackTrace: stackTrace?.toString() ?? this.stackTrace,
@@ -104,7 +108,7 @@ class SyncJournal {
     'targetFingerprint': targetFingerprint,
     'expectedRevision': expectedRevision,
     'uploadRequired': uploadRequired,
-    'completedObjects': completedObjects.map((item) => item.toJson()).toList(),
+    'completedObjectIds': completedObjectIds,
     'manifestSha256': manifestSha256,
     'error': error,
     'stackTrace': stackTrace,
@@ -121,7 +125,7 @@ class SyncJournal {
       'targetFingerprint',
       'expectedRevision',
       'uploadRequired',
-      'completedObjects',
+      'completedObjectIds',
       'manifestSha256',
       'error',
       'stackTrace',
@@ -142,12 +146,13 @@ class SyncJournal {
         .firstOrNull;
     final dateText = field<String>('updatedAt');
     final date = DateTime.tryParse(dateText);
-    final objects = json['completedObjects'];
+    final objects = json['completedObjectIds'];
     if (operation == null ||
         phase == null ||
         date == null ||
         !dateText.endsWith('Z') ||
-        objects is! List) {
+        objects is! List ||
+        objects.any((value) => value is! String)) {
       throw const CloudFormatException('invalid journal value');
     }
     for (final key in const [
@@ -170,7 +175,7 @@ class SyncJournal {
       targetFingerprint: field<String>('targetFingerprint'),
       expectedRevision: json['expectedRevision'] as String?,
       uploadRequired: field<bool>('uploadRequired'),
-      completedObjects: objects.map(SnapshotObject.fromJson).toList(),
+      completedObjectIds: objects.cast<String>(),
       manifestSha256: json['manifestSha256'] as String?,
       error: json['error'] as String?,
       stackTrace: json['stackTrace'] as String?,
@@ -179,8 +184,23 @@ class SyncJournal {
 }
 
 class JournalStore {
-  const JournalStore(this.file);
+  JournalStore(this.file);
   final File file;
+  Future<void> _exclusiveTail = Future<void>.value();
+
+  Future<T> runExclusive<T>(Future<T> Function() action) {
+    final previous = _exclusiveTail;
+    final released = Completer<void>();
+    _exclusiveTail = released.future;
+    return () async {
+      await previous;
+      try {
+        return await action();
+      } finally {
+        released.complete();
+      }
+    }();
+  }
 
   Future<void> write(SyncJournal journal) async {
     await file.parent.create(recursive: true);
@@ -215,6 +235,13 @@ class JournalStore {
     final part = File('${file.path}.part');
     if (await part.exists()) await part.delete();
   }
+}
+
+bool _isCanonicalObjectSet(List<String> values) {
+  for (var index = 1; index < values.length; index++) {
+    if (values[index - 1].compareTo(values[index]) >= 0) return false;
+  }
+  return true;
 }
 
 void _identity(String value, String field) {
