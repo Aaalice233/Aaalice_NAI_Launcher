@@ -8,6 +8,13 @@ const maxCloudJsonApiResponseBytes = 6 * 1024 * 1024;
 
 enum CloudBackendMode { bidirectional, manualBackupOnly }
 
+enum CloudBackendWarning {
+  googleDriveWeakCas,
+  githubPublicRepository,
+  webDavWeakCas,
+  webDavUnverifiedCas,
+}
+
 class CloudBackendCapability {
   const CloudBackendCapability({
     required this.mode,
@@ -21,7 +28,7 @@ class CloudBackendCapability {
   final String message;
   final bool supportsHistory;
   final bool supportsDelete;
-  final List<String> warnings;
+  final List<CloudBackendWarning> warnings;
 
   bool get supportsBidirectional => mode == CloudBackendMode.bidirectional;
 }
@@ -83,6 +90,19 @@ abstract interface class ConcurrentCloudObjectUploadBackend {
   int get maxConcurrentObjectUploads;
 }
 
+/// Optional operation-scoped inventory for immutable content-addressed
+/// objects. Implementations must reject duplicate/conflicting entries and may
+/// report an object as existing only after validating its identity and size.
+abstract interface class CloudObjectInventoryBackend {
+  Future<Set<String>> findExistingObjects(Map<String, int> expectedObjects);
+}
+
+/// Optional lightweight validation used while saving or restoring a WebDAV
+/// connection. Implementations must not create, update, or delete remote data.
+abstract interface class ReadOnlyCloudSyncBackendValidation {
+  Future<void> validateConnectionReadOnly();
+}
+
 abstract interface class CloudSyncBackend {
   Future<CloudBackendCapability> testCapability();
 
@@ -92,18 +112,24 @@ abstract interface class CloudSyncBackend {
 
   Future<CloudObjectRead?> readSnapshotManifest(String snapshotId);
 
+  /// [payloadVerified] means the caller already validated [bytes] against
+  /// [sha256]; providers must reuse that proof instead of hashing the payload
+  /// again. Direct callers leave it false and receive backend validation.
   Future<CloudCommitResult> putObject(
     String objectId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   });
 
   /// Creates a manifest once; implementations must not replace different
-  /// bytes at the same snapshot id.
+  /// bytes at the same snapshot id. [payloadVerified] has the same proof
+  /// semantics as [putObject].
   Future<CloudCommitResult> putSnapshotManifest(
     String snapshotId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   });
 
   Future<CloudCommitResult> commitHead(
@@ -114,24 +140,4 @@ abstract interface class CloudSyncBackend {
   Future<List<String>> listSnapshotIds({int limit = 20});
 
   Future<void> deleteNamespace();
-}
-
-/// Optional maintenance implemented only by backends that can safely reclaim
-/// immutable objects without rewriting provider history.
-abstract interface class CloudSyncBackendMaintenance {
-  Future<CloudMaintenanceResult> cleanUnreferencedObjects();
-}
-
-class CloudMaintenanceResult {
-  const CloudMaintenanceResult({
-    required this.scanned,
-    required this.deleted,
-    required this.skipped,
-    this.warnings = const [],
-  });
-
-  final int scanned;
-  final int deleted;
-  final int skipped;
-  final List<String> warnings;
 }

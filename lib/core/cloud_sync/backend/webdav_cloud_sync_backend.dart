@@ -5,7 +5,9 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:xml/xml.dart';
 
+import '../telemetry.dart';
 import 'backend_http.dart';
+import 'cloud_namespace.dart';
 import 'cloud_object_naming.dart';
 import 'cloud_sync_backend.dart';
 import 'webdav_backend_config.dart';
@@ -13,13 +15,14 @@ import 'webdav_capability_probe.dart';
 import 'webdav_collection_ensurer.dart';
 import 'webdav_etag_reader.dart';
 import 'webdav_namespace_cleaner.dart';
-import 'webdav_object_maintenance.dart';
+import 'webdav_operation_inventory.dart';
 
 class WebDavCloudSyncBackend
     implements
         CloudSyncBackend,
-        CloudSyncBackendMaintenance,
-        ConcurrentCloudObjectUploadBackend {
+        ReadOnlyCloudSyncBackendValidation,
+        ConcurrentCloudObjectUploadBackend,
+        CloudObjectInventoryBackend {
   factory WebDavCloudSyncBackend.fromConfig({
     required WebDavBackendConfig config,
     required String username,
@@ -39,7 +42,7 @@ class WebDavCloudSyncBackend
     required String username,
     required String password,
     Dio? dio,
-    this.namespace = 'aaalice-sync',
+    this.namespace = defaultCloudSyncV3Namespace,
     bool allowInsecureHttp = false,
   }) : _baseUri = _directoryUri(
          WebDavBackendConfig(
@@ -50,7 +53,7 @@ class WebDavCloudSyncBackend
        ),
        _authorization =
            'Basic ${base64Encode(utf8.encode('$username:$password'))}',
-       _http = BackendHttp(dio: dio) {
+       _http = BackendHttp(dio: _withTelemetry(dio)) {
     _collections = WebDavCollectionEnsurer(
       http: _http,
       headers: _headers,
@@ -64,9 +67,11 @@ class WebDavCloudSyncBackend
   late final WebDavCollectionEnsurer _collections;
   final String namespace;
   CloudBackendMode? _verifiedMode;
+  final Map<String, String> _verifiedObjectRevisions = {};
 
   @override
-  int get maxConcurrentObjectUploads => 4;
+  int get maxConcurrentObjectUploads =>
+      _verifiedMode == CloudBackendMode.manualBackupOnly ? 1 : 4;
   Map<String, String> get _headers => {
     'Authorization': _authorization,
     'Accept-Encoding': 'identity',
@@ -92,6 +97,28 @@ class WebDavCloudSyncBackend
   }
 
   @override
+  Future<void> validateConnectionReadOnly() async {
+    final response = await _http.request(
+      'PROPFIND',
+      _baseUri,
+      headers: {
+        ..._headers,
+        'Depth': '0',
+        'Content-Type': 'application/xml; charset=utf-8',
+      },
+      data: utf8.encode(
+        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
+        '<d:prop><d:resourcetype/></d:prop></d:propfind>',
+      ),
+      maxResponseBytes: maxCloudListingResponseBytes,
+    );
+    _expect(response, const {207}, action: '验证 WebDAV 连接');
+    // Read-only validation cannot prove CAS semantics. Keep all later writes
+    // on the conservative manual-backup path until an explicit probe runs.
+    _verifiedMode = CloudBackendMode.manualBackupOnly;
+  }
+
+  @override
   Future<CloudHeadRead?> readHead() async {
     final value = await _get(_head, maxBytes: maxCloudHeadResponseBytes);
     return value == null
@@ -100,20 +127,67 @@ class WebDavCloudSyncBackend
   }
 
   @override
-  Future<CloudObjectRead?> readObject(String objectId) =>
-      _get(_objectUri(objectId), maxBytes: maxCloudObjectResponseBytes);
+  Future<CloudObjectRead?> readObject(String objectId) async {
+    final read = await _get(
+      _objectUri(objectId),
+      maxBytes: maxCloudObjectResponseBytes,
+    );
+    if (read != null &&
+        CloudObjectNaming.isContentAddressedId(objectId) &&
+        _sha256(read.bytes) != objectId) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        'WebDAV 不可变对象内容与对象标识不一致。',
+      );
+    }
+    if (read != null && CloudObjectNaming.isContentAddressedId(objectId)) {
+      _verifiedObjectRevisions[objectId] = read.revision;
+    }
+    return read;
+  }
 
   @override
   Future<CloudObjectRead?> readSnapshotManifest(String snapshotId) =>
       _get(_snapshotUri(snapshotId), maxBytes: maxCloudManifestResponseBytes);
 
   @override
+  Future<Set<String>> findExistingObjects(
+    Map<String, int> expectedObjects,
+  ) async {
+    for (final entry in expectedObjects.entries) {
+      CloudObjectNaming.validateId(entry.key);
+      if (entry.value < 0 || entry.value > maxCloudObjectResponseBytes) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          '对象清单包含非法大小。',
+        );
+      }
+    }
+    // Manual-backup providers cannot prove immutable-create CAS. Keep every
+    // object on the conservative GET -> PUT -> GET path instead of treating a
+    // listing entry as proof that an upload can be skipped.
+    if (_verifiedMode == CloudBackendMode.manualBackupOnly ||
+        expectedObjects.isEmpty) {
+      return const <String>{};
+    }
+    await _ensureCollection(_objects);
+    return WebDavOperationInventory(
+      http: _http,
+      headers: _headers,
+      objects: _objects,
+      verifiedObjectRevisions: _verifiedObjectRevisions,
+    ).findExisting(expectedObjects);
+  }
+
+  @override
   Future<CloudCommitResult> putObject(
     String objectId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   }) async {
     _checkUploadSize(bytes, maxCloudObjectResponseBytes);
+    if (!payloadVerified) _checkDeclaredHash(bytes, sha256);
     await _ensureCollection(_objects);
     return _putImmutable(
       _objectUri(objectId),
@@ -128,8 +202,10 @@ class WebDavCloudSyncBackend
     String snapshotId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   }) async {
     _checkUploadSize(bytes, maxCloudManifestResponseBytes);
+    if (!payloadVerified) _checkDeclaredHash(bytes, sha256);
     await _ensureCollection(_snapshots);
     return _putImmutable(
       _snapshotUri(snapshotId),
@@ -161,7 +237,10 @@ class WebDavCloudSyncBackend
         uri,
         headers: _headers,
         data: bytes,
-        retryable: true,
+        // A lost response is ambiguous on weak WebDAV providers. Replaying the
+        // PUT could overwrite a concurrent writer after the first attempt was
+        // already committed, so recovery must start with a fresh GET instead.
+        retryable: false,
       );
       _expect(response, const {200, 201, 204}, action: '上传手动备份对象');
       final stored = await _get(uri, maxBytes: maxBytes);
@@ -192,11 +271,13 @@ class WebDavCloudSyncBackend
       );
     }
     _expect(response, const {200, 201, 204}, action: '上传对象');
-    final revision = response.headers.value('etag') ?? await _readEtag(uri);
+    final revision =
+        _strongEtag(response.headers.value('etag')) ??
+        _strongEtag(await _readEtag(uri));
     if (revision == null) {
       throw const CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
-        '对象已上传，但服务器未提供 ETag，无法验证提交。',
+        '对象已上传，但服务器未提供强 ETag，无法验证提交。',
       );
     }
     return CloudCommitResult(revision: revision);
@@ -272,6 +353,7 @@ class WebDavCloudSyncBackend
 
   @override
   Future<List<String>> listSnapshotIds({int limit = 20}) async {
+    if (limit <= 0) return const [];
     final response = await _http.request(
       'PROPFIND',
       _snapshots,
@@ -282,7 +364,7 @@ class WebDavCloudSyncBackend
       },
       data: utf8.encode(
         '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
-        '<d:allprop/></d:propfind>',
+        '<d:prop><d:resourcetype/></d:prop></d:propfind>',
       ),
       maxResponseBytes: maxCloudListingResponseBytes,
     );
@@ -290,16 +372,47 @@ class WebDavCloudSyncBackend
     _expect(response, const {207}, action: '读取快照历史');
     try {
       final document = XmlDocument.parse(BackendHttp.rawTextOf(response));
-      final ids =
-          document
-              .findAllElements('href', namespace: 'DAV:')
-              .map(
-                (node) => Uri.decodeComponent(node.innerText).split('/').last,
-              )
-              .map(CloudObjectNaming.snapshotIdFromManifestName)
-              .whereType<String>()
-              .toList()
-            ..sort((a, b) => b.compareTo(a));
+      final ids = <String>[];
+      for (final item in document.findAllElements(
+        'response',
+        namespace: 'DAV:',
+      )) {
+        final href = item
+            .getElement('href', namespace: 'DAV:')
+            ?.innerText
+            .trim();
+        if (href == null || href.isEmpty) continue;
+        XmlElement? properties;
+        for (final propstat in item.findElements(
+          'propstat',
+          namespace: 'DAV:',
+        )) {
+          final status = propstat
+              .getElement('status', namespace: 'DAV:')
+              ?.innerText;
+          if (status != null && status.contains(' 200 ')) {
+            properties = propstat.getElement('prop', namespace: 'DAV:');
+            break;
+          }
+        }
+        if (properties == null ||
+            properties
+                    .getElement('resourcetype', namespace: 'DAV:')
+                    ?.findElements('collection', namespace: 'DAV:')
+                    .isNotEmpty ==
+                true) {
+          continue;
+        }
+        final path = Uri.parse(href).path;
+        final name = Uri.decodeComponent(
+          path.endsWith('/')
+              ? path.substring(0, path.length - 1).split('/').last
+              : path.split('/').last,
+        );
+        final snapshotId = CloudObjectNaming.snapshotIdFromManifestName(name);
+        if (snapshotId != null) ids.add(snapshotId);
+      }
+      ids.sort((a, b) => b.compareTo(a));
       return ids.take(limit).toList(growable: false);
     } catch (_) {
       throw const CloudBackendException(
@@ -318,18 +431,8 @@ class WebDavCloudSyncBackend
       objects: _objects,
       snapshots: _snapshots,
     ).clean();
+    _verifiedObjectRevisions.clear();
   }
-
-  @override
-  Future<CloudMaintenanceResult> cleanUnreferencedObjects() =>
-      WebDavObjectMaintenance(
-        http: _http,
-        headers: _headers,
-        root: _root,
-        objects: _objects,
-        snapshots: _snapshots,
-        head: _head,
-      ).clean();
 
   Future<CloudObjectRead?> _get(Uri uri, {required int maxBytes}) async {
     final response = await _http.request(
@@ -395,13 +498,43 @@ class WebDavCloudSyncBackend
     );
   }
 
+  static final Expando<bool> _telemetryInstalled = Expando<bool>();
+
+  static Dio _withTelemetry(Dio? dio) {
+    final client = dio ?? Dio();
+    if (_telemetryInstalled[client] != true) {
+      client.interceptors.add(_WebDavTelemetryInterceptor());
+      _telemetryInstalled[client] = true;
+    }
+    return client;
+  }
+
   static Uri _directoryUri(Uri uri) => uri.replace(
     path: uri.path.endsWith('/') ? uri.path : '${uri.path}/',
     query: null,
     fragment: null,
   );
 
-  static String _sha256(Uint8List bytes) => sha256.convert(bytes).toString();
+  static void _checkDeclaredHash(Uint8List bytes, String expectedHash) {
+    if (_sha256(bytes) != expectedHash) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        '上传内容与声明的 SHA-256 不一致。',
+      );
+    }
+  }
+
+  static String _sha256(Uint8List bytes) {
+    CloudSyncTelemetry.recordHashPass();
+    return sha256.convert(bytes).toString();
+  }
+
+  static String? _strongEtag(String? value) =>
+      value != null &&
+          !value.startsWith('W/') &&
+          RegExp(r'^"[^"\r\n]*"$').hasMatch(value)
+      ? value
+      : null;
 
   static bool _sameBytes(List<int> first, List<int> second) =>
       first.length == second.length &&
@@ -414,5 +547,67 @@ class WebDavCloudSyncBackend
         '上传内容超过云同步允许的大小上限。',
       );
     }
+  }
+}
+
+final class _WebDavTelemetryInterceptor extends Interceptor {
+  static const _requestBytesKey = 'webdavTelemetryRequestBytes';
+  static const _recordedKey = 'webdavTelemetryRecorded';
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    options.extra[_requestBytesKey] = _byteLength(options.data);
+    super.onRequest(options, handler);
+  }
+
+  @override
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) {
+    final body = response.data;
+    if (body is ResponseBody) {
+      body.stream = _recordResponse(body.stream, response.requestOptions);
+    } else {
+      _record(response.requestOptions, bytesRead: _byteLength(body));
+    }
+    super.onResponse(response, handler);
+  }
+
+  @override
+  void onError(DioException error, ErrorInterceptorHandler handler) {
+    _record(error.requestOptions);
+    super.onError(error, handler);
+  }
+
+  Stream<Uint8List> _recordResponse(
+    Stream<Uint8List> stream,
+    RequestOptions options,
+  ) async* {
+    var bytesRead = 0;
+    try {
+      await for (final chunk in stream) {
+        bytesRead += chunk.length;
+        yield chunk;
+      }
+    } finally {
+      _record(options, bytesRead: bytesRead);
+    }
+  }
+
+  static void _record(RequestOptions options, {int bytesRead = 0}) {
+    if (options.extra[_recordedKey] == true) return;
+    options.extra[_recordedKey] = true;
+    CloudSyncTelemetry.recordRequest(
+      bytesRead: bytesRead,
+      bytesWritten: options.extra[_requestBytesKey] as int? ?? 0,
+    );
+  }
+
+  static int _byteLength(Object? value) {
+    if (value is Uint8List) return value.length;
+    if (value is List<int>) return value.length;
+    if (value is String) return utf8.encode(value).length;
+    return 0;
   }
 }

@@ -242,9 +242,6 @@ void main() {
 
       expect(find.text('只支持手动推送与拉取'), findsOneWidget);
       expect(find.text('GitHub 空间说明'), findsOneWidget);
-      expect(find.text('需要注意'), findsOneWidget);
-      expect(find.text('云端空间暂时无法自动整理。现有备份不受影响，稍后会自动重试。'), findsOneWidget);
-      expect(find.text('cleanup delayed'), findsNothing);
       expect(find.text('请选择要保留的内容'), findsWidgets);
       expect(find.text('已连接'), findsNothing);
       expect(find.text('settings.json'), findsNothing);
@@ -315,7 +312,6 @@ void main() {
           clearProgress: true,
           conflicts: const [],
           pendingPreview: const CloudSyncPreviewView(
-            title: 'initial',
             changes: [
               CloudSyncChangeSummary(
                 kind: CloudSyncDataKind.prompts,
@@ -348,6 +344,71 @@ void main() {
     expect(port.ffdkjInstallChoice, isFalse);
   });
 
+  testWidgets('四语技术详情在五档宽度和大数值下无 overflow', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final state =
+        _connectedState(
+          activityStatus: CloudSyncActivityStatus.syncing,
+          capabilityMode: CloudSyncCapabilityMode.bidirectional,
+        ).copyWith(
+          progress: const CloudSyncProgressView(
+            stage: 'hashing',
+            objectName: 'object-with-a-very-long-content-addressed-name',
+            completedBytes: 9876543210123,
+            totalBytes: 98765432101234,
+            completedObjects: 987654321,
+            totalObjects: 9876543210,
+            reusedObjects: 987654321,
+          ),
+          metrics: const CloudSyncMetricsView(
+            elapsedMilliseconds: 987654321,
+            requestCount: 987654321,
+            bytesRead: 9876543210123,
+            bytesWritten: 9876543210123,
+            hashPasses: 987654321,
+            payloadReads: 987654321,
+            localBytesRead: 9876543210123,
+            localBytesWritten: 9876543210123,
+            flushes: 987654321,
+            stageMilliseconds: {'preparing': 123456789, 'uploading': 987654321},
+          ),
+        );
+    final titles = {
+      const Locale('en'): ('Technical details', 'Service requests'),
+      const Locale('ja'): ('技術的な詳細', 'サービスへのリクエスト'),
+      const Locale('zh'): ('技术详情', '服务请求'),
+      const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'): (
+        '技術詳情',
+        '服務要求',
+      ),
+    };
+    for (final entry in titles.entries) {
+      for (final width in [390.0, 700.0, 840.0, 1180.0, 1600.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 900));
+        await tester.pumpWidget(
+          _subject(state: state, port: _FakePort(), locale: entry.key),
+        );
+        await tester.pumpAndSettle();
+
+        final details = find.text(entry.value.$1);
+        await tester.scrollUntilVisible(
+          details,
+          180,
+          scrollable: _pageScrollable,
+        );
+        await tester.tap(details);
+        await tester.pumpAndSettle();
+
+        expect(find.text(entry.value.$2), findsOneWidget);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'locale=${entry.key} width=$width',
+        );
+      }
+    }
+  });
+
   testWidgets('仅手动备份模式允许显式拉取但禁用历史恢复和合并', (tester) async {
     await tester.pumpWidget(
       _subject(
@@ -375,7 +436,9 @@ void main() {
           activityStatus: CloudSyncActivityStatus.idle,
           capabilityMode: CloudSyncCapabilityMode.bidirectional,
         ).copyWith(
-          capabilityWarnings: const ['当前 GitHub 仓库是公开仓库'],
+          capabilityWarnings: const [
+            CloudBackendWarning.githubPublicRepository,
+          ],
           clearProgress: true,
         );
 
@@ -383,7 +446,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('存储服务提示'), findsOneWidget);
-    expect(find.text('当前 GitHub 仓库是公开仓库'), findsOneWidget);
+    expect(find.textContaining('备份内容也会公开'), findsOneWidget);
   });
 
   testWidgets('推送和拉取使用独立按钮并在执行前二次确认方向', (tester) async {
@@ -456,7 +519,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, '确认'));
     await tester.pumpAndSettle();
 
-    expect(find.text('操作失败：无法连接服务器，请检查网络、代理和服务地址后重试。'), findsOneWidget);
+    expect(find.text('操作失败：无法连接云存储，请检查网络后重试。'), findsOneWidget);
     expect(find.textContaining('CloudBackendException'), findsNothing);
   });
 }
@@ -506,6 +569,7 @@ Widget _subject({
   CloudSyncUiState? state,
   CloudSyncUiPort? port,
   CloudDriveProviderRegistry? registry,
+  Locale locale = const Locale('zh'),
 }) {
   return ProviderScope(
     overrides: [
@@ -515,11 +579,12 @@ Widget _subject({
         cloudDriveProviderRegistryProvider.overrideWithValue(registry),
       localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
     ],
-    child: const MaterialApp(
-      locale: Locale('zh'),
+    child: MaterialApp(
+      key: UniqueKey(),
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: SettingsScreen(initialSection: SettingsSection.cloudSync),
+      home: const SettingsScreen(initialSection: SettingsSection.cloudSync),
     ),
   );
 }
@@ -576,7 +641,6 @@ CloudSyncUiState _connectedState({
   lastSync: DateTime.utc(2026, 3, 12, 10, 30),
   remoteRevision: 'rev-42',
   capabilityMode: capabilityMode,
-  maintenanceWarning: 'cleanup delayed',
   progress: const CloudSyncProgressView(
     stage: 'uploading',
     objectName: 'settings.json',
@@ -683,7 +747,7 @@ class _FakePort extends CloudSyncUiPortAdapter {
     message: 'Conditional writes and history are available.',
     supportsHistory: true,
     supportsDelete: true,
-    warnings: ['provider warning'],
+    warnings: [CloudBackendWarning.githubPublicRepository],
     limit: '2 GiB',
   );
 

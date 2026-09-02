@@ -7,8 +7,58 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/onedrive_cloud_sync_backend.dart';
+import 'package:nai_launcher/core/cloud_sync/operation.dart';
+
+import 'cloud_sync_backend_contract.dart';
 
 void main() {
+  runCloudSyncBackendContract(
+    provider: 'OneDrive',
+    createBackend: () => _backend(_FakeOneDriveApi()),
+    expectations: const CloudSyncBackendContractExpectations(
+      mode: CloudBackendMode.bidirectional,
+    ),
+  );
+
+  test('cancellation interrupts the private access-token wait', () async {
+    final tokenResult = Completer<String>();
+    final api = _FakeOneDriveApi();
+    final backend = OneDriveCloudSyncBackend(
+      accessTokenProvider: () => tokenResult.future,
+      namespace: 'cloud',
+      graphBaseUri: Uri.parse('https://graph.microsoft.test/v1.0/'),
+      dio: Dio()..httpClientAdapter = api,
+    );
+    final operation = OperationToken();
+    final capability = operation.runInScope(backend.testCapability);
+
+    operation.cancel();
+
+    await expectLater(capability, throwsA(isA<OperationCancelledException>()));
+    expect(api.requests, isEmpty);
+    tokenResult.complete('late-token');
+  });
+
+  test('cancellation interrupts Graph download retry backoff', () async {
+    final api = _RateLimitedDownloadOneDriveApi();
+    api.putFile('cloud/objects/snapshot.0', utf8.encode('payload'));
+    final backend = OneDriveCloudSyncBackend(
+      accessTokenProvider: () async => 'secret-access-token',
+      namespace: 'cloud',
+      graphBaseUri: Uri.parse('https://graph.microsoft.test/v1.0/'),
+      dio: Dio()..httpClientAdapter = api,
+    );
+    final operation = OperationToken();
+    final download = operation.runInScope(
+      () => backend.readObject('snapshot.0'),
+    );
+    await api.downloadStarted.future;
+
+    operation.cancel();
+
+    await expectLater(download, throwsA(isA<OperationCancelledException>()));
+  });
+
   test('uploads and downloads through approot without leaking token', () async {
     final api = _FakeOneDriveApi();
     final dio = Dio()..httpClientAdapter = api;
@@ -76,6 +126,119 @@ void main() {
       );
     }
   });
+
+  test(
+    'inventories all object pages once and uploads missing objects without metadata',
+    () async {
+      final existingBytesA = Uint8List.fromList([1]);
+      final existingBytesB = Uint8List.fromList([2, 3]);
+      final unrelatedBytes = Uint8List.fromList([4]);
+      final existingA = sha256.convert(existingBytesA).toString();
+      final existingB = sha256.convert(existingBytesB).toString();
+      final unrelated = sha256.convert(unrelatedBytes).toString();
+      final missingBytesA = Uint8List.fromList([7, 8, 9]);
+      final missingBytesB = Uint8List.fromList([10, 11, 12]);
+      final missingA = sha256.convert(missingBytesA).toString();
+      final missingB = sha256.convert(missingBytesB).toString();
+      final api = _FakeOneDriveApi()
+        ..putFile('cloud/objects/$existingA', existingBytesA)
+        ..putFile('cloud/objects/$existingB', existingBytesB)
+        ..putFile('cloud/objects/$unrelated', unrelatedBytes);
+      final backend = _backend(api);
+
+      final existing = await backend.findExistingObjects({
+        existingA: 1,
+        existingB: 2,
+        missingA: missingBytesA.length,
+        missingB: missingBytesB.length,
+      });
+      await backend.putObject(missingA, missingBytesA, sha256: missingA);
+      await backend.putObject(missingB, missingBytesB, sha256: missingB);
+
+      expect(existing, {existingA, existingB});
+      expect(api.appRootRequests, 1);
+      expect(
+        api.requests.where(
+          (request) =>
+              request.method == 'POST' &&
+              request.uri.path.endsWith('/children'),
+        ),
+        hasLength(2),
+      );
+      expect(
+        api.requests.where(
+          (request) =>
+              request.method == 'GET' &&
+              request.uri.path.endsWith(':/children'),
+        ),
+        hasLength(2),
+      );
+      for (final missing in [missingA, missingB]) {
+        expect(
+          api.requests.where(
+            (request) =>
+                request.method == 'GET' &&
+                _FakeOneDriveApi.graphItemPath(request.uri.path) ==
+                    'cloud/objects/$missing',
+          ),
+          isEmpty,
+        );
+      }
+    },
+  );
+
+  test(
+    'object inventory fails closed on size and duplicate conflicts',
+    () async {
+      final objectId = List.filled(64, 'd').join();
+      final sizeConflictApi = _FakeOneDriveApi()
+        ..putFile('cloud/objects/$objectId', [1, 2]);
+
+      await expectLater(
+        _backend(sizeConflictApi).findExistingObjects({objectId: 1}),
+        throwsA(
+          isA<CloudBackendException>().having(
+            (error) => error.kind,
+            'kind',
+            CloudBackendErrorKind.conflict,
+          ),
+        ),
+      );
+
+      final duplicateApi = _FakeOneDriveApi()
+        ..putFile('cloud/objects/$objectId', [1, 2])
+        ..additionalChildren.add({
+          'id': 'duplicate-id',
+          'name': objectId,
+          'eTag': '"duplicate"',
+          'size': 2,
+          'file': <String, Object?>{},
+        });
+      await expectLater(
+        _backend(duplicateApi).findExistingObjects({objectId: 2}),
+        throwsA(
+          isA<CloudBackendException>().having(
+            (error) => error.kind,
+            'kind',
+            CloudBackendErrorKind.conflict,
+          ),
+        ),
+      );
+
+      final invalidNameApi = _FakeOneDriveApi()
+        ..putFile('cloud/objects/not-a-sha256', [1]);
+      await expectLater(
+        _backend(invalidNameApi).findExistingObjects({objectId: 2}),
+        throwsA(
+          isA<CloudBackendException>().having(
+            (error) => error.kind,
+            'kind',
+            CloudBackendErrorKind.conflict,
+          ),
+        ),
+      );
+    },
+  );
 
   test('follows every children page before sorting and limiting', () async {
     final api = _FakeOneDriveApi()
@@ -195,6 +358,66 @@ void main() {
     },
   );
 
+  test(
+    'deleteNamespace invalidates folder singleflight before rebuild',
+    () async {
+      final first = Uint8List.fromList([1, 2, 3]);
+      final second = Uint8List.fromList([4, 5, 6]);
+      final firstId = sha256.convert(first).toString();
+      final secondId = sha256.convert(second).toString();
+      final api = _FakeOneDriveApi();
+      final backend = _backend(api);
+
+      await backend.putObject(firstId, first, sha256: firstId);
+      await backend.deleteNamespace();
+      await backend.putObject(secondId, second, sha256: secondId);
+
+      expect(api.fileBytes('cloud/objects/$secondId'), second);
+      expect(
+        api.requests.where(
+          (request) =>
+              request.method == 'POST' &&
+              request.uri.path.endsWith('/children'),
+        ),
+        hasLength(4),
+      );
+    },
+  );
+
+  test(
+    'folder 404 invalidates singleflight and rebuilds exactly once',
+    () async {
+      final first = Uint8List.fromList([1, 2, 3]);
+      final second = Uint8List.fromList([7, 8, 9]);
+      final firstId = sha256.convert(first).toString();
+      final secondId = sha256.convert(second).toString();
+      final api = _FakeOneDriveApi();
+      final backend = _backend(api);
+
+      await backend.putObject(firstId, first, sha256: firstId);
+      api.removeNamespace('cloud');
+      await backend.putObject(secondId, second, sha256: secondId);
+
+      expect(api.fileBytes('cloud/objects/$secondId'), second);
+      expect(
+        api.requests.where(
+          (request) =>
+              request.method == 'POST' &&
+              request.uri.path.endsWith(':/createUploadSession'),
+        ),
+        hasLength(3),
+      );
+      expect(
+        api.requests.where(
+          (request) =>
+              request.method == 'POST' &&
+              request.uri.path.endsWith('/children'),
+        ),
+        hasLength(4),
+      );
+    },
+  );
+
   test('retries 429 using Retry-After then succeeds', () async {
     final api = _FakeOneDriveApi()
       ..putFile('cloud/objects/item', [5])
@@ -254,22 +477,47 @@ void main() {
     );
   });
 
-  test(
-    'capability proves stale eTag and create conflict then cleans probe',
-    () async {
-      final api = _FakeOneDriveApi();
+  test('redacts credentials echoed by Microsoft error messages', () async {
+    final api = _FakeOneDriveApi()
+      ..appRootFailureStatus = 400
+      ..appRootFailureCode = 'invalidRequest'
+      ..appRootFailureMessage =
+          'Authorization: Bearer secret-token password=hunter2';
 
-      final capability = await _backend(api).testCapability();
+    await expectLater(
+      _backend(api).testCapability(),
+      throwsA(
+        isA<CloudBackendException>()
+            .having(
+              (error) => error.message,
+              'message',
+              contains('Bearer [redacted]'),
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              contains('password=[redacted]'),
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              isNot(anyOf(contains('secret-token'), contains('hunter2'))),
+            ),
+      ),
+    );
+  });
 
-      expect(capability.mode, CloudBackendMode.bidirectional);
-      expect(
-        api.files.keys.any((path) => path.contains('.capability-')),
-        isFalse,
-      );
-      expect(api.observedStalePrecondition, isTrue);
-      expect(api.observedCreateConflict, isTrue);
-    },
-  );
+  test('capability validates app root without backup writes', () async {
+    final api = _FakeOneDriveApi();
+
+    final capability = await _backend(api).testCapability();
+
+    expect(capability.mode, CloudBackendMode.bidirectional);
+    expect(api.requests, hasLength(1));
+    expect(api.requests.single.method, 'GET');
+    expect(api.requests.single.uri.path, endsWith('/me/drive/special/approot'));
+    expect(api.files, isEmpty);
+  });
 }
 
 OneDriveCloudSyncBackend _backend(HttpClientAdapter adapter) =>
@@ -311,11 +559,35 @@ class _FakeResponse {
   final Map<String, List<String>> headers;
 }
 
+class _RateLimitedDownloadOneDriveApi extends _FakeOneDriveApi {
+  final downloadStarted = Completer<void>();
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions request,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    if (request.method == 'GET' && request.uri.path.endsWith(':/content')) {
+      if (!downloadStarted.isCompleted) downloadStarted.complete();
+      return ResponseBody.fromBytes(
+        const [],
+        429,
+        headers: {
+          'retry-after': ['10'],
+        },
+      );
+    }
+    return super.fetch(request, requestStream, cancelFuture);
+  }
+}
+
 class _FakeOneDriveApi implements HttpClientAdapter {
   final Map<String, _StoredFile> files = {};
   final Set<String> folders = {};
   final Map<String, _UploadSession> sessions = {};
   final List<RequestOptions> requests = [];
+  final List<Map<String, Object>> additionalChildren = [];
   int metadataRateLimitsRemaining = 0;
   int metadataRateLimitResponses = 0;
   bool observedStalePrecondition = false;
@@ -335,6 +607,15 @@ class _FakeOneDriveApi implements HttpClientAdapter {
   }
 
   List<int>? fileBytes(String path) => files[path]?.bytes;
+
+  void removeNamespace(String path) {
+    files.removeWhere(
+      (filePath, _) => filePath == path || filePath.startsWith('$path/'),
+    );
+    folders.removeWhere(
+      (folderPath) => folderPath == path || folderPath.startsWith('$path/'),
+    );
+  }
 
   @override
   Future<ResponseBody> fetch(
@@ -436,6 +717,13 @@ class _FakeOneDriveApi implements HttpClientAdapter {
     if (request.method == 'POST' &&
         request.uri.path.endsWith(':/createUploadSession')) {
       final path = graphPath!;
+      final separator = path.lastIndexOf('/');
+      final parent = separator <= 0 ? '' : path.substring(0, separator);
+      if (parent.isNotEmpty && !folders.contains(parent)) {
+        return _FakeResponse.json(404, {
+          'error': {'code': 'itemNotFound'},
+        });
+      }
       final current = files[path];
       final expected = request.headers['If-Match']?.toString();
       if (expected != null && current?.eTag != expected) {
@@ -540,10 +828,12 @@ class _FakeOneDriveApi implements HttpClientAdapter {
     final values = names
         .skip(start)
         .take(2)
-        .map((entry) => _item(entry.key, entry.value));
+        .map((entry) => _item(entry.key, entry.value))
+        .toList();
+    if (page == 1) values.addAll(additionalChildren);
     final hasNext = start + 2 < names.length;
     return _FakeResponse.json(200, {
-      'value': values.toList(),
+      'value': values,
       if (hasNext)
         '@odata.nextLink':
             'https://graph.microsoft.test/v1.0/me/drive/special/approot:/${Uri.encodeComponent(directory)}:/children?page=${page + 1}',
@@ -551,13 +841,14 @@ class _FakeOneDriveApi implements HttpClientAdapter {
   }
 
   Map<String, Object> _item(String path, _StoredFile stored) => {
+    'id': 'file-${Uri.encodeComponent(path)}',
     'name': path.split('/').last,
     'eTag': stored.eTag,
     'size': stored.bytes.length,
     'file': <String, Object?>{},
   };
 
-  String? _graphItemPath(String uriPath) {
+  static String? graphItemPath(String uriPath) {
     const marker = '/v1.0/me/drive/special/approot:/';
     if (!uriPath.startsWith(marker)) return null;
     var value = uriPath.substring(marker.length);
@@ -569,6 +860,8 @@ class _FakeOneDriveApi implements HttpClientAdapter {
     }
     return Uri.decodeComponent(value);
   }
+
+  String? _graphItemPath(String uriPath) => graphItemPath(uriPath);
 
   void _ensureFolders(String path) {
     final segments = path.split('/');

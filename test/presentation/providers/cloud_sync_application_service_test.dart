@@ -34,12 +34,70 @@ void main() {
       CloudSyncConnectionStatus.connected,
     );
     expect(fixture.backend.head, isNull);
+    expect(fixture.backend.readOnlyValidationChecks, 1);
+    expect(fixture.backend.capabilityChecks, 0);
+    expect(
+      fixture.states.last.capabilityMode,
+      CloudSyncCapabilityMode.manualBackupOnly,
+    );
     expect(fixture.secure.credentials, contains('provider-secret'));
     expect(fixture.local.values[StorageKeys.cloudSyncConfiguration], isNotNull);
   });
 
   test(
-    'saving connection discards a pending upload without touching remote data',
+    'explicit WebDAV probe is retained by the backend saved read-only',
+    () async {
+      final fixture = await _Fixture.create();
+      addTearDown(fixture.dispose);
+
+      final tested = await fixture.service.testConnection(_draft);
+      await fixture.service.connect(
+        const CloudSyncConnectRequest(
+          connection: _draft,
+          dataKinds: {CloudSyncDataKind.settings},
+        ),
+      );
+
+      expect(tested.mode, CloudSyncCapabilityMode.bidirectional);
+      expect(fixture.backend.capabilityChecks, 1);
+      expect(fixture.backend.readOnlyValidationChecks, 0);
+      expect(
+        fixture.states.last.capabilityMode,
+        CloudSyncCapabilityMode.bidirectional,
+      );
+      expect(fixture.backend.head, isNull);
+    },
+  );
+
+  test('probe is not reused after WebDAV draft changes', () async {
+    final fixture = await _Fixture.create();
+    addTearDown(fixture.dispose);
+    const changed = CloudSyncConnectionDraft(
+      backend: CloudSyncBackendKind.webDav,
+      serverUrl: 'https://other-dav.test',
+      username: 'user',
+      secret: 'provider-secret',
+      path: 'backup',
+    );
+
+    await fixture.service.testConnection(_draft);
+    await fixture.service.connect(
+      const CloudSyncConnectRequest(
+        connection: changed,
+        dataKinds: {CloudSyncDataKind.settings},
+      ),
+    );
+
+    expect(fixture.backend.capabilityChecks, 1);
+    expect(fixture.backend.readOnlyValidationChecks, 1);
+    expect(
+      fixture.states.last.capabilityMode,
+      CloudSyncCapabilityMode.manualBackupOnly,
+    );
+  });
+
+  test(
+    'saving connection preserves pending work without touching local or remote data',
     () async {
       final fixture = await _Fixture.create();
       addTearDown(fixture.dispose);
@@ -70,13 +128,13 @@ void main() {
 
       expect(fixture.backend.head, isNull);
       expect(fixture.backend.events.where((event) => event == 'head'), isEmpty);
-      expect(await fixture.journal.read(), isNull);
-      expect(fixture.source.stages, isEmpty);
+      expect((await fixture.journal.read())?.operationId, operationId);
+      expect(fixture.source.stages, contains(operationId));
     },
   );
 
   test(
-    'restoring saved settings discards pending upload without syncing',
+    'restoring saved settings preserves pending work without syncing',
     () async {
       final fixture = await _Fixture.create();
       addTearDown(fixture.dispose);
@@ -106,12 +164,44 @@ void main() {
 
       expect(restored, isTrue);
       expect(fixture.backend.head, isNull);
-      expect(await fixture.journal.read(), isNull);
-      expect(fixture.source.stages, isEmpty);
+      expect((await fixture.journal.read())?.operationId, operationId);
+      expect(fixture.source.stages, contains(operationId));
       expect(
         fixture.states.last.connectionStatus,
         CloudSyncConnectionStatus.connected,
       );
+    },
+  );
+
+  test(
+    'push does not block on history and explicit refresh loads it',
+    () async {
+      final fixture = await _Fixture.create();
+      addTearDown(fixture.dispose);
+      await fixture.service.connect(
+        const CloudSyncConnectRequest(
+          connection: CloudSyncConnectionDraft(
+            backend: CloudSyncBackendKind.oneDrive,
+            accountId: 'history-test-account',
+            path: 'aaalice-sync',
+          ),
+          dataKinds: {CloudSyncDataKind.settings},
+        ),
+      );
+
+      await fixture.service.pushNow();
+
+      expect(fixture.backend.historyListCalls, 0);
+      expect(fixture.states.last.snapshots, hasLength(1));
+      final pushedRevision = fixture.states.last.remoteRevision;
+      final pushedAt = fixture.states.last.lastSync;
+
+      await fixture.service.refreshHistory();
+
+      expect(fixture.backend.historyListCalls, 1);
+      expect(fixture.states.last.snapshots, hasLength(1));
+      expect(fixture.states.last.remoteRevision, pushedRevision);
+      expect(fixture.states.last.lastSync, pushedAt);
     },
   );
 
@@ -137,7 +227,10 @@ void main() {
     expect(first.local.values[StorageKeys.cloudSyncConfiguration], isNull);
 
     await first.service.pushNow();
-    expect(SnapshotHead.decode(first.backend.head!.bytes).version, 1);
+    expect(
+      SnapshotHead.decode(first.backend.head!.bytes).version,
+      cloudSyncSchemaVersion,
+    );
 
     final second = await _Fixture.create(
       backend: first.backend,
@@ -181,7 +274,8 @@ void main() {
         ),
       );
 
-      expect(first.backend.capabilityChecks, 2);
+      expect(first.backend.readOnlyValidationChecks, 2);
+      expect(first.backend.capabilityChecks, 0);
       expect(second.backend.head!.bytes, remoteBefore);
       expect(second.backend.head!.revision, revisionBefore);
       expect(second.states.last.remoteExists, isTrue);
@@ -234,11 +328,10 @@ class _Fixture {
     final journal = JournalStore(File('${directory.path}/journal.json'));
     final service = CloudSyncApplicationService(
       backendFactory: (_) => effectiveBackend,
-      coordinatorFactory: (_, codec, __, ___, ____) async {
+      coordinatorFactory: (_, __, ___, ____) async {
         return SyncCoordinator(
           backend: effectiveBackend,
           dataSource: source,
-          codec: codec,
           journalStore: journal,
         );
       },
@@ -265,13 +358,27 @@ class _Fixture {
   }
 }
 
-class _ApplicationBackend extends CoordinatorTestBackend {
+class _ApplicationBackend extends CoordinatorTestBackend
+    implements ReadOnlyCloudSyncBackendValidation {
   int capabilityChecks = 0;
+  int readOnlyValidationChecks = 0;
+  int historyListCalls = 0;
 
   @override
   Future<CloudBackendCapability> testCapability() async {
     capabilityChecks++;
     return super.testCapability();
+  }
+
+  @override
+  Future<void> validateConnectionReadOnly() async {
+    readOnlyValidationChecks++;
+  }
+
+  @override
+  Future<List<String>> listSnapshotIds({int limit = 20}) {
+    historyListCalls++;
+    return super.listSnapshotIds(limit: limit);
   }
 }
 
@@ -290,6 +397,7 @@ class _MemorySource implements CloudSyncDataSource {
   final CloudSyncSnapshotData snapshot;
   final Map<String, CloudSyncSnapshotData> stages = {};
   final Map<String, Uint8List> artifacts = {};
+  final Map<String, CloudSyncSnapshotData?> baseRecoveryPoints = {};
   CloudSyncSnapshotData? base;
 
   @override
@@ -297,8 +405,15 @@ class _MemorySource implements CloudSyncDataSource {
   @override
   Future<CloudSyncSnapshotData?> readBase() async => base;
   @override
-  Future<void> stage(String operationId, CloudSyncSnapshotData value) async =>
-      stages[operationId] = value;
+  Future<void> stage(
+    String operationId,
+    CloudSyncSnapshotData value, {
+    CloudSyncSnapshotData? recoveryPoint,
+  }) async {
+    stages[operationId] = value;
+    baseRecoveryPoints[operationId] = base;
+  }
+
   @override
   Future<CloudSyncSnapshotData> readStaged(String operationId) async =>
       stages[operationId]!;
@@ -311,6 +426,14 @@ class _MemorySource implements CloudSyncDataSource {
   Future<void> rollback(String operationId) async => stages.remove(operationId);
   @override
   Future<void> rollbackForRecovery(String operationId) async {}
+  @override
+  Future<void> restoreBaseForRecovery(String operationId) async {
+    if (!baseRecoveryPoints.containsKey(operationId)) {
+      throw StateError('base recovery state is missing');
+    }
+    base = baseRecoveryPoints[operationId];
+  }
+
   @override
   Future<void> saveBase(CloudSyncSnapshotData value, String snapshotId) async =>
       base = value;
@@ -331,6 +454,7 @@ class _MemorySource implements CloudSyncDataSource {
   @override
   Future<void> completeOperation(String operationId) async {
     stages.remove(operationId);
+    baseRecoveryPoints.remove(operationId);
     artifacts.removeWhere((key, _) => key.startsWith('$operationId/'));
   }
 }

@@ -16,8 +16,7 @@ void main() {
       final local = _MemoryLocalStorage();
       final service = CloudSyncApplicationService(
         backendFactory: (_) => throw UnimplementedError(),
-        coordinatorFactory: (_, __, ___, ____, _____) =>
-            throw UnimplementedError(),
+        coordinatorFactory: (_, __, ___, ____) => throw UnimplementedError(),
         secureStorage: _MemorySecureStorage(),
         localStorage: local,
         onState: (_) {},

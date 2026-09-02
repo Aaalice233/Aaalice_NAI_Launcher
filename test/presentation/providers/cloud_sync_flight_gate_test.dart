@@ -31,6 +31,18 @@ void main() {
     expect(await gate.run((_) async => 42), 42);
   });
 
+  test('runs the complete flight inside the operation scope', () async {
+    final gate = CloudSyncFlightGate();
+
+    await gate.run((token) async {
+      expect(OperationToken.current, same(token));
+      await Future<void>.delayed(Duration.zero);
+      expect(OperationToken.current, same(token));
+    });
+
+    expect(OperationToken.current, isNull);
+  });
+
   test('close cancels the active operation before cleanup', () async {
     final gate = CloudSyncFlightGate();
     final started = Completer<void>();

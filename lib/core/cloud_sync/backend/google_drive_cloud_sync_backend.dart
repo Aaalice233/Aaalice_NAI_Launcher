@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
+import '../operation.dart';
+import '../telemetry.dart';
 import 'backend_http.dart';
 import 'cloud_namespace.dart';
 import 'cloud_object_naming.dart';
@@ -15,21 +17,34 @@ import 'cloud_sync_backend.dart';
 /// Drive does not expose conditional file updates, so HEAD revisions are only
 /// checked immediately before a write. This backend must therefore
 /// remain manual-backup-only even when those checks succeed.
-class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
+class GoogleDriveCloudSyncBackend
+    implements
+        CloudSyncBackend,
+        CloudObjectInventoryBackend,
+        ConcurrentCloudObjectUploadBackend {
   GoogleDriveCloudSyncBackend({
     required Future<String> Function() accessTokenProvider,
     required this.namespace,
     Dio? dio,
     Uri? apiBaseUri,
   }) : _accessTokenProvider = accessTokenProvider,
-       _http = BackendHttp(dio: dio),
+       _http = BackendHttp(
+         dio: dio,
+         observer: (metric) => CloudSyncTelemetry.recordRequest(
+           bytesRead: metric.responseBytes ?? 0,
+           bytesWritten: metric.requestBytes ?? 0,
+         ),
+       ),
        _apiBase = _normalizeBase(
          apiBaseUri ?? Uri.parse('https://www.googleapis.com/'),
        ) {
     CloudNamespace.validate(namespace);
+    // This hashes connection metadata, not a payload, and is intentionally
+    // outside per-operation payload hash telemetry.
+    _namespaceHash = sha256.convert(utf8.encode(namespace)).toString();
   }
 
-  static const _protocolProperty = 'aaalice-cloud-sync-v1';
+  static const _protocolProperty = 'aaalice-cloud-sync-v2';
   static const _fileFields =
       'id,name,size,md5Checksum,modifiedTime,version,appProperties';
   static const _listFields = 'nextPageToken,files($_fileFields)';
@@ -38,26 +53,36 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
   final BackendHttp _http;
   final Uri _apiBase;
   final String namespace;
+  late final String _namespaceHash;
+  final Expando<_DriveInventoryScope> _operationInventories =
+      Expando<_DriveInventoryScope>('google-drive-inventory');
+  final _unscopedInventory = _DriveInventoryScope();
+  final Map<String, String> _verifiedObjectRevisions = {};
 
-  String get _namespaceHash =>
-      sha256.convert(utf8.encode(namespace)).toString();
+  _DriveInventoryScope get _inventoryScope {
+    final operation = OperationToken.current;
+    if (operation == null) return _unscopedInventory;
+    return _operationInventories[operation] ??= _DriveInventoryScope();
+  }
+
+  @override
+  int get maxConcurrentObjectUploads => 4;
 
   @override
   Future<CloudBackendCapability> testCapability() async {
-    await _list(recordType: 'head', pageSize: 1);
+    await _loadInventory();
     return const CloudBackendCapability(
       mode: CloudBackendMode.manualBackupOnly,
       message: 'Google Drive appDataFolder 连接正常，仅支持显式手动推送与拉取。',
       supportsHistory: true,
       supportsDelete: true,
-      warnings: [
-        'Google Drive API 不提供文件内容的强 compare-and-swap；HEAD 只能检测已读到的旧 revision，无法安全启用双向同步。',
-      ],
+      warnings: [CloudBackendWarning.googleDriveWeakCas],
     );
   }
 
   @override
   Future<CloudHeadRead?> readHead() async {
+    await _loadInventory();
     final read = await _readMutable('head', _fileName('head'));
     return read == null
         ? null
@@ -65,9 +90,21 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
   }
 
   @override
-  Future<CloudObjectRead?> readObject(String objectId) {
+  Future<CloudObjectRead?> readObject(String objectId) async {
     CloudObjectNaming.validateId(objectId);
-    return _readImmutable('object', _fileName('object', objectId));
+    final read = await _readImmutable('object', _fileName('object', objectId));
+    if (read != null &&
+        CloudObjectNaming.isContentAddressedId(objectId) &&
+        _hashBytes(read.bytes) != objectId) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        'Google Drive 不可变对象内容与对象标识不一致。',
+      );
+    }
+    if (read != null && CloudObjectNaming.isContentAddressedId(objectId)) {
+      _verifiedObjectRevisions[_fileName('object', objectId)] = read.revision;
+    }
+    return read;
   }
 
   @override
@@ -81,6 +118,7 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
     String objectId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   }) {
     CloudObjectNaming.validateId(objectId);
     return _putImmutable(
@@ -89,6 +127,7 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
       bytes,
       sha256,
       maxCloudObjectResponseBytes,
+      payloadVerified: payloadVerified,
     );
   }
 
@@ -97,6 +136,7 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
     String snapshotId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   }) {
     CloudObjectNaming.validateId(snapshotId);
     return _putImmutable(
@@ -105,6 +145,7 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
       bytes,
       sha256,
       maxCloudManifestResponseBytes,
+      payloadVerified: payloadVerified,
     );
   }
 
@@ -121,13 +162,60 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
   );
 
   @override
+  Future<Set<String>> findExistingObjects(
+    Map<String, int> expectedObjects,
+  ) async {
+    final inventory = await _loadInventory();
+    final existing = <String>{};
+    for (final entry in expectedObjects.entries) {
+      CloudObjectNaming.validateId(entry.key);
+      if (entry.value < 0 || entry.value > maxCloudObjectResponseBytes) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          '待上传对象的预期大小无效。',
+        );
+      }
+      final candidates = inventory[_fileName('object', entry.key)] ?? const [];
+      if (candidates.length > 1) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          'Google Drive 中存在多个同名不可变对象，无法确认对象身份。',
+        );
+      }
+      if (candidates.isEmpty) continue;
+      final file = candidates.single;
+      if (file.recordType != 'object' || file.size != entry.value) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          'Google Drive 中的不可变对象元数据与待上传对象不一致。',
+        );
+      }
+      if (_verifiedObjectRevisions[file.name] != file.revision) {
+        final read = await _download(file, maxCloudObjectResponseBytes);
+        if (_hashBytes(read.bytes) != entry.key) {
+          throw const CloudBackendException(
+            CloudBackendErrorKind.conflict,
+            'Google Drive 中的不可变对象内容与对象标识不一致。',
+          );
+        }
+        _verifiedObjectRevisions[file.name] = file.revision;
+      }
+      existing.add(entry.key);
+    }
+    return existing;
+  }
+
+  @override
   Future<List<String>> listSnapshotIds({int limit = 20}) async {
     if (limit <= 0) return const [];
-    final files = await _list(recordType: 'manifest');
+    final inventory = await _loadInventory();
     final grouped = <String, List<_DriveFile>>{};
-    for (final file in files) {
-      final id = _snapshotIdFromName(file.name);
-      if (id != null) (grouped[id] ??= []).add(file);
+    for (final candidates in inventory.values) {
+      for (final file in candidates) {
+        if (file.recordType != 'manifest') continue;
+        final id = _snapshotIdFromName(file.name);
+        if (id != null) (grouped[id] ??= []).add(file);
+      }
     }
     for (final entry in grouped.entries) {
       if (entry.value.length > 1) {
@@ -143,7 +231,8 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
 
   @override
   Future<void> deleteNamespace() async {
-    final files = await _list();
+    final inventory = await _loadInventory();
+    final files = inventory.values.expand((files) => files).toList();
     for (final file in files) {
       final response = await _request(
         'DELETE',
@@ -155,11 +244,13 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
       if (response.statusCode != 204 && response.statusCode != 404) {
         _throwResponse(response, '删除 namespace 文件');
       }
+      inventory[file.name]?.removeWhere((candidate) => candidate.id == file.id);
     }
+    _verifiedObjectRevisions.clear();
   }
 
   Future<CloudObjectRead?> _readMutable(String type, String name) async {
-    final files = await _list(recordType: type, name: name);
+    final files = await _candidates(type, name);
     if (files.isEmpty) return null;
     if (files.length != 1) {
       throw const CloudBackendException(
@@ -171,7 +262,7 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
   }
 
   Future<CloudObjectRead?> _readImmutable(String type, String name) async {
-    final files = await _list(recordType: type, name: name);
+    final files = await _candidates(type, name);
     if (files.isEmpty) return null;
     return _readImmutableCandidates(files, _limitFor(type));
   }
@@ -184,7 +275,7 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
     String? contentHash;
     for (final file in files) {
       final read = await _download(file, maxBytes);
-      final hash = sha256.convert(read.bytes).toString();
+      final hash = _hashBytes(read.bytes);
       if (contentHash != null && contentHash != hash) {
         throw const CloudBackendException(
           CloudBackendErrorKind.conflict,
@@ -202,43 +293,42 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
     String name,
     Uint8List bytes,
     String expectedHash,
-    int maxBytes,
-  ) async {
+    int maxBytes, {
+    required bool payloadVerified,
+  }) async {
     _checkUpload(bytes, maxBytes);
-    final actualHash = sha256.convert(bytes).toString();
-    if (actualHash != expectedHash) {
+    if (!payloadVerified && _hashBytes(bytes) != expectedHash) {
       throw const CloudBackendException(
         CloudBackendErrorKind.conflict,
         '上传内容与声明的 SHA-256 不一致。',
       );
     }
-    final existing = await _list(recordType: type, name: name);
+    final existing = await _candidates(type, name);
     if (existing.isNotEmpty) {
       final read = await _readImmutableCandidates(existing, maxBytes);
-      if (sha256.convert(read.bytes).toString() != expectedHash) {
+      if (_hashBytes(read.bytes) != expectedHash) {
         throw const CloudBackendException(
           CloudBackendErrorKind.conflict,
           'Google Drive 中已存在同名但内容不同的不可变数据。',
         );
       }
+      if (type == 'object') _verifiedObjectRevisions[name] = read.revision;
       return CloudCommitResult(revision: read.revision);
     }
-    await _create(type, name, bytes);
-    final created = await _list(recordType: type, name: name);
-    if (created.isEmpty) {
-      throw const CloudBackendException(
-        CloudBackendErrorKind.invalidResponse,
-        'Google Drive 上传后未返回可读取的文件。',
-      );
-    }
-    final verified = await _readImmutableCandidates(created, maxBytes);
-    if (sha256.convert(verified.bytes).toString() != expectedHash) {
+    final created = await _create(type, name, bytes);
+    final expectedMd5 = md5.convert(bytes).toString();
+    final verified = created.md5Checksum != expectedMd5
+        ? await _download(created, maxBytes)
+        : null;
+    if (verified != null && _hashBytes(verified.bytes) != expectedHash) {
       throw const CloudBackendException(
         CloudBackendErrorKind.conflict,
         'Google Drive 上传后的不可变数据校验失败。',
       );
     }
-    return CloudCommitResult(revision: verified.revision);
+    final revision = verified?.revision ?? created.revision;
+    if (type == 'object') _verifiedObjectRevisions[name] = revision;
+    return CloudCommitResult(revision: revision);
   }
 
   Future<CloudCommitResult> _commitMutable(
@@ -249,7 +339,7 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
     int maxBytes,
   ) async {
     _checkUpload(bytes, maxBytes);
-    final files = await _list(recordType: type, name: name);
+    final files = await _candidates(type, name);
     if (files.length > 1) {
       throw const CloudBackendException(
         CloudBackendErrorKind.conflict,
@@ -265,26 +355,21 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
         'Google Drive 中的远端版本已变化，请重新读取后重试。',
       );
     }
-    if (current == null) {
-      await _create(type, name, bytes);
-    } else {
-      await _update(current.id, bytes);
+    final written = current == null
+        ? await _create(type, name, bytes)
+        : await _update(current, bytes);
+    final expectedMd5 = md5.convert(bytes).toString();
+    if (written.md5Checksum != expectedMd5) {
+      final read = await _download(written, maxBytes);
+      if (!_bytesEqual(read.bytes, bytes)) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          'Google Drive 写入后内容已被其他客户端改变。',
+        );
+      }
+      return CloudCommitResult(revision: read.revision);
     }
-    final after = await _list(recordType: type, name: name);
-    if (after.length != 1) {
-      throw const CloudBackendException(
-        CloudBackendErrorKind.conflict,
-        'Google Drive 写入后出现同名文件，无法确认更新结果。',
-      );
-    }
-    final read = await _download(after.single, maxBytes);
-    if (!_sameBytes(read.bytes, bytes)) {
-      throw const CloudBackendException(
-        CloudBackendErrorKind.conflict,
-        'Google Drive 写入后内容已被其他客户端改变。',
-      );
-    }
-    return CloudCommitResult(revision: read.revision);
+    return CloudCommitResult(revision: written.revision);
   }
 
   Future<CloudObjectRead> _download(_DriveFile file, int maxBytes) async {
@@ -301,7 +386,7 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
     );
   }
 
-  Future<void> _create(String type, String name, Uint8List bytes) async {
+  Future<_DriveFile> _create(String type, String name, Uint8List bytes) async {
     final boundary =
         'aaalice-${DateTime.now().microsecondsSinceEpoch.toRadixString(16)}';
     final metadata = jsonEncode({
@@ -321,27 +406,47 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
       ..add(utf8.encode('\r\n--$boundary--\r\n'));
     // A lost create response is ambiguous and Drive has no idempotency key.
     // Let the caller retry from a fresh list instead of creating duplicates.
-    final response = await _request(
-      'POST',
-      _uri('upload/drive/v3/files', {
-        'uploadType': 'multipart',
-        'fields': _fileFields,
-      }),
-      action: '上传同步文件',
-      data: body.takeBytes(),
-      extraHeaders: {'content-type': 'multipart/related; boundary=$boundary'},
-      maxResponseBytes: maxCloudJsonApiResponseBytes,
-      retryable: false,
-    );
-    if (response.statusCode != 200) _throwResponse(response, '上传同步文件');
+    try {
+      final response = await _request(
+        'POST',
+        _uri('upload/drive/v3/files', {
+          'uploadType': 'multipart',
+          'fields': _fileFields,
+        }),
+        action: '上传同步文件',
+        data: body.takeBytes(),
+        extraHeaders: {'content-type': 'multipart/related; boundary=$boundary'},
+        maxResponseBytes: maxCloudJsonApiResponseBytes,
+        retryable: false,
+      );
+      if (response.statusCode != 200) _throwResponse(response, '上传同步文件');
+      final file = _decodeFile(response, '上传同步文件');
+      if (file.name != name ||
+          file.size != bytes.length ||
+          file.recordType != type ||
+          file.protocol != _protocolProperty ||
+          file.namespace != _namespaceHash) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'Google Drive 上传响应与请求的同步文件不一致。',
+        );
+      }
+      _addToInventory(file);
+      return file;
+    } catch (_) {
+      // Once the request was sent, a missing or invalid response cannot prove
+      // that Drive did not create the file. The next operation must re-list.
+      _invalidateAfterAmbiguousWrite();
+      rethrow;
+    }
   }
 
-  Future<void> _update(String id, Uint8List bytes) async {
+  Future<_DriveFile> _update(_DriveFile current, Uint8List bytes) async {
     // Retrying an ambiguous weak-CAS update could overwrite a concurrent
     // writer after the first request actually succeeded.
     final response = await _request(
       'PATCH',
-      _uri('upload/drive/v3/files/${Uri.encodeComponent(id)}', {
+      _uri('upload/drive/v3/files/${Uri.encodeComponent(current.id)}', {
         'uploadType': 'media',
         'fields': _fileFields,
       }),
@@ -352,24 +457,79 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
       retryable: false,
     );
     if (response.statusCode != 200) _throwResponse(response, '更新同步文件');
+    final file = _decodeFile(response, '更新同步文件');
+    if (file.id != current.id ||
+        file.name != current.name ||
+        file.size != bytes.length ||
+        file.recordType != current.recordType ||
+        file.protocol != _protocolProperty ||
+        file.namespace != _namespaceHash) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'Google Drive 更新响应与请求的同步文件不一致。',
+      );
+    }
+    final candidates = _inventoryScope.inventory?[current.name];
+    final index = candidates?.indexWhere((file) => file.id == current.id) ?? -1;
+    if (index < 0) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'Google Drive 更新响应与当前 inventory 不一致。',
+      );
+    }
+    candidates![index] = file;
+    return file;
   }
 
-  Future<List<_DriveFile>> _list({
-    String? recordType,
-    String? name,
-    int? pageSize,
-  }) async {
-    final result = <_DriveFile>[];
+  void _invalidateAfterAmbiguousWrite() {
+    if (OperationToken.current == null) {
+      _unscopedInventory.invalidate();
+    } else {
+      _inventoryScope.markUnusable();
+    }
+  }
+
+  Future<Map<String, List<_DriveFile>>> _loadInventory() async {
+    final scope = _inventoryScope;
+    if (scope.unusable) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'Google Drive 当前操作的 inventory 已失效，请开始新操作后重试。',
+      );
+    }
+    final cached = scope.inventory;
+    if (cached != null) return cached;
+    final loading = scope.inventoryLoad;
+    if (loading != null) return loading;
+    final future = _fetchInventory(scope);
+    scope.inventoryLoad = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(scope.inventoryLoad, future)) scope.inventoryLoad = null;
+    }
+  }
+
+  Future<Map<String, List<_DriveFile>>> _fetchInventory(
+    _DriveInventoryScope scope,
+  ) async {
+    final result = <String, List<_DriveFile>>{};
+    final seenPageTokens = <String>{};
+    var pageCount = 0;
     String? pageToken;
     do {
+      pageCount++;
+      if (pageCount > 1000) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'Google Drive 文件列表分页过多。',
+        );
+      }
       final clauses = <String>[
         "'appDataFolder' in parents",
         'trashed = false',
         "appProperties has { key='protocol' and value='$_protocolProperty' }",
         "appProperties has { key='namespace' and value='$_namespaceHash' }",
-        if (recordType != null)
-          "appProperties has { key='recordType' and value='${_escapeQuery(recordType)}' }",
-        if (name != null) "name = '${_escapeQuery(name)}'",
       ];
       final response = await _request(
         'GET',
@@ -377,7 +537,7 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
           'spaces': 'appDataFolder',
           'q': clauses.join(' and '),
           'fields': _listFields,
-          'pageSize': '${pageSize ?? 100}',
+          'pageSize': '1000',
           if (pageToken != null) 'pageToken': pageToken,
         }),
         action: '列出同步文件',
@@ -398,7 +558,15 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
             'Google Drive 文件元数据格式无效。',
           );
         }
-        result.add(_DriveFile.fromJson(value));
+        final file = _DriveFile.fromJson(value);
+        if (file.protocol != _protocolProperty ||
+            file.namespace != _namespaceHash) {
+          throw const CloudBackendException(
+            CloudBackendErrorKind.invalidResponse,
+            'Google Drive inventory 返回了协议或 namespace 不匹配的文件。',
+          );
+        }
+        (result[file.name] ??= []).add(file);
       }
       final next = decoded['nextPageToken'];
       if (next != null && (next is! String || next.isEmpty)) {
@@ -408,8 +576,45 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
         );
       }
       pageToken = next as String?;
+      if (pageToken != null && !seenPageTokens.add(pageToken)) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'Google Drive 文件列表分页标记重复。',
+        );
+      }
     } while (pageToken != null);
+    scope.inventory = result;
     return result;
+  }
+
+  Future<List<_DriveFile>> _candidates(String type, String name) async {
+    final candidates = (await _loadInventory())[name] ?? const [];
+    if (candidates.any((file) => file.recordType != type)) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        'Google Drive 同名文件的同步类型不一致。',
+      );
+    }
+    return candidates;
+  }
+
+  void _addToInventory(_DriveFile file) {
+    final inventory = _inventoryScope.inventory;
+    if (inventory == null) {
+      throw StateError('Google Drive inventory was not loaded before write');
+    }
+    (inventory[file.name] ??= []).add(file);
+  }
+
+  static _DriveFile _decodeFile(Response<Uint8List> response, String action) {
+    final decoded = _decodeJson(response, action);
+    if (decoded is! Map) {
+      throw CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        '$action时 Google Drive 返回了无效的文件元数据。',
+      );
+    }
+    return _DriveFile.fromJson(decoded);
   }
 
   Future<Response<Uint8List>> _request(
@@ -421,7 +626,9 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
     required int maxResponseBytes,
     bool retryable = true,
   }) async {
-    final token = (await _accessTokenProvider()).trim();
+    final tokenFuture = _accessTokenProvider();
+    final operation = OperationToken.current;
+    final token = (await (operation?.race(tokenFuture) ?? tokenFuture)).trim();
     if (token.isEmpty) {
       throw CloudBackendException(
         CloudBackendErrorKind.authentication,
@@ -435,6 +642,13 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
       data: data,
       maxResponseBytes: maxResponseBytes,
       retryable: retryable,
+      retryResponse: (response) =>
+          response.statusCode == 403 &&
+          const {
+            'rateLimitExceeded',
+            'userRateLimitExceeded',
+            'dailyLimitExceeded',
+          }.contains(_googleErrorReason(response)),
     );
   }
 
@@ -538,6 +752,19 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
     _ => throw StateError('Unknown Google Drive record type'),
   };
 
+  static String _hashBytes(List<int> bytes) {
+    CloudSyncTelemetry.recordHashPass();
+    return sha256.convert(bytes).toString();
+  }
+
+  static bool _bytesEqual(Uint8List left, Uint8List right) {
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) return false;
+    }
+    return true;
+  }
+
   static void _checkUpload(Uint8List bytes, int maxBytes) {
     if (bytes.length > maxBytes) {
       throw const CloudBackendException(
@@ -558,16 +785,23 @@ class GoogleDriveCloudSyncBackend implements CloudSyncBackend {
         ? value
         : value.replace(path: '${value.path}/');
   }
+}
 
-  static String _escapeQuery(String value) =>
-      value.replaceAll(r'\', r'\\').replaceAll("'", r"\'");
+class _DriveInventoryScope {
+  Map<String, List<_DriveFile>>? inventory;
+  Future<Map<String, List<_DriveFile>>>? inventoryLoad;
+  bool unusable = false;
 
-  static bool _sameBytes(Uint8List first, Uint8List second) {
-    if (first.length != second.length) return false;
-    for (var index = 0; index < first.length; index++) {
-      if (first[index] != second[index]) return false;
-    }
-    return true;
+  void invalidate() {
+    inventory = null;
+    inventoryLoad = null;
+    unusable = false;
+  }
+
+  void markUnusable() {
+    inventory = null;
+    inventoryLoad = null;
+    unusable = true;
   }
 }
 
@@ -575,23 +809,51 @@ class _DriveFile {
   const _DriveFile({
     required this.id,
     required this.name,
+    required this.size,
+    required this.protocol,
+    required this.namespace,
+    required this.recordType,
     required this.revision,
+    required this.md5Checksum,
   });
 
   final String id;
   final String name;
+  final int size;
+  final String protocol;
+  final String namespace;
+  final String recordType;
   final String revision;
+  final String? md5Checksum;
 
   factory _DriveFile.fromJson(Map<dynamic, dynamic> json) {
     final id = json['id'];
     final name = json['name'];
+    final size = int.tryParse('${json['size'] ?? ''}');
     final version = json['version'];
     final modifiedTime = json['modifiedTime'];
     final checksum = json['md5Checksum'];
-    if (id is! String || id.isEmpty || name is! String || name.isEmpty) {
+    final appProperties = json['appProperties'];
+    final protocol = appProperties is Map ? appProperties['protocol'] : null;
+    final namespace = appProperties is Map ? appProperties['namespace'] : null;
+    final recordType = appProperties is Map
+        ? appProperties['recordType']
+        : null;
+    if (id is! String ||
+        id.isEmpty ||
+        name is! String ||
+        name.isEmpty ||
+        size == null ||
+        size < 0 ||
+        protocol is! String ||
+        protocol.isEmpty ||
+        namespace is! String ||
+        namespace.isEmpty ||
+        recordType is! String ||
+        recordType.isEmpty) {
       throw const CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
-        'Google Drive 文件元数据缺少 id 或 name。',
+        'Google Drive 文件元数据缺少 id、name、size 或 appProperties。',
       );
     }
     final revisionParts = [
@@ -606,6 +868,15 @@ class _DriveFile {
         'Google Drive 文件元数据缺少 revision 信息。',
       );
     }
-    return _DriveFile(id: id, name: name, revision: revisionParts.join(':'));
+    return _DriveFile(
+      id: id,
+      name: name,
+      size: size,
+      protocol: protocol,
+      namespace: namespace,
+      recordType: recordType,
+      revision: revisionParts.join(':'),
+      md5Checksum: checksum is String && checksum.isNotEmpty ? checksum : null,
+    );
   }
 }

@@ -28,7 +28,7 @@ class WebDavEtagReader {
       },
       data: utf8.encode(
         '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
-        '<d:allprop/></d:propfind>',
+        '<d:prop><d:getetag/></d:prop></d:propfind>',
       ),
       maxResponseBytes: 64 * 1024,
     );

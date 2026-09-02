@@ -1,5 +1,7 @@
 # 云备份全链路性能优化 Handoff
 
+> **历史资料**：本文记录性能重构开始前的基线与外部评审问题，不描述当前实现。当前协议与实现约束以 `cloud_sync_performance_implementation_plan.md`、代码和回归测试为准。
+
 ## 目标
 
 请帮助 Aaalice NAI Launcher 制定一套可直接实施的云备份性能优化方案。当前 OneDrive、Google Drive、WebDAV、GitHub 四种备份方式在以下阶段都可能明显偏慢：

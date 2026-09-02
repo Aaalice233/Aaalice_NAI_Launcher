@@ -4,6 +4,13 @@ import 'operation.dart';
 
 typedef SyncProgressCallback = void Function(SyncProgress progress);
 
+class CloudPreviewStaleException implements Exception {
+  const CloudPreviewStaleException();
+
+  @override
+  String toString() => 'CloudPreviewStaleException';
+}
+
 class SyncPreview {
   const SyncPreview({
     required this.localSnapshot,

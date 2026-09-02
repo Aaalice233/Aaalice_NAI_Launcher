@@ -17,6 +17,7 @@ class WebDavCollectionEnsurer {
   final Map<String, String> headers;
   final Uri baseUri;
   final Map<Uri, DateTime> _recentCollections = {};
+  final Map<Uri, Future<void>> _inFlightCollections = {};
 
   static const _cacheTtl = Duration(seconds: 30);
   static final Uint8List _collectionProperties = Uint8List.fromList(
@@ -41,9 +42,26 @@ class WebDavCollectionEnsurer {
           DateTime.now().toUtc().difference(checkedAt) < _cacheTtl) {
         continue;
       }
-      await _ensureOne(current);
-      _recentCollections[current] = DateTime.now().toUtc();
+      await _ensureSingleFlight(current);
     }
+  }
+
+  Future<void> _ensureSingleFlight(Uri collection) {
+    final existing = _inFlightCollections[collection];
+    if (existing != null) return existing;
+
+    late final Future<void> future;
+    future = _ensureOne(collection)
+        .then((_) {
+          _recentCollections[collection] = DateTime.now().toUtc();
+        })
+        .whenComplete(() {
+          if (identical(_inFlightCollections[collection], future)) {
+            _inFlightCollections.remove(collection);
+          }
+        });
+    _inFlightCollections[collection] = future;
+    return future;
   }
 
   Future<void> _ensureOne(Uri collection) async {

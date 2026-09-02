@@ -1,7 +1,6 @@
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/cloud_sync/cloud_drive_provider.dart';
 import '../../../core/cloud_sync/coordinator.dart';
-import '../../../core/cloud_sync/object_codec.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
@@ -13,7 +12,7 @@ import 'cloud_sync_factories.dart';
 import 'cloud_sync_error_reporter.dart';
 import 'cloud_sync_flight_gate.dart';
 import 'cloud_sync_head_reader.dart';
-import 'cloud_sync_maintenance.dart';
+import 'cloud_sync_pending_intent_store.dart';
 import 'cloud_sync_operation_runner.dart';
 
 class CloudSyncApplicationService implements CloudSyncUiPort {
@@ -38,7 +37,7 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
          secureStorage: secureStorage,
          deviceIdFactory: deviceIdFactory,
        ) {
-    _maintenance = CloudSyncMaintenance(
+    _pendingIntents = CloudSyncPendingIntentStore(
       localStorage: localStorage,
       readState: () => _state,
       writeState: _set,
@@ -52,8 +51,7 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
       readState: () => _state,
       writeState: _set,
       recordError: _errorReporter.record,
-      readPendingFfdkjIntent: _maintenance.readPendingFfdkjIntent,
-      afterSuccessfulWrite: () => _maintenance.run(_backend),
+      readPendingFfdkjIntent: _pendingIntents.readPendingFfdkjIntent,
       persistSyncState: (revision, lastSync) => _connectionStore.saveSyncState(
         remoteRevision: revision,
         lastSync: lastSync,
@@ -70,14 +68,15 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
   CloudSyncUiState _state = const CloudSyncUiState();
   CloudSyncBackend? _backend;
   SyncCoordinator? _coordinator;
+  _TestedWebDavBackend? _testedWebDavBackend;
   final CloudSyncFlightGate _gate = CloudSyncFlightGate();
   late final CloudSyncOperationRunner _operations;
-  late final CloudSyncMaintenance _maintenance;
+  late final CloudSyncPendingIntentStore _pendingIntents;
   late final CloudSyncErrorReporter _errorReporter;
   final CloudSyncConflictSelections _conflictSelections =
       CloudSyncConflictSelections();
 
-  void dispose() => _maintenance.dispose();
+  void dispose() {}
 
   Future<void> initialize() async {
     if (_state.deviceName != null) return;
@@ -93,8 +92,19 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
   Future<CloudSyncCapabilityResult> testConnection(
     CloudSyncConnectionDraft connection,
   ) => _gate.run((_) async {
+    _testedWebDavBackend = null;
     try {
-      final capability = await _backendFactory(connection).testCapability();
+      final backend = _backendFactory(connection);
+      final capability = await backend.testCapability();
+      if (connection.backend == CloudSyncBackendKind.webDav) {
+        // Keep the probe result attached to the exact backend and draft. Saving
+        // can then remain read-only without discarding verified CAS semantics.
+        _testedWebDavBackend = _TestedWebDavBackend(
+          connection: connection,
+          backend: backend,
+          capability: capability,
+        );
+      }
       _set(_state.copyWith(clearError: true));
       return mapCloudSyncCapability(connection, capability);
     } catch (error) {
@@ -107,12 +117,47 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
   Future<void> detectRemote(CloudSyncConnectionDraft connection) =>
       _gate.run((_) => _detectRemote(connection));
 
-  Future<void> _detectRemote(CloudSyncConnectionDraft connection) async {
+  _TestedWebDavBackend? _matchingTestedWebDavBackend(
+    CloudSyncConnectionDraft connection,
+  ) {
+    final tested = _testedWebDavBackend;
+    return tested != null && _sameConnection(tested.connection, connection)
+        ? tested
+        : null;
+  }
+
+  Future<void> _detectRemote(
+    CloudSyncConnectionDraft connection, {
+    bool readOnlyWebDavValidation = false,
+  }) async {
     try {
       _backend = null;
       _coordinator = null;
-      final backend = _backendFactory(connection);
-      final capability = await backend.testCapability();
+      final tested = readOnlyWebDavValidation
+          ? _matchingTestedWebDavBackend(connection)
+          : null;
+      final backend = tested?.backend ?? _backendFactory(connection);
+      final useReadOnlyValidation =
+          tested == null &&
+          readOnlyWebDavValidation &&
+          connection.backend == CloudSyncBackendKind.webDav &&
+          backend is ReadOnlyCloudSyncBackendValidation;
+      final CloudBackendCapability capability;
+      if (tested != null) {
+        capability = tested.capability;
+      } else if (useReadOnlyValidation) {
+        await (backend as ReadOnlyCloudSyncBackendValidation)
+            .validateConnectionReadOnly();
+        capability = const CloudBackendCapability(
+          mode: CloudBackendMode.manualBackupOnly,
+          message: 'WebDAV 连接已完成只读验证；服务端写入能力尚未验证。',
+          supportsHistory: false,
+          supportsDelete: false,
+          warnings: [CloudBackendWarning.webDavUnverifiedCas],
+        );
+      } else {
+        capability = await backend.testCapability();
+      }
       final head = await backend.readHead();
       final remoteExists = head != null;
       final remoteRevision = cloudSyncSnapshotId(head);
@@ -206,16 +251,13 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
       await initialize();
       // The one-page form remains editable after a failed attempt, so every
       // save must rebuild and verify the backend from the current draft.
-      await _detectRemote(request.connection);
+      await _detectRemote(request.connection, readOnlyWebDavValidation: true);
       _coordinator = await _coordinatorFactory(
         _backend!,
-        const PlainCloudObjectCodec(),
         request.dataKinds,
         request.contentSelection,
         request.connection,
       );
-      // Saving connection settings must never resume or start a transfer.
-      await _coordinator!.discardPending();
       await _connectionStore.save(
         request.connection,
         request.dataKinds,
@@ -254,10 +296,9 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
           ? _state.remoteRevision
           : persisted.remoteRevision;
       if (_backend == null || _coordinator == null) {
-        await _detectRemote(persisted.draft);
+        await _detectRemote(persisted.draft, readOnlyWebDavValidation: true);
         _coordinator = await _coordinatorFactory(
           _backend!,
-          const PlainCloudObjectCodec(),
           persisted.dataKinds,
           persisted.contentSelection,
           persisted.draft,
@@ -265,8 +306,6 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
       }
       final head = await _backend!.readHead();
       final currentRevision = cloudSyncSnapshotId(head);
-      // Restoring saved settings is lifecycle work, not permission to sync.
-      await _coordinator!.discardPending();
       _set(
         _state.copyWith(
           connectionStatus: CloudSyncConnectionStatus.connected,
@@ -382,6 +421,9 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
   }
 
   @override
+  Future<void> refreshHistory() => _gate.run((_) => _operations.loadHistory());
+
+  @override
   Future<void> deleteRemoteNamespace() => _gate.run((_) async {
     if (!_state.supportsDelete) {
       throw StateError('This backend does not support namespace deletion.');
@@ -467,6 +509,34 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
   @override
   Future<void> respondToFfdkjInstallIntent({required bool install}) async {
     if (install) await _installFfdkjDictionary();
-    await _maintenance.clearFfdkjIntent();
+    await _pendingIntents.clearFfdkjIntent();
   }
+}
+
+bool _sameConnection(
+  CloudSyncConnectionDraft left,
+  CloudSyncConnectionDraft right,
+) =>
+    left.backend == right.backend &&
+    left.serverUrl == right.serverUrl &&
+    left.username == right.username &&
+    left.secret == right.secret &&
+    left.owner == right.owner &&
+    left.repository == right.repository &&
+    left.branch == right.branch &&
+    left.path == right.path &&
+    left.allowInsecureHttp == right.allowInsecureHttp &&
+    left.accountId == right.accountId &&
+    left.accountLabel == right.accountLabel;
+
+class _TestedWebDavBackend {
+  const _TestedWebDavBackend({
+    required this.connection,
+    required this.backend,
+    required this.capability,
+  });
+
+  final CloudSyncConnectionDraft connection;
+  final CloudSyncBackend backend;
+  final CloudBackendCapability capability;
 }

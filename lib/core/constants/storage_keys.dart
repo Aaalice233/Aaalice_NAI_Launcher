@@ -13,8 +13,6 @@ class StorageKeys {
   static const String cloudSyncConfiguration = 'cloud_sync_configuration_v1';
   static const String cloudDriveConfiguration = 'cloud_drive_configuration_v1';
   static const String cloudSyncDeviceId = 'cloud_sync_device_id_v1';
-  static const String cloudSyncLastMaintenanceAt =
-      'cloud_sync_last_maintenance_at_v1';
   static const String cloudSyncContentSelection =
       'cloud_sync_content_selection_v1';
   static const String cloudDriveOAuthSessionPrefix =

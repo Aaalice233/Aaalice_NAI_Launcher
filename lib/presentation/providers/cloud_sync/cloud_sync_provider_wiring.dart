@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/autocomplete/autocomplete_providers.dart';
+import '../../../core/cloud_sync/backend/cloud_namespace.dart';
 import '../../../core/cloud_sync/backend/github_cloud_sync_backend.dart';
 import '../../../core/cloud_sync/backend/google_drive_cloud_sync_backend.dart';
 import '../../../core/cloud_sync/backend/onedrive_cloud_sync_backend.dart';
@@ -81,25 +82,31 @@ final cloudSyncApplicationServiceProvider =
             ref.read(zhDictionaryServiceProvider).installOrUpdate(),
         onState: (state) =>
             ref.read(cloudSyncApplicationStateProvider.notifier).state = state,
-        backendFactory: (draft) => switch (draft.backend) {
-          CloudSyncBackendKind.webDav => _createWebDavBackend(draft),
-          CloudSyncBackendKind.github => GitHubCloudSyncBackend(
-            owner: draft.owner,
-            repository: draft.repository,
-            branch: draft.branch,
-            token: draft.secret,
-            namespace: draft.path.isEmpty ? 'aaalice-sync' : draft.path,
-          ),
-          CloudSyncBackendKind.googleDrive || CloudSyncBackendKind.oneDrive =>
-            driveProviders
-                .require(draft.backend.oauthProvider)
-                .createBackend(
-                  accountId: draft.accountId,
-                  namespace: draft.path.isEmpty ? 'aaalice-sync' : draft.path,
-                ),
+        backendFactory: (draft) {
+          final namespace = cloudSyncV3Namespace(draft.path);
+          return switch (draft.backend) {
+            CloudSyncBackendKind.webDav => _createWebDavBackend(
+              draft,
+              namespace,
+            ),
+            CloudSyncBackendKind.github => GitHubCloudSyncBackend(
+              owner: draft.owner,
+              repository: draft.repository,
+              branch: draft.branch,
+              token: draft.secret,
+              namespace: namespace,
+            ),
+            CloudSyncBackendKind.googleDrive || CloudSyncBackendKind.oneDrive =>
+              driveProviders
+                  .require(draft.backend.oauthProvider)
+                  .createBackend(
+                    accountId: draft.accountId,
+                    namespace: namespace,
+                  ),
+          };
         },
         coordinatorFactory:
-            (backend, codec, scope, contentSelection, connection) async {
+            (backend, scope, contentSelection, connection) async {
               AgentSkillsCloudSyncAdapter? agentSkills;
               if (contentSelection.includeSkills) {
                 final context = await ref
@@ -148,7 +155,6 @@ final cloudSyncApplicationServiceProvider =
                   registry: registry,
                   root: root,
                 ),
-                codec: codec,
                 journalStore: JournalStore(File('${root.path}/journal.json')),
               );
             },
@@ -161,21 +167,33 @@ Directory _cloudSyncLocalRoot(
   Directory support,
   CloudSyncConnectionDraft connection,
 ) {
-  final legacyRoot = Directory('${support.path}/cloud-sync');
-  if (!connection.backend.usesOAuth) return legacyRoot;
-  if (connection.accountId.isEmpty) {
+  if (connection.backend.usesOAuth && connection.accountId.isEmpty) {
     throw StateError('Cloud-drive account identity is missing.');
   }
-  final accountHash = sha256.convert(utf8.encode(connection.accountId));
+  final namespace = cloudSyncV3Namespace(connection.path);
+  final identity = switch (connection.backend) {
+    CloudSyncBackendKind.webDav =>
+      '${connection.serverUrl}\n${connection.username}\n$namespace',
+    CloudSyncBackendKind.github =>
+      '${connection.owner}\n${connection.repository}\n'
+          '${connection.branch}\n$namespace',
+    CloudSyncBackendKind.googleDrive ||
+    CloudSyncBackendKind.oneDrive => '${connection.accountId}\n$namespace',
+  };
+  final connectionHash = sha256.convert(utf8.encode(identity));
   return Directory(
-    '${legacyRoot.path}/providers/${connection.backend.name}/$accountHash',
+    '${support.path}/cloud-sync-v3/providers/'
+    '${connection.backend.name}/$connectionHash',
   );
 }
 
-WebDavCloudSyncBackend _createWebDavBackend(CloudSyncConnectionDraft draft) {
+WebDavCloudSyncBackend _createWebDavBackend(
+  CloudSyncConnectionDraft draft,
+  String namespace,
+) {
   final config = WebDavBackendConfig(
     baseUri: Uri.parse(draft.serverUrl),
-    namespace: draft.path.isEmpty ? 'aaalice-sync' : draft.path,
+    namespace: namespace,
     allowInsecureHttp: draft.allowInsecureHttp,
   );
   return WebDavCloudSyncBackend.fromConfig(

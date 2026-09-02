@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import '../../utils/app_logger.dart';
+import '../operation.dart';
+import '../telemetry.dart';
 import 'backend_http.dart';
 import 'cloud_sync_backend.dart';
 
@@ -49,11 +51,21 @@ class OneDriveApiClient {
         'Graph base must be an absolute directory URI',
       );
     }
-    _graphHttp = BackendHttp(dio: _dio);
+    _graphHttp = BackendHttp(
+      dio: _dio,
+      observer: (metric) => CloudSyncTelemetry.recordRequest(
+        bytesRead: metric.responseBytes ?? 0,
+        bytesWritten: metric.requestBytes ?? 0,
+      ),
+    );
     // Signed upload/download URLs are pre-authenticated. A clean Dio instance
     // prevents caller-installed Graph interceptors from attaching bearer tokens.
     _signedHttp = BackendHttp(
       dio: _createOneDriveDio()..httpClientAdapter = _dio.httpClientAdapter,
+      observer: (metric) => CloudSyncTelemetry.recordRequest(
+        bytesRead: metric.responseBytes ?? 0,
+        bytesWritten: metric.requestBytes ?? 0,
+      ),
     );
   }
 
@@ -64,6 +76,8 @@ class OneDriveApiClient {
   final Uri _graphBase;
   late final BackendHttp _graphHttp;
   late final BackendHttp _signedHttp;
+  Future<OneDriveItem>? _appRootFuture;
+  final Map<String, Future<OneDriveItem>> _folderFutures = {};
 
   Future<OneDriveItem?> metadata(String path) async {
     final response = await _graphRequest(
@@ -100,47 +114,101 @@ class OneDriveApiClient {
     return BackendHttp.bytesOf(response);
   }
 
-  Future<void> ensureFolder(String path) async {
-    var parentItem = await _ensureAppRoot();
-    var parentPath = '';
-    for (final name in path.split('/')) {
-      final parentId = parentItem.id;
-      if (parentId == null || parentId.isEmpty) {
-        throw const CloudBackendException(
-          CloudBackendErrorKind.invalidResponse,
-          'OneDrive 父目录响应缺少 id。',
-        );
-      }
-      final response = await _graphRequest(
-        'POST',
-        'me/drive/items/${Uri.encodeComponent(parentId)}/children',
-        action: '创建 OneDrive 应用目录',
-        accepted: const {201},
-        data: {'name': name, 'folder': <String, Object?>{}},
-        allowConflict: true,
-        retryable: true,
-      );
-      final currentPath = parentPath.isEmpty ? name : '$parentPath/$name';
-      final folder = response == null
-          ? await metadata(currentPath)
-          : _decodeItem(_decodeMap(response, 'OneDrive 目录创建结果'));
-      if (folder == null ||
-          !folder.isFolder ||
-          folder.name != name ||
-          folder.id == null ||
-          folder.id!.isEmpty) {
-        throw const CloudBackendException(
-          CloudBackendErrorKind.conflict,
-          'OneDrive 中存在同名文件，无法创建同步目录。',
-          statusCode: 409,
-        );
-      }
-      parentItem = folder;
-      parentPath = currentPath;
-    }
+  Future<void> validateAppRoot() async {
+    await _ensureAppRoot();
   }
 
-  Future<OneDriveItem> _ensureAppRoot() async {
+  void invalidateFolderCache(String path) {
+    _folderFutures.removeWhere(
+      (folderPath, _) => folderPath == path || folderPath.startsWith('$path/'),
+    );
+  }
+
+  Future<OneDriveItem> ensureFolder(String path) {
+    final segments = path.split('/');
+    if (segments.isEmpty || segments.any((segment) => segment.isEmpty)) {
+      throw const FormatException('Invalid OneDrive folder path');
+    }
+    var currentPath = '';
+    Future<OneDriveItem> parent = _ensureAppRoot();
+    for (final name in segments) {
+      currentPath = currentPath.isEmpty ? name : '$currentPath/$name';
+      final folderPath = currentPath;
+      final parentFuture = parent;
+      parent = _folderFutures.putIfAbsent(folderPath, () {
+        final future = _createOrResolveFolder(parentFuture, folderPath, name);
+        unawaited(
+          future.then<void>(
+            (_) {},
+            onError: (Object _, StackTrace __) {
+              if (identical(_folderFutures[folderPath], future)) {
+                _folderFutures.remove(folderPath);
+              }
+            },
+          ),
+        );
+        return future;
+      });
+    }
+    return parent;
+  }
+
+  Future<OneDriveItem> _createOrResolveFolder(
+    Future<OneDriveItem> parentFuture,
+    String path,
+    String name,
+  ) async {
+    final parent = await parentFuture;
+    final parentId = parent.id;
+    if (parentId == null || parentId.isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'OneDrive 父目录响应缺少 id。',
+      );
+    }
+    final response = await _graphRequest(
+      'POST',
+      'me/drive/items/${Uri.encodeComponent(parentId)}/children',
+      action: '创建 OneDrive 应用目录',
+      accepted: const {201},
+      data: {'name': name, 'folder': <String, Object?>{}},
+      allowConflict: true,
+      retryable: false,
+    );
+    final folder = response == null
+        ? await metadata(path)
+        : _decodeItem(_decodeMap(response, 'OneDrive 目录创建结果'));
+    if (folder == null ||
+        !folder.isFolder ||
+        folder.name != name ||
+        folder.id == null ||
+        folder.id!.isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        'OneDrive 中存在同名文件，无法创建同步目录。',
+        statusCode: 409,
+      );
+    }
+    return folder;
+  }
+
+  Future<OneDriveItem> _ensureAppRoot() {
+    final cached = _appRootFuture;
+    if (cached != null) return cached;
+    final future = _loadAppRoot();
+    _appRootFuture = future;
+    unawaited(
+      future.then<void>(
+        (_) {},
+        onError: (Object _, StackTrace __) {
+          if (identical(_appRootFuture, future)) _appRootFuture = null;
+        },
+      ),
+    );
+    return future;
+  }
+
+  Future<OneDriveItem> _loadAppRoot() async {
     final response = await _graphRequest(
       'GET',
       _appRoot,
@@ -176,7 +244,7 @@ class OneDriveApiClient {
           'name': path.split('/').last,
         },
       },
-      retryable: true,
+      retryable: false,
     );
     final session = _decodeMap(response!, 'OneDrive 上传会话');
     final rawUploadUrl = session['uploadUrl'];
@@ -206,7 +274,7 @@ class OneDriveApiClient {
         'Content-Type': 'application/octet-stream',
       },
       data: bytes,
-      retryable: true,
+      retryable: false,
       maxResponseBytes: maxCloudJsonApiResponseBytes,
     );
     if (uploaded.statusCode != 200 && uploaded.statusCode != 201) {
@@ -219,7 +287,7 @@ class OneDriveApiClient {
     final items = <OneDriveItem>[];
     final visited = <Uri>{};
     Uri? next = _graphUri(
-      '${_itemEndpoint(path)}:/children?%24select=name,eTag,size,file,folder&%24top=200',
+      '${_itemEndpoint(path)}:/children?%24select=id,name,eTag,size,file,folder&%24top=200',
     );
     var accumulatedBytes = 0;
     while (next != null) {
@@ -258,7 +326,7 @@ class OneDriveApiClient {
             'OneDrive children 包含无效项目。',
           );
         }
-        items.add(_decodeItem(value.cast<String, dynamic>()));
+        items.add(_decodeItem(value.cast<String, dynamic>(), requireId: true));
       }
       final rawNext = decoded['@odata.nextLink'];
       if (rawNext == null) {
@@ -282,7 +350,7 @@ class OneDriveApiClient {
       action: '删除 OneDrive 同步数据',
       accepted: const {204},
       allowNotFound: true,
-      retryable: true,
+      retryable: false,
     );
     if (response == null) return;
   }
@@ -321,7 +389,7 @@ class OneDriveApiClient {
     bool? retryable,
   }) async {
     _requireTrustedGraphUri(uri);
-    final token = await _accessTokenProvider();
+    final token = await _waitForAccessToken();
     if (token.trim().isEmpty) {
       throw const CloudBackendException(
         CloudBackendErrorKind.authentication,
@@ -362,123 +430,62 @@ class OneDriveApiClient {
     _throwResponse(response, action);
   }
 
+  Future<String> _waitForAccessToken() {
+    final future = _accessTokenProvider();
+    return OperationToken.current?.race(future) ?? future;
+  }
+
   Future<_DownloadRedirect> _downloadRedirect(
     Uri uri, {
     required String expectedETag,
     required int maxBytes,
   }) async {
     _requireTrustedGraphUri(uri);
-    const transient = {408, 425, 429, 500, 502, 503, 504};
-    for (var attempt = 1; attempt <= 3; attempt++) {
-      final token = await _accessTokenProvider();
-      if (token.trim().isEmpty) {
-        throw const CloudBackendException(
-          CloudBackendErrorKind.authentication,
-          'Microsoft access token 为空。',
-        );
-      }
-      Response<ResponseBody> streamed;
-      try {
-        streamed = await _dio.request<ResponseBody>(
-          uri.toString(),
-          options: Options(
-            method: 'GET',
-            headers: {
-              'Authorization': 'Bearer $token',
-              'If-Match': expectedETag,
-              'Accept-Encoding': 'identity',
-            },
-            responseType: ResponseType.stream,
-            followRedirects: false,
-            validateStatus: (_) => true,
-          ),
-        );
-      } on DioException catch (error) {
-        if (attempt < 3) {
-          await Future<void>.delayed(
-            Duration(milliseconds: attempt == 1 ? 300 : 900),
-          );
-          continue;
-        }
-        throw CloudBackendException(
-          CloudBackendErrorKind.network,
-          '无法连接 OneDrive，请检查网络、代理和 Microsoft 登录状态。',
-          cause: error,
-        );
-      }
-      final status = streamed.statusCode ?? 0;
-      if (transient.contains(status) && attempt < 3) {
-        await _discard(streamed.data);
-        await Future<void>.delayed(_retryDelay(streamed.headers, attempt));
-        continue;
-      }
-      if ({301, 302, 303, 307, 308}.contains(status)) {
-        final location = streamed.headers.value('location');
-        await _discard(streamed.data);
-        final target = location == null ? null : uri.resolve(location);
-        if (target == null || !target.isAbsolute || target.scheme != 'https') {
-          throw CloudBackendException(
-            CloudBackendErrorKind.redirectRejected,
-            'OneDrive 返回了无效或不安全的下载地址。',
-            statusCode: status,
-          );
-        }
-        return _DownloadRedirect(location: target);
-      }
-      if (status == 200) {
-        final bytes = await _buffer(streamed, maxBytes);
-        return _DownloadRedirect(bytes: bytes);
-      }
-      final bytes = await _buffer(streamed, maxCloudJsonApiResponseBytes);
-      _throwResponse(
-        Response<Uint8List>(
-          requestOptions: streamed.requestOptions,
-          statusCode: streamed.statusCode,
-          headers: streamed.headers,
-          data: bytes,
-        ),
-        '获取 OneDrive 下载地址',
+    final token = await _waitForAccessToken();
+    if (token.trim().isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.authentication,
+        'Microsoft access token 为空。',
       );
     }
-    throw StateError('unreachable');
-  }
-
-  Future<Uint8List> _buffer(
-    Response<ResponseBody> response,
-    int maxBytes,
-  ) async {
-    final declared = int.tryParse(
-      response.headers.value('content-length') ?? '',
+    final response = await _graphHttp.request(
+      'GET',
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'If-Match': expectedETag,
+        'Accept-Encoding': 'identity',
+      },
+      followRedirects: false,
+      maxResponseBytes: maxBytes > maxCloudJsonApiResponseBytes
+          ? maxBytes
+          : maxCloudJsonApiResponseBytes,
     );
-    if (declared != null && declared > maxBytes) {
-      await _discard(response.data);
-      throw CloudBackendException(
-        CloudBackendErrorKind.invalidResponse,
-        'OneDrive 文件超过允许的下载大小。',
-        statusCode: response.statusCode,
-      );
+    final status = response.statusCode ?? 0;
+    if ({301, 302, 303, 307, 308}.contains(status)) {
+      final location = response.headers.value('location');
+      final target = location == null ? null : uri.resolve(location);
+      if (target == null || !target.isAbsolute || target.scheme != 'https') {
+        throw CloudBackendException(
+          CloudBackendErrorKind.redirectRejected,
+          'OneDrive 返回了无效或不安全的下载地址。',
+          statusCode: status,
+        );
+      }
+      return _DownloadRedirect(location: target);
     }
-    final builder = BytesBuilder(copy: false);
-    var length = 0;
-    await for (final chunk
-        in response.data?.stream ?? const Stream<Uint8List>.empty()) {
-      length += chunk.length;
-      if (length > maxBytes) {
+    if (status == 200) {
+      final bytes = response.data ?? Uint8List(0);
+      if (bytes.length > maxBytes) {
         throw CloudBackendException(
           CloudBackendErrorKind.invalidResponse,
           'OneDrive 文件超过允许的下载大小。',
-          statusCode: response.statusCode,
+          statusCode: status,
         );
       }
-      builder.add(chunk);
+      return _DownloadRedirect(bytes: bytes);
     }
-    return builder.takeBytes();
-  }
-
-  static Future<void> _discard(ResponseBody? body) async {
-    if (body == null) return;
-    final subscription = body.stream.listen((_) {});
-    await subscription.cancel();
+    _throwResponse(response, '获取 OneDrive 下载地址');
   }
 
   Map<String, dynamic> _decodeMap(Response<Uint8List> response, String label) {
@@ -495,18 +502,28 @@ class OneDriveApiClient {
     );
   }
 
-  OneDriveItem _decodeItem(Map<String, dynamic> value) {
+  OneDriveItem _decodeItem(
+    Map<String, dynamic> value, {
+    bool requireId = false,
+  }) {
     final id = value['id'];
     final name = value['name'];
     final eTag = value['eTag'] ?? value['@odata.etag'];
     final size = value['size'];
-    if ((id != null && id is! String) ||
+    final isFile = value['file'] is Map;
+    final isFolder = value['folder'] is Map;
+    if ((id != null && (id is! String || id.isEmpty)) ||
+        (requireId && (id is! String || id.isEmpty)) ||
         name is! String ||
+        name.isEmpty ||
         eTag is! String ||
-        size is! int) {
+        eTag.isEmpty ||
+        size is! int ||
+        size < 0 ||
+        isFile == isFolder) {
       throw const CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
-        'OneDrive 文件项目缺少有效的 id、name、eTag 或 size。',
+        'OneDrive 文件项目缺少有效的 id、name、eTag、size 或类型。',
       );
     }
     return OneDriveItem(
@@ -514,7 +531,7 @@ class OneDriveApiClient {
       name: name,
       eTag: eTag,
       size: size,
-      isFolder: value['folder'] is Map,
+      isFolder: isFolder,
     );
   }
 
@@ -608,8 +625,19 @@ class OneDriveApiClient {
       if (decoded is! Map || decoded['error'] is! Map) return null;
       final message = (decoded['error'] as Map)['message'];
       if (message is! String) return null;
-      final sanitized = message
-          .replaceAll(RegExp(r'[\x00-\x1F\x7F]+'), ' ')
+      final normalized = message.replaceAll(RegExp(r'[\x00-\x1F\x7F]+'), ' ');
+      final withoutAuthorization = normalized.replaceAllMapped(
+        RegExp(r'\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+', caseSensitive: false),
+        (match) => '${match.group(1)} [redacted]',
+      );
+      final sanitized = withoutAuthorization
+          .replaceAllMapped(
+            RegExp(
+              r'\b(access_token|refresh_token|id_token|token|password|secret|api_key|code)=([^&\s]+)',
+              caseSensitive: false,
+            ),
+            (match) => '${match.group(1)}=[redacted]',
+          )
           .trim();
       if (sanitized.isEmpty) return null;
       return sanitized.length <= 300
@@ -654,24 +682,6 @@ class OneDriveApiClient {
     } on FormatException {
       return DateTime.tryParse(value)?.toUtc();
     }
-  }
-
-  static Duration _retryDelay(Headers headers, int attempt) {
-    final rawRetryAfter = headers.value('retry-after');
-    final seconds = int.tryParse(rawRetryAfter ?? '');
-    if (seconds != null) {
-      return Duration(seconds: seconds.clamp(0, 30));
-    }
-    final retryAt = _retryAfter(headers);
-    if (retryAt != null) {
-      final delay = retryAt.difference(DateTime.now().toUtc());
-      if (!delay.isNegative) {
-        return delay > const Duration(seconds: 30)
-            ? const Duration(seconds: 30)
-            : delay;
-      }
-    }
-    return Duration(milliseconds: attempt == 1 ? 300 : 900);
   }
 }
 

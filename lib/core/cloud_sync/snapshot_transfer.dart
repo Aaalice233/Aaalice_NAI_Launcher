@@ -1,22 +1,28 @@
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart' as hashes;
+
 import 'backend/cloud_sync_backend.dart';
+import 'bounded_transfer_scheduler.dart';
 import 'data_source.dart';
 import 'models.dart';
-import 'object_codec.dart';
 import 'operation.dart';
 import 'sync_types.dart';
+import 'telemetry.dart';
 
 class CloudSnapshotTransfer {
   const CloudSnapshotTransfer({
     required this.backend,
     required this.dataSource,
-    required this.codec,
-    required this.now,
+    this.transferLimits,
   });
 
   final CloudSyncBackend backend;
   final CloudSyncDataSource dataSource;
-  final CloudObjectCodec codec;
-  final DateTime Function() now;
+  final CloudTransferLimits? transferLimits;
+
+  CloudTransferLimits get _transferLimits =>
+      transferLimits ?? cloudTransferPlatformLimits;
 
   Future<CloudSyncSnapshotData> downloadHead(
     SnapshotHead head,
@@ -51,56 +57,134 @@ class CloudSnapshotTransfer {
     final materializer = dataSource is CloudSyncPayloadMaterializer
         ? dataSource as CloudSyncPayloadMaterializer
         : null;
-    await materializer?.beginRemoteMaterialization(manifest.snapshotId);
-    final total = manifest.objects.fold<int>(
-      0,
-      (sum, object) => sum + object.size,
-    );
-    var bytes = 0;
-    final records = <CloudSyncRecord>[];
-    for (var index = 0; index < manifest.objects.length; index++) {
-      await token.checkpoint();
-      final object = manifest.objects[index];
-      onProgress?.call(
-        SyncProgress(
-          phase: SyncPhase.downloading,
-          objectId: object.id,
-          objectsCompleted: index,
-          objectsTotal: manifest.objects.length,
-          bytesCompleted: bytes,
-          bytesTotal: total,
-        ),
-      );
-      final read = await backend.readObject(object.id);
-      if (read == null) {
-        throw CloudFormatException('object ${object.id} is missing');
+    final localResolver = dataSource is CloudSyncLocalPayloadResolver
+        ? dataSource as CloudSyncLocalPayloadResolver
+        : null;
+    final objectSizes = <String, int>{};
+    for (final ref in manifest.records) {
+      final objectId = ref.objectId;
+      final size = ref.size;
+      if (objectId == null || size == null) continue;
+      final previous = objectSizes[objectId];
+      if (previous != null && previous != size) {
+        throw const CloudFormatException('shared object has conflicting sizes');
       }
-      object.verify(read.bytes);
-      final clear = await codec.decode(
-        read.bytes,
-        objectId: object.id,
-        kind: object.kind,
-      );
-      final record = CloudSyncRecord.decode(clear);
-      if (record.kind != object.kind) {
-        throw const CloudFormatException('record kind does not match manifest');
-      }
-      records.add(
-        materializer == null
-            ? record
-            : await materializer.materializeRemoteRecord(record),
-      );
-      bytes += object.size;
+      objectSizes[objectId] = size;
     }
+    final entries = objectSizes.entries.toList(growable: false);
+    final total = objectSizes.values.fold<int>(0, (sum, size) => sum + size);
+    var bytesCompleted = 0;
+    var objectsCompleted = 0;
     onProgress?.call(
       SyncProgress(
         phase: SyncPhase.downloading,
-        objectsCompleted: manifest.objects.length,
-        objectsTotal: manifest.objects.length,
-        bytesCompleted: bytes,
+        objectsTotal: entries.length,
         bytesTotal: total,
       ),
     );
+
+    final scheduler = BoundedTransferScheduler(
+      maxConcurrentItems: _transferConcurrency,
+      maxBytesInFlight: _transferLimits.maxBytesInFlight,
+    );
+    final downloaded = await scheduler
+        .run<MapEntry<String, int>, _DownloadedObject>(
+          items: [
+            for (final entry in entries)
+              BoundedTransferItem(value: entry, bytes: entry.value),
+          ],
+          token: token,
+          transfer: (entry) async {
+            CloudSyncPayload? payload;
+            Uint8List? bytes;
+            if (localResolver != null) {
+              payload = await localResolver.resolveLocalPayload(
+                expectedLength: entry.value,
+                expectedSha256: entry.key,
+              );
+            }
+            if (payload == null) {
+              final read = await backend.readObject(entry.key);
+              if (read == null) {
+                throw CloudFormatException('object ${entry.key} is missing');
+              }
+              if (materializer != null) {
+                payload = await materializer.materializeRemotePayload(
+                  read.bytes,
+                  expectedLength: entry.value,
+                  expectedSha256: entry.key,
+                );
+                if (payload.length != entry.value ||
+                    payload.sha256 != entry.key) {
+                  throw const CloudFormatException(
+                    'materialized payload identity mismatch',
+                  );
+                }
+              } else {
+                CloudSyncTelemetry.recordHashPass();
+                if (read.bytes.length != entry.value ||
+                    hashes.sha256.convert(read.bytes).toString() != entry.key) {
+                  throw CloudFormatException(
+                    'object ${entry.key} failed size or SHA-256 validation',
+                  );
+                }
+                bytes = read.bytes;
+              }
+            }
+            bytesCompleted += entry.value;
+            objectsCompleted++;
+            onProgress?.call(
+              SyncProgress(
+                phase: SyncPhase.downloading,
+                objectId: entry.key,
+                objectsCompleted: objectsCompleted,
+                objectsTotal: entries.length,
+                bytesCompleted: bytesCompleted,
+                bytesTotal: total,
+              ),
+            );
+            return _DownloadedObject(payload: payload, bytes: bytes);
+          },
+        );
+    onProgress?.call(
+      SyncProgress(
+        phase: SyncPhase.verifying,
+        objectsCompleted: entries.length,
+        objectsTotal: entries.length,
+        bytesCompleted: total,
+        bytesTotal: total,
+      ),
+    );
+    final objects = <String, _DownloadedObject>{
+      for (var index = 0; index < entries.length; index++)
+        entries[index].key: downloaded[index],
+    };
+
+    final records = <CloudSyncRecord>[];
+    for (final ref in manifest.records) {
+      if (ref.deleted) {
+        records.add(
+          CloudSyncRecord(
+            id: ref.recordId,
+            kind: ref.kind,
+            binary: ref.binary,
+            deleted: true,
+            tombstoneIdentity: ref.tombstoneIdentity,
+          ),
+        );
+      } else {
+        records.add(
+          CloudSyncRecord(
+            id: ref.recordId,
+            kind: ref.kind,
+            binary: ref.binary,
+            deleted: false,
+            bytes: objects[ref.objectId!]!.bytes,
+            payload: objects[ref.objectId!]!.payload,
+          ),
+        );
+      }
+    }
     return CloudSyncSnapshotData(records);
   }
 
@@ -124,16 +208,25 @@ class CloudSnapshotTransfer {
     OperationToken token,
     SyncProgressCallback? onProgress,
   ) async {
-    final manifest = SnapshotManifest.decode(
-      await codec.decode(
-        encodedManifest,
-        objectId: snapshotId,
-        kind: 'manifest',
-      ),
-    );
+    final manifest = SnapshotManifest.decode(encodedManifest);
     if (manifest.snapshotId != snapshotId) {
       throw const CloudFormatException('snapshot manifest identity mismatch');
     }
     return downloadManifest(manifest, token, onProgress);
   }
+
+  int get _transferConcurrency {
+    final requested = backend is ConcurrentCloudObjectUploadBackend
+        ? (backend as ConcurrentCloudObjectUploadBackend)
+              .maxConcurrentObjectUploads
+        : 4;
+    return requested.clamp(1, _transferLimits.maxConcurrentItems);
+  }
+}
+
+final class _DownloadedObject {
+  const _DownloadedObject({required this.payload, required this.bytes});
+
+  final CloudSyncPayload? payload;
+  final Uint8List? bytes;
 }

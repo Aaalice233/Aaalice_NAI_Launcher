@@ -221,7 +221,7 @@ class WebDavCapabilityProbe {
       },
       data: utf8.encode(
         '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
-        '<d:allprop/></d:propfind>',
+        '<d:prop><d:resourcetype/></d:prop></d:propfind>',
       ),
       maxResponseBytes: maxCloudListingResponseBytes,
     );
@@ -264,7 +264,7 @@ class WebDavCapabilityProbe {
         message: '$message 只能使用手动云备份。',
         supportsHistory: false,
         supportsDelete: false,
-        warnings: const ['服务器不满足 CAS 条件；仅允许手动备份，后写入可能覆盖同一 HEAD。'],
+        warnings: const [CloudBackendWarning.webDavWeakCas],
       );
 
   static void _expect(

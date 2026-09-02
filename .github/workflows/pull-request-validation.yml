@@ -158,6 +158,11 @@ jobs:
           -Path "${{ matrix.paths }}"
           -TimeoutSeconds 570
 
+      - name: Verify cloud-sync performance budgets
+        if: matrix.name == 'core-and-data'
+        shell: pwsh
+        run: ./scripts/run_cloud_sync_benchmark.ps1
+
   tests:
     name: Test
     runs-on: ubuntu-latest

@@ -56,7 +56,7 @@ NAI Launcher is built for people who use NovelAI regularly: generate images, ref
 
 - **Agent Chat**: use the generation sidebar or mobile drawer to search tags, organize Prompts, inspect history, and prepare generations; every operation that may consume Anlas requires separate confirmation.
 - **Desktop integrations**: connect Krita Bridge and local ComfyUI workflows to your existing tools.
-- **Sync and backup**: choose Google Drive, OneDrive, GitHub, or WebDAV as the destination and sync only selected data; Google Drive/OneDrive use an app-private folder with end-to-end encryption, while credentials and NovelAI Tokens stay out of backups.
+- **Sync and backup**: choose Google Drive, OneDrive, GitHub, or WebDAV as the destination and sync only selected data; backups use plain snapshots in a dedicated app namespace and reuse unchanged content, connection setup stays separate from explicit uploads and downloads, and credentials and NovelAI Tokens stay out of backups.
 
 ## Interface preview
 
@@ -204,7 +204,7 @@ NAI Launcher does not host your account or artwork on a project-operated server.
 | AI translation or Agent Chat | The model service you configured; conversations, attached images, and tool results needed for the task may incur service charges. |
 | Sync and backup | The Google Drive, OneDrive, GitHub, or WebDAV destination you select; only explicitly selected data categories are uploaded. Google Drive/OneDrive use app-private hidden storage only. |
 
-- NovelAI Tokens, OAuth access/refresh tokens, WebDAV passwords, and GitHub Tokens are stored in the device secure store and are not included in backups. Save the recovery key shown during initial Google Drive/OneDrive setup somewhere safe yourself.
+- NovelAI Tokens, OAuth access/refresh tokens, WebDAV passwords, and GitHub Tokens are stored in the device secure store and are not included in backups. Backup contents are not encrypted, so make sure the selected storage space and GitHub repository permissions match your privacy needs.
 - Local Prompts, gallery indexes, tags, and Agent sessions are stored on the device by default; Agent web tools are off by default.
 - Online galleries contain third-party content. Rating filters do not replace user judgment; follow source-site rules, local laws, and NovelAI's terms of service.
 - WebDAV security depends on the server and transport you configure. Confirm that the server is trusted and keep important local backups before syncing.

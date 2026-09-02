@@ -109,7 +109,7 @@ class WebDavNamespaceCleaner {
       },
       data: utf8.encode(
         '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
-        '<d:allprop/></d:propfind>',
+        '<d:prop><d:resourcetype/><d:getetag/></d:prop></d:propfind>',
       ),
       maxResponseBytes: maxCloudListingResponseBytes,
     );

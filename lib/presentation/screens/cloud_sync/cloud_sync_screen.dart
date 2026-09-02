@@ -22,7 +22,7 @@ class CloudSyncScreen extends ConsumerWidget {
           CloudSyncStatusBanner(
             icon: Icons.error_outline,
             title: context.l10n.cloudSync_testFailed,
-            message: state.error!,
+            message: localizeCloudSyncError(context, state.error!),
             warning: true,
           ),
         if (state.isConnected)

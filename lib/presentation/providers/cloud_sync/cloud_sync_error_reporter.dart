@@ -1,5 +1,6 @@
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/cloud_sync/models.dart';
+import '../../../core/cloud_sync/sync_types.dart';
 import 'cloud_sync_operation_runner.dart';
 import 'cloud_sync_ui_provider.dart';
 
@@ -33,9 +34,10 @@ class CloudSyncErrorReporter {
 }
 
 String cloudSyncErrorMessage(Object error) => switch (error) {
-  CloudBackendException() => error.message,
-  CloudFormatException() => '远端备份格式或完整性校验失败：${error.message}',
-  StateError() => error.message,
-  FormatException() => '保存的同步配置或旧备份信息无法读取。',
-  _ => '同步失败，请检查网络、服务商地址与账号权限后重试。',
+  CloudBackendException(kind: final kind) => 'backend.${kind.name}',
+  CloudPreviewStaleException() => 'previewStale',
+  CloudFormatException() => 'format',
+  FormatException() => 'configuration',
+  StateError() => 'state',
+  _ => 'unknown',
 };

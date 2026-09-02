@@ -1,14 +1,15 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as hashes;
+
 import 'backend/cloud_sync_backend.dart';
+import 'bounded_transfer_scheduler.dart';
 import 'data_source.dart';
 import 'journal.dart';
 import 'models.dart';
 import 'operation.dart';
-import 'object_codec.dart';
 import 'sync_types.dart';
+import 'telemetry.dart';
 
 typedef JournalCheckpoint = Future<void> Function(SyncJournal journal);
 
@@ -16,14 +17,17 @@ class ResumableSnapshotUploader {
   const ResumableSnapshotUploader({
     required this.backend,
     required this.dataSource,
-    required this.codec,
     required this.now,
+    this.transferLimits,
   });
 
   final CloudSyncBackend backend;
   final CloudSyncDataSource dataSource;
-  final CloudObjectCodec codec;
   final DateTime Function() now;
+  final CloudTransferLimits? transferLimits;
+
+  CloudTransferLimits get _transferLimits =>
+      transferLimits ?? cloudTransferPlatformLimits;
 
   Future<SyncJournal> resume({
     required SyncJournal journal,
@@ -35,58 +39,64 @@ class ResumableSnapshotUploader {
     var current = journal;
     final records = snapshot.records.values.toList()
       ..sort((left, right) => left.id.compareTo(right.id));
-    _validateCompletedPrefix(current, records);
-    await _verifyCompletedObjects(current, token);
-
-    final metadata = List<SnapshotObject?>.filled(records.length, null);
-    for (var index = 0; index < current.completedObjects.length; index++) {
-      metadata[index] = current.completedObjects[index];
-    }
-    for (
-      var index = current.completedObjects.length;
-      index < records.length;
-      index++
-    ) {
-      await token.checkpoint();
-      metadata[index] = await _prepareObject(current, records[index], index);
-      onProgress?.call(
-        SyncProgress(
-          phase: SyncPhase.preparing,
-          objectId: metadata[index]!.id,
-          objectsCompleted: index + 1,
-          objectsTotal: records.length,
+    final refs = <SnapshotRecordRef>[];
+    final uniquePayloads = <String, CloudSyncPayload>{};
+    for (final record in records) {
+      final payload = record.deleted ? null : record.payload;
+      refs.add(
+        SnapshotRecordRef(
+          recordId: record.id,
+          kind: record.kind,
+          binary: record.binary,
+          deleted: record.deleted,
+          objectId: payload?.sha256,
+          size: payload?.length,
+          tombstoneIdentity: record.tombstoneIdentity,
         ),
       );
+      if (payload != null) {
+        uniquePayloads.putIfAbsent(payload.sha256, () => payload);
+      }
     }
-    final allMetadata = metadata.whereType<SnapshotObject>().toList(
-      growable: false,
-    );
-    if (allMetadata.length != records.length) {
+    final objectIds = uniquePayloads.keys.toList(growable: false);
+    _validateCompletedSet(current, objectIds);
+    await _verifyCompletedObjects(current, uniquePayloads, token);
+    final existingObjectIds = backend is CloudObjectInventoryBackend
+        ? await (backend as CloudObjectInventoryBackend).findExistingObjects({
+            for (final entry in uniquePayloads.entries)
+              if (!current.completedObjectIds.contains(entry.key))
+                entry.key: entry.value.length,
+          })
+        : const <String>{};
+    if (existingObjectIds.any((id) => !uniquePayloads.containsKey(id))) {
       throw const CloudFormatException(
-        'prepared object metadata is incomplete',
+        'backend inventory returned an unknown object',
       );
     }
 
     var manifestBytes = await dataSource.readUploadArtifact(
       current.operationId,
-      'manifest.bin',
+      'manifest.json',
     );
     if (manifestBytes == null) {
-      final manifest = SnapshotManifest(
+      manifestBytes = SnapshotManifest(
         snapshotId: current.snapshotId,
         createdAt: now().toUtc(),
-        objects: allMetadata,
-      );
-      manifestBytes = await codec.encode(
-        Uint8List.fromList(manifest.encode()),
-        objectId: current.snapshotId,
-        kind: 'manifest',
-      );
+        records: refs,
+      ).encode();
       await dataSource.writeUploadArtifact(
         current.operationId,
-        'manifest.bin',
+        'manifest.json',
         manifestBytes,
       );
+    } else {
+      final persisted = SnapshotManifest.decode(manifestBytes);
+      if (persisted.snapshotId != current.snapshotId ||
+          !_sameRefs(persisted.records, refs)) {
+        throw const CloudFormatException(
+          'pending manifest does not match staged snapshot',
+        );
+      }
     }
     final manifestSha = hashes.sha256.convert(manifestBytes).toString();
     if (current.manifestSha256 != null &&
@@ -95,14 +105,29 @@ class ResumableSnapshotUploader {
     }
 
     final totalBytes =
-        allMetadata.fold<int>(0, (sum, object) => sum + object.size) +
+        uniquePayloads.values.fold<int>(
+          0,
+          (sum, payload) => sum + payload.length,
+        ) +
         manifestBytes.length;
-    var completedObjects = current.completedObjects.length;
-    var completedBytes = current.completedObjects.fold<int>(
+    final completedIds = current.completedObjectIds.toSet();
+    var completedObjects = completedIds.length;
+    var completedBytes = completedIds.fold<int>(
       0,
-      (sum, object) => sum + object.size,
+      (sum, id) => sum + uniquePayloads[id]!.length,
     );
-    final totalObjects = records.length + 1;
+    final totalObjects = objectIds.length + 1;
+    final reusedObjects = objectIds.where(existingObjectIds.contains).length;
+    if (reusedObjects > 0) {
+      onProgress?.call(
+        SyncProgress(
+          phase: SyncPhase.reusing,
+          objectsCompleted: reusedObjects,
+          objectsTotal: objectIds.length,
+          objectsReused: reusedObjects,
+        ),
+      );
+    }
     onProgress?.call(
       SyncProgress(
         phase: SyncPhase.uploading,
@@ -110,67 +135,76 @@ class ResumableSnapshotUploader {
         objectsTotal: totalObjects,
         bytesCompleted: completedBytes,
         bytesTotal: totalBytes,
+        objectsReused: reusedObjects,
       ),
     );
 
-    final concurrency = _uploadConcurrency;
-    for (
-      var start = current.completedObjects.length;
-      start < records.length;
-      start += concurrency
-    ) {
-      await token.checkpoint();
-      final end = (start + concurrency).clamp(0, records.length);
-      final batch = <Future<void>>[];
-      for (var index = start; index < end; index++) {
-        final object = allMetadata[index];
-        batch.add(() async {
-          final artifactName = 'object-$index.bin';
-          final encoded = await dataSource.readUploadArtifact(
-            current.operationId,
-            artifactName,
-          );
-          if (encoded == null) {
-            throw CloudFormatException(
-              'prepared upload artifact $artifactName is missing',
-            );
-          }
-          await backend.putObject(
-            object.id,
-            encoded is Uint8List ? encoded : Uint8List.fromList(encoded),
-            sha256: object.sha256,
+    const checkpointBatchSize = 128;
+    var checkpointTail = Future<void>.value();
+    var checkpointedCount = completedIds.length;
+
+    Future<void> flushCompleted() {
+      if (completedIds.length == checkpointedCount) return checkpointTail;
+      checkpointedCount = completedIds.length;
+      final canonicalIds = completedIds.toList()..sort();
+      current = current.copyWith(
+        phase: JournalPhase.uploadingObjects,
+        completedObjectIds: canonicalIds,
+        now: now(),
+      );
+      final checkpointValue = current;
+      checkpointTail = checkpointTail.then((_) => checkpoint(checkpointValue));
+      return checkpointTail;
+    }
+
+    Future<void> recordCompleted(String objectId) {
+      completedIds.add(objectId);
+      if (completedIds.length - checkpointedCount < checkpointBatchSize) {
+        return Future<void>.value();
+      }
+      return flushCompleted();
+    }
+
+    final pending = [
+      for (final id in objectIds)
+        if (!completedIds.contains(id)) id,
+    ];
+    final scheduler = BoundedTransferScheduler(
+      maxConcurrentItems: _uploadConcurrency,
+      maxBytesInFlight: _transferLimits.maxBytesInFlight,
+    );
+    try {
+      await scheduler.run<String, void>(
+        items: [
+          for (final id in pending)
+            BoundedTransferItem(value: id, bytes: uniquePayloads[id]!.length),
+        ],
+        token: token,
+        transfer: (objectId) async {
+          final payload = uniquePayloads[objectId]!;
+          await _ensureObject(
+            objectId,
+            payload,
+            knownExisting: existingObjectIds.contains(objectId),
           );
           completedObjects++;
-          completedBytes += object.size;
+          completedBytes += payload.length;
           onProgress?.call(
             SyncProgress(
               phase: SyncPhase.uploading,
-              objectId: object.id,
+              objectId: objectId,
               objectsCompleted: completedObjects,
               objectsTotal: totalObjects,
               bytesCompleted: completedBytes,
               bytesTotal: totalBytes,
+              objectsReused: reusedObjects,
             ),
           );
-        }());
-      }
-      await Future.wait(batch);
-      current = current.copyWith(
-        phase: JournalPhase.uploadingObjects,
-        completedObjects: allMetadata.sublist(0, end),
-        now: now(),
+          await recordCompleted(objectId);
+        },
       );
-      await checkpoint(current);
-      for (var index = start; index < end; index++) {
-        await dataSource.deleteUploadArtifact(
-          current.operationId,
-          'object-$index.bin',
-        );
-        await dataSource.deleteUploadArtifact(
-          current.operationId,
-          'object-$index.json',
-        );
-      }
+    } finally {
+      await flushCompleted();
     }
 
     if (current.phase != JournalPhase.uploadingManifest) {
@@ -186,6 +220,7 @@ class ResumableSnapshotUploader {
       current.snapshotId,
       Uint8List.fromList(manifestBytes),
       sha256: manifestSha,
+      payloadVerified: true,
     );
     completedBytes += manifestBytes.length;
     onProgress?.call(
@@ -196,6 +231,7 @@ class ResumableSnapshotUploader {
         objectsTotal: totalObjects,
         bytesCompleted: completedBytes,
         bytesTotal: totalBytes,
+        objectsReused: reusedObjects,
       ),
     );
 
@@ -222,6 +258,16 @@ class ResumableSnapshotUploader {
       now: now(),
     );
     await checkpoint(current);
+    onProgress?.call(
+      SyncProgress(
+        phase: SyncPhase.committing,
+        objectsCompleted: totalObjects,
+        objectsTotal: totalObjects,
+        bytesCompleted: totalBytes,
+        bytesTotal: totalBytes,
+        objectsReused: reusedObjects,
+      ),
+    );
     await token.checkpoint();
     final remote = await backend.readHead();
     if (remote != null) {
@@ -246,91 +292,83 @@ class ResumableSnapshotUploader {
     return _checkpointCommitted(current, token, checkpoint);
   }
 
-  Future<SnapshotObject> _prepareObject(
-    SyncJournal journal,
-    CloudSyncRecord record,
-    int index,
-  ) async {
-    final objectId = '${journal.snapshotId}.$index';
-    final artifactName = 'object-$index.bin';
-    var encoded = await dataSource.readUploadArtifact(
-      journal.operationId,
-      artifactName,
-    );
-    if (encoded == null) {
-      final clear = await record.encodeForTransport();
-      if (clear.length > codec.maxClearObjectBytes) {
-        throw const CloudFormatException('record object is too large');
-      }
-      encoded = await codec.encode(
-        clear,
-        objectId: objectId,
-        kind: record.kind,
-      );
-      await dataSource.writeUploadArtifact(
-        journal.operationId,
-        artifactName,
-        encoded,
-      );
-    }
-    final metadata = SnapshotObject(
-      id: objectId,
-      kind: record.kind,
-      size: encoded.length,
-      sha256: hashes.sha256.convert(encoded).toString(),
-    );
-    final metadataName = 'object-$index.json';
-    final pendingMetadata = await dataSource.readUploadArtifact(
-      journal.operationId,
-      metadataName,
-    );
-    if (pendingMetadata == null) {
-      await dataSource.writeUploadArtifact(
-        journal.operationId,
-        metadataName,
-        utf8.encode(jsonEncode(metadata.toJson())),
-      );
-    } else {
-      final persisted = SnapshotObject.fromJson(
-        jsonDecode(utf8.decode(pendingMetadata)),
-      );
-      if (!_sameMetadata(persisted, metadata)) {
-        throw const CloudFormatException(
-          'pending object metadata does not match ciphertext',
-        );
+  Future<void> _ensureObject(
+    String objectId,
+    CloudSyncPayload payload, {
+    required bool knownExisting,
+  }) async {
+    if (knownExisting) return;
+    if (backend is! CloudObjectInventoryBackend) {
+      final existing = await backend.readObject(objectId);
+      if (existing != null) {
+        _verifyObject(objectId, payload.length, existing.bytes);
+        return;
       }
     }
-    return metadata;
+    final bytes = await _readPayloadForUpload(payload);
+    await backend.putObject(
+      objectId,
+      bytes,
+      sha256: objectId,
+      payloadVerified: true,
+    );
+  }
+
+  Future<Uint8List> _readPayloadForUpload(CloudSyncPayload payload) async {
+    final builder = BytesBuilder(copy: false);
+    var length = 0;
+    await for (final chunk in payload.readStream()) {
+      length += chunk.length;
+      if (length > payload.length) {
+        throw const CloudFormatException('record payload length mismatch');
+      }
+      builder.add(chunk);
+    }
+    if (length != payload.length) {
+      throw const CloudFormatException('record payload length mismatch');
+    }
+    final bytes = builder.takeBytes();
+    if (payload is! VerifiedCloudSyncPayload) {
+      CloudSyncTelemetry.recordHashPass();
+    }
+    if (payload is! VerifiedCloudSyncPayload &&
+        hashes.sha256.convert(bytes).toString() != payload.sha256) {
+      throw const CloudFormatException('record payload checksum mismatch');
+    }
+    return bytes;
   }
 
   Future<void> _verifyCompletedObjects(
     SyncJournal journal,
+    Map<String, CloudSyncPayload> payloads,
     OperationToken token,
   ) async {
-    final concurrency = _uploadConcurrency;
-    for (
-      var start = 0;
-      start < journal.completedObjects.length;
-      start += concurrency
-    ) {
-      await token.checkpoint();
-      final end = (start + concurrency).clamp(
-        0,
-        journal.completedObjects.length,
+    final scheduler = BoundedTransferScheduler(
+      maxConcurrentItems: _uploadConcurrency,
+      maxBytesInFlight: _transferLimits.maxBytesInFlight,
+    );
+    await scheduler.run<String, void>(
+      items: [
+        for (final id in journal.completedObjectIds)
+          BoundedTransferItem(value: id, bytes: payloads[id]!.length),
+      ],
+      token: token,
+      transfer: (id) async {
+        final remote = await backend.readObject(id);
+        if (remote == null) {
+          throw CloudFormatException('checkpointed object $id is missing');
+        }
+        _verifyObject(id, payloads[id]!.length, remote.bytes);
+      },
+    );
+  }
+
+  void _verifyObject(String objectId, int size, List<int> bytes) {
+    if (bytes.length != size ||
+        hashes.sha256.convert(bytes).toString() != objectId) {
+      throw CloudFormatException(
+        'object $objectId failed size or SHA-256 validation',
       );
-      await Future.wait([
-        for (var index = start; index < end; index++)
-          () async {
-            final metadata = journal.completedObjects[index];
-            final remote = await backend.readObject(metadata.id);
-            if (remote == null) {
-              throw CloudFormatException(
-                'checkpointed object ${metadata.id} is missing',
-              );
-            }
-            metadata.verify(remote.bytes);
-          }(),
-      ]);
     }
   }
 
@@ -339,7 +377,7 @@ class ResumableSnapshotUploader {
         ? (backend as ConcurrentCloudObjectUploadBackend)
               .maxConcurrentObjectUploads
         : 1;
-    return requested.clamp(1, 8);
+    return requested.clamp(1, _transferLimits.maxConcurrentItems);
   }
 
   Future<SyncJournal> _checkpointCommitted(
@@ -353,31 +391,35 @@ class ResumableSnapshotUploader {
           : JournalPhase.savingBase,
       now: now(),
     );
-    // Persist the irreversible remote commit before cancellation is observed.
     await checkpoint(committed);
     await token.checkpoint();
     return committed;
   }
 
-  void _validateCompletedPrefix(
-    SyncJournal journal,
-    List<CloudSyncRecord> records,
-  ) {
-    if (journal.completedObjects.length > records.length) {
-      throw const CloudFormatException('journal has excess objects');
-    }
-    for (var index = 0; index < journal.completedObjects.length; index++) {
-      final metadata = journal.completedObjects[index];
-      if (metadata.id != '${journal.snapshotId}.$index' ||
-          metadata.kind != records[index].kind) {
-        throw const CloudFormatException('journal object order mismatch');
-      }
+  void _validateCompletedSet(SyncJournal journal, List<String> objectIds) {
+    final expected = objectIds.toSet();
+    if (journal.completedObjectIds.any((id) => !expected.contains(id))) {
+      throw const CloudFormatException(
+        'journal checkpoint contains an unknown object',
+      );
     }
   }
 
-  static bool _sameMetadata(SnapshotObject left, SnapshotObject right) =>
-      left.id == right.id &&
-      left.kind == right.kind &&
-      left.size == right.size &&
-      left.sha256 == right.sha256;
+  bool _sameRefs(List<SnapshotRecordRef> left, List<SnapshotRecordRef> right) {
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index++) {
+      final a = left[index];
+      final b = right[index];
+      if (a.recordId != b.recordId ||
+          a.kind != b.kind ||
+          a.binary != b.binary ||
+          a.deleted != b.deleted ||
+          a.objectId != b.objectId ||
+          a.size != b.size ||
+          a.tombstoneIdentity != b.tombstoneIdentity) {
+        return false;
+      }
+    }
+    return true;
+  }
 }

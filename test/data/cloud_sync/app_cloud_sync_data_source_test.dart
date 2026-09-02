@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:crypto/crypto.dart';
 import 'package:nai_launcher/core/cloud_sync/cloud_sync.dart';
+import 'package:nai_launcher/core/cloud_sync/telemetry.dart';
 import 'package:nai_launcher/data/cloud_sync/cloud_sync.dart';
 
 void main() {
@@ -64,6 +65,109 @@ void main() {
   );
 
   test(
+    'capture reads source once and stage/base publish refs without payload copies',
+    () async {
+      final adapter = _Adapter();
+      var sourceOpens = 0;
+      adapter.exported = [
+        PortableSyncRecord(
+          adapterId: adapter.id,
+          id: 'single-pass',
+          kind: 'item',
+          resource: PortableSyncResource(
+            relativePath: 'single-pass.bin',
+            length: 4,
+            openRead: () {
+              sourceOpens++;
+              return Stream.value(const [1, 2, 3, 4]);
+            },
+          ),
+        ),
+      ];
+      final source = AppCloudSyncDataSource(
+        registry: CloudSyncDataAdapterRegistry([adapter]),
+        root: root,
+        chunkSize: 2,
+      );
+
+      CloudSyncTelemetrySnapshot? metrics;
+      late CloudSyncSnapshotData captured;
+      await CloudSyncTelemetry.trace(
+        'production-single-pass-capture',
+        () async {
+          captured = await source.captureLocal();
+          await source.stage(
+            'single-pass-op',
+            captured,
+            recoveryPoint: captured,
+          );
+          await source.saveBase(captured, 'single-pass-base');
+        },
+        onComplete: (value) => metrics = value,
+      );
+
+      expect(sourceOpens, 1);
+      expect(
+        metrics!.hashPasses,
+        captured.records.values
+            .where((record) => record.payload != null)
+            .length,
+      );
+      expect(adapter.exportCalls, 1);
+      expect(
+        Directory('${root.path}/staging/single-pass-op')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .any((file) => file.path.endsWith('.payload')),
+        isFalse,
+      );
+      for (final directory in [
+        Directory('${root.path}/staging/single-pass-op'),
+        Directory('${root.path}/recovery/single-pass-op'),
+        Directory('${root.path}/base'),
+      ]) {
+        final refs = directory
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('.ref'))
+            .toList();
+        expect(refs, hasLength(1));
+        final ready = directory
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('READY'))
+            .toList();
+        expect(ready, hasLength(1));
+      }
+    },
+  );
+
+  test('failed blob validation cannot publish a READY descriptor', () async {
+    final adapter = _Adapter()
+      ..exported = [
+        _portable('test-adapter', 'asset', [1, 2, 3]),
+      ];
+    final source = AppCloudSyncDataSource(
+      registry: CloudSyncDataAdapterRegistry([adapter]),
+      root: root,
+      chunkSize: 2,
+    );
+    final captured = await source.captureLocal();
+    await Directory(
+      '${root.path}/blobs',
+    ).list().first.then((entity) => (entity as File).delete());
+
+    await expectLater(
+      source.stage('failed-stage', captured, recoveryPoint: captured),
+      throwsA(isA<CloudFormatException>()),
+    );
+    expect(
+      await Directory('${root.path}/staging/failed-stage/refs').exists(),
+      isFalse,
+    );
+  });
+
+  test(
     'downloaded tombstone carries identity without a local common base',
     () async {
       final adapter = _Adapter();
@@ -71,16 +175,11 @@ void main() {
         registry: CloudSyncDataAdapterRegistry([adapter]),
         root: root,
       );
-      final identity = utf8.encode(
-        jsonEncode({
-          'version': 1,
-          'adapterId': adapter.id,
-          'portableId': 'gone',
-          'kind': 'item',
-          'data': <String, Object?>{},
-          'deleted': true,
-          'resource': null,
-        }),
+      final tombstone = PortableSyncRecord(
+        adapterId: adapter.id,
+        id: 'gone',
+        kind: 'item',
+        deleted: true,
       );
       final remote = CloudSyncSnapshotData([
         CloudSyncRecord(
@@ -88,11 +187,29 @@ void main() {
           kind: 'metadata',
           binary: false,
           deleted: true,
-          bytes: Uint8List.fromList(identity),
+          tombstoneIdentity: PortableRecordCodec.tombstoneIdentity(tombstone),
         ),
       ]);
 
-      await source.stage('download-op', remote);
+      final binaryTombstone = CloudSyncSnapshotData([
+        CloudSyncRecord(
+          id: _stableId(adapter.id, 'gone'),
+          kind: 'metadata',
+          binary: true,
+          deleted: true,
+          tombstoneIdentity: PortableRecordCodec.tombstoneIdentity(tombstone),
+        ),
+      ]);
+      await expectLater(
+        source.stage('invalid-tombstone', binaryTombstone),
+        throwsA(isA<CloudFormatException>()),
+      );
+
+      final recovery = await source.buildRecoveryPoint(
+        local: await source.captureLocal(),
+        target: remote,
+      );
+      await source.stage('download-op', remote, recoveryPoint: recovery);
       await source.apply('download-op');
 
       expect(adapter.applied, hasLength(1));
@@ -101,6 +218,71 @@ void main() {
       expect(adapter.applied.single.deleted, isTrue);
     },
   );
+
+  test('recovery tombstones newly introduced allowlisted metadata', () async {
+    final adapter = _Adapter();
+    final source = AppCloudSyncDataSource(
+      registry: CloudSyncDataAdapterRegistry([adapter]),
+      root: root,
+    );
+    final metadata = utf8.encode(
+      jsonEncode({
+        'version': 2,
+        'adapterId': adapter.id,
+        'portableId': 'new-local-record',
+        'kind': 'item',
+        'data': <String, Object?>{},
+        'deleted': false,
+        'resource': null,
+      }),
+    );
+    final metadataBytes = Uint8List.fromList(metadata);
+    final metadataSha = sha256.convert(metadataBytes).toString();
+    final target = CloudSyncSnapshotData([
+      CloudSyncRecord(
+        id: _stableId(adapter.id, 'new-local-record'),
+        kind: 'metadata',
+        binary: false,
+        deleted: false,
+        payload: await source.materializeRemotePayload(
+          metadataBytes,
+          expectedLength: metadataBytes.length,
+          expectedSha256: metadataSha,
+        ),
+      ),
+    ]);
+    final recovery = await source.buildRecoveryPoint(
+      local: await source.captureLocal(),
+      target: target,
+    );
+
+    await source.stage('partial-apply', target, recoveryPoint: recovery);
+    await source.rollbackForRecovery('partial-apply');
+
+    expect(adapter.applied, hasLength(1));
+    expect(adapter.applied.single.id, 'new-local-record');
+    expect(adapter.applied.single.deleted, isTrue);
+  });
+
+  test('corrupt staged ref cannot block durable recovery rollback', () async {
+    final adapter = _Adapter();
+    final source = AppCloudSyncDataSource(
+      registry: CloudSyncDataAdapterRegistry([adapter]),
+      root: root,
+    );
+    final recovery = await source.captureLocal();
+    final target = await source.captureLocal();
+    await source.stage('corrupt-ref', target, recoveryPoint: recovery);
+    final ref = Directory('${root.path}/staging/corrupt-ref/refs')
+        .listSync()
+        .whereType<File>()
+        .singleWhere((file) => file.path.endsWith('.ref'));
+    await ref.writeAsString('{broken', flush: true);
+
+    await source.rollbackForRecovery('corrupt-ref');
+
+    expect(adapter.applied, isEmpty);
+  });
 
   test('resource chunks cannot exceed the plain object payload budget', () {
     final adapter = _Adapter();
@@ -127,16 +309,28 @@ void main() {
         root: Directory('${root.path}/remote'),
         chunkSize: 2,
       );
-      final remote = await _resident(await remoteSource.captureLocal());
+      final remoteCapture = await remoteSource.captureLocal();
       final localAdapter = _Adapter('local-adapter');
       final localSource = AppCloudSyncDataSource(
         registry: CloudSyncDataAdapterRegistry([localAdapter]),
         root: Directory('${root.path}/local'),
         chunkSize: 2,
       );
+      final remote = CloudSyncSnapshotData(
+        await Future.wait(
+          remoteCapture.records.values.map(
+            (record) => _materializeRecord(localSource, record),
+          ),
+        ),
+      );
 
-      await localSource.stage('remote-range', remote);
+      final recovery = await localSource.buildRecoveryPoint(
+        local: await localSource.captureLocal(),
+        target: remote,
+      );
+      await localSource.stage('remote-range', remote, recoveryPoint: recovery);
       await localSource.apply('remote-range');
+      await localSource.rollbackForRecovery('remote-range');
       await localSource.saveBase(remote, 'snapshot');
       final next = await localSource.captureLocal();
 
@@ -162,7 +356,7 @@ void main() {
         root: root,
         chunkSize: 2,
       );
-      final base = await _resident(await initial.captureLocal());
+      final base = await initial.captureLocal();
       await initial.saveBase(base, 'base');
       retained.exported = [];
       final narrowed = AppCloudSyncDataSource(
@@ -176,7 +370,14 @@ void main() {
         stableId: _stableId,
       ).decode(captured);
 
-      expect(decoded.records[_stableId('retained', 'one')]!.deleted, isTrue);
+      expect(
+        decoded.records.values
+            .singleWhere(
+              (record) => record.adapterId == 'retained' && record.id == 'one',
+            )
+            .deleted,
+        isTrue,
+      );
       expect(decoded.records[_stableId('removed', 'two')]!.deleted, isFalse);
       expect(decoded.metadataChunks[_stableId('removed', 'two')], [
         '${_stableId('removed', 'two')}.c0',
@@ -195,7 +396,7 @@ void main() {
         registry: CloudSyncDataAdapterRegistry([adapter]),
         root: root,
       );
-      final valid = await _resident(await source.captureLocal());
+      final valid = await source.captureLocal();
       final metadata = valid.records.values.singleWhere(
         (record) => record.kind == 'metadata',
       );
@@ -230,6 +431,43 @@ void main() {
           throwsA(isA<CloudFormatException>()),
         );
       }
+      final mismatchedMetadata = CloudSyncSnapshotData([
+        for (final record in valid.records.values)
+          if (record.id == metadata.id)
+            CloudSyncRecord(
+              id: record.id,
+              kind: record.kind,
+              binary: !record.binary,
+              deleted: false,
+              payload: record.payload,
+            )
+          else
+            record,
+      ]);
+      await expectLater(
+        source.stage('mismatched-metadata', mismatchedMetadata),
+        throwsA(isA<CloudFormatException>()),
+      );
+      final resourceChunk = valid.records.values.singleWhere(
+        (record) => record.kind == 'resource',
+      );
+      final nonBinaryResource = CloudSyncSnapshotData([
+        for (final record in valid.records.values)
+          if (record.id == resourceChunk.id)
+            CloudSyncRecord(
+              id: record.id,
+              kind: record.kind,
+              binary: false,
+              deleted: false,
+              payload: record.payload,
+            )
+          else
+            record,
+      ]);
+      await expectLater(
+        source.stage('non-binary-resource', nonBinaryResource),
+        throwsA(isA<CloudFormatException>()),
+      );
       final orphan = CloudSyncSnapshotData([
         ...valid.records.values,
         CloudSyncRecord(
@@ -261,15 +499,15 @@ void main() {
       adapter.exported = [
         _portable(adapter.id, 'asset', [1, 1, 1]),
       ];
-      final base = await _resident(await source.captureLocal());
+      final base = await source.captureLocal();
       adapter.exported = [
         _portable(adapter.id, 'asset', [2, 2, 2]),
       ];
-      final local = await _resident(await source.captureLocal());
+      final local = await source.captureLocal();
       adapter.exported = [
         _portable(adapter.id, 'asset', [3, 3, 3]),
       ];
-      final remote = await _resident(await source.captureLocal());
+      final remote = await source.captureLocal();
 
       final merged = await const CloudRecordMerger().merge(
         base: base,
@@ -325,10 +563,10 @@ void main() {
       adapter.exported = [
         _portable(adapter.id, 'asset', [1, 2, 3]),
       ];
-      final base = await _resident(await source.captureLocal());
+      final base = await source.captureLocal();
       await source.saveBase(base, 'base');
       adapter.exported = [];
-      final local = await _resident(await source.captureLocal());
+      final local = await source.captureLocal();
 
       final merged = await const CloudRecordMerger().merge(
         base: base,
@@ -371,8 +609,30 @@ void main() {
       expect(await rebuilt.stagedFingerprint('durable-op'), fingerprint);
       expect(recovered.records.keys, unorderedEquals(target.records.keys));
 
-      await rebuilt.writeUploadArtifact('durable-op', 'object-0.bin', [7, 8]);
-      await rebuilt.completeOperation('durable-op');
+      final applying = AppCloudSyncDataSource(
+        registry: CloudSyncDataAdapterRegistry([adapter]),
+        root: root,
+        chunkSize: 2,
+      );
+      CloudSyncTelemetrySnapshot? applyMetrics;
+      await CloudSyncTelemetry.trace(
+        'durable-apply-test',
+        () => applying.apply('durable-op'),
+        onComplete: (value) => applyMetrics = value,
+      );
+      expect(
+        applyMetrics!.payloadReads,
+        target.records.values
+            .where((record) => record.kind == 'metadata')
+            .length,
+      );
+      expect(
+        applyMetrics!.hashPasses,
+        target.records.values.where((record) => record.payload != null).length,
+      );
+
+      await applying.writeUploadArtifact('durable-op', 'object-0.bin', [7, 8]);
+      await applying.completeOperation('durable-op');
       expect(
         await Directory('${root.path}/staging/durable-op').exists(),
         isFalse,
@@ -388,7 +648,170 @@ void main() {
     },
   );
 
-  test('truncated staged payload is rejected before apply', () async {
+  test(
+    'sync and restore previews survive data source reconstruction',
+    () async {
+      final adapter = _Adapter()
+        ..exported = [
+          _portable('test-adapter', 'asset', [1, 2, 3]),
+        ];
+      final source = AppCloudSyncDataSource(
+        registry: CloudSyncDataAdapterRegistry([adapter]),
+        root: root,
+        chunkSize: 2,
+      );
+      final snapshot = await source.captureLocal();
+      final head = SnapshotHead(
+        snapshotId: 'snapshot-1',
+        manifestSha256: List.filled(64, 'a').join(),
+        updatedAt: DateTime.utc(2026),
+      );
+      await source.saveSyncPreview(
+        CloudSyncPreparedPreview(
+          local: snapshot,
+          base: const CloudSyncSnapshotData.empty(),
+          remoteRevision: 'revision-1',
+          remoteHead: head,
+          remote: snapshot,
+        ),
+      );
+      await source.saveRestorePreview(
+        'snapshot-1',
+        CloudSyncPreparedRestore(
+          local: snapshot,
+          target: snapshot,
+          remoteRevision: 'remote-revision',
+        ),
+      );
+
+      final rebuilt = AppCloudSyncDataSource(
+        registry: CloudSyncDataAdapterRegistry([adapter]),
+        root: root,
+        chunkSize: 2,
+      );
+      final syncPreview = await rebuilt.readSyncPreview();
+      final restorePreview = await rebuilt.readRestorePreview('snapshot-1');
+
+      expect(syncPreview!.remoteRevision, 'revision-1');
+      expect(syncPreview.remoteHead!.snapshotId, 'snapshot-1');
+      expect(
+        syncPreview.local.records.keys,
+        unorderedEquals(snapshot.records.keys),
+      );
+      expect(
+        restorePreview!.target.records.keys,
+        unorderedEquals(snapshot.records.keys),
+      );
+
+      await rebuilt.deleteSyncPreview();
+      await rebuilt.deleteRestorePreviews();
+      expect(await rebuilt.readSyncPreview(), isNull);
+      expect(await rebuilt.readRestorePreview('snapshot-1'), isNull);
+    },
+  );
+
+  test(
+    'startup GC preserves blobs referenced only by a durable preview',
+    () async {
+      final registry = CloudSyncDataAdapterRegistry([_Adapter()]);
+      final source = AppCloudSyncDataSource(registry: registry, root: root);
+      const bytes = [9, 8, 7];
+      final payload = await source.materializeRemotePayload(
+        bytes,
+        expectedLength: bytes.length,
+        expectedSha256: sha256.convert(bytes).toString(),
+      );
+      final remote = CloudSyncSnapshotData([
+        CloudSyncRecord(
+          id: 'remote-only',
+          kind: 'resource',
+          binary: true,
+          deleted: false,
+          payload: payload,
+        ),
+      ]);
+      await source.saveSyncPreview(
+        CloudSyncPreparedPreview(
+          local: const CloudSyncSnapshotData.empty(),
+          base: const CloudSyncSnapshotData.empty(),
+          remoteRevision: 'revision',
+          remoteHead: SnapshotHead(
+            snapshotId: 'remote-snapshot',
+            manifestSha256: List.filled(64, 'a').join(),
+            updatedAt: DateTime.utc(2026),
+          ),
+          remote: remote,
+        ),
+      );
+      final blob = File('${root.path}/blobs/${payload.sha256}');
+      await blob.setLastModified(
+        DateTime.now().toUtc().subtract(const Duration(days: 8)),
+      );
+
+      final rebuilt = AppCloudSyncDataSource(registry: registry, root: root);
+      await rebuilt.captureLocal();
+      final preview = await rebuilt.readSyncPreview();
+
+      expect(await preview!.remote!.records['remote-only']!.readBytes(), [
+        9,
+        8,
+        7,
+      ]);
+    },
+  );
+
+  test(
+    'base recovery survives a crash after publishing the replacement base',
+    () async {
+      final adapter = _Adapter()
+        ..exported = [
+          _portable('test-adapter', 'asset', [1]),
+        ];
+      final source = AppCloudSyncDataSource(
+        registry: CloudSyncDataAdapterRegistry([adapter]),
+        root: root,
+      );
+      final previous = await source.captureLocal();
+      await source.saveBase(previous, 'previous-base');
+      adapter.exported = [
+        _portable('test-adapter', 'asset', [2]),
+      ];
+      final target = await source.captureLocal();
+      await source.stage(
+        'base-publication-crash',
+        target,
+        recoveryPoint: previous,
+      );
+      await source.apply('base-publication-crash');
+      await source.saveBase(target, 'replacement-base');
+
+      final rebuilt = AppCloudSyncDataSource(
+        registry: CloudSyncDataAdapterRegistry([adapter]),
+        root: root,
+      );
+      await rebuilt.rollbackForRecovery('base-publication-crash');
+      await rebuilt.restoreBaseForRecovery('base-publication-crash');
+
+      final restoredBase = await rebuilt.readBase();
+      expect(
+        restoredBase!.records.keys,
+        unorderedEquals(previous.records.keys),
+      );
+      for (final entry in previous.records.entries) {
+        expect(restoredBase.records[entry.key], entry.value);
+      }
+      expect(await adapter.applied.last.resource!.openRead().single, [1]);
+      await rebuilt.completeOperation('base-publication-crash');
+      expect(
+        await Directory(
+          '${root.path}/base-recovery/base-publication-crash',
+        ).exists(),
+        isFalse,
+      );
+    },
+  );
+
+  test('same-size blob corruption is rejected after reconstruction', () async {
     final adapter = _Adapter()
       ..exported = [
         _portable('test-adapter', 'asset', [1, 2, 3]),
@@ -399,18 +822,128 @@ void main() {
       chunkSize: 2,
     );
     await source.stage('truncated-op', await source.captureLocal());
-    final payloads = Directory('${root.path}/staging/truncated-op')
-        .listSync()
-        .whereType<File>()
-        .where((file) => file.path.endsWith('.payload'))
-        .toList();
-    await payloads.first.writeAsBytes(const [1], flush: true);
+    final blobs = Directory(
+      '${root.path}/blobs',
+    ).listSync().whereType<File>().toList();
+    final resourceBlob = blobs.singleWhere((blob) => blob.lengthSync() == 2);
+    final original = await resourceBlob.readAsBytes();
+    original[0] ^= 0xff;
+    await resourceBlob.writeAsBytes(original, flush: true);
+    final rebuilt = AppCloudSyncDataSource(
+      registry: CloudSyncDataAdapterRegistry([adapter]),
+      root: root,
+      chunkSize: 2,
+    );
 
     await expectLater(
-      source.readStaged('truncated-op'),
+      rebuilt.readStaged('truncated-op'),
       throwsA(isA<CloudFormatException>()),
     );
     expect(adapter.applied, isEmpty);
+  });
+
+  test(
+    'startup maintenance removes expired orphan and temporary blobs',
+    () async {
+      final source = AppCloudSyncDataSource(
+        registry: CloudSyncDataAdapterRegistry([_Adapter()]),
+        root: root,
+      );
+      final bytes = Uint8List.fromList([9, 8, 7]);
+      final digest = sha256.convert(bytes).toString();
+      await source.materializeRemotePayload(
+        bytes,
+        expectedLength: bytes.length,
+        expectedSha256: digest,
+      );
+      final old = DateTime.now().subtract(const Duration(days: 8));
+      final orphan = File('${root.path}/blobs/$digest');
+      await orphan.setLastModified(old);
+      final temporary = File('${root.path}/blob-temporary/interrupted');
+      await temporary.parent.create(recursive: true);
+      await temporary.writeAsBytes([1]);
+      await temporary.setLastModified(old);
+
+      final rebuilt = AppCloudSyncDataSource(
+        registry: CloudSyncDataAdapterRegistry([_Adapter()]),
+        root: root,
+      );
+      await rebuilt.captureLocal();
+
+      expect(await orphan.exists(), isFalse);
+      expect(await temporary.exists(), isFalse);
+    },
+  );
+
+  test(
+    'apply skips unchanged live records and sends only changed records',
+    () async {
+      final adapter = _Adapter();
+      final source = AppCloudSyncDataSource(
+        registry: CloudSyncDataAdapterRegistry([adapter]),
+        root: root,
+      );
+      adapter.exported = [
+        _portable(adapter.id, 'unchanged', [1]),
+        _portable(adapter.id, 'changed', [2]),
+      ];
+      final local = await source.captureLocal();
+      final equivalentTarget = await source.captureLocal();
+
+      await source.stage(
+        'unchanged-op',
+        equivalentTarget,
+        recoveryPoint: local,
+      );
+      await source.apply('unchanged-op');
+      expect(adapter.applyCalls, 0);
+
+      adapter.exported = [
+        _portable(adapter.id, 'unchanged', [1]),
+        _portable(adapter.id, 'changed', [3]),
+      ];
+      final target = await source.captureLocal();
+      await source.stage('changed-op', target, recoveryPoint: local);
+      await source.apply('changed-op');
+
+      expect(adapter.applyCalls, 1);
+      expect(adapter.applied.map((record) => record.id), ['changed']);
+    },
+  );
+
+  test('apply deletes a live baseline record omitted by the target', () async {
+    final adapter = _Adapter();
+    final source = AppCloudSyncDataSource(
+      registry: CloudSyncDataAdapterRegistry([adapter]),
+      root: root,
+    );
+    adapter.exported = [
+      PortableSyncRecord(
+        adapterId: adapter.id,
+        id: 'removed',
+        kind: 'item',
+        data: const {'name': 'local'},
+      ),
+    ];
+    final local = await source.captureLocal();
+    final target = CloudSyncSnapshotData(const []);
+    final recovery = await source.buildRecoveryPoint(
+      local: local,
+      target: target,
+    );
+
+    await source.stage('removed-op', target, recoveryPoint: recovery);
+    await source.apply('removed-op');
+
+    expect(adapter.applyCalls, 1);
+    expect(adapter.applied, hasLength(1));
+    final deletion = adapter.applied.single;
+    expect(deletion.adapterId, adapter.id);
+    expect(deletion.id, 'removed');
+    expect(deletion.kind, 'item');
+    expect(deletion.data, const {'name': 'local'});
+    expect(deletion.deleted, isTrue);
+    expect(deletion.resource, isNull);
   });
 }
 
@@ -420,6 +953,8 @@ class _Adapter extends ValidatingCloudSyncDataAdapter
 
   List<PortableSyncRecord> exported = [];
   List<PortableSyncRecord> applied = [];
+  int exportCalls = 0;
+  int applyCalls = 0;
 
   @override
   final String id;
@@ -428,10 +963,14 @@ class _Adapter extends ValidatingCloudSyncDataAdapter
   Set<String> get allowedKinds => const {'item'};
 
   @override
-  Stream<PortableSyncRecord> exportRecords() => Stream.fromIterable(exported);
+  Stream<PortableSyncRecord> exportRecords() async* {
+    exportCalls++;
+    yield* Stream.fromIterable(exported);
+  }
 
   @override
   Future<void> apply(List<PortableSyncRecord> records) async {
+    applyCalls++;
     applied = records;
   }
 
@@ -467,24 +1006,31 @@ PortableSyncRecord _portable(String adapterId, String id, List<int> bytes) =>
       ),
     );
 
+Future<CloudSyncRecord> _materializeRecord(
+  AppCloudSyncDataSource source,
+  CloudSyncRecord record,
+) async {
+  if (record.deleted) return record;
+  final bytes = await record.payload!.readBytes();
+  return CloudSyncRecord(
+    id: record.id,
+    kind: record.kind,
+    binary: record.binary,
+    deleted: false,
+    payload: await source.materializeRemotePayload(
+      bytes,
+      expectedLength: record.payload!.length,
+      expectedSha256: record.payload!.sha256,
+    ),
+  );
+}
+
 String _stableId(String adapterId, String id) =>
     'r-${sha256.convert(utf8.encode('$adapterId\u0000$id'))}';
 
 Future<List<int>> _readAll(PortableSyncResource resource) => resource
     .openRead()
     .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk));
-
-Future<CloudSyncSnapshotData> _resident(CloudSyncSnapshotData source) async =>
-    CloudSyncSnapshotData([
-      for (final record in source.records.values)
-        CloudSyncRecord(
-          id: record.id,
-          kind: record.kind,
-          binary: record.binary,
-          deleted: record.deleted,
-          bytes: await record.readBytes(),
-        ),
-    ]);
 
 CloudSyncSnapshotData _replaceMetadata(
   CloudSyncSnapshotData source,

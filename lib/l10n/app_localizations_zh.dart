@@ -12800,6 +12800,48 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get cloudSync_errorAuthentication => '登录状态已过期，请重新连接账号。';
+
+  @override
+  String get cloudSync_errorAuthorization => '当前账号无权访问备份位置。';
+
+  @override
+  String get cloudSync_errorNotFound => '未找到云端备份目录或文件。';
+
+  @override
+  String get cloudSync_errorConflict => '云端数据已被其他设备更新，请先拉取最新数据再重试。';
+
+  @override
+  String get cloudSync_errorQuota => '云存储空间不足。';
+
+  @override
+  String get cloudSync_errorRateLimited => '云存储请求过于频繁，请稍后重试。';
+
+  @override
+  String get cloudSync_errorRedirect => '服务商将请求重定向到不受信任的地址，操作已停止。';
+
+  @override
+  String get cloudSync_errorInvalidResponse => '服务商返回了无法验证的数据。';
+
+  @override
+  String get cloudSync_errorNetwork => '无法连接云存储，请检查网络后重试。';
+
+  @override
+  String get cloudSync_errorPreviewStale => '预览后数据发生了变化，请重新查看变化后再继续。';
+
+  @override
+  String get cloudSync_errorFormat => '备份格式或完整性校验失败。';
+
+  @override
+  String get cloudSync_errorConfiguration => '保存的同步配置无法读取。';
+
+  @override
+  String get cloudSync_errorState => '同步状态已变化，请重试当前操作。';
+
+  @override
+  String get cloudSync_errorUnknown => '同步失败，请检查连接后重试。';
+
+  @override
   String get cloudSync_connectionDetails => '存储信息';
 
   @override
@@ -12818,11 +12860,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_providerWarning => '存储服务提示';
 
   @override
-  String get cloudSync_maintenanceWarning => '需要注意';
+  String get cloudSync_warningGoogleDriveWeakCas =>
+      'Google Drive 无法保证文件内容的原子条件更新，因此此连接仅支持显式手动推送与拉取。';
 
   @override
-  String get cloudSync_maintenanceWarningDescription =>
-      '云端空间暂时无法自动整理。现有备份不受影响，稍后会自动重试。';
+  String get cloudSync_warningGithubPublicRepository =>
+      '当前 GitHub 仓库是公开仓库，备份内容也会公开。私密数据请改用私有仓库。';
+
+  @override
+  String get cloudSync_warningWebDavWeakCas =>
+      '此服务器无法保证安全的条件更新。当前仅支持手动备份，后续写入可能替换同一个 HEAD。';
+
+  @override
+  String get cloudSync_warningWebDavUnverifiedCas =>
+      'WebDAV 连接已通过只读验证，但尚未验证安全的条件写入。当前仅支持手动推送与拉取。';
 
   @override
   String get cloudSync_githubHistoryRetention => 'GitHub 空间说明';
@@ -12876,10 +12927,43 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_progress => '传输进度';
 
   @override
+  String get cloudSync_metricsDetails => '技术详情';
+
+  @override
+  String get cloudSync_metricsElapsed => '总耗时';
+
+  @override
+  String get cloudSync_metricsRequests => '服务请求';
+
+  @override
+  String get cloudSync_metricsRead => '已接收';
+
+  @override
+  String get cloudSync_metricsWritten => '已发送';
+
+  @override
+  String get cloudSync_metricsHashPasses => '完整性校验';
+
+  @override
+  String get cloudSync_metricsPayloadReads => '数据读取次数';
+
+  @override
+  String get cloudSync_metricsLocalRead => '本地读取';
+
+  @override
+  String get cloudSync_metricsLocalWritten => '本地写入';
+
+  @override
+  String get cloudSync_metricsFlushes => '磁盘刷新';
+
+  @override
   String get cloudSync_stage => '当前进度';
 
   @override
   String get cloudSync_objects => '已处理';
+
+  @override
+  String get cloudSync_reusedObjects => '已复用未变化项';
 
   @override
   String get cloudSync_bytes => '已传输';
@@ -12888,16 +12972,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_stagePreparing => '正在准备';
 
   @override
+  String get cloudSync_stageScanning => '正在扫描所选数据';
+
+  @override
+  String get cloudSync_stageHashing => '正在校验本地内容';
+
+  @override
   String get cloudSync_stageDownloading => '正在下载';
+
+  @override
+  String get cloudSync_stageVerifying => '正在校验下载内容';
 
   @override
   String get cloudSync_stageMerging => '正在整理两端内容';
 
   @override
+  String get cloudSync_stageReusing => '正在复用未变化内容';
+
+  @override
   String get cloudSync_stageUploading => '正在上传';
 
   @override
+  String get cloudSync_stageCommitting => '正在发布备份';
+
+  @override
   String get cloudSync_stageApplying => '正在保存更改';
+
+  @override
+  String get cloudSync_stageSaving => '正在保存恢复状态';
+
+  @override
+  String get cloudSync_stageRetryWaiting => '等待重试';
 
   @override
   String get cloudSync_stageRollingBack => '正在恢复原状';
@@ -26418,6 +26523,48 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get cloudSync_errorAuthentication => '登入狀態已過期，請重新連接帳號。';
+
+  @override
+  String get cloudSync_errorAuthorization => '目前帳號無權存取備份位置。';
+
+  @override
+  String get cloudSync_errorNotFound => '找不到雲端備份目錄或檔案。';
+
+  @override
+  String get cloudSync_errorConflict => '雲端資料已被其他裝置更新，請先拉取最新資料再重試。';
+
+  @override
+  String get cloudSync_errorQuota => '雲端儲存空間不足。';
+
+  @override
+  String get cloudSync_errorRateLimited => '雲端儲存要求過於頻繁，請稍後重試。';
+
+  @override
+  String get cloudSync_errorRedirect => '服務商將要求重新導向至不受信任的位址，操作已停止。';
+
+  @override
+  String get cloudSync_errorInvalidResponse => '服務商傳回了無法驗證的資料。';
+
+  @override
+  String get cloudSync_errorNetwork => '無法連接雲端儲存，請檢查網路後重試。';
+
+  @override
+  String get cloudSync_errorPreviewStale => '預覽後資料已變更，請重新查看變更後再繼續。';
+
+  @override
+  String get cloudSync_errorFormat => '備份格式或完整性驗證失敗。';
+
+  @override
+  String get cloudSync_errorConfiguration => '無法讀取已儲存的同步設定。';
+
+  @override
+  String get cloudSync_errorState => '同步狀態已變更，請重試目前操作。';
+
+  @override
+  String get cloudSync_errorUnknown => '同步失敗，請檢查連線後重試。';
+
+  @override
   String get cloudSync_connectionDetails => '儲存資訊';
 
   @override
@@ -26436,11 +26583,20 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_providerWarning => '儲存服務提示';
 
   @override
-  String get cloudSync_maintenanceWarning => '需要注意';
+  String get cloudSync_warningGoogleDriveWeakCas =>
+      'Google Drive 無法保證檔案內容的原子條件更新，因此此連線僅支援明確的手動推送與拉取。';
 
   @override
-  String get cloudSync_maintenanceWarningDescription =>
-      '雲端空間暫時無法自動整理。現有備份不受影響，稍後會自動重試。';
+  String get cloudSync_warningGithubPublicRepository =>
+      '目前的 GitHub 儲存庫是公開儲存庫，備份內容也會公開。私密資料請改用私人儲存庫。';
+
+  @override
+  String get cloudSync_warningWebDavWeakCas =>
+      '此伺服器無法保證安全的條件更新。目前僅支援手動備份，後續寫入可能取代同一個 HEAD。';
+
+  @override
+  String get cloudSync_warningWebDavUnverifiedCas =>
+      'WebDAV 連線已通過唯讀驗證，但尚未驗證安全的條件寫入。目前僅支援手動推送與拉取。';
 
   @override
   String get cloudSync_githubHistoryRetention => 'GitHub 空間說明';
@@ -26494,10 +26650,43 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_progress => '傳輸進度';
 
   @override
+  String get cloudSync_metricsDetails => '技術詳情';
+
+  @override
+  String get cloudSync_metricsElapsed => '總耗時';
+
+  @override
+  String get cloudSync_metricsRequests => '服務要求';
+
+  @override
+  String get cloudSync_metricsRead => '已接收';
+
+  @override
+  String get cloudSync_metricsWritten => '已傳送';
+
+  @override
+  String get cloudSync_metricsHashPasses => '完整性驗證';
+
+  @override
+  String get cloudSync_metricsPayloadReads => '資料讀取次數';
+
+  @override
+  String get cloudSync_metricsLocalRead => '本機讀取';
+
+  @override
+  String get cloudSync_metricsLocalWritten => '本機寫入';
+
+  @override
+  String get cloudSync_metricsFlushes => '磁碟刷新';
+
+  @override
   String get cloudSync_stage => '目前進度';
 
   @override
   String get cloudSync_objects => '已處理';
+
+  @override
+  String get cloudSync_reusedObjects => '已重用未變更項目';
 
   @override
   String get cloudSync_bytes => '已傳輸';
@@ -26506,16 +26695,37 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_stagePreparing => '正在準備';
 
   @override
+  String get cloudSync_stageScanning => '正在掃描所選資料';
+
+  @override
+  String get cloudSync_stageHashing => '正在驗證本機內容';
+
+  @override
   String get cloudSync_stageDownloading => '正在下載';
+
+  @override
+  String get cloudSync_stageVerifying => '正在驗證下載內容';
 
   @override
   String get cloudSync_stageMerging => '正在整理兩端內容';
 
   @override
+  String get cloudSync_stageReusing => '正在重用未變更內容';
+
+  @override
   String get cloudSync_stageUploading => '正在上傳';
 
   @override
+  String get cloudSync_stageCommitting => '正在發佈備份';
+
+  @override
   String get cloudSync_stageApplying => '正在儲存變更';
+
+  @override
+  String get cloudSync_stageSaving => '正在儲存復原狀態';
+
+  @override
+  String get cloudSync_stageRetryWaiting => '等待重試';
 
   @override
   String get cloudSync_stageRollingBack => '正在恢復原狀';

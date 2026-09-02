@@ -13018,6 +13018,53 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get cloudSync_errorAuthentication =>
+      'ログインの有効期限が切れました。アカウントを再接続してください。';
+
+  @override
+  String get cloudSync_errorAuthorization => 'このアカウントにはバックアップ先へのアクセス権がありません。';
+
+  @override
+  String get cloudSync_errorNotFound => 'クラウドのバックアップフォルダーまたはファイルが見つかりません。';
+
+  @override
+  String get cloudSync_errorConflict =>
+      '別のデバイスでクラウドデータが更新されました。最新データを取得してから再試行してください。';
+
+  @override
+  String get cloudSync_errorQuota => 'クラウドストレージの空き容量が不足しています。';
+
+  @override
+  String get cloudSync_errorRateLimited =>
+      'ストレージサービスへのリクエストが多すぎます。しばらくしてから再試行してください。';
+
+  @override
+  String get cloudSync_errorRedirect => '信頼されていないアドレスへリダイレクトされたため、操作を停止しました。';
+
+  @override
+  String get cloudSync_errorInvalidResponse => 'ストレージサービスから検証できないデータが返されました。';
+
+  @override
+  String get cloudSync_errorNetwork =>
+      'クラウドストレージに接続できません。ネットワークを確認して再試行してください。';
+
+  @override
+  String get cloudSync_errorPreviewStale =>
+      'プレビュー後にデータが変更されました。更新された変更内容を確認してから続行してください。';
+
+  @override
+  String get cloudSync_errorFormat => 'バックアップ形式または整合性の検証に失敗しました。';
+
+  @override
+  String get cloudSync_errorConfiguration => '保存済みの同期設定を読み取れません。';
+
+  @override
+  String get cloudSync_errorState => '同期状態が変更されました。操作を再試行してください。';
+
+  @override
+  String get cloudSync_errorUnknown => '同期に失敗しました。接続を確認して再試行してください。';
+
+  @override
   String get cloudSync_connectionDetails => '保存先情報';
 
   @override
@@ -13037,11 +13084,20 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_providerWarning => '保存サービスからのお知らせ';
 
   @override
-  String get cloudSync_maintenanceWarning => '確認が必要です';
+  String get cloudSync_warningGoogleDriveWeakCas =>
+      'Google Drive はファイル内容のアトミックな条件付き更新を保証できないため、この接続では明示的な手動プッシュとプルのみ利用できます。';
 
   @override
-  String get cloudSync_maintenanceWarningDescription =>
-      'クラウド領域を一時的に自動整理できません。既存のバックアップには影響せず、後でもう一度試します。';
+  String get cloudSync_warningGithubPublicRepository =>
+      'この GitHub リポジトリは公開されています。バックアップ内容も公開されるため、非公開データにはプライベートリポジトリを使用してください。';
+
+  @override
+  String get cloudSync_warningWebDavWeakCas =>
+      'このサーバーは安全な条件付き更新を保証できません。手動バックアップのみ利用でき、後続の書き込みで同じ HEAD が置き換わる可能性があります。';
+
+  @override
+  String get cloudSync_warningWebDavUnverifiedCas =>
+      'WebDAV 接続の読み取り専用検証は完了しましたが、安全な条件付き書き込みは未検証です。手動プッシュとプルのみ利用できます。';
 
   @override
   String get cloudSync_githubHistoryRetention => 'GitHub の保存容量について';
@@ -13095,10 +13151,43 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_progress => '進行状況';
 
   @override
+  String get cloudSync_metricsDetails => '技術的な詳細';
+
+  @override
+  String get cloudSync_metricsElapsed => '合計時間';
+
+  @override
+  String get cloudSync_metricsRequests => 'サービスへのリクエスト';
+
+  @override
+  String get cloudSync_metricsRead => '受信済み';
+
+  @override
+  String get cloudSync_metricsWritten => '送信済み';
+
+  @override
+  String get cloudSync_metricsHashPasses => '整合性チェック';
+
+  @override
+  String get cloudSync_metricsPayloadReads => 'ペイロード読み取り回数';
+
+  @override
+  String get cloudSync_metricsLocalRead => 'ローカル読み取り';
+
+  @override
+  String get cloudSync_metricsLocalWritten => 'ローカル書き込み';
+
+  @override
+  String get cloudSync_metricsFlushes => 'ディスクフラッシュ';
+
+  @override
   String get cloudSync_stage => '現在の進行状況';
 
   @override
   String get cloudSync_objects => '処理済み';
+
+  @override
+  String get cloudSync_reusedObjects => '再利用した未変更項目';
 
   @override
   String get cloudSync_bytes => '転送済み';
@@ -13107,16 +13196,37 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_stagePreparing => '準備中';
 
   @override
+  String get cloudSync_stageScanning => '選択したデータを確認中';
+
+  @override
+  String get cloudSync_stageHashing => 'ローカル内容を検証中';
+
+  @override
   String get cloudSync_stageDownloading => 'ダウンロード中';
+
+  @override
+  String get cloudSync_stageVerifying => 'ダウンロードしたデータを検証中';
 
   @override
   String get cloudSync_stageMerging => '変更を整理中';
 
   @override
+  String get cloudSync_stageReusing => '未変更データを再利用中';
+
+  @override
   String get cloudSync_stageUploading => 'アップロード中';
 
   @override
+  String get cloudSync_stageCommitting => 'バックアップを公開中';
+
+  @override
   String get cloudSync_stageApplying => '変更を保存中';
+
+  @override
+  String get cloudSync_stageSaving => '復元状態を保存中';
+
+  @override
+  String get cloudSync_stageRetryWaiting => '再試行を待機中';
 
   @override
   String get cloudSync_stageRollingBack => '元の状態に復元中';

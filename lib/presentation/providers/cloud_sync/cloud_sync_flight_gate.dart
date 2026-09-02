@@ -23,7 +23,9 @@ class CloudSyncFlightGate {
     final operation = OperationToken();
     _operation = operation;
     late final Future<T> flight;
-    final actionFuture = Future<T>.sync(() => action(operation));
+    final actionFuture = operation.runInScope(
+      () => Future<T>.sync(() => action(operation)),
+    );
     flight = actionFuture.whenComplete(() {
       if (identical(_flight, flight)) _flight = null;
       if (identical(_operation, operation)) _operation = null;
