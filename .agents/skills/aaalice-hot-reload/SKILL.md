@@ -1,7 +1,6 @@
 ---
 name: aaalice-hot-reload
 description: 为 Aaalice NAI Launcher 修改代码后选择并执行 Windows/Android 的 r 热重载、R 热重启或完整重建，并通过 Orca 增量读取两个控制台验证结果。用户要求热重载、热重启、修改后自动刷新双端、查看两端 Flutter 日志时使用。
-compatibility: 项目的 PC热重载与安卓热重载会话已启动。
 ---
 
 # Aaalice 双端热重载
@@ -30,8 +29,8 @@ compatibility: 项目的 PC热重载与安卓热重载会话已启动。
 4. 触发动作但不读取历史 tail：
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Reload -Target All -SkipLogs
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Restart -Target All -SkipLogs
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Reload -Target All -SkipLogs
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Restart -Target All -SkipLogs
 ```
 
 按判定替换 `Action` 与 `Target`。

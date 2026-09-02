@@ -1,10 +1,11 @@
 ---
 name: aaalice-runtime-verify
 description: 对 Aaalice NAI Launcher 的 Windows 桌面端和 Android 端执行不抢占用户键鼠的 Flutter 原生 AI 自动化、截图、布局检查与异常日志验证。用户要求自动化测试、点击操作、检查布局、双端 UI 验收、Android emulator 或 PC 窗口测试时使用。
-compatibility: Dart 3.9+、Dart and Flutter MCP server、ADB，且对应 Flutter 开发会话已启动。
 ---
 
 # Aaalice 双端运行时验收
+
+运行环境需要 Dart 3.9+、Dart and Flutter MCP server、ADB，且对应 Flutter 开发会话已启动。
 
 先加载 `aaalice-dev-sessions` 与 `aaalice-hot-reload`，确认目标会话已运行并完成正确的 `r`/`R`。
 
@@ -17,24 +18,11 @@ compatibility: Dart 3.9+、Dart and Flutter MCP server、ADB，且对应 Flutter
 
 ## Flutter MCP 准备
 
-项目 `.mcp.json` 已配置：
-
-```json
-{
-  "mcpServers": {
-    "dart": {
-      "command": "dart",
-      "args": ["mcp-server"]
-    }
-  }
-}
-```
-
 项目 runner 使用 `--dart-define=ENABLE_FLUTTER_DRIVER=true`，`lib/main.dart` 只在该开发标志存在时启用 `enableFlutterDriverExtension()`，正式构建不会启用驱动。
 
 使用前：
 
-1. 通过 Pi 的 `mcp` 搜索/连接 `dart` server；配置刚变更而当前会话尚未发现时先执行 `/reload`，不要改用 Computer Use 绕过。
+1. 确认当前 Codex 会话已经提供 `dart` server 的 MCP tools；若配置刚变更但当前会话尚未发现，重启 Codex 后重试。仍不可用时明确报告阻塞，不要改用 Computer Use 绕过。
 2. 搜索并描述与 DTD、running Flutter app、`flutter_driver_command`、screenshot/tap/text/scroll 有关的真实工具，按返回 schema 调用，不凭记忆猜参数。
 3. 连接当前 worktree 的运行中 Flutter App；Windows 和 Android 同时运行时，依据设备/进程信息选择明确目标，禁止对不确定目标发送操作。
 
@@ -55,7 +43,7 @@ Windows 普通 Flutter Widget 交互全部通过 Dart and Flutter MCP server 完
 需要确定性窗口截图作为额外证据时可运行只读捕获脚本：
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-runtime-verify/scripts/capture_windows.ps1 -OutputPath tool/.tmp/windows-e2e/<name>.png -NoActivate
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-runtime-verify/scripts/capture_windows.ps1 -OutputPath tool/.tmp/windows-e2e/<name>.png -NoActivate
 ```
 
 `-NoActivate` 不抢前台焦点。布局至少检查：目标是 Debug App、关键文案/控件存在、没有截断/遮挡/重叠、滚动与弹窗边界正确、最新日志无 `RenderFlex overflow`、Flutter exception 或 crash。响应式场景优先写成可设置 surface size 的 widget/integration test；不主动拖动用户窗口。
@@ -65,7 +53,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-runtime-verify/
 Flutter App 内普通 Widget 优先使用 Flutter MCP。涉及系统界面、Activity、软键盘、权限、文件选择器等场景使用 ADB，并先实时获取 `uiautomator dump`、截图与 Activity。快速场景：
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-runtime-verify/scripts/android_verify.ps1 -Name <scenario> -HotReload -Action "tap:x,y","wait:500"
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1 -Name <scenario> -HotReload -Action "tap:x,y","wait:500"
 ```
 
 脚本支持 `tap`、`text`、`key`、`swipe`、`wait`，产出 screenshot、window tree、Activity 和有界日志到 `tool/.tmp/android-e2e/`，发现 rendering exception、overflow 或原生崩溃时失败。

@@ -48,18 +48,18 @@ flutter analyze
 flutter build windows --release
 flutter build apk --release
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_nuget.ps1
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-dev-sessions/scripts/windows_runner.ps1
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-dev-sessions/scripts/android_runner.ps1 -EmulatorId Aaalice_API35
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Status
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Reload -Target All
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Restart -Target All
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Logs -Target All -Last 200
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-runtime-verify/scripts/android_verify.ps1 -Name <scenario> -HotReload -Action "tap:x,y","wait:500"
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-sessions/scripts/windows_runner.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-sessions/scripts/android_runner.ps1 -EmulatorId Aaalice_API35
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Status
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Reload -Target All
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Restart -Target All
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Logs -Target All -Last 200
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1 -Name <scenario> -HotReload -Action "tap:x,y","wait:500"
 ```
 
 Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 `flutter build macos --release`，产物位于 `build/macos/Build/Products/Release/Aaalice NAI Launcher.app`；本地 Keychain 反复授权时使用 `scripts/create_macos_dev_cert.sh` 与 `scripts/dev_run_macos_signed.sh debug`。Android 通用 APK 位于 `build/app/outputs/flutter-apk/app-release.apk`；推送 `v*` Tag 时由 `.github/workflows/release.yml` 构建并发布正式签名 APK，`.github/workflows/android-build.yml` 仅用于按需手动构建可安装 APK 与 SHA-256 Actions artifact。
 
-项目热重载与按需运行验收由 `.pi/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责通过 Orca 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 终端；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，随后按 Orca cursor 增量读取两端日志；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。Agent 不得另开第二个 `flutter run` 或 `flutter attach`，仓库 `scripts/` 下不再保留项目热重载入口。
+项目热重载与按需运行验收由 `.agents/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责通过 Orca 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 终端；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，随后按 Orca cursor 增量读取两端日志；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。Agent 不得另开第二个 `flutter run` 或 `flutter attach`，仓库 `scripts/` 下不再保留项目热重载入口。
 
 `build_runner` 不是常规测试或纯 Dart/UI 改动的默认验证步骤。只有改动了 Riverpod/Freezed/JSON/Drift 等生成输入，或开发 Runner 预检明确报告生成文件缺失/过期时才运行；针对性测试直接运行相关测试文件，不得为此先扫描全仓库生成代码。用户要求立即启动热重载时先执行会话状态检查和 Runner 预检，不得先跑测试或生成器；若预检阻塞且必须全量生成，应明确说明这是一次性环境准备及预计耗时，让命令完整结束后立即继续启动，不得称其为“最小验证”或反复中断重跑。生成命令中断后必须检查并恢复被删除但未重新生成的已有输出。
 
@@ -131,7 +131,7 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 仅当用户明确要求 Agent 执行自动化运行验收时，使用本节流程；普通 UI 修改不默认启动真机、emulator、自动点击或截图验收。
 
-Android 系统界面快速回归使用 `.pi/skills/aaalice-runtime-verify/scripts/android_verify.ps1`：`-HotReload` 后约 1.2 秒开始操作，`-Foreground` 只把现有应用带回前台，`-Action` 接受 `tap:x,y`、`text:value`、`key:KEYCODE`、`swipe:x1,y1,x2,y2,duration` 和 `wait:milliseconds`。脚本会清理日志基线并保存截图、窗口树、Activity 状态和有界日志，发现 overflow、Flutter rendering exception 或原生崩溃时失败。
+Android 系统界面快速回归使用 `.agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1`：`-HotReload` 后约 1.2 秒开始操作，`-Foreground` 只把现有应用带回前台，`-Action` 接受 `tap:x,y`、`text:value`、`key:KEYCODE`、`swipe:x1,y1,x2,y2,duration` 和 `wait:milliseconds`。脚本会清理日志基线并保存截图、窗口树、Activity 状态和有界日志，发现 overflow、Flutter rendering exception 或原生崩溃时失败。
 
 运行时交互统一使用 `adb` CLI，并尽量在一条 PowerShell 命令中批量完成一个确定场景的点击、输入、等待、状态采集、截图和日志读取，避免逐个命令往返。操作前先用 `uiautomator dump` 和当前窗口信息确认页面、文本与控件边界；点击坐标必须来自本次设备的实际树或截图，不得把某一分辨率的坐标当作跨尺寸稳定选择器。常用命令包括 `adb shell input tap/text/keyevent/swipe`、`adb shell uiautomator dump`、`adb shell dumpsys window`、`adb exec-out screencap -p` 和 `adb logcat`。
 
