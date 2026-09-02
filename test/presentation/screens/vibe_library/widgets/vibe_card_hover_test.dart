@@ -5,13 +5,17 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 
 void main() {
+  tearDown(() => PlatformCapabilities.debugOverride = null);
+
   test('悬浮大图按比例适配且不会随高窗口无限增高', () {
     expect(
       computeVibeHoverPreviewBounds(const Size(700, 520)),
@@ -108,6 +112,89 @@ void main() {
       (resized.imageProvider as MemoryImage).bytes,
       same(highResolutionImage),
     );
+  });
+
+  testWidgets('Vibe 卡片悬浮操作可发送到智能体', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+    var addCount = 0;
+    final entry = _entry(rawImageData: _onePixelPng);
+    final storage = _HoverStorage(entry, _onePixelPng);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Center(
+              child: ImageCardActionScope(
+                onAddToAgent: () => addCount++,
+                child: VibeCard(entry: entry.toDisplayEntry(), width: 180),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final hoverRegion = tester.widget<MouseRegion>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is MouseRegion &&
+            widget.cursor == SystemMouseCursors.click &&
+            widget.onEnter != null,
+      ),
+    );
+    hoverRegion.onEnter!(const PointerEnterEvent());
+    await tester.pump();
+
+    final action = find.byIcon(Icons.auto_awesome_outlined);
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    expect(addCount, 1);
+  });
+
+  testWidgets('Vibe 卡片触屏菜单可发送到智能体', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    var addCount = 0;
+    final entry = _entry(rawImageData: _onePixelPng);
+    final storage = _HoverStorage(entry, _onePixelPng);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Center(
+              child: ImageCardActionScope(
+                onAddToAgent: () => addCount++,
+                child: VibeCard(entry: entry.toDisplayEntry(), width: 180),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    final action = find.text('发送到智能体');
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    expect(addCount, 1);
   });
 }
 

@@ -72,6 +72,28 @@ void main() {
     expect(find.byTooltip('放大'), findsOneWidget);
   });
 
+  testWidgets('agent reference action is shown on hover only when available', (
+    tester,
+  ) async {
+    var addCount = 0;
+    await tester.pumpWidget(_buildCardApp(onAddToAgent: () => addCount++));
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer();
+    await gesture.moveTo(tester.getCenter(find.byType(SelectableImageCard)));
+    await tester.pumpAndSettle();
+
+    final action = find.byTooltip('发送到智能体');
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    expect(addCount, 1);
+
+    await tester.pumpWidget(_buildCardApp());
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('发送到智能体'), findsNothing);
+  });
+
   testWidgets('completed image cards use the shared hover scale', (
     tester,
   ) async {
@@ -257,7 +279,7 @@ void main() {
       expect(find.text('风格迁移'), findsOneWidget);
       expect(find.text('精准参考'), findsOneWidget);
       expect(find.text('创建水印副本…'), findsOneWidget);
-      expect(find.text('添加到 Agent'), findsOneWidget);
+      expect(find.text('发送到智能体'), findsOneWidget);
       expect(find.byType(ProContextMenu), findsOneWidget);
       expect(
         find.byType(PopupMenuItem<bool>, skipOffstage: false),
@@ -675,10 +697,28 @@ Widget _buildCardApp({
   VoidCallback? onImageToImage,
   VoidCallback? onVibeTransfer,
   VoidCallback? onPreciseReference,
+  VoidCallback? onAddToAgent,
   GlobalKey<NavigatorState>? navigatorKey,
 }) {
   final bytes = Uint8List.fromList(
     img.encodePng(img.Image(width: 32, height: 32)),
+  );
+
+  final card = SelectableImageCard(
+    imageBytes: bytes,
+    enableSelection: false,
+    hoverEffectsEnabled: hoverEffectsEnabled,
+    enableSaveAction: enableSaveAction,
+    enableCopyAction: enableCopyAction,
+    statusBadgeLabel: statusBadgeLabel,
+    isFavorite: isFavorite,
+    onFavoriteToggle: onFavoriteToggle,
+    onInpaint: onInpaint,
+    onUpscale: onUpscale,
+    onReversePrompt: onReversePrompt,
+    onImageToImage: onImageToImage,
+    onVibeTransfer: onVibeTransfer,
+    onPreciseReference: onPreciseReference,
   );
 
   return ProviderScope(
@@ -692,22 +732,9 @@ Widget _buildCardApp({
           child: SizedBox(
             width: 160,
             height: 160,
-            child: SelectableImageCard(
-              imageBytes: bytes,
-              enableSelection: false,
-              hoverEffectsEnabled: hoverEffectsEnabled,
-              enableSaveAction: enableSaveAction,
-              enableCopyAction: enableCopyAction,
-              statusBadgeLabel: statusBadgeLabel,
-              isFavorite: isFavorite,
-              onFavoriteToggle: onFavoriteToggle,
-              onInpaint: onInpaint,
-              onUpscale: onUpscale,
-              onReversePrompt: onReversePrompt,
-              onImageToImage: onImageToImage,
-              onVibeTransfer: onVibeTransfer,
-              onPreciseReference: onPreciseReference,
-            ),
+            child: onAddToAgent == null
+                ? card
+                : ImageCardActionScope(onAddToAgent: onAddToAgent, child: card),
           ),
         ),
       ),

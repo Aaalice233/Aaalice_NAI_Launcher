@@ -13,6 +13,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
@@ -27,9 +28,56 @@ void main() {
     PlatformCapabilities.debugOverride = null;
   });
 
+  testWidgets('hover actions expose the Agent reference callback', (
+    tester,
+  ) async {
+    var addCount = 0;
+    const post = DanbooruPost(
+      id: 120,
+      width: 600,
+      height: 900,
+      previewFileUrl: 'https://example.com/portrait.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: ImageCardActionScope(
+              onAddToAgent: () => addCount++,
+              child: DanbooruPostCard(
+                post: post,
+                itemWidth: 200,
+                isFavorited: false,
+                onTap: () {},
+                onTagTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(DanbooruPostCard)));
+    await tester.pump();
+
+    final action = find.byTooltip('发送到智能体');
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    expect(addCount, 1);
+  });
+
   testWidgets('touch action menu does not overlap the rating badge', (
     tester,
   ) async {
+    var addCount = 0;
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.android,
     );
@@ -51,12 +99,15 @@ void main() {
           home: Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
-              child: DanbooruPostCard(
-                post: post,
-                itemWidth: 150,
-                isFavorited: false,
-                onTap: () {},
-                onTagTap: (_) {},
+              child: ImageCardActionScope(
+                onAddToAgent: () => addCount++,
+                child: DanbooruPostCard(
+                  post: post,
+                  itemWidth: 150,
+                  isFavorited: false,
+                  onTap: () {},
+                  onTagTap: (_) {},
+                ),
               ),
             ),
           ),
@@ -74,6 +125,13 @@ void main() {
     expect(actions.overlaps(rating), isFalse);
     expect(rating.right, lessThanOrEqualTo(actions.left));
     expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    final agentAction = find.text('Send to Agent');
+    expect(agentAction, findsOneWidget);
+    await tester.tap(agentAction);
+    expect(addCount, 1);
   });
 
   testWidgets(

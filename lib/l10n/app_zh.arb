@@ -450,7 +450,7 @@
   "agentChat_manualInpaintTitle": "手动局部重绘",
   "agentChat_manualInpaintComplete": "完成并返回智能体",
   "agentChat_resourceUnavailable": "资源不可用",
-  "agentChat_addResource": "添加到 Agent",
+  "agentChat_addResource": "发送到智能体",
   "agentChat_resourceAdded": "已添加到 Agent 输入区",
   "agentChat_addResourceFailed": "添加引用失败：{error}",
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},

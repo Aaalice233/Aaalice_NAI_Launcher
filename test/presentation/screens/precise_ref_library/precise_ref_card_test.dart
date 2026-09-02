@@ -1,13 +1,16 @@
 import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/precise_ref/precise_ref_library_entry.dart';
 import 'package:nai_launcher/data/services/precise_ref_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 
 class _FakeStorage extends PreciseRefLibraryStorageService {
   @override
@@ -33,7 +36,16 @@ void main() {
     WidgetTester tester, {
     VoidCallback? onSendToPreciseRef,
     VoidCallback? onToggleFavorite,
+    VoidCallback? onAddToAgent,
   }) async {
+    Widget card = PreciseRefCard(
+      entry: entry,
+      onSendToPreciseRef: onSendToPreciseRef,
+      onToggleFavorite: onToggleFavorite,
+    );
+    if (onAddToAgent != null) {
+      card = ImageCardActionScope(onAddToAgent: onAddToAgent, child: card);
+    }
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -46,17 +58,7 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 200,
-                height: 250,
-                child: PreciseRefCard(
-                  entry: entry,
-                  onSendToPreciseRef: onSendToPreciseRef,
-                  onToggleFavorite: onToggleFavorite,
-                ),
-              ),
-            ),
+            body: Center(child: SizedBox(width: 200, height: 250, child: card)),
           ),
         ),
       ),
@@ -96,5 +98,41 @@ void main() {
 
     await tester.tap(find.text('银发少女'));
     expect(sendCount, 1);
+  });
+
+  testWidgets('悬浮操作可发送到智能体', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    var addCount = 0;
+    await pumpCard(tester, onAddToAgent: () => addCount++);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(PreciseRefCard)));
+    await tester.pump();
+
+    final action = find.byTooltip('发送到智能体');
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    expect(addCount, 1);
+  });
+
+  testWidgets('触屏更多操作可发送到智能体', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    var addCount = 0;
+    await pumpCard(tester, onAddToAgent: () => addCount++);
+
+    await tester.tap(find.byKey(const Key('precise-ref-card-more-entry-1')));
+    await tester.pumpAndSettle();
+    final action = find.text('发送到智能体');
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    expect(addCount, 1);
   });
 }

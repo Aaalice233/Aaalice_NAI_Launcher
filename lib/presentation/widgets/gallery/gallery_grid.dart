@@ -40,11 +40,7 @@ class GalleryGrid extends StatefulWidget {
   final void Function(LocalImageRecord record, int index)? onTap;
   final void Function(LocalImageRecord record, int index)? onDoubleTap;
   final void Function(LocalImageRecord record, int index)? onLongPress;
-  final void Function(
-    LocalImageRecord record,
-    int index,
-    TapUpDetails details,
-  )?
+  final void Function(LocalImageRecord record, int index, TapUpDetails details)?
   onSecondaryTapUp;
   final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
   final Future<void> Function(
@@ -234,6 +230,7 @@ class _GalleryGridState extends State<GalleryGrid> {
                   onSendAction: widget.onSendAction != null
                       ? (action) => widget.onSendAction!(record, index, action)
                       : null,
+                  enableAddToAgent: widget.enableDrag,
                   isKritaConnected: widget.isKritaConnected,
                 ),
               ),
@@ -297,6 +294,7 @@ class _GalleryImageCard extends StatefulWidget {
   final void Function(TapUpDetails)? onSecondaryTapUp;
   final VoidCallback? onFavoriteToggle;
   final Future<void> Function(LocalImageContextAction action)? onSendAction;
+  final bool enableAddToAgent;
   final bool isKritaConnected;
 
   const _GalleryImageCard({
@@ -314,6 +312,7 @@ class _GalleryImageCard extends StatefulWidget {
     this.onSecondaryTapUp,
     this.onFavoriteToggle,
     this.onSendAction,
+    this.enableAddToAgent = true,
     this.isKritaConnected = false,
   });
 
@@ -337,6 +336,7 @@ class _GalleryImageCardState extends State<_GalleryImageCard> {
       onSecondaryTapUp: widget.onSecondaryTapUp,
       onFavoriteToggle: widget.onFavoriteToggle,
       onSendAction: widget.onSendAction,
+      enableAddToAgent: widget.enableAddToAgent,
       isKritaConnected: widget.isKritaConnected,
       // 使用 dragWrapper 将拖拽功能注入到卡片内部
       // 解决 GestureDetector 与拖拽手势的冲突问题

@@ -9,8 +9,15 @@ import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../widgets/app_branch_visibility.dart';
+import '../../../widgets/common/image_card_actions.dart';
 
-enum _PreciseRefCardAction { sendToPreciseRef, sendToImg2Img, edit, delete }
+enum _PreciseRefCardAction {
+  addToAgent,
+  sendToPreciseRef,
+  sendToImg2Img,
+  edit,
+  delete,
+}
 
 /// 精准参考库条目卡片
 ///
@@ -201,6 +208,7 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
 
   Widget _buildHoverActions(ThemeData theme) {
     final l10n = context.l10n;
+    final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     return Positioned.fill(
       child: ColoredBox(
         color: Colors.black.withValues(alpha: 0.45),
@@ -226,6 +234,15 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (onAddToAgent != null) ...[
+                    _HoverIconButton(
+                      key: Key('precise-ref-card-agent-${widget.entry.id}'),
+                      icon: Icons.auto_awesome_outlined,
+                      tooltip: l10n.agentChat_addResource,
+                      onTap: onAddToAgent,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   _HoverIconButton(
                     key: Key('precise-ref-card-edit-${widget.entry.id}'),
                     icon: Icons.edit_outlined,
@@ -286,12 +303,15 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
 
   Widget _buildTouchActions(ThemeData theme) {
     final l10n = context.l10n;
+    final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     return PopupMenuButton<_PreciseRefCardAction>(
       key: Key('precise-ref-card-more-${widget.entry.id}'),
       tooltip: l10n.preciseRefLib_moreActions,
       constraints: const BoxConstraints(minWidth: 220),
       onSelected: (action) {
         switch (action) {
+          case _PreciseRefCardAction.addToAgent:
+            onAddToAgent?.call();
           case _PreciseRefCardAction.sendToPreciseRef:
             widget.onSendToPreciseRef?.call();
           case _PreciseRefCardAction.sendToImg2Img:
@@ -303,6 +323,15 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
         }
       },
       itemBuilder: (context) => [
+        if (onAddToAgent != null)
+          PopupMenuItem(
+            value: _PreciseRefCardAction.addToAgent,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: Text(l10n.agentChat_addResource),
+            ),
+          ),
         PopupMenuItem(
           value: _PreciseRefCardAction.sendToPreciseRef,
           child: ListTile(

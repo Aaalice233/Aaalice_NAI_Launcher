@@ -2390,7 +2390,7 @@ abstract class AppLocalizations {
   /// No description provided for @agentChat_addResource.
   ///
   /// In en, this message translates to:
-  /// **'Add to Agent'**
+  /// **'Send to Agent'**
   String get agentChat_addResource;
 
   /// No description provided for @agentChat_resourceAdded.

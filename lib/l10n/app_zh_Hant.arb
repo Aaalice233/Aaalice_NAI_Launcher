@@ -445,7 +445,7 @@
   "agentChat_manualInpaintTitle": "手動局部重繪",
   "agentChat_manualInpaintComplete": "完成並返回智慧體",
   "agentChat_resourceUnavailable": "資源不可用",
-  "agentChat_addResource": "新增至 Agent",
+  "agentChat_addResource": "傳送至智慧體",
   "agentChat_resourceAdded": "已新增至 Agent 輸入區",
   "agentChat_addResourceFailed": "新增引用失敗：{error}",
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},

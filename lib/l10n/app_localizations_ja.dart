@@ -1225,7 +1225,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_resourceUnavailable => '利用できません';
 
   @override
-  String get agentChat_addResource => 'Agent に追加';
+  String get agentChat_addResource => 'Agent に送信';
 
   @override
   String get agentChat_resourceAdded => 'Agent の入力欄に追加しました';

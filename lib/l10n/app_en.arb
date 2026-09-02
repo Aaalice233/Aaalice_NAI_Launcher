@@ -465,7 +465,7 @@
   "agentChat_manualInpaintTitle": "Manual inpaint",
   "agentChat_manualInpaintComplete": "Complete and return to Agent",
   "agentChat_resourceUnavailable": "Unavailable",
-  "agentChat_addResource": "Add to Agent",
+  "agentChat_addResource": "Send to Agent",
   "agentChat_resourceAdded": "Added to the Agent composer",
   "agentChat_addResourceFailed": "Failed to add reference: {error}",
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -8,6 +10,7 @@ import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../../widgets/common/context_menu_anchor.dart';
+import '../../widgets/common/image_card_actions.dart';
 
 export '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 
@@ -102,16 +105,18 @@ class AgentResourceDragSource extends ConsumerWidget {
     required this.reference,
     required this.child,
     this.enableAddToAgentMenu = true,
+    this.enableAddToAgentAction = true,
   });
 
   final AgentChatResourceReference reference;
   final Widget child;
   final bool enableAddToAgentMenu;
+  final bool enableAddToAgentAction;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reference = this.reference;
-    return DragItemWidget(
+    final dragSource = DragItemWidget(
       allowedOperations: () => [DropOperation.copy],
       dragItemProvider: (_) async {
         final item = DragItem(
@@ -135,6 +140,18 @@ class AgentResourceDragSource extends ConsumerWidget {
             : null,
         child: DraggableWidget(child: child),
       ),
+    );
+    if (!enableAddToAgentAction) return dragSource;
+
+    return ImageCardActionScope(
+      onAddToAgent: () => unawaited(
+        addAgentResourceToComposer(
+          context: context,
+          ref: ref,
+          reference: reference,
+        ),
+      ),
+      child: dragSource,
     );
   }
 }
