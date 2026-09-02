@@ -11,6 +11,7 @@ import '../../presentation/providers/proxy_settings_provider.dart';
 import '../constants/api_constants.dart';
 import '../storage/secure_storage_service.dart';
 import '../utils/app_logger.dart';
+import 'dio_error_response_parser.dart';
 
 part 'dio_client.g.dart';
 
@@ -326,7 +327,7 @@ class ErrorInterceptor extends Interceptor {
         'DIO Error: ${err.type.name}\n'
         'Status: ${err.response?.statusCode}\n'
         'URL: ${err.requestOptions.uri}\n'
-        'Response Data: ${err.response?.data}';
+        'Response Data: ${formatDioErrorResponseDataForLog(err.response?.data)}';
 
     // 非致命网络抖动降级为 warning，避免错误日志噪音
     if (err.type == DioExceptionType.connectionTimeout ||
@@ -368,12 +369,10 @@ class ErrorInterceptor extends Interceptor {
   String _parseResponseError(Response? response, AppLocalizations l10n) {
     if (response == null) return l10n.networkError_noResponse;
 
-    // 尝试从响应中提取错误信息
-    final data = response.data;
-    if (data is Map<String, dynamic>) {
-      final message = data['message'] ?? data['error'];
-      if (message != null) return message.toString();
-    }
+    // 生成接口使用 bytes/stream 响应类型，失败时 JSON 错误体也可能以
+    // Uint8List 返回。先还原服务端信息，避免把具体原因降级成“请求参数错误”。
+    final responseDetails = parseDioErrorResponseDetails(response.data);
+    if (responseDetails != null) return responseDetails;
 
     // 根据状态码返回错误信息
     return switch (response.statusCode) {
