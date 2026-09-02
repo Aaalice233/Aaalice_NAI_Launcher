@@ -6693,6 +6693,7 @@
   "cloudSync_repository": "儲存庫",
   "cloudSync_branch": "分支（通常為 main）",
   "cloudSync_testFailed": "連線測試失敗",
+  "cloudSync_operationFailed": "雲端同步操作失敗",
   "cloudSync_manualBackupOnly": "只支援手動推送與拉取",
   "cloudSync_manualBackupOnlyDescription": "此服務無法可靠處理多台裝置同時修改。這裡不會自動合併或覆蓋，只按你的選擇推送或拉取。",
   "cloudSync_dataScope": "選擇要儲存的內容",

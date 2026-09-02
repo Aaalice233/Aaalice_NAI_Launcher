@@ -6372,6 +6372,7 @@
   "cloudSync_repository": "リポジトリ",
   "cloudSync_branch": "ブランチ（通常は main）",
   "cloudSync_testFailed": "接続テストに失敗しました",
+  "cloudSync_operationFailed": "クラウド同期操作に失敗しました",
   "cloudSync_manualBackupOnly": "手動プッシュとプルのみ",
   "cloudSync_manualBackupOnlyDescription": "このサービスでは複数デバイスからの同時変更を安全に処理できません。自動的な統合や上書きは行わず、選択したプッシュまたはプルだけを実行します。",
   "cloudSync_dataScope": "保存する内容を選択",

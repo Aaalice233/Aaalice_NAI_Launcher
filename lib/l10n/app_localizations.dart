@@ -23132,6 +23132,12 @@ abstract class AppLocalizations {
   /// **'Connection test failed'**
   String get cloudSync_testFailed;
 
+  /// No description provided for @cloudSync_operationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud sync operation failed'**
+  String get cloudSync_operationFailed;
+
   /// No description provided for @cloudSync_manualBackupOnly.
   ///
   /// In en, this message translates to:

@@ -12951,6 +12951,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_testFailed => '接続テストに失敗しました';
 
   @override
+  String get cloudSync_operationFailed => 'クラウド同期操作に失敗しました';
+
+  @override
   String get cloudSync_manualBackupOnly => '手動プッシュとプルのみ';
 
   @override

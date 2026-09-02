@@ -45,12 +45,15 @@ class WebDavCapabilityProbe {
     String? objectEtag;
     String? manifestEtag;
     String? manualReason;
+    var objectNeedsCleanup = false;
+    var manifestNeedsCleanup = false;
     try {
       // Capability checks run on every newly configured connection. Keep the
       // probe representative without uploading the full per-object limit.
       final maximum = Uint8List(_probeObjectBytes);
       maximum[0] = 1;
       maximum[maximum.length - 1] = 2;
+      objectNeedsCleanup = true;
       final initial = await http.request(
         'PUT',
         object,
@@ -58,7 +61,9 @@ class WebDavCapabilityProbe {
         data: maximum,
       );
       _expect(initial, const {200, 201, 204}, '写入服务商大小探针');
-      objectEtag = initial.headers.value('etag') ?? await _readEtag(object);
+      objectEtag =
+          _strongEtag(initial.headers.value('etag')) ??
+          _strongEtag(await _readEtag(object));
       final downloaded = await _get(object, maxCloudObjectResponseBytes);
       if (downloaded.length != maximum.length ||
           downloaded.first != 1 ||
@@ -91,14 +96,15 @@ class WebDavCapabilityProbe {
           data: Uint8List.fromList(const [3]),
         );
         final matchedEtag =
-            matched.headers.value('etag') ?? await _readEtag(object);
+            _strongEtag(matched.headers.value('etag')) ??
+            _strongEtag(await _readEtag(object));
         final staleRejected = await http.request(
           'PUT',
           object,
           headers: {...headers, 'If-Match': initialEtag},
           data: Uint8List.fromList(const [4]),
         );
-        objectEtag = await _readEtag(object) ?? matchedEtag;
+        objectEtag = _strongEtag(await _readEtag(object)) ?? matchedEtag;
         final matchedBytes = await _get(object, maxCloudObjectResponseBytes);
         if (createRejected.statusCode != 412 ||
             matchRejected.statusCode != 412 ||
@@ -108,10 +114,11 @@ class WebDavCapabilityProbe {
             matchedBytes.length != 1 ||
             matchedBytes.single != 3) {
           manualReason = '服务器未可靠执行 If-Match 或 If-None-Match。';
-          objectEtag = await _readEtag(object) ?? objectEtag;
+          objectEtag = _strongEtag(await _readEtag(object)) ?? objectEtag;
         }
       }
 
+      manifestNeedsCleanup = true;
       final historyWrite = await http.request(
         'PUT',
         manifest,
@@ -120,7 +127,11 @@ class WebDavCapabilityProbe {
       );
       _expect(historyWrite, const {200, 201, 204}, '写入历史探针');
       manifestEtag =
-          historyWrite.headers.value('etag') ?? await _readEtag(manifest);
+          _strongEtag(historyWrite.headers.value('etag')) ??
+          _strongEtag(await _readEtag(manifest));
+      if (manifestEtag == null) {
+        manualReason ??= '服务器未为历史对象返回强 ETag。';
+      }
       final historyCreateRejected = await http.request(
         'PUT',
         manifest,
@@ -135,8 +146,8 @@ class WebDavCapabilityProbe {
         // Refresh the ETag before cleanup instead of deleting with the stale
         // revision returned by the first write.
         manifestEtag =
-            await _readEtag(manifest) ??
-            historyCreateRejected.headers.value('etag') ??
+            _strongEtag(await _readEtag(manifest)) ??
+            _strongEtag(historyCreateRejected.headers.value('etag')) ??
             manifestEtag;
       }
       final expectedHistoryByte = historyCreateRejected.statusCode == 412
@@ -163,6 +174,7 @@ class WebDavCapabilityProbe {
           '删除探针后对象仍然可读。',
         );
       }
+      objectNeedsCleanup = false;
       if (manifestEtag == null) {
         await _deleteUniqueProbe(manifest, action: '删除无 ETag 历史探针');
       } else {
@@ -175,6 +187,7 @@ class WebDavCapabilityProbe {
           '删除探针后历史仍然可读。',
         );
       }
+      manifestNeedsCleanup = false;
       if (manualReason != null) return _manual(manualReason);
       return const CloudBackendCapability(
         mode: CloudBackendMode.bidirectional,
@@ -183,15 +196,26 @@ class WebDavCapabilityProbe {
         supportsDelete: true,
       );
     } finally {
-      if (objectEtag != null) {
-        await _deleteExact(object, objectEtag, action: '清理对象探针');
-      } else {
-        await _deleteUniqueProbe(object, action: '清理无 ETag 对象探针');
+      Object? cleanupError;
+      StackTrace? cleanupStackTrace;
+      if (objectNeedsCleanup) {
+        try {
+          await _deleteUniqueProbe(object, action: '清理对象探针');
+        } catch (error, stackTrace) {
+          cleanupError = error;
+          cleanupStackTrace = stackTrace;
+        }
       }
-      if (manifestEtag != null) {
-        await _deleteExact(manifest, manifestEtag, action: '清理历史探针');
-      } else if (await _exists(manifest)) {
-        await _deleteUniqueProbe(manifest, action: '清理无 ETag 历史探针');
+      if (manifestNeedsCleanup) {
+        try {
+          await _deleteUniqueProbe(manifest, action: '清理历史探针');
+        } catch (error, stackTrace) {
+          cleanupError ??= error;
+          cleanupStackTrace ??= stackTrace;
+        }
+      }
+      if (cleanupError != null) {
+        Error.throwWithStackTrace(cleanupError, cleanupStackTrace!);
       }
     }
   }
@@ -265,6 +289,15 @@ class WebDavCapabilityProbe {
     _expect(response, const {200, 202, 204, 404}, action);
   }
 
+  static String? _strongEtag(String? value) {
+    final normalized = value?.trim();
+    return normalized != null &&
+            !normalized.startsWith('W/') &&
+            RegExp(r'^"[^"\r\n]*"$').hasMatch(normalized)
+        ? normalized
+        : null;
+  }
+
   static CloudBackendCapability _manual(String message) =>
       CloudBackendCapability(
         mode: CloudBackendMode.manualBackupOnly,
@@ -287,6 +320,7 @@ class WebDavCapabilityProbe {
         403 => CloudBackendErrorKind.authorization,
         409 || 412 => CloudBackendErrorKind.conflict,
         413 || 507 => CloudBackendErrorKind.quota,
+        429 => CloudBackendErrorKind.rateLimited,
         _ => CloudBackendErrorKind.invalidResponse,
       },
       '$action失败（HTTP $status）。',

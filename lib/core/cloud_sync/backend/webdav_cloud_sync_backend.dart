@@ -341,11 +341,13 @@ class WebDavCloudSyncBackend
       );
     }
     _expect(response, const {200, 201, 204}, action: '提交 $label');
-    final revision = response.headers.value('etag') ?? await _readEtag(uri);
+    final revision =
+        _strongEtag(response.headers.value('etag')) ??
+        _strongEtag(await _readEtag(uri));
     if (revision == null) {
       throw CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
-        '$label 已写入，但服务器未提供 ETag。',
+        '$label 已写入，但服务器未提供强 ETag。',
       );
     }
     return CloudCommitResult(revision: revision);
@@ -441,14 +443,20 @@ class WebDavCloudSyncBackend
       headers: _headers,
       maxResponseBytes: maxBytes,
     );
-    if (response.statusCode == 404) return null;
+    // Some WebDAV services return 409 instead of 404 when the requested
+    // resource's parent collection has not been created yet. A conditional
+    // conflict is impossible here because this is an unconditional GET.
+    if (response.statusCode == 404 || response.statusCode == 409) return null;
     _expect(response, const {200}, action: '下载对象');
-    final revision = response.headers.value('etag');
+    final rawRevision = response.headers.value('etag');
+    final revision = _verifiedMode == CloudBackendMode.manualBackupOnly
+        ? rawRevision?.trim()
+        : _strongEtag(rawRevision);
     if ((revision == null || revision.isEmpty) &&
         _verifiedMode != CloudBackendMode.manualBackupOnly) {
       throw const CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
-        '下载响应缺少 ETag。',
+        '下载响应缺少强 ETag。',
       );
     }
     return CloudObjectRead(
@@ -489,6 +497,7 @@ class WebDavCloudSyncBackend
       404 => CloudBackendErrorKind.notFound,
       409 || 412 => CloudBackendErrorKind.conflict,
       413 || 507 => CloudBackendErrorKind.quota,
+      429 => CloudBackendErrorKind.rateLimited,
       _ => CloudBackendErrorKind.invalidResponse,
     };
     throw CloudBackendException(
@@ -529,12 +538,14 @@ class WebDavCloudSyncBackend
     return sha256.convert(bytes).toString();
   }
 
-  static String? _strongEtag(String? value) =>
-      value != null &&
-          !value.startsWith('W/') &&
-          RegExp(r'^"[^"\r\n]*"$').hasMatch(value)
-      ? value
-      : null;
+  static String? _strongEtag(String? value) {
+    final normalized = value?.trim();
+    return normalized != null &&
+            !normalized.startsWith('W/') &&
+            RegExp(r'^"[^"\r\n]*"$').hasMatch(normalized)
+        ? normalized
+        : null;
+  }
 
   static bool _sameBytes(List<int> first, List<int> second) =>
       first.length == second.length &&

@@ -110,7 +110,7 @@ class CloudSyncOperationRunner {
       );
       await persistSyncState(outcome.snapshotId, lastSync);
     } catch (error) {
-      recordError(error, resetActivity: true);
+      _recordOperationError(error);
       rethrow;
     }
   }
@@ -179,7 +179,8 @@ class CloudSyncOperationRunner {
       );
       await persistSyncState(outcome.snapshotId, lastSync);
     } catch (error) {
-      recordError(error, resetActivity: true);
+      if (error is CloudPreviewStaleException) choices.clear();
+      _recordOperationError(error);
       rethrow;
     }
   }
@@ -258,9 +259,18 @@ class CloudSyncOperationRunner {
       );
       await persistSyncState(outcome.snapshotId, lastSync);
     } catch (error) {
-      recordError(error, resetActivity: true);
+      _recordOperationError(error);
       rethrow;
     }
+  }
+
+  void _recordOperationError(Object error) {
+    if (error is CloudPreviewStaleException) {
+      writeState(
+        readState().copyWith(conflicts: const [], clearPendingPreview: true),
+      );
+    }
+    recordError(error, resetActivity: true);
   }
 
   static List<CloudSyncSnapshotView> _prependSnapshot(

@@ -249,7 +249,8 @@ bool _mustRemainRecoverable(Object error, SyncJournal journal) {
   }
   if (error is OperationCancelledException &&
       journal.uploadRequired &&
-      (journal.phase == JournalPhase.applyStarted ||
+      (journal.phase == JournalPhase.committingHead ||
+          journal.phase == JournalPhase.applyStarted ||
           journal.phase == JournalPhase.savingBase)) {
     return true;
   }

@@ -448,6 +448,7 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
     StackTrace? cleanupStack;
     _backend = null;
     _coordinator = null;
+    _testedWebDavBackend = null;
     _conflictSelections.clear();
     if (persisted != null &&
         persisted.draft.backend.usesOAuth &&

@@ -50,6 +50,8 @@ final class SecureCloudDriveOAuthTokenProvider
     try {
       final session = await _client(provider).authenticate();
       _verifyClientSession(provider, session);
+      final key = _sessionKey(provider, session.accountId);
+      _generations[key] = (_generations[key] ?? 0) + 1;
       stage = 'persist_secure_session';
       AppLogger.i(
         'Persisting OAuth session in secure storage: provider=${provider.id}',
@@ -98,13 +100,16 @@ final class SecureCloudDriveOAuthTokenProvider
     String accountId,
   ) async {
     final key = _sessionKey(provider, accountId);
-    _generations[key] = (_generations[key] ?? 0) + 1;
+    final generation = (_generations[key] ?? 0) + 1;
+    _generations[key] = generation;
     final session = await _store.read(provider, accountId);
     if (session == null) return;
     try {
       await _client(provider).disconnect(session);
     } finally {
-      await _store.delete(provider, accountId);
+      if ((_generations[key] ?? 0) == generation) {
+        await _store.delete(provider, accountId);
+      }
     }
   }
 
@@ -153,7 +158,8 @@ final class SecureCloudDriveOAuthTokenProvider
       await _store.write(refreshed);
       return refreshed;
     } on CloudDriveOAuthException catch (error) {
-      if (error.requiresReauthentication) {
+      if (error.requiresReauthentication &&
+          (_generations[key] ?? 0) == generation) {
         await _store.delete(session.provider, session.accountId);
       }
       rethrow;

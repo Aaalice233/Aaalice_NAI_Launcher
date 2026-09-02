@@ -6418,6 +6418,7 @@
   "cloudSync_repository": "仓库",
   "cloudSync_branch": "分支（通常为 main）",
   "cloudSync_testFailed": "连接测试失败",
+  "cloudSync_operationFailed": "云同步操作失败",
   "cloudSync_manualBackupOnly": "只支持手动推送与拉取",
   "cloudSync_manualBackupOnlyDescription": "此服务无法可靠处理多台设备同时修改。这里不会自动合并或覆盖，只按你的选择推送或拉取。",
   "cloudSync_dataScope": "选择要保存的内容",

@@ -24,7 +24,8 @@ class GitHubBackendSupport {
 
   static bool isRateLimited(Response<Uint8List> response) {
     final status = response.statusCode ?? 0;
-    if (status != 403 && status != 429) return false;
+    if (status == 429) return true;
+    if (status != 403) return false;
     final remaining = int.tryParse(
       response.headers.value('x-ratelimit-remaining') ?? '',
     );

@@ -335,6 +335,35 @@ void main() {
         expect(await store.read(session.provider, session.accountId), isNull);
       },
     );
+
+    test(
+      'disconnect cannot delete a session reconnected while revoking',
+      () async {
+        final store = _MemorySessionStore();
+        final previous = _session(now: now);
+        final replacement = previous.copyWith(accessToken: 'replacement-token');
+        await store.write(previous);
+        final client = _DelayedDisconnectClient(replacement);
+        final provider = _provider(store, client, now);
+
+        final disconnect = provider.disconnect(
+          previous.provider,
+          previous.accountId,
+        );
+        await client.disconnectStarted.future;
+        await provider.connect(previous.provider);
+        client.allowDisconnect.complete();
+        await disconnect;
+
+        expect(
+          (await store.read(
+            previous.provider,
+            previous.accountId,
+          ))?.accessToken,
+          'replacement-token',
+        );
+      },
+    );
   });
 
   group('Windows loopback flow', () {
@@ -477,7 +506,7 @@ CloudDriveOAuthConfig _windowsConfig(
 
 SecureCloudDriveOAuthTokenProvider _provider(
   _MemorySessionStore store,
-  _FakeClient client,
+  CloudDriveOAuthClient client,
   DateTime now,
 ) => SecureCloudDriveOAuthTokenProvider(
   store: store,
@@ -550,6 +579,31 @@ final class _FakeClient implements CloudDriveOAuthClient {
     if (refreshError != null) throw refreshError!;
     return refreshResult!;
   }
+}
+
+final class _DelayedDisconnectClient implements CloudDriveOAuthClient {
+  _DelayedDisconnectClient(this.session);
+
+  final CloudDriveOAuthSession session;
+  final disconnectStarted = Completer<void>();
+  final allowDisconnect = Completer<void>();
+
+  @override
+  CloudDriveOAuthProvider get provider => session.provider;
+
+  @override
+  Future<CloudDriveOAuthSession> authenticate() async => session;
+
+  @override
+  Future<void> disconnect(CloudDriveOAuthSession session) async {
+    disconnectStarted.complete();
+    await allowDisconnect.future;
+  }
+
+  @override
+  Future<CloudDriveOAuthSession> refresh(
+    CloudDriveOAuthSession session,
+  ) async => this.session;
 }
 
 final class _DelayedClient implements CloudDriveOAuthClient {

@@ -78,6 +78,7 @@ class WebDavEtagReader {
         401 => CloudBackendErrorKind.authentication,
         403 => CloudBackendErrorKind.authorization,
         409 || 412 => CloudBackendErrorKind.conflict,
+        429 => CloudBackendErrorKind.rateLimited,
         507 => CloudBackendErrorKind.quota,
         _ => CloudBackendErrorKind.invalidResponse,
       },

@@ -43,6 +43,16 @@ void main() {
     );
   });
 
+  test('treats missing-parent GET conflict as an empty namespace', () async {
+    final adapter = RecordingAdapter((request) {
+      expect(request.method, 'GET');
+      expect(request.uri.path, '/sync/aaalice-sync/HEAD.json');
+      return const TestHttpResponse(409);
+    });
+
+    expect(await _backend(adapter).readHead(), isNull);
+  });
+
   test('records every redirected and retried HTTP attempt', () async {
     var redirectedAttempts = 0;
     late int requestBytes;

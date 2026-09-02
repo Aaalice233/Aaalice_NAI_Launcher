@@ -21,7 +21,7 @@ class CloudSyncScreen extends ConsumerWidget {
         if (state.error != null)
           CloudSyncStatusBanner(
             icon: Icons.error_outline,
-            title: context.l10n.cloudSync_testFailed,
+            title: context.l10n.cloudSync_operationFailed,
             message: localizeCloudSyncError(context, state.error!),
             warning: true,
           ),

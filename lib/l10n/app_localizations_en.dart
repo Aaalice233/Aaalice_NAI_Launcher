@@ -13288,6 +13288,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_testFailed => 'Connection test failed';
 
   @override
+  String get cloudSync_operationFailed => 'Cloud sync operation failed';
+
+  @override
   String get cloudSync_manualBackupOnly => 'Manual push and pull only';
 
   @override

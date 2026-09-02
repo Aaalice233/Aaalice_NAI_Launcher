@@ -12733,6 +12733,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_testFailed => '连接测试失败';
 
   @override
+  String get cloudSync_operationFailed => '云同步操作失败';
+
+  @override
   String get cloudSync_manualBackupOnly => '只支持手动推送与拉取';
 
   @override
@@ -26454,6 +26457,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_testFailed => '連線測試失敗';
+
+  @override
+  String get cloudSync_operationFailed => '雲端同步操作失敗';
 
   @override
   String get cloudSync_manualBackupOnly => '只支援手動推送與拉取';

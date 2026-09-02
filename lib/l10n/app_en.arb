@@ -6349,6 +6349,7 @@
   "cloudSync_repository": "Repository",
   "cloudSync_branch": "Branch (usually main)",
   "cloudSync_testFailed": "Connection test failed",
+  "cloudSync_operationFailed": "Cloud sync operation failed",
   "cloudSync_manualBackupOnly": "Manual push and pull only",
   "cloudSync_manualBackupOnlyDescription": "This service cannot reliably handle changes from multiple devices at once. Nothing is merged or overwritten automatically; data moves only when you choose push or pull.",
   "cloudSync_dataScope": "Choose what to save",
