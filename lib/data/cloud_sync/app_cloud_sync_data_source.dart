@@ -270,18 +270,7 @@ class AppCloudSyncDataSource
         if (currentIds.contains(record.id)) {
           continue;
         }
-        records.add(
-          await _encodePortable(
-            PortableSyncRecord(
-              adapterId: portable.adapterId,
-              id: portable.id,
-              kind: portable.kind,
-              data: portable.data,
-              deleted: true,
-            ),
-            records,
-          ),
-        );
+        records.add(await _encodePortable(_tombstoneFor(portable), records));
       }
     }
     final snapshot = CloudSyncSnapshotData(records);
@@ -430,18 +419,7 @@ class AppCloudSyncDataSource
       // Unknown/opaque adapters are preserved in merged snapshots but must
       // never be interpreted as locally owned records during rollback.
       if (!_registry.adapterIds.contains(portable.adapterId)) continue;
-      recovery.add(
-        await _encodePortable(
-          PortableSyncRecord(
-            adapterId: portable.adapterId,
-            id: portable.id,
-            kind: portable.kind,
-            data: portable.data,
-            deleted: true,
-          ),
-          recovery,
-        ),
-      );
+      recovery.add(await _encodePortable(_tombstoneFor(portable), recovery));
     }
     final snapshot = CloudSyncSnapshotData(recovery);
     _preparedSnapshots[target] = true;
@@ -547,17 +525,27 @@ class AppCloudSyncDataSource
           !_registry.adapterIds.contains(portable.adapterId)) {
         continue;
       }
-      records.add(
-        PortableSyncRecord(
-          adapterId: portable.adapterId,
-          id: portable.id,
-          kind: portable.kind,
-          data: portable.data,
-          deleted: true,
-        ),
-      );
+      records.add(_tombstoneFor(portable));
     }
     return records;
+  }
+
+  PortableSyncRecord _tombstoneFor(PortableSyncRecord source) {
+    final adapter = _registry.adapter(source.adapterId);
+    if (adapter is! ValidatingCloudSyncDataAdapter) {
+      throw CloudFormatException(
+        'adapter ${source.adapterId} cannot create a tombstone',
+      );
+    }
+    final data = adapter.tombstoneData(source);
+    ValidatingCloudSyncDataAdapter.rejectSecrets(data);
+    return PortableSyncRecord(
+      adapterId: source.adapterId,
+      id: source.id,
+      kind: source.kind,
+      data: data,
+      deleted: true,
+    );
   }
 
   bool _sameRecord(CloudSyncRecord? left, CloudSyncRecord right) {

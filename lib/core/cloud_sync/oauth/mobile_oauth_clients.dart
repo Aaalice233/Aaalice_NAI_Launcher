@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../utils/app_logger.dart';
+import '../../utils/fatal_diagnostics.dart';
 import 'cloud_drive_oauth_client.dart';
 import 'cloud_drive_oauth_config.dart';
 import 'cloud_drive_oauth_models.dart';
@@ -111,6 +113,16 @@ final class GoogleSignInAndroidCloudDriveOAuthClient
     final cancelled =
         error.code == GoogleSignInExceptionCode.canceled ||
         error.code == GoogleSignInExceptionCode.interrupted;
+    final description = error.description == null
+        ? null
+        : FatalDiagnostics.redactSensitiveText(
+            error.description!.replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
+          );
+    AppLogger.e(
+      'Google native OAuth failed: code=${error.code.name}, '
+          'description=${description == null || description.isEmpty ? 'none' : description}',
+      'CloudDriveOAuth',
+    );
     return CloudDriveOAuthException(
       cancelled
           ? CloudDriveOAuthFailureCode.cancelled
@@ -273,6 +285,7 @@ final class AppAuthGoogleDriveOAuthClient implements CloudDriveOAuthClient {
     FlutterAppAuthPlatformException error,
   ) {
     final oauthError = error.platformErrorDetails.error;
+    _logAppAuthFailure(provider, error.platformErrorDetails);
     return CloudDriveOAuthException(
       oauthError == FlutterAppAuthOAuthError.invalidGrant
           ? CloudDriveOAuthFailureCode.invalidGrant
@@ -315,14 +328,41 @@ final class AppAuthOneDriveOAuthClient implements CloudDriveOAuthClient {
 
   @override
   Future<CloudDriveOAuthSession> authenticate() async {
+    final nonce = _random.create().nonce;
     try {
-      final response = await _appAuth.authorizeAndExchangeCode(
-        AuthorizationTokenRequest(
+      // Microsoft returns a tenant-specific ID-token issuer even when the
+      // documented `common` authority is used. Explicit endpoints avoid the
+      // discovery issuer mismatch while AppAuth still owns PKCE and token
+      // validation.
+      final authorization = await _appAuth.authorize(
+        AuthorizationRequest(
           _config.clientId,
           _config.redirectUri.toString(),
-          issuer: _config.issuer.toString(),
+          serviceConfiguration: _serviceConfiguration,
           scopes: _config.scopes,
-          nonce: _random.create().nonce,
+          nonce: nonce,
+        ),
+      );
+      final code = authorization.authorizationCode;
+      final verifier = authorization.codeVerifier;
+      if (code == null ||
+          code.isEmpty ||
+          verifier == null ||
+          verifier.isEmpty) {
+        throw const CloudDriveOAuthException(
+          CloudDriveOAuthFailureCode.malformedResponse,
+          'Microsoft authorization response is incomplete',
+        );
+      }
+      final response = await _appAuth.token(
+        TokenRequest(
+          _config.clientId,
+          _config.redirectUri.toString(),
+          serviceConfiguration: _serviceConfiguration,
+          scopes: _config.scopes,
+          authorizationCode: code,
+          codeVerifier: verifier,
+          nonce: nonce,
         ),
       );
       return _newSession(response);
@@ -351,9 +391,9 @@ final class AppAuthOneDriveOAuthClient implements CloudDriveOAuthClient {
         TokenRequest(
           _config.clientId,
           _config.redirectUri.toString(),
-          issuer: _config.issuer.toString(),
-          refreshToken: refreshToken,
+          serviceConfiguration: _serviceConfiguration,
           scopes: _config.scopes,
+          refreshToken: refreshToken,
         ),
       );
       final accessToken = response.accessToken;
@@ -364,9 +404,12 @@ final class AppAuthOneDriveOAuthClient implements CloudDriveOAuthClient {
           'Microsoft refresh response is incomplete',
         );
       }
+      final nextRefreshToken = response.refreshToken;
       return session.copyWith(
         accessToken: accessToken,
-        refreshToken: response.refreshToken ?? refreshToken,
+        refreshToken: nextRefreshToken == null || nextRefreshToken.isEmpty
+            ? refreshToken
+            : nextRefreshToken,
         expiresAt: expiry,
       );
     } on FlutterAppAuthPlatformException catch (error) {
@@ -382,7 +425,13 @@ final class AppAuthOneDriveOAuthClient implements CloudDriveOAuthClient {
     // provider; browser-wide logout is intentionally not automatic.
   }
 
-  CloudDriveOAuthSession _newSession(AuthorizationTokenResponse response) {
+  AuthorizationServiceConfiguration get _serviceConfiguration =>
+      AuthorizationServiceConfiguration(
+        authorizationEndpoint: _config.authorizationEndpoint.toString(),
+        tokenEndpoint: _config.tokenEndpoint.toString(),
+      );
+
+  CloudDriveOAuthSession _newSession(TokenResponse response) {
     final accessToken = response.accessToken;
     final refreshToken = response.refreshToken;
     final expiry = response.accessTokenExpirationDateTime;
@@ -392,7 +441,8 @@ final class AppAuthOneDriveOAuthClient implements CloudDriveOAuthClient {
         refreshToken == null ||
         refreshToken.isEmpty ||
         expiry == null ||
-        idToken == null) {
+        idToken == null ||
+        idToken.isEmpty) {
       throw const CloudDriveOAuthException(
         CloudDriveOAuthFailureCode.malformedResponse,
         'Microsoft authorization response is incomplete',
@@ -400,12 +450,13 @@ final class AppAuthOneDriveOAuthClient implements CloudDriveOAuthClient {
     }
     final claims = _decodeClaims(idToken, 'Microsoft');
     final objectId = claims['oid'] ?? claims['sub'];
-    final tenantId = claims['tid'] ?? 'consumer';
+    final tenantId = claims['tid'];
     final display =
         claims['preferred_username'] ?? claims['email'] ?? claims['name'];
     if (objectId is! String ||
         objectId.isEmpty ||
         tenantId is! String ||
+        tenantId.isEmpty ||
         display is! String ||
         display.isEmpty) {
       throw const CloudDriveOAuthException(
@@ -427,6 +478,7 @@ final class AppAuthOneDriveOAuthClient implements CloudDriveOAuthClient {
     FlutterAppAuthPlatformException error,
   ) {
     final oauthError = error.platformErrorDetails.error;
+    _logAppAuthFailure(provider, error.platformErrorDetails);
     return CloudDriveOAuthException(
       oauthError == FlutterAppAuthOAuthError.invalidGrant
           ? CloudDriveOAuthFailureCode.invalidGrant
@@ -443,6 +495,23 @@ final class AppAuthOneDriveOAuthClient implements CloudDriveOAuthClient {
       throw ArgumentError('OAuth session provider mismatch');
     }
   }
+}
+
+void _logAppAuthFailure(
+  CloudDriveOAuthProvider provider,
+  FlutterAppAuthPlatformErrorDetails details,
+) {
+  final description = details.errorDescription == null
+      ? null
+      : FatalDiagnostics.redactSensitiveText(
+          details.errorDescription!.replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
+        );
+  AppLogger.e(
+    'Native OAuth failed: provider=${provider.id}, type=${details.type}, '
+        'code=${details.code}, oauthError=${details.error ?? 'none'}, '
+        'description=${description == null || description.isEmpty ? 'none' : description}',
+    'CloudDriveOAuth',
+  );
 }
 
 Map<String, dynamic> _decodeClaims(String token, String providerName) {

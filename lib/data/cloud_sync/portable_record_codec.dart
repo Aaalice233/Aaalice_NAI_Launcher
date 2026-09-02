@@ -210,7 +210,13 @@ class PortableRecordCodec {
           json['portableId'] is! String ||
           json['kind'] is! String ||
           json['data'] is! Map) {
-        throw const CloudFormatException('invalid tombstone identity');
+        throw CloudFormatException(
+          'invalid tombstone identity schema: '
+          'adapterId=${json['adapterId'].runtimeType}, '
+          'portableId=${json['portableId'].runtimeType}, '
+          'kind=${json['kind'].runtimeType}, '
+          'data=${json['data'].runtimeType}',
+        );
       }
       final adapterId = json['adapterId']! as String;
       final portableId = json['portableId']! as String;

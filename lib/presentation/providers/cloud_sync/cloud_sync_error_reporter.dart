@@ -1,6 +1,8 @@
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/cloud_sync/models.dart';
 import '../../../core/cloud_sync/sync_types.dart';
+import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/fatal_diagnostics.dart';
 import 'cloud_sync_operation_runner.dart';
 import 'cloud_sync_ui_provider.dart';
 
@@ -14,6 +16,14 @@ class CloudSyncErrorReporter {
   final CloudSyncStateWriter writeState;
 
   void record(Object error, {bool resetActivity = false}) {
+    final detail = FatalDiagnostics.redactSensitiveText(
+      error.toString().replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
+    );
+    AppLogger.e(
+      'Cloud sync operation failed: type=${error.runtimeType}, '
+          'detail=${detail.length > 500 ? detail.substring(0, 500) : detail}',
+      'CloudSync',
+    );
     final state = readState();
     final message = cloudSyncErrorMessage(error);
     if (!resetActivity && state.error == message) return;

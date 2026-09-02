@@ -235,7 +235,7 @@ void main() {
     },
   );
 
-  test('recovery tombstones newly introduced allowlisted metadata', () async {
+  test('recovery tombstones bound large newly introduced metadata', () async {
     final adapter = _Adapter();
     final source = AppCloudSyncDataSource(
       registry: CloudSyncDataAdapterRegistry([adapter]),
@@ -247,7 +247,7 @@ void main() {
         'adapterId': adapter.id,
         'portableId': 'new-local-record',
         'kind': 'item',
-        'data': <String, Object?>{},
+        'data': <String, Object?>{'large': 'x' * 70000},
         'deleted': false,
         'resource': null,
       }),
@@ -278,6 +278,7 @@ void main() {
     expect(adapter.applied, hasLength(1));
     expect(adapter.applied.single.id, 'new-local-record');
     expect(adapter.applied.single.deleted, isTrue);
+    expect(adapter.applied.single.data, isEmpty);
   });
 
   test('corrupt staged ref cannot block durable recovery rollback', () async {
@@ -957,7 +958,7 @@ void main() {
     expect(deletion.adapterId, adapter.id);
     expect(deletion.id, 'removed');
     expect(deletion.kind, 'item');
-    expect(deletion.data, const {'name': 'local'});
+    expect(deletion.data, isEmpty);
     expect(deletion.deleted, isTrue);
     expect(deletion.resource, isNull);
   });

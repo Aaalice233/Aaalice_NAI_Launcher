@@ -112,7 +112,7 @@ final class CloudDriveOAuthConfig {
   static const oneDriveAppFolderScope = 'Files.ReadWrite.AppFolder';
   static const mobileCallbackScheme = 'com.aaalice.nailauncher.oauth';
   static const oneDriveMobileCallbackUri =
-      '$mobileCallbackScheme:/oauth2redirect/microsoft';
+      '$mobileCallbackScheme://oauth2redirect/microsoft';
 
   static const _googleScopes = <String>['openid', 'email', googleDriveScope];
   static const _oneDriveScopes = <String>[

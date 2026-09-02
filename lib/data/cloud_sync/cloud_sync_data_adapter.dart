@@ -52,6 +52,11 @@ abstract class ValidatingCloudSyncDataAdapter implements CloudSyncDataAdapter {
 
   void validateRecord(PortableSyncRecord record) {}
 
+  /// Returns only the stable fields required to apply this record's deletion.
+  /// Tombstones live in manifests, so copying arbitrary live payload data here
+  /// would make rollback metadata grow without a useful bound.
+  Map<String, Object?> tombstoneData(PortableSyncRecord record) => const {};
+
   static void rejectSecrets(Map<String, Object?> data) => _rejectSecrets(data);
 
   static void _rejectSecrets(Object? value, [String path = 'data']) {

@@ -122,7 +122,7 @@ void main() {
         values: const {
           'ONEDRIVE_ANDROID_CLIENT_ID': 'client-id',
           'ONEDRIVE_ANDROID_REDIRECT_URI':
-              'com.aaalice.nailauncher.oauth:/oauth2redirect/microsoft',
+              'com.aaalice.nailauncher.oauth://oauth2redirect/microsoft',
         },
       );
 

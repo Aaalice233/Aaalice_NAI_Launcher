@@ -16,6 +16,18 @@ $keys = @(
 $dartArgs = @()
 foreach ($key in $keys) {
     $value = [Environment]::GetEnvironmentVariable($key)
+    if ($IsWindows -and [string]::IsNullOrWhiteSpace($value)) {
+        $value = [Environment]::GetEnvironmentVariable(
+            $key,
+            [EnvironmentVariableTarget]::User
+        )
+    }
+    if ($IsWindows -and [string]::IsNullOrWhiteSpace($value)) {
+        $value = [Environment]::GetEnvironmentVariable(
+            $key,
+            [EnvironmentVariableTarget]::Machine
+        )
+    }
     if (-not [string]::IsNullOrWhiteSpace($value)) {
         $dartArgs += "--define=$key=$value"
     }
