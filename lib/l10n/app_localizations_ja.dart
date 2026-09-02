@@ -5941,6 +5941,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_moveAlbumToRoot => 'ルートへ移動';
 
   @override
+  String get localGallery_moveAlbumUp => '一つ上へ移動';
+
+  @override
+  String get localGallery_moveCategoryUp => '一つ上へ移動';
+
+  @override
   String get localGallery_createAlbumTitle => 'アルバムを作成';
 
   @override
@@ -5948,9 +5954,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get localGallery_createAlbumHint => 'アルバム名を入力';
-
-  @override
-  String get localGallery_renameAlbumTitle => 'アルバムの名前を変更';
 
   @override
   String get localGallery_deleteAlbumTitle => 'アルバムを削除';

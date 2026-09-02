@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,7 @@ import 'package:nai_launcher/presentation/providers/gallery_category_provider.da
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
 import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_category_panel.dart';
+import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
 import 'package:hive/hive.dart';
 
@@ -121,15 +123,16 @@ void main() {
       onCategoryDelete: (_) async {},
       onAddSubCategory: (_) async {},
       onCategoryMove: (_, _) async {},
-      onCategoryReorder: (_, _, _) async {},
       onImageDrop: (_, _) async {},
       onSyncWithFileSystem: () async {},
       onCreateAlbum: (_) async {},
       onAlbumSelected: onAlbumSelected ?? (_) {},
-      onAlbumRenameRequest: (_) async {},
+      onAlbumRename: (_, _) async {},
       onAlbumDeleteRequest: (_) async {},
       onAddAlbumRequest: (_) async {},
       onAlbumMove: (_, _) async => true,
+      onAlbumMoveToSlot: (_, _, _) async => true,
+      onCategoryMoveToSlot: (_, _, _) async => true,
       onImageDropToAlbum: (imagePath, albumId) async {
         onDrop?.call(albumId, imagePath);
       },
@@ -334,5 +337,61 @@ void main() {
     await tester.tap(button);
     await tester.pump(const Duration(milliseconds: 200));
     expect(_removedClicked, isTrue);
+  });
+
+  testWidgets('生产壳层下右键菜单出现在点击位置', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      wrapBoundary(
+        'context-menu-at-click',
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DesktopWindowFrame(
+              enabled: true,
+              child: Row(
+                children: [
+                  const SizedBox(width: 200),
+                  Expanded(
+                    child: Navigator(
+                      onGenerateRoute: (_) => PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => buildHarness(width: 1000),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final item = find.text('测试文件夹');
+    expect(item, findsOneWidget);
+    final itemCenter = tester.getCenter(item);
+    // 点击行左侧（与生产一致：相簿/文件夹面板位于内容区左侧）
+    final tapPosition = Offset(itemCenter.dx - 40, itemCenter.dy);
+    final gesture = await tester.startGesture(
+      tapPosition,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    // 菜单面板（菜单项最近的 Material 祖先）原点应贴合点击点
+    final menuPanel = find.ancestor(
+      of: find.byWidgetPredicate((widget) => widget is PopupMenuItem),
+      matching: find.byType(Material),
+    ).first;
+    final panelTopLeft = tester.getTopLeft(menuPanel);
+    expect((panelTopLeft - tapPosition).distance, lessThan(1.0));
+    await savePng('context-menu-at-click');
   });
 }

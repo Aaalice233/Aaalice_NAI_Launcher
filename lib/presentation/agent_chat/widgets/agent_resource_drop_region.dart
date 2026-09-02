@@ -7,6 +7,7 @@ import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../providers/agent_chat_notifier.dart';
+import '../../widgets/common/context_menu_anchor.dart';
 
 export '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 
@@ -44,12 +45,7 @@ Future<void> showAddAgentResourceMenu({
 }) async {
   final selected = await showMenu<bool>(
     context: context,
-    position: RelativeRect.fromLTRB(
-      position.dx,
-      position.dy,
-      position.dx + 1,
-      position.dy + 1,
-    ),
+    position: contextMenuAnchorAt(context, position),
     items: [
       PopupMenuItem<bool>(
         value: true,

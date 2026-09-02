@@ -6089,6 +6089,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_moveAlbumToRoot => 'Move to Root';
 
   @override
+  String get localGallery_moveAlbumUp => 'Move Up One Level';
+
+  @override
+  String get localGallery_moveCategoryUp => 'Move Up One Level';
+
+  @override
   String get localGallery_createAlbumTitle => 'New Album';
 
   @override
@@ -6096,9 +6102,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_createAlbumHint => 'Enter album name';
-
-  @override
-  String get localGallery_renameAlbumTitle => 'Rename Album';
 
   @override
   String get localGallery_deleteAlbumTitle => 'Delete Album';

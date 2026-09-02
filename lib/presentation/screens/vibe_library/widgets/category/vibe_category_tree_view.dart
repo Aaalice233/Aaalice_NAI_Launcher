@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/vibe/vibe_library_category.dart';
+import '../../../../widgets/common/context_menu_anchor.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import 'vibe_category_item.dart';
 
@@ -118,12 +119,7 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
   void _showEmptyAreaContextMenu(BuildContext context, Offset position) {
     showMenu(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: contextMenuAnchorAt(context, position),
       items: [
         PopupMenuItem(
           onTap: () => widget.onAddSubCategory?.call(null),

@@ -10867,6 +10867,18 @@ abstract class AppLocalizations {
   /// **'Move to Root'**
   String get localGallery_moveAlbumToRoot;
 
+  /// No description provided for @localGallery_moveAlbumUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Up One Level'**
+  String get localGallery_moveAlbumUp;
+
+  /// No description provided for @localGallery_moveCategoryUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Up One Level'**
+  String get localGallery_moveCategoryUp;
+
   /// No description provided for @localGallery_createAlbumTitle.
   ///
   /// In en, this message translates to:
@@ -10884,12 +10896,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter album name'**
   String get localGallery_createAlbumHint;
-
-  /// No description provided for @localGallery_renameAlbumTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename Album'**
-  String get localGallery_renameAlbumTitle;
 
   /// No description provided for @localGallery_deleteAlbumTitle.
   ///

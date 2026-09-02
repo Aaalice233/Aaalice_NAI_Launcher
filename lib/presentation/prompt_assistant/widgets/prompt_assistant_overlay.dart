@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/context_menu_anchor.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/character/character_prompt.dart';
@@ -475,12 +476,7 @@ class _PromptAssistantOverlayState
     if (_isDesktop && position != null) {
       showMenu<String>(
         context: context,
-        position: RelativeRect.fromLTRB(
-          position.dx,
-          position.dy,
-          position.dx,
-          position.dy,
-        ),
+        position: contextMenuAnchorAt(context, position),
         items: [
           PopupMenuItem(
             value: 'history',

@@ -7,6 +7,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import 'image_card_actions.dart';
 import 'pro_context_menu.dart';
+import 'context_menu_anchor.dart';
 
 class ImageCardContextMenu {
   const ImageCardContextMenu._();
@@ -114,7 +115,10 @@ class ImageCardContextMenuRoute extends PopupRoute<ProMenuItem> {
       removeBottom: true,
       child: Builder(
         builder: (context) {
-          final screenSize = MediaQuery.sizeOf(context);
+          // position 是窗口全局坐标；路由页面铺在最近 Overlay 上，
+          // 需换算到 overlay 局部坐标并按 overlay 尺寸收拢
+          final screenSize = contextMenuOverlaySize(context);
+          final local = contextMenuLocalPosition(context, position);
           const menuWidth = 180.0;
           final estimatedMenuHeight =
               items.where((item) => !item.isDivider).length * 36.0 +
@@ -125,8 +129,8 @@ class ImageCardContextMenuRoute extends PopupRoute<ProMenuItem> {
             screenSize.height - viewportMargin * 2,
           );
           final menuHeight = math.min(estimatedMenuHeight, maxMenuHeight);
-          var left = position.dx;
-          var top = position.dy;
+          var left = local.dx;
+          var top = local.dy;
           if (left + menuWidth > screenSize.width) {
             left = screenSize.width - menuWidth - viewportMargin;
           }
