@@ -222,13 +222,18 @@ void main() {
       ),
       findsOneWidget,
     );
-    final centeredActions = find.byKey(
-      const ValueKey('collapsible-centered-actions-角色'),
+    final leadingActions = find.byKey(
+      const ValueKey('collapsible-leading-actions-角色'),
     );
-    expect(centeredActions, findsOneWidget);
+    expect(leadingActions, findsOneWidget);
     expect(
-      tester.getCenter(centeredActions).dx,
-      closeTo(tester.getCenter(header).dx, 0.5),
+      tester.getTopLeft(leadingActions).dx,
+      lessThan(tester.getCenter(header).dx),
+    );
+    final chevron = find.byKey(const Key('collapsible-chevron-角色')).first;
+    expect(
+      tester.getRect(header).right - tester.getRect(chevron).right,
+      closeTo(12, 0.5),
     );
 
     await tester.tap(find.byKey(const Key('character-add-male')));
@@ -272,6 +277,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('character-hover-preview')), findsNothing);
     expect(find.byType(InlineCharacterCard), findsNWidgets(2));
+  });
+
+  testWidgets('宽屏根 Overlay 不会把角色悬浮预览拉伸到整行', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final container = createContainer();
+    await tester.pumpWidget(subject(container, 1840));
+    await tester.pumpAndSettle();
+
+    final header = find.byKey(const Key('collapsible-header-角色')).first;
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(header));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump();
+
+    final preview = find.byKey(const Key('character-hover-preview'));
+    final positioned = find.byKey(
+      const ValueKey('collapsed-hover-preview-positioned'),
+    );
+    final follower = find.byKey(
+      const ValueKey('collapsed-hover-preview-follower'),
+    );
+    expect(preview, findsOneWidget);
+    expect(positioned, findsOneWidget);
+    expect(follower, findsOneWidget);
+    expect(tester.widget<Positioned>(positioned).width, 380);
+    expect(tester.getSize(follower).width, 380);
+    expect(tester.getSize(preview).width, 380);
+    expect(
+      tester.getSize(preview).width,
+      lessThan(tester.getSize(header).width),
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('悬浮预览显示期间更新角色状态不会在 build 阶段刷新 Overlay', (tester) async {
@@ -508,15 +548,16 @@ void main() {
       find.ancestor(of: expandedToolbar, matching: editor),
       findsOneWidget,
     );
-    expect(expandedSlotRect.left, closeTo(editorRect.left, 0.1));
     expect(expandedSlotRect.right, closeTo(editorRect.right, 0.1));
+    expect(expandedSlotRect.width, 192);
     expect(expandedSlotRect.height, 32);
     expect(expandedToolbarRect.top, closeTo(collapsedSlotRect.top, 0.1));
     expect(expandedToolbarRect.left, greaterThanOrEqualTo(editorRect.left));
     expect(expandedToolbarRect.right, lessThanOrEqualTo(editorRect.right));
-    expect(find.text('正向提示词').hitTestable(), findsNothing);
-    expect(find.text('负向提示词').hitTestable(), findsNothing);
-    expect(clearButton, findsNothing);
+    expect(find.text('正向提示词').hitTestable(), findsOneWidget);
+    expect(find.text('负向提示词').hitTestable(), findsOneWidget);
+    expect(clearButton, findsOneWidget);
+    expect(tester.getRect(clearButton).right, lessThan(expandedSlotRect.left));
     for (final icon in [
       Icons.translate,
       Icons.auto_fix_high,

@@ -7,8 +7,8 @@ void main() {
     'responsive generation workspace preserves its main pane without overflow',
     (tester) async {
       for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
-        final desktop = width >= 1000;
-        final leadingWidth = desktop ? (300.0 + 8 + 400 + 8) : 0.0;
+        final desktop = width >= 840;
+        final leadingWidth = desktop ? 308.0 : 0.0;
         await tester.binding.setSurfaceSize(Size(width, 700));
         await tester.pumpWidget(
           MaterialApp(
@@ -16,11 +16,7 @@ void main() {
               body: GenerationWorkspaceRow(
                 occupiedLeadingWidth: leadingWidth,
                 leading: desktop
-                    ? const [
-                        SizedBox(width: 300),
-                        SizedBox(width: 8),
-                        SizedBox(width: 408),
-                      ]
+                    ? const [SizedBox(width: 300), SizedBox(width: 8)]
                     : const [],
                 main: const ColoredBox(color: Colors.blue),
                 rightPanelExpanded: desktop,
@@ -54,8 +50,8 @@ void main() {
         if (desktop) {
           expect(
             panelRect.left,
-            lessThan(mainRect.right),
-            reason: 'expanded panel must overlay the main workspace',
+            greaterThanOrEqualTo(mainRect.right),
+            reason: 'expanded panel must occupy its own workspace column',
           );
         }
       }
@@ -112,6 +108,17 @@ void main() {
         expect(
           find.byKey(const ValueKey('test-classic-right-panel-true')),
           findsOneWidget,
+        );
+        final mainRect = tester.getRect(
+          find.byKey(const ValueKey('generation-main-workspace-slot')),
+        );
+        final panelRect = tester.getRect(
+          find.byKey(const ValueKey('test-classic-right-panel-true')),
+        );
+        expect(
+          panelRect.left,
+          greaterThanOrEqualTo(mainRect.right),
+          reason: 'width=$width',
         );
       }
 

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/agent/agent_settings.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../adaptive/adaptive_presenter.dart';
@@ -16,6 +17,331 @@ double _agentChatControlExtent(BuildContext context) => math.max(
   context.interactionPolicy.minimumControlExtent,
   MediaQuery.textScalerOf(context).scale(16) + 12,
 );
+
+/// 将模型与思考强度收进同一个分级入口，避免高频输入区被两个选择器占满。
+class AgentChatConfigurationControl extends StatelessWidget {
+  const AgentChatConfigurationControl({
+    super.key,
+    required this.config,
+    required this.agentSettings,
+    required this.routeLabel,
+    required this.routeError,
+    required this.thinkingLevel,
+    required this.availableThinkingLevels,
+    required this.enabled,
+    required this.onModelSelected,
+    required this.onThinkingSelected,
+    this.restoreFocusNode,
+    this.showModelName = true,
+  });
+
+  final PromptAssistantConfigState config;
+  final AgentSettingsState agentSettings;
+  final String routeLabel;
+  final String routeError;
+  final ThinkingLevel thinkingLevel;
+  final List<ThinkingLevel> availableThinkingLevels;
+  final bool enabled;
+  final Future<void> Function(String providerId, String model) onModelSelected;
+  final Future<void> Function(ThinkingLevel level) onThinkingSelected;
+  final FocusNode? restoreFocusNode;
+  final bool showModelName;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final options = _modelOptions(config);
+    final current = _currentModelOption(options, agentSettings);
+    final modelName = _modelDisplayName(
+      current: current,
+      reference: agentSettings.settings.chat.modelReference,
+      routeLabel: routeLabel,
+      emptyLabel: l10n.agentChat_noModel,
+    );
+    final thinkingName = thinkingLevelLabel(l10n, thinkingLevel);
+    final interactive =
+        enabled && (options.isNotEmpty || availableThinkingLevels.isNotEmpty);
+    final tooltip = routeError.isNotEmpty
+        ? routeError
+        : '${l10n.agentChat_modelLabel}: $modelName · '
+              '${l10n.agentChat_reasoningLevel}: $thinkingName';
+    final theme = Theme.of(context);
+
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        enabled: interactive,
+        label: tooltip,
+        child: Material(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.42,
+          ),
+          borderRadius: BorderRadius.circular(11),
+          child: InkWell(
+            key: const ValueKey('agent-chat-model-selector'),
+            borderRadius: BorderRadius.circular(11),
+            onTap: interactive
+                ? () => _openConfigurationPicker(context, current)
+                : null,
+            child: SizedBox(
+              height: math.max(42, _agentChatControlExtent(context)),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: showModelName ? 11 : 6,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (showModelName) ...[
+                      Flexible(
+                        child: Text(
+                          modelName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Flexible(
+                      child: Text(
+                        thinkingName,
+                        key: const ValueKey('agent-chat-thinking-selector'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.expand_more_rounded, size: 17),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openConfigurationPicker(
+    BuildContext context,
+    _AgentChatModelOption? current,
+  ) async {
+    final restoreFocus = restoreFocusNode?.hasFocus ?? false;
+    restoreFocusNode?.unfocus();
+    final selection =
+        await AdaptivePresenter.showPicker<_AgentChatConfigurationSelection>(
+          context: context,
+          initialChildSize: 0.64,
+          minChildSize: 0.45,
+          maxChildSize: 0.94,
+          width: 440,
+          maxCenteredHeight: 480,
+          restoreFocus: false,
+          builder: (_, scrollController) => _AgentChatConfigurationPickerBody(
+            options: _modelOptions(config),
+            selectedModel: current,
+            thinkingLevel: thinkingLevel,
+            availableThinkingLevels: availableThinkingLevels,
+            scrollController: scrollController,
+          ),
+        );
+    if (selection?.model case final model?) {
+      await onModelSelected(model.provider.id, model.model.name);
+    } else if (selection?.thinkingLevel case final level?) {
+      await onThinkingSelected(level);
+    }
+    if (context.mounted &&
+        restoreFocus &&
+        restoreFocusNode?.canRequestFocus == true) {
+      restoreFocusNode!.requestFocus();
+    }
+  }
+}
+
+class _AgentChatConfigurationSelection {
+  const _AgentChatConfigurationSelection.model(this.model)
+    : thinkingLevel = null;
+
+  const _AgentChatConfigurationSelection.thinking(this.thinkingLevel)
+    : model = null;
+
+  final _AgentChatModelOption? model;
+  final ThinkingLevel? thinkingLevel;
+}
+
+class _AgentChatConfigurationPickerBody extends StatefulWidget {
+  const _AgentChatConfigurationPickerBody({
+    required this.options,
+    required this.selectedModel,
+    required this.thinkingLevel,
+    required this.availableThinkingLevels,
+    required this.scrollController,
+  });
+
+  final List<_AgentChatModelOption> options;
+  final _AgentChatModelOption? selectedModel;
+  final ThinkingLevel thinkingLevel;
+  final List<ThinkingLevel> availableThinkingLevels;
+  final ScrollController scrollController;
+
+  @override
+  State<_AgentChatConfigurationPickerBody> createState() =>
+      _AgentChatConfigurationPickerBodyState();
+}
+
+class _AgentChatConfigurationPickerBodyState
+    extends State<_AgentChatConfigurationPickerBody> {
+  var _showModels = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showModels) {
+      return _AgentChatModelPickerBody(
+        title: context.l10n.agentChat_modelPickerTitle,
+        options: widget.options,
+        selected: widget.selectedModel,
+        scrollController: widget.scrollController,
+        onBack: () => setState(() => _showModels = false),
+        wrapSelection: true,
+      );
+    }
+
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final currentModel =
+        widget.selectedModel?.displayName ?? l10n.agentChat_noModel;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PickerHeader(
+          title:
+              '${l10n.agentChat_modelLabel} · ${l10n.agentChat_reasoningLevel}',
+        ),
+        Expanded(
+          child: ListView(
+            controller: widget.scrollController,
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+            children: [
+              Material(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.52,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                child: ListTile(
+                  key: const ValueKey('agent-chat-model-submenu'),
+                  minTileHeight: math.max(56, _agentChatControlExtent(context)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                  title: Text(
+                    l10n.agentChat_modelLabel,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    currentModel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => setState(() => _showModels = true),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 18, 12, 4),
+                child: Text(
+                  l10n.agentChat_reasoningLevel,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              for (final option in widget.availableThinkingLevels)
+                ListTile(
+                  key: ValueKey('agent-chat-thinking-option-${option.name}'),
+                  minTileHeight: _agentChatControlExtent(context),
+                  leading: SizedBox(
+                    width: 20,
+                    child: option == widget.thinkingLevel
+                        ? Icon(
+                            Icons.check_rounded,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          )
+                        : null,
+                  ),
+                  title: Text(thinkingLevelLabel(l10n, option)),
+                  onTap: () => Navigator.pop(
+                    context,
+                    _AgentChatConfigurationSelection.thinking(option),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PickerHeader extends StatelessWidget {
+  const _PickerHeader({required this.title, this.onBack});
+
+  final String title;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 56),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(start: 8, end: 8, top: 4),
+        child: Row(
+          children: [
+            if (onBack != null)
+              IconButton(
+                key: const ValueKey('agent-chat-model-picker-back'),
+                onPressed: onBack,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                icon: const Icon(Icons.arrow_back_rounded),
+              )
+            else
+              const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                key: const ValueKey('agent-chat-model-picker-title'),
+                style: Theme.of(context).textTheme.titleMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            IconButton(
+              key: const ValueKey('agent-chat-model-picker-close'),
+              onPressed: () => Navigator.maybePop(context),
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class AgentChatModelControl extends StatelessWidget {
   const AgentChatModelControl({
@@ -78,7 +404,7 @@ class AgentChatModelControl extends StatelessWidget {
             child: SizedBox(
               height: _agentChatControlExtent(context),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: EdgeInsets.symmetric(horizontal: showLabel ? 10 : 6),
                 child: Row(
                   children: [
                     if (showLabel) ...[
@@ -101,8 +427,8 @@ class AgentChatModelControl extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.expand_more_rounded, size: 16),
+                    SizedBox(width: showLabel ? 4 : 2),
+                    Icon(Icons.expand_more_rounded, size: showLabel ? 16 : 14),
                   ],
                 ),
               ),
@@ -213,14 +539,17 @@ class AgentChatThinkingControl extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
               ],
-              Text(
-                value,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
-                maxLines: 1,
+              Flexible(
+                child: Text(
+                  value,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              if (interactive) ...[
+              if (interactive && showLabel) ...[
                 const SizedBox(width: 2),
                 const Icon(Icons.expand_more_rounded, size: 16),
               ],
@@ -259,12 +588,16 @@ class _AgentChatModelPickerBody extends StatefulWidget {
     required this.options,
     required this.selected,
     required this.scrollController,
+    this.onBack,
+    this.wrapSelection = false,
   });
 
   final String title;
   final List<_AgentChatModelOption> options;
   final _AgentChatModelOption? selected;
   final ScrollController scrollController;
+  final VoidCallback? onBack;
+  final bool wrapSelection;
 
   @override
   State<_AgentChatModelPickerBody> createState() =>
@@ -330,41 +663,7 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 56),
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.only(
-                          start: 20,
-                          end: 8,
-                          top: 4,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                widget.title,
-                                key: const ValueKey(
-                                  'agent-chat-model-picker-title',
-                                ),
-                                style: theme.textTheme.titleLarge,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            IconButton(
-                              key: const ValueKey(
-                                'agent-chat-model-picker-close',
-                              ),
-                              onPressed: () => Navigator.maybePop(context),
-                              tooltip: MaterialLocalizations.of(
-                                context,
-                              ).closeButtonTooltip,
-                              icon: const Icon(Icons.close_rounded),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _PickerHeader(title: widget.title, onBack: widget.onBack),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                       child: TextField(
@@ -462,7 +761,14 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
                                   setState(() => _highlightedIndex = index);
                                 }
                               },
-                              onTap: () => Navigator.pop(context, option),
+                              onTap: () => Navigator.pop(
+                                context,
+                                widget.wrapSelection
+                                    ? _AgentChatConfigurationSelection.model(
+                                        option,
+                                      )
+                                    : option,
+                              ),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
@@ -557,7 +863,13 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
       next = filtered.length - 1;
     } else if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
-      Navigator.pop(context, filtered[_highlightedIndex]);
+      final option = filtered[_highlightedIndex];
+      Navigator.pop(
+        context,
+        widget.wrapSelection
+            ? _AgentChatConfigurationSelection.model(option)
+            : option,
+      );
       return KeyEventResult.handled;
     }
     if (next == null) return KeyEventResult.ignored;
@@ -627,6 +939,32 @@ class _AgentChatModelOption {
 
   bool sameModel(_AgentChatModelOption other) =>
       provider.id == other.provider.id && model.name == other.model.name;
+}
+
+_AgentChatModelOption? _currentModelOption(
+  List<_AgentChatModelOption> options,
+  AgentSettingsState agentSettings,
+) {
+  final reference = agentSettings.settings.chat.modelReference;
+  return options.cast<_AgentChatModelOption?>().firstWhere(
+    (option) =>
+        option?.provider.id == reference.providerId &&
+        option?.model.name == reference.model,
+    orElse: () => null,
+  );
+}
+
+String _modelDisplayName({
+  required _AgentChatModelOption? current,
+  required AgentModelReference reference,
+  required String routeLabel,
+  required String emptyLabel,
+}) {
+  final fallback = reference.model.isEmpty ? routeLabel : reference.model;
+  final value = current?.model.displayName.trim().isNotEmpty == true
+      ? current!.model.displayName.trim()
+      : fallback.trim();
+  return value.isEmpty ? emptyLabel : value;
 }
 
 List<_AgentChatModelOption> _modelOptions(PromptAssistantConfigState config) =>

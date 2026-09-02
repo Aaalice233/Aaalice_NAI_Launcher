@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/themes/modules/color/palettes/grunge_palette.dart';
 import 'package:nai_launcher/presentation/widgets/common/collapsible_image_panel.dart';
 
 void main() {
@@ -14,20 +15,25 @@ void main() {
     bool disableAnimations = false,
     bool showSummary = true,
     bool hasData = false,
+    ColorScheme? colorScheme,
     WidgetBuilder? childBuilder,
   }) {
     return MaterialApp(
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.red,
-          brightness: Brightness.light,
-        ),
+        colorScheme:
+            colorScheme ??
+            ColorScheme.fromSeed(
+              seedColor: Colors.red,
+              brightness: Brightness.light,
+            ),
       ),
       darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.red,
-          brightness: Brightness.dark,
-        ),
+        colorScheme:
+            colorScheme ??
+            ColorScheme.fromSeed(
+              seedColor: Colors.red,
+              brightness: Brightness.dark,
+            ),
       ),
       themeMode: themeMode,
       home: MediaQuery(
@@ -136,9 +142,11 @@ void main() {
       final colorScheme = Theme.of(context).colorScheme;
       expect(
         tester.widget<Card>(surface).color,
-        colorScheme.surfaceContainerHighest,
+        Color.alphaBlend(
+          colorScheme.onSurface.withValues(alpha: 0.05),
+          colorScheme.surfaceContainerLow,
+        ),
       );
-      expect(colorScheme.surfaceContainerHighest, isNot(colorScheme.surface));
       expect(tester.widget<Card>(surface).elevation, 0);
       expect(tester.widget<Card>(surface).margin, EdgeInsets.zero);
       expect(
@@ -147,6 +155,32 @@ void main() {
       );
     });
   }
+
+  testWidgets('Grunge 暗色主题的展开面板与侧栏 surface 保持可见色差', (tester) async {
+    final colorScheme = const GrungePalette().darkScheme;
+    expect(colorScheme.surfaceContainerLow, colorScheme.surface);
+
+    await tester.pumpWidget(
+      buildSubject(
+        width: 320,
+        expanded: true,
+        colorScheme: colorScheme,
+        onToggle: () {},
+      ),
+    );
+
+    final surface = find.byKey(const ValueKey('collapsible-panel-surface-角色'));
+    final card = tester.widget<Card>(surface);
+    expect(card.color, isNot(colorScheme.surface));
+    expect(
+      card.color,
+      Color.alphaBlend(
+        colorScheme.onSurface.withValues(alpha: 0.05),
+        colorScheme.surfaceContainerLow,
+      ),
+    );
+    expect(tester.getSize(surface).height, greaterThan(44));
+  });
 
   for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
     for (final width in [320.0, 600.0]) {

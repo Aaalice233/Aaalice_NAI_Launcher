@@ -39,30 +39,37 @@ class GenerationWorkspaceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        const collapsedRightPanelWidth = 40.0;
+        const expandedPanelReservedWidth =
+            minimumExpandedPanelWidth + ResizeHandle.defaultWidth;
+        final overlaysLeading =
+            overlayableLeading != null &&
+            constraints.maxWidth -
+                    occupiedLeadingWidth -
+                    overlayableLeadingWidth -
+                    (rightPanelExpanded
+                        ? expandedPanelReservedWidth
+                        : collapsedRightPanelWidth) <
+                minimumMainWorkspaceWidth;
         final inlineLeadingWidth =
             occupiedLeadingWidth +
-            (overlayableLeading == null ? 0 : overlayableLeadingWidth);
-        final overlayWorkspaceWidth =
-            (constraints.maxWidth - inlineLeadingWidth).clamp(
-              0.0,
-              constraints.maxWidth,
-            );
+            (overlayableLeading == null || overlaysLeading
+                ? 0
+                : overlayableLeadingWidth);
         final expandedWidth = rightPanelExpanded
-            ? WorkspaceSidePanelContract.overlayWidth(
-                overlayWorkspaceWidth,
+            ? WorkspaceSidePanelContract.constrainedWorkspaceWidth(
+                workspaceWidth: constraints.maxWidth,
                 preferredWidth: preferredRightPanelWidth,
+                occupiedWidth: inlineLeadingWidth + ResizeHandle.defaultWidth,
+                minimumPrimaryWidth: minimumMainWorkspaceWidth,
+                minimumWidth: minimumExpandedPanelWidth,
               )
             : 0.0;
         final showsExpandedPanel =
             rightPanelExpanded && expandedWidth >= minimumExpandedPanelWidth;
-        final rightPanelWidth = showsExpandedPanel ? expandedWidth : 40.0;
-        const collapsedRightPanelWidth = 40.0;
-        final overlaysLeading =
-            overlayableLeading != null &&
-            constraints.maxWidth -
-                    inlineLeadingWidth -
-                    collapsedRightPanelWidth <
-                minimumMainWorkspaceWidth;
+        final rightPanelWidth = showsExpandedPanel
+            ? expandedWidth
+            : collapsedRightPanelWidth;
 
         final workspaceRow = Row(
           key: const ValueKey('generation-workspace-row'),
@@ -76,12 +83,17 @@ class GenerationWorkspaceRow extends StatelessWidget {
                 child: main,
               ),
             ),
-            if (!showsExpandedPanel) rightPanelBuilder(rightPanelWidth, false),
+            if (showsExpandedPanel) ...[
+              rightHandle,
+              rightPanelBuilder(rightPanelWidth, true),
+            ] else
+              rightPanelBuilder(rightPanelWidth, false),
           ],
         );
 
-        // Expanded queue/agent content is a transient workspace overlay. It
-        // must never resize the preview or make the central canvas jump.
+        // The generation rail is a persistent workspace column. Unlike the
+        // shell navigation overlay, it must participate in layout so image
+        // content never remains interactable underneath it.
         return Stack(
           clipBehavior: Clip.hardEdge,
           children: [
@@ -95,35 +107,6 @@ class GenerationWorkspaceRow extends StatelessWidget {
                 child: Material(
                   elevation: overlaysLeading ? 8 : 0,
                   child: overlayableLeading!,
-                ),
-              ),
-            if (showsExpandedPanel)
-              Positioned(
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: rightPanelWidth + ResizeHandle.defaultWidth,
-                child: Material(
-                  color: Colors.transparent,
-                  elevation: 8,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        top: 0,
-                        bottom: 0,
-                        left: 0,
-                        width: ResizeHandle.defaultWidth,
-                        child: rightHandle,
-                      ),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        bottom: 0,
-                        left: ResizeHandle.defaultWidth,
-                        child: rightPanelBuilder(rightPanelWidth, true),
-                      ),
-                    ],
-                  ),
                 ),
               ),
           ],

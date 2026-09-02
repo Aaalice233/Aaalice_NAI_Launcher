@@ -19,6 +19,7 @@ class PromptInputFooter extends ConsumerWidget {
     this.assistant,
     this.assistantExpanded = false,
     this.assistantToolbarHeight = 0,
+    this.assistantExpandedWidth = 0,
   });
 
   final PromptTokenCountTarget target;
@@ -27,6 +28,7 @@ class PromptInputFooter extends ConsumerWidget {
   final Widget? assistant;
   final bool assistantExpanded;
   final double assistantToolbarHeight;
+  final double assistantExpandedWidth;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,76 +51,83 @@ class PromptInputFooter extends ConsumerWidget {
       child: PromptTokenCountAsyncBar(usage: tokenUsage),
     );
 
-    final collapsedContent = Row(
-      children: [
-        if (showTransparentBackground) ...[
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Tooltip(
-                richMessage: WidgetSpan(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.l10n.qualityTags_addToEnd,
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.7,
+    final supportingContent = KeyedSubtree(
+      key: const ValueKey('generation_prompt_footer_supporting'),
+      child: Row(
+        children: [
+          if (showTransparentBackground) ...[
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Tooltip(
+                  richMessage: WidgetSpan(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            context.l10n.qualityTags_addToEnd,
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
+                              fontSize: 11,
                             ),
-                            fontSize: 11,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          ', ${QualityTags.transparentBackgroundTag}',
-                          style: TextStyle(
-                            color: Colors.green.shade700,
-                            fontSize: 11,
+                          const SizedBox(height: 4),
+                          Text(
+                            ', ${QualityTags.transparentBackgroundTag}',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                preferBelow: true,
-                verticalOffset: 20,
-                waitDuration: const Duration(milliseconds: 300),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(12),
-                child: GenerationToggleButton(
-                  key: const ValueKey(
-                    'generation_transparent_background_toggle',
+                  preferBelow: true,
+                  verticalOffset: 20,
+                  waitDuration: const Duration(milliseconds: 300),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  label: context.l10n.generation_transparentBackground,
-                  isEnabled: transparentBackground.enabled,
-                  onChanged: (value) => ref
-                      .read(generationParamsNotifierProvider.notifier)
-                      .updateTransparentBackground(value),
+                  padding: const EdgeInsets.all(12),
+                  child: GenerationToggleButton(
+                    key: const ValueKey(
+                      'generation_transparent_background_toggle',
+                    ),
+                    label: context.l10n.generation_transparentBackground,
+                    isEnabled: transparentBackground.enabled,
+                    onChanged: (value) => ref
+                        .read(generationParamsNotifierProvider.notifier)
+                        .updateTransparentBackground(value),
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-        ],
-        if (leading != null) ...[leading!, const SizedBox(width: 4)],
-        if (assistant == null)
-          Expanded(child: tokenCount)
-        else ...[
+            const SizedBox(width: 8),
+          ],
+          if (leading != null) ...[leading!, const SizedBox(width: 4)],
           Expanded(child: tokenCount),
+        ],
+      ),
+    );
+
+    final collapsedContent = Row(
+      children: [
+        Expanded(child: supportingContent),
+        if (assistant != null) ...[
           const SizedBox(width: 8),
           KeyedSubtree(
             key: const ValueKey('generation_prompt_footer_assistant'),
@@ -135,12 +144,38 @@ class PromptInputFooter extends ConsumerWidget {
         width: double.infinity,
         height: assistantToolbarHeight > 0 ? assistantToolbarHeight : null,
         child: assistant != null && assistantExpanded
-            ? Align(
-                alignment: Alignment.centerRight,
-                child: KeyedSubtree(
-                  key: const ValueKey('generation_prompt_footer_assistant'),
-                  child: assistant!,
-                ),
+            ? LayoutBuilder(
+                builder: (context, constraints) {
+                  final expandedWidth = assistantExpandedWidth
+                      .clamp(0.0, constraints.maxWidth)
+                      .toDouble();
+                  final textScale = MediaQuery.textScalerOf(context).scale(1);
+                  final minimumSupportingWidth =
+                      176 * textScale.clamp(1.0, 2.0);
+                  final showSupporting =
+                      constraints.maxWidth - expandedWidth - 8 >=
+                      minimumSupportingWidth;
+                  final expandedAssistant = SizedBox(
+                    width: expandedWidth,
+                    child: KeyedSubtree(
+                      key: const ValueKey('generation_prompt_footer_assistant'),
+                      child: assistant!,
+                    ),
+                  );
+                  if (!showSupporting) {
+                    return Align(
+                      alignment: Alignment.centerRight,
+                      child: expandedAssistant,
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: supportingContent),
+                      const SizedBox(width: 8),
+                      expandedAssistant,
+                    ],
+                  );
+                },
               )
             : collapsedContent,
       ),

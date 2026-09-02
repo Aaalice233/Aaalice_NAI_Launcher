@@ -55,8 +55,8 @@ void main() {
     final settings = tester.getRect(
       find.byKey(const ValueKey('agent-chat-session-controls')),
     );
-    expect(input.top, lessThan(resources.top));
-    expect(resources.top, lessThan(actions.top));
+    expect(resources.top, lessThan(input.top));
+    expect(input.bottom, lessThanOrEqualTo(actions.top));
     expect(actions, settings);
 
     final controlsRect = tester.getRect(
@@ -68,7 +68,6 @@ void main() {
       'agent-chat-thinking-selector',
       'agent-chat-permission-mode',
       'agent-chat-web-access-toggle',
-      'agent-chat-context-target',
       'agent-chat-send',
     ]) {
       expect(
@@ -78,17 +77,32 @@ void main() {
       );
     }
     expect(
-      find.byKey(const ValueKey('agent-chat-composer-status-stacked')),
+      find.byKey(const ValueKey('agent-chat-composer-status-row')),
       findsOneWidget,
     );
+    final model = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-model-selector')),
+    );
+    final thinking = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
+    );
+    final permission = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-permission-mode')),
+    );
+    expect(model.contains(thinking.center), isTrue);
+    expect(permission.center.dy, closeTo(model.center.dy, 0.01));
     expect(find.byType(SingleChildScrollView), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
     );
-    expect(find.text('Ask'), findsOneWidget);
-    expect(find.text('Web access'), findsOneWidget);
-    expect(find.text('Context · 23%'), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('agent-chat-context-ring'))),
+      const Size.square(30),
+    );
+    expect(find.text('Ask'), findsNothing);
+    expect(find.text('Web access'), findsNothing);
+    expect(find.text('23%'), findsOneWidget);
 
     final surfaceFinder = find.byKey(
       const ValueKey('agent-chat-composer-surface'),
@@ -101,7 +115,6 @@ void main() {
       'agent-chat-thinking-selector',
       'agent-chat-permission-mode',
       'agent-chat-web-access-toggle',
-      'agent-chat-context-target',
       'agent-chat-send',
     ]) {
       expect(
@@ -115,32 +128,33 @@ void main() {
     final decoration = surface.decoration! as BoxDecoration;
     expect(decoration.borderRadius, BorderRadius.circular(18));
     expect(decoration.border, isNull);
+    expect(
+      decoration.color,
+      isNot(Theme.of(tester.element(surfaceFinder)).colorScheme.surface),
+    );
     expect(decoration.boxShadow, isNotEmpty);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('input boundary and disabled send reason stay explicit', (
-    tester,
-  ) async {
-    await _pumpComposer(tester, width: 520, mobile: false);
+  testWidgets(
+    'editor shares the composer surface and disabled send stays explicit',
+    (tester) async {
+      await _pumpComposer(tester, width: 520, mobile: false);
 
-    final input = tester.widget<TextField>(
-      find.byKey(const ValueKey('agent-chat-input')),
-    );
-    final decoration = input.decoration!;
-    expect(decoration.filled, isTrue);
-    expect(decoration.enabledBorder, isA<OutlineInputBorder>());
-    expect(decoration.focusedBorder, isA<OutlineInputBorder>());
-    expect(
-      (decoration.focusedBorder! as OutlineInputBorder).borderSide.color,
-      isNot((decoration.enabledBorder! as OutlineInputBorder).borderSide.color),
-    );
-    expect(
-      find.byTooltip('Enter a message or add an image to send'),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-  });
+      final input = tester.widget<TextField>(
+        find.byKey(const ValueKey('agent-chat-input')),
+      );
+      final decoration = input.decoration!;
+      expect(decoration.filled, isFalse);
+      expect(decoration.enabledBorder, InputBorder.none);
+      expect(decoration.focusedBorder, InputBorder.none);
+      expect(
+        find.byTooltip('Enter a message or add an image to send'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('unavailable context stays compact and has no empty ring', (
     tester,
@@ -155,17 +169,17 @@ void main() {
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
     );
-    expect(find.text('Context · —'), findsOneWidget);
+    expect(find.text('—'), findsOneWidget);
     expect(find.text('Context usage unavailable'), findsNothing);
     final target = tester.getSize(
       find.byKey(const ValueKey('agent-chat-context-target')),
     );
     expect(target.height, 48);
-    expect(target.width, greaterThan(48));
+    expect(target.width, 48);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('narrow desktop wraps every control without horizontal scroll', (
+  testWidgets('narrow desktop keeps every control in one integrated row', (
     tester,
   ) async {
     await _pumpComposer(
@@ -190,7 +204,6 @@ void main() {
       'agent-chat-thinking-selector',
       'agent-chat-permission-mode',
       'agent-chat-web-access-toggle',
-      'agent-chat-context-target',
       'agent-chat-send',
     ]) {
       expect(
@@ -199,21 +212,33 @@ void main() {
       );
     }
     expect(
-      find.byKey(const ValueKey('agent-chat-composer-status-stacked')),
-      findsNothing,
+      find.byKey(const ValueKey('agent-chat-composer-status-row')),
+      findsOneWidget,
     );
-    expect(find.text('Context · —'), findsOneWidget);
+    expect(find.text('—'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
     );
+    final contextTarget = tester.getSize(
+      find.byKey(const ValueKey('agent-chat-context-target')),
+    );
+    expect(contextTarget.width, 40);
+    final model = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-model-selector')),
+    );
+    final thinking = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
+    );
+    expect(model.contains(thinking.center), isTrue);
+    expect(toolbar.height, lessThanOrEqualTo(48));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('very narrow desktop layers controls and keeps send visible', (
+  testWidgets('minimum desktop width keeps the integrated toolbar usable', (
     tester,
   ) async {
-    await _pumpComposer(tester, width: 265, mobile: false);
+    await _pumpComposer(tester, width: 320, mobile: false);
 
     final toolbar = tester.getRect(
       find.byKey(const ValueKey('agent-chat-message-actions')),
@@ -222,18 +247,24 @@ void main() {
       find.byKey(const ValueKey('agent-chat-session-controls')),
     );
     expect(toolbar, settings);
-    expect(toolbar.height, greaterThan(40));
+    expect(toolbar.height, greaterThanOrEqualTo(40));
     expect(
-      find.byKey(const ValueKey('agent-chat-composer-status-stacked')),
+      find.byKey(const ValueKey('agent-chat-composer-status-row')),
       findsOneWidget,
     );
+    final model = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-model-selector')),
+    );
+    final thinking = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
+    );
+    expect(model.contains(thinking.center), isTrue);
     for (final key in const [
       'agent-chat-more-actions',
       'agent-chat-model-selector',
       'agent-chat-thinking-selector',
       'agent-chat-permission-mode',
       'agent-chat-web-access-toggle',
-      'agent-chat-context-target',
       'agent-chat-send',
     ]) {
       expect(
@@ -244,7 +275,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('desktop model selector shows the complete model name', (
+  testWidgets('desktop configuration control combines model and reasoning', (
     tester,
   ) async {
     const modelName = 'deepseek-v4-flash-vision-exp';
@@ -287,15 +318,25 @@ void main() {
 
     final selector = find.byKey(const ValueKey('agent-chat-model-selector'));
     expect(find.textContaining(modelName), findsOneWidget);
-    expect(tester.getSize(selector).width, greaterThan(180));
-    expect(
-      tester
-          .renderObject<RenderParagraph>(find.text(modelName))
-          .didExceedMaxLines,
-      isFalse,
+    final selectorWidth = tester.getSize(selector).width;
+    expect(selectorWidth, greaterThan(180));
+    final modelParagraph = tester.renderObject<RenderParagraph>(
+      find.text(modelName),
     );
+    expect(modelParagraph.didExceedMaxLines, isTrue);
+    final thinking = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
+    );
+    expect(tester.getRect(selector).contains(thinking.center), isTrue);
 
     await tester.tap(selector);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('agent-chat-model-submenu')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('agent-chat-model-submenu')));
     await tester.pumpAndSettle();
 
     expect(find.text(modelName), findsNWidgets(2));
@@ -333,7 +374,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Context usage unavailable'), findsNothing);
-    expect(find.text('Compacting context…'), findsOneWidget);
+    expect(find.text('Compacting context…'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -368,11 +409,13 @@ void main() {
             isFalse,
             reason: '$key at width=$width, scale=$scale',
           );
-          expect(
-            tester.getSize(finder).shortestSide,
-            greaterThanOrEqualTo(48),
-            reason: '$key at width=$width, scale=$scale',
-          );
+          if (key != 'agent-chat-thinking-selector') {
+            expect(
+              tester.getSize(finder).shortestSide,
+              greaterThanOrEqualTo(48),
+              reason: '$key at width=$width, scale=$scale',
+            );
+          }
         }
       }
     }
@@ -400,11 +443,7 @@ void main() {
         find.byKey(const ValueKey('agent-chat-model-selector')),
       );
       expect(input.bottom, lessThanOrEqualTo(controls.top));
-      if (scale == 1) {
-        expect(controls.height, 84);
-      } else {
-        expect(controls.height, inInclusiveRange(104, 128));
-      }
+      expect(controls.height, scale == 1 ? 40 : 60);
       expect(more.dx, lessThan(model.dx));
       expect(
         find.byKey(const ValueKey('agent-chat-composer-controls-scroll')),
@@ -596,7 +635,7 @@ void main() {
     expect(queue.bottom, lessThanOrEqualTo(input.top));
     expect(input.bottom, lessThanOrEqualTo(actions.top));
     expect(actions, settings);
-    expect(find.text('Context · 61%'), findsOneWidget);
+    expect(find.text('61%'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

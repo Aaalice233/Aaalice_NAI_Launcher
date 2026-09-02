@@ -62,19 +62,12 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     // 快捷键已由父级 DesktopGenerationLayout 统一处理
     // 这里只负责布局
     final compact = widget.compact;
-    final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final compactPrimaryWidth = 78 + (textScale - 1).clamp(0.0, 2.0) * 25;
     final opusUsage = OpusUsageChip(compact: compact);
     final anlasBalance = AnlasBalanceChip(compact: compact);
-    final leftActions = <Widget>[
-      opusUsage,
-      if (compact) const AutoSaveToggleChip(compact: true) else anlasBalance,
-    ];
+    final leftActions = <Widget>[opusUsage, anlasBalance];
     final rightActions = <Widget>[
-      if (compact) anlasBalance,
-      if (showRandomTools)
-        RandomModeToggle(enabled: randomMode, compact: compact),
       // 生成中批量参数不可变更；隐藏后为跳过/停止操作保留空间。
+      if (compact && !showCancel) const BatchSettingsButton(compact: true),
       if (!(compact && showCancel))
         DraggableNumberInput(
           value: nSamples,
@@ -86,7 +79,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                 .updateNSamples(value);
           },
         ),
-      if (compact && !showCancel) const BatchSettingsButton(compact: true),
+      if (showRandomTools)
+        RandomModeToggle(enabled: randomMode, compact: compact),
+      if (compact) const AutoSaveToggleChip(compact: true),
     ];
 
     // 由子控件的实际布局尺寸决定是否换行，而不是把 compact 或文本
@@ -95,7 +90,6 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       leftActions: leftActions,
       primaryAction: SizedBox(
         key: const ValueKey('generation-footer-primary-action'),
-        width: compact ? compactPrimaryWidth : 190,
         child: GenerateButtonWithCost(
           height: 48,
           isGenerating: isGenerating,
@@ -206,8 +200,9 @@ class _RenderGenerationControlsLayout extends RenderBox
           _GenerationControlsParentData
         > {
   static const double _itemSpacing = 2;
-  static const double _primarySpacing = 2;
+  static const double _primarySpacing = 8;
   static const double _runSpacing = 8;
+  static const double _minimumPrimaryWidth = 160;
 
   @override
   void setupParentData(RenderBox child) {
@@ -221,21 +216,22 @@ class _RenderGenerationControlsLayout extends RenderBox
     final availableWidth = constraints.hasBoundedWidth
         ? constraints.maxWidth
         : 100000.0;
-    final childConstraints = BoxConstraints(maxWidth: availableWidth);
+    final actionConstraints = BoxConstraints(maxWidth: availableWidth);
     final left = <RenderBox>[];
     final right = <RenderBox>[];
     RenderBox? primary;
 
     RenderBox? child = firstChild;
     while (child != null) {
-      child.layout(childConstraints, parentUsesSize: true);
       final parentData = child.parentData! as _GenerationControlsParentData;
       switch (parentData.group) {
         case _GenerationControlGroup.left:
+          child.layout(actionConstraints, parentUsesSize: true);
           if (!child.size.isEmpty) left.add(child);
         case _GenerationControlGroup.primary:
           primary = child;
         case _GenerationControlGroup.right:
+          child.layout(actionConstraints, parentUsesSize: true);
           if (!child.size.isEmpty) right.add(child);
       }
       child = parentData.nextSibling;
@@ -247,26 +243,25 @@ class _RenderGenerationControlsLayout extends RenderBox
       return;
     }
 
-    final naturalWidth = _centeredSingleRowWidth(left, primaryChild, right);
+    final leftWidth = _groupWidth(left);
+    final rightWidth = _groupWidth(right);
+    final naturalWidth =
+        leftWidth + rightWidth + _minimumPrimaryWidth + _primarySpacing * 2;
     final layoutWidth = constraints.hasBoundedWidth
         ? constraints.maxWidth
         : naturalWidth;
     final useSingleRow = naturalWidth <= layoutWidth;
+    final primaryWidth = useSingleRow
+        ? layoutWidth - leftWidth - rightWidth - _primarySpacing * 2
+        : layoutWidth;
+    primaryChild.layout(
+      BoxConstraints.tightFor(width: primaryWidth),
+      parentUsesSize: true,
+    );
     final contentHeight = useSingleRow
         ? _layoutSingleRow(left, primaryChild, right, layoutWidth)
         : _layoutWrapped(left, primaryChild, right, layoutWidth);
     size = constraints.constrain(Size(layoutWidth, contentHeight));
-  }
-
-  double _centeredSingleRowWidth(
-    List<RenderBox> left,
-    RenderBox primary,
-    List<RenderBox> right,
-  ) {
-    final leftWidth = _groupWidth(left);
-    final rightWidth = _groupWidth(right);
-    final sideWidth = leftWidth > rightWidth ? leftWidth : rightWidth;
-    return primary.size.width + 2 * (sideWidth + _primarySpacing);
   }
 
   double _groupWidth(List<RenderBox> children) {
@@ -288,14 +283,11 @@ class _RenderGenerationControlsLayout extends RenderBox
           child.size.height > maximum ? child.size.height : maximum,
     );
     final leftWidth = _groupWidth(left);
-    final primaryX = (width - primary.size.width) / 2;
-    _positionGroup(left, primaryX - _primarySpacing - leftWidth, height);
+    final rightWidth = _groupWidth(right);
+    final primaryX = leftWidth + _primarySpacing;
+    _positionGroup(left, 0, height);
     _position(primary, primaryX, (height - primary.size.height) / 2);
-    _positionGroup(
-      right,
-      primaryX + primary.size.width + _primarySpacing,
-      height,
-    );
+    _positionGroup(right, width - rightWidth, height);
     return height;
   }
 
@@ -305,38 +297,48 @@ class _RenderGenerationControlsLayout extends RenderBox
     List<RenderBox> right,
     double width,
   ) {
-    _position(primary, (width - primary.size.width) / 2, 0);
-    final actions = [...left, ...right];
-    if (actions.isEmpty) return primary.size.height;
-
-    final runs = <List<RenderBox>>[];
-    var run = <RenderBox>[];
-    var runWidth = 0.0;
-    for (final action in actions) {
-      final nextWidth = run.isEmpty
-          ? action.size.width
-          : runWidth + _itemSpacing + action.size.width;
-      if (run.isNotEmpty && nextWidth > width) {
-        runs.add(run);
-        run = <RenderBox>[];
-        runWidth = 0;
-      }
-      run.add(action);
-      runWidth = runWidth == 0
-          ? action.size.width
-          : runWidth + _itemSpacing + action.size.width;
-    }
-    if (run.isNotEmpty) runs.add(run);
-
+    _position(primary, 0, 0);
+    if (left.isEmpty && right.isEmpty) return primary.size.height;
     var y = primary.size.height + _runSpacing;
-    for (final currentRun in runs) {
-      final currentWidth = _groupWidth(currentRun);
-      final runHeight = currentRun.fold<double>(
+    final leftWidth = _groupWidth(left);
+    final rightWidth = _groupWidth(right);
+    if (leftWidth + rightWidth + _primarySpacing <= width) {
+      final height = [...left, ...right].fold<double>(
         0,
         (maximum, action) =>
             action.size.height > maximum ? action.size.height : maximum,
       );
-      _positionGroup(currentRun, (width - currentWidth) / 2, runHeight, y: y);
+      _positionGroup(left, 0, height, y: y);
+      _positionGroup(right, width - rightWidth, height, y: y);
+      return y + height;
+    }
+
+    y = _layoutGroupRuns(left, width, y, alignRight: false);
+    if (left.isNotEmpty && right.isNotEmpty) y += _runSpacing;
+    return _layoutGroupRuns(right, width, y, alignRight: true);
+  }
+
+  double _layoutGroupRuns(
+    List<RenderBox> children,
+    double width,
+    double startY, {
+    required bool alignRight,
+  }) {
+    if (children.isEmpty) return startY;
+    final runs = _buildRuns<RenderBox>(
+      children,
+      width,
+      (child) => child.size.width,
+    );
+    var y = startY;
+    for (final run in runs) {
+      final runWidth = _groupWidth(run);
+      final runHeight = run.fold<double>(
+        0,
+        (maximum, child) =>
+            child.size.height > maximum ? child.size.height : maximum,
+      );
+      _positionGroup(run, alignRight ? width - runWidth : 0, runHeight, y: y);
       y += runHeight + _runSpacing;
     }
     return y - _runSpacing;
@@ -364,37 +366,43 @@ class _RenderGenerationControlsLayout extends RenderBox
     final availableWidth = constraints.hasBoundedWidth
         ? constraints.maxWidth
         : 100000.0;
-    final childConstraints = BoxConstraints(maxWidth: availableWidth);
+    final actionConstraints = BoxConstraints(maxWidth: availableWidth);
     final left = <Size>[];
     final right = <Size>[];
-    Size? primary;
+    RenderBox? primaryChild;
 
     RenderBox? child = firstChild;
     while (child != null) {
-      final childSize = child.getDryLayout(childConstraints);
       final parentData = child.parentData! as _GenerationControlsParentData;
       switch (parentData.group) {
         case _GenerationControlGroup.left:
+          final childSize = child.getDryLayout(actionConstraints);
           if (!childSize.isEmpty) left.add(childSize);
         case _GenerationControlGroup.primary:
-          primary = childSize;
+          primaryChild = child;
         case _GenerationControlGroup.right:
+          final childSize = child.getDryLayout(actionConstraints);
           if (!childSize.isEmpty) right.add(childSize);
       }
       child = parentData.nextSibling;
     }
 
-    final primarySize = primary;
-    if (primarySize == null) return constraints.smallest;
+    if (primaryChild == null) return constraints.smallest;
     final leftWidth = _dryGroupWidth(left);
     final rightWidth = _dryGroupWidth(right);
-    final sideWidth = leftWidth > rightWidth ? leftWidth : rightWidth;
     final singleRowWidth =
-        primarySize.width + 2 * (sideWidth + _primarySpacing);
+        leftWidth + rightWidth + _minimumPrimaryWidth + _primarySpacing * 2;
     final width = constraints.hasBoundedWidth
         ? constraints.maxWidth
         : singleRowWidth;
-    if (singleRowWidth <= width) {
+    final useSingleRow = singleRowWidth <= width;
+    final primaryWidth = useSingleRow
+        ? width - leftWidth - rightWidth - _primarySpacing * 2
+        : width;
+    final primarySize = primaryChild.getDryLayout(
+      BoxConstraints.tightFor(width: primaryWidth),
+    );
+    if (useSingleRow) {
       final height = [...left, primarySize, ...right].fold<double>(
         0,
         (maximum, childSize) =>
@@ -403,25 +411,63 @@ class _RenderGenerationControlsLayout extends RenderBox
       return constraints.constrain(Size(width, height));
     }
 
-    var height = primarySize.height + _runSpacing;
-    var runWidth = 0.0;
-    var runHeight = 0.0;
-    for (final action in [...left, ...right]) {
-      final nextWidth = runWidth == 0
-          ? action.width
-          : runWidth + _itemSpacing + action.width;
-      if (runWidth > 0 && nextWidth > width) {
-        height += runHeight + _runSpacing;
-        runWidth = 0;
-        runHeight = 0;
-      }
-      runWidth = runWidth == 0
-          ? action.width
-          : runWidth + _itemSpacing + action.width;
-      if (action.height > runHeight) runHeight = action.height;
+    final leftAndRightFit = leftWidth + rightWidth + _primarySpacing <= width;
+    if (leftAndRightFit) {
+      final actionsHeight = [...left, ...right].fold<double>(
+        0,
+        (maximum, action) => action.height > maximum ? action.height : maximum,
+      );
+      return constraints.constrain(
+        Size(width, primarySize.height + _runSpacing + actionsHeight),
+      );
     }
-    height += runHeight;
+    var height = primarySize.height;
+    if (left.isNotEmpty) {
+      height += _runSpacing + _dryRunsHeight(left, width);
+    }
+    if (right.isNotEmpty) {
+      height += _runSpacing + _dryRunsHeight(right, width);
+    }
     return constraints.constrain(Size(width, height));
+  }
+
+  double _dryRunsHeight(List<Size> children, double width) {
+    final runs = _buildRuns<Size>(children, width, (child) => child.width);
+    return runs.fold<double>(0, (height, run) {
+          final runHeight = run.fold<double>(
+            0,
+            (maximum, child) => child.height > maximum ? child.height : maximum,
+          );
+          return height + runHeight;
+        }) +
+        _runSpacing * (runs.length - 1);
+  }
+
+  List<List<T>> _buildRuns<T>(
+    List<T> children,
+    double width,
+    double Function(T child) widthOf,
+  ) {
+    final runs = <List<T>>[];
+    var run = <T>[];
+    var runWidth = 0.0;
+    for (final child in children) {
+      final childWidth = widthOf(child);
+      final nextWidth = run.isEmpty
+          ? childWidth
+          : runWidth + _itemSpacing + childWidth;
+      if (run.isNotEmpty && nextWidth > width) {
+        runs.add(run);
+        run = <T>[];
+        runWidth = 0;
+      }
+      run.add(child);
+      runWidth = runWidth == 0
+          ? childWidth
+          : runWidth + _itemSpacing + childWidth;
+    }
+    if (run.isNotEmpty) runs.add(run);
+    return runs;
   }
 
   double _dryGroupWidth(List<Size> children) {

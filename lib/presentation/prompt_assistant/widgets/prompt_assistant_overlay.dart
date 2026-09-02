@@ -50,6 +50,19 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
   static double effectiveInlineToolbarHeight(InteractionPolicy policy) =>
       policy.touchAvailable ? policy.minimumControlExtent : inlineToolbarHeight;
 
+  static double expandedInlineToolbarWidth(
+    InteractionPolicy policy, {
+    bool compactDesktopToolbar = false,
+  }) {
+    final actionCount = !policy.usesAnchoredMenus || compactDesktopToolbar
+        ? 6
+        : 8;
+    final buttonExtent = policy.shouldExposeTouchAlternatives
+        ? policy.minimumControlExtent
+        : inlineToolbarHeight;
+    return actionCount * buttonExtent;
+  }
+
   const PromptAssistantOverlay({
     super.key,
     required this.sessionId,

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/windowing/workspace_side_panel_contract.dart';
@@ -107,6 +109,7 @@ class AdaptivePresenter {
     double minChildSize = 0.5,
     double maxChildSize = 0.96,
     double? width,
+    double? maxCenteredHeight,
     bool barrierDismissible = true,
     bool requestFocus = true,
     bool restoreFocus = true,
@@ -143,6 +146,7 @@ class AdaptivePresenter {
       titleBuilder: (_) => const SizedBox.shrink(),
       builder: builder,
       width: width ?? WorkspaceSidePanelContract.preferredFormWidth,
+      maxHeight: maxCenteredHeight,
       barrierDismissible: barrierDismissible,
       requestFocus: requestFocus,
       showHeader: false,
@@ -257,6 +261,7 @@ class AdaptivePresenter {
     required bool barrierDismissible,
     required bool requestFocus,
     required bool showHeader,
+    double? maxHeight,
   }) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final motion = Theme.of(context).appTheme;
@@ -275,6 +280,7 @@ class AdaptivePresenter {
         titleBuilder: titleBuilder,
         builder: builder,
         showHeader: showHeader,
+        maxHeight: maxHeight,
       ),
       transitionBuilder: (context, animation, _, child) {
         if (reduceMotion) return child;
@@ -381,12 +387,14 @@ class _CenteredFormPanel extends StatefulWidget {
     required this.titleBuilder,
     required this.builder,
     required this.showHeader,
+    this.maxHeight,
   });
 
   final double width;
   final WidgetBuilder titleBuilder;
   final AdaptivePanelBuilder builder;
   final bool showHeader;
+  final double? maxHeight;
 
   @override
   State<_CenteredFormPanel> createState() => _CenteredFormPanelState();
@@ -425,7 +433,10 @@ class _CenteredFormPanelState extends State<_CenteredFormPanel> {
                     : widget.width.clamp(320, size.width * 0.9).toDouble(),
                 height: useFullScreen
                     ? double.infinity
-                    : constraints.maxHeight * 0.9,
+                    : math.min(
+                        constraints.maxHeight * 0.9,
+                        widget.maxHeight ?? double.infinity,
+                      ),
                 child: _PanelSurface(
                   titleBuilder: widget.titleBuilder,
                   scrollController: _scrollController,

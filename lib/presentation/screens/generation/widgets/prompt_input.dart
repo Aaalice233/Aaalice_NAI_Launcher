@@ -270,6 +270,11 @@ class _FullPromptInput extends ConsumerWidget {
               context.interactionPolicy,
             )
           : 0,
+      assistantExpandedWidth: assistantVisible
+          ? PromptAssistantOverlay.expandedInlineToolbarWidth(
+              context.interactionPolicy,
+            )
+          : 0,
     );
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -457,6 +462,11 @@ class _CompactPromptInput extends ConsumerWidget {
                   : null,
               assistantToolbarHeight: assistantVisible
                   ? PromptAssistantOverlay.effectiveInlineToolbarHeight(
+                      context.interactionPolicy,
+                    )
+                  : 0,
+              assistantExpandedWidth: assistantVisible
+                  ? PromptAssistantOverlay.expandedInlineToolbarWidth(
                       context.interactionPolicy,
                     )
                   : 0,

@@ -22,6 +22,7 @@ class CollapsibleImagePanel extends StatefulWidget {
     this.trailing,
     this.headerActions,
     this.centerHeaderActions = false,
+    this.alignHeaderActionsAfterTitle = false,
     this.collapsedHoverPreviewBuilder,
     this.hoverPreviewWaitDuration = const Duration(milliseconds: 350),
     this.child,
@@ -44,6 +45,9 @@ class CollapsibleImagePanel extends StatefulWidget {
 
   /// 将标题操作组放在整行的视觉中心，而不是尾随标题排列。
   final bool centerHeaderActions;
+
+  /// 将标题操作组紧跟标题靠左排列，并让操作组使用剩余宽度自适应换行。
+  final bool alignHeaderActionsAfterTitle;
 
   /// 折叠态鼠标停留在标题行时显示的只读预览。
   ///
@@ -175,11 +179,13 @@ class _CollapsibleImagePanelState extends State<CollapsibleImagePanel>
     if (previewBuilder == null) return const SizedBox.shrink();
     final disableAnimations = MediaQuery.disableAnimationsOf(overlayContext);
 
-    // Overlay 的非 Positioned 子项会收到整屏约束；必须先用 Positioned
-    // 固定跟随层宽度，否则预览会被拉伸成覆盖整个窗口的巨型面板。
+    // 约束必须加在跟随层本身；若先让 follower 铺满根 Overlay，再只
+    // 约束其内部内容，生产布局中的合成变换仍可能把预览拉伸到整行。
     return Positioned(
+      key: const ValueKey('collapsed-hover-preview-positioned'),
       width: _hoverPreviewWidth,
       child: CompositedTransformFollower(
+        key: const ValueKey('collapsed-hover-preview-follower'),
         link: _headerLayerLink,
         showWhenUnlinked: false,
         targetAnchor: _showHoverPreviewAbove
@@ -252,17 +258,34 @@ class _CollapsibleImagePanelState extends State<CollapsibleImagePanel>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    // 一些自定义主题没有单独定义容器色阶，surfaceContainerLow 会与页面
+    // surface 完全相同。叠加极轻的前景色，保证展开态整块区域始终可辨。
+    final expandedPanelColor = Color.alphaBlend(
+      colorScheme.onSurface.withValues(alpha: 0.05),
+      colorScheme.surfaceContainerLow,
+    );
     // 白色前景只用于确实存在深色图片遮罩的折叠态。角色等纯色面板
     // 即使有数据也必须继续使用主题前景色，否则浅色主题会变成白底白字。
     final showBackground =
         widget.hasData && !widget.isExpanded && widget.backgroundImage != null;
     final highContrast = MediaQuery.highContrastOf(context);
+    final title = Text(
+      widget.title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.titleSmall?.copyWith(
+        color: showBackground
+            ? Colors.white
+            : widget.hasData
+            ? theme.colorScheme.primary
+            : null,
+      ),
+    );
 
     return Card(
       key: ValueKey('collapsible-panel-surface-${widget.title}'),
-      color: widget.isExpanded
-          ? theme.colorScheme.surfaceContainerHighest
-          : Colors.transparent,
+      color: widget.isExpanded ? expandedPanelColor : Colors.transparent,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       shadowColor: Colors.transparent,
@@ -363,24 +386,36 @@ class _CollapsibleImagePanelState extends State<CollapsibleImagePanel>
                                                         .onSurfaceVariant,
                                             ),
                                         const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            widget.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: theme.textTheme.titleSmall
-                                                ?.copyWith(
-                                                  color: showBackground
-                                                      ? Colors.white
-                                                      : widget.hasData
-                                                      ? theme
-                                                            .colorScheme
-                                                            .primary
-                                                      : null,
+                                        if (widget
+                                                .alignHeaderActionsAfterTitle &&
+                                            (widget.headerActions?.isNotEmpty ??
+                                                false))
+                                          Expanded(
+                                            child: Row(
+                                              children: [
+                                                Flexible(child: title),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Align(
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    child: Wrap(
+                                                      key: ValueKey(
+                                                        'collapsible-leading-actions-${widget.title}',
+                                                      ),
+                                                      children:
+                                                          widget.headerActions!,
+                                                    ),
+                                                  ),
                                                 ),
-                                          ),
-                                        ),
+                                              ],
+                                            ),
+                                          )
+                                        else
+                                          Expanded(child: title),
                                         if (!widget.centerHeaderActions &&
+                                            !widget
+                                                .alignHeaderActionsAfterTitle &&
                                             (widget.headerActions?.isNotEmpty ??
                                                 false)) ...[
                                           const SizedBox(width: 6),

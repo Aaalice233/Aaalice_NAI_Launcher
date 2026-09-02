@@ -529,6 +529,37 @@ void main() {
     );
     expect(tester.widget<GenerationToggleButton>(toggle).isEnabled, isFalse);
 
+    final assistant = find.byKey(
+      const ValueKey('generation_prompt_footer_assistant'),
+    );
+    final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
+    await tester.tap(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 160));
+
+    expect(toggle, findsOneWidget);
+    expect(count, findsOneWidget);
+    expect(
+      tester.getRect(toggle).right,
+      lessThan(tester.getRect(assistant).left),
+    );
+    expect(
+      tester.getRect(count).right,
+      lessThan(tester.getRect(assistant).left),
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 160));
+
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(location: Offset.zero);

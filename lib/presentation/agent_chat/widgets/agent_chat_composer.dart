@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +12,7 @@ import '../../../core/windowing/agent_chat_layout_contract.dart';
 import '../../../core/windowing/agent_chat_shared_widgets.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../themes/core/input_surface_style.dart';
 import '../models/agent_chat_slash_command.dart';
 import '../providers/agent_chat_state.dart';
 import 'agent_chat_header.dart';
@@ -149,12 +152,12 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         child: Container(
           key: const ValueKey('agent-chat-composer-surface'),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHigh,
+            color: inputSurfaceFillColor(theme.colorScheme, prominent: true),
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: theme.shadowColor.withValues(alpha: 0.12),
-                blurRadius: 14,
+                color: theme.shadowColor.withValues(alpha: 0.18),
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -177,6 +180,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                   onHighlightChanged: (index) =>
                       setState(() => _slashHighlight = index),
                 ),
+              if (viewData.state.pendingResources.isNotEmpty ||
+                  controller.pendingImages.isNotEmpty)
+                _attachmentCards(),
               _editor(
                 context,
                 theme,
@@ -185,19 +191,11 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                 slashHighlight,
                 slashQuery?.end ?? 0,
               ),
-              if (viewData.state.pendingResources.isNotEmpty ||
-                  controller.pendingImages.isNotEmpty)
-                _attachmentCards(),
               if (viewData.compactWidth &&
                   viewData.state.queuedMessages.isNotEmpty)
                 _queuedMessages(theme, l10n),
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                  8,
-                  viewData.compactWidth ? 4 : 6,
-                  8,
-                  8,
-                ),
+                padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
                 child: _composerControls(theme, l10n),
               ),
             ],
@@ -243,7 +241,8 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     int slashQueryEnd,
   ) {
     final target = context.interactionPolicy.minimumControlExtent;
-    const trailingControls = 1;
+    final showInlineContext = viewData.width < 600;
+    final trailingControls = showInlineContext ? 2 : 1;
     final availableHeight = viewData.height
         .clamp(0, AgentChatComposerLayout.availableViewportHeight(context))
         .toDouble();
@@ -287,32 +286,11 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           target * trailingControls + 6,
           10,
         ),
-        filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.34,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.42),
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.primary.withValues(alpha: 0.78),
-          ),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
-          ),
-        ),
+        filled: false,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
       ),
     );
 
@@ -409,6 +387,13 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
               onPressed: _toggleEditorExpanded,
             ),
           ),
+          if (showInlineContext)
+            Positioned(
+              top: 6,
+              right: target + 8,
+              width: target,
+              child: _contextIndicator(theme, l10n),
+            ),
         ],
       ),
     );
@@ -419,14 +404,11 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       key: const ValueKey('agent-chat-composer-controls'),
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final target = (textScale * 16 + 12)
-            .clamp(
-              context.interactionPolicy.minimumControlExtent,
-              double.infinity,
-            )
-            .toDouble();
         const gap = 4.0;
-        final locallyCompact = constraints.maxWidth < 600;
+        final showAccessLabels = constraints.maxWidth >= 760 && textScale < 2;
+        final showContext = viewData.width >= 600;
+        final showContextLabel = constraints.maxWidth >= 900 && textScale < 2;
+        final showModelName = constraints.maxWidth >= 340 && textScale < 2;
         final hasDraft =
             controller.inputController.text.trim().isNotEmpty ||
             controller.pendingImages.isNotEmpty;
@@ -439,63 +421,63 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           onSend: commands.send,
           onStop: commands.stop,
         );
-
-        final primaryControls = SizedBox(
-          height: target,
-          child: Row(
-            children: [
-              _attachmentSourceButton(theme, l10n),
-              const SizedBox(width: gap),
-              Expanded(child: _modelSelector(showLabel: !locallyCompact)),
-              const SizedBox(width: gap),
-              sendButton,
-            ],
-          ),
+        final permissionWidth = showAccessLabels
+            ? 116.0
+            : context.interactionPolicy.minimumControlExtent;
+        final webAccessWidth = showAccessLabels
+            ? 124.0
+            : context.interactionPolicy.minimumControlExtent;
+        final controlExtent = context.interactionPolicy.minimumControlExtent;
+        final contextWidth = showContextLabel ? 116.0 : controlExtent;
+        final fixedControlsWidth =
+            controlExtent +
+            permissionWidth +
+            webAccessWidth +
+            controlExtent +
+            (showContext ? contextWidth : 0) +
+            gap * (showContext ? 5 : 4);
+        final modelControlWidth = math.min(
+          showModelName ? 340.0 : 104.0,
+          math.max(0.0, constraints.maxWidth - fixedControlsWidth),
         );
-        final settingsControls = <Widget>[
-          _thinkingSelector(),
-          _permissionModeButton(theme, l10n, showLabel: true),
-          _webAccessToggle(theme, l10n, showLabel: true),
-          _contextIndicator(theme, l10n, showLabel: true),
-        ];
-        final statusControls = constraints.maxWidth < 400
-            ? Column(
-                key: const ValueKey('agent-chat-composer-status-stacked'),
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: settingsControls[0]),
-                      const SizedBox(width: gap),
-                      Expanded(child: settingsControls[1]),
-                    ],
-                  ),
-                  const SizedBox(height: gap),
-                  Row(
-                    children: [
-                      Expanded(child: settingsControls[2]),
-                      const SizedBox(width: gap),
-                      Expanded(flex: 2, child: settingsControls[3]),
-                    ],
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(flex: 3, child: settingsControls[0]),
-                  const SizedBox(width: gap),
-                  Expanded(flex: 2, child: settingsControls[1]),
-                  const SizedBox(width: gap),
-                  Expanded(flex: 2, child: settingsControls[2]),
-                  const SizedBox(width: gap),
-                  Expanded(flex: 4, child: settingsControls[3]),
-                ],
-              );
-        final controls = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+
+        final controls = Row(
+          key: const ValueKey('agent-chat-composer-status-row'),
           children: [
-            primaryControls,
-            const SizedBox(height: gap),
-            statusControls,
+            _attachmentSourceButton(theme, l10n),
+            const SizedBox(width: gap),
+            SizedBox(
+              width: permissionWidth,
+              child: _permissionModeButton(
+                theme,
+                l10n,
+                showLabel: showAccessLabels,
+              ),
+            ),
+            const SizedBox(width: gap),
+            SizedBox(
+              width: webAccessWidth,
+              child: _webAccessToggle(theme, l10n, showLabel: showAccessLabels),
+            ),
+            const SizedBox(width: gap),
+            const Spacer(),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: modelControlWidth),
+              child: _configurationSelector(showModelName: showModelName),
+            ),
+            if (showContext) ...[
+              const SizedBox(width: gap),
+              SizedBox(
+                width: contextWidth,
+                child: _contextIndicator(
+                  theme,
+                  l10n,
+                  showLabel: showContextLabel,
+                ),
+              ),
+            ],
+            const SizedBox(width: gap),
+            sendButton,
           ],
         );
 
@@ -550,7 +532,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         message: label,
         child: Material(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: onPressed == null ? 0.28 : 0.5,
+            alpha: onPressed == null ? 0.42 : 0.62,
           ),
           borderRadius: BorderRadius.circular(8),
           clipBehavior: Clip.antiAlias,
@@ -568,32 +550,72 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                   children: [
                     SizedBox.square(
                       key: const ValueKey('agent-chat-context-ring'),
-                      dimension: 20,
-                      child: loading
-                          ? Padding(
-                              padding: const EdgeInsets.all(2),
-                              child: CircularProgressIndicator(
-                                key: const ValueKey(
-                                  'agent-chat-context-loading',
+                      dimension: 30,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned.fill(
+                            child: loading
+                                ? CircularProgressIndicator(
+                                    key: const ValueKey(
+                                      'agent-chat-context-loading',
+                                    ),
+                                    strokeWidth: 3,
+                                    value:
+                                        MediaQuery.disableAnimationsOf(context)
+                                        ? 0.75
+                                        : null,
+                                    color: meterColor,
+                                    backgroundColor: theme
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .withValues(alpha: 0.3),
+                                  )
+                                : CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    value: available
+                                        ? (tokens! / window!).clamp(0.0, 1.0)
+                                        : 0,
+                                    color: meterColor,
+                                    backgroundColor: theme
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .withValues(alpha: 0.3),
+                                  ),
+                          ),
+                          ExcludeSemantics(
+                            child: MediaQuery.withClampedTextScaling(
+                              maxScaleFactor: 1.2,
+                              child: Text(
+                                loading
+                                    ? '…'
+                                    : available
+                                    ? '$percent%'
+                                    : '—',
+                                key: loading
+                                    ? const ValueKey(
+                                        'agent-chat-context-loading-label',
+                                      )
+                                    : available
+                                    ? const ValueKey(
+                                        'agent-chat-context-token-label',
+                                      )
+                                    : const ValueKey(
+                                        'agent-chat-context-unavailable',
+                                      ),
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: available
+                                      ? theme.colorScheme.onSurface
+                                      : theme.colorScheme.onSurfaceVariant,
+                                  fontSize: 9,
+                                  height: 1,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                                strokeWidth: 2,
-                                value: MediaQuery.disableAnimationsOf(context)
-                                    ? 0.75
-                                    : null,
-                                color: meterColor,
-                                backgroundColor:
-                                    theme.colorScheme.surfaceContainerHighest,
                               ),
-                            )
-                          : CircularProgressIndicator(
-                              strokeWidth: 2.25,
-                              value: available
-                                  ? (tokens! / window!).clamp(0.0, 1.0)
-                                  : 0,
-                              color: meterColor,
-                              backgroundColor:
-                                  theme.colorScheme.surfaceContainerHighest,
                             ),
+                          ),
+                        ],
+                      ),
                     ),
                     if (showLabel) ...[
                       const SizedBox(width: 8),
@@ -604,15 +626,6 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                                     ? l10n.agentChat_compacting
                                     : l10n.common_loading)
                               : '${l10n.agentChat_contextUsageLabel} · ${available ? '$percent%' : '—'}',
-                          key: loading
-                              ? const ValueKey(
-                                  'agent-chat-context-loading-label',
-                                )
-                              : available
-                              ? const ValueKey('agent-chat-context-token-label')
-                              : const ValueKey(
-                                  'agent-chat-context-unavailable',
-                                ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.labelSmall?.copyWith(
@@ -623,22 +636,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                           ),
                         ),
                       ),
-                    ] else
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(
-                          available ? '$percent%' : '—',
-                          key: available
-                              ? const ValueKey('agent-chat-context-token-label')
-                              : const ValueKey(
-                                  'agent-chat-context-unavailable',
-                                ),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                    ],
                   ],
                 ),
               ),
@@ -796,9 +794,10 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   Widget _attachmentCards() {
     final imageCount = controller.pendingImages.length;
     return SizedBox(
-      height: viewData.compactWidth ? 60 : 52,
+      key: const ValueKey('agent-chat-attachment-strip'),
+      height: viewData.compactWidth ? 66 : 58,
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
         scrollDirection: Axis.horizontal,
         itemCount: imageCount + viewData.state.pendingResources.length,
         separatorBuilder: (_, __) => const SizedBox(width: 6),
@@ -858,6 +857,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     return PopupMenuButton<AgentChatAttachmentAction>(
       key: const ValueKey('agent-chat-more-actions'),
       tooltip: l10n.agentChat_addAttachment,
+      padding: EdgeInsets.zero,
       enabled: viewData.state.initialized,
       onSelected: _handleAttachmentAction,
       itemBuilder: (_) => [
@@ -1187,24 +1187,20 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     );
   }
 
-  Widget _modelSelector({bool showLabel = true}) => AgentChatModelControl(
-    config: viewData.config,
-    agentSettings: viewData.agentSettings,
-    routeLabel: viewData.state.routeLabel,
-    routeError: viewData.state.routeError,
-    enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
-    onSelected: commands.selectModel,
-    restoreFocusNode: controller.inputFocus,
-    showLabel: showLabel,
-  );
-
-  Widget _thinkingSelector({bool showLabel = true}) => AgentChatThinkingControl(
-    level: viewData.state.thinkingLevel,
-    availableLevels: viewData.state.availableThinkingLevels,
-    enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
-    onSelected: commands.selectThinkingLevel,
-    showLabel: showLabel,
-  );
+  Widget _configurationSelector({required bool showModelName}) =>
+      AgentChatConfigurationControl(
+        config: viewData.config,
+        agentSettings: viewData.agentSettings,
+        routeLabel: viewData.state.routeLabel,
+        routeError: viewData.state.routeError,
+        thinkingLevel: viewData.state.thinkingLevel,
+        availableThinkingLevels: viewData.state.availableThinkingLevels,
+        enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
+        onModelSelected: commands.selectModel,
+        onThinkingSelected: commands.selectThinkingLevel,
+        restoreFocusNode: controller.inputFocus,
+        showModelName: showModelName,
+      );
 
   bool get _agentSettingsInteractive =>
       viewData.agentSettings.initialized &&

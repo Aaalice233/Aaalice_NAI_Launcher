@@ -18,6 +18,7 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/generation_
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/generation_controls.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/random_mode_toggle.dart';
 import 'package:nai_launcher/presentation/widgets/anlas/anlas_balance_chip.dart';
+import 'package:nai_launcher/presentation/widgets/anlas/opus_usage_chip.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_number_input.dart';
 import 'package:nai_launcher/presentation/widgets/generation/auto_save_toggle_chip.dart';
 
@@ -95,16 +96,18 @@ void main() {
       });
 
       for (final scenario in const [
+        (width: 320.0, textScale: 1.0, singleLine: false),
         (width: 438.0, textScale: 1.0, singleLine: false),
         (width: 475.0, textScale: 1.0, singleLine: false),
-        (width: 497.0, textScale: 1.0, singleLine: false),
+        (width: 497.0, textScale: 1.0, singleLine: true),
         (width: 590.0, textScale: 1.0, singleLine: true),
         (width: 700.0, textScale: 1.0, singleLine: true),
         (width: 840.0, textScale: 1.0, singleLine: true),
+        (width: 320.0, textScale: 3.0, singleLine: false),
         (width: 475.0, textScale: 3.0, singleLine: false),
         (width: 590.0, textScale: 3.0, singleLine: false),
         (width: 700.0, textScale: 3.0, singleLine: false),
-        (width: 840.0, textScale: 3.0, singleLine: false),
+        (width: 840.0, textScale: 3.0, singleLine: true),
       ]) {
         await tester.pumpWidget(
           ProviderScope(
@@ -175,7 +178,6 @@ void main() {
         expect(find.text('7,384'), findsOneWidget);
         expect(find.text('自动保存'), findsOneWidget);
         expect(primaryRect.height, greaterThanOrEqualTo(48));
-        expect(primaryRect.center.dx, closeTo(footerRect.center.dx, 0.01));
         for (final rect in [primaryRect, ...actionRects]) {
           expect(
             footerRect.inflate(0.01).contains(rect.topLeft) &&
@@ -193,7 +195,52 @@ void main() {
               reason: '$reason unexpectedly wrapped',
             );
           }
+          final opusRect = tester.getRect(find.byType(OpusUsageChip));
+          final anlasRect = tester.getRect(find.byType(AnlasBalanceChip));
+          final batchRect = tester.getRect(find.byType(BatchSettingsButton));
+          final countRect = tester.getRect(find.byType(DraggableNumberInput));
+          final randomRect = tester.getRect(find.byType(RandomModeToggle));
+          final autoSaveRect = tester.getRect(find.byType(AutoSaveToggleChip));
+          expect(opusRect.left, closeTo(footerRect.left, 0.01), reason: reason);
+          expect(
+            opusRect.right,
+            lessThanOrEqualTo(anlasRect.left),
+            reason: reason,
+          );
+          expect(anlasRect.right, lessThan(primaryRect.left), reason: reason);
+          expect(primaryRect.right, lessThan(batchRect.left), reason: reason);
+          expect(
+            batchRect.right,
+            lessThanOrEqualTo(countRect.left),
+            reason: reason,
+          );
+          expect(
+            countRect.right,
+            lessThanOrEqualTo(randomRect.left),
+            reason: reason,
+          );
+          expect(
+            randomRect.right,
+            lessThanOrEqualTo(autoSaveRect.left),
+            reason: reason,
+          );
+          expect(
+            autoSaveRect.right,
+            closeTo(footerRect.right, 0.01),
+            reason: reason,
+          );
+          expect(primaryRect.width, greaterThanOrEqualTo(160), reason: reason);
         } else {
+          expect(
+            primaryRect.left,
+            closeTo(footerRect.left, 0.01),
+            reason: reason,
+          );
+          expect(
+            primaryRect.right,
+            closeTo(footerRect.right, 0.01),
+            reason: reason,
+          );
           for (final rect in actionRects) {
             expect(
               rect.top,

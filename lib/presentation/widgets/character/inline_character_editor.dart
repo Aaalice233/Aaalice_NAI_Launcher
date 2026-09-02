@@ -155,117 +155,148 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
             context,
             l10n.promptAssistant_assistant,
           );
+    final expandedAssistantWidth =
+        PromptAssistantOverlay.expandedInlineToolbarWidth(
+          interactionPolicy,
+          compactDesktopToolbar: true,
+        );
     final currentController = _tabIndex == 0
         ? _promptController
         : _negativeController;
-    final showClearButton =
-        !assistantExpanded && currentController.text.isNotEmpty;
     final clearButtonSize = assistantToolbarHeight;
-    final collapsedActionsWidth =
-        collapsedAssistantWidth + (showClearButton ? clearButtonSize + 6 : 0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          height: assistantToolbarHeight,
-          child: Stack(
-            alignment: Alignment.centerRight,
-            children: [
-              Positioned.fill(
-                right: collapsedActionsWidth + 8,
-                child: Offstage(
-                  offstage: assistantExpanded,
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: _EditorTab(
-                          label: l10n.prompt_positivePrompt,
-                          selected: _tabIndex == 0,
-                          onTap: () {
-                            setState(() => _tabIndex = 0);
-                            _focusCurrentTab();
-                          },
-                        ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final assistantWidth =
+                (assistantExpanded
+                        ? expandedAssistantWidth
+                        : collapsedAssistantWidth)
+                    .clamp(0.0, constraints.maxWidth)
+                    .toDouble();
+            final textScale = MediaQuery.textScalerOf(context).scale(1);
+            final minimumTabsWidth = 136 * textScale.clamp(1.0, 2.0);
+            final availableBesideAssistant =
+                constraints.maxWidth - assistantWidth - 8;
+            final canShowClear =
+                currentController.text.isNotEmpty &&
+                availableBesideAssistant >=
+                    minimumTabsWidth + clearButtonSize + 6;
+            final showTabs =
+                availableBesideAssistant -
+                    (canShowClear ? clearButtonSize + 6 : 0) >=
+                minimumTabsWidth;
+            final reservedActionsWidth =
+                assistantWidth + (canShowClear ? clearButtonSize + 6 : 0);
+
+            return SizedBox(
+              height: assistantToolbarHeight,
+              child: Stack(
+                alignment: Alignment.centerRight,
+                children: [
+                  Positioned.fill(
+                    right: reservedActionsWidth + 8,
+                    child: Offstage(
+                      offstage: !showTabs,
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: _EditorTab(
+                              label: l10n.prompt_positivePrompt,
+                              selected: _tabIndex == 0,
+                              onTap: () {
+                                setState(() => _tabIndex = 0);
+                                _focusCurrentTab();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: _EditorTab(
+                              label: l10n.prompt_negativePrompt,
+                              selected: _tabIndex == 1,
+                              onTap: () {
+                                setState(() => _tabIndex = 1);
+                                _focusCurrentTab();
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: _EditorTab(
-                          label: l10n.prompt_negativePrompt,
-                          selected: _tabIndex == 1,
-                          onTap: () {
-                            setState(() => _tabIndex = 1);
-                            _focusCurrentTab();
-                          },
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              if (showClearButton)
-                Positioned(
-                  right: collapsedAssistantWidth + 6,
-                  top: 0,
-                  width: clearButtonSize,
-                  height: assistantToolbarHeight,
-                  child: IconButton(
-                    key: const ValueKey('character-prompt-clear-button'),
-                    tooltip: l10n.toolbar_clear,
-                    onPressed: _clearCurrentPrompt,
-                    icon: Icon(Icons.clear, size: assistantIconOnly ? 20 : 17),
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints.tightFor(
+                  if (canShowClear)
+                    Positioned(
+                      right: assistantWidth + 6,
+                      top: 0,
                       width: clearButtonSize,
                       height: assistantToolbarHeight,
+                      child: IconButton(
+                        key: const ValueKey('character-prompt-clear-button'),
+                        tooltip: l10n.toolbar_clear,
+                        onPressed: _clearCurrentPrompt,
+                        icon: Icon(
+                          Icons.clear,
+                          size: assistantIconOnly ? 20 : 17,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints.tightFor(
+                          width: clearButtonSize,
+                          height: assistantToolbarHeight,
+                        ),
+                        style: IconButton.styleFrom(
+                          foregroundColor: colorScheme.onSurfaceVariant,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
                     ),
-                    style: IconButton.styleFrom(
-                      foregroundColor: colorScheme.onSurfaceVariant,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    width: assistantWidth,
+                    height: assistantToolbarHeight,
+                    child: ClipRRect(
+                      key: const ValueKey('character-prompt-assistant-slot'),
+                      borderRadius: BorderRadius.circular(6),
+                      child: ColoredBox(
+                        color: colorScheme.surfaceContainerHighest.withValues(
+                          alpha: assistantExpanded ? 0.72 : 0.52,
+                        ),
+                        child: PromptAssistantOverlay(
+                          key: ValueKey(assistantSessionId),
+                          sessionId: assistantSessionId,
+                          controller: _tabIndex == 0
+                              ? _promptController
+                              : _negativeController,
+                          onChanged: _tabIndex == 0
+                              ? (value) => _updateCharacter(
+                                  widget.character.copyWith(prompt: value),
+                                )
+                              : (value) => _updateCharacter(
+                                  widget.character.copyWith(
+                                    negativePrompt: value,
+                                  ),
+                                ),
+                          floatOverEditor: false,
+                          iconOnly: assistantIconOnly,
+                          compactDesktopToolbar: true,
+                          tapRegionGroupId:
+                              CharacterPromptEditor.tapRegionGroupId(
+                                widget.character.id,
+                              ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              Positioned(
-                left: assistantExpanded ? 0 : null,
-                right: 0,
-                top: 0,
-                width: assistantExpanded ? null : collapsedAssistantWidth,
-                height: assistantToolbarHeight,
-                child: ClipRRect(
-                  key: const ValueKey('character-prompt-assistant-slot'),
-                  borderRadius: BorderRadius.circular(6),
-                  child: ColoredBox(
-                    color: colorScheme.surfaceContainerHighest.withValues(
-                      alpha: assistantExpanded ? 0.72 : 0.52,
-                    ),
-                    child: PromptAssistantOverlay(
-                      key: ValueKey(assistantSessionId),
-                      sessionId: assistantSessionId,
-                      controller: _tabIndex == 0
-                          ? _promptController
-                          : _negativeController,
-                      onChanged: _tabIndex == 0
-                          ? (value) => _updateCharacter(
-                              widget.character.copyWith(prompt: value),
-                            )
-                          : (value) => _updateCharacter(
-                              widget.character.copyWith(negativePrompt: value),
-                            ),
-                      floatOverEditor: false,
-                      iconOnly: assistantIconOnly,
-                      compactDesktopToolbar: true,
-                      tapRegionGroupId: CharacterPromptEditor.tapRegionGroupId(
-                        widget.character.id,
-                      ),
-                    ),
-                  ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
         const SizedBox(height: 6),
         if (_tabIndex == 0)

@@ -83,7 +83,7 @@ class InlineCharacterSection extends ConsumerWidget {
       ),
       hasData: characters.isNotEmpty,
       headerActions: const [AddCharacterButtons(compact: true)],
-      centerHeaderActions: true,
+      alignHeaderActionsAfterTitle: true,
       collapsedHoverPreviewBuilder: characters.isEmpty
           ? null
           : (context) => CharacterTooltipContent(config: config),
