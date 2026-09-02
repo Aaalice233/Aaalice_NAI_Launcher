@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -353,9 +355,88 @@ void main() {
     });
   });
 
+  test('Gemini emits each SSE delta before the response completes', () async {
+    final adapter = _ControlledSseAdapter(
+      first:
+          'data: {"candidates":[{"content":{"parts":[{"text":"first"}]}}]}\n\n',
+      second:
+          'data: {"candidates":[{"content":{"parts":[{"text":"second"}]},"finishReason":"STOP"}]}\n\n',
+    );
+    final dio = Dio()..httpClientAdapter = adapter;
+    addTearDown(dio.close);
+    final iterator = StreamIterator(
+      const GeminiGenerateContentAdapter().completeAgent(
+        dio: dio,
+        request: _request(ProviderProtocol.geminiGenerateContent),
+        cancelToken: CancelToken(),
+      ),
+    );
+    addTearDown(iterator.cancel);
+
+    expect(await iterator.moveNext(), isTrue);
+    expect(iterator.current, isA<AgentWireTextDelta>());
+    expect((iterator.current as AgentWireTextDelta).delta, 'first');
+    expect(adapter.released, isFalse);
+
+    adapter.release();
+    final remaining = <AgentWireEvent>[];
+    while (await iterator.moveNext()) {
+      remaining.add(iterator.current);
+    }
+    expect(remaining.whereType<AgentWireTextDelta>().single.delta, 'second');
+    expect(remaining.whereType<AgentWireFinish>(), hasLength(1));
+  });
+
+  test('Gemini reports malformed SSE JSON as an error', () async {
+    final dio = Dio()..httpClientAdapter = _SseAdapter('data: {not-json}\n\n');
+    addTearDown(dio.close);
+
+    final events = await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.geminiGenerateContent),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(events.whereType<AgentWireError>(), hasLength(1));
+    expect(events.whereType<AgentWireFinish>(), isEmpty);
+    expect(
+      events.whereType<AgentWireError>().single.message,
+      contains('invalid JSON'),
+    );
+  });
+
+  test('Gemini maps cached and thinking tokens like Pi', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        'data: {"candidates":[{"content":{"parts":[{"text":"done"}]},'
+        '"finishReason":"STOP"}],"usageMetadata":{'
+        '"promptTokenCount":20,"cachedContentTokenCount":5,'
+        '"candidatesTokenCount":3,"thoughtsTokenCount":7,'
+        '"totalTokenCount":30}}\n\n',
+      );
+    addTearDown(dio.close);
+
+    final events = await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.geminiGenerateContent),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+    final usage = events.whereType<AgentWireFinish>().single.usage!;
+
+    expect(usage.input, 15);
+    expect(usage.cacheRead, 5);
+    expect(usage.output, 10);
+    expect(usage.totalTokens, 30);
+  });
+
   test('Gemini sends full JSON Schema for numeric tool enums', () async {
     final capture = _CaptureAdapter();
-    final dio = Dio()..httpClientAdapter = capture;
+    final dio = Dio(BaseOptions(receiveTimeout: const Duration(minutes: 2)))
+      ..httpClientAdapter = capture;
     addTearDown(dio.close);
 
     await const GeminiGenerateContentAdapter()
@@ -388,7 +469,10 @@ void main() {
       endsWith('/models/model:streamGenerateContent'),
     );
     expect(capture.options!.uri.queryParameters['alt'], 'sse');
+    expect(capture.options!.receiveTimeout, Duration.zero);
     final payload = capture.options!.data as Map<String, dynamic>;
+    expect(payload, contains('systemInstruction'));
+    expect(payload, isNot(contains('system_instruction')));
     final declaration =
         (((payload['tools'] as List).single as Map)['functionDeclarations']
                     as List)
@@ -511,7 +595,8 @@ void main() {
       ..httpClientAdapter = _SseAdapter(
         'data: {"candidates":[{"content":{"parts":['
         '{"functionCall":{"name":"read","args":{"path":"a.txt"}}}'
-        ']},"finishReason":"STOP"}]}\n\n',
+        ']}}]}\n\n'
+        'data: {"candidates":[{"finishReason":"STOP"}]}\n\n',
       );
     addTearDown(dio.close);
 
@@ -902,7 +987,7 @@ void main() {
         ProviderProtocol.openaiResponses => payload['instructions'],
         ProviderProtocol.anthropicMessages => payload['system'],
         ProviderProtocol.geminiGenerateContent =>
-          ((((payload['system_instruction'] as Map)['parts'] as List).single
+          ((((payload['systemInstruction'] as Map)['parts'] as List).single
               as Map)['text']),
       };
       expect(outboundPrompt, 'EXACT_OVERRIDE', reason: protocol.name);
@@ -974,6 +1059,43 @@ class _SseAdapter implements HttpClientAdapter {
 
   @override
   void close({bool force = false}) {}
+}
+
+class _ControlledSseAdapter implements HttpClientAdapter {
+  _ControlledSseAdapter({required this.first, required this.second});
+
+  final String first;
+  final String second;
+  final Completer<void> _release = Completer<void>();
+
+  bool get released => _release.isCompleted;
+
+  void release() => _release.complete();
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final stream = () async* {
+      yield Uint8List.fromList(utf8.encode(first));
+      await _release.future;
+      yield Uint8List.fromList(utf8.encode(second));
+    }();
+    return ResponseBody(
+      stream,
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['text/event-stream'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {
+    if (!_release.isCompleted) _release.complete();
+  }
 }
 
 class _ErrorAdapter implements HttpClientAdapter {
