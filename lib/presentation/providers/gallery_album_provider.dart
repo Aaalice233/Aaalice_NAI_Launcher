@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
@@ -61,6 +62,7 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
   final GalleryAlbumSidecarService _sidecarService =
       GalleryAlbumSidecarService();
 
+  final _moveLock = Lock();
   Timer? _sidecarExportTimer;
   late Future<void> _initialLoad;
 
@@ -164,17 +166,19 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
     String albumId,
     String targetId,
     GalleryTreeDropSlot slot,
-  ) async {
-    final changed = await _albums.moveAlbumToSlot(
-      albumId: albumId,
-      targetId: targetId,
-      slot: slot,
-    );
-    if (changed) {
-      await _load();
-      _scheduleSidecarExport();
-    }
-    return changed;
+  ) {
+    return _moveLock.synchronized(() async {
+      final changed = await _albums.moveAlbumToSlot(
+        albumId: albumId,
+        targetId: targetId,
+        slot: slot,
+      );
+      if (changed) {
+        await _load();
+        _scheduleSidecarExport();
+      }
+      return changed;
+    });
   }
 
   /// 移动相簿到新父级（含防环校验）

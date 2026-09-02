@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:synchronized/synchronized.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../utils/app_logger.dart';
@@ -113,6 +114,7 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
 
   final GalleryDatabaseGateway gateway;
   final GalleryStoreContext context;
+  final _moveLock = Lock();
 
   @override
   Future<String> createAlbum({
@@ -770,6 +772,16 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
 
   @override
   Future<bool> moveAlbumToSlot({
+    required String albumId,
+    required String targetId,
+    required GalleryTreeDropSlot slot,
+  }) {
+    return _moveLock.synchronized(
+      () => _moveAlbumToSlot(albumId: albumId, targetId: targetId, slot: slot),
+    );
+  }
+
+  Future<bool> _moveAlbumToSlot({
     required String albumId,
     required String targetId,
     required GalleryTreeDropSlot slot,

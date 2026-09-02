@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/storage/local_storage_service.dart';
@@ -17,6 +18,7 @@ class GalleryCategoryRepository {
       GalleryCategoryRepository._();
 
   final _localStorage = LocalStorageService();
+  final _categorySaveLock = Lock();
 
   static const _categoriesFileName = '.gallery_categories.json';
   static const _suppressedCategoriesFileName =
@@ -52,37 +54,90 @@ class GalleryCategoryRepository {
   }
 
   Future<List<GalleryCategory>> loadCategories() async {
+    final filePath = await _getCategoriesFilePath();
+    if (filePath == null) return [];
+
+    final file = File(filePath);
+    final backupFile = File('$filePath.bak');
     try {
-      final filePath = await _getCategoriesFilePath();
-      if (filePath == null) return [];
+      if (await file.exists()) {
+        try {
+          final categories = await _readCategories(file);
+          await _deleteIfPresent(backupFile);
+          return categories;
+        } catch (primaryError) {
+          if (!await backupFile.exists()) rethrow;
+          final categories = await _readCategories(backupFile);
+          await backupFile.copy(file.path);
+          await _deleteIfPresent(backupFile);
+          AppLogger.w('分类配置损坏，已从备份恢复: $primaryError');
+          return categories;
+        }
+      }
+      if (!await backupFile.exists()) return [];
 
-      final file = File(filePath);
-      if (!await file.exists()) return [];
-
-      final jsonList = jsonDecode(await file.readAsString()) as List;
-      return jsonList
-          .map((j) => GalleryCategory.fromJson(j as Map<String, dynamic>))
-          .toList();
+      final categories = await _readCategories(backupFile);
+      await backupFile.copy(file.path);
+      await _deleteIfPresent(backupFile);
+      AppLogger.w('分类配置提交中断，已从备份恢复');
+      return categories;
     } catch (e) {
       AppLogger.e('加载分类配置失败', e);
       return [];
     }
   }
 
+  Future<List<GalleryCategory>> _readCategories(File file) async {
+    final jsonList = jsonDecode(await file.readAsString()) as List;
+    return jsonList
+        .map((json) => GalleryCategory.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
   /// 保存所有分类
-  Future<bool> saveCategories(List<GalleryCategory> categories) async {
-    try {
+  Future<bool> saveCategories(List<GalleryCategory> categories) {
+    return _categorySaveLock.synchronized(() async {
       final filePath = await _getCategoriesFilePath();
       if (filePath == null) return false;
 
       final file = File(filePath);
-      final jsonList = categories.map((c) => c.toJson()).toList();
-      await file.writeAsString(jsonEncode(jsonList));
+      final temporaryFile = File('$filePath.tmp');
+      final backupFile = File('$filePath.bak');
+      var committed = false;
+      try {
+        if (!await file.parent.exists()) {
+          await file.parent.create(recursive: true);
+        }
+        final jsonList = categories.map((c) => c.toJson()).toList();
+        await temporaryFile.writeAsString(jsonEncode(jsonList), flush: true);
+        if (await file.exists()) {
+          await file.copy(backupFile.path);
+        }
+        await temporaryFile.rename(file.path);
+        committed = true;
+        await _deleteIfPresent(backupFile);
+        return true;
+      } catch (e) {
+        if (!committed && await backupFile.exists() && !await file.exists()) {
+          try {
+            await backupFile.rename(file.path);
+          } catch (restoreError) {
+            AppLogger.e('恢复分类配置备份失败', restoreError);
+          }
+        }
+        AppLogger.e('保存分类配置失败', e);
+        return false;
+      } finally {
+        await _deleteIfPresent(temporaryFile);
+      }
+    });
+  }
 
-      return true;
+  Future<void> _deleteIfPresent(File file) async {
+    try {
+      if (await file.exists()) await file.delete();
     } catch (e) {
-      AppLogger.e('保存分类配置失败', e);
-      return false;
+      AppLogger.w('清理分类配置临时文件失败: ${file.path}: $e');
     }
   }
 

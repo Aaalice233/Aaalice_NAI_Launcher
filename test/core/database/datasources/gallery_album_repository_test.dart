@@ -9,6 +9,40 @@ import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart'
 import 'package:nai_launcher/data/models/gallery/gallery_tree_drop_slot.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
 
+class _TrackingGateway implements GalleryDatabaseGateway {
+  _TrackingGateway(this.database);
+
+  final Database database;
+  int activeCalls = 0;
+  int maxActiveCalls = 0;
+
+  @override
+  Future<T> execute<T>(
+    String operationName,
+    Future<T> Function(Database db) operation, {
+    Duration? timeout,
+    int? maxRetries,
+  }) async {
+    activeCalls++;
+    if (activeCalls > maxActiveCalls) maxActiveCalls = activeCalls;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      return await operation(database);
+    } finally {
+      activeCalls--;
+    }
+  }
+
+  @override
+  Future<T> executeTransaction<T>(
+    String operationName,
+    Future<T> Function(Transaction txn) operation, {
+    Duration? timeout,
+  }) {
+    return database.transaction(operation);
+  }
+}
+
 /// 相簿数据访问层单元测试
 ///
 /// 运行: flutter test test/core/database/datasources/gallery_album_repository_test.dart
@@ -473,6 +507,50 @@ void main() {
     );
 
     expect(changed, isFalse);
+  });
+
+  test('moveAlbumToSlot serializes concurrent reorder requests', () async {
+    final database = await databaseFactory.openDatabase(inMemoryDatabasePath);
+    addTearDown(database.close);
+    await database.execute('''
+      CREATE TABLE gallery_albums (
+        id TEXT PRIMARY KEY,
+        parent_id TEXT,
+        sort_order INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+    for (var index = 0; index < 4; index++) {
+      await database.insert('gallery_albums', {
+        'id': String.fromCharCode('a'.codeUnitAt(0) + index),
+        'parent_id': null,
+        'sort_order': index,
+        'updated_at': 0,
+      });
+    }
+    final gateway = _TrackingGateway(database);
+    final repository = SqliteGalleryAlbumRepository(
+      gateway: gateway,
+      context: GalleryStoreContext(),
+    );
+
+    final results = await Future.wait([
+      repository.moveAlbumToSlot(
+        albumId: 'd',
+        targetId: 'a',
+        slot: GalleryTreeDropSlot.before,
+      ),
+      repository.moveAlbumToSlot(
+        albumId: 'c',
+        targetId: 'a',
+        slot: GalleryTreeDropSlot.after,
+      ),
+    ]);
+
+    expect(results, [true, true]);
+    expect(gateway.maxActiveCalls, 1);
+    final rows = await database.query('gallery_albums', orderBy: 'sort_order');
+    expect(rows.map((row) => row['id']).toList(), ['d', 'a', 'c', 'b']);
   });
 
   test(

@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/gallery_category.dart';
@@ -58,6 +59,7 @@ class GalleryCategoryState with _$GalleryCategoryState {
 @riverpod
 class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
   final _repository = GalleryCategoryRepository.instance;
+  final _moveLock = Lock();
   late Future<void> _initialLoad;
 
   @override
@@ -296,6 +298,16 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
     String categoryId,
     String targetId,
     GalleryTreeDropSlot slot,
+  ) {
+    return _moveLock.synchronized(
+      () => _moveCategoryToSlot(categoryId, targetId, slot),
+    );
+  }
+
+  Future<bool> _moveCategoryToSlot(
+    String categoryId,
+    String targetId,
+    GalleryTreeDropSlot slot,
   ) async {
     final category = state.categories.findById(categoryId);
     final target = state.categories.findById(targetId);
@@ -309,61 +321,56 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
       return false;
     }
 
+    GalleryCategory? physicallyMoved;
+    var working = [...state.categories];
     try {
-      var working = [...state.categories];
-      // 跨父时先做物理移动并更新后代路径
       if (category.parentId != newParentId) {
-        final moved = await _repository.moveCategory(
+        physicallyMoved = await _repository.moveCategory(
           category,
           newParentId,
           working,
         );
-        if (moved == null) return false;
-        working = working.map((c) => c.id == categoryId ? moved : c).toList();
+        if (physicallyMoved == null) return false;
+        working = working
+            .map((c) => c.id == categoryId ? physicallyMoved! : c)
+            .toList();
         working = _repository.updateDescendantPaths(
           category.folderPath,
-          moved.folderPath,
+          physicallyMoved.folderPath,
           working,
         );
       }
 
-      // 计算目标父级下新的同级顺序（含插入位置）
       final siblings =
           working
-              .where(
-                (c) =>
-                    c.parentId == newParentId &&
-                    c.id != categoryId &&
-                    c.id != targetId,
-              )
+              .where((c) => c.parentId == newParentId && c.id != categoryId)
               .toList()
             ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-      final targetOrder = target.sortOrder;
-      final targetIndex = siblings.indexWhere((c) => c.sortOrder > targetOrder);
-
-      final orderedIds = [for (final c in siblings) c.id];
+      final orderedIds = [for (final sibling in siblings) sibling.id];
       switch (slot) {
         case GalleryTreeDropSlot.child:
           orderedIds.add(categoryId);
         case GalleryTreeDropSlot.before:
-          orderedIds.insert(
-            (targetIndex == -1 ? orderedIds.length : targetIndex).clamp(
-              0,
-              orderedIds.length,
-            ),
-            categoryId,
-          );
         case GalleryTreeDropSlot.after:
+          final targetIndex = orderedIds.indexOf(targetId);
+          final insertIndex = targetIndex == -1
+              ? orderedIds.length
+              : targetIndex + (slot == GalleryTreeDropSlot.after ? 1 : 0);
           orderedIds.insert(
-            (targetIndex == -1 ? orderedIds.length : targetIndex).clamp(
-              0,
-              orderedIds.length,
-            ),
+            insertIndex.clamp(0, orderedIds.length),
             categoryId,
           );
       }
 
-      // 重写该父级全孩子的 sortOrder，并同步 moved 对象
+      if (category.parentId == newParentId) {
+        final currentIds =
+            (state.categories.where((c) => c.parentId == newParentId).toList()
+                  ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)))
+                .map((c) => c.id)
+                .toList();
+        if (_sameOrder(currentIds, orderedIds)) return false;
+      }
+
       working = working.map((c) {
         if (c.parentId != newParentId) return c;
         final index = orderedIds.indexOf(c.id);
@@ -371,13 +378,78 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
         return c.copyWith(sortOrder: index, updatedAt: DateTime.now());
       }).toList();
 
-      await _repository.saveCategories(working);
-      state = state.copyWith(categories: working);
+      if (!await _repository.saveCategories(working)) {
+        final rolledBack = await _rollbackPhysicalMove(
+          physicallyMoved,
+          category,
+          working,
+        );
+        if (!rolledBack && await _repository.saveCategories(working)) {
+          AppLogger.w(
+            '分类目录回滚失败，已按实际目录状态补写配置: ${category.name}',
+            'GalleryCategory',
+          );
+          state = state.copyWith(categories: working, error: null);
+          return true;
+        }
+        state = state.copyWith(
+          categories: rolledBack ? state.categories : working,
+          error: CategoryOperationError(
+            CategoryOperationErrorCode.moveFailed,
+            details: rolledBack
+                ? 'Category metadata persistence failed'
+                : 'Category metadata persistence and directory rollback failed',
+          ),
+        );
+        return false;
+      }
+      state = state.copyWith(categories: working, error: null);
       return true;
     } catch (e) {
+      final rolledBack = await _rollbackPhysicalMove(
+        physicallyMoved,
+        category,
+        working,
+      );
       AppLogger.e('槽位移动分类失败', e, null, 'GalleryCategory');
+      state = state.copyWith(
+        categories: rolledBack ? state.categories : working,
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.moveFailed,
+          details: rolledBack ? e.toString() : '$e; directory rollback failed',
+        ),
+      );
       return false;
     }
+  }
+
+  Future<bool> _rollbackPhysicalMove(
+    GalleryCategory? moved,
+    GalleryCategory original,
+    List<GalleryCategory> working,
+  ) async {
+    if (moved == null) return true;
+    final rolledBack = await _repository.moveCategory(
+      moved,
+      original.parentId,
+      working,
+    );
+    if (rolledBack != null) return true;
+    AppLogger.e(
+      '分类配置保存失败且目录回滚失败: ${original.name}',
+      null,
+      null,
+      'GalleryCategory',
+    );
+    return false;
+  }
+
+  bool _sameOrder(List<String> left, List<String> right) {
+    if (left.length != right.length) return false;
+    for (var i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) return false;
+    }
+    return true;
   }
 
   /// 删除分类
