@@ -437,6 +437,7 @@ class _CharacterTooltipWrapper extends StatelessWidget {
 
     return Tooltip(
       richMessage: WidgetSpan(child: CharacterTooltipContent(config: config)),
+      constraints: const BoxConstraints(maxWidth: 380),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
