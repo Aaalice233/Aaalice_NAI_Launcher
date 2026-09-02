@@ -48,22 +48,20 @@ flutter analyze
 flutter build windows --release
 flutter build apk --release
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_nuget.ps1
-pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-sessions/scripts/windows_runner.ps1
-pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-sessions/scripts/android_runner.ps1 -EmulatorId Aaalice_API35
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-sessions/scripts/start.ps1 -Target All -EmulatorId Aaalice_API35
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Status
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Reload -Target All
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Restart -Target All
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Logs -Target All -Last 200
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Stop -Target All
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1 -Name <scenario> -HotReload -Action "tap:x,y","wait:500"
 ```
 
 Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 `flutter build macos --release`，产物位于 `build/macos/Build/Products/Release/Aaalice NAI Launcher.app`；本地 Keychain 反复授权时使用 `scripts/create_macos_dev_cert.sh` 与 `scripts/dev_run_macos_signed.sh debug`。Android 通用 APK 位于 `build/app/outputs/flutter-apk/app-release.apk`；推送 `v*` Tag 时由 `.github/workflows/release.yml` 构建并发布正式签名 APK，`.github/workflows/android-build.yml` 仅用于按需手动构建可安装 APK 与 SHA-256 Actions artifact。
 
-项目热重载与按需运行验收由 `.agents/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责通过 Orca 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 终端；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，随后按 Orca cursor 增量读取两端日志；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。Agent 不得另开第二个 `flutter run` 或 `flutter attach`，仓库 `scripts/` 下不再保留项目热重载入口。
+项目热重载与按需运行验收由 `.agents/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责让 Codex 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 独立 PowerShell 窗口；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，并读取两端控制台验证结果；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。不得依赖外部终端编排器，不得另开第二个 `flutter run`、`flutter attach` 或新的 Codex task。
 
 `build_runner` 不是常规测试或纯 Dart/UI 改动的默认验证步骤。只有改动了 Riverpod/Freezed/JSON/Drift 等生成输入，或开发 Runner 预检明确报告生成文件缺失/过期时才运行；针对性测试直接运行相关测试文件，不得为此先扫描全仓库生成代码。用户要求立即启动热重载时先执行会话状态检查和 Runner 预检，不得先跑测试或生成器；若预检阻塞且必须全量生成，应明确说明这是一次性环境准备及预计耗时，让命令完整结束后立即继续启动，不得称其为“最小验证”或反复中断重跑。生成命令中断后必须检查并恢复被删除但未重新生成的已有输出。
-
-为本项目创建 Orca worktree 会话时，用户未明确指定 Agent 则默认使用 `pi`；仅在用户明确要求时改用其他 Agent。
 
 普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。共享代码默认作用于 `All`，平台实现只作用于对应端。
 
@@ -73,7 +71,7 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 - Flutter Windows 最小化发送零尺寸 metrics 是官方已知生命周期行为；顶层 `SIZE_MINIMIZED` 仍须通过 `HandleTopLevelWindowProc` 传递 `hidden` 生命周期，但主 Runner 不得把 iconic/零尺寸 client rect 转发给 child HWND。Flutter 壳层遇到临时无效 constraints 时必须保留同一 child element/state，并暂停 ticker、语义和交互；正常非最小化缩放仍须响应真实 constraints。
 - `windows/runner/` 是受 Git 管理的项目原生源码，`test`、`analyze`、`flutter clean`、`flutter build`、Release CI 和 Flutter SDK 升级不会用官方模板还原；若删除/重建平台工程或人工同步模板，必须保留项目的 child resize、accessibility 和生命周期定制，并运行静态契约测试。
 - 调试“窗口可见但无法操作”时必须分别检查顶层 `FLUTTER_RUNNER_WIN32_WINDOW` 与其 `FLUTTERVIEW` 子窗口的 rect、enabled、capture 和 hit-test；不能只根据 Flutter 日志或外层 HWND 状态判断。
-- 修改插件版本或 Windows C++ 后必须完整重建。Orca 会话显示 `running` 或留有 PID 不等于构建成功；应确认控制台出现原生构建成功/启动标记、真实 `nai_launcher` 进程存在，依赖变化时再核对插件 DLL 时间戳，然后才让用户复现。
+- 修改插件版本或 Windows C++ 后必须完整重建。独立窗口存在或 session marker 留有 PID 不等于构建成功；应确认控制台出现原生构建成功/启动标记、真实 `nai_launcher` 进程存在，依赖变化时再核对插件 DLL 时间戳，然后才让用户复现。
 - Windows 最小化会让窗口 constraints 短暂归零，响应式布局可能因此销毁并重建面板子树；滚动位置、是否跟随最新内容等必须跨 Widget/Controller 生命周期的 viewport 状态应由更高层稳定 owner 按会话保存。重建 ScrollController 时必须用保存值设置 `initialScrollOffset`，在首帧直接呈现原位置；不得先渲染默认位置再通过 post-frame `jumpTo` 恢复，否则会出现跳到底部后拉回的闪烁。
 
 用户明确要求自动化运行验收时，两个 runner 通过 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 启用仅限开发会话的 Flutter Driver extension，供官方 Dart and Flutter MCP server 在不抢占用户键鼠和桌面焦点的情况下截图、点击、输入、滚动与检查运行中 Flutter UI。禁止使用 Computer Use。稳定场景应固化为 `integration_test`；Android 系统界面场景使用 ADB。Android 项目 emulator 首次使用无 Quick Boot 快照、host GPU、无设备外框的干净启动，之后默认保留并复用暖机实例；复用前停止旧 App 并返回 Home，显式传 `-StopEmulatorOnExit` 时才跟随会话关闭。`-DeviceId` 仅用于明确复用外部设备。
@@ -131,7 +129,7 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 仅当用户明确要求 Agent 执行自动化运行验收时，使用本节流程；普通 UI 修改不默认启动真机、emulator、自动点击或截图验收。
 
-Android 系统界面快速回归使用 `.agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1`：`-HotReload` 后约 1.2 秒开始操作，`-Foreground` 只把现有应用带回前台，`-Action` 接受 `tap:x,y`、`text:value`、`key:KEYCODE`、`swipe:x1,y1,x2,y2,duration` 和 `wait:milliseconds`。脚本会清理日志基线并保存截图、窗口树、Activity 状态和有界日志，发现 overflow、Flutter rendering exception 或原生崩溃时失败。
+Android 系统界面快速回归使用 `.agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1`：`-HotReload` 通过 `aaalice-hot-reload` 控制现有独立 Android 控制台，约 1.2 秒后开始操作；`-Foreground` 只把现有应用带回前台，`-Action` 接受 `tap:x,y`、`text:value`、`key:KEYCODE`、`swipe:x1,y1,x2,y2,duration` 和 `wait:milliseconds`。脚本会清理日志基线并保存截图、窗口树、Activity 状态和有界日志，发现 overflow、Flutter rendering exception 或原生崩溃时失败。
 
 运行时交互统一使用 `adb` CLI，并尽量在一条 PowerShell 命令中批量完成一个确定场景的点击、输入、等待、状态采集、截图和日志读取，避免逐个命令往返。操作前先用 `uiautomator dump` 和当前窗口信息确认页面、文本与控件边界；点击坐标必须来自本次设备的实际树或截图，不得把某一分辨率的坐标当作跨尺寸稳定选择器。常用命令包括 `adb shell input tap/text/keyevent/swipe`、`adb shell uiautomator dump`、`adb shell dumpsys window`、`adb exec-out screencap -p` 和 `adb logcat`。
 

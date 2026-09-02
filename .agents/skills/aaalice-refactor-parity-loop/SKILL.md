@@ -45,7 +45,7 @@ description: 对 Aaalice NAI Launcher 的大型文件拆分型重构执行多子
 
 ## 强制原则
 
-1. 必须使用 Codex 内置多代理协作工具；除非用户明确要求 Orca，不得用 Orca worktree、额外终端、独立 Codex task 或外部 Agent 代替。
+1. 必须使用 Codex 内置多代理协作工具；不得用外部编排器、额外工作树、独立 Codex task 或外部 Agent 代替。项目开发 Runner 使用 `aaalice-dev-sessions` 管理的独立命令行窗口，不属于子代理替代方案。
 2. 审查代理和确认代理必须是不同的新代理；任何代理不得确认自己的结论。
 3. 审查默认只读；没有经过反证确认的问题不得进入修复。
 4. 不把文件行数、个人风格、抽象偏好或“可能以后出错”单独当成回归。

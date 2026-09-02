@@ -20,6 +20,9 @@ Set-Location -LiteralPath $repoRoot
 
 $sessionDirectory = Join-Path $repoRoot 'tool/.tmp'
 $sessionPath = Join-Path $sessionDirectory 'android_hot_reload_session.json'
+if ($Host.Name -eq 'ConsoleHost') {
+    $Host.UI.RawUI.WindowTitle = '安卓热重载'
+}
 if (-not $ListDevices -and (Test-Path -LiteralPath $sessionPath -PathType Leaf)) {
     try {
         $existingSession = Get-Content -LiteralPath $sessionPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -457,7 +460,7 @@ $currentProcess = Get-Process -Id $PID
     deviceName = [string]$selectedDevice.name
     packageName = 'com.aaalice.nai_launcher'
     repoRoot = [string]$repoRoot
-    terminalHandle = [string]$env:ORCA_TERMINAL_HANDLE
+    controller = 'codex'
     launchedEmulator = $ownsSelectedEmulator
     stopsEmulatorOnExit = $ownsSelectedEmulator -and $StopEmulatorOnExit
     emulatorMonitorProcessId = if ($emulatorMonitor) { $emulatorMonitor.Id } else { $null }

@@ -28,9 +28,9 @@ description: 对 Aaalice NAI Launcher 的 Windows 桌面端和 Android 端执行
 
 ## 通用验收顺序
 
-1. 热重载前记录目标 Orca terminal 的 `latestCursor`。
+1. 热重载前读取目标独立控制台并保留日志基线。
 2. 通过 `aaalice-hot-reload` 执行正确动作。
-3. 从基线 cursor 增量读取控制台，确认更新完成且没有新异常。
+3. 对比更新后的控制台，确认本次更新完成且没有新异常。
 4. 通过 Flutter MCP 获取当前 screenshot/语义状态，再执行 tap、输入或滚动。
 5. 每次改变 UI 后重新截图并读取状态，分别验证可见文本、控件状态、布局和增量日志。
 6. 可复现且长期有价值的流程固化为 `integration_test/` 下的 Flutter `integration_test`，使用 `flutter test integration_test/<name>_test.dart -d windows` 或 Android 目标运行。
@@ -56,7 +56,7 @@ Flutter App 内普通 Widget 优先使用 Flutter MCP。涉及系统界面、Act
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1 -Name <scenario> -HotReload -Action "tap:x,y","wait:500"
 ```
 
-脚本支持 `tap`、`text`、`key`、`swipe`、`wait`，产出 screenshot、window tree、Activity 和有界日志到 `tool/.tmp/android-e2e/`，发现 rendering exception、overflow 或原生崩溃时失败。
+`-HotReload` 通过 `aaalice-hot-reload` 控制现有独立 Android 控制台；也可先单独完成更新与控制台检查后省略该参数。脚本支持 `tap`、`text`、`key`、`swipe`、`wait`，产出 screenshot、window tree、Activity 和有界日志到 `tool/.tmp/android-e2e/`，发现 rendering exception、overflow 或原生崩溃时失败。
 
 ### Android 软键盘与手动输入
 
