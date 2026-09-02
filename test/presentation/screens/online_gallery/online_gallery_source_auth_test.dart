@@ -20,6 +20,7 @@ import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_remote
 import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_user_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/danbooru_suggestion_provider.dart';
+import 'package:nai_launcher/presentation/providers/online_gallery_prompt_tag_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
@@ -33,6 +34,82 @@ void main() {
   setUp(() {
     VisibilityDetectorController.instance.updateInterval = Duration.zero;
   });
+
+  testWidgets('mobile prompt category menu updates checks without reopening', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 360);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _MemoryLocalStorageService(),
+          ),
+          onlineGalleryNotifierProvider.overrideWith(
+            _RandomUiGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(locale: Locale('zh')),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const ValueKey('online-gallery-mobile-filter')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('online-gallery-prompt-tag-categories')),
+    );
+    await tester.pump();
+
+    const generalKey = ValueKey('online-gallery-prompt-tag-category-general');
+    final general = find.byKey(generalKey);
+    final actionableGeneral = find
+        .descendant(of: general, matching: find.byType(MenuItemButton))
+        .hitTestable();
+    final visibleGeneralCheckbox = find.descendant(
+      of: actionableGeneral,
+      matching: find.byType(Checkbox),
+    );
+    expect(
+      tester
+          .widgetList<Checkbox>(visibleGeneralCheckbox)
+          .map((item) => item.value)
+          .toSet(),
+      {true},
+    );
+
+    expect(actionableGeneral, findsOneWidget);
+    await tester.tap(actionableGeneral);
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(OnlineGalleryScreen)),
+    );
+    expect(
+      container
+          .read(onlineGalleryPromptTagSettingsProvider)
+          .categories
+          .contains(OnlineGalleryPromptTagCategory.general),
+      isFalse,
+    );
+    expect(general, findsWidgets);
+    expect(
+      tester
+          .widgetList<Checkbox>(visibleGeneralCheckbox)
+          .map((item) => item.value)
+          .toSet(),
+      {false},
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [320.0, 360.0, 700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('Gelbooru search uses its API account entry at width $width', (
       tester,
@@ -1558,6 +1635,19 @@ class _TestApp extends StatelessWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       home: const OnlineGalleryScreen(),
     );
+  }
+}
+
+class _MemoryLocalStorageService extends LocalStorageService {
+  final Map<String, Object?> _values = {};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) =>
+      (_values[key] ?? defaultValue) as T?;
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    _values[key] = value;
   }
 }
 

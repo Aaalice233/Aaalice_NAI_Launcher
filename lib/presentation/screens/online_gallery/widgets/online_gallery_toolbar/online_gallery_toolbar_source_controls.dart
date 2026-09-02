@@ -541,77 +541,8 @@ class OnlineGalleryToolbarSourceControls {
     }
   }
 
-  Widget _buildPromptTagCategorySelector(ThemeData theme) {
-    final settings = ref.watch(onlineGalleryPromptTagSettingsProvider);
-    final selectedCount = settings.categories.length;
-
-    String labelFor(OnlineGalleryPromptTagCategory category) {
-      return switch (category) {
-        OnlineGalleryPromptTagCategory.general =>
-          context.l10n.tagCategory_general,
-        OnlineGalleryPromptTagCategory.character =>
-          context.l10n.tagCategory_character,
-        OnlineGalleryPromptTagCategory.copyright =>
-          context.l10n.tagCategory_copyright,
-        OnlineGalleryPromptTagCategory.artist =>
-          context.l10n.tagCategory_artist,
-        OnlineGalleryPromptTagCategory.meta => context.l10n.tagCategory_meta,
-      };
-    }
-
-    return MenuAnchor(
-      alignmentOffset: const Offset(0, 6),
-      menuChildren: [
-        MenuItemButton(
-          onPressed: null,
-          leadingIcon: const Icon(Icons.sell_outlined, size: 18),
-          child: Text(context.l10n.onlineGallery_promptTagCategories),
-        ),
-        const Divider(height: 1),
-        for (final category in OnlineGalleryPromptTagCategory.values)
-          CheckboxMenuButton(
-            value: settings.categories.contains(category),
-            closeOnActivate: false,
-            onChanged: (selected) async {
-              if (selected == null) return;
-              final changed = await ref
-                  .read(onlineGalleryPromptTagSettingsProvider.notifier)
-                  .setCategory(category, selected);
-              if (!changed && context.mounted) {
-                AppToast.info(
-                  context,
-                  context.l10n.onlineGallery_keepOnePromptTagCategory,
-                );
-              }
-            },
-            child: Text(labelFor(category)),
-          ),
-      ],
-      builder: (context, controller, child) {
-        return Tooltip(
-          message: context.l10n.onlineGallery_promptTagCategoriesTooltip,
-          child: TextButton.icon(
-            onPressed: () {
-              controller.isOpen ? controller.close() : controller.open();
-            },
-            icon: const Icon(Icons.sell_outlined, size: 17),
-            label: Text(
-              '${context.l10n.onlineGallery_promptTagCategories} · $selectedCount',
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.onSurfaceVariant,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.4),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              visualDensity: PlatformCapabilities.current.isMobile
-                  ? VisualDensity.standard
-                  : VisualDensity.compact,
-            ),
-          ),
-        );
-      },
-    );
-  }
+  Widget _buildPromptTagCategorySelector(ThemeData theme) =>
+      _PromptTagCategorySelector(theme: theme);
 
   Widget _buildAiTagTimeRangeDropdown(OnlineGalleryState state) {
     final ranges = state.aiTagConfig?.timeRanges ?? const {'all': 'All'};
@@ -690,4 +621,110 @@ class OnlineGalleryToolbarSourceControls {
 
   void _toggleDateRangePopup(OnlineGalleryState state) =>
       OnlineGalleryToolbarDialogs(bindings).toggleDateRangePopup();
+}
+
+class _PromptTagCategorySelector extends ConsumerStatefulWidget {
+  const _PromptTagCategorySelector({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  ConsumerState<_PromptTagCategorySelector> createState() =>
+      _PromptTagCategorySelectorState();
+}
+
+class _PromptTagCategorySelectorState
+    extends ConsumerState<_PromptTagCategorySelector> {
+  final MenuController _menuController = MenuController();
+
+  String _labelFor(OnlineGalleryPromptTagCategory category) {
+    return switch (category) {
+      OnlineGalleryPromptTagCategory.general =>
+        context.l10n.tagCategory_general,
+      OnlineGalleryPromptTagCategory.character =>
+        context.l10n.tagCategory_character,
+      OnlineGalleryPromptTagCategory.copyright =>
+        context.l10n.tagCategory_copyright,
+      OnlineGalleryPromptTagCategory.artist => context.l10n.tagCategory_artist,
+      OnlineGalleryPromptTagCategory.meta => context.l10n.tagCategory_meta,
+    };
+  }
+
+  Future<void> _setCategory(
+    OnlineGalleryPromptTagCategory category,
+    bool? selected,
+  ) async {
+    if (selected == null) return;
+    final changed = await ref
+        .read(onlineGalleryPromptTagSettingsProvider.notifier)
+        .setCategory(category, selected);
+    if (!mounted) return;
+    if (!changed) {
+      AppToast.info(
+        context,
+        context.l10n.onlineGallery_keepOnePromptTagCategory,
+      );
+      return;
+    }
+    if (_menuController.isOpen) {
+      // MenuAnchor caches an opened menu's children. Recreate the overlay after
+      // the provider rebuild so its checkboxes display the new values at once.
+      _menuController.close();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _menuController.open();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(onlineGalleryPromptTagSettingsProvider);
+    final theme = widget.theme;
+    return MenuAnchor(
+      controller: _menuController,
+      alignmentOffset: const Offset(0, 6),
+      menuChildren: [
+        MenuItemButton(
+          onPressed: null,
+          leadingIcon: const Icon(Icons.sell_outlined, size: 18),
+          child: Text(context.l10n.onlineGallery_promptTagCategories),
+        ),
+        const Divider(height: 1),
+        for (final category in OnlineGalleryPromptTagCategory.values)
+          CheckboxMenuButton(
+            key: ValueKey(
+              'online-gallery-prompt-tag-category-${category.name}',
+            ),
+            value: settings.categories.contains(category),
+            closeOnActivate: false,
+            onChanged: (selected) => _setCategory(category, selected),
+            child: Text(_labelFor(category)),
+          ),
+      ],
+      builder: (context, controller, child) {
+        return Tooltip(
+          message: context.l10n.onlineGallery_promptTagCategoriesTooltip,
+          child: TextButton.icon(
+            key: const ValueKey('online-gallery-prompt-tag-categories'),
+            onPressed: () {
+              controller.isOpen ? controller.close() : controller.open();
+            },
+            icon: const Icon(Icons.sell_outlined, size: 17),
+            label: Text(
+              '${context.l10n.onlineGallery_promptTagCategories} · ${settings.categories.length}',
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurfaceVariant,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

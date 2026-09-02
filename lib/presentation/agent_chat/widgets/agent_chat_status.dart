@@ -56,6 +56,7 @@ class AgentChatStatus extends StatelessWidget {
           ),
         if (state.approvalRequest case final request?)
           AgentChatApprovalCard(
+            key: ValueKey(request.toolCallId),
             toolName: request.toolName,
             args: request.args,
             estimatedAnlas: request.estimatedAnlas,
