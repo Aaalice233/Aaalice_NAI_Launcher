@@ -719,6 +719,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'Off by default; enable only for troubleshooting. When enabled, logs are written to Documents/NAI_Launcher/logs. When disabled, log files are no longer created or written.';
 
   @override
+  String get settings_exportDiagnosticLogs => 'Export diagnostic logs';
+
+  @override
+  String get settings_exportDiagnosticLogsSubtitle =>
+      'Export recent logs and basic device details. Credentials and local paths are hidden automatically.';
+
+  @override
+  String get settings_exportDiagnosticLogsInProgress =>
+      'Exporting diagnostic logs';
+
+  @override
+  String get settings_exportDiagnosticLogsSuccess => 'Diagnostic logs exported';
+
+  @override
+  String get settings_exportDiagnosticLogsEmpty =>
+      'No logs to export. Enable logging and reproduce the issue first.';
+
+  @override
+  String get settings_exportDiagnosticLogsFailed =>
+      'Could not export diagnostic logs. Try again.';
+
+  @override
   String get settings_pathReset => 'Reset to default location';
 
   @override

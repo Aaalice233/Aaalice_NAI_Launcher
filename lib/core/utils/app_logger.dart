@@ -11,8 +11,8 @@ import 'package:path/path.dart' as path;
 /// 功能：
 /// - 支持控制台和文件双输出
 /// - 自动保留最近3个启动的日志文件
-/// - 正式环境：app_YYYYMMDD_HHMMSS.log
-/// - 测试环境：test_YYYYMMDD_HHMMSS.log
+/// - 正式环境：app_YYYYMMDD_HHMMSS_SSS.log
+/// - 测试环境：test_YYYYMMDD_HHMMSS_SSS.log
 /// - 日志目录：Documents/NAI_Launcher/logs/ (与 images/ 平级)
 class AppLogger {
   static Logger? _logger;
@@ -23,7 +23,7 @@ class AppLogger {
   static Level? _minimumLevelOverride;
 
   /// 文件日志轮转检查摊销阈值。
-  static const int _rotateCheckLogInterval = 500;
+  static const int _rotateCheckLogInterval = 50;
   static const Duration _rotateCheckTimeInterval = Duration(seconds: 30);
   static int _logsSinceRotateCheck = 0;
   static DateTime? _lastRotateCheckAt;
@@ -33,6 +33,7 @@ class AppLogger {
 
   /// 单个日志文件最大大小 (100MB)
   static const int _maxLogFileSize = 100 * 1024 * 1024;
+  static const int _maxLogFieldCharacters = 64 * 1024;
 
   /// 日志目录路径
   static String? _logDirectory;
@@ -279,7 +280,8 @@ class AppLogger {
     final now = DateTime.now();
     final timestamp =
         '${now.year}${_pad(now.month)}${_pad(now.day)}_'
-        '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}';
+        '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}_'
+        '${now.millisecond.toString().padLeft(3, '0')}';
 
     final prefix = _isTestEnvironment ? 'test' : 'app';
     final fileName = '${prefix}_$timestamp.log';
@@ -320,7 +322,34 @@ class AppLogger {
         .toList();
 
     files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-    return files;
+    return files.take(_maxLogFiles).toList(growable: false);
+  }
+
+  static void _cleanupExcessLogsSync() {
+    if (_logDirectory == null) return;
+    try {
+      final files = Directory(_logDirectory!)
+          .listSync(followLinks: false)
+          .whereType<File>()
+          .where((file) {
+            final name = path.basename(file.path);
+            return name.startsWith('app_') || name.startsWith('test_');
+          })
+          .toList();
+      files.sort(
+        (left, right) =>
+            right.lastModifiedSync().compareTo(left.lastModifiedSync()),
+      );
+      for (final file in files.skip(_maxLogFiles)) {
+        try {
+          file.deleteSync();
+        } on FileSystemException {
+          // Locked logs are retried at the next rotation or startup.
+        }
+      }
+    } on FileSystemException {
+      // Logging must continue even when retention cleanup fails.
+    }
   }
 
   /// 检查并轮转日志文件（如果超过100MB则创建新文件）
@@ -345,7 +374,8 @@ class AppLogger {
           final now = DateTime.now();
           final timestamp =
               '${now.year}${_pad(now.month)}${_pad(now.day)}_'
-              '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}';
+              '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}_'
+              '${now.millisecond.toString().padLeft(3, '0')}';
 
           final prefix = _isTestEnvironment ? 'test' : 'app';
           final fileName = '${prefix}_$timestamp.log';
@@ -356,6 +386,7 @@ class AppLogger {
 
           // 更新 logger 的输出 - 同时输出到控制台和文件
           _logger = _buildLogger();
+          _cleanupExcessLogsSync();
         }
       }
     } catch (e) {
@@ -398,10 +429,16 @@ class AppLogger {
   }
 
   static String _resolveMessage(Object message) {
-    if (message is String Function()) {
-      return message();
-    }
-    return message.toString();
+    final resolved = message is String Function()
+        ? message()
+        : message.toString();
+    return _truncateLogField(resolved);
+  }
+
+  static String _truncateLogField(String value) {
+    if (value.length <= _maxLogFieldCharacters) return value;
+    return '${value.substring(0, _maxLogFieldCharacters)}\n'
+        '[TRUNCATED LOG FIELD]';
   }
 
   static String _formatMessage(Object message, String? tag) {
@@ -446,8 +483,10 @@ class AppLogger {
     _ensureInitialized();
     _logger!.e(
       _formatMessage(message, tag),
-      error: error,
-      stackTrace: stackTrace,
+      error: error == null ? null : _truncateLogField(error.toString()),
+      stackTrace: stackTrace == null
+          ? null
+          : StackTrace.fromString(_truncateLogField(stackTrace.toString())),
     );
     unawaited(flush());
   }

@@ -1415,6 +1415,42 @@ abstract class AppLocalizations {
   /// **'Off by default; enable only for troubleshooting. When enabled, logs are written to Documents/NAI_Launcher/logs. When disabled, log files are no longer created or written.'**
   String get settings_fileLoggingSubtitle;
 
+  /// No description provided for @settings_exportDiagnosticLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Export diagnostic logs'**
+  String get settings_exportDiagnosticLogs;
+
+  /// No description provided for @settings_exportDiagnosticLogsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export recent logs and basic device details. Credentials and local paths are hidden automatically.'**
+  String get settings_exportDiagnosticLogsSubtitle;
+
+  /// No description provided for @settings_exportDiagnosticLogsInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting diagnostic logs'**
+  String get settings_exportDiagnosticLogsInProgress;
+
+  /// No description provided for @settings_exportDiagnosticLogsSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostic logs exported'**
+  String get settings_exportDiagnosticLogsSuccess;
+
+  /// No description provided for @settings_exportDiagnosticLogsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No logs to export. Enable logging and reproduce the issue first.'**
+  String get settings_exportDiagnosticLogsEmpty;
+
+  /// No description provided for @settings_exportDiagnosticLogsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not export diagnostic logs. Try again.'**
+  String get settings_exportDiagnosticLogsFailed;
+
   /// No description provided for @settings_pathReset.
   ///
   /// In en, this message translates to:
