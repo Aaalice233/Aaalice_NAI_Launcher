@@ -114,16 +114,17 @@ class MainNavRail extends ConsumerWidget {
     final motion = theme.appTheme;
     final animationDuration = _boundedMotionDuration(
       context,
-      motion.normalDuration,
-      minMilliseconds: 120,
-      maxMilliseconds: 180,
+      motion.slowDuration,
+      minMilliseconds: 180,
+      maxMilliseconds: 240,
     );
 
     return _NavRailWidthTransition(
       isExpanded: isExpanded,
       expandedWidth: expandedWidthFor(context),
       duration: animationDuration,
-      curve: motion.standardCurve,
+      enterCurve: motion.enterCurve,
+      exitCurve: motion.exitCurve,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
@@ -315,7 +316,8 @@ class _NavRailWidthTransition extends StatefulWidget {
     required this.isExpanded,
     required this.expandedWidth,
     required this.duration,
-    required this.curve,
+    required this.enterCurve,
+    required this.exitCurve,
     required this.decoration,
     required this.child,
   });
@@ -323,7 +325,8 @@ class _NavRailWidthTransition extends StatefulWidget {
   final bool isExpanded;
   final double expandedWidth;
   final Duration duration;
-  final Curve curve;
+  final Curve enterCurve;
+  final Curve exitCurve;
   final Decoration decoration;
   final Widget child;
 
@@ -336,7 +339,8 @@ class _NavRailWidthTransition extends StatefulWidget {
 class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late CurvedAnimation _expansion;
+  late CurvedAnimation _widthExpansion;
+  late CurvedAnimation _contentReveal;
 
   @override
   void initState() {
@@ -346,16 +350,18 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
       value: widget.isExpanded ? 1 : 0,
       duration: widget.duration,
     );
-    _updateCurve();
+    _updateAnimations();
   }
 
   @override
   void didUpdateWidget(_NavRailWidthTransition oldWidget) {
     super.didUpdateWidget(oldWidget);
     _controller.duration = widget.duration;
-    if (oldWidget.curve != widget.curve) {
-      _expansion.dispose();
-      _updateCurve();
+    if (oldWidget.enterCurve != widget.enterCurve ||
+        oldWidget.exitCurve != widget.exitCurve) {
+      _widthExpansion.dispose();
+      _contentReveal.dispose();
+      _updateAnimations();
     }
     if (oldWidget.isExpanded != widget.isExpanded ||
         oldWidget.duration != widget.duration) {
@@ -363,12 +369,18 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
     }
   }
 
-  void _updateCurve() {
-    final curve = _ClampedCurve(widget.curve);
-    _expansion = CurvedAnimation(
+  void _updateAnimations() {
+    _widthExpansion = CurvedAnimation(
       parent: _controller,
-      curve: curve,
-      reverseCurve: curve,
+      curve: _ClampedCurve(widget.enterCurve),
+      reverseCurve: _ClampedCurve(widget.exitCurve),
+    );
+    // Labels appear only after the rail has made room and disappear before
+    // contraction can clip them. Icons remain fixed on the leading edge.
+    _contentReveal = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.32, 0.82, curve: Curves.easeOutCubic),
+      reverseCurve: const Interval(0.32, 0.82, curve: Curves.easeInCubic),
     );
   }
 
@@ -386,7 +398,8 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
 
   @override
   void dispose() {
-    _expansion.dispose();
+    _widthExpansion.dispose();
+    _contentReveal.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -394,12 +407,12 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _expansion,
+      animation: _widthExpansion,
       builder: (context, child) {
         final width =
             MainNavRail.collapsedWidth +
             (widget.expandedWidth - MainNavRail.collapsedWidth) *
-                _expansion.value;
+                _widthExpansion.value;
         return Container(
           key: const Key('main-nav-rail'),
           width: width,
@@ -423,7 +436,7 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
       },
       child: _NavRailExpansionScope(
         isExpanded: widget.isExpanded,
-        expansion: _expansion,
+        expansion: _contentReveal,
         child: widget.child,
       ),
     );

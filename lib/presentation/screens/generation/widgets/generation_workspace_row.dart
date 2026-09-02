@@ -42,23 +42,26 @@ class GenerationWorkspaceRow extends StatelessWidget {
         final inlineLeadingWidth =
             occupiedLeadingWidth +
             (overlayableLeading == null ? 0 : overlayableLeadingWidth);
+        final overlayWorkspaceWidth =
+            (constraints.maxWidth - inlineLeadingWidth).clamp(
+              0.0,
+              constraints.maxWidth,
+            );
         final expandedWidth = rightPanelExpanded
-            ? WorkspaceSidePanelContract.constrainedWorkspaceWidth(
-                workspaceWidth: constraints.maxWidth,
+            ? WorkspaceSidePanelContract.overlayWidth(
+                overlayWorkspaceWidth,
                 preferredWidth: preferredRightPanelWidth,
-                occupiedWidth: inlineLeadingWidth + ResizeHandle.defaultWidth,
-                minimumPrimaryWidth: minimumMainWorkspaceWidth,
               )
             : 0.0;
         final showsExpandedPanel =
             rightPanelExpanded && expandedWidth >= minimumExpandedPanelWidth;
         final rightPanelWidth = showsExpandedPanel ? expandedWidth : 40.0;
-        final rightOccupiedWidth =
-            rightPanelWidth +
-            (showsExpandedPanel ? ResizeHandle.defaultWidth : 0.0);
+        const collapsedRightPanelWidth = 40.0;
         final overlaysLeading =
             overlayableLeading != null &&
-            constraints.maxWidth - inlineLeadingWidth - rightOccupiedWidth <
+            constraints.maxWidth -
+                    inlineLeadingWidth -
+                    collapsedRightPanelWidth <
                 minimumMainWorkspaceWidth;
 
         final workspaceRow = Row(
@@ -73,28 +76,56 @@ class GenerationWorkspaceRow extends StatelessWidget {
                 child: main,
               ),
             ),
-            if (showsExpandedPanel) rightHandle,
-            rightPanelBuilder(rightPanelWidth, showsExpandedPanel),
+            if (!showsExpandedPanel) rightPanelBuilder(rightPanelWidth, false),
           ],
         );
-        if (overlayableLeading == null) return workspaceRow;
 
-        // The panel is always hosted by this Stack, so crossing the responsive
-        // threshold does not discard its search, scroll, or editing state.
+        // Expanded queue/agent content is a transient workspace overlay. It
+        // must never resize the preview or make the central canvas jump.
         return Stack(
           clipBehavior: Clip.hardEdge,
           children: [
             workspaceRow,
-            Positioned(
-              top: 0,
-              bottom: 0,
-              left: occupiedLeadingWidth,
-              width: overlayableLeadingWidth,
-              child: Material(
-                elevation: overlaysLeading ? 8 : 0,
-                child: overlayableLeading!,
+            if (overlayableLeading != null)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: occupiedLeadingWidth,
+                width: overlayableLeadingWidth,
+                child: Material(
+                  elevation: overlaysLeading ? 8 : 0,
+                  child: overlayableLeading!,
+                ),
               ),
-            ),
+            if (showsExpandedPanel)
+              Positioned(
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: rightPanelWidth + ResizeHandle.defaultWidth,
+                child: Material(
+                  color: Colors.transparent,
+                  elevation: 8,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        width: ResizeHandle.defaultWidth,
+                        child: rightHandle,
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        left: ResizeHandle.defaultWidth,
+                        child: rightPanelBuilder(rightPanelWidth, true),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         );
       },

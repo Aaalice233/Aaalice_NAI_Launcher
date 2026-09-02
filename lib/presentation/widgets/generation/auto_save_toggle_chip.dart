@@ -42,7 +42,7 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
     );
     _checkAnimation = CurvedAnimation(
       parent: _checkController,
-      curve: Curves.elasticOut,
+      curve: Curves.easeOutCubic,
     );
   }
 

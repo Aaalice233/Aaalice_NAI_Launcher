@@ -10,6 +10,7 @@ import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../themes/theme_extension.dart';
 
 double _agentChatControlExtent(BuildContext context) => math.max(
   context.interactionPolicy.minimumControlExtent,
@@ -232,15 +233,15 @@ Future<_AgentChatModelOption?> _showAgentChatModelPicker(
   required List<_AgentChatModelOption> options,
   required _AgentChatModelOption? selected,
 }) {
-  return AdaptivePresenter.showPanel<_AgentChatModelOption>(
+  return AdaptivePresenter.showPicker<_AgentChatModelOption>(
     context: context,
-    title: context.l10n.agentChat_modelPickerTitle,
     initialChildSize: 0.9,
     minChildSize: 0.5,
     maxChildSize: 0.96,
-    sideSheetWidth: 620,
+    width: 620,
     restoreFocus: false,
     builder: (_, scrollController) => _AgentChatModelPickerBody(
+      title: context.l10n.agentChat_modelPickerTitle,
       options: options,
       selected: selected,
       scrollController: scrollController,
@@ -250,11 +251,13 @@ Future<_AgentChatModelOption?> _showAgentChatModelPicker(
 
 class _AgentChatModelPickerBody extends StatefulWidget {
   const _AgentChatModelPickerBody({
+    required this.title,
     required this.options,
     required this.selected,
     required this.scrollController,
   });
 
+  final String title;
   final List<_AgentChatModelOption> options;
   final _AgentChatModelOption? selected;
   final ScrollController scrollController;
@@ -316,41 +319,96 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
           children: [
             ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: math.min(120, constraints.maxHeight * 0.4),
+                maxHeight: math.min(220, constraints.maxHeight * 0.48),
               ),
               child: SingleChildScrollView(
                 primary: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                  child: TextField(
-                    key: const ValueKey('agent-chat-model-search'),
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    autofocus: true,
-                    textInputAction: TextInputAction.search,
-                    onChanged: (value) {
-                      setState(() {
-                        _query = value;
-                        _highlightedIndex = 0;
-                      });
-                      _scrollToHighlight(rowExtent);
-                    },
-                    decoration: InputDecoration(
-                      labelText: l10n.agentChat_searchModels,
-                      hintText: l10n.agentChat_searchModelsHint,
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                      suffixIcon: _query.isEmpty
-                          ? null
-                          : IconButton(
-                              key: const ValueKey(
-                                'agent-chat-model-search-clear',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 56),
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          start: 20,
+                          end: 8,
+                          top: 4,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.title,
+                                key: const ValueKey(
+                                  'agent-chat-model-picker-title',
+                                ),
+                                style: theme.textTheme.titleLarge,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              tooltip: l10n.agentChat_clearModelSearch,
-                              onPressed: _clearSearch,
-                              icon: const Icon(Icons.close_rounded, size: 18),
                             ),
+                            IconButton(
+                              key: const ValueKey(
+                                'agent-chat-model-picker-close',
+                              ),
+                              onPressed: () => Navigator.maybePop(context),
+                              tooltip: MaterialLocalizations.of(
+                                context,
+                              ).closeButtonTooltip,
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      child: TextField(
+                        key: const ValueKey('agent-chat-model-search'),
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        autofocus: true,
+                        textInputAction: TextInputAction.search,
+                        onChanged: (value) {
+                          setState(() {
+                            _query = value;
+                            _highlightedIndex = 0;
+                          });
+                          _scrollToHighlight(rowExtent);
+                        },
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.52),
+                          labelText: l10n.agentChat_searchModels,
+                          hintText: l10n.agentChat_searchModelsHint,
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            size: 20,
+                          ),
+                          border: const OutlineInputBorder(
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: const OutlineInputBorder(
+                            borderSide: BorderSide.none,
+                          ),
+                          suffixIcon: _query.isEmpty
+                              ? null
+                              : IconButton(
+                                  key: const ValueKey(
+                                    'agent-chat-model-search-clear',
+                                  ),
+                                  tooltip: l10n.agentChat_clearModelSearch,
+                                  onPressed: _clearSearch,
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -526,10 +584,14 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
         0.0,
         widget.scrollController.position.maxScrollExtent,
       );
+      if (MediaQuery.disableAnimationsOf(context)) {
+        widget.scrollController.jumpTo(target);
+        return;
+      }
       widget.scrollController.animateTo(
         target,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOutCubic,
+        duration: Theme.of(context).appTheme.fastDuration,
+        curve: Theme.of(context).appTheme.standardCurve,
       );
     });
   }

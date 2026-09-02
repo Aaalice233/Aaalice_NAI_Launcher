@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,7 @@ import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/router/desktop_shell.dart';
+import 'package:nai_launcher/presentation/router/shell_panels_overlay.dart';
 import 'package:nai_launcher/presentation/widgets/navigation/main_nav_rail.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -204,29 +206,85 @@ void main() {
     expect(find.byKey(const Key('main-nav-toggle')), findsOneWidget);
     expect(tester.getSize(find.byType(MainNavRail)).width, 196);
 
-    await tester.tap(find.byKey(const Key('queue-nav-item')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('shell-panel-scrim')), findsNothing);
     for (final width in [840.0, 1180.0, 1600.0]) {
       await tester.binding.setSurfaceSize(Size(width, 600));
-      await tester.pumpAndSettle();
-      final primaryRect = tester.getRect(
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      final closedPrimaryRect = tester.getRect(
         find.byKey(const Key('desktop-primary-workspace')),
       );
-      final panelRect = tester.getRect(
-        find.byKey(const Key('desktop-parallel-panel-slot')),
+
+      await tester.tap(find.byKey(const Key('queue-nav-item')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      final queuePrimaryRect = tester.getRect(
+        find.byKey(const Key('desktop-primary-workspace')),
       );
-      expect(primaryRect.width, greaterThanOrEqualTo(320));
-      expect(primaryRect.right, lessThanOrEqualTo(panelRect.left + 0.01));
+      final queuePanelRect = tester.getRect(
+        find.byKey(const Key('shell-panel-surface')),
+      );
+      expect(queuePrimaryRect, closedPrimaryRect, reason: 'queue width=$width');
+      expect(queuePanelRect.overlaps(queuePrimaryRect), isTrue);
+      expect(queuePanelRect.right, closeTo(queuePrimaryRect.right, 0.01));
+      expect(
+        find.byKey(const Key('desktop-panel-overlay-layer')),
+        findsOneWidget,
+      );
+      final workspaceStack = tester.widget<Stack>(
+        find.byKey(const Key('desktop-workspace-stack')),
+      );
+      expect(
+        workspaceStack.children.last.key,
+        const ValueKey('desktop-panel-overlay-layer'),
+      );
+      expect(find.byKey(const Key('shell-panel-scrim')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('queue-nav-item')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      final hiddenPointerGate = tester.widget<IgnorePointer>(
+        find
+            .descendant(
+              of: find.byType(ShellPanelsOverlay),
+              matching: find.byType(IgnorePointer),
+            )
+            .first,
+      );
+      expect(hiddenPointerGate.ignoring, isTrue);
+      expect(
+        tester.getRect(find.byKey(const Key('desktop-primary-workspace'))),
+        closedPrimaryRect,
+      );
+
+      await tester.tap(find.byKey(const Key('agent-nav-item')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      final agentPrimaryRect = tester.getRect(
+        find.byKey(const Key('desktop-primary-workspace')),
+      );
+      final agentPanelRect = tester.getRect(
+        find.byKey(const Key('shell-panel-surface')),
+      );
+      expect(agentPrimaryRect, closedPrimaryRect, reason: 'agent width=$width');
+      expect(agentPanelRect.overlaps(agentPrimaryRect), isTrue);
+      expect(agentPanelRect.right, closeTo(agentPrimaryRect.right, 0.01));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        tester.getRect(find.byKey(const Key('desktop-primary-workspace'))),
+        closedPrimaryRect,
+      );
       expect(tester.takeException(), isNull, reason: 'width=$width');
     }
     await tester.binding.setSurfaceSize(const Size(900, 600));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('queue-nav-item')));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     textScaler.value = const TextScaler.linear(3);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(tester.getSize(find.byType(MainNavRail)).width, 280);
     expect(
       tester

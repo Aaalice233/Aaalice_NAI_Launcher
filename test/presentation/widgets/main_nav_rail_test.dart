@@ -228,6 +228,9 @@ void main() {
     await tester.pump();
 
     final collapsedIconCenter = tester.getCenter(find.byIcon(Icons.brush));
+    final anchoredToggleBottom = tester
+        .getBottomRight(find.byKey(const Key('main-nav-toggle')))
+        .dy;
     await tester.tap(find.byKey(const Key('main-nav-toggle')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 80));
@@ -239,7 +242,15 @@ void main() {
     );
     expect(_railContentWidth(tester), MainNavRail.expandedWidth);
     expect(tester.getCenter(find.byIcon(Icons.brush)), collapsedIconCenter);
+    expect(
+      tester.getBottomRight(find.byKey(const Key('main-nav-toggle'))).dy,
+      anchoredToggleBottom,
+    );
     final sharedLabelAnimation = _labelFade(tester, '画布').opacity;
+    final normalizedWidth =
+        (expandingWidth - MainNavRail.collapsedWidth) /
+        (MainNavRail.expandedWidth - MainNavRail.collapsedWidth);
+    expect(sharedLabelAnimation.value, lessThan(normalizedWidth));
     final sharedFadeCount = tester
         .widgetList<FadeTransition>(
           find.byType(FadeTransition, skipOffstage: false),

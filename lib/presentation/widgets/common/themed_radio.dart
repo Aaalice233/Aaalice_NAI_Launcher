@@ -55,7 +55,7 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
       vsync: this,
       value: _isSelected ? 1.0 : 0.0,
     );
-    _scale = CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
+    _scale = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
   }
 
   @override

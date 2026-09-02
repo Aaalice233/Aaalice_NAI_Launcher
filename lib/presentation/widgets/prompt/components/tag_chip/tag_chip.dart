@@ -1103,7 +1103,7 @@ class _FavoriteButtonState extends State<_FavoriteButton>
       vsync: this,
     );
     _jumpAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(parent: _jumpController, curve: Curves.elasticOut),
+      CurvedAnimation(parent: _jumpController, curve: Curves.easeOutCubic),
     );
   }
 

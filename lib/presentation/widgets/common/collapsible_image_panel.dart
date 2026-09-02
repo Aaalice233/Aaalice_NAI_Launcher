@@ -259,6 +259,14 @@ class _CollapsibleImagePanelState extends State<CollapsibleImagePanel>
     final highContrast = MediaQuery.highContrastOf(context);
 
     return Card(
+      key: ValueKey('collapsible-panel-surface-${widget.title}'),
+      color: widget.isExpanded
+          ? theme.colorScheme.surfaceContainerHighest
+          : Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),

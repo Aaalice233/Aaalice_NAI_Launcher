@@ -265,6 +265,9 @@ void main() {
         tester.getCenter(action).dy,
         closeTo(tester.getCenter(secondaryActions.first).dy, 0.1),
       );
+      await tester.ensureVisible(action);
+      await tester.pump();
+      expect(action.hitTestable(), findsOneWidget);
     }
     expect(
       tester.getBottomLeft(primaryRow).dy,
@@ -549,6 +552,108 @@ void main() {
     expect(toggle, findsNothing);
   });
 
+  testWidgets('320 宽桌面侧栏可滚动到全部提示词入口且助手贴右', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    try {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith(
+              (ref) => _TestLocalStorageService(
+                defaultModel: 'nai-diffusion-5-curated',
+              ),
+            ),
+            characterPromptNotifierProvider.overrideWith(
+              _TestCharacterPromptNotifier.new,
+            ),
+            promptTokenUsageProvider(
+              PromptTokenCountTarget.positive,
+            ).overrideWith(
+              (ref) async => const PromptTokenUsage(usedTokens: 12, limit: 703),
+            ),
+            promptTokenUsageProvider(
+              PromptTokenCountTarget.negative,
+            ).overrideWith(
+              (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 703),
+            ),
+          ],
+          child: const MaterialApp(
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 320,
+                  height: 420,
+                  child: PromptInputWidget(autoGrow: true),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final responsiveToolbar = find.byKey(
+        const ValueKey('generation_prompt_mobile_toolbar'),
+      );
+      final typeSwitch = find.byKey(
+        const ValueKey('generation_prompt_type_switch'),
+      );
+      final secondary = find.byKey(
+        const ValueKey('generation_prompt_mobile_secondary_row'),
+      );
+      final footer = find.byKey(const ValueKey('generation_prompt_footer'));
+      final assistant = find.byKey(
+        const ValueKey('generation_prompt_footer_assistant'),
+      );
+      expect(tester.getSize(responsiveToolbar).width, 320);
+      expect(typeSwitch, findsOneWidget);
+      expect(secondary, findsOneWidget);
+      expect(
+        tester.getRect(assistant).right,
+        closeTo(tester.getRect(footer).right, 0.1),
+      );
+
+      for (final key in const [
+        'generation_prompt_mobile_fixed_tags_action',
+        'generation_prompt_mobile_quality_action',
+        'generation_prompt_mobile_uc_action',
+        'generation_prompt_mobile_character_action',
+      ]) {
+        final action = find.byKey(ValueKey(key));
+        expect(action, findsOneWidget);
+        expect(action.hitTestable(), findsOneWidget);
+        expect(
+          tester.getRect(action).right,
+          lessThanOrEqualTo(tester.getRect(responsiveToolbar).right),
+        );
+      }
+
+      await tester.tap(
+        find.descendant(of: typeSwitch, matching: find.byIcon(Icons.block)),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('generation_prompt_negative_input')),
+        findsOneWidget,
+      );
+      expect(
+        tester.getRect(assistant).right,
+        closeTo(tester.getRect(footer).right, 0.1),
+      );
+
+      final settings = find.widgetWithIcon(IconButton, Icons.settings);
+      expect(settings, findsOneWidget);
+      expect(settings.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('手机提示词助手在 footer 同栏展开且不侵占编辑区', (tester) async {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.android,
@@ -604,6 +709,19 @@ void main() {
     final input = find.byKey(
       const ValueKey('generation_prompt_positive_input'),
     );
+    final narrowToolbarActions = [
+      find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
+      find.byKey(const ValueKey('generation_prompt_mobile_fixed_tags_action')),
+      find.byKey(const ValueKey('generation_prompt_mobile_quality_action')),
+      find.byKey(const ValueKey('generation_prompt_mobile_uc_action')),
+    ];
+    for (final action in narrowToolbarActions) {
+      expect(action, findsOneWidget);
+      expect(tester.getSize(action).height, 48);
+      await tester.ensureVisible(action);
+      await tester.pump();
+      expect(action.hitTestable(), findsOneWidget);
+    }
     final transparent = find.byKey(
       const ValueKey('generation_transparent_background_toggle'),
     );
@@ -633,6 +751,10 @@ void main() {
     );
     expect(assistant, findsOneWidget);
     expect(toolbar, findsOneWidget);
+    expect(
+      tester.getRect(assistant).right,
+      closeTo(tester.getRect(footer).right, 0.1),
+    );
     expect(textField.decoration?.contentPadding, const EdgeInsets.all(12));
     expect(
       tester.getRect(transparent).top,
@@ -709,6 +831,14 @@ void main() {
         lessThanOrEqualTo(tester.getRect(assistant).right),
       );
     }
+    expect(
+      tester
+          .getRect(
+            find.widgetWithIcon(IconButton, Icons.keyboard_arrow_down_rounded),
+          )
+          .right,
+      closeTo(tester.getRect(footer).right, 0.1),
+    );
 
     await tester.tap(
       find.descendant(

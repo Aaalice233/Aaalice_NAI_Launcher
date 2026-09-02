@@ -80,6 +80,72 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('QuickTagCloud codex badges stay at the top-left', (
+    tester,
+  ) async {
+    for (final badgeLabel in const ['常规', '角色', '超长法典分类标签用于验证']) {
+      final post = GalleryItem(
+        id: badgeLabel.hashCode,
+        sourceId: GallerySourceId.quickTagCloud,
+        width: 600,
+        height: 900,
+        title: '社区精选 006',
+        author: '梦神',
+        previewFileUrl: 'https://example.com/codex.jpg',
+        tagString: 'test_tag',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.touch,
+              touchAvailable: true,
+              precisePointerAvailable: false,
+            ),
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: DanbooruPostCard(
+                    post: post,
+                    itemWidth: 180,
+                    badgeLabel: badgeLabel,
+                    isFavorited: false,
+                    onTap: () {},
+                    onTagTap: (_) {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final card = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-card-layout')),
+      );
+      final badge = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-card-source-badge')),
+      );
+      final actions = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-card-action-buttons')),
+      );
+      final title = tester.getRect(find.text('社区精选 006'));
+      final author = tester.getRect(find.text('梦神'));
+
+      expect(badge.left, closeTo(card.left + 4, 0.01));
+      expect(badge.top, closeTo(card.top + 4, 0.01));
+      expect(badge.overlaps(actions), isFalse);
+      expect(badge.bottom, lessThanOrEqualTo(title.top));
+      expect(badge.bottom, lessThanOrEqualTo(author.top));
+      expect(tester.takeException(), isNull, reason: badgeLabel);
+    }
+  });
+
   testWidgets('rating and video badges do not overlap at text scale 3', (
     tester,
   ) async {

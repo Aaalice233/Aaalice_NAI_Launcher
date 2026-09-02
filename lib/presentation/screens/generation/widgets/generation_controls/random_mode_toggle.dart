@@ -8,8 +8,13 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 /// 抽卡模式开关
 class RandomModeToggle extends ConsumerStatefulWidget {
   final bool enabled;
+  final bool compact;
 
-  const RandomModeToggle({super.key, required this.enabled});
+  const RandomModeToggle({
+    super.key,
+    required this.enabled,
+    this.compact = false,
+  });
 
   @override
   ConsumerState<RandomModeToggle> createState() => _RandomModeToggleState();
@@ -74,7 +79,8 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
-    final controlExtent = context.interactionPolicy.minimumControlExtent;
+    final policy = context.interactionPolicy;
+    final controlExtent = widget.compact ? 36.0 : policy.minimumControlExtent;
 
     return IconButton(
       tooltip: widget.enabled
@@ -87,6 +93,9 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
         }
       },
       style: IconButton.styleFrom(
+        tapTargetSize: widget.compact
+            ? MaterialTapTargetSize.shrinkWrap
+            : MaterialTapTargetSize.padded,
         minimumSize: Size.square(controlExtent),
         maximumSize: Size.square(controlExtent),
         backgroundColor: widget.enabled

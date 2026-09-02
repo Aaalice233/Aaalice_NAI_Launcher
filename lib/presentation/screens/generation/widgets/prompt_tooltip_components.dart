@@ -3,14 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/character/character_prompt.dart';
 
-/// Tooltip 头部组件
+/// Compact heading for prompt composition previews.
 class TooltipHeader extends StatelessWidget {
-  final ThemeData theme;
-  final String label;
-  final IconData icon;
-  final Color color;
-  final bool isDark;
-
   const TooltipHeader({
     super.key,
     required this.theme,
@@ -20,47 +14,37 @@ class TooltipHeader extends StatelessWidget {
     required this.isDark,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: isDark ? 0.2 : 0.1),
-            color.withValues(alpha: isDark ? 0.1 : 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Tooltip 内容区块组件
-class TooltipSection extends StatelessWidget {
   final ThemeData theme;
-  final IconData icon;
   final String label;
+  final IconData icon;
   final Color color;
-  final String content;
   final bool isDark;
 
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(2, 2, 2, 4),
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// One step in the effective-prompt composition.
+class TooltipSection extends StatelessWidget {
   const TooltipSection({
     super.key,
     required this.theme,
@@ -71,70 +55,56 @@ class TooltipSection extends StatelessWidget {
     required this.isDark,
   });
 
+  final ThemeData theme;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final String content;
+  final bool isDark;
+
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: isDark
-            ? theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.4)
-            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 3,
-                height: 14,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [color, color.withValues(alpha: 0.4)],
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Icon(icon, size: 12, color: color),
-              const SizedBox(width: 4),
-              Text(
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
                 label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: color,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 120),
-            child: ScrollbarTheme(
-              data: ScrollbarThemeData(
-                thumbVisibility: WidgetStateProperty.all(true),
-                thickness: WidgetStateProperty.all(4),
-              ),
-              child: SingleChildScrollView(
-                child: Text(
-                  content,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-                  ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Padding(
+          padding: const EdgeInsets.only(left: 21),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 104),
+            child: SingleChildScrollView(
+              child: Text(
+                content,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.35,
                 ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }
 
 class TooltipCharacterSection extends StatelessWidget {
@@ -155,101 +125,77 @@ class TooltipCharacterSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const color = Colors.teal;
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: isDark
-            ? theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.4)
-            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    final color = theme.colorScheme.tertiary;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              Container(
-                width: 3,
-                height: 14,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [color, color.withValues(alpha: 0.4)],
+              Icon(Icons.people_rounded, size: 14, color: color),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
                   ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Icon(Icons.people_rounded, size: 12, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: color,
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${characters.length}',
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
+              Text(
+                '${characters.length}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 120),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: characters.map((character) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          character.gender == CharacterGender.female
-                              ? Icons.female
-                              : character.gender == CharacterGender.male
-                              ? Icons.male
-                              : Icons.person,
-                          size: 11,
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.5,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            '${character.name}: ${character.toNaiPrompt(useAiPosition: globalAiChoice)}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.8,
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 21),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 112),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final character in characters)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              character.gender == CharacterGender.female
+                                  ? Icons.female
+                                  : character.gender == CharacterGender.male
+                                  ? Icons.male
+                                  : Icons.person,
+                              size: 14,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '${character.name}: ${character.toNaiPrompt(useAiPosition: globalAiChoice)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  height: 1.35,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                }).toList(),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -259,17 +205,8 @@ class TooltipCharacterSection extends StatelessWidget {
   }
 }
 
-/// Tooltip 最终提示词区块
+/// The only filled surface in the tooltip, reserved for the composed result.
 class TooltipFinalPromptSection extends StatelessWidget {
-  final ThemeData theme;
-  final String prompt;
-  final bool isDark;
-  final String? label;
-  final Color? color;
-  final Color backgroundStartColor;
-  final Color backgroundEndColor;
-  final VoidCallback? onCopy;
-
   const TooltipFinalPromptSection({
     super.key,
     required this.theme,
@@ -282,71 +219,67 @@ class TooltipFinalPromptSection extends StatelessWidget {
     this.onCopy,
   });
 
+  final ThemeData theme;
+  final String prompt;
+  final bool isDark;
+  final String? label;
+  final Color? color;
+  final Color backgroundStartColor;
+  final Color backgroundEndColor;
+  final VoidCallback? onCopy;
+
   @override
   Widget build(BuildContext context) {
     final effectiveColor = color ?? theme.colorScheme.primary;
+    final base = theme.colorScheme.surfaceContainerHigh;
+    final background = Color.alphaBlend(
+      backgroundStartColor.withValues(alpha: isDark ? 0.16 : 0.10),
+      Color.alphaBlend(
+        backgroundEndColor.withValues(alpha: isDark ? 0.08 : 0.05),
+        base,
+      ),
+    );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.fromLTRB(10, 8, 8, 10),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            backgroundStartColor.withValues(alpha: isDark ? 0.3 : 0.4),
-            backgroundEndColor.withValues(alpha: isDark ? 0.2 : 0.3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(10),
+        color: background,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) => Row(
-              children: [
-                Icon(Icons.output_rounded, size: 12, color: effectiveColor),
-                const SizedBox(width: 6),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth:
-                        (constraints.maxWidth - (onCopy == null ? 18 : 40))
-                            .clamp(0, double.infinity),
-                  ),
-                  child: Text(
-                    label ?? context.l10n.prompt_finalPrompt,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: effectiveColor,
-                    ),
+          Row(
+            children: [
+              Icon(Icons.output_rounded, size: 14, color: effectiveColor),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  label ?? context.l10n.prompt_finalPrompt,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: effectiveColor,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const Spacer(),
-                if (onCopy != null)
-                  _TooltipCopyButton(color: effectiveColor, onCopy: onCopy!),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 150),
-            child: ScrollbarTheme(
-              data: ScrollbarThemeData(
-                thumbVisibility: WidgetStateProperty.all(true),
-                thickness: WidgetStateProperty.all(4),
               ),
-              child: SingleChildScrollView(
-                child: Text(
-                  prompt,
-                  style: TextStyle(
-                    fontSize: 11,
-                    height: 1.4,
-                    color: theme.colorScheme.onSurface,
-                  ),
+              if (onCopy != null) ...[
+                const SizedBox(width: 4),
+                _TooltipCopyButton(color: effectiveColor, onCopy: onCopy!),
+              ],
+            ],
+          ),
+          const SizedBox(height: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 136),
+            child: SingleChildScrollView(
+              child: Text(
+                prompt,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  height: 1.4,
                 ),
               ),
             ),
@@ -371,37 +304,27 @@ class _TooltipCopyButtonState extends State<_TooltipCopyButton> {
   bool _isHovering = false;
 
   @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: context.l10n.tooltip_copy,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovering = true),
-        onExit: (_) => setState(() => _isHovering = false),
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.onCopy,
-          child: AnimatedContainer(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 150),
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: _isHovering
-                  ? widget.color.withValues(alpha: 0.15)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Icon(
-              Icons.copy_rounded,
-              size: 14,
-              color: _isHovering
-                  ? widget.color
-                  : widget.color.withValues(alpha: 0.6),
-            ),
-          ),
+  Widget build(BuildContext context) => Tooltip(
+    message: context.l10n.tooltip_copy,
+    child: MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: IconButton(
+        onPressed: widget.onCopy,
+        constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          foregroundColor: _isHovering
+              ? widget.color
+              : widget.color.withValues(alpha: 0.72),
+          backgroundColor: _isHovering
+              ? widget.color.withValues(alpha: 0.12)
+              : Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
+        icon: const Icon(Icons.copy_rounded, size: 17),
       ),
-    );
-  }
+    ),
+  );
 }

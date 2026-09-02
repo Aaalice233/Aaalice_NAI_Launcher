@@ -219,16 +219,13 @@ void main() {
           .descendant(of: shellOverlay, matching: find.byType(IgnorePointer))
           .first,
     );
-    final queueTranslation = tester.widget<FractionalTranslation>(
+    final queueOpacity = tester.widget<AnimatedOpacity>(
       find
-          .descendant(
-            of: shellOverlay,
-            matching: find.byType(FractionalTranslation),
-          )
+          .descendant(of: shellOverlay, matching: find.byType(AnimatedOpacity))
           .first,
     );
     expect(queuePointerGate.ignoring, isFalse);
-    expect(queueTranslation.translation, Offset.zero);
+    expect(queueOpacity.opacity, 1);
     expect(
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
       4,

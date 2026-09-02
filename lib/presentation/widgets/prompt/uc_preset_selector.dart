@@ -15,7 +15,15 @@ class UcPresetSelector extends ConsumerStatefulWidget {
   /// 当前选择的模型
   final String model;
 
-  const UcPresetSelector({super.key, required this.model});
+  const UcPresetSelector({
+    super.key,
+    required this.model,
+    this.compact = false,
+    this.iconOnly = false,
+  });
+
+  final bool compact;
+  final bool iconOnly;
 
   @override
   ConsumerState<UcPresetSelector> createState() => _UcPresetSelectorState();
@@ -92,8 +100,11 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
             duration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : const Duration(milliseconds: 150),
-            constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            constraints: BoxConstraints(minHeight: widget.compact ? 36 : 48),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.compact ? 8 : 10,
+              vertical: widget.compact ? 4 : 6,
+            ),
             decoration: BoxDecoration(
               color: isEnabled
                   ? theme.colorScheme.error.withValues(
@@ -114,25 +125,27 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
                       ? theme.colorScheme.error
                       : theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  _getDisplayLabel(context, presetState, currentEntry),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
+                if (!widget.iconOnly) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    _getDisplayLabel(context, presetState, currentEntry),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
+                      color: isEnabled
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    size: 14,
                     color: isEnabled
                         ? theme.colorScheme.error
                         : theme.colorScheme.onSurfaceVariant,
                   ),
-                ),
-                const SizedBox(width: 2),
-                Icon(
-                  Icons.arrow_drop_down,
-                  size: 14,
-                  color: isEnabled
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
+                ],
               ],
             ),
           ),

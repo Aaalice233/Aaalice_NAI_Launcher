@@ -57,53 +57,7 @@ class OnlineGalleryCardStatusOverlays extends StatelessWidget {
           ),
         if (hasFavoriteStatus && hasSourceBadge) const SizedBox(height: 4),
         if (hasSourceBadge)
-          Container(
-            key: const ValueKey('online-gallery-card-source-badge'),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (badgeLabel != null) ...[
-                  const Icon(
-                    Icons.brush_outlined,
-                    size: 11,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    badgeLabel!,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-                if (badgeLabel != null && mediaCount > 1)
-                  const SizedBox(width: 6),
-                if (mediaCount > 1) ...[
-                  const Icon(
-                    Icons.collections_outlined,
-                    size: 11,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    '$mediaCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          _GallerySourceBadge(label: badgeLabel, mediaCount: mediaCount),
       ],
     );
   }
@@ -117,6 +71,7 @@ class OnlineGalleryCardLeftStatusOverlays extends StatelessWidget {
   const OnlineGalleryCardLeftStatusOverlays({
     super.key,
     this.rank,
+    this.codexBadgeLabel,
     this.ratingLabel,
     this.ratingColor,
     required this.isVideo,
@@ -126,6 +81,7 @@ class OnlineGalleryCardLeftStatusOverlays extends StatelessWidget {
   });
 
   final int? rank;
+  final String? codexBadgeLabel;
   final String? ratingLabel;
   final Color? ratingColor;
   final bool isVideo;
@@ -138,7 +94,10 @@ class OnlineGalleryCardLeftStatusOverlays extends StatelessWidget {
     final hasRating = ratingLabel != null && ratingColor != null;
     final hasMediaType = isVideo || isAnimated;
 
-    if (rank == null && !hasRating && !hasMediaType) {
+    if (rank == null &&
+        codexBadgeLabel == null &&
+        !hasRating &&
+        !hasMediaType) {
       return const SizedBox.shrink();
     }
 
@@ -163,7 +122,12 @@ class OnlineGalleryCardLeftStatusOverlays extends StatelessWidget {
               ),
             ),
           ),
-        if (rank != null && (hasRating || hasMediaType))
+        if (rank != null &&
+            (codexBadgeLabel != null || hasRating || hasMediaType))
+          const SizedBox(height: 4),
+        if (codexBadgeLabel != null)
+          _GallerySourceBadge(label: codexBadgeLabel, mediaCount: 1),
+        if (codexBadgeLabel != null && (hasRating || hasMediaType))
           const SizedBox(height: 4),
         if (hasRating)
           OnlineGalleryCardRatingBadge(
@@ -200,6 +164,63 @@ class OnlineGalleryCardLeftStatusOverlays extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _GallerySourceBadge extends StatelessWidget {
+  const _GallerySourceBadge({required this.label, required this.mediaCount});
+
+  final String? label;
+  final int mediaCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('online-gallery-card-source-badge'),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (label != null) ...[
+            const Icon(Icons.brush_outlined, size: 11, color: Colors.white),
+            const SizedBox(width: 3),
+            Flexible(
+              child: Text(
+                label!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+          if (label != null && mediaCount > 1) const SizedBox(width: 6),
+          if (mediaCount > 1) ...[
+            const Icon(
+              Icons.collections_outlined,
+              size: 11,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              '$mediaCount',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

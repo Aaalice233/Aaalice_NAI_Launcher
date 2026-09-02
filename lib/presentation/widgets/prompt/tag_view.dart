@@ -706,7 +706,7 @@ class _TagViewState extends ConsumerState<TagView>
         return TweenAnimationBuilder<double>(
           tween: Tween(begin: 0.0, end: 1.0),
           duration: const Duration(milliseconds: 1000),
-          curve: Curves.easeOutBack,
+          curve: Curves.easeOutCubic,
           builder: (context, iconValue, child) {
             return illustration(value, iconValue);
           },

@@ -3,10 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/windowing/workspace_side_panel_contract.dart';
 import '../adaptive/window_size_class.dart';
 import '../agent_chat/providers/agent_chat_notifier.dart';
-import '../themes/theme_extension.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import 'app_branch.dart';
 import 'global_status_banners.dart';
@@ -102,24 +100,10 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     ),
                   ),
                   Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, workspaceConstraints) {
-                        final usesParallelPanel = allowRailExpansion;
-                        final reduceMotion = MediaQuery.disableAnimationsOf(
-                          context,
-                        );
-                        final panelWidth =
-                            WorkspaceSidePanelContract.constrainedWorkspaceWidth(
-                              workspaceWidth: workspaceConstraints.maxWidth,
-                              preferredWidth: activePanel == ShellPanel.queue
-                                  ? 460
-                                  : 520,
-                              minimumPrimaryWidth:
-                                  (workspaceConstraints.maxWidth * 0.52)
-                                      .clamp(320.0, 560.0)
-                                      .toDouble(),
-                            );
-                        final primaryWorkspace = Column(
+                    child: Stack(
+                      key: const ValueKey('desktop-workspace-stack'),
+                      children: [
+                        Column(
                           key: const ValueKey('desktop-primary-workspace'),
                           children: [
                             ConstrainedBox(
@@ -135,59 +119,26 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                             ),
                             Expanded(child: widget.content),
                           ],
-                        );
-                        final panels = ShellPanelsOverlay(
-                          key: widget.panelOverlayKey,
-                          activePanel: activePanel,
-                          desktop: usesParallelPanel,
-                          onClose: () => _setPanel(
-                            null,
-                            restoreFocus: activePanel == ShellPanel.agent
-                                ? _agentFocusNode
-                                : _queueFocusNode,
-                          ),
-                          onQueueStarted: () => widget.navigationShell.goBranch(
-                            AppBranch.generation.index,
-                          ),
-                          onOpenAgentSettings: () => widget.navigationShell
-                              .goBranch(AppBranch.settings.index),
-                        );
-
-                        return Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(child: primaryWorkspace),
-                                if (usesParallelPanel)
-                                  AnimatedContainer(
-                                    key: const ValueKey(
-                                      'desktop-parallel-panel-slot',
-                                    ),
-                                    duration: reduceMotion
-                                        ? Duration.zero
-                                        : Theme.of(
-                                            context,
-                                          ).appTheme.normalDuration,
-                                    curve: Theme.of(
-                                      context,
-                                    ).appTheme.standardCurve,
-                                    width: activePanel == null ? 0 : panelWidth,
-                                    clipBehavior: Clip.hardEdge,
-                                    decoration: const BoxDecoration(),
-                                    child: OverflowBox(
-                                      alignment: Alignment.centerRight,
-                                      minWidth: panelWidth,
-                                      maxWidth: panelWidth,
-                                      child: panels,
-                                    ),
-                                  ),
-                              ],
+                        ),
+                        Positioned.fill(
+                          key: const ValueKey('desktop-panel-overlay-layer'),
+                          child: ShellPanelsOverlay(
+                            key: widget.panelOverlayKey,
+                            activePanel: activePanel,
+                            desktop: true,
+                            onClose: () => _setPanel(
+                              null,
+                              restoreFocus: activePanel == ShellPanel.agent
+                                  ? _agentFocusNode
+                                  : _queueFocusNode,
                             ),
-                            if (!usesParallelPanel) panels,
-                          ],
-                        );
-                      },
+                            onQueueStarted: () => widget.navigationShell
+                                .goBranch(AppBranch.generation.index),
+                            onOpenAgentSettings: () => widget.navigationShell
+                                .goBranch(AppBranch.settings.index),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

@@ -86,13 +86,17 @@ class PromptTypeSwitch extends ConsumerWidget {
       ),
     );
 
-    return Row(
-      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-      children: [
-        if (expand) Expanded(child: positive) else positive,
-        SizedBox(width: compact ? 6 : 8),
-        if (expand) Expanded(child: negative) else negative,
-      ],
+    return SizedBox(
+      key: const ValueKey('generation_prompt_type_switch'),
+      width: expand ? double.infinity : null,
+      child: Row(
+        mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          if (expand) Expanded(child: positive) else positive,
+          SizedBox(width: compact ? 6 : 8),
+          if (expand) Expanded(child: negative) else negative,
+        ],
+      ),
     );
   }
 }
@@ -185,61 +189,68 @@ class _PromptTypeButtonState extends State<PromptTypeButton>
                   : theme.colorScheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Row(
-              mainAxisSize: widget.compact
-                  ? MainAxisSize.max
-                  : MainAxisSize.min,
-              children: [
-                AnimatedContainer(
-                  duration: transitionDuration,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: widget.isSelected
-                        ? widget.color.withValues(alpha: 0.15)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    widget.icon,
-                    size: 16,
-                    color: widget.isSelected
-                        ? widget.color
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-                SizedBox(width: widget.compact ? 5 : 8),
-                if (widget.compact)
-                  Expanded(child: _label(theme))
-                else
-                  _label(theme),
-                if (widget.count > 0 && !widget.compact) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: widget.isSelected
-                          ? widget.color.withValues(alpha: 0.2)
-                          : theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${widget.count}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final fillsAvailableWidth =
+                    widget.compact && constraints.hasBoundedWidth;
+                final label = _label(theme);
+                return Row(
+                  mainAxisSize: fillsAvailableWidth
+                      ? MainAxisSize.max
+                      : MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedContainer(
+                      duration: transitionDuration,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: widget.isSelected
+                            ? widget.color.withValues(alpha: 0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        widget.icon,
+                        size: 16,
                         color: widget.isSelected
                             ? widget.color
                             : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.6,
+                                alpha: 0.5,
                               ),
                       ),
                     ),
-                  ),
-                ],
-              ],
+                    SizedBox(width: widget.compact ? 5 : 8),
+                    if (fillsAvailableWidth) Flexible(child: label) else label,
+                    if (widget.count > 0 && !widget.compact) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: widget.isSelected
+                              ? widget.color.withValues(alpha: 0.2)
+                              : theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${widget.count}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: widget.isSelected
+                                ? widget.color
+                                : theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -252,9 +263,20 @@ class _PromptTypeButtonState extends State<PromptTypeButton>
       message: rich ? null : widget.label,
       richMessage: rich
           ? WidgetSpan(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: tooltipBuilder(theme),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableHeight = MediaQuery.sizeOf(context).height;
+                  final maxHeight = (availableHeight * 0.72)
+                      .clamp(180.0, 520.0)
+                      .toDouble();
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 420,
+                      maxHeight: maxHeight,
+                    ),
+                    child: SingleChildScrollView(child: tooltipBuilder(theme)),
+                  );
+                },
               ),
             )
           : null,

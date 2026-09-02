@@ -93,11 +93,8 @@ class ImportMenu extends PopupRoute<void> {
     Widget child,
   ) {
     return FadeTransition(
-      opacity: animation,
-      child: ScaleTransition(
-        scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-        child: child,
-      ),
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+      child: child,
     );
   }
 }

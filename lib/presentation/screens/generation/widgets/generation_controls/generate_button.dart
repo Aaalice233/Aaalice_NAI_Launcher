@@ -17,6 +17,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
   final VoidCallback onSkipCurrent;
   final bool showCost;
   final bool requiresLogin;
+  final bool compact;
 
   /// 按钮高度（紧凑布局可压低）
   final double height;
@@ -32,6 +33,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
     required this.onSkipCurrent,
     this.showCost = true,
     this.requiresLogin = false,
+    this.compact = false,
     this.height = 48,
   });
 
@@ -103,8 +105,27 @@ class GenerateButtonWithCost extends ConsumerWidget {
     );
     final isLoading = isGenerating && !showCancel;
 
+    final buttonTheme = showCancel ? cancelTheme : theme;
+    final effectiveTheme = compact
+        ? buttonTheme.copyWith(
+            filledButtonTheme: FilledButtonThemeData(
+              style:
+                  buttonTheme.filledButtonTheme.style?.copyWith(
+                    padding: const WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ) ??
+                  const ButtonStyle(
+                    padding: WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+            ),
+          )
+        : buttonTheme;
+
     return AnimatedTheme(
-      data: showCancel ? cancelTheme : theme,
+      data: effectiveTheme,
       duration: MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
           : const Duration(milliseconds: 160),

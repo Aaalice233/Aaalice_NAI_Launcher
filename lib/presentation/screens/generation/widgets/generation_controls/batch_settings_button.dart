@@ -4,14 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_divider.dart';
 
 /// 批量设置按钮（批次大小）
 class BatchSettingsButton extends ConsumerWidget {
-  const BatchSettingsButton({super.key, this.showLabel = false});
+  const BatchSettingsButton({
+    super.key,
+    this.showLabel = false,
+    this.compact = false,
+  });
 
   final bool showLabel;
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,8 +43,19 @@ class BatchSettingsButton extends ConsumerWidget {
       );
     }
 
+    final extent = compact
+        ? 36.0
+        : context.interactionPolicy.minimumControlExtent;
     return IconButton(
       tooltip: l10n.batchSize_tooltip(batchSize),
+      style: IconButton.styleFrom(
+        tapTargetSize: compact
+            ? MaterialTapTargetSize.shrinkWrap
+            : MaterialTapTargetSize.padded,
+        minimumSize: Size.square(extent),
+        maximumSize: Size.square(extent),
+        padding: EdgeInsets.zero,
+      ),
       icon: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(

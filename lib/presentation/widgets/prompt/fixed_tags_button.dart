@@ -10,10 +10,15 @@ import 'fixed_tags_dialog.dart';
 /// 固定词按钮组件
 /// 显示当前启用的固定词数量，点击打开管理对话框
 class FixedTagsButton extends ConsumerStatefulWidget {
-  const FixedTagsButton({super.key, this.compact = false});
+  const FixedTagsButton({
+    super.key,
+    this.compact = false,
+    this.iconOnly = false,
+  });
 
   /// 经典桌面提示词工具栏使用紧凑外观；触屏和独立入口保留标准命中高度。
   final bool compact;
+  final bool iconOnly;
 
   @override
   ConsumerState<FixedTagsButton> createState() => _FixedTagsButtonState();
@@ -39,7 +44,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       child: Tooltip(
         richMessage: WidgetSpan(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
+            constraints: const BoxConstraints(maxWidth: 320),
             child: _buildTooltipContent(theme, fixedTagsState),
           ),
         ),
@@ -48,16 +53,16 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
         waitDuration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.24),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Semantics(
           button: true,
           label: context.l10n.fixedTags_label,
@@ -106,19 +111,23 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                         ? theme.colorScheme.secondary
                         : theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    context.l10n.fixedTags_label,
-                    style: TextStyle(
-                      fontSize: widget.compact ? 11 : 12,
-                      fontWeight: hasEnabled
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                      color: hasEnabled
-                          ? theme.colorScheme.secondary
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  if (!widget.iconOnly) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      context.l10n.fixedTags_label,
+                      style: TextStyle(
+                        fontSize: widget.compact ? 11 : 12,
+                        fontWeight: hasEnabled
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: hasEnabled
+                            ? theme.colorScheme.secondary
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
+                      ),
                     ),
-                  ),
+                  ],
                   if (hasEnabled) ...[
                     const SizedBox(width: 5),
                     Container(
@@ -160,7 +169,6 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
 
   Widget _buildTooltipContent(ThemeData theme, FixedTagsState state) {
     final entries = state.entries;
-    final isDark = theme.brightness == Brightness.dark;
 
     if (entries.isEmpty) {
       return _buildEmptyState(theme);
@@ -169,11 +177,11 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     final enabledPrefixes = [
       ...state.enabledPrefixes,
       ...state.negativeEnabledPrefixes,
-    ];
+    ].take(4).toList(growable: false);
     final enabledSuffixes = [
       ...state.enabledSuffixes,
       ...state.negativeEnabledSuffixes,
-    ];
+    ].take(4).toList(growable: false);
     final disabledEntries = entries.where((e) => !e.enabled).toList();
 
     return Column(
@@ -183,7 +191,6 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
         // 顶部双列统计卡片
         _buildStatisticsHeader(
           theme,
-          isDark,
           enabledPrefixes.length,
           enabledSuffixes.length,
           state.links.length,
@@ -192,18 +199,13 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
         // 启用的条目列表
         if (enabledPrefixes.isNotEmpty || enabledSuffixes.isNotEmpty) ...[
           const SizedBox(height: 12),
-          _buildEnabledEntriesSection(
-            theme,
-            isDark,
-            enabledPrefixes,
-            enabledSuffixes,
-          ),
+          _buildEnabledEntriesSection(theme, enabledPrefixes, enabledSuffixes),
         ],
 
         // 禁用的条目
         if (disabledEntries.isNotEmpty) ...[
           const SizedBox(height: 10),
-          _buildDisabledSection(theme, isDark, disabledEntries),
+          _buildDisabledSection(theme, disabledEntries),
         ],
 
         // 底部操作提示
@@ -213,118 +215,90 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     );
   }
 
-  /// 空状态 - 精致插画风格
   Widget _buildEmptyState(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.surfaceContainerHighest,
-                  theme.colorScheme.surfaceContainerHigh,
-                ],
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.push_pin_outlined,
-              size: 18,
-              color: theme.colorScheme.outline.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.push_pin_outlined,
+          size: 18,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 context.l10n.fixedTags_empty,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
+                style: theme.textTheme.labelLarge,
               ),
               const SizedBox(height: 2),
               Text(
                 context.l10n.fixedTags_clickManageLongPressSidebar,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: theme.colorScheme.outline,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  /// 顶部统计卡片 - 紧凑行内风格
   Widget _buildStatisticsHeader(
     ThemeData theme,
-    bool isDark,
     int prefixCount,
     int suffixCount,
     int linkCount,
   ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: isDark
-            ? theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.4)
-            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 前缀统计
-          _buildCompactStat(
-            theme,
-            icon: Icons.arrow_forward_rounded,
-            count: prefixCount,
-            label: context.l10n.fixedTags_prefix,
-            color: theme.colorScheme.primary,
-            isActive: prefixCount > 0,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.push_pin_rounded,
+          size: 16,
+          color: theme.colorScheme.primary,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          context.l10n.fixedTags_label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w700,
           ),
-          // 分隔线
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            width: 1,
-            height: 16,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-          // 后缀统计
-          _buildCompactStat(
-            theme,
-            icon: Icons.arrow_back_rounded,
-            count: suffixCount,
-            label: context.l10n.fixedTags_suffix,
-            color: theme.colorScheme.tertiary,
-            isActive: suffixCount > 0,
-          ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            width: 1,
-            height: 16,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
+        ),
+        const Spacer(),
+        _buildCompactStat(
+          theme,
+          icon: Icons.arrow_forward_rounded,
+          count: prefixCount,
+          label: context.l10n.fixedTags_prefix,
+          color: theme.colorScheme.primary,
+          isActive: prefixCount > 0,
+        ),
+        const SizedBox(width: 10),
+        _buildCompactStat(
+          theme,
+          icon: Icons.arrow_back_rounded,
+          count: suffixCount,
+          label: context.l10n.fixedTags_suffix,
+          color: theme.colorScheme.tertiary,
+          isActive: suffixCount > 0,
+        ),
+        if (linkCount > 0) ...[
+          const SizedBox(width: 10),
           _buildCompactStat(
             theme,
             icon: Icons.link_rounded,
             count: linkCount,
             label: context.l10n.fixedTags_linked,
             color: theme.colorScheme.secondary,
-            isActive: linkCount > 0,
+            isActive: true,
           ),
         ],
-      ),
+      ],
     );
   }
 
@@ -366,7 +340,6 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
   /// 启用条目列表区域
   Widget _buildEnabledEntriesSection(
     ThemeData theme,
-    bool isDark,
     List<FixedTagEntry> prefixes,
     List<FixedTagEntry> suffixes,
   ) {
@@ -375,31 +348,21 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       ...suffixes.map((e) => (entry: e, isPrefix: false)),
     ];
 
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: isDark
-            ? theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.3)
-            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (int i = 0; i < allEnabled.length; i++) ...[
-            if (i > 0) const SizedBox(height: 6),
-            _buildCompactEntryRow(
-              theme,
-              allEnabled[i].entry,
-              allEnabled[i].isPrefix,
-            ),
-          ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < allEnabled.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _buildCompactEntryRow(
+            theme,
+            allEnabled[i].entry,
+            allEnabled[i].isPrefix,
+          ),
         ],
-      ),
+      ],
     );
   }
 
-  /// 紧凑条目行
   Widget _buildCompactEntryRow(
     ThemeData theme,
     FixedTagEntry entry,
@@ -408,264 +371,118 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     final color = isPrefix
         ? theme.colorScheme.primary
         : theme.colorScheme.tertiary;
-    final hasWeight = entry.weight != 1.0;
-    // 只要内容不为空就显示，充分利用空间
-    final showContent = entry.content.isNotEmpty;
-    // 增加截断长度，充分利用 Tooltip 宽度（约360px）
-    final truncatedContent = entry.content.length > 50
-        ? '${entry.content.substring(0, 50)}...'
-        : entry.content;
+    final content = entry.content.trim();
 
-    return SizedBox(
-      width: double.infinity,
-      child: Row(
-        children: [
-          // 位置指示条
-          Container(
-            width: 3,
-            height: 20,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [color, color.withValues(alpha: 0.4)],
-              ),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // 名称（固定最大宽度，避免过长）
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 100),
-            child: Text(
-              entry.displayName,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          // 权重徽章
-          if (hasWeight) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: entry.weight > 1.0
-                    ? theme.colorScheme.error.withValues(alpha: 0.12)
-                    : theme.colorScheme.tertiary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                '${entry.weight.toStringAsFixed(2)}x',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  color: entry.weight > 1.0
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.tertiary,
-                ),
-              ),
-            ),
-          ],
-          // 间距
-          const SizedBox(width: 8),
-          // 内容预览（占据剩余空间）
-          if (showContent)
-            Expanded(
-              child: Text(
-                truncatedContent,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            )
-          else
-            const Spacer(),
-          // 【新增】关联自词库的标识
-          if (entry.sourceEntryId != null) ...[
-            const SizedBox(width: 6),
-            Icon(Icons.sync_alt, size: 12, color: Colors.blue.shade400),
-          ],
-          // 位置标签（固定宽度，靠右）
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              isPrefix
-                  ? context.l10n.fixedTags_prefix
-                  : context.l10n.fixedTags_suffix,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 禁用条目区域
-  Widget _buildDisabledSection(
-    ThemeData theme,
-    bool isDark,
-    List<FixedTagEntry> disabledEntries,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15),
+    return Row(
+      children: [
+        Icon(
+          isPrefix ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+          size: 14,
+          color: color,
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 区域标题
-          Row(
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.visibility_off_rounded,
-                size: 12,
-                color: theme.colorScheme.outline,
-              ),
-              const SizedBox(width: 6),
               Text(
-                '${context.l10n.fixedTags_disabled} (${disabledEntries.length})',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: theme.colorScheme.outline,
+                entry.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+              if (content.isNotEmpty)
+                Text(
+                  content,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 6),
-          // 禁用标签
-          Wrap(
+        ),
+        if (entry.weight != 1.0) ...[
+          const SizedBox(width: 8),
+          Text(
+            '${entry.weight.toStringAsFixed(1)}×',
+            style: theme.textTheme.labelSmall?.copyWith(color: color),
+          ),
+        ],
+        if (entry.sourceEntryId != null) ...[
+          const SizedBox(width: 6),
+          Icon(Icons.sync_alt_rounded, size: 12, color: color),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDisabledSection(
+    ThemeData theme,
+    List<FixedTagEntry> disabledEntries,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.visibility_off_rounded,
+          size: 14,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Wrap(
             spacing: 6,
             runSpacing: 4,
-            children: disabledEntries
-                .map((entry) => _buildDisabledChip(theme, entry))
-                .toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 底部操作提示
-  Widget _buildFooterHint(ThemeData theme) {
-    return Center(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 20,
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            Icons.touch_app_rounded,
-            size: 11,
-            color: theme.colorScheme.outline.withValues(alpha: 0.6),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            context.l10n.fixedTags_clickManageLongPressCompact,
-            style: TextStyle(
-              fontSize: 10,
-              color: theme.colorScheme.outline.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            width: 20,
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 禁用条目的紧凑样式
-  Widget _buildDisabledChip(ThemeData theme, FixedTagEntry entry) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.push_pin_outlined,
-            size: 10,
-            color: theme.colorScheme.outline,
-          ),
-          const SizedBox(width: 4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 100),
-            child: Text(
-              entry.displayName,
-              style: TextStyle(
-                fontSize: 10,
-                color: theme.colorScheme.outline,
-                decoration: TextDecoration.lineThrough,
-                decorationColor: theme.colorScheme.outline.withValues(
-                  alpha: 0.5,
+            children: [
+              Text(
+                '${context.l10n.fixedTags_disabled} ${disabledEntries.length}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              overflow: TextOverflow.ellipsis,
-            ),
+              ...disabledEntries
+                  .take(3)
+                  .map((entry) => _buildDisabledChip(theme, entry)),
+            ],
           ),
-          if (entry.weight != 1.0) ...[
-            const SizedBox(width: 4),
-            Text(
-              '${entry.weight.toStringAsFixed(1)}x',
-              style: TextStyle(fontSize: 9, color: theme.colorScheme.outline),
-            ),
-          ],
-          // 【新增】关联自词库的标识
-          if (entry.sourceEntryId != null) ...[
-            const SizedBox(width: 4),
-            Icon(Icons.sync_alt, size: 10, color: Colors.blue.shade300),
-          ],
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterHint(ThemeData theme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.touch_app_rounded,
+          size: 12,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 5),
+        Text(
+          context.l10n.fixedTags_clickManageLongPressCompact,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDisabledChip(ThemeData theme, FixedTagEntry entry) {
+    return Text(
+      entry.displayName,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+        decoration: TextDecoration.lineThrough,
       ),
     );
   }

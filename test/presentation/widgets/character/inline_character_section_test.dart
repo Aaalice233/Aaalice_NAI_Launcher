@@ -534,6 +534,17 @@ void main() {
       expect(actionRect.left, greaterThanOrEqualTo(expandedSlotRect.left));
       expect(actionRect.right, lessThanOrEqualTo(expandedSlotRect.right));
     }
+    final expandedCollapseButton = find.ancestor(
+      of: find.descendant(
+        of: expandedToolbar,
+        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+      ),
+      matching: find.byType(IconButton),
+    );
+    expect(
+      tester.getRect(expandedCollapseButton).right,
+      closeTo(expandedSlotRect.right, 0.1),
+    );
     expect(
       find.descendant(of: expandedToolbar, matching: find.byIcon(Icons.undo)),
       findsNothing,
@@ -559,8 +570,11 @@ void main() {
       of: collapseAssistantIcon,
       matching: find.byType(IconButton),
     );
-    expect(collapseAssistantButton.hitTestable(), findsOneWidget);
-    await tester.tap(collapseAssistantButton, kind: PointerDeviceKind.mouse);
+    final collapseAction = tester
+        .widget<IconButton>(collapseAssistantButton)
+        .onPressed;
+    expect(collapseAction, isNotNull);
+    collapseAction!();
     await tester.pump();
     expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
     expect(find.text('助手'), findsOneWidget);
@@ -707,6 +721,17 @@ void main() {
         findsOneWidget,
       );
     }
+    final collapseButton = find.ancestor(
+      of: find.descendant(
+        of: toolbar,
+        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+      ),
+      matching: find.byType(IconButton),
+    );
+    expect(
+      tester.getRect(collapseButton).right,
+      closeTo(tester.getRect(slot).right, 0.1),
+    );
 
     await tester.drag(
       find.byKey(const ValueKey('character-prompt-resize-handle-positive')),

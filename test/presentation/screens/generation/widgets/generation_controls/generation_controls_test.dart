@@ -16,6 +16,9 @@ import 'package:nai_launcher/presentation/providers/replication_queue_provider.d
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/batch_settings_button.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/generation_controls.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/random_mode_toggle.dart';
+import 'package:nai_launcher/presentation/widgets/anlas/anlas_balance_chip.dart';
+import 'package:nai_launcher/presentation/widgets/common/draggable_number_input.dart';
 import 'package:nai_launcher/presentation/widgets/generation/auto_save_toggle_chip.dart';
 
 void main() {
@@ -54,7 +57,7 @@ void main() {
           home: Scaffold(
             body: SizedBox(
               width: 400,
-              height: 60,
+              height: 180,
               child: GenerationControls(compact: true),
             ),
           ),
@@ -83,62 +86,135 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('controls stay readable without scaling at 320 to 1000px', (
-    tester,
-  ) async {
-    final storage = _MemoryLocalStorageService({
-      StorageKeys.autoSaveImages: false,
-      StorageKeys.showRandomPromptTools: true,
-    });
+  testWidgets(
+    'compact footer uses one row when it fits and wraps only when necessary',
+    (tester) async {
+      final storage = _MemoryLocalStorageService({
+        StorageKeys.autoSaveImages: false,
+        StorageKeys.showRandomPromptTools: true,
+      });
 
-    for (final width in [320.0, 640.0, 1000.0]) {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
-            localStorageServiceProvider.overrideWith((ref) => storage),
-            kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
-            ),
-            replicationQueueNotifierProvider.overrideWith(
-              _TestReplicationQueueNotifier.new,
-            ),
-            queueExecutionNotifierProvider.overrideWith(
-              _TestQueueExecutionNotifier.new,
-            ),
-            subscriptionNotifierProvider.overrideWith(
-              _TestSubscriptionNotifier.new,
-            ),
-            estimatedCostProvider.overrideWith((ref) => 0),
-            isFreeGenerationProvider.overrideWith((ref) => true),
-          ],
-          child: MaterialApp(
-            locale: const Locale('zh'),
-            supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: const TextScaler.linear(3)),
-              child: child!,
-            ),
-            home: Scaffold(
-              body: SizedBox(
-                width: width,
-                height: 260,
-                child: const GenerationControls(),
+      for (final scenario in const [
+        (width: 438.0, textScale: 1.0, singleLine: false),
+        (width: 475.0, textScale: 1.0, singleLine: false),
+        (width: 497.0, textScale: 1.0, singleLine: false),
+        (width: 590.0, textScale: 1.0, singleLine: true),
+        (width: 700.0, textScale: 1.0, singleLine: true),
+        (width: 840.0, textScale: 1.0, singleLine: true),
+        (width: 475.0, textScale: 3.0, singleLine: false),
+        (width: 590.0, textScale: 3.0, singleLine: false),
+        (width: 700.0, textScale: 3.0, singleLine: false),
+        (width: 840.0, textScale: 3.0, singleLine: false),
+      ]) {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+              localStorageServiceProvider.overrideWith((ref) => storage),
+              kritaBridgeNotifierProvider.overrideWith(
+                (ref) => _TestKritaBridgeNotifier(),
+              ),
+              replicationQueueNotifierProvider.overrideWith(
+                _TestReplicationQueueNotifier.new,
+              ),
+              queueExecutionNotifierProvider.overrideWith(
+                _TestQueueExecutionNotifier.new,
+              ),
+              subscriptionNotifierProvider.overrideWith(
+                _TestSubscriptionNotifier.new,
+              ),
+              estimatedCostProvider.overrideWith((ref) => 0),
+              isFreeGenerationProvider.overrideWith((ref) => true),
+            ],
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(scenario.textScale)),
+                child: child!,
+              ),
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    key: const ValueKey('footer-test-bounds'),
+                    width: scenario.width,
+                    height: 600,
+                    child: const GenerationControls(compact: true),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      expect(find.byType(FittedBox), findsNothing);
-      expect(find.text('生成'), findsOneWidget);
-      expect(tester.takeException(), isNull, reason: 'width=$width');
-    }
-  });
+        final footerRect = tester.getRect(
+          find.byKey(const ValueKey('footer-test-bounds')),
+        );
+        final primaryRect = tester.getRect(
+          find.byKey(const ValueKey('generation-footer-primary-action')),
+        );
+        final actionFinders = <Finder>[
+          find.byType(AnlasBalanceChip),
+          find.byType(RandomModeToggle),
+          find.byType(AutoSaveToggleChip),
+          find.byType(DraggableNumberInput),
+          find.byType(BatchSettingsButton),
+        ];
+        final actionRects = actionFinders.map(tester.getRect).toList();
+        final reason =
+            'width=${scenario.width}, textScale=${scenario.textScale}';
+
+        expect(find.byType(FittedBox), findsNothing);
+        expect(find.byType(SingleChildScrollView), findsNothing);
+        expect(find.text('生成'), findsOneWidget);
+        expect(find.text('7,384'), findsOneWidget);
+        expect(find.text('自动保存'), findsOneWidget);
+        expect(primaryRect.height, greaterThanOrEqualTo(48));
+        expect(primaryRect.center.dx, closeTo(footerRect.center.dx, 0.01));
+        for (final rect in [primaryRect, ...actionRects]) {
+          expect(
+            footerRect.inflate(0.01).contains(rect.topLeft) &&
+                footerRect.inflate(0.01).contains(rect.bottomRight),
+            isTrue,
+            reason: '$reason clipped $rect',
+          );
+        }
+
+        if (scenario.singleLine) {
+          for (final rect in actionRects) {
+            expect(
+              rect.center.dy,
+              closeTo(primaryRect.center.dy, 0.01),
+              reason: '$reason unexpectedly wrapped',
+            );
+          }
+        } else {
+          for (final rect in actionRects) {
+            expect(
+              rect.top,
+              greaterThanOrEqualTo(primaryRect.bottom + 7.9),
+              reason: '$reason did not use the centered layered layout',
+            );
+          }
+          if (scenario.textScale == 1 && scenario.width >= 438) {
+            for (final rect in actionRects.skip(1)) {
+              expect(
+                rect.center.dy,
+                closeTo(actionRects.first.center.dy, 0.01),
+                reason: '$reason split footer actions across multiple rows',
+              );
+            }
+          }
+        }
+        expect(tester.takeException(), isNull, reason: reason);
+      }
+    },
+  );
 
   testWidgets('batch settings uses a scrollable compact form at worst width', (
     tester,
@@ -208,7 +284,11 @@ void main() {
         GoRoute(
           path: '/',
           builder: (context, state) => const Scaffold(
-            body: SizedBox(width: 600, height: 80, child: GenerationControls()),
+            body: SizedBox(
+              width: 600,
+              height: 180,
+              child: GenerationControls(),
+            ),
           ),
         ),
         GoRoute(
@@ -306,5 +386,11 @@ class _TestQueueExecutionNotifier extends QueueExecutionNotifier {
 
 class _TestSubscriptionNotifier extends SubscriptionNotifier {
   @override
-  SubscriptionState build() => const SubscriptionState.initial();
+  SubscriptionState build() => const SubscriptionState.loaded(
+    UserSubscription(
+      tier: 1,
+      active: true,
+      trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
+    ),
+  );
 }

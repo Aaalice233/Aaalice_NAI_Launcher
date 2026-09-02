@@ -273,7 +273,7 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 - 移动端通过 press、long-press、selected 和 48px 操作按钮提供等价反馈。
 - `MediaQuery.disableAnimations` 时缩放立即回到 1.0，并保留静态状态提示。
 
-动效由 `AppThemeExtension` 驱动。高频状态通常处于 100–200ms，面板和页面变化可延长到 200–300ms；主题可以改变曲线，但 Operate 界面不得用持续漂浮、旋转或反复弹跳干扰任务。
+动效由 `AppThemeExtension` 驱动。高频状态通常处于 100–200ms，面板和页面变化可延长到 200–300ms。界面禁止使用弹簧、回弹、过冲、弹跳、缩放弹出或会让元素方向反复变化的进出场动画；面板、弹窗、选择器和导航容器优先使用短淡入淡出，确需位移时只允许单向、无过冲的减速过渡。不得在重建时重置 Tween 起点造成横向跳动，Reduce Motion 下必须立即到达终态。
 
 ## Do's and Don'ts
 

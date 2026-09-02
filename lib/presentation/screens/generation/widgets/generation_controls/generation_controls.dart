@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -23,7 +24,7 @@ import 'random_mode_toggle.dart';
 /// 生成控制按钮
 class GenerationControls extends ConsumerStatefulWidget {
   /// 紧凑模式：用于官网式布局的钉底控制条——
-  /// 强制窄排布、追加批次大小按钮、压低生成按钮高度。
+  /// 追加批次大小按钮，并按可用宽度重排全部操作。
   final bool compact;
 
   const GenerationControls({super.key, this.compact = false});
@@ -60,16 +61,43 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
 
     // 快捷键已由父级 DesktopGenerationLayout 统一处理
     // 这里只负责布局
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final largeText = MediaQuery.textScalerOf(context).scale(14) > 18.2;
-        final isNarrow =
-            widget.compact || constraints.maxWidth < 720 || largeText;
+    final compact = widget.compact;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final compactPrimaryWidth = 78 + (textScale - 1).clamp(0.0, 2.0) * 25;
+    final opusUsage = OpusUsageChip(compact: compact);
+    final anlasBalance = AnlasBalanceChip(compact: compact);
+    final leftActions = <Widget>[
+      opusUsage,
+      if (compact) const AutoSaveToggleChip(compact: true) else anlasBalance,
+    ];
+    final rightActions = <Widget>[
+      if (compact) anlasBalance,
+      if (showRandomTools)
+        RandomModeToggle(enabled: randomMode, compact: compact),
+      // 生成中批量参数不可变更；隐藏后为跳过/停止操作保留空间。
+      if (!(compact && showCancel))
+        DraggableNumberInput(
+          value: nSamples,
+          min: 1,
+          prefix: '×',
+          onChanged: (value) {
+            ref
+                .read(generationParamsNotifierProvider.notifier)
+                .updateNSamples(value);
+          },
+        ),
+      if (compact && !showCancel) const BatchSettingsButton(compact: true),
+    ];
 
-        // 生成按钮几何居中：左右两个等宽弹性区吸收其余控件，
-        // 按钮位置不随随机工具等元素的显隐漂移
-        final generateButton = GenerateButtonWithCost(
-          height: widget.compact ? 40 : 48,
+    // 由子控件的实际布局尺寸决定是否换行，而不是把 compact 或文本
+    // 缩放直接等同于窄布局。这样能放下时始终保持单行和主按钮几何居中。
+    return _GenerationControlsLayout(
+      leftActions: leftActions,
+      primaryAction: SizedBox(
+        key: const ValueKey('generation-footer-primary-action'),
+        width: compact ? compactPrimaryWidth : 190,
+        child: GenerateButtonWithCost(
+          height: 48,
           isGenerating: isGenerating,
           showCancel: showCancel,
           generationState: generationState,
@@ -82,82 +110,10 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
               .skipCurrentRequest(),
           showCost: !isUpscaleMode,
           requiresLogin: !isAuthenticated && !isGenerating,
-        );
-
-        if (isNarrow) {
-          final rightGroup = <Widget>[
-            // 紧凑模式生成中隐藏批量调节（此时批量参数不可变更），
-            // 为跳过/停止按钮腾出宽度
-            if (!(widget.compact && showCancel))
-              DraggableNumberInput(
-                value: nSamples,
-                min: 1,
-                prefix: '×',
-                onChanged: (value) {
-                  ref
-                      .read(generationParamsNotifierProvider.notifier)
-                      .updateNSamples(value);
-                },
-              ),
-            // 紧凑模式补上第二种批量控制：批次大小（每次请求张数）
-            if (widget.compact && !showCancel) const BatchSettingsButton(),
-          ];
-
-          final compact = widget.compact;
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            primary: false,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: constraints.maxWidth.clamp(0.0, 190.0),
-                  child: generateButton,
-                ),
-                if (rightGroup.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  ...rightGroup,
-                ],
-                const SizedBox(width: 8),
-                OpusUsageChip(compact: compact),
-                const SizedBox(width: 8),
-                AnlasBalanceChip(compact: compact),
-                if (showRandomTools) ...[
-                  const SizedBox(width: 8),
-                  RandomModeToggle(enabled: randomMode),
-                ],
-                if (compact) ...[
-                  const SizedBox(width: 8),
-                  const AutoSaveToggleChip(compact: true),
-                ],
-              ],
-            ),
-          );
-        }
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  const OpusUsageChip(),
-                  const AnlasBalanceChip(),
-                  if (showRandomTools) RandomModeToggle(enabled: randomMode),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            generateButton,
-            const SizedBox(width: 12),
-            const Spacer(),
-          ],
-        );
-      },
+          compact: compact,
+        ),
+      ),
+      rightActions: rightActions,
     );
   }
 
@@ -183,5 +139,304 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
 
     // 生成（抽卡模式逻辑在 generate 方法内部处理）
     ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+  }
+}
+
+enum _GenerationControlGroup { left, primary, right }
+
+class _GenerationControlsLayout extends MultiChildRenderObjectWidget {
+  _GenerationControlsLayout({
+    required List<Widget> leftActions,
+    required Widget primaryAction,
+    required List<Widget> rightActions,
+  }) : super(
+         key: const ValueKey('generation-footer-adaptive-layout'),
+         children: [
+           for (final action in leftActions)
+             _GenerationControlSlot(
+               group: _GenerationControlGroup.left,
+               child: action,
+             ),
+           _GenerationControlSlot(
+             group: _GenerationControlGroup.primary,
+             child: primaryAction,
+           ),
+           for (final action in rightActions)
+             _GenerationControlSlot(
+               group: _GenerationControlGroup.right,
+               child: action,
+             ),
+         ],
+       );
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderGenerationControlsLayout();
+}
+
+class _GenerationControlSlot
+    extends ParentDataWidget<_GenerationControlsParentData> {
+  const _GenerationControlSlot({required this.group, required super.child});
+
+  final _GenerationControlGroup group;
+
+  @override
+  void applyParentData(RenderObject renderObject) {
+    final parentData =
+        renderObject.parentData! as _GenerationControlsParentData;
+    if (parentData.group == group) return;
+    parentData.group = group;
+    final parent = renderObject.parent;
+    if (parent is RenderObject) parent.markNeedsLayout();
+  }
+
+  @override
+  Type get debugTypicalAncestorWidgetClass => _GenerationControlsLayout;
+}
+
+class _GenerationControlsParentData extends ContainerBoxParentData<RenderBox> {
+  _GenerationControlGroup group = _GenerationControlGroup.left;
+}
+
+class _RenderGenerationControlsLayout extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _GenerationControlsParentData>,
+        RenderBoxContainerDefaultsMixin<
+          RenderBox,
+          _GenerationControlsParentData
+        > {
+  static const double _itemSpacing = 2;
+  static const double _primarySpacing = 2;
+  static const double _runSpacing = 8;
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _GenerationControlsParentData) {
+      child.parentData = _GenerationControlsParentData();
+    }
+  }
+
+  @override
+  void performLayout() {
+    final availableWidth = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : 100000.0;
+    final childConstraints = BoxConstraints(maxWidth: availableWidth);
+    final left = <RenderBox>[];
+    final right = <RenderBox>[];
+    RenderBox? primary;
+
+    RenderBox? child = firstChild;
+    while (child != null) {
+      child.layout(childConstraints, parentUsesSize: true);
+      final parentData = child.parentData! as _GenerationControlsParentData;
+      switch (parentData.group) {
+        case _GenerationControlGroup.left:
+          if (!child.size.isEmpty) left.add(child);
+        case _GenerationControlGroup.primary:
+          primary = child;
+        case _GenerationControlGroup.right:
+          if (!child.size.isEmpty) right.add(child);
+      }
+      child = parentData.nextSibling;
+    }
+
+    final primaryChild = primary;
+    if (primaryChild == null) {
+      size = constraints.smallest;
+      return;
+    }
+
+    final naturalWidth = _centeredSingleRowWidth(left, primaryChild, right);
+    final layoutWidth = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : naturalWidth;
+    final useSingleRow = naturalWidth <= layoutWidth;
+    final contentHeight = useSingleRow
+        ? _layoutSingleRow(left, primaryChild, right, layoutWidth)
+        : _layoutWrapped(left, primaryChild, right, layoutWidth);
+    size = constraints.constrain(Size(layoutWidth, contentHeight));
+  }
+
+  double _centeredSingleRowWidth(
+    List<RenderBox> left,
+    RenderBox primary,
+    List<RenderBox> right,
+  ) {
+    final leftWidth = _groupWidth(left);
+    final rightWidth = _groupWidth(right);
+    final sideWidth = leftWidth > rightWidth ? leftWidth : rightWidth;
+    return primary.size.width + 2 * (sideWidth + _primarySpacing);
+  }
+
+  double _groupWidth(List<RenderBox> children) {
+    if (children.isEmpty) return 0;
+    return children.fold<double>(0, (sum, child) => sum + child.size.width) +
+        _itemSpacing * (children.length - 1);
+  }
+
+  double _layoutSingleRow(
+    List<RenderBox> left,
+    RenderBox primary,
+    List<RenderBox> right,
+    double width,
+  ) {
+    final allChildren = [...left, primary, ...right];
+    final height = allChildren.fold<double>(
+      0,
+      (maximum, child) =>
+          child.size.height > maximum ? child.size.height : maximum,
+    );
+    final leftWidth = _groupWidth(left);
+    final primaryX = (width - primary.size.width) / 2;
+    _positionGroup(left, primaryX - _primarySpacing - leftWidth, height);
+    _position(primary, primaryX, (height - primary.size.height) / 2);
+    _positionGroup(
+      right,
+      primaryX + primary.size.width + _primarySpacing,
+      height,
+    );
+    return height;
+  }
+
+  double _layoutWrapped(
+    List<RenderBox> left,
+    RenderBox primary,
+    List<RenderBox> right,
+    double width,
+  ) {
+    _position(primary, (width - primary.size.width) / 2, 0);
+    final actions = [...left, ...right];
+    if (actions.isEmpty) return primary.size.height;
+
+    final runs = <List<RenderBox>>[];
+    var run = <RenderBox>[];
+    var runWidth = 0.0;
+    for (final action in actions) {
+      final nextWidth = run.isEmpty
+          ? action.size.width
+          : runWidth + _itemSpacing + action.size.width;
+      if (run.isNotEmpty && nextWidth > width) {
+        runs.add(run);
+        run = <RenderBox>[];
+        runWidth = 0;
+      }
+      run.add(action);
+      runWidth = runWidth == 0
+          ? action.size.width
+          : runWidth + _itemSpacing + action.size.width;
+    }
+    if (run.isNotEmpty) runs.add(run);
+
+    var y = primary.size.height + _runSpacing;
+    for (final currentRun in runs) {
+      final currentWidth = _groupWidth(currentRun);
+      final runHeight = currentRun.fold<double>(
+        0,
+        (maximum, action) =>
+            action.size.height > maximum ? action.size.height : maximum,
+      );
+      _positionGroup(currentRun, (width - currentWidth) / 2, runHeight, y: y);
+      y += runHeight + _runSpacing;
+    }
+    return y - _runSpacing;
+  }
+
+  void _positionGroup(
+    List<RenderBox> children,
+    double x,
+    double height, {
+    double y = 0,
+  }) {
+    for (final child in children) {
+      _position(child, x, y + (height - child.size.height) / 2);
+      x += child.size.width + _itemSpacing;
+    }
+  }
+
+  void _position(RenderBox child, double x, double y) {
+    final parentData = child.parentData! as _GenerationControlsParentData;
+    parentData.offset = Offset(x, y);
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final availableWidth = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : 100000.0;
+    final childConstraints = BoxConstraints(maxWidth: availableWidth);
+    final left = <Size>[];
+    final right = <Size>[];
+    Size? primary;
+
+    RenderBox? child = firstChild;
+    while (child != null) {
+      final childSize = child.getDryLayout(childConstraints);
+      final parentData = child.parentData! as _GenerationControlsParentData;
+      switch (parentData.group) {
+        case _GenerationControlGroup.left:
+          if (!childSize.isEmpty) left.add(childSize);
+        case _GenerationControlGroup.primary:
+          primary = childSize;
+        case _GenerationControlGroup.right:
+          if (!childSize.isEmpty) right.add(childSize);
+      }
+      child = parentData.nextSibling;
+    }
+
+    final primarySize = primary;
+    if (primarySize == null) return constraints.smallest;
+    final leftWidth = _dryGroupWidth(left);
+    final rightWidth = _dryGroupWidth(right);
+    final sideWidth = leftWidth > rightWidth ? leftWidth : rightWidth;
+    final singleRowWidth =
+        primarySize.width + 2 * (sideWidth + _primarySpacing);
+    final width = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : singleRowWidth;
+    if (singleRowWidth <= width) {
+      final height = [...left, primarySize, ...right].fold<double>(
+        0,
+        (maximum, childSize) =>
+            childSize.height > maximum ? childSize.height : maximum,
+      );
+      return constraints.constrain(Size(width, height));
+    }
+
+    var height = primarySize.height + _runSpacing;
+    var runWidth = 0.0;
+    var runHeight = 0.0;
+    for (final action in [...left, ...right]) {
+      final nextWidth = runWidth == 0
+          ? action.width
+          : runWidth + _itemSpacing + action.width;
+      if (runWidth > 0 && nextWidth > width) {
+        height += runHeight + _runSpacing;
+        runWidth = 0;
+        runHeight = 0;
+      }
+      runWidth = runWidth == 0
+          ? action.width
+          : runWidth + _itemSpacing + action.width;
+      if (action.height > runHeight) runHeight = action.height;
+    }
+    height += runHeight;
+    return constraints.constrain(Size(width, height));
+  }
+
+  double _dryGroupWidth(List<Size> children) {
+    if (children.isEmpty) return 0;
+    return children.fold<double>(0, (sum, child) => sum + child.width) +
+        _itemSpacing * (children.length - 1);
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    defaultPaint(context, offset);
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    return defaultHitTestChildren(result, position: position);
   }
 }

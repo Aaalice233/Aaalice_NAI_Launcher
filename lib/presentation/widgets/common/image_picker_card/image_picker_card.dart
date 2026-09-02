@@ -58,6 +58,9 @@ class ImagePickerCard extends StatefulWidget {
   /// 是否启用拖拽上传
   final bool enableDragDrop;
 
+  /// 紧凑横排时将图标与文案作为一个整体居中。
+  final bool centerHorizontalContent;
+
   /// 已选图像数据（用于显示预览）
   final Uint8List? selectedImage;
 
@@ -99,6 +102,7 @@ class ImagePickerCard extends StatefulWidget {
     this.height = 100,
     this.enableGlowEffect = true,
     this.enableDragDrop = true,
+    this.centerHorizontalContent = false,
     this.selectedImage,
     this.selectedPath,
     this.onImageSelected,
@@ -238,28 +242,35 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
             constraints.maxHeight < 88 || scaledBodyHeight > 24;
 
         if (useHorizontalLayout) {
+          final textContent = Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: widget.centerHorizontalContent
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.stretch,
+            children: [
+              label,
+              if (showHint) ...[const SizedBox(height: 2), hint],
+            ],
+          );
+          final content = Row(
+            mainAxisSize: widget.centerHorizontalContent
+                ? MainAxisSize.min
+                : MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              icon,
+              const SizedBox(width: 10),
+              Flexible(child: textContent),
+            ],
+          );
           return Padding(
             padding: EdgeInsets.symmetric(
               horizontal: 12,
               vertical: constraints.maxHeight < 72 ? 4 : 8,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                icon,
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      label,
-                      if (showHint) ...[const SizedBox(height: 2), hint],
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            child: widget.centerHorizontalContent
+                ? Center(child: IntrinsicWidth(child: content))
+                : content,
           );
         }
 

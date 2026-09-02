@@ -49,99 +49,100 @@ class PromptInputFooter extends ConsumerWidget {
       child: PromptTokenCountAsyncBar(usage: tokenUsage),
     );
 
+    final collapsedContent = Row(
+      children: [
+        if (showTransparentBackground) ...[
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Tooltip(
+                richMessage: WidgetSpan(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.l10n.qualityTags_addToEnd,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.7,
+                            ),
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          ', ${QualityTags.transparentBackgroundTag}',
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                preferBelow: true,
+                verticalOffset: 20,
+                waitDuration: const Duration(milliseconds: 300),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(12),
+                child: GenerationToggleButton(
+                  key: const ValueKey(
+                    'generation_transparent_background_toggle',
+                  ),
+                  label: context.l10n.generation_transparentBackground,
+                  isEnabled: transparentBackground.enabled,
+                  onChanged: (value) => ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateTransparentBackground(value),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (leading != null) ...[leading!, const SizedBox(width: 4)],
+        if (assistant == null)
+          Expanded(child: tokenCount)
+        else ...[
+          Expanded(child: tokenCount),
+          const SizedBox(width: 8),
+          KeyedSubtree(
+            key: const ValueKey('generation_prompt_footer_assistant'),
+            child: assistant!,
+          ),
+        ],
+      ],
+    );
+
     return Padding(
       key: const ValueKey('generation_prompt_footer'),
       padding: EdgeInsets.only(top: topPadding),
       child: SizedBox(
+        width: double.infinity,
         height: assistantToolbarHeight > 0 ? assistantToolbarHeight : null,
-        child: Stack(
-          alignment: Alignment.centerRight,
-          children: [
-            Offstage(
-              offstage: assistant != null && assistantExpanded,
-              child: Row(
-                children: [
-                  if (showTransparentBackground) ...[
-                    Flexible(
-                      child: Tooltip(
-                        richMessage: WidgetSpan(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 320),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  context.l10n.qualityTags_addToEnd,
-                                  style: TextStyle(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.7),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  ', ${QualityTags.transparentBackgroundTag}',
-                                  style: TextStyle(
-                                    color: Colors.green.shade700,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        preferBelow: true,
-                        verticalOffset: 20,
-                        waitDuration: const Duration(milliseconds: 300),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: GenerationToggleButton(
-                          key: const ValueKey(
-                            'generation_transparent_background_toggle',
-                          ),
-                          label: context.l10n.generation_transparentBackground,
-                          isEnabled: transparentBackground.enabled,
-                          onChanged: (value) => ref
-                              .read(generationParamsNotifierProvider.notifier)
-                              .updateTransparentBackground(value),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  if (leading != null) ...[leading!, const SizedBox(width: 4)],
-                  Expanded(child: tokenCount),
-                  if (assistant != null) ...[
-                    const SizedBox(width: 8),
-                    KeyedSubtree(
-                      key: const ValueKey('generation_prompt_footer_assistant'),
-                      child: assistant!,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (assistant != null && assistantExpanded)
-              Align(
+        child: assistant != null && assistantExpanded
+            ? Align(
                 alignment: Alignment.centerRight,
                 child: KeyedSubtree(
                   key: const ValueKey('generation_prompt_footer_assistant'),
                   child: assistant!,
                 ),
-              ),
-          ],
-        ),
+              )
+            : collapsedContent,
       ),
     );
   }

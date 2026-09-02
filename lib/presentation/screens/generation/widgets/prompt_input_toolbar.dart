@@ -63,34 +63,37 @@ class PromptInputToolbar extends ConsumerWidget {
       settings: () => _showSettingsMenu(context, ref),
     );
 
-    if (viewData.autoGrow) {
-      final webToolbar = _editorToolbar(
-        context,
-        showRandom: false,
-        settings: () => _showSettingsMenu(context, ref),
-      );
-      return SingleChildScrollView(
-        key: const ValueKey('generation_prompt_auto_grow_toolbar_scroll'),
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            typeSwitch,
-            const SizedBox(width: 10),
-            const FixedTagsButton(),
-            const SizedBox(width: 6),
-            QualityTagsSelector(model: model),
-            const SizedBox(width: 6),
-            UcPresetSelector(model: model),
-            const SizedBox(width: 2),
-            webToolbar,
-          ],
-        ),
-      );
-    }
-
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (viewData.autoGrow && constraints.maxWidth >= 440) {
+          return SizedBox(
+            key: const ValueKey('generation_prompt_compact_single_row'),
+            height: 48,
+            child: Row(
+              children: [
+                PromptTypeSwitch(
+                  controller: controller,
+                  commands: commands,
+                  compact: true,
+                ),
+                const SizedBox(width: 4),
+                const FixedTagsButton(compact: true, iconOnly: true),
+                const SizedBox(width: 4),
+                QualityTagsSelector(
+                  model: model,
+                  compact: true,
+                  iconOnly: true,
+                ),
+                const SizedBox(width: 4),
+                UcPresetSelector(model: model, compact: true, iconOnly: true),
+                const SizedBox(width: 4),
+                const CharacterPromptButton(compact: true, iconOnly: true),
+                const Spacer(),
+                toolbar,
+              ],
+            ),
+          );
+        }
         if (constraints.maxWidth < 600) {
           final primary = _editorToolbar(
             context,
@@ -125,57 +128,44 @@ class PromptInputToolbar extends ConsumerWidget {
                   ],
                 ),
               const SizedBox(height: 4),
-              SizedBox(
-                height: 48,
-                child: SingleChildScrollView(
-                  key: const ValueKey(
-                    'generation_prompt_mobile_secondary_scroll',
-                  ),
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    key: const ValueKey(
-                      'generation_prompt_mobile_secondary_row',
+              Wrap(
+                key: const ValueKey('generation_prompt_mobile_secondary_row'),
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (showRandomTools)
+                    _MobilePromptToolbarAction(
+                      actionKey: const ValueKey(
+                        'generation_prompt_mobile_random_action',
+                      ),
+                      child: random,
                     ),
-                    children: [
-                      if (showRandomTools) ...[
-                        _MobilePromptToolbarAction(
-                          actionKey: const ValueKey(
-                            'generation_prompt_mobile_random_action',
-                          ),
-                          child: random,
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      const _MobilePromptToolbarAction(
-                        actionKey: ValueKey(
-                          'generation_prompt_mobile_fixed_tags_action',
-                        ),
-                        child: FixedTagsButton(),
-                      ),
-                      const SizedBox(width: 6),
-                      _MobilePromptToolbarAction(
-                        actionKey: const ValueKey(
-                          'generation_prompt_mobile_quality_action',
-                        ),
-                        child: QualityTagsSelector(model: model),
-                      ),
-                      const SizedBox(width: 6),
-                      _MobilePromptToolbarAction(
-                        actionKey: const ValueKey(
-                          'generation_prompt_mobile_uc_action',
-                        ),
-                        child: UcPresetSelector(model: model),
-                      ),
-                      const SizedBox(width: 6),
-                      const _MobilePromptToolbarAction(
-                        actionKey: ValueKey(
-                          'generation_prompt_mobile_character_action',
-                        ),
-                        child: CharacterPromptButton(),
-                      ),
-                    ],
+                  const _MobilePromptToolbarAction(
+                    actionKey: ValueKey(
+                      'generation_prompt_mobile_fixed_tags_action',
+                    ),
+                    child: FixedTagsButton(),
                   ),
-                ),
+                  _MobilePromptToolbarAction(
+                    actionKey: const ValueKey(
+                      'generation_prompt_mobile_quality_action',
+                    ),
+                    child: QualityTagsSelector(model: model),
+                  ),
+                  _MobilePromptToolbarAction(
+                    actionKey: const ValueKey(
+                      'generation_prompt_mobile_uc_action',
+                    ),
+                    child: UcPresetSelector(model: model),
+                  ),
+                  const _MobilePromptToolbarAction(
+                    actionKey: ValueKey(
+                      'generation_prompt_mobile_character_action',
+                    ),
+                    child: CharacterPromptButton(),
+                  ),
+                ],
               ),
             ],
           );

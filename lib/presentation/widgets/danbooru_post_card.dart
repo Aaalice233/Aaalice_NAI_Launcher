@@ -380,6 +380,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final usesTouchActionMenu = interactionPolicy.touchAvailable;
     final showStatusOverlays =
         usesTouchActionMenu || (!_isHovering && !_isFocused);
+    final showsCodexBadgeOnLeft =
+        widget.post.sourceId == GallerySourceId.quickTagCloud &&
+        widget.badgeLabel != null;
     final showsRatingBadge =
         !widget.favoriteReadOnly &&
         widget.post.rating != null &&
@@ -540,19 +543,26 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                       widget.secondaryFavoriteIcon,
                                   secondaryFavoriteTooltip:
                                       widget.secondaryFavoriteTooltip,
-                                  badgeLabel: widget.badgeLabel,
+                                  badgeLabel: showsCodexBadgeOnLeft
+                                      ? null
+                                      : widget.badgeLabel,
                                   mediaCount: widget.post.mediaCount,
                                 ),
                               ),
                             if (widget.post.rank != null ||
+                                showsCodexBadgeOnLeft ||
                                 showsRatingBadge ||
                                 widget.post.isVideo ||
                                 widget.post.isAnimated)
                               Positioned(
                                 top: 4,
                                 left: 4,
+                                right: usesTouchActionMenu ? 56 : null,
                                 child: OnlineGalleryCardLeftStatusOverlays(
                                   rank: widget.post.rank,
+                                  codexBadgeLabel: showsCodexBadgeOnLeft
+                                      ? widget.badgeLabel
+                                      : null,
                                   ratingLabel: showsRatingBadge
                                       ? _getRatingLabel(
                                           context,

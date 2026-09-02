@@ -287,13 +287,19 @@ class _FullPromptInput extends ConsumerWidget {
           mainAxisSize: viewData.autoGrow ? MainAxisSize.min : MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            PromptInputToolbar(
-              controller: controller,
-              commands: commands,
-              viewData: viewData,
+            SizedBox(
+              width: constraints.maxWidth,
+              child: PromptInputToolbar(
+                controller: controller,
+                commands: commands,
+                viewData: viewData,
+              ),
             ),
             const SizedBox(height: 8),
-            if (viewData.autoGrow) editor else Expanded(child: editor),
+            Flexible(
+              fit: viewData.autoGrow ? FlexFit.loose : FlexFit.tight,
+              child: editor,
+            ),
             footer,
           ],
         );

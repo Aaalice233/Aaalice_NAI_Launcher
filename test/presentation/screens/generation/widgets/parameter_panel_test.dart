@@ -115,7 +115,9 @@ void main() {
   });
 
   group('ParameterPanel', () {
-    testWidgets('CFG scale slider uses 0.1 increments', (tester) async {
+    testWidgets('parameter sliders keep their discrete behavior', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -151,8 +153,18 @@ void main() {
           )
           .toList();
 
+      final stepsSliders = tester
+          .widgetList<ThemedSlider>(find.byType(ThemedSlider))
+          .where(
+            (slider) =>
+                slider.min == 1 && slider.max == 50 && slider.divisions == 49,
+          )
+          .toList();
+
       expect(cfgSliders, hasLength(1));
       expect(cfgSliders.single.divisions, equals(190));
+      expect(stepsSliders, hasLength(1));
+      expect(stepsSliders.single.hideTickMarks, isTrue);
     });
   });
 

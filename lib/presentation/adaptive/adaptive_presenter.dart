@@ -98,6 +98,65 @@ class AdaptivePresenter {
     return result;
   }
 
+  /// Presents a searchable picker using a bottom sheet on compact panes and
+  /// a geometrically stable, centered surface at every larger width.
+  static Future<T?> showPicker<T>({
+    required BuildContext context,
+    required AdaptivePanelBuilder builder,
+    double initialChildSize = 0.9,
+    double minChildSize = 0.5,
+    double maxChildSize = 0.96,
+    double? width,
+    bool barrierDismissible = true,
+    bool requestFocus = true,
+    bool restoreFocus = true,
+  }) async {
+    final metrics = context.adaptiveWindow;
+    if (metrics.isCompact) {
+      final motion = Theme.of(context).appTheme;
+      return showPanel<T>(
+        context: context,
+        title: '',
+        builder: builder,
+        initialChildSize: initialChildSize,
+        minChildSize: minChildSize,
+        maxChildSize: maxChildSize,
+        sideSheetWidth: width,
+        barrierDismissible: barrierDismissible,
+        requestFocus: requestFocus,
+        restoreFocus: restoreFocus,
+        showHeader: false,
+        sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
+            ? AnimationStyle.noAnimation
+            : AnimationStyle(
+                duration: motion.normalDuration,
+                reverseDuration: motion.fastDuration,
+              ),
+      );
+    }
+
+    final previousFocus = restoreFocus
+        ? FocusManager.instance.primaryFocus
+        : null;
+    final result = await _showCenteredForm<T>(
+      context: context,
+      titleBuilder: (_) => const SizedBox.shrink(),
+      builder: builder,
+      width: width ?? WorkspaceSidePanelContract.preferredFormWidth,
+      barrierDismissible: barrierDismissible,
+      requestFocus: requestFocus,
+      showHeader: false,
+    );
+    if (restoreFocus && context.mounted && previousFocus?.context != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (previousFocus!.context != null && previousFocus.canRequestFocus) {
+          previousFocus.requestFocus();
+        }
+      });
+    }
+    return result;
+  }
+
   static Future<T?> showPanel<T>({
     required BuildContext context,
     String? title,
@@ -112,6 +171,7 @@ class AdaptivePresenter {
     bool requestFocus = true,
     bool restoreFocus = true,
     bool showHeader = true,
+    AnimationStyle? sheetAnimationStyle,
   }) async {
     assert(!showHeader || title != null || titleBuilder != null);
     final resolvedTitleBuilder =
@@ -151,6 +211,7 @@ class AdaptivePresenter {
         barrierColor: Theme.of(
           context,
         ).colorScheme.scrim.withValues(alpha: 0.4),
+        sheetAnimationStyle: sheetAnimationStyle,
         builder: (sheetContext) => AnimatedPadding(
           duration: MediaQuery.disableAnimationsOf(sheetContext)
               ? Duration.zero
@@ -217,13 +278,7 @@ class AdaptivePresenter {
       ),
       transitionBuilder: (context, animation, _, child) {
         if (reduceMotion) return child;
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.98, end: 1).animate(animation),
-            child: child,
-          ),
-        );
+        return FadeTransition(opacity: animation, child: child);
       },
     );
   }
@@ -495,7 +550,7 @@ class _PanelSurface extends StatelessWidget {
           ),
           child: Column(
             children: [
-              if (!sideSheet && !fullScreen)
+              if (!sideSheet && !fullScreen && !centered)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Container(

@@ -58,49 +58,61 @@ void main() {
     expect(resources.top, lessThan(actions.top));
     expect(actions, settings);
 
-    final moreCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-more-actions')),
+    final controlsRect = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-message-actions')),
     );
-    final sendCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-send')),
+    for (final key in const [
+      'agent-chat-more-actions',
+      'agent-chat-model-selector',
+      'agent-chat-thinking-selector',
+      'agent-chat-permission-mode',
+      'agent-chat-web-access-toggle',
+      'agent-chat-context-target',
+      'agent-chat-send',
+    ]) {
+      expect(
+        controlsRect.contains(tester.getCenter(find.byKey(ValueKey(key)))),
+        isTrue,
+        reason: '$key must be initially visible inside the controls region',
+      );
+    }
+    expect(
+      find.byKey(const ValueKey('agent-chat-composer-controls-wrap')),
+      findsOneWidget,
     );
-    expect(moreCenter.dx, lessThan(sendCenter.dx));
-
-    final modelCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-model-selector')),
-    );
-    final thinkingCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-thinking-selector')),
-    );
-    final permissionCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-permission-mode')),
-    );
-    final webCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-web-access-toggle')),
-    );
-    final contextCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-context-target')),
-    );
-    expect(moreCenter.dx, lessThan(modelCenter.dx));
-    expect(moreCenter.dy, modelCenter.dy);
-    expect(modelCenter.dy, lessThan(thinkingCenter.dy));
-    expect(thinkingCenter.dx, lessThan(permissionCenter.dx));
-    expect(permissionCenter.dx, lessThan(webCenter.dx));
-    expect(webCenter.dx, lessThan(contextCenter.dx));
-    expect(contextCenter.dx, lessThan(sendCenter.dx));
-    expect(thinkingCenter.dy, sendCenter.dy);
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
     );
     expect(find.text('23%'), findsOneWidget);
 
-    final surface = tester.widget<Container>(
-      find.byKey(const ValueKey('agent-chat-composer-surface')),
+    final surfaceFinder = find.byKey(
+      const ValueKey('agent-chat-composer-surface'),
     );
+    for (final key in const [
+      'agent-chat-input',
+      'agent-chat-composer-expand',
+      'agent-chat-more-actions',
+      'agent-chat-model-selector',
+      'agent-chat-thinking-selector',
+      'agent-chat-permission-mode',
+      'agent-chat-web-access-toggle',
+      'agent-chat-context-target',
+      'agent-chat-send',
+    ]) {
+      expect(
+        find.descendant(of: surfaceFinder, matching: find.byKey(ValueKey(key))),
+        findsOneWidget,
+        reason: '$key must remain inside the composer surface',
+      );
+    }
+
+    final surface = tester.widget<Container>(surfaceFinder);
     final decoration = surface.decoration! as BoxDecoration;
+    expect(decoration.borderRadius, BorderRadius.circular(18));
     expect(decoration.border, isNull);
-    expect(decoration.boxShadow, isNull);
+    expect(decoration.boxShadow, isNotEmpty);
     expect(tester.takeException(), isNull);
   });
 
@@ -126,7 +138,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('narrow desktop uses one toolbar and one context ring', (
+  testWidgets('narrow desktop wraps every control without horizontal scroll', (
     tester,
   ) async {
     await _pumpComposer(
@@ -155,10 +167,14 @@ void main() {
       'agent-chat-send',
     ]) {
       expect(
-        tester.getCenter(find.byKey(ValueKey(key))).dy,
-        closeTo(toolbar.center.dy, 0.1),
+        toolbar.contains(tester.getCenter(find.byKey(ValueKey(key)))),
+        isTrue,
       );
     }
+    expect(
+      find.byKey(const ValueKey('agent-chat-composer-controls-wrap')),
+      findsNothing,
+    );
     expect(find.text('—'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-chat-context-ring')),
@@ -167,7 +183,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('very narrow desktop splits controls without overflow', (
+  testWidgets('very narrow desktop layers controls and keeps send visible', (
     tester,
   ) async {
     await _pumpComposer(tester, width: 265, mobile: false);
@@ -180,18 +196,10 @@ void main() {
     );
     expect(toolbar, settings);
     expect(toolbar.height, greaterThan(40));
-
-    final model = tester.getRect(
-      find.byKey(const ValueKey('agent-chat-model-selector')),
+    expect(
+      find.byKey(const ValueKey('agent-chat-composer-controls-wrap')),
+      findsOneWidget,
     );
-    final thinking = tester.getRect(
-      find.byKey(const ValueKey('agent-chat-thinking-selector')),
-    );
-    final permission = tester.getRect(
-      find.byKey(const ValueKey('agent-chat-permission-mode')),
-    );
-    expect(model.bottom, lessThanOrEqualTo(thinking.top));
-    expect(thinking.bottom, lessThanOrEqualTo(permission.bottom));
     for (final key in const [
       'agent-chat-more-actions',
       'agent-chat-model-selector',
@@ -201,9 +209,10 @@ void main() {
       'agent-chat-context-target',
       'agent-chat-send',
     ]) {
-      final control = tester.getRect(find.byKey(ValueKey(key)));
-      expect(control.left, greaterThanOrEqualTo(toolbar.left));
-      expect(control.right, lessThanOrEqualTo(toolbar.right));
+      expect(
+        toolbar.contains(tester.getCenter(find.byKey(ValueKey(key)))),
+        isTrue,
+      );
     }
     expect(tester.takeException(), isNull);
   });
@@ -291,60 +300,84 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'composer remains overflow-free across mobile widths and scaling',
-    (tester) async {
-      for (final width in const [320.0, 360.0, 412.0, 600.0, 840.0]) {
-        for (final scale in const [1.0, 1.6, 2.0]) {
-          await _pumpComposer(
-            tester,
-            width: width,
-            textScaler: TextScaler.linear(scale),
+  testWidgets('composer keeps every entry reachable at 320/600 and 3x text', (
+    tester,
+  ) async {
+    for (final width in const [320.0, 600.0]) {
+      for (final scale in const [1.0, 3.0]) {
+        await _pumpComposer(
+          tester,
+          width: width,
+          textScaler: TextScaler.linear(scale),
+        );
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'overflow at width=$width, scale=$scale',
+        );
+        for (final key in const [
+          'agent-chat-more-actions',
+          'agent-chat-model-selector',
+          'agent-chat-thinking-selector',
+          'agent-chat-permission-mode',
+          'agent-chat-web-access-toggle',
+          'agent-chat-context-target',
+          'agent-chat-send',
+        ]) {
+          final finder = find.byKey(ValueKey(key));
+          expect(finder, findsOneWidget, reason: '$key at width=$width');
+          expect(
+            tester.getRect(finder).isEmpty,
+            isFalse,
+            reason: '$key at width=$width, scale=$scale',
           );
           expect(
-            tester.takeException(),
-            isNull,
-            reason: 'overflow at width=$width, scale=$scale',
+            tester.getSize(finder).shortestSide,
+            greaterThanOrEqualTo(48),
+            reason: '$key at width=$width, scale=$scale',
           );
-          for (final key in const [
-            'agent-chat-more-actions',
-            'agent-chat-send',
-          ]) {
-            final size = tester.getSize(find.byKey(ValueKey(key)));
-            expect(
-              size.shortestSide,
-              greaterThanOrEqualTo(44),
-              reason: '$key at width=$width, scale=$scale',
-            );
-          }
-          final compactControls = find.byKey(
-            const ValueKey('agent-chat-compact-controls'),
-          );
-          if (compactControls.evaluate().isNotEmpty) {
-            expect(
-              tester.getSize(compactControls).shortestSide,
-              greaterThanOrEqualTo(44),
-            );
-          } else {
-            for (final key in const [
-              'agent-chat-thinking-selector',
-              'agent-chat-permission-mode',
-              'agent-chat-web-access-toggle',
-              'agent-chat-context-target',
-            ]) {
-              expect(
-                tester.getSize(find.byKey(ValueKey(key))).shortestSide,
-                greaterThanOrEqualTo(44),
-                reason: '$key at width=$width, scale=$scale',
-              );
-            }
-          }
         }
       }
-    },
-  );
+    }
+  });
 
-  testWidgets('running composer exposes queue steering follow-up and stop', (
+  testWidgets('desktop composer stays compact and overflow-free', (
+    tester,
+  ) async {
+    for (final scale in const [1.0, 3.0]) {
+      await _pumpComposer(
+        tester,
+        width: 1180,
+        mobile: false,
+        textScaler: TextScaler.linear(scale),
+      );
+
+      final input = tester.getRect(_input);
+      final controls = tester.getRect(
+        find.byKey(const ValueKey('agent-chat-message-actions')),
+      );
+      final more = tester.getCenter(
+        find.byKey(const ValueKey('agent-chat-more-actions')),
+      );
+      final model = tester.getCenter(
+        find.byKey(const ValueKey('agent-chat-model-selector')),
+      );
+      expect(input.bottom, lessThanOrEqualTo(controls.top));
+      expect(controls.height, scale == 1 ? 84 : 104);
+      expect(more.dx, lessThan(model.dx));
+      expect(
+        find.byKey(const ValueKey('agent-chat-composer-controls-scroll')),
+        findsNothing,
+      );
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'desktop overflow at text scale $scale',
+      );
+    }
+  });
+
+  testWidgets('running composer uses the send position as the stop control', (
     tester,
   ) async {
     final queued = AgentQueuedMessage(
@@ -365,8 +398,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('agent-chat-queue')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('agent-chat-follow-up')), findsOneWidget);
-    expect(find.byKey(const ValueKey('agent-chat-stop')), findsOneWidget);
-    expect(find.bySemanticsLabel('Steer current work'), findsWidgets);
+    expect(find.byKey(const ValueKey('agent-chat-stop')), findsNothing);
+    expect(find.byKey(const ValueKey('agent-chat-send')), findsOneWidget);
+    expect(find.bySemanticsLabel('Stop'), findsOneWidget);
     expect(find.bySemanticsLabel('Continue after current task'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
@@ -608,28 +642,33 @@ void main() {
     }
   });
 
-  testWidgets('running editor keeps stop and expand targets separate', (
+  testWidgets('running stop reuses the send target outside the editor', (
     tester,
   ) async {
+    var stopped = false;
     await _pumpComposer(
       tester,
       width: 320,
       mobile: false,
       state: _readyState.copyWith(status: AgentChatRunStatus.running),
+      onStop: () => stopped = true,
     );
 
     final editor = tester.getRect(
       find.byKey(const ValueKey('agent-chat-composer-editor')),
     );
-    final stop = tester.getRect(find.byKey(const ValueKey('agent-chat-stop')));
+    final stop = tester.getRect(find.byKey(const ValueKey('agent-chat-send')));
     final expand = tester.getRect(
       find.byKey(const ValueKey('agent-chat-composer-expand')),
     );
     expect(stop.overlaps(expand), isFalse);
-    expect(stop.center.dy, closeTo(editor.center.dy, 0.01));
-    expect(expand.center.dy, closeTo(editor.center.dy, 0.01));
+    expect(stop.top, greaterThanOrEqualTo(editor.bottom));
+    expect(expand.top, closeTo(editor.top + 2, 0.01));
+    expect(expand.right, lessThanOrEqualTo(editor.right - 4));
+    expect(find.byKey(const ValueKey('agent-chat-stop')), findsNothing);
     expect(find.bySemanticsLabel('Stop'), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp('^Expand')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('agent-chat-send')));
+    expect(stopped, isTrue);
     expect(tester.takeException(), isNull);
   });
 
@@ -931,6 +970,7 @@ Future<void> _pumpComposer(
   AgentChatState state = _readyState,
   AgentChatPanelController? controller,
   Future<void> Function()? onSend,
+  VoidCallback? onStop,
   Future<void> Function()? onAttachCurrentCanvas,
   void Function(AgentChatMoreAction action)? onMoreAction,
   AgentChatResourceReference? currentCanvasReference,
@@ -969,6 +1009,7 @@ Future<void> _pumpComposer(
                 height: height - viewInsets.bottom,
                 controller: controller,
                 onSend: onSend,
+                onStop: onStop,
                 onAttachCurrentCanvas: onAttachCurrentCanvas,
                 onMoreAction: onMoreAction,
                 currentCanvasReference: currentCanvasReference,
@@ -991,6 +1032,7 @@ class _ComposerHarness extends StatefulWidget {
     required this.height,
     this.controller,
     this.onSend,
+    this.onStop,
     this.onAttachCurrentCanvas,
     this.onMoreAction,
     this.currentCanvasReference,
@@ -1003,6 +1045,7 @@ class _ComposerHarness extends StatefulWidget {
   final double height;
   final AgentChatPanelController? controller;
   final Future<void> Function()? onSend;
+  final VoidCallback? onStop;
   final Future<void> Function()? onAttachCurrentCanvas;
   final void Function(AgentChatMoreAction action)? onMoreAction;
   final AgentChatResourceReference? currentCanvasReference;
@@ -1058,7 +1101,7 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
       resolveResourcePreview: (_) async => null,
       send: widget.onSend ?? () async {},
       sendFollowUp: () async {},
-      stop: () {},
+      stop: widget.onStop ?? () {},
       dismissError: () {},
       retryLastMessage: () async {},
       resolveApproval: (_, _) => true,

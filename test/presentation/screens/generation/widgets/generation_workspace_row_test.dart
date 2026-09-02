@@ -47,14 +47,16 @@ void main() {
           ),
           reason: 'width=$width',
         );
+        final panelRect = tester.getRect(
+          find.byKey(ValueKey('test-generation-right-panel-$desktop')),
+        );
+        expect(panelRect.right, lessThanOrEqualTo(width));
         if (desktop) {
-          final expectsExpanded = width >= 1600;
-          final panelRect = tester.getRect(
-            find.byKey(
-              ValueKey('test-generation-right-panel-$expectsExpanded'),
-            ),
+          expect(
+            panelRect.left,
+            lessThan(mainRect.right),
+            reason: 'expanded panel must overlay the main workspace',
           );
-          expect(panelRect.right, lessThanOrEqualTo(width));
         }
       }
       await tester.binding.setSurfaceSize(null);
@@ -108,7 +110,7 @@ void main() {
           reason: 'width=$width',
         );
         expect(
-          find.byKey(const ValueKey('test-classic-right-panel-false')),
+          find.byKey(const ValueKey('test-classic-right-panel-true')),
           findsOneWidget,
         );
       }
