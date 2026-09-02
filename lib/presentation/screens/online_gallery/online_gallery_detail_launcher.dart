@@ -31,6 +31,7 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/online_gallery/gallery_detail_dialog.dart';
 import '../../widgets/online_gallery/gallery_prompt_copy_dialog.dart';
 import '../watermark/watermark_editor_launcher.dart';
+import 'online_gallery_detail_loading_dialog.dart';
 import 'online_gallery_screen_controller.dart';
 import 'online_gallery_utils.dart';
 
@@ -225,28 +226,12 @@ class OnlineGalleryDetailLauncher {
       barrierDismissible: false,
       builder: (dialogContext) {
         if (!shown.isCompleted) shown.complete(dialogContext);
-        return AlertDialog(
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox.square(
-                dimension: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              ),
-              const SizedBox(width: 16),
-              Text(context.l10n.common_loading),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                if (!cancelled.isCompleted) cancelled.complete();
-                dismissRequested = true;
-                Navigator.of(dialogContext, rootNavigator: true).pop();
-              },
-              child: Text(context.l10n.common_cancel),
-            ),
-          ],
+        return OnlineGalleryDetailLoadingDialog(
+          onCancel: () {
+            if (!cancelled.isCompleted) cancelled.complete();
+            dismissRequested = true;
+            Navigator.of(dialogContext, rootNavigator: true).pop();
+          },
         );
       },
     );
