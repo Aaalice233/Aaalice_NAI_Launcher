@@ -216,6 +216,14 @@ abstract interface class CloudSyncDataSource {
   Future<void> completeOperation(String operationId);
 }
 
+/// Durable performance cache for provider revisions whose object bytes have
+/// already been verified against their content-addressed SHA-256 identity.
+abstract interface class CloudObjectVerificationDataSource {
+  Future<Map<String, String>> readVerifiedCloudObjects();
+
+  Future<void> writeVerifiedCloudObjects(Map<String, String> revisions);
+}
+
 /// Optional hook for data sources that must augment a captured local recovery
 /// point with allowlisted tombstones for records introduced by [target].
 abstract interface class CloudSyncRecoveryPointBuilder {

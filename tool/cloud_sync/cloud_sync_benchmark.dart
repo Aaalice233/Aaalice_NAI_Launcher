@@ -480,14 +480,21 @@ final class _BenchmarkBackend
   int get maxConcurrentObjectUploads => 8;
 
   @override
-  Future<Set<String>> findExistingObjects(
-    Map<String, int> expectedObjects,
-  ) async {
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
     logicalCalls++;
-    return {
+    final found = {
       for (final entry in expectedObjects.entries)
         if (objects[entry.key] == entry.value) entry.key,
     };
+    return CloudObjectInventoryResult(
+      existingObjectIds: found,
+      verifiedRevisions: {for (final id in found) id: id},
+    );
   }
 
   @override

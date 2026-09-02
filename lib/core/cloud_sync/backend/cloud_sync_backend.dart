@@ -1,4 +1,7 @@
+import 'dart:collection';
 import 'dart:typed_data';
+
+import '../operation.dart';
 
 const maxCloudHeadResponseBytes = 64 * 1024;
 const maxCloudManifestResponseBytes = 1024 * 1024 + 64;
@@ -93,8 +96,67 @@ abstract interface class ConcurrentCloudObjectUploadBackend {
 /// Optional operation-scoped inventory for immutable content-addressed
 /// objects. Implementations must reject duplicate/conflicting entries and may
 /// report an object as existing only after validating its identity and size.
+typedef CloudObjectInventoryProgressCallback =
+    void Function(CloudObjectInventoryProgress progress);
+
+class CloudObjectInventoryProgress {
+  const CloudObjectInventoryProgress({
+    required this.objectsCompleted,
+    required this.objectsTotal,
+    required this.bytesCompleted,
+    required this.bytesTotal,
+  });
+
+  final int objectsCompleted;
+  final int objectsTotal;
+  final int bytesCompleted;
+  final int bytesTotal;
+}
+
+class CloudObjectInventoryResult extends SetBase<String> {
+  CloudObjectInventoryResult({
+    required Set<String> existingObjectIds,
+    required Map<String, String> verifiedRevisions,
+  }) : existingObjectIds = Set.unmodifiable(existingObjectIds),
+       verifiedRevisions = Map.unmodifiable(verifiedRevisions);
+
+  CloudObjectInventoryResult.empty()
+    : existingObjectIds = const {},
+      verifiedRevisions = const {};
+
+  final Set<String> existingObjectIds;
+  final Map<String, String> verifiedRevisions;
+
+  @override
+  bool add(String value) => throw UnsupportedError('Inventory is immutable');
+
+  @override
+  bool contains(Object? element) => existingObjectIds.contains(element);
+
+  @override
+  Iterator<String> get iterator => existingObjectIds.iterator;
+
+  @override
+  int get length => existingObjectIds.length;
+
+  @override
+  String? lookup(Object? element) => existingObjectIds.lookup(element);
+
+  @override
+  bool remove(Object? value) =>
+      throw UnsupportedError('Inventory is immutable');
+
+  @override
+  Set<String> toSet() => Set.of(existingObjectIds);
+}
+
 abstract interface class CloudObjectInventoryBackend {
-  Future<Set<String>> findExistingObjects(Map<String, int> expectedObjects);
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  });
 }
 
 /// Optional lightweight validation used while saving or restoring a WebDAV

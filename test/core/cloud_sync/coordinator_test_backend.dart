@@ -18,9 +18,12 @@ class CoordinatorTestBackend
   var objectReads = 0;
 
   @override
-  Future<Set<String>> findExistingObjects(
-    Map<String, int> expectedObjects,
-  ) async {
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
     inventoryCalls++;
     final existing = <String>{};
     for (final entry in expectedObjects.entries) {
@@ -34,7 +37,10 @@ class CoordinatorTestBackend
       }
       existing.add(entry.key);
     }
-    return existing;
+    return CloudObjectInventoryResult(
+      existingObjectIds: existing,
+      verifiedRevisions: {for (final id in existing) id: objects[id]!.revision},
+    );
   }
 
   @override

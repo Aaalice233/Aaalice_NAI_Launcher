@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart';
 import '../../core/cloud_sync/data_source.dart';
 import '../../core/cloud_sync/models.dart';
 import '../../core/cloud_sync/record_merge.dart';
+import '../../core/cloud_sync/telemetry_log.dart';
 import 'cloud_sync_data_adapter.dart';
 import 'cloud_sync_data_adapter_registry.dart';
 import 'cloud_sync_operation_storage.dart';
@@ -20,6 +21,7 @@ class AppCloudSyncDataSource
         CloudSyncPayloadMaterializer,
         CloudSyncLocalPayloadResolver,
         CloudSyncPreviewStore,
+        CloudObjectVerificationDataSource,
         CloudSyncRecoveryPointBuilder,
         CloudSyncConflictRecordCopier {
   AppCloudSyncDataSource({
@@ -51,6 +53,9 @@ class AppCloudSyncDataSource
   final Map<String, CloudSyncSnapshotData> _recoverySnapshots = {};
   Future<void>? _startupMaintenance;
 
+  static const _maxVerificationCacheBytes = 16 * 1024 * 1024;
+  static const _maxVerificationCacheEntries = 100000;
+
   PortableRecordCodec get _codec => PortableRecordCodec(stableId: _stableId);
 
   Future<DecodedPortableSnapshot> _decodeSnapshot(
@@ -58,6 +63,8 @@ class AppCloudSyncDataSource
   ) => _decodedSnapshots[snapshot] ??= _codec.decode(snapshot);
 
   Directory get _base => Directory('${_root.path}/base');
+  File get _verificationCache =>
+      File('${_root.path}/verified-remote-objects.json');
   Directory _stage(String id) => _operations.stage(id);
   Directory _recovery(String id) => _operations.recovery(id);
   Directory _baseRecovery(String id) => _operations.baseRecovery(id);
@@ -686,6 +693,77 @@ class AppCloudSyncDataSource
       throw const CloudFormatException('base recovery state is missing');
     }
     await _operations.deleteSnapshot(_base);
+  }
+
+  @override
+  Future<Map<String, String>> readVerifiedCloudObjects() async {
+    try {
+      final file = _verificationCache;
+      if (!await file.exists()) return const {};
+      if (await file.length() > _maxVerificationCacheBytes) {
+        throw const FormatException('verification cache is too large');
+      }
+      final value = jsonDecode(await file.readAsString());
+      if (value is! Map<String, dynamic> ||
+          value.length != 2 ||
+          value['version'] != 1 ||
+          value['objects'] is! Map) {
+        throw const FormatException('invalid verification cache');
+      }
+      final objects = <String, String>{};
+      for (final entry in (value['objects'] as Map).entries) {
+        if (entry.key is! String ||
+            entry.value is! String ||
+            !RegExp(r'^[0-9a-f]{64}$').hasMatch(entry.key as String) ||
+            (entry.value as String).isEmpty ||
+            (entry.value as String).length > 1024) {
+          throw const FormatException('invalid verification cache entry');
+        }
+        objects[entry.key as String] = entry.value as String;
+        if (objects.length > _maxVerificationCacheEntries) {
+          throw const FormatException('too many verification cache entries');
+        }
+      }
+      return Map.unmodifiable(objects);
+    } catch (error) {
+      logCloudSyncMetrics(
+        'Ignoring invalid cloud object verification cache: '
+        'type=${error.runtimeType}',
+      );
+      return const {};
+    }
+  }
+
+  @override
+  Future<void> writeVerifiedCloudObjects(Map<String, String> revisions) async {
+    try {
+      final entries = revisions.entries.toList()
+        ..sort((left, right) => left.key.compareTo(right.key));
+      if (entries.length > _maxVerificationCacheEntries) {
+        entries.removeRange(0, entries.length - _maxVerificationCacheEntries);
+      }
+      final bytes = utf8.encode(
+        jsonEncode({
+          'version': 1,
+          'objects': {for (final entry in entries) entry.key: entry.value},
+        }),
+      );
+      if (bytes.length > _maxVerificationCacheBytes) {
+        throw const FormatException('verification cache is too large');
+      }
+      final destination = _verificationCache;
+      await destination.parent.create(recursive: true);
+      final temporary = File('${destination.path}.tmp');
+      if (await temporary.exists()) await temporary.delete();
+      await temporary.writeAsBytes(bytes, flush: true);
+      if (await destination.exists()) await destination.delete();
+      await temporary.rename(destination.path);
+    } catch (error) {
+      logCloudSyncMetrics(
+        'Unable to persist cloud object verification cache: '
+        'type=${error.runtimeType}',
+      );
+    }
   }
 
   @override

@@ -4,8 +4,10 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:xml/xml.dart';
 
+import '../operation.dart';
 import '../telemetry.dart';
 import 'backend_http.dart';
+import 'cloud_object_inventory_verifier.dart';
 import 'cloud_object_naming.dart';
 import 'cloud_sync_backend.dart';
 
@@ -16,12 +18,14 @@ class WebDavOperationInventory {
     required this.headers,
     required this.objects,
     required this.verifiedObjectRevisions,
+    required this.verificationScope,
   });
 
   final BackendHttp http;
   final Map<String, String> headers;
   final Uri objects;
   final Map<String, String> verifiedObjectRevisions;
+  final String verificationScope;
 
   static final Uint8List _properties = Uint8List.fromList(
     utf8.encode(
@@ -31,8 +35,14 @@ class WebDavOperationInventory {
     ),
   );
 
-  Future<Set<String>> findExisting(Map<String, int> expectedObjects) async {
-    if (expectedObjects.isEmpty) return const <String>{};
+  Future<CloudObjectInventoryResult> findExisting(
+    Map<String, int> expectedObjects, {
+    required Map<String, String> trustedRevisions,
+    required int maxConcurrentItems,
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
+    if (expectedObjects.isEmpty) return CloudObjectInventoryResult.empty();
     final response = await http.request(
       'PROPFIND',
       objects,
@@ -44,14 +54,17 @@ class WebDavOperationInventory {
       data: _properties,
       maxResponseBytes: maxCloudListingResponseBytes,
     );
-    if (response.statusCode == 404) return const <String>{};
+    if (response.statusCode == 404) {
+      return CloudObjectInventoryResult.empty();
+    }
     if (response.statusCode != 207) {
       throw _invalid('读取 WebDAV 对象清单失败（HTTP ${response.statusCode ?? 0}）。');
     }
 
+    final candidates = <CloudObjectInventoryCandidate>[];
+    final urisByObjectId = <String, Uri>{};
     try {
       final document = XmlDocument.parse(BackendHttp.rawTextOf(response));
-      final found = <String>{};
       final seenNames = <String>{};
       for (final item in document.findAllElements(
         'response',
@@ -107,41 +120,66 @@ class WebDavOperationInventory {
             ?.innerText
             .trim();
         if (!_isStrongEtag(etag)) continue;
-        if (verifiedObjectRevisions[name] != etag) {
-          final content = await http.request(
-            'GET',
-            resolved,
-            headers: {...headers, 'If-Match': etag!},
-            maxResponseBytes: maxCloudObjectResponseBytes,
-          );
-          if (content.statusCode == 412) {
-            throw const CloudBackendException(
-              CloudBackendErrorKind.conflict,
-              'WebDAV 对象清单在校验期间发生变化。',
-            );
-          }
-          if (content.statusCode != 200) {
-            throw _invalid(
-              '读取 WebDAV 不可变对象失败（HTTP ${content.statusCode ?? 0}）。',
-            );
-          }
-          CloudSyncTelemetry.recordHashPass();
-          if (sha256.convert(BackendHttp.bytesOf(content)).toString() != name) {
-            throw const CloudBackendException(
-              CloudBackendErrorKind.conflict,
-              'WebDAV 已存在内容不一致的不可变对象。',
-            );
-          }
-          verifiedObjectRevisions[name] = etag;
-        }
-        found.add(name);
+        urisByObjectId[name] = resolved;
+        candidates.add(
+          CloudObjectInventoryCandidate(
+            objectId: name,
+            size: length,
+            revision: etag!,
+            verificationRevision:
+                'webdav:$verificationScope:${resolved.toString()}:$etag',
+          ),
+        );
       }
-      return Set.unmodifiable(found);
     } on CloudBackendException {
       rethrow;
     } catch (_) {
       throw _invalid('WebDAV 返回了无法解析的对象清单。');
     }
+
+    final effectiveTrustedRevisions = {...trustedRevisions};
+    for (final candidate in candidates) {
+      final inMemory = verifiedObjectRevisions[candidate.objectId];
+      if (inMemory == candidate.revision ||
+          inMemory == candidate.verificationRevision) {
+        effectiveTrustedRevisions[candidate.objectId] =
+            candidate.verificationRevision;
+      }
+    }
+    final result = await verifyCloudObjectInventory(
+      candidates: candidates,
+      trustedRevisions: effectiveTrustedRevisions,
+      maxConcurrentItems: maxConcurrentItems,
+      token: token,
+      onProgress: onProgress,
+      verify: (candidate) async {
+        final content = await http.request(
+          'GET',
+          urisByObjectId[candidate.objectId]!,
+          headers: {...headers, 'If-Match': candidate.revision},
+          maxResponseBytes: maxCloudObjectResponseBytes,
+        );
+        if (content.statusCode == 412) {
+          throw const CloudBackendException(
+            CloudBackendErrorKind.conflict,
+            'WebDAV 对象清单在校验期间发生变化。',
+          );
+        }
+        if (content.statusCode != 200) {
+          throw _invalid('读取 WebDAV 不可变对象失败（HTTP ${content.statusCode ?? 0}）。');
+        }
+        CloudSyncTelemetry.recordHashPass();
+        if (sha256.convert(BackendHttp.bytesOf(content)).toString() !=
+            candidate.objectId) {
+          throw const CloudBackendException(
+            CloudBackendErrorKind.conflict,
+            'WebDAV 已存在内容不一致的不可变对象。',
+          );
+        }
+      },
+    );
+    verifiedObjectRevisions.addAll(result.verifiedRevisions);
+    return result;
   }
 
   Uri _resolveSafeHref(String href) {

@@ -4,7 +4,9 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
 import 'cloud_namespace.dart';
+import '../operation.dart';
 import '../telemetry.dart';
+import 'cloud_object_inventory_verifier.dart';
 import 'cloud_object_naming.dart';
 import 'cloud_sync_backend.dart';
 import 'onedrive_api_client.dart';
@@ -83,10 +85,13 @@ class OneDriveCloudSyncBackend
   }
 
   @override
-  Future<Set<String>> findExistingObjects(
-    Map<String, int> expectedObjects,
-  ) async {
-    if (expectedObjects.isEmpty) return const <String>{};
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
+    if (expectedObjects.isEmpty) return CloudObjectInventoryResult.empty();
     for (final entry in expectedObjects.entries) {
       if (!_sha256FileName.hasMatch(entry.key) || entry.value < 0) {
         throw const FormatException('Invalid cloud object inventory');
@@ -112,7 +117,7 @@ class OneDriveCloudSyncBackend
       byName[item.name] = item;
     }
 
-    final existing = <String>{};
+    final candidates = <CloudObjectInventoryCandidate>[];
     for (final entry in expectedObjects.entries) {
       final item = byName[entry.key];
       if (item == null) continue;
@@ -122,23 +127,53 @@ class OneDriveCloudSyncBackend
           'OneDrive 已存在大小不一致的不可变对象。',
         );
       }
-      if (_verifiedObjectRevisions[entry.key] != item.eTag) {
+      final itemId = item.id;
+      if (itemId == null || itemId.isEmpty) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          'OneDrive 对象清单缺少文件标识。',
+        );
+      }
+      candidates.add(
+        CloudObjectInventoryCandidate(
+          objectId: entry.key,
+          size: entry.value,
+          revision: item.eTag,
+          verificationRevision: 'onedrive:$itemId:${item.eTag}',
+        ),
+      );
+    }
+    final effectiveTrustedRevisions = {...trustedRevisions};
+    for (final candidate in candidates) {
+      final inMemory = _verifiedObjectRevisions[candidate.objectId];
+      if (inMemory == candidate.revision ||
+          inMemory == candidate.verificationRevision) {
+        effectiveTrustedRevisions[candidate.objectId] =
+            candidate.verificationRevision;
+      }
+    }
+    final result = await verifyCloudObjectInventory(
+      candidates: candidates,
+      trustedRevisions: effectiveTrustedRevisions,
+      maxConcurrentItems: maxConcurrentObjectUploads,
+      token: token,
+      onProgress: onProgress,
+      verify: (candidate) async {
         final bytes = await _api.download(
-          '$_objectsPath/${entry.key}',
-          expectedETag: item.eTag,
+          '$_objectsPath/${candidate.objectId}',
+          expectedETag: candidate.revision,
           maxBytes: maxCloudObjectResponseBytes,
         );
-        if (_hashBytes(bytes) != entry.key) {
+        if (_hashBytes(bytes) != candidate.objectId) {
           throw const CloudBackendException(
             CloudBackendErrorKind.conflict,
             'OneDrive 已存在内容不一致的不可变对象。',
           );
         }
-        _verifiedObjectRevisions[entry.key] = item.eTag;
-      }
-      existing.add(entry.key);
-    }
-    return existing;
+      },
+    );
+    _verifiedObjectRevisions.addAll(result.verifiedRevisions);
+    return result;
   }
 
   @override

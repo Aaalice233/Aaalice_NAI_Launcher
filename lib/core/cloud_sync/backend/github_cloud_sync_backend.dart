@@ -5,9 +5,11 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
+import '../operation.dart';
 import '../telemetry.dart';
 import 'backend_http.dart';
 import 'cloud_namespace.dart';
+import 'cloud_object_inventory_verifier.dart';
 import 'cloud_object_naming.dart';
 import 'cloud_sync_backend.dart';
 import 'github_api_client.dart';
@@ -141,9 +143,12 @@ class GitHubCloudSyncBackend
   }
 
   @override
-  Future<Set<String>> findExistingObjects(
-    Map<String, int> expectedObjects,
-  ) async {
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
     for (final entry in expectedObjects.entries) {
       GitHubBackendSupport.validateId(entry.key);
       if (entry.value < 0 || !RegExp(r'^[a-f0-9]{64}$').hasMatch(entry.key)) {
@@ -151,7 +156,8 @@ class GitHubCloudSyncBackend
       }
     }
     final session = await _stagingSession();
-    final existing = <String>{};
+    final candidates = <CloudObjectInventoryCandidate>[];
+    final blobsByObjectId = <String, String>{};
     for (final entry in expectedObjects.entries) {
       final remote = session.inventory['$_root/objects/${entry.key}'];
       if (remote == null) continue;
@@ -161,22 +167,46 @@ class GitHubCloudSyncBackend
           'GitHub 已存在大小不一致的不可变对象。',
         );
       }
-      if (_verifiedObjectRevisions[entry.key] != remote.sha) {
+      blobsByObjectId[entry.key] = remote.sha;
+      candidates.add(
+        CloudObjectInventoryCandidate(
+          objectId: entry.key,
+          size: entry.value,
+          revision: remote.sha,
+          verificationRevision: 'github:$owner/$repository:${remote.sha}',
+        ),
+      );
+    }
+    final effectiveTrustedRevisions = {...trustedRevisions};
+    for (final candidate in candidates) {
+      final inMemory = _verifiedObjectRevisions[candidate.objectId];
+      if (inMemory == candidate.revision ||
+          inMemory == candidate.verificationRevision) {
+        effectiveTrustedRevisions[candidate.objectId] =
+            candidate.verificationRevision;
+      }
+    }
+    final result = await verifyCloudObjectInventory(
+      candidates: candidates,
+      trustedRevisions: effectiveTrustedRevisions,
+      maxConcurrentItems: maxConcurrentObjectUploads,
+      token: token,
+      onProgress: onProgress,
+      verify: (candidate) async {
         final read = await _api.readBlob(
-          remote.sha,
+          blobsByObjectId[candidate.objectId]!,
           maxBytes: maxCloudObjectResponseBytes,
         );
-        if (_hashBytes(read.bytes) != entry.key) {
+        if (_hashBytes(read.bytes) != candidate.objectId) {
           throw const CloudBackendException(
             CloudBackendErrorKind.conflict,
             'GitHub 已存在内容不一致的不可变对象。',
           );
         }
-        _verifiedObjectRevisions[entry.key] = remote.sha;
-      }
-      existing.add(entry.key);
-    }
-    return existing;
+      },
+    );
+    _verifiedObjectRevisions.addAll(result.verifiedRevisions);
+    return result;
   }
 
   @override

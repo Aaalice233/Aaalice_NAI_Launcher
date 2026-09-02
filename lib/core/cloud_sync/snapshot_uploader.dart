@@ -60,14 +60,38 @@ class ResumableSnapshotUploader {
     }
     final objectIds = uniquePayloads.keys.toList(growable: false);
     _validateCompletedSet(current, objectIds);
-    await _verifyCompletedObjects(current, uniquePayloads, token);
-    final existingObjectIds = backend is CloudObjectInventoryBackend
-        ? await (backend as CloudObjectInventoryBackend).findExistingObjects({
-            for (final entry in uniquePayloads.entries)
-              if (!current.completedObjectIds.contains(entry.key))
-                entry.key: entry.value.length,
-          })
-        : const <String>{};
+    final verificationDataSource =
+        dataSource is CloudObjectVerificationDataSource
+        ? dataSource as CloudObjectVerificationDataSource
+        : null;
+    final trustedRevisions =
+        await verificationDataSource?.readVerifiedCloudObjects() ?? const {};
+    final verifiedRevisions = <String, String>{...trustedRevisions};
+    verifiedRevisions.addAll(
+      await _verifyCompletedObjects(current, uniquePayloads, token),
+    );
+    final inventoryResult = backend is CloudObjectInventoryBackend
+        ? await (backend as CloudObjectInventoryBackend).findExistingObjects(
+            {
+              for (final entry in uniquePayloads.entries)
+                if (!current.completedObjectIds.contains(entry.key))
+                  entry.key: entry.value.length,
+            },
+            trustedRevisions: trustedRevisions,
+            token: token,
+            onProgress: (progress) => onProgress?.call(
+              SyncProgress(
+                phase: SyncPhase.verifying,
+                objectsCompleted: progress.objectsCompleted,
+                objectsTotal: progress.objectsTotal,
+                bytesCompleted: progress.bytesCompleted,
+                bytesTotal: progress.bytesTotal,
+              ),
+            ),
+          )
+        : CloudObjectInventoryResult.empty();
+    final existingObjectIds = inventoryResult.existingObjectIds;
+    verifiedRevisions.addAll(inventoryResult.verifiedRevisions);
     if (existingObjectIds.any((id) => !uniquePayloads.containsKey(id))) {
       throw const CloudFormatException(
         'backend inventory returned an unknown object',
@@ -182,11 +206,13 @@ class ResumableSnapshotUploader {
         token: token,
         transfer: (objectId) async {
           final payload = uniquePayloads[objectId]!;
-          await _ensureObject(
+          final revision = await _ensureObject(
             objectId,
             payload,
             knownExisting: existingObjectIds.contains(objectId),
+            knownRevision: inventoryResult.verifiedRevisions[objectId],
           );
+          if (revision != null) verifiedRevisions[objectId] = revision;
           completedObjects++;
           completedBytes += payload.length;
           onProgress?.call(
@@ -206,6 +232,7 @@ class ResumableSnapshotUploader {
     } finally {
       await flushCompleted();
     }
+    await verificationDataSource?.writeVerifiedCloudObjects(verifiedRevisions);
 
     if (current.phase != JournalPhase.uploadingManifest) {
       current = current.copyWith(
@@ -292,26 +319,28 @@ class ResumableSnapshotUploader {
     return _checkpointCommitted(current, token, checkpoint);
   }
 
-  Future<void> _ensureObject(
+  Future<String?> _ensureObject(
     String objectId,
     CloudSyncPayload payload, {
     required bool knownExisting,
+    required String? knownRevision,
   }) async {
-    if (knownExisting) return;
+    if (knownExisting) return knownRevision;
     if (backend is! CloudObjectInventoryBackend) {
       final existing = await backend.readObject(objectId);
       if (existing != null) {
         _verifyObject(objectId, payload.length, existing.bytes);
-        return;
+        return existing.revision;
       }
     }
     final bytes = await _readPayloadForUpload(payload);
-    await backend.putObject(
+    final result = await backend.putObject(
       objectId,
       bytes,
       sha256: objectId,
       payloadVerified: true,
     );
+    return result.revision;
   }
 
   Future<Uint8List> _readPayloadForUpload(CloudSyncPayload payload) async {
@@ -338,11 +367,12 @@ class ResumableSnapshotUploader {
     return bytes;
   }
 
-  Future<void> _verifyCompletedObjects(
+  Future<Map<String, String>> _verifyCompletedObjects(
     SyncJournal journal,
     Map<String, CloudSyncPayload> payloads,
     OperationToken token,
   ) async {
+    final revisions = <String, String>{};
     final scheduler = BoundedTransferScheduler(
       maxConcurrentItems: _uploadConcurrency,
       maxBytesInFlight: _transferLimits.maxBytesInFlight,
@@ -359,8 +389,10 @@ class ResumableSnapshotUploader {
           throw CloudFormatException('checkpointed object $id is missing');
         }
         _verifyObject(id, payloads[id]!.length, remote.bytes);
+        revisions[id] = remote.revision;
       },
     );
+    return revisions;
   }
 
   void _verifyObject(String objectId, int size, List<int> bytes) {

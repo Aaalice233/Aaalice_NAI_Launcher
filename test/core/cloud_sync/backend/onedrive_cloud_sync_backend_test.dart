@@ -187,6 +187,44 @@ void main() {
     },
   );
 
+  test('trusted inventory revisions avoid rebuilding content hashes', () async {
+    final firstBytes = Uint8List.fromList([1, 2, 3]);
+    final secondBytes = Uint8List.fromList([4, 5]);
+    final firstId = sha256.convert(firstBytes).toString();
+    final secondId = sha256.convert(secondBytes).toString();
+    final api = _FakeOneDriveApi()
+      ..putFile('cloud/objects/$firstId', firstBytes)
+      ..putFile('cloud/objects/$secondId', secondBytes);
+    final progress = <CloudObjectInventoryProgress>[];
+
+    final first = await _backend(api).findExistingObjects({
+      firstId: firstBytes.length,
+      secondId: secondBytes.length,
+    });
+    final downloadsAfterFirst = api.requests
+        .where((request) => request.uri.host == 'signed.onedrive.test')
+        .length;
+    final second = await _backend(api).findExistingObjects(
+      {firstId: firstBytes.length, secondId: secondBytes.length},
+      trustedRevisions: first.verifiedRevisions,
+      onProgress: progress.add,
+    );
+
+    expect(second, {firstId, secondId});
+    expect(
+      api.requests.where(
+        (request) => request.uri.host == 'signed.onedrive.test',
+      ),
+      hasLength(downloadsAfterFirst),
+    );
+    expect(progress.first.objectsCompleted, 0);
+    expect(progress.last.objectsCompleted, 2);
+    expect(
+      progress.last.bytesCompleted,
+      firstBytes.length + secondBytes.length,
+    );
+  });
+
   test(
     'object inventory fails closed on size and duplicate conflicts',
     () async {

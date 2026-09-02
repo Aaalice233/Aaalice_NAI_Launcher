@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:xml/xml.dart';
 
+import '../operation.dart';
 import '../telemetry.dart';
 import 'backend_http.dart';
 import 'cloud_namespace.dart';
@@ -72,6 +73,9 @@ class WebDavCloudSyncBackend
   @override
   int get maxConcurrentObjectUploads =>
       _verifiedMode == CloudBackendMode.manualBackupOnly ? 1 : 4;
+  String get _verificationScope => sha256
+      .convert(utf8.encode('$_baseUri\n$_authorization\n$namespace'))
+      .toString();
   Map<String, String> get _headers => {
     'Authorization': _authorization,
     'Accept-Encoding': 'identity',
@@ -151,9 +155,12 @@ class WebDavCloudSyncBackend
       _get(_snapshotUri(snapshotId), maxBytes: maxCloudManifestResponseBytes);
 
   @override
-  Future<Set<String>> findExistingObjects(
-    Map<String, int> expectedObjects,
-  ) async {
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
     for (final entry in expectedObjects.entries) {
       CloudObjectNaming.validateId(entry.key);
       if (entry.value < 0 || entry.value > maxCloudObjectResponseBytes) {
@@ -168,7 +175,7 @@ class WebDavCloudSyncBackend
     // listing entry as proof that an upload can be skipped.
     if (_verifiedMode == CloudBackendMode.manualBackupOnly ||
         expectedObjects.isEmpty) {
-      return const <String>{};
+      return CloudObjectInventoryResult.empty();
     }
     await _ensureCollection(_objects);
     return WebDavOperationInventory(
@@ -176,7 +183,14 @@ class WebDavCloudSyncBackend
       headers: _headers,
       objects: _objects,
       verifiedObjectRevisions: _verifiedObjectRevisions,
-    ).findExisting(expectedObjects);
+      verificationScope: _verificationScope,
+    ).findExisting(
+      expectedObjects,
+      trustedRevisions: trustedRevisions,
+      token: token,
+      onProgress: onProgress,
+      maxConcurrentItems: maxConcurrentObjectUploads,
+    );
   }
 
   @override

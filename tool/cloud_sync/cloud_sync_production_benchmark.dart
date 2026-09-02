@@ -290,9 +290,12 @@ final class _DiskBenchmarkBackend
       );
 
   @override
-  Future<Set<String>> findExistingObjects(
-    Map<String, int> expectedObjects,
-  ) async {
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
     final found = <String>{};
     for (final entry in expectedObjects.entries) {
       final file = File('${_objects.path}/${entry.key}');
@@ -300,7 +303,10 @@ final class _DiskBenchmarkBackend
         found.add(entry.key);
       }
     }
-    return found;
+    return CloudObjectInventoryResult(
+      existingObjectIds: found,
+      verifiedRevisions: {for (final id in found) id: id},
+    );
   }
 
   @override

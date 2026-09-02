@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
 import '../operation.dart';
+import 'cloud_object_inventory_verifier.dart';
 import '../telemetry.dart';
 import 'backend_http.dart';
 import 'cloud_namespace.dart';
@@ -162,11 +163,15 @@ class GoogleDriveCloudSyncBackend
   );
 
   @override
-  Future<Set<String>> findExistingObjects(
-    Map<String, int> expectedObjects,
-  ) async {
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
     final inventory = await _loadInventory();
-    final existing = <String>{};
+    final inventoryCandidates = <CloudObjectInventoryCandidate>[];
+    final filesByObjectId = <String, _DriveFile>{};
     for (final entry in expectedObjects.entries) {
       CloudObjectNaming.validateId(entry.key);
       if (entry.value < 0 || entry.value > maxCloudObjectResponseBytes) {
@@ -175,34 +180,63 @@ class GoogleDriveCloudSyncBackend
           '待上传对象的预期大小无效。',
         );
       }
-      final candidates = inventory[_fileName('object', entry.key)] ?? const [];
-      if (candidates.length > 1) {
+      final files = inventory[_fileName('object', entry.key)] ?? const [];
+      if (files.length > 1) {
         throw const CloudBackendException(
           CloudBackendErrorKind.conflict,
           'Google Drive 中存在多个同名不可变对象，无法确认对象身份。',
         );
       }
-      if (candidates.isEmpty) continue;
-      final file = candidates.single;
+      if (files.isEmpty) continue;
+      final file = files.single;
       if (file.recordType != 'object' || file.size != entry.value) {
         throw const CloudBackendException(
           CloudBackendErrorKind.conflict,
           'Google Drive 中的不可变对象元数据与待上传对象不一致。',
         );
       }
-      if (_verifiedObjectRevisions[file.name] != file.revision) {
-        final read = await _download(file, maxCloudObjectResponseBytes);
-        if (_hashBytes(read.bytes) != entry.key) {
+      filesByObjectId[entry.key] = file;
+      inventoryCandidates.add(
+        CloudObjectInventoryCandidate(
+          objectId: entry.key,
+          size: entry.value,
+          revision: file.revision,
+          verificationRevision: 'google-drive:${file.id}:${file.revision}',
+        ),
+      );
+    }
+    final inMemoryRevisions = <String, String>{};
+    for (final candidate in inventoryCandidates) {
+      final inMemory =
+          _verifiedObjectRevisions[_fileName('object', candidate.objectId)];
+      if (inMemory == candidate.revision ||
+          inMemory == candidate.verificationRevision) {
+        inMemoryRevisions[candidate.objectId] = candidate.verificationRevision;
+      }
+    }
+    final result = await verifyCloudObjectInventory(
+      candidates: inventoryCandidates,
+      trustedRevisions: {...trustedRevisions, ...inMemoryRevisions},
+      maxConcurrentItems: maxConcurrentObjectUploads,
+      token: token,
+      onProgress: onProgress,
+      verify: (candidate) async {
+        final read = await _download(
+          filesByObjectId[candidate.objectId]!,
+          maxCloudObjectResponseBytes,
+        );
+        if (_hashBytes(read.bytes) != candidate.objectId) {
           throw const CloudBackendException(
             CloudBackendErrorKind.conflict,
             'Google Drive 中的不可变对象内容与对象标识不一致。',
           );
         }
-        _verifiedObjectRevisions[file.name] = file.revision;
-      }
-      existing.add(entry.key);
+      },
+    );
+    for (final entry in result.verifiedRevisions.entries) {
+      _verifiedObjectRevisions[_fileName('object', entry.key)] = entry.value;
     }
-    return existing;
+    return result;
   }
 
   @override

@@ -19,6 +19,22 @@ void main() {
     if (await root.exists()) await root.delete(recursive: true);
   });
 
+  test('verified remote object revisions survive reconstruction', () async {
+    final registry = CloudSyncDataAdapterRegistry([_Adapter()]);
+    final first = AppCloudSyncDataSource(registry: registry, root: root);
+    final objectId = List.filled(64, 'a').join();
+
+    await first.writeVerifiedCloudObjects({objectId: 'revision-1'});
+    final reconstructed = AppCloudSyncDataSource(
+      registry: registry,
+      root: root,
+    );
+
+    expect(await reconstructed.readVerifiedCloudObjects(), {
+      objectId: 'revision-1',
+    });
+  });
+
   test(
     'capture externalizes every resource chunk instead of retaining library',
     () async {
