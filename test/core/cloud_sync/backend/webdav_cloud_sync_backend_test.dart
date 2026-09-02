@@ -270,17 +270,28 @@ void main() {
     expect(values, isEmpty);
   });
 
-  test('manual immutable PUT never replays an ambiguous write', () async {
+  test('manual immutable PUT retries a transient provider failure', () async {
     var putAttempts = 0;
+    Uint8List? stored;
     final adapter = RecordingAdapter((request) {
       if (request.method == 'PROPFIND') {
         return _davResponse([_davFile(request.uri.path, collection: true)]);
       }
       if (request.method == 'MKCOL') return const TestHttpResponse(405);
-      if (request.method == 'GET') return const TestHttpResponse(404);
+      if (request.method == 'GET') {
+        return stored == null
+            ? const TestHttpResponse(404)
+            : TestHttpResponse(200, stored!, const {
+                'etag': ['"stored"'],
+              });
+      }
       if (request.method == 'PUT') {
         putAttempts++;
-        return const TestHttpResponse(503);
+        if (putAttempts == 1) return const TestHttpResponse(503);
+        stored = Uint8List.fromList(request.data as List<int>);
+        return const TestHttpResponse(201, '', {
+          'etag': ['"stored"'],
+        });
       }
       fail('Unexpected ${request.method} ${request.uri}');
     });
@@ -288,16 +299,14 @@ void main() {
     await backend.validateConnectionReadOnly();
     final bytes = Uint8List.fromList([1, 2, 3]);
 
-    await expectLater(
-      backend.putObject(
-        sha256.convert(bytes).toString(),
-        bytes,
-        sha256: sha256.convert(bytes).toString(),
-      ),
-      throwsA(isA<CloudBackendException>()),
+    final result = await backend.putObject(
+      sha256.convert(bytes).toString(),
+      bytes,
+      sha256: sha256.convert(bytes).toString(),
     );
 
-    expect(putAttempts, 1);
+    expect(result.revision, '"stored"');
+    expect(putAttempts, 2);
   });
 
   test(

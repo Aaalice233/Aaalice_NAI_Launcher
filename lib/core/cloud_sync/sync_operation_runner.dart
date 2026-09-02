@@ -5,6 +5,7 @@ import 'models.dart';
 import 'operation.dart';
 import 'snapshot_uploader.dart';
 import 'sync_types.dart';
+import 'telemetry_log.dart';
 
 class SyncOperationRunner {
   const SyncOperationRunner({
@@ -122,6 +123,7 @@ class SyncOperationRunner {
       return target;
     } catch (error, stackTrace) {
       final durable = await journalStore.read() ?? current;
+      _logOperationFailure(error, durable);
       if (baseSaved || _mustRemainRecoverable(error, durable)) rethrow;
       await _rollbackAndClean(durable, error, stackTrace, onProgress);
       rethrow;
@@ -238,6 +240,17 @@ class SyncOperationRunner {
       throw CloudSyncRollbackException(original, rollbackError);
     }
   }
+}
+
+void _logOperationFailure(Object error, SyncJournal journal) {
+  final details = error is CloudBackendException
+      ? 'kind=${error.kind.name}, status=${error.statusCode ?? 'none'}, '
+            'message=${error.message}'
+      : 'type=${error.runtimeType}';
+  logCloudSyncMetrics(
+    'Cloud sync operation failed: operation=${journal.operation.name}, '
+    'phase=${journal.phase.name}, $details',
+  );
 }
 
 bool _mustRemainRecoverable(Object error, SyncJournal journal) {

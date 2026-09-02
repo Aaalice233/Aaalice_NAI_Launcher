@@ -237,10 +237,10 @@ class WebDavCloudSyncBackend
         uri,
         headers: _headers,
         data: bytes,
-        // A lost response is ambiguous on weak WebDAV providers. Replaying the
-        // PUT could overwrite a concurrent writer after the first attempt was
-        // already committed, so recovery must start with a fresh GET instead.
-        retryable: false,
+        // The path is the verified SHA-256 of these immutable bytes, so
+        // replaying the same PUT after a transient failure cannot change valid
+        // content. The post-write GET remains the final integrity check.
+        retryable: true,
       );
       _expect(response, const {200, 201, 204}, action: '上传手动备份对象');
       final stored = await _get(uri, maxBytes: maxBytes);
