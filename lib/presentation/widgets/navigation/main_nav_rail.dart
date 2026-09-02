@@ -225,75 +225,82 @@ class MainNavRail extends ConsumerWidget {
           ),
 
           Flexible(
-            child: SingleChildScrollView(
-              key: const Key('main-nav-secondary-scroll'),
-              child: Column(
-                children: [
-                  // Discord 社群
-                  _ExternalLinkIcon(
-                    icon: Icons.discord,
-                    label: context.l10n.nav_discordCommunity,
-                    color: const Color(0xFF5865F2), // Discord 紫色
-                    url: CommunityLinks.discord,
-                  ),
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                key: const Key('main-nav-secondary-scroll'),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // Discord 社群
+                      _ExternalLinkIcon(
+                        icon: Icons.discord,
+                        label: context.l10n.nav_discordCommunity,
+                        color: const Color(0xFF5865F2), // Discord 紫色
+                        url: CommunityLinks.discord,
+                      ),
 
-                  // GitHub 仓库
-                  _GitHubIcon(
-                    url: CommunityLinks.github,
-                    label: context.l10n.nav_githubRepo,
-                  ),
+                      // GitHub 仓库
+                      _GitHubIcon(
+                        url: CommunityLinks.github,
+                        label: context.l10n.nav_githubRepo,
+                      ),
 
-                  _NavIcon(
-                    key: const Key('agent-nav-item'),
-                    focusNode: agentFocusNode,
-                    icon: isAgentRunning
-                        ? Icons.smart_toy_rounded
-                        : Icons.smart_toy_outlined,
-                    label: context.l10n.nav_agent,
-                    isSelected: isAgentVisible,
-                    showBadge: isAgentRunning,
-                    onTap: () => onAgentVisibilityChanged(!isAgentVisible),
-                  ),
+                      _NavIcon(
+                        key: const Key('agent-nav-item'),
+                        focusNode: agentFocusNode,
+                        icon: isAgentRunning
+                            ? Icons.smart_toy_rounded
+                            : Icons.smart_toy_outlined,
+                        label: context.l10n.nav_agent,
+                        isSelected: isAgentVisible,
+                        showBadge: isAgentRunning,
+                        onTap: () => onAgentVisibilityChanged(!isAgentVisible),
+                      ),
 
-                  _NavIcon(
-                    key: const Key('queue-nav-item'),
-                    focusNode: queueFocusNode,
-                    icon: switch (queueExecutionStatus) {
-                      QueueExecutionStatus.running => Icons.play_arrow_rounded,
-                      QueueExecutionStatus.paused => Icons.pause_rounded,
-                      _ => Icons.playlist_play_rounded,
-                    },
-                    label: context.l10n.queue_management,
-                    isSelected: isQueueVisible,
-                    badgeLabel: queueCount > 0
-                        ? (queueCount > 99 ? '99+' : queueCount.toString())
-                        : null,
-                    onTap: () => onQueueVisibilityChanged(!isQueueVisible),
-                  ),
+                      _NavIcon(
+                        key: const Key('queue-nav-item'),
+                        focusNode: queueFocusNode,
+                        icon: switch (queueExecutionStatus) {
+                          QueueExecutionStatus.running =>
+                            Icons.play_arrow_rounded,
+                          QueueExecutionStatus.paused => Icons.pause_rounded,
+                          _ => Icons.playlist_play_rounded,
+                        },
+                        label: context.l10n.queue_management,
+                        isSelected: isQueueVisible,
+                        badgeLabel: queueCount > 0
+                            ? (queueCount > 99 ? '99+' : queueCount.toString())
+                            : null,
+                        onTap: () => onQueueVisibilityChanged(!isQueueVisible),
+                      ),
 
-                  // Bottom Settings
-                  _NavIcon(
-                    key: const Key('nav-branch-8'),
-                    icon: Icons.settings,
-                    label: context.l10n.nav_settings,
-                    isSelected: selectedIndex == 8,
-                    showBadge: showUpdateBadge,
-                    onTap: () =>
-                        navigationShell.goBranch(AppBranch.settings.index),
+                      // Bottom Settings
+                      _NavIcon(
+                        key: const Key('nav-branch-8'),
+                        icon: Icons.settings,
+                        label: context.l10n.nav_settings,
+                        isSelected: selectedIndex == 8,
+                        showBadge: showUpdateBadge,
+                        onTap: () =>
+                            navigationShell.goBranch(AppBranch.settings.index),
+                      ),
+                      if (allowExpansion) ...[
+                        const SizedBox(height: 2),
+                        _NavRailToggle(
+                          isExpanded: isExpanded,
+                          onTap: () {
+                            ref
+                                .read(layoutStateNotifierProvider.notifier)
+                                .toggleMainNavRail();
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                    ],
                   ),
-                  if (allowExpansion) ...[
-                    const SizedBox(height: 2),
-                    _NavRailToggle(
-                      isExpanded: isExpanded,
-                      onTap: () {
-                        ref
-                            .read(layoutStateNotifierProvider.notifier)
-                            .toggleMainNavRail();
-                      },
-                    ),
-                  ],
-                  const SizedBox(height: 6),
-                ],
+                ),
               ),
             ),
           ),

@@ -10,6 +10,7 @@ import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../widgets/prompt_assistant_settings_forms.dart';
 import '../widgets/settings_card.dart';
 
 class PromptAssistantSettingsSection extends ConsumerWidget {
@@ -503,179 +504,44 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigState state, {
     ProviderConfig? provider,
   }) async {
-    final nameController = TextEditingController(text: provider?.name ?? '');
-    final baseController = TextEditingController(text: provider?.baseUrl ?? '');
-    final keyController = TextEditingController();
-    var preset =
-        provider?.preset ??
-        (provider == null
-            ? ProviderPreset.openaiChat
-            : provider.protocol == ProviderProtocol.openaiResponses
-            ? ProviderPreset.openaiCompatibleResponses
-            : ProviderPreset.openaiCompatibleChat);
-    var allowImageInput =
-        provider?.allowImageInput ?? preset.defaultAllowImageInput;
+    final result =
+        await AdaptivePresenter.showForm<PromptAssistantProviderFormResult>(
+          context: context,
+          sideSheetWidth: 520,
+          title: provider == null
+              ? context.l10n.promptAssistant_addProvider
+              : context.l10n.promptAssistant_editProviderTitle,
+          builder: (context, scrollController) => PromptAssistantProviderForm(
+            provider: provider,
+            scrollController: scrollController,
+          ),
+        );
+    if (result == null) return;
 
-    void applyProtocol(ProviderPreset value) {
-      final previousPreset = preset;
-      final currentName = nameController.text.trim();
-      final currentBaseUrl = baseController.text.trim();
-      preset = value;
-      allowImageInput = value.defaultAllowImageInput;
-      if (provider == null) {
-        nameController.text = value.defaultName;
-        baseController.text = value.defaultBaseUrl;
-        return;
-      }
-      if (currentName.isEmpty || currentName == previousPreset.defaultName) {
-        nameController.text = value.defaultName;
-      }
-      if (currentBaseUrl.isEmpty ||
-          currentBaseUrl == previousPreset.defaultBaseUrl) {
-        baseController.text = value.defaultBaseUrl;
-      }
-    }
-
-    if (provider == null) {
-      applyProtocol(preset);
-    }
-
-    final confirmed = await AdaptivePresenter.showForm<bool>(
-      context: context,
-      sideSheetWidth: 520,
-      title: provider == null
-          ? context.l10n.promptAssistant_addProvider
-          : context.l10n.promptAssistant_editProviderTitle,
-      builder: (context, scrollController) => StatefulBuilder(
-        builder: (context, setState) => Column(
-          key: const ValueKey('prompt-assistant-provider-dialog'),
-          children: [
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.all(16),
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.promptAssistant_name,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<ProviderPreset>(
-                    initialValue: preset,
-                    isExpanded: true,
-                    items: ProviderPreset.values
-                        .map(
-                          (value) => DropdownMenuItem(
-                            value: value,
-                            child: Text(
-                              value.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => applyProtocol(value));
-                      }
-                    },
-                    decoration: InputDecoration(
-                      labelText: context.l10n.promptAssistant_protocol,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: baseController,
-                    keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(labelText: 'Base URL'),
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    value: allowImageInput,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.promptAssistant_allowImageInput),
-                    subtitle: Text(
-                      context.l10n.promptAssistant_allowImageInputSubtitle,
-                    ),
-                    onChanged: (value) {
-                      setState(() => allowImageInput = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: keyController,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
-                    ),
-                    obscureText: true,
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: Text(context.l10n.common_cancel),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: Text(context.l10n.common_save),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    final enteredName = nameController.text.trim();
-    final enteredBaseUrl = baseController.text.trim();
-    final enteredApiKey = keyController.text;
-    nameController.dispose();
-    baseController.dispose();
-    keyController.dispose();
-    if (confirmed != true) return;
-
-    final resolvedName = enteredName.isEmpty ? preset.defaultName : enteredName;
+    final resolvedName = result.name.isEmpty
+        ? result.preset.defaultName
+        : result.name;
     final resolvedId =
         provider?.id ??
         _uniqueProviderId(
           state,
-          _providerIdFromName(resolvedName, fallback: preset.defaultId),
+          _providerIdFromName(resolvedName, fallback: result.preset.defaultId),
         );
     final next = ProviderConfig(
       id: resolvedId,
       name: resolvedName,
-      type: preset.legacyType,
-      protocol: preset.defaultProtocol,
-      preset: preset,
-      baseUrl: enteredBaseUrl,
+      type: result.preset.legacyType,
+      protocol: result.preset.defaultProtocol,
+      preset: result.preset,
+      baseUrl: result.baseUrl,
       enabled: provider?.enabled ?? true,
-      allowImageInput: allowImageInput,
+      allowImageInput: result.allowImageInput,
     );
 
     await notifier.upsertProvider(next);
 
-    if (enteredApiKey.trim().isNotEmpty) {
-      await notifier.setProviderApiKey(resolvedId, enteredApiKey);
+    if (result.apiKey.trim().isNotEmpty) {
+      await notifier.setProviderApiKey(resolvedId, result.apiKey);
     }
 
     for (final taskType in AssistantTaskType.values) {
@@ -728,122 +594,32 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigNotifier notifier, {
     required ProviderConfig provider,
   }) async {
-    final baseController = TextEditingController(text: provider.baseUrl);
-    final keyController = TextEditingController();
-    var clearApiKey = false;
-    var allowImageInput = provider.allowImageInput;
-
-    final confirmed = await AdaptivePresenter.showForm<bool>(
-      context: context,
-      sideSheetWidth: 520,
-      title: context.l10n.promptAssistant_connectionTitle(provider.name),
-      builder: (context, scrollController) => StatefulBuilder(
-        builder: (context, setState) => Column(
-          key: const ValueKey('prompt-assistant-connection-dialog'),
-          children: [
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.all(16),
-                children: [
-                  TextField(
-                    controller: baseController,
-                    keyboardType: TextInputType.url,
-                    decoration: InputDecoration(
-                      labelText: 'Base URL',
-                      hintText: context.l10n.promptAssistant_baseUrlHint,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: keyController,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
-                    ),
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 8),
-                  CheckboxListTile(
-                    value: clearApiKey,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      context.l10n.promptAssistant_clearCurrentApiKey,
-                    ),
-                    onChanged: (value) {
-                      setState(() => clearApiKey = value ?? false);
-                    },
-                  ),
-                  SwitchListTile(
-                    value: allowImageInput,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.promptAssistant_allowImageInput),
-                    subtitle: Text(
-                      provider.protocol.supportsImagePayload
-                          ? context
-                                .l10n
-                                .promptAssistant_protocolSupportsImagePayload
-                          : context
-                                .l10n
-                                .promptAssistant_protocolTextOnlyWarning,
-                    ),
-                    onChanged: (value) {
-                      setState(() => allowImageInput = value);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: Text(context.l10n.common_cancel),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: Text(context.l10n.common_save),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    final enteredBaseUrl = baseController.text.trim();
-    final enteredApiKey = keyController.text;
-    baseController.dispose();
-    keyController.dispose();
-    if (confirmed != true) return;
+    final result =
+        await AdaptivePresenter.showForm<PromptAssistantConnectionFormResult>(
+          context: context,
+          sideSheetWidth: 520,
+          title: context.l10n.promptAssistant_connectionTitle(provider.name),
+          builder: (context, scrollController) => PromptAssistantConnectionForm(
+            provider: provider,
+            scrollController: scrollController,
+          ),
+        );
+    if (result == null) return;
 
     await notifier.upsertProvider(
       provider.copyWith(
-        baseUrl: enteredBaseUrl,
-        allowImageInput: allowImageInput,
+        baseUrl: result.baseUrl,
+        allowImageInput: result.allowImageInput,
       ),
     );
 
-    if (clearApiKey) {
+    if (result.clearApiKey) {
       await notifier.setProviderApiKey(provider.id, '');
       return;
     }
 
-    if (enteredApiKey.trim().isNotEmpty) {
-      await notifier.setProviderApiKey(provider.id, enteredApiKey);
+    if (result.apiKey.trim().isNotEmpty) {
+      await notifier.setProviderApiKey(provider.id, result.apiKey);
     }
   }
 
@@ -852,126 +628,30 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigNotifier notifier, {
     PromptRuleTemplate? rule,
   }) async {
-    final nameController = TextEditingController(text: rule?.name ?? '');
-    final contentController = TextEditingController(text: rule?.content ?? '');
     final newRuleName = context.l10n.promptAssistant_newRule;
-    var taskType = rule?.taskType ?? AssistantTaskType.llm;
-
-    final confirmed = await AdaptivePresenter.showForm<bool>(
-      context: context,
-      sideSheetWidth: 560,
-      title: rule == null
-          ? context.l10n.promptAssistant_addRuleTitle
-          : context.l10n.promptAssistant_editRuleTitle,
-      builder: (context, scrollController) => StatefulBuilder(
-        builder: (context, setState) => Column(
-          key: const ValueKey('prompt-assistant-rule-dialog'),
-          children: [
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.all(16),
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.promptAssistant_name,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<AssistantTaskType>(
-                    initialValue: taskType,
-                    isExpanded: true,
-                    items: AssistantTaskType.values
-                        .where((value) => value != AssistantTaskType.chat)
-                        .map(
-                          (value) => DropdownMenuItem(
-                            value: value,
-                            child: Text(
-                              _assistantTaskLabel(context, value),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) setState(() => taskType = value);
-                    },
-                    decoration: InputDecoration(
-                      labelText: context.l10n.promptAssistant_taskType,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: contentController,
-                    minLines: 4,
-                    maxLines: 10,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.promptAssistant_ruleContent,
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (rule != null && !rule.isDefault)
-                        TextButton(
-                          onPressed: () async {
-                            final confirmed =
-                                await ThemedConfirmDialog.showDelete(
-                                  context: context,
-                                  itemName: _displayRuleName(context, rule),
-                                );
-                            if (!confirmed || !context.mounted) return;
-                            await notifier.removeRule(rule.id);
-                            if (context.mounted) {
-                              Navigator.pop(context, false);
-                            }
-                          },
-                          child: Text(context.l10n.common_delete),
-                        ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: Text(context.l10n.common_cancel),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: Text(context.l10n.common_save),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    final enteredName = nameController.text.trim();
-    final enteredContent = contentController.text.trim();
-    nameController.dispose();
-    contentController.dispose();
-    if (confirmed != true) return;
+    final result =
+        await AdaptivePresenter.showForm<PromptAssistantRuleFormResult>(
+          context: context,
+          sideSheetWidth: 560,
+          title: rule == null
+              ? context.l10n.promptAssistant_addRuleTitle
+              : context.l10n.promptAssistant_editRuleTitle,
+          builder: (context, scrollController) => PromptAssistantRuleForm(
+            rule: rule,
+            scrollController: scrollController,
+          ),
+        );
+    if (result == null) return;
+    if (result.deleted) {
+      await notifier.removeRule(rule!.id);
+      return;
+    }
 
     final next = PromptRuleTemplate(
       id: rule?.id ?? 'rule_${DateTime.now().millisecondsSinceEpoch}',
-      name: enteredName.isEmpty ? newRuleName : enteredName,
-      taskType: taskType,
-      content: enteredContent,
+      name: result.name.isEmpty ? newRuleName : result.name,
+      taskType: result.taskType,
+      content: result.content,
       enabled: rule?.enabled ?? true,
       isDefault: rule?.isDefault ?? false,
       order: rule?.order ?? 100,

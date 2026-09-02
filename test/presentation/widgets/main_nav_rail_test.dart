@@ -178,6 +178,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('高侧栏下次级操作组锚定底部', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpAuthenticatedRail(tester);
+
+    final railBottom = tester
+        .getBottomRight(find.byKey(const Key('main-nav-rail')))
+        .dy;
+    final toggleBottom = tester
+        .getBottomRight(find.byKey(const Key('main-nav-toggle')))
+        .dy;
+    expect(toggleBottom, closeTo(railBottom - 6, 0.01));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('展开动画保持内容布局稳定且快速反向切换连续', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 760));
     addTearDown(() => tester.binding.setSurfaceSize(null));

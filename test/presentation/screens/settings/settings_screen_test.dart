@@ -380,7 +380,10 @@ void main() {
 
     tester.view.viewInsets = const FakeViewPadding();
     await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'test-key');
     await tester.tap(find.text('保存'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
     await tester.pumpAndSettle();
 
     expect(
