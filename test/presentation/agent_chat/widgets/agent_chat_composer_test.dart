@@ -310,8 +310,16 @@ void main() {
 
     await _pumpComposer(
       tester,
-      width: 520,
+      width: 840,
       mobile: false,
+      state: _readyState.copyWith(
+        availableThinkingLevels: const [
+          ThinkingLevel.off,
+          ThinkingLevel.low,
+          ThinkingLevel.high,
+          ThinkingLevel.max,
+        ],
+      ),
       config: config,
       agentSettings: agentSettings,
     );
@@ -335,6 +343,24 @@ void main() {
     expect(
       find.byKey(const ValueKey('agent-chat-model-submenu')),
       findsOneWidget,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('adaptive-centered-form')))
+          .height,
+      lessThanOrEqualTo(480),
+    );
+    expect(
+      tester
+          .getTopLeft(find.byKey(const ValueKey('agent-chat-model-submenu')))
+          .dy,
+      lessThan(
+        tester
+            .getTopLeft(
+              find.byKey(const ValueKey('agent-chat-thinking-option-off')),
+            )
+            .dy,
+      ),
     );
     await tester.tap(find.byKey(const ValueKey('agent-chat-model-submenu')));
     await tester.pumpAndSettle();
@@ -443,7 +469,7 @@ void main() {
         find.byKey(const ValueKey('agent-chat-model-selector')),
       );
       expect(input.bottom, lessThanOrEqualTo(controls.top));
-      expect(controls.height, scale == 1 ? 40 : 60);
+      expect(controls.height, scale == 1 ? 42 : 60);
       expect(more.dx, lessThan(model.dx));
       expect(
         find.byKey(const ValueKey('agent-chat-composer-controls-scroll')),
