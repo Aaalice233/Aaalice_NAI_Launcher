@@ -64,7 +64,6 @@ class FixedTagsDialogView extends StatelessWidget {
                   data: data,
                   commands: commands,
                   isCompact: isCompact,
-                  isDark: isDark,
                 ),
                 Expanded(
                   child:

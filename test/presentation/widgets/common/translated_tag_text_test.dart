@@ -49,6 +49,35 @@ void main() {
     expect(find.text('单人，金发，蓝眼睛'), findsOneWidget);
   });
 
+  testWidgets('译文默认比原文更轻且字号更小', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [tagTranslationLookupProvider.overrideWithValue(lookup)],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: TranslatedPromptText(
+              'solo, blonde hair',
+              selectable: false,
+              style: TextStyle(fontSize: 14),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final translation = tester.widget<Text>(
+      find.byKey(const ValueKey('translated-prompt-translation')),
+    );
+    final theme = Theme.of(tester.element(find.byType(TranslatedPromptText)));
+    expect(translation.style?.fontSize, closeTo(12.88, 0.001));
+    expect(
+      translation.style?.color,
+      theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.68),
+    );
+    expect(translation.style?.fontWeight, FontWeight.w400);
+  });
+
   testWidgets('完整翻译模式为词典缺失项保留原标签', (tester) async {
     final partialLookup = TagTranslationLookup.fromResolver((tags) async {
       return {if (tags.contains('solo')) 'solo': '单人'};

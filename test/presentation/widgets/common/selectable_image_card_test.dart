@@ -112,6 +112,52 @@ void main() {
     }
   });
 
+  testWidgets('stream preview progress stays legible over image content', (
+    tester,
+  ) async {
+    final preview = Uint8List.fromList(
+      img.encodePng(img.Image(width: 32, height: 32)),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: ThemeData.dark(),
+          home: Scaffold(
+            body: SizedBox.square(
+              dimension: 160,
+              child: SelectableImageCard(
+                isGenerating: true,
+                progress: 0.42,
+                currentImage: 1,
+                totalImages: 1,
+                streamPreview: preview,
+                imageWidth: 32,
+                imageHeight: 32,
+                enableSelection: false,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final indicator = tester.widget<CircularProgressIndicator>(
+      find.byKey(const ValueKey('stream-generation-progress-ring')),
+    );
+    final count = tester.widget<Text>(
+      find.byKey(const ValueKey('stream-generation-progress-count')),
+    );
+    final percent = tester.widget<Text>(
+      find.byKey(const ValueKey('stream-generation-progress-percent')),
+    );
+    expect(indicator.color, Colors.white);
+    expect(indicator.backgroundColor, Colors.white.withValues(alpha: 0.24));
+    expect(count.style?.color, Colors.white);
+    expect(percent.style?.color, Colors.white);
+    expect(percent.style?.shadows, isNotEmpty);
+  });
+
   testWidgets('completed image cards use the shared hover scale', (
     tester,
   ) async {

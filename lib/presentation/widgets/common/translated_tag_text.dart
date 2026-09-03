@@ -4,6 +4,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../core/utils/tag_normalizer.dart';
 
+const _translationForegroundAlpha = 0.68;
+const _translationFontScale = 0.92;
+
+TextStyle _defaultTranslationStyle(
+  BuildContext context,
+  TextStyle baseStyle, {
+  double? height,
+}) {
+  final theme = Theme.of(context);
+  final fontSize = baseStyle.fontSize ?? theme.textTheme.bodySmall?.fontSize;
+  return baseStyle.copyWith(
+    color: theme.colorScheme.onSurfaceVariant.withValues(
+      alpha: _translationForegroundAlpha,
+    ),
+    fontSize: fontSize == null ? null : fontSize * _translationFontScale,
+    fontWeight: FontWeight.w400,
+    height: height,
+  );
+}
+
 /// Read-only tag label that keeps the canonical tag visible and appends the
 /// optional Chinese dictionary result without changing the stored value.
 class TranslatedTagText extends ConsumerStatefulWidget {
@@ -65,10 +85,7 @@ class _TranslatedTagTextState extends ConsumerState<TranslatedTagText> {
     final translation = _translation?.trim();
     final baseStyle = widget.style ?? DefaultTextStyle.of(context).style;
     final secondaryStyle =
-        widget.translationStyle ??
-        baseStyle.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        );
+        widget.translationStyle ?? _defaultTranslationStyle(context, baseStyle);
     return Text.rich(
       TextSpan(
         text: display,
@@ -183,12 +200,14 @@ class _TranslatedPromptTextState extends ConsumerState<TranslatedPromptText> {
           );
     if (_translations.isEmpty) return original;
     final translationText = _translations.join('，');
+    final theme = Theme.of(context);
+    final baseTranslationStyle =
+        widget.style ??
+        theme.textTheme.bodySmall ??
+        DefaultTextStyle.of(context).style;
     final translationStyle =
         widget.translationStyle ??
-        Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          height: 1.45,
-        );
+        _defaultTranslationStyle(context, baseTranslationStyle, height: 1.45);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

@@ -14,13 +14,11 @@ class FixedTagsDialogHeader extends StatelessWidget {
     required this.data,
     required this.commands,
     required this.isCompact,
-    required this.isDark,
   });
 
   final FixedTagsDialogViewData data;
   final FixedTagsDialogCommands commands;
   final bool isCompact;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
@@ -44,9 +42,7 @@ class FixedTagsDialogHeader extends StatelessWidget {
         color: theme.colorScheme.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.06),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
           ),
         ),
       ),
@@ -192,7 +188,7 @@ class _CompactHeader extends StatelessWidget {
         color: theme.colorScheme.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
           ),
         ),
       ),
@@ -304,11 +300,12 @@ class FixedTagsDialogFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
+      key: const ValueKey('fixed-tags-dialog-footer'),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
           ),
         ),
       ),

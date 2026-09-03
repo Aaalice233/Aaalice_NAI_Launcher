@@ -374,6 +374,16 @@ void main() {
         divider.color,
         theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
       );
+      final header = tester.widget<Container>(
+        find.byKey(const ValueKey('fixed-tags-dialog-header')),
+      );
+      final footer = tester.widget<Container>(
+        find.byKey(const ValueKey('fixed-tags-dialog-footer')),
+      );
+      final headerBorder = (header.decoration! as BoxDecoration).border!;
+      final footerBorder = (footer.decoration! as BoxDecoration).border!;
+      expect(headerBorder.bottom.color, divider.color);
+      expect(footerBorder.top.color, divider.color);
       expect(tester.takeException(), isNull);
     },
   );

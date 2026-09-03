@@ -10,6 +10,8 @@ import 'image_card_controller.dart';
 import 'image_card_focused_preview.dart';
 import 'image_card_models.dart';
 
+const _streamProgressForeground = Colors.white;
+
 class ImageCardGenerating extends StatelessWidget {
   const ImageCardGenerating({
     super.key,
@@ -44,11 +46,11 @@ class ImageCardGenerating extends StatelessWidget {
         ),
         child: child,
       ),
-      child: hasPreview ? _preview(context, theme) : _loading(context, theme),
+      child: hasPreview ? _preview(context) : _loading(context, theme),
     );
   }
 
-  Widget _preview(BuildContext context, ThemeData theme) {
+  Widget _preview(BuildContext context) {
     final progress = data.progress ?? 0;
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -63,7 +65,7 @@ class ImageCardGenerating extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  theme.colorScheme.scrim.withValues(alpha: 0.4),
+                  Colors.black.withValues(alpha: 0.55),
                 ],
               ),
             ),
@@ -78,27 +80,31 @@ class ImageCardGenerating extends StatelessWidget {
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
+                    key: const ValueKey('stream-generation-progress-ring'),
                     value: progress > 0
                         ? progress
                         : MediaQuery.disableAnimationsOf(context)
                         ? 0.72
                         : null,
                     strokeWidth: 2,
-                    backgroundColor: theme.colorScheme.onInverseSurface
-                        .withValues(alpha: 0.2),
-                    color: theme.colorScheme.onInverseSurface,
+                    backgroundColor: _streamProgressForeground.withValues(
+                      alpha: 0.24,
+                    ),
+                    color: _streamProgressForeground,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '${data.currentImage ?? 0}/${data.totalImages ?? 0}',
-                  style: _progressStyle(theme),
+                  key: const ValueKey('stream-generation-progress-count'),
+                  style: _progressStyle(),
                 ),
                 const Spacer(),
                 if (progress > 0)
                   Text(
                     '${(progress * 100).toInt()}%',
-                    style: _progressStyle(theme),
+                    key: const ValueKey('stream-generation-progress-percent'),
+                    style: _progressStyle(),
                   ),
               ],
             ),
@@ -245,11 +251,13 @@ class ImageCardGenerating extends StatelessWidget {
     );
   }
 
-  TextStyle _progressStyle(ThemeData theme) => TextStyle(
-    color: theme.colorScheme.onInverseSurface,
+  TextStyle _progressStyle() => const TextStyle(
+    color: _streamProgressForeground,
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    shadows: [Shadow(color: theme.colorScheme.scrim, blurRadius: 4)],
+    shadows: [
+      Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 1)),
+    ],
   );
 }
 
