@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
@@ -64,68 +62,59 @@ class VibeLibraryWorkspace extends StatelessWidget {
 
         final content = Stack(
           children: [
-            Row(
-              children: [
-                if (showCategories)
-                  _CategoryPanel(
-                    libraryState: libraryState,
-                    categoryState: categoryState,
-                    onCommand: onCommand,
-                  ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Flexible(
-                        fit: FlexFit.loose,
-                        child: SingleChildScrollView(
-                          key: const Key('vibe-library-toolbar-scroll'),
-                          child: _Toolbar(
-                            libraryState: libraryState,
-                            selectionState: selectionState,
-                            currentModel: currentModel,
-                            controller: controller,
-                            compact: contentWidth < 1050 || textScale > 1.5,
-                            showPageTitle: !showCategories,
-                            showCategoryPanel: showCategories,
-                            usePersistentCategories: persistent,
-                            onCommand: onCommand,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: _Body(
-                          state: libraryState,
-                          columns: columns,
-                          itemWidth: itemWidth,
-                          onCommand: onCommand,
-                        ),
-                      ),
-                      if (!libraryState.isLoading &&
-                          libraryState.filteredEntries.isNotEmpty &&
-                          libraryState.totalPages > 0)
-                        PaginationBar(
-                          currentPage: libraryState.currentPage,
-                          totalPages: libraryState.totalPages,
-                          totalItems: libraryState.filteredCount,
-                          itemsPerPage: libraryState.pageSize,
-                          itemsPerPageOptions: const [20, 50, 100],
-                          onPageChanged: (page) =>
-                              onCommand(ChangePageCommand(page)),
-                          onItemsPerPageChanged: (size) =>
-                              onCommand(ChangePageSizeCommand(size)),
-                          showItemsPerPage: true,
-                          showTotalInfo: true,
-                          compact: contentWidth < 680,
-                          loading: libraryState.isLoading,
-                          totalIcon: Icons.auto_awesome_outlined,
-                          totalItemsLabel: context.l10n.vibeLibrary_totalCount(
-                            libraryState.filteredCount.toString(),
-                          ),
-                        ),
-                    ],
-                  ),
+            GalleryCollectionWorkspace(
+              toolbar: SingleChildScrollView(
+                key: const Key('vibe-library-toolbar-scroll'),
+                child: _Toolbar(
+                  libraryState: libraryState,
+                  selectionState: selectionState,
+                  currentModel: currentModel,
+                  controller: controller,
+                  compact: constraints.maxWidth < 1050 || textScale > 1.5,
+                  showPageTitle: true,
+                  showCategoryPanel: showCategories,
+                  usePersistentCategories: persistent,
+                  onCommand: onCommand,
                 ),
-              ],
+              ),
+              sidebar: showCategories
+                  ? _CategoryPanel(
+                      libraryState: libraryState,
+                      categoryState: categoryState,
+                      onCommand: onCommand,
+                    )
+                  : null,
+              body: _Body(
+                state: libraryState,
+                columns: columns,
+                itemWidth: itemWidth,
+                onCommand: onCommand,
+              ),
+              footer:
+                  !libraryState.isLoading &&
+                      libraryState.filteredEntries.isNotEmpty &&
+                      libraryState.totalPages > 0
+                  ? PaginationBar(
+                      currentPage: libraryState.currentPage,
+                      totalPages: libraryState.totalPages,
+                      totalItems: libraryState.filteredCount,
+                      itemsPerPage: libraryState.pageSize,
+                      itemsPerPageOptions: const [20, 50, 100],
+                      onPageChanged: (page) =>
+                          onCommand(ChangePageCommand(page)),
+                      onItemsPerPageChanged: (size) =>
+                          onCommand(ChangePageSizeCommand(size)),
+                      showItemsPerPage: true,
+                      showTotalInfo: true,
+                      compact: contentWidth < 680,
+                      loading: libraryState.isLoading,
+                      totalIcon: Icons.auto_awesome_outlined,
+                      totalItemsLabel: context.l10n.vibeLibrary_totalCount(
+                        libraryState.filteredCount.toString(),
+                      ),
+                      tonalCard: true,
+                    )
+                  : null,
             ),
             if (controller.isDragging) const _DropOverlay(),
             if (controller.isImporting)
@@ -204,11 +193,6 @@ class _CategoryPanelState extends State<_CategoryPanel> {
     return GallerySidebarSurface(
       child: Column(
         children: [
-          GallerySidebarPageHeader(
-            key: const ValueKey('vibe-library-sidebar-page-header'),
-            icon: Icons.auto_awesome_outlined,
-            title: context.l10n.vibeLibrary_title,
-          ),
           const SizedBox(height: GalleryCollectionChrome.navigationTopPadding),
           GalleryAllImagesItem(
             key: const ValueKey('vibe-library-all'),
@@ -281,112 +265,88 @@ class _Toolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (selectionState.isActive) return _buildBulkBar(context);
-    final theme = Theme.of(context);
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          key: const Key('vibe-library-toolbar'),
-          padding: GalleryCollectionChrome.toolbarPadding(context),
-          constraints: const BoxConstraints(
-            minHeight: GalleryCollectionChrome.toolbarHeight,
-          ),
-          decoration: BoxDecoration(
-            color: theme.brightness == Brightness.dark
-                ? theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.9)
-                : theme.colorScheme.surface.withValues(alpha: 0.8),
-            border: Border(
-              bottom: BorderSide(
-                color: theme.dividerColor.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
-          child: compact
-              ? _buildCompact(context)
-              : Row(
-                  children: [
-                    if (showPageTitle) ...[
-                      Text(
-                        context.l10n.vibeLibrary_title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    if (!libraryState.isLoading)
-                      _CountBadge(state: libraryState),
-                    const SizedBox(width: 12),
-                    Expanded(child: _SearchField(controller: controller)),
-                    const SizedBox(width: 8),
-                    _SortButton(state: libraryState, onCommand: onCommand),
-                    const SizedBox(width: 6),
-                    CompactIconButton(
-                      icon: showCategoryPanel
-                          ? Icons.view_sidebar
-                          : Icons.view_sidebar_outlined,
-                      label: context.l10n.common_categories,
-                      tooltip: showCategoryPanel
-                          ? context.l10n.vibeLibrary_hideCategoryPanel
-                          : context.l10n.vibeLibrary_showCategoryPanel,
-                      onPressed: () => onCommand(
-                        usePersistentCategories
-                            ? const ToggleCategoryPanelCommand()
-                            : const ShowCategoryPanelCommand(),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    CompactIconButton(
-                      icon: Icons.checklist,
-                      label: context.l10n.common_multiSelect,
-                      tooltip: context.l10n.vibeLibrary_enterSelectionMode,
-                      onPressed: () =>
-                          onCommand(const EnterSelectionModeCommand()),
-                    ),
-                    if (libraryState.entries.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onSecondaryTapUp: controller.isBusy
-                            ? null
-                            : (details) => onCommand(
-                                ShowImportMenuCommand(details.globalPosition),
-                              ),
-                        child: CompactIconButton(
-                          icon: Icons.file_download_outlined,
-                          label: context.l10n.common_import,
-                          tooltip: context.l10n.vibeLibrary_importTooltip,
-                          isLoading: controller.isPickingFile,
-                          onPressed: controller.isBusy
-                              ? null
-                              : () => _handleImportPressed(context),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(width: 6),
-                    CompactIconButton(
-                      icon: Icons.file_upload_outlined,
-                      label: context.l10n.common_export,
-                      tooltip: context.l10n.vibeLibrary_exportTooltip,
-                      onPressed: libraryState.entries.isEmpty
-                          ? null
-                          : () => onCommand(const ExportVibesCommand()),
-                    ),
-                    if (PlatformCapabilities.current.supportsOpenFolder) ...[
-                      const SizedBox(width: 6),
-                      CompactIconButton(
-                        icon: Icons.folder_open_outlined,
-                        label: context.l10n.common_folder,
-                        tooltip: context.l10n.vibeLibrary_openFolderTooltip,
-                        onPressed: () =>
-                            onCommand(const OpenLibraryFolderCommand()),
-                      ),
-                    ],
-                    const SizedBox(width: 6),
-                    _RefreshButton(state: libraryState, onCommand: onCommand),
-                  ],
+    return GalleryCollectionToolbarSurface(
+      key: const Key('vibe-library-toolbar'),
+      child: compact
+          ? _buildCompact(context)
+          : Row(
+              children: [
+                if (showPageTitle) ...[
+                  GalleryCollectionPageTitle(
+                    icon: Icons.auto_awesome_outlined,
+                    title: context.l10n.vibeLibrary_title,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (!libraryState.isLoading) _CountBadge(state: libraryState),
+                const SizedBox(width: 12),
+                Expanded(child: _SearchField(controller: controller)),
+                const SizedBox(width: 8),
+                _SortButton(state: libraryState, onCommand: onCommand),
+                const SizedBox(width: 6),
+                CompactIconButton(
+                  icon: showCategoryPanel
+                      ? Icons.view_sidebar
+                      : Icons.view_sidebar_outlined,
+                  label: context.l10n.common_categories,
+                  tooltip: showCategoryPanel
+                      ? context.l10n.vibeLibrary_hideCategoryPanel
+                      : context.l10n.vibeLibrary_showCategoryPanel,
+                  onPressed: () => onCommand(
+                    usePersistentCategories
+                        ? const ToggleCategoryPanelCommand()
+                        : const ShowCategoryPanelCommand(),
+                  ),
                 ),
-        ),
-      ),
+                const SizedBox(width: 6),
+                CompactIconButton(
+                  icon: Icons.checklist,
+                  label: context.l10n.common_multiSelect,
+                  tooltip: context.l10n.vibeLibrary_enterSelectionMode,
+                  onPressed: () => onCommand(const EnterSelectionModeCommand()),
+                ),
+                if (libraryState.entries.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onSecondaryTapUp: controller.isBusy
+                        ? null
+                        : (details) => onCommand(
+                            ShowImportMenuCommand(details.globalPosition),
+                          ),
+                    child: CompactIconButton(
+                      icon: Icons.file_download_outlined,
+                      label: context.l10n.common_import,
+                      tooltip: context.l10n.vibeLibrary_importTooltip,
+                      isLoading: controller.isPickingFile,
+                      onPressed: controller.isBusy
+                          ? null
+                          : () => _handleImportPressed(context),
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 6),
+                CompactIconButton(
+                  icon: Icons.file_upload_outlined,
+                  label: context.l10n.common_export,
+                  tooltip: context.l10n.vibeLibrary_exportTooltip,
+                  onPressed: libraryState.entries.isEmpty
+                      ? null
+                      : () => onCommand(const ExportVibesCommand()),
+                ),
+                if (PlatformCapabilities.current.supportsOpenFolder) ...[
+                  const SizedBox(width: 6),
+                  CompactIconButton(
+                    icon: Icons.folder_open_outlined,
+                    label: context.l10n.common_folder,
+                    tooltip: context.l10n.vibeLibrary_openFolderTooltip,
+                    onPressed: () =>
+                        onCommand(const OpenLibraryFolderCommand()),
+                  ),
+                ],
+                const SizedBox(width: 6),
+                _RefreshButton(state: libraryState, onCommand: onCommand),
+              ],
+            ),
     );
   }
 
@@ -401,10 +361,10 @@ class _Toolbar extends StatelessWidget {
                 children: [
                   if (showPageTitle)
                     Flexible(
-                      child: Text(
-                        context.l10n.vibeLibrary_title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: GalleryCollectionPageTitle(
+                        icon: Icons.auto_awesome_outlined,
+                        title: context.l10n.vibeLibrary_title,
+                        maxWidth: 180,
                       ),
                     ),
                   if (!libraryState.isLoading) ...[

@@ -156,35 +156,25 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
           body: LayoutBuilder(
             builder: (context, constraints) {
               final showSidebar = constraints.maxWidth >= 840;
-              return Row(
-                children: [
-                  if (showSidebar) _buildCategorySidebar(state),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        TagLibraryToolbar(
-                          showPageTitle: !showSidebar,
-                          onShowCategories: showSidebar
-                              ? null
-                              : () => _showCategoryPanel(state),
-                          onEnterSelectionMode: () => ref
-                              .read(
-                                tagLibrarySelectionNotifierProvider.notifier,
-                              )
-                              .enter(),
-                          onBulkDelete: _handleBulkDelete,
-                          onBulkMoveCategory: _handleBulkMoveCategory,
-                          onBulkToggleFavorite: _handleBulkToggleFavorite,
-                          onBulkCopy: _handleBulkCopy,
-                          onImport: _handleImport,
-                          onExport: _handleExport,
-                          onAddEntry: _showAddEntryDialog,
-                        ),
-                        Expanded(child: _buildContent(theme, state)),
-                      ],
-                    ),
-                  ),
-                ],
+              return GalleryCollectionWorkspace(
+                toolbar: TagLibraryToolbar(
+                  showPageTitle: true,
+                  onShowCategories: showSidebar
+                      ? null
+                      : () => _showCategoryPanel(state),
+                  onEnterSelectionMode: () => ref
+                      .read(tagLibrarySelectionNotifierProvider.notifier)
+                      .enter(),
+                  onBulkDelete: _handleBulkDelete,
+                  onBulkMoveCategory: _handleBulkMoveCategory,
+                  onBulkToggleFavorite: _handleBulkToggleFavorite,
+                  onBulkCopy: _handleBulkCopy,
+                  onImport: _handleImport,
+                  onExport: _handleExport,
+                  onAddEntry: _showAddEntryDialog,
+                ),
+                sidebar: showSidebar ? _buildCategorySidebar(state) : null,
+                body: _buildContent(theme, state),
               );
             },
           ),
@@ -299,16 +289,10 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       modal: forPanel,
       child: Column(
         children: [
-          if (!forPanel) ...[
-            GallerySidebarPageHeader(
-              key: const Key('tag-library-sidebar-page-header'),
-              icon: Icons.bookmarks_outlined,
-              title: context.l10n.nav_dictionary,
-            ),
+          if (!forPanel)
             const SizedBox(
               height: GalleryCollectionChrome.navigationTopPadding,
             ),
-          ],
           allEntries,
           GallerySidebarSectionHeader(
             toggleKey: const Key('tag-library-category-section-toggle'),

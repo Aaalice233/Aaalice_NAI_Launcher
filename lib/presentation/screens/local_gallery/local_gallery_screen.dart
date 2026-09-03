@@ -16,6 +16,7 @@ import '../../widgets/app_branch_visibility.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
+import '../../widgets/gallery/gallery_sidebar.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
 import '../../widgets/gallery/local_gallery_toolbar.dart';
 import '../../widgets/grouped_grid_view.dart' show GroupedGridViewState;
@@ -148,41 +149,37 @@ class _LocalGalleryShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gallery = viewModel.gallery;
     return Scaffold(
-      body: Row(
-        children: [
-          if (viewModel.showPersistentCategories)
-            controller.buildCategoryPanel(
-              galleryState: gallery,
-              categoryState: viewModel.categories,
-              albumState: ref.watch(galleryAlbumNotifierProvider),
-            ),
-          Expanded(
-            child: Column(
-              children: [
-                _buildToolbar(context, ref),
-                Expanded(child: _buildBody(context, ref)),
-                if (!gallery.isIndexing &&
-                    gallery.filteredFiles.isNotEmpty &&
-                    gallery.totalPages > 0)
-                  PaginationBar(
-                    currentPage: gallery.currentPage,
-                    totalPages: gallery.totalPages,
-                    totalItems: gallery.filteredCount,
-                    itemsPerPage: gallery.pageSize,
-                    onPageChanged: (page) => ref
-                        .read(localGalleryNotifierProvider.notifier)
-                        .loadPage(page),
-                    onItemsPerPageChanged: (size) => ref
-                        .read(localGalleryNotifierProvider.notifier)
-                        .setPageSize(size),
-                    showItemsPerPage: true,
-                    showTotalInfo: true,
-                    compact: viewModel.contentWidth < 680,
-                  ),
-              ],
-            ),
-          ),
-        ],
+      body: GalleryCollectionWorkspace(
+        toolbar: _buildToolbar(context, ref),
+        sidebar: viewModel.showPersistentCategories
+            ? controller.buildCategoryPanel(
+                galleryState: gallery,
+                categoryState: viewModel.categories,
+                albumState: ref.watch(galleryAlbumNotifierProvider),
+              )
+            : null,
+        body: _buildBody(context, ref),
+        footer:
+            !gallery.isIndexing &&
+                gallery.filteredFiles.isNotEmpty &&
+                gallery.totalPages > 0
+            ? PaginationBar(
+                currentPage: gallery.currentPage,
+                totalPages: gallery.totalPages,
+                totalItems: gallery.filteredCount,
+                itemsPerPage: gallery.pageSize,
+                onPageChanged: (page) => ref
+                    .read(localGalleryNotifierProvider.notifier)
+                    .loadPage(page),
+                onItemsPerPageChanged: (size) => ref
+                    .read(localGalleryNotifierProvider.notifier)
+                    .setPageSize(size),
+                showItemsPerPage: true,
+                showTotalInfo: true,
+                compact: viewModel.contentWidth < 680,
+                tonalCard: true,
+              )
+            : null,
       ),
     );
   }
@@ -196,7 +193,7 @@ class _LocalGalleryShell extends ConsumerWidget {
     final browsingAlbum =
         selectedAlbumId != null && selectedAlbumId != 'favorites';
     return LocalGalleryToolbar(
-      showPageTitle: !viewModel.showPersistentCategories,
+      showPageTitle: true,
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
       onEnterSelectionMode: () =>

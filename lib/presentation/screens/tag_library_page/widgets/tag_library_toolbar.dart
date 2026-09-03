@@ -96,7 +96,6 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
     final state = ref.watch(tagLibraryPageNotifierProvider);
     final selectionState = ref.watch(tagLibrarySelectionNotifierProvider);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     // 获取当前筛选后的所有条目 ID
     final allEntryIds = state.filteredEntries.map((e) => e.id).toList();
@@ -154,20 +153,8 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
     }
 
     // 普通工具栏
-    return Container(
+    return GalleryCollectionToolbarSurface(
       key: const Key('tag-library-toolbar'),
-      padding: GalleryCollectionChrome.toolbarPadding(context),
-      constraints: const BoxConstraints(
-        minHeight: GalleryCollectionChrome.toolbarHeight,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.3),
-          ),
-        ),
-      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
@@ -213,12 +200,6 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
 
                 const SizedBox(width: 8),
 
-                // 分隔线
-                Container(
-                  width: 1,
-                  height: 24,
-                  color: theme.dividerColor.withValues(alpha: 0.3),
-                ),
                 const SizedBox(width: 8),
 
                 // 多选按钮
@@ -277,13 +258,10 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (widget.showPageTitle) ...[
-                  Text(
-                    context.l10n.nav_dictionary,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                  GalleryCollectionPageTitle(
+                    icon: Icons.bookmarks_outlined,
+                    title: context.l10n.nav_dictionary,
+                    maxWidth: 180,
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -303,11 +281,9 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
           return Row(
             children: [
               if (widget.showPageTitle) ...[
-                Text(
-                  context.l10n.nav_dictionary,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                GalleryCollectionPageTitle(
+                  icon: Icons.bookmarks_outlined,
+                  title: context.l10n.nav_dictionary,
                 ),
                 const SizedBox(width: 12),
               ],

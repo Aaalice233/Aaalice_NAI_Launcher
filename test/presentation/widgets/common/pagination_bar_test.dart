@@ -137,6 +137,49 @@ void main() {
     await tester.tap(find.byIcon(Icons.chevron_right));
     expect(changes, 0);
   });
+
+  testWidgets('tonal pagination remains distinct from a collapsed canvas', (
+    tester,
+  ) async {
+    const canvas = Color(0xFF111111);
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: Colors.red,
+      brightness: Brightness.dark,
+    ).copyWith(surface: canvas, surfaceContainer: canvas);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(colorScheme: colorScheme),
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: PaginationBar(
+            currentPage: 0,
+            totalPages: 1,
+            tonalCard: true,
+            onPageChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    final tonalContainer = tester
+        .widgetList<Container>(
+          find.descendant(
+            of: find.byType(PaginationBar),
+            matching: find.byType(Container),
+          ),
+        )
+        .firstWhere(
+          (container) =>
+              container.decoration is BoxDecoration &&
+              (container.decoration! as BoxDecoration).borderRadius != null,
+        );
+    final decoration = tonalContainer.decoration! as BoxDecoration;
+
+    expect(decoration.color, isNot(canvas));
+  });
 }
 
 Future<void> _pumpPagination(

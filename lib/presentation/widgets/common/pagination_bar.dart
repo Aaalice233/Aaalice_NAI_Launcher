@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// Enhanced pagination bar with complete navigation features
@@ -28,6 +29,7 @@ class PaginationBar extends StatefulWidget {
   final bool loading;
   final IconData? totalIcon;
   final String? totalItemsLabel;
+  final bool tonalCard;
 
   const PaginationBar({
     super.key,
@@ -45,6 +47,7 @@ class PaginationBar extends StatefulWidget {
     this.loading = false,
     this.totalIcon,
     this.totalItemsLabel,
+    this.tonalCard = false,
   });
 
   @override
@@ -165,7 +168,7 @@ class _PaginationBarState extends State<PaginationBar> {
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 520;
           final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
-          return Container(
+          final bar = Container(
             height: narrow && !largeText ? 48 : null,
             constraints: narrow
                 ? const BoxConstraints(minHeight: 48)
@@ -175,14 +178,19 @@ class _PaginationBarState extends State<PaginationBar> {
               horizontal: narrow ? 4 : 16,
             ),
             decoration: BoxDecoration(
-              color: isDark
+              color: widget.tonalCard
+                  ? controlSurfaceColor(colorScheme)
+                  : isDark
                   ? colorScheme.surfaceContainerHigh
                   : colorScheme.surface,
-              border: Border(
-                top: BorderSide(
-                  color: theme.dividerColor.withValues(alpha: 0.2),
-                ),
-              ),
+              border: widget.tonalCard
+                  ? null
+                  : Border(
+                      top: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.2),
+                      ),
+                    ),
+              borderRadius: widget.tonalCard ? BorderRadius.circular(10) : null,
             ),
             child: narrow
                 ? _buildNarrowLayout(
@@ -196,6 +204,8 @@ class _PaginationBarState extends State<PaginationBar> {
                 ? _buildMediumLayout(theme, colorScheme)
                 : _buildFullLayout(theme, colorScheme),
           );
+          if (!widget.tonalCard) return bar;
+          return Padding(padding: const EdgeInsets.all(8), child: bar);
         },
       ),
     );

@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
+import '../../themes/core/layered_surface_style.dart';
 
 /// Shared geometry for collection pages that pair a navigation sidebar with a
-/// content toolbar. Keeping both regions on one vertical rhythm prevents the
+/// content toolbar. Keeping these regions on one spatial system prevents the
 /// library screens from drifting as their controls evolve independently.
 abstract final class GalleryCollectionChrome {
   static const sidebarWidth = 250.0;
   static const toolbarHeight = 72.0;
   static const navigationTopPadding = 4.0;
+  static const regionGap = 8.0;
+  static const regionRadius = 10.0;
 
   static EdgeInsets toolbarPadding(BuildContext context) =>
       EdgeInsets.symmetric(
@@ -20,49 +23,119 @@ abstract final class GalleryCollectionChrome {
       );
 }
 
-/// Page identity shown at the top of persistent collection sidebars.
-///
-/// Compact layouts keep their identity in the content toolbar because the
-/// sidebar is presented as a temporary panel with its own route title.
-class GallerySidebarPageHeader extends StatelessWidget {
-  const GallerySidebarPageHeader({
+/// Full-width, borderless toolbar surface shared by collection workspaces.
+class GalleryCollectionToolbarSurface extends StatelessWidget {
+  const GalleryCollectionToolbarSurface({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(
+        minHeight: GalleryCollectionChrome.toolbarHeight,
+      ),
+      padding: GalleryCollectionChrome.toolbarPadding(context),
+      color: sectionSurfaceColor(Theme.of(context).colorScheme),
+      child: child,
+    );
+  }
+}
+
+/// Consistent page identity used at the leading edge of collection toolbars.
+class GalleryCollectionPageTitle extends StatelessWidget {
+  const GalleryCollectionPageTitle({
     super.key,
     required this.icon,
     required this.title,
+    this.subtitle,
+    this.maxWidth = 220,
   });
 
   final IconData icon;
   final String title;
+  final String? subtitle;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      height: GalleryCollectionChrome.toolbarHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-        ),
-      ),
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 20, color: theme.colorScheme.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Stable collection-page topology: one full-width toolbar above an optional
+/// navigation region and the content canvas, with an optional content footer.
+class GalleryCollectionWorkspace extends StatelessWidget {
+  const GalleryCollectionWorkspace({
+    super.key,
+    required this.toolbar,
+    required this.body,
+    this.sidebar,
+    this.footer,
+  });
+
+  final Widget toolbar;
+  final Widget body;
+  final Widget? sidebar;
+  final Widget? footer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        toolbar,
+        Expanded(
+          child: Row(
+            children: [
+              if (sidebar != null) sidebar!,
+              Expanded(
+                child: Column(
+                  children: [
+                    Expanded(child: body),
+                    if (footer != null) footer!,
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -84,26 +157,33 @@ class GallerySidebarSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: modal ? double.infinity : width,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: modal
-            ? null
-            : Border(
-                right: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.3,
-                  ),
-                ),
-              ),
-      ),
+    final colorScheme = Theme.of(context).colorScheme;
+    final content = ColoredBox(
+      color: controlSurfaceColor(colorScheme),
       child: Column(
         children: [
           Expanded(child: child),
           if (footer != null) footer!,
         ],
+      ),
+    );
+    if (modal) return SizedBox(width: double.infinity, child: content);
+
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          GalleryCollectionChrome.regionGap,
+          GalleryCollectionChrome.regionGap,
+          GalleryCollectionChrome.regionGap,
+          GalleryCollectionChrome.regionGap,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(
+            GalleryCollectionChrome.regionRadius,
+          ),
+          child: content,
+        ),
       ),
     );
   }

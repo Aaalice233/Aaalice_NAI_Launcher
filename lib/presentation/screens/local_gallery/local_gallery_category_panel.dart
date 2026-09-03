@@ -101,12 +101,6 @@ class _LocalGalleryCategoryPanelState extends State<LocalGalleryCategoryPanel> {
       footer: const GalleryScanProgressPanel(),
       child: Column(
         children: [
-          if (!widget.modal)
-            GallerySidebarPageHeader(
-              key: const ValueKey('local-gallery-sidebar-page-header'),
-              icon: Icons.photo_library_outlined,
-              title: context.l10n.localGallery_title,
-            ),
           Expanded(
             child: ListView(
               controller: widget.scrollController,

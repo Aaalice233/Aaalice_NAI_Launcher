@@ -39,16 +39,10 @@ class _PreciseRefLibrarySidebarState extends State<PreciseRefLibrarySidebar> {
       modal: widget.modal,
       child: Column(
         children: [
-          if (!widget.modal) ...[
-            GallerySidebarPageHeader(
-              key: const Key('precise-ref-library-sidebar-page-header'),
-              icon: Icons.center_focus_strong,
-              title: l10n.preciseRefLib_title,
-            ),
+          if (!widget.modal)
             const SizedBox(
               height: GalleryCollectionChrome.navigationTopPadding,
             ),
-          ],
           GalleryAllImagesItem(
             key: const Key('precise-ref-sidebar-all'),
             count: state.entries.length,

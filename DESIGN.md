@@ -197,7 +197,7 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 
 ### Collection workspace shell
 
-本地画廊、Vibe 库、精准参考库与词库共用同一种 collection workspace 骨架。Expanded/Wide 下页面名称与图标固定放在持久侧栏顶部，主内容工具栏不重复页面名称；侧栏标题区和主工具栏的常规单行高度统一为 72px，以容纳触屏 48px 命中区，侧栏导航内容在标题区后保留 4px 间隔，侧栏宽度统一为 250px。新增同类页面必须复用 `GalleryCollectionChrome` 与 `GallerySidebarPageHeader`，不得在各页面复制这些尺寸和标题结构。
+本地画廊、Vibe 库、精准参考库与词库共用同一种 collection workspace 骨架。工具栏始终是横跨整个工作区的一体化 Section 色面，页面名称固定在工具栏左端；Expanded/Wide 下的持久分类树位于工具栏下方的独立强 tonal 区域，分页也作为主内容底部的独立强 tonal 区域。三者通过背景色、圆角和 8px 间隔建立层级，不使用贯穿式边线把页面切成表格；色面必须通过 `sectionSurfaceColor` / `controlSurfaceColor` 解析，不能直接读取可能与 Canvas 重合的容器色 token。常规单行工具栏的最小高度统一为 72px，以容纳触屏 48px 命中区；侧栏宽度统一为 250px。新增同类页面必须复用 `GalleryCollectionWorkspace`、`GalleryCollectionToolbarSurface` 与 `GallerySidebarSurface`，不得在各页面复制壳层结构和尺寸。
 
 Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，分类导航由 adaptive panel 承载并使用面板自身标题。窄屏换行、长本地化文案或放大文字可以让工具栏向下扩展，但不得裁切、缩放或隐藏操作；恢复为可容纳单行的宽度后应回到 72px 的共同基线。
 

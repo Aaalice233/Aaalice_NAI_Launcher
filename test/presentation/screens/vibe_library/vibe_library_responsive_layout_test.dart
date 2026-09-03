@@ -132,13 +132,7 @@ void main() {
     expect(find.text('肖像'), findsOneWidget);
     expect(find.text('文件夹'), findsNothing);
     expect(find.byType(GallerySidebarNavigationItem), findsOneWidget);
-    const pageHeaderKey = ValueKey('vibe-library-sidebar-page-header');
     const toolbarKey = ValueKey('vibe-library-toolbar');
-    expect(find.byKey(pageHeaderKey), findsOneWidget);
-    expect(
-      tester.getSize(find.byKey(pageHeaderKey)).height,
-      GalleryCollectionChrome.toolbarHeight,
-    );
     expect(
       tester.getSize(find.byKey(toolbarKey)).height,
       GalleryCollectionChrome.toolbarHeight,
@@ -148,8 +142,10 @@ void main() {
         of: find.byKey(toolbarKey),
         matching: find.text('Vibe 库'),
       ),
-      findsNothing,
+      findsOneWidget,
     );
+    expect(tester.getTopLeft(find.byKey(toolbarKey)).dx, 0);
+    expect(tester.getSize(find.byKey(toolbarKey)).width, 1600);
 
     double navigationIconX(String label) {
       final row = find.ancestor(
@@ -175,6 +171,10 @@ void main() {
     expect(find.byType(PaginationBar), findsOneWidget);
 
     final pagination = tester.widget<PaginationBar>(find.byType(PaginationBar));
+    final paginationRect = tester.getRect(find.byType(PaginationBar));
+    expect(paginationRect.height, lessThanOrEqualTo(112));
+    expect(paginationRect.bottom, 900);
+    expect(pagination.tonalCard, isTrue);
     expect(pagination.totalPages, 6);
     expect(pagination.totalItems, 120);
     pagination.onPageChanged(1);

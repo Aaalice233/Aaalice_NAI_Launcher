@@ -78,12 +78,6 @@ void main() {
             find.byKey(const Key('precise-ref-library-category-sidebar')),
             findsOneWidget,
           );
-          const pageHeaderKey = Key('precise-ref-library-sidebar-page-header');
-          expect(find.byKey(pageHeaderKey), findsOneWidget);
-          expect(
-            tester.getSize(find.byKey(pageHeaderKey)).height,
-            GalleryCollectionChrome.toolbarHeight,
-          );
           expect(
             find.byKey(const Key('precise-ref-sidebar-type-characterAndStyle')),
             findsOneWidget,
@@ -104,8 +98,10 @@ void main() {
               of: find.byKey(toolbarKey),
               matching: find.text('精准参考库'),
             ),
-            findsNothing,
+            findsOneWidget,
           );
+          expect(tester.getTopLeft(find.byKey(toolbarKey)).dx, 0);
+          expect(tester.getSize(find.byKey(toolbarKey)).width, 1600);
         }
         expect(find.byType(PaginationBar), findsOneWidget);
 

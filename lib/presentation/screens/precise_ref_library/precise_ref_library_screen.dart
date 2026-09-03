@@ -332,42 +332,34 @@ class _PreciseRefLibraryScreenState
         final layout = computePreciseRefGridLayout(mainWidth, textScale);
         return Stack(
           children: [
-            Row(
-              children: [
-                if (showSidebar)
-                  PreciseRefLibrarySidebar(
-                    state: state,
-                    onFilterChanged: _selectSidebarFilter,
-                  ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildToolbar(
-                        state,
-                        showCategoryButton: !showSidebar,
-                        showPageTitle: !showSidebar,
+            GalleryCollectionWorkspace(
+              toolbar: _buildToolbar(
+                state,
+                showCategoryButton: !showSidebar,
+                showPageTitle: true,
+              ),
+              sidebar: showSidebar
+                  ? PreciseRefLibrarySidebar(
+                      state: state,
+                      onFilterChanged: _selectSidebarFilter,
+                    )
+                  : null,
+              body: state.isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.72
+                            : null,
                       ),
-                      Expanded(
-                        child: state.isLoading
-                            ? Center(
-                                child: CircularProgressIndicator(
-                                  value: MediaQuery.disableAnimationsOf(context)
-                                      ? 0.72
-                                      : null,
-                                ),
-                              )
-                            : state.error != null
-                            ? _buildErrorView(state.error!)
-                            : state.filteredEntries.isEmpty
-                            ? _buildEmptyView(state)
-                            : _buildGrid(state, layout),
-                      ),
-                      if (!state.isLoading && state.filteredEntries.isNotEmpty)
-                        _buildPagination(state, mainWidth),
-                    ],
-                  ),
-                ),
-              ],
+                    )
+                  : state.error != null
+                  ? _buildErrorView(state.error!)
+                  : state.filteredEntries.isEmpty
+                  ? _buildEmptyView(state)
+                  : _buildGrid(state, layout),
+              footer: !state.isLoading && state.filteredEntries.isNotEmpty
+                  ? _buildPagination(state, mainWidth)
+                  : null,
             ),
             if (_isDragging) _buildDropOverlay(),
           ],
@@ -473,39 +465,11 @@ class _PreciseRefLibraryScreenState
     final theme = Theme.of(context);
     final touchTarget = context.interactionPolicy.shouldExposeTouchAlternatives;
 
-    final title = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.center_focus_strong,
-          size: 22,
-          color: theme.colorScheme.primary,
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.preciseRefLib_title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                l10n.preciseRefLib_entryCount(state.totalCount),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+    final title = GalleryCollectionPageTitle(
+      icon: Icons.center_focus_strong,
+      title: l10n.preciseRefLib_title,
+      subtitle: l10n.preciseRefLib_entryCount(state.totalCount),
+      maxWidth: 210,
     );
     final searchHeight = touchTarget ? 48.0 : 40.0;
     final search = InputSurfaceContainer(
@@ -629,20 +593,8 @@ class _PreciseRefLibraryScreenState
       children: [favorites, const SizedBox(width: 2), sort],
     );
 
-    return Container(
+    return GalleryCollectionToolbarSurface(
       key: const Key('precise-ref-library-unified-toolbar'),
-      padding: GalleryCollectionChrome.toolbarPadding(context),
-      constraints: const BoxConstraints(
-        minHeight: GalleryCollectionChrome.toolbarHeight,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-        ),
-      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final largeText = MediaQuery.textScalerOf(context).scale(14) > 18;
@@ -856,6 +808,7 @@ class _PreciseRefLibraryScreenState
       compact: contentWidth < 680,
       totalIcon: Icons.center_focus_strong,
       totalItemsLabel: context.l10n.preciseRefLib_entryCount(totalItems),
+      tonalCard: true,
     );
   }
 

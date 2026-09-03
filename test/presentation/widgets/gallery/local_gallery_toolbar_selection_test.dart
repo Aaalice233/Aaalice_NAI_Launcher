@@ -81,12 +81,12 @@ void main() {
   });
 
   testWidgets(
-    'persistent sidebar owns the desktop page title and toolbar height',
+    'desktop toolbar keeps the page title in the unified 72px surface',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1600, 500));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await _pumpToolbar(tester, selectionActive: false, showPageTitle: false);
+      await _pumpToolbar(tester, selectionActive: false);
 
       const toolbarKey = Key('local-gallery-toolbar');
       expect(
@@ -98,7 +98,7 @@ void main() {
           of: find.byKey(toolbarKey),
           matching: find.text('本地画廊'),
         ),
-        findsNothing,
+        findsOneWidget,
       );
     },
   );

@@ -101,20 +101,9 @@ void main() {
     expect(find.text('新建'), findsNWidgets(2));
     expect(find.byType(Divider), findsNothing);
     expect(find.byType(GallerySidebarNavigationItem), findsOneWidget);
-    final pageHeader = find.byKey(
-      const ValueKey('local-gallery-sidebar-page-header'),
-    );
-    expect(pageHeader, findsOneWidget);
     expect(
-      tester.getSize(pageHeader).height,
-      GalleryCollectionChrome.toolbarHeight,
-    );
-    expect(
-      tester
-          .getTopLeft(find.byKey(const ValueKey('local-gallery-all-images')))
-          .dy,
-      tester.getBottomLeft(pageHeader).dy +
-          GalleryCollectionChrome.navigationTopPadding,
+      find.byKey(const ValueKey('local-gallery-sidebar-page-header')),
+      findsNothing,
     );
 
     double navigationIconX(String label) {

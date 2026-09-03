@@ -51,24 +51,26 @@ void main() {
         expect(find.byType(TextField), findsOneWidget);
 
         if (width >= 840) {
-          const pageHeaderKey = Key('tag-library-sidebar-page-header');
-          expect(find.byKey(pageHeaderKey), findsOneWidget);
-          expect(
-            tester.getSize(find.byKey(pageHeaderKey)).height,
-            GalleryCollectionChrome.toolbarHeight,
-          );
           expect(
             find.descendant(
               of: find.byKey(const Key('tag-library-toolbar')),
               matching: find.text('词库'),
             ),
-            findsNothing,
+            findsOneWidget,
           );
         }
         if (width == 1600) {
           expect(
             tester.getSize(find.byKey(const Key('tag-library-toolbar'))).height,
             GalleryCollectionChrome.toolbarHeight,
+          );
+          expect(
+            tester.getTopLeft(find.byKey(const Key('tag-library-toolbar'))).dx,
+            0,
+          );
+          expect(
+            tester.getSize(find.byKey(const Key('tag-library-toolbar'))).width,
+            1600,
           );
         }
 
