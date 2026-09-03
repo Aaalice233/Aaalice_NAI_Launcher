@@ -328,37 +328,32 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   }
 
   Widget _buildSettingsPane(ThemeData theme) {
+    final stackOptions = MediaQuery.textScalerOf(context).scale(1) >= 2;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(context.l10n.fixedTags_scope, style: theme.textTheme.labelLarge),
         const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final stackOptions =
-                MediaQuery.textScalerOf(context).scale(1) >= 2 ||
-                constraints.maxWidth < 280;
-            return SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<FixedTagPromptType>(
-                direction: stackOptions ? Axis.vertical : Axis.horizontal,
-                segments: [
-                  ButtonSegment(
-                    value: FixedTagPromptType.positive,
-                    label: Text(context.l10n.fixedTags_positive),
-                  ),
-                  ButtonSegment(
-                    value: FixedTagPromptType.negative,
-                    label: Text(context.l10n.fixedTags_negative),
-                  ),
-                ],
-                selected: {_promptType},
-                onSelectionChanged: (selection) {
-                  setState(() => _promptType = selection.first);
-                },
+        SizedBox(
+          key: const ValueKey('fixed-tag-prompt-type-selector'),
+          width: double.infinity,
+          child: SegmentedButton<FixedTagPromptType>(
+            direction: stackOptions ? Axis.vertical : Axis.horizontal,
+            segments: [
+              ButtonSegment(
+                value: FixedTagPromptType.positive,
+                label: Text(context.l10n.fixedTags_positive),
               ),
-            );
-          },
+              ButtonSegment(
+                value: FixedTagPromptType.negative,
+                label: Text(context.l10n.fixedTags_negative),
+              ),
+            ],
+            selected: {_promptType},
+            onSelectionChanged: (selection) {
+              setState(() => _promptType = selection.first);
+            },
+          ),
         ),
         const SizedBox(height: 20),
         Text(
@@ -366,41 +361,36 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final stackOptions =
-                MediaQuery.textScalerOf(context).scale(1) >= 2 ||
-                constraints.maxWidth < 280;
-            if (!stackOptions) {
-              return PrefixSuffixSwitch(
-                value: _position,
-                onChanged: (value) => setState(() => _position = value),
-                prefixLabel: context.l10n.fixedTags_prefix,
-                suffixLabel: context.l10n.fixedTags_suffix,
-              );
-            }
-            return SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<FixedTagPosition>(
-                direction: Axis.vertical,
-                segments: [
-                  ButtonSegment(
-                    value: FixedTagPosition.prefix,
-                    label: Text(context.l10n.fixedTags_prefix),
-                  ),
-                  ButtonSegment(
-                    value: FixedTagPosition.suffix,
-                    label: Text(context.l10n.fixedTags_suffix),
-                  ),
-                ],
-                selected: {_position},
-                onSelectionChanged: (selection) {
-                  setState(() => _position = selection.first);
-                },
-              ),
-            );
-          },
-        ),
+        if (!stackOptions)
+          PrefixSuffixSwitch(
+            key: const ValueKey('fixed-tag-position-selector'),
+            value: _position,
+            onChanged: (value) => setState(() => _position = value),
+            prefixLabel: context.l10n.fixedTags_prefix,
+            suffixLabel: context.l10n.fixedTags_suffix,
+          )
+        else
+          SizedBox(
+            key: const ValueKey('fixed-tag-position-selector'),
+            width: double.infinity,
+            child: SegmentedButton<FixedTagPosition>(
+              direction: Axis.vertical,
+              segments: [
+                ButtonSegment(
+                  value: FixedTagPosition.prefix,
+                  label: Text(context.l10n.fixedTags_prefix),
+                ),
+                ButtonSegment(
+                  value: FixedTagPosition.suffix,
+                  label: Text(context.l10n.fixedTags_suffix),
+                ),
+              ],
+              selected: {_position},
+              onSelectionChanged: (selection) {
+                setState(() => _position = selection.first);
+              },
+            ),
+          ),
         const SizedBox(height: 20),
         _buildWeightControl(theme),
         const SizedBox(height: 12),

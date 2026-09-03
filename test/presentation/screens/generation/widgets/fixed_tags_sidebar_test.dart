@@ -297,6 +297,58 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('desktop fixed-tag editor keeps binary selectors horizontal', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: FixedTagsDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('新建').first);
+    await tester.pumpAndSettle();
+
+    final promptTypeSelector = find.descendant(
+      of: find.byKey(const ValueKey('fixed-tag-prompt-type-selector')),
+      matching: find.byType(SegmentedButton<FixedTagPromptType>),
+    );
+    final positionSelector = find.descendant(
+      of: find.byKey(const ValueKey('fixed-tag-position-selector')),
+      matching: find.byType(SegmentedButton<FixedTagPosition>),
+    );
+    expect(
+      tester
+          .widget<SegmentedButton<FixedTagPromptType>>(promptTypeSelector)
+          .direction,
+      Axis.horizontal,
+    );
+    expect(
+      tester
+          .widget<SegmentedButton<FixedTagPosition>>(positionSelector)
+          .direction,
+      Axis.horizontal,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'mobile fixed-tag manager uses one adaptive column without overflow',
     (tester) async {
@@ -402,6 +454,26 @@ void main() {
       );
       expect(frameRect.top, greaterThanOrEqualTo(24));
       expect(frameRect.bottom, lessThanOrEqualTo(720));
+      final promptTypeSelector = find.descendant(
+        of: find.byKey(const ValueKey('fixed-tag-prompt-type-selector')),
+        matching: find.byType(SegmentedButton<FixedTagPromptType>),
+      );
+      final positionSelector = find.descendant(
+        of: find.byKey(const ValueKey('fixed-tag-position-selector')),
+        matching: find.byType(SegmentedButton<FixedTagPosition>),
+      );
+      expect(
+        tester
+            .widget<SegmentedButton<FixedTagPromptType>>(promptTypeSelector)
+            .direction,
+        Axis.vertical,
+      );
+      expect(
+        tester
+            .widget<SegmentedButton<FixedTagPosition>>(positionSelector)
+            .direction,
+        Axis.vertical,
+      );
       expect(tester.takeException(), isNull);
 
       await tester.binding.handlePopRoute();
