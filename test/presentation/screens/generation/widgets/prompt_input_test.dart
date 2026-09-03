@@ -137,7 +137,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('紧凑提示词编辑器使用区别于页面的输入色面', (tester) async {
+  testWidgets('紧凑提示词编辑器使用独立色面且正文没有额外右侧预留', (tester) async {
     const colorScheme = ColorScheme.dark(
       surface: Color(0xFF1A1A1A),
       onSurface: Color(0xFFF4EEDC),
@@ -192,6 +192,17 @@ void main() {
     );
     expect(input.surfaceColor, expectedColor);
     expect(input.surfaceColor, isNot(colorScheme.surface));
+    final surfaceRect = tester.getRect(
+      find.descendant(
+        of: surface,
+        matching: find.byType(InputSurfaceContainer),
+      ),
+    );
+    final editableRect = tester.getRect(
+      find.descendant(of: surface, matching: find.byType(EditableText)),
+    );
+    expect(editableRect.left - surfaceRect.left, closeTo(13, 0.1));
+    expect(surfaceRect.right - editableRect.right, closeTo(13, 0.1));
   });
 
   testWidgets('手机最大化提示词工作台把预设工具放在编辑区下方', (tester) async {
