@@ -69,6 +69,10 @@ void main() {
         find.byType(MobileGenerationLayout),
         usesExpandedComposition ? findsNothing : findsOneWidget,
       );
+      if (!usesExpandedComposition) {
+        expect(find.text('Canvas'), findsOneWidget);
+        expect(find.byIcon(Icons.brush_outlined), findsOneWidget);
+      }
       flutterErrors.expectNoErrors(reason: 'width=$width');
     }
 
@@ -103,6 +107,18 @@ void main() {
           findsOneWidget,
         );
         expect(find.byType(MobileGenerationLayout), findsNothing);
+        final workspaceHeaderCount =
+            find
+                .byKey(const ValueKey('classic-generation-workspace-header'))
+                .evaluate()
+                .length +
+            find
+                .byKey(const ValueKey('web-generation-workspace-header'))
+                .evaluate()
+                .length;
+        expect(workspaceHeaderCount, 1);
+        expect(find.text('Canvas'), findsOneWidget);
+        expect(find.byIcon(Icons.brush_outlined), findsOneWidget);
         flutterErrors.expectNoErrors(reason: 'width=$width');
       }
 

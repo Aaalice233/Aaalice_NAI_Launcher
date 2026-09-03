@@ -53,7 +53,18 @@ class MobileGenerationChrome extends ConsumerWidget {
                 label: context.l10n.promptToken_prompt,
               ),
             )
-          : Text(context.l10n.generation_title),
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.brush_outlined,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Flexible(child: Text(context.l10n.nav_canvas)),
+              ],
+            ),
       actions: data.isPromptMaximized
           ? null
           : [

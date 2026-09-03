@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/layout_state_provider.dart';
 import 'collapsed_panel.dart';
+import 'generation_workspace_header.dart';
 import 'parameter_panel.dart';
 
 /// 左侧面板组件
@@ -28,20 +29,15 @@ class LeftPanel extends ConsumerWidget {
     );
 
     final child = layoutState.leftPanelExpanded
-        ? Stack(
+        ? Column(
             children: [
-              const ParameterPanel(),
-              // 折叠按钮
-              Positioned(
-                top: 8,
-                right: 8,
-                child: CollapseButton(
-                  icon: Icons.chevron_left,
-                  onTap: () => ref
-                      .read(layoutStateNotifierProvider.notifier)
-                      .setLeftPanelExpanded(false),
-                ),
+              GenerationWorkspaceHeader(
+                key: const ValueKey('classic-generation-workspace-header'),
+                onCollapse: () => ref
+                    .read(layoutStateNotifierProvider.notifier)
+                    .setLeftPanelExpanded(false),
               ),
+              const Expanded(child: ParameterPanel()),
             ],
           )
         : CollapsedPanel(

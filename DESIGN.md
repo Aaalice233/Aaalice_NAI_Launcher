@@ -201,6 +201,10 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 
 Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，分类导航由 adaptive panel 承载并使用面板自身标题。窄屏换行、长本地化文案或放大文字可以让工具栏向下扩展，但不得裁切、缩放或隐藏操作；恢复为可容纳单行的宽度后应回到 72px 的共同基线。
 
+### Generation workspace identity
+
+画布是高密度创作工作区，不套用 collection workspace 的整条页面工具栏。Expanded/Wide 下，页面身份固定在展开的生成控制栏顶部，以无副标题的紧凑 Section 色面显示“画布”及画笔图标，并与侧栏折叠操作同排；经典布局与官网式布局必须复用 `GenerationWorkspaceHeader`。Compact/Medium 下由 AppBar 显示相同图标与 `nav_canvas` 文案；进入提示词全屏编辑等子任务后，AppBar 改为当前任务标题。侧栏收起时只保留参数展开入口，不重复页面标题。
+
 **The Capability Parity Rule.** 桌面 hover、右键与快捷键必须有移动端单击、长按、菜单或系统入口的等价路径；低频操作可以折叠，但不能静默消失。
 
 **The Local Constraint Rule.** 响应式判断使用局部 `LayoutBuilder.constraints` 与 capabilities；禁止按设备型号、`FittedBox` 缩小交互工具栏或在共享页面散落平台判断。

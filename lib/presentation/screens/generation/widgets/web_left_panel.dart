@@ -12,6 +12,7 @@ import '../../../widgets/character/inline_character_section.dart';
 import 'collapsed_panel.dart';
 import 'generation_controls/generation_controls.dart';
 import 'generation_param_sections.dart';
+import 'generation_workspace_header.dart';
 import 'img2img_panel.dart';
 import 'precise_reference_panel.dart';
 import 'prompt_input.dart';
@@ -185,32 +186,11 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
 
     return Column(
       children: [
-        // 头部条：折叠按钮不悬浮，避免遮挡提示词工具栏
-        Container(
-          height: 36,
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: theme.dividerColor, width: 1),
-            ),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 12),
-              Icon(
-                Icons.edit_note,
-                size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-              const Spacer(),
-              CollapseButton(
-                icon: Icons.chevron_left,
-                onTap: () => ref
-                    .read(layoutStateNotifierProvider.notifier)
-                    .setWebLeftPanelExpanded(false),
-              ),
-              const SizedBox(width: 4),
-            ],
-          ),
+        GenerationWorkspaceHeader(
+          key: const ValueKey('web-generation-workspace-header'),
+          onCollapse: () => ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setWebLeftPanelExpanded(false),
         ),
 
         // 内容区 + 参数二级菜单浮层

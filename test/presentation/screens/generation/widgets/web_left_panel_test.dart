@@ -81,6 +81,12 @@ void main() {
       find.byKey(const ValueKey('web-left-panel-expanded-content')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('web-generation-workspace-header')),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.brush_outlined), findsOneWidget);
+    expect(find.text('画布'), findsOneWidget);
     expect(find.text('参数'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
