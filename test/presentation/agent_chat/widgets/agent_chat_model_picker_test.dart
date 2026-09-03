@@ -30,6 +30,58 @@ void main() {
     },
   );
 
+  testWidgets('combined configuration picker hugs short content', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(840, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 420,
+              child: AgentChatConfigurationControl(
+                config: _config,
+                agentSettings: _settings,
+                routeLabel: 'First Cloud / aurora-chat-v2',
+                routeError: '',
+                thinkingLevel: ThinkingLevel.low,
+                availableThinkingLevels: const [
+                  ThinkingLevel.low,
+                  ThinkingLevel.medium,
+                  ThinkingLevel.high,
+                ],
+                enabled: true,
+                onModelSelected: (_, _) async {},
+                onThinkingSelected: (_) async {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('agent-chat-model-selector')));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    final lastOption = find.byKey(
+      const ValueKey('agent-chat-thinking-option-high'),
+    );
+    expect(surface, findsOneWidget);
+    expect(lastOption, findsOneWidget);
+    expect(tester.getSize(surface).height, lessThan(360));
+    expect(
+      tester.getRect(surface).bottom - tester.getRect(lastOption).bottom,
+      lessThanOrEqualTo(20),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('model search matches display name model id and provider', (
     tester,
   ) async {

@@ -220,15 +220,18 @@ class _AgentChatConfigurationPickerBodyState
     final currentModel =
         widget.selectedModel?.displayName ?? l10n.agentChat_noModel;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _PickerHeader(
           title:
               '${l10n.agentChat_modelLabel} · ${l10n.agentChat_reasoningLevel}',
         ),
-        Expanded(
+        Flexible(
+          fit: FlexFit.loose,
           child: ListView(
             controller: widget.scrollController,
+            shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
             children: [
               Material(
