@@ -2598,6 +2598,16 @@ class AppLocalizationsZh extends AppLocalizations {
       '当前 Focused Inpaint 选区在更高分辨率下会超过请求面积上限，因此滑条上限已收紧。';
 
   @override
+  String editor_compressionClampedToLimit(
+    int targetWidth,
+    int targetHeight,
+    int clampedWidth,
+    int clampedHeight,
+  ) {
+    return '所选 $targetWidth×$targetHeight 超过请求面积上限，实际会按 $clampedWidth×$clampedHeight 发送。';
+  }
+
+  @override
   String editor_focusRequestSummary(
     int outerWidth,
     int outerHeight,
@@ -16524,6 +16534,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get editor_compressionFocusLimited =>
       '當前 Focused Inpaint 選區在更高解析度下會超過請求面積上限，因此滑條上限已收緊。';
+
+  @override
+  String editor_compressionClampedToLimit(
+    int targetWidth,
+    int targetHeight,
+    int clampedWidth,
+    int clampedHeight,
+  ) {
+    return '所選 $targetWidth×$targetHeight 超過請求面積上限，實際會以 $clampedWidth×$clampedHeight 傳送。';
+  }
 
   @override
   String editor_focusRequestSummary(

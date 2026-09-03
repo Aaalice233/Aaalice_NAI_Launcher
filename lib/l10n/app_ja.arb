@@ -1119,6 +1119,15 @@
   },
   "editor_compressionUnavailable": "作業キャンバスはすでに最低圧縮段階より小さいため、解像度を下げられません。",
   "editor_compressionFocusLimited": "現在の Focused Inpaint 選択範囲では、これ以上の解像度がリクエスト面積上限を超えるため、スライダー上限を制限しています。",
+  "editor_compressionClampedToLimit": "{targetWidth}×{targetHeight} はリクエストの面積上限を超えるため、実際には {clampedWidth}×{clampedHeight} で送信されます。",
+  "@editor_compressionClampedToLimit": {
+    "placeholders": {
+      "targetWidth": {"type": "int"},
+      "targetHeight": {"type": "int"},
+      "clampedWidth": {"type": "int"},
+      "clampedHeight": {"type": "int"}
+    }
+  },
   "editor_focusRequestSummary": "外側の切り抜き {outerWidth}×{outerHeight}、送信サイズ {requestWidth}×{requestHeight}、推定 {cost} Anlas。",
   "@editor_focusRequestSummary": {
     "placeholders": {

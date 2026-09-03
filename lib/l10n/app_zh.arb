@@ -1061,6 +1061,15 @@
   },
   "editor_compressionUnavailable": "当前工作画布已经低于最低压缩档，不能继续降低分辨率。",
   "editor_compressionFocusLimited": "当前 Focused Inpaint 选区在更高分辨率下会超过请求面积上限，因此滑条上限已收紧。",
+  "editor_compressionClampedToLimit": "所选 {targetWidth}×{targetHeight} 超过请求面积上限，实际会按 {clampedWidth}×{clampedHeight} 发送。",
+  "@editor_compressionClampedToLimit": {
+    "placeholders": {
+      "targetWidth": {"type": "int"},
+      "targetHeight": {"type": "int"},
+      "clampedWidth": {"type": "int"},
+      "clampedHeight": {"type": "int"}
+    }
+  },
   "editor_focusRequestSummary": "外层裁剪 {outerWidth}×{outerHeight}，实际发送 {requestWidth}×{requestHeight}，预计 {cost} Anlas。",
   "@editor_focusRequestSummary": {
     "placeholders": {

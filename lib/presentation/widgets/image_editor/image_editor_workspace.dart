@@ -1959,6 +1959,22 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         target.height != _state.canvasSize.height.round();
   }
 
+  /// 超出请求面积上限的档位会在交接给生成页时收敛，UI 要显示实际会发送的尺寸。
+  ({int width, int height})? get _clampedRequestSize {
+    final target = _activeCompressionTarget;
+    if (NaiResolutionAdapter.isGenerationCompatible(
+      target.width,
+      target.height,
+    )) {
+      return null;
+    }
+    final closest = NaiResolutionAdapter.findClosestResolution(
+      target.width,
+      target.height,
+    );
+    return (width: closest.width, height: closest.height);
+  }
+
   bool get _compressionIsFocusLimited {
     final plan = _compressionPlan;
     return _isInpaintMode &&
@@ -2157,9 +2173,17 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     }
 
     final target = _activeCompressionTarget;
+    final clamped = _clampedRequestSize;
     final index = plan.indexOf(target).clamp(0, plan.targets.length - 1);
     return Tooltip(
-      message: context.l10n.editor_compressionTooltip,
+      message: clamped == null
+          ? context.l10n.editor_compressionTooltip
+          : context.l10n.editor_compressionClampedToLimit(
+              target.width,
+              target.height,
+              clamped.width,
+              clamped.height,
+            ),
       child: SizedBox(
         width: 300,
         child: Row(
@@ -2170,7 +2194,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
             SizedBox(
               width: 92,
               child: Text(
-                '${target.width} x ${target.height}',
+                '${clamped?.width ?? target.width} x '
+                '${clamped?.height ?? target.height}',
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelMedium,
               ),
@@ -2216,6 +2241,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
           final plan = _compressionPlan;
           if (plan == null) return const SizedBox.shrink();
           final target = _activeCompressionTarget;
+          final clamped = _clampedRequestSize;
           final index = plan.indexOf(target).clamp(0, plan.targets.length - 1);
           final theme = Theme.of(panelContext);
           return ListView(
@@ -2227,16 +2253,24 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                 context.l10n.editor_compressionSizeSummary(
                   plan.workWidth,
                   plan.workHeight,
-                  target.width,
-                  target.height,
+                  clamped?.width ?? target.width,
+                  clamped?.height ?? target.height,
                 ),
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 4),
               Text(
-                target.isOriginal
-                    ? context.l10n.editor_compressionUncompressed
-                    : context.l10n.editor_compressionApplyOnDone,
+                switch ((clamped, target.isOriginal)) {
+                  ((final size?, _)) => context.l10n
+                      .editor_compressionClampedToLimit(
+                        target.width,
+                        target.height,
+                        size.width,
+                        size.height,
+                      ),
+                  ((_, true)) => context.l10n.editor_compressionUncompressed,
+                  ((_, false)) => context.l10n.editor_compressionApplyOnDone,
+                },
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

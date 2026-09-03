@@ -666,8 +666,8 @@ void main() {
           const Rect.fromLTWH(120, 160, 360, 420),
         );
         expect(workflow.minimumContextMegaPixels, equals(120.0));
-        expect(params.width, equals(896));
-        expect(params.height, equals(1344));
+        expect(params.width, equals(1408));
+        expect(params.height, equals(2112));
         expect(params.maskImage, isNotNull);
         expect(params.isOutpaint, isFalse);
         expect(params.action, ImageGenerationAction.infill);
@@ -1375,6 +1375,81 @@ void main() {
         expect(workflow.enhance.noise, equals(0.12));
       },
     );
+
+    test('focused inpaint should not carry over to the next source image', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+
+      controller.replaceSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.applyInpaintEditorResult(
+        maskImage: Uint8List.fromList([9, 9, 9]),
+        focusedInpaintEnabled: true,
+        focusedSelectionRect: const Rect.fromLTWH(120, 160, 240, 320),
+        minimumContextMegaPixels: 96,
+      );
+
+      var workflow = container.read(imageWorkflowControllerProvider);
+      expect(workflow.focusedInpaintEnabled, isTrue);
+      expect(workflow.focusedSelectionRect, isNotNull);
+
+      controller.replaceSourceImage(_validImageBytes(width: 1024, height: 768));
+
+      workflow = container.read(imageWorkflowControllerProvider);
+      expect(workflow.focusedInpaintEnabled, isFalse);
+      expect(workflow.focusedSelectionRect, isNull);
+    });
+
+    test('focused inpaint should reset when leaving inpaint for base mode', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+
+      controller.replaceSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.applyInpaintEditorResult(
+        maskImage: Uint8List.fromList([9, 9, 9]),
+        focusedInpaintEnabled: true,
+        focusedSelectionRect: const Rect.fromLTWH(120, 160, 240, 320),
+        minimumContextMegaPixels: 96,
+      );
+      controller.enterBaseMode(clearMask: true);
+
+      final workflow = container.read(imageWorkflowControllerProvider);
+      expect(workflow.focusedInpaintEnabled, isFalse);
+      expect(workflow.focusedSelectionRect, isNull);
+    });
+
+    test('applyInpaintEditorResult preserves a legal editor output size', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final source = _validImageBytes(width: 1344, height: 640);
+      final mask = _validMaskBytes(width: 1344, height: 640);
+
+      controller.applyInpaintEditorResult(
+        sourceImage: source,
+        sourceWidth: 1344,
+        sourceHeight: 640,
+        sourceIsOutpaint: false,
+        maskImage: mask,
+        focusedInpaintEnabled: true,
+        focusedSelectionRect: const Rect.fromLTWH(128, 64, 640, 320),
+        minimumContextMegaPixels: 88,
+      );
+
+      final workflow = container.read(imageWorkflowControllerProvider);
+      final params = container.read(generationParamsNotifierProvider);
+      expect((workflow.sourceWidth, workflow.sourceHeight), (1344, 640));
+      expect(
+        (workflow.sourceImageWidth, workflow.sourceImageHeight),
+        (1344, 640),
+      );
+      expect((params.width, params.height), (1344, 640));
+      expect(params.sourceImage, same(source));
+      expect(params.maskImage, same(mask));
+      expect(workflow.focusedInpaintEnabled, isTrue);
+    });
+
   });
 
   group('resolveSeedvr2SwapIoComponents', () {

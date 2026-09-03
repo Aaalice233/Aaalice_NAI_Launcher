@@ -2638,6 +2638,16 @@ class AppLocalizationsJa extends AppLocalizations {
       '現在の Focused Inpaint 選択範囲では、これ以上の解像度がリクエスト面積上限を超えるため、スライダー上限を制限しています。';
 
   @override
+  String editor_compressionClampedToLimit(
+    int targetWidth,
+    int targetHeight,
+    int clampedWidth,
+    int clampedHeight,
+  ) {
+    return '$targetWidth×$targetHeight はリクエストの面積上限を超えるため、実際には $clampedWidth×$clampedHeight で送信されます。';
+  }
+
+  @override
   String editor_focusRequestSummary(
     int outerWidth,
     int outerHeight,

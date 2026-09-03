@@ -314,6 +314,98 @@ void main() {
       expect(working.resizeMode, NaiEditorResizeMode.passthrough);
     });
   });
+
+  group('NaiResolutionAdapter default import sizing', () {
+    test('keeps in-budget sources at their own 64-grid size', () {
+      final cases = [
+        (source: (1472, 1984), expected: (1472, 1984)),
+        (source: (1536, 2048), expected: (1536, 2048)),
+        (source: (1920, 1080), expected: (1920, 1088)),
+      ];
+
+      for (final testCase in cases) {
+        final result = NaiResolutionAdapter.findImportResolution(
+          testCase.source.$1,
+          testCase.source.$2,
+          currentWidth: 832,
+          currentHeight: 1216,
+        );
+
+        expect(
+          (result.width, result.height),
+          equals(testCase.expected),
+          reason: '${testCase.source.$1}x${testCase.source.$2}',
+        );
+      }
+    });
+
+    test('scales oversized sources down to the largest legal size', () {
+      final cases = [
+        (source: (2048, 2048), expected: (1728, 1728)),
+        (source: (2000, 3000), expected: (1408, 2112)),
+        (source: (1728, 2560), expected: (1408, 2112)),
+      ];
+
+      for (final testCase in cases) {
+        final result = NaiResolutionAdapter.findImportResolution(
+          testCase.source.$1,
+          testCase.source.$2,
+          currentWidth: 832,
+          currentHeight: 1216,
+        );
+
+        expect(
+          (result.width, result.height),
+          equals(testCase.expected),
+          reason: '${testCase.source.$1}x${testCase.source.$2}',
+        );
+        expect(
+          NaiResolutionAdapter.isGenerationCompatible(
+            result.width,
+            result.height,
+          ),
+          isTrue,
+        );
+        // 收敛后仍应贴着面积上限，而不是掉回官网的 1216/896 基准边。
+        expect(result.width * result.height, greaterThan(2900000));
+      }
+    });
+
+    test('keeps the official buckets for Stable Diffusion family models', () {
+      final result = NaiResolutionAdapter.findImportResolution(
+        4096,
+        4096,
+        currentWidth: 512,
+        currentHeight: 768,
+        isStableDiffusionFamily: true,
+      );
+
+      expect((result.width, result.height), equals((512, 512)));
+    });
+
+    test('keeps the current parameter size for a smaller same-aspect source', () {
+      final result = NaiResolutionAdapter.findImportResolution(
+        512,
+        768,
+        currentWidth: 1024,
+        currentHeight: 1536,
+      );
+
+      expect((result.width, result.height), equals((1024, 1536)));
+    });
+
+    test('describeImageForImport follows the default sizing', () {
+      final info = NaiResolutionAdapter.describeImageForImport(
+        _png(width: 2048, height: 2048),
+        currentWidth: 832,
+        currentHeight: 1216,
+      );
+
+      expect(info, isNotNull);
+      expect((info!.width, info.height), equals((1728, 1728)));
+      expect((info.originalWidth, info.originalHeight), equals((2048, 2048)));
+    });
+  });
 }
 
 Uint8List _png({required int width, required int height}) {

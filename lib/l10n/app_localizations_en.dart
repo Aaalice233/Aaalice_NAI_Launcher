@@ -2705,6 +2705,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Higher resolutions are unavailable because the current Focused Inpaint selection would exceed the request area limit.';
 
   @override
+  String editor_compressionClampedToLimit(
+    int targetWidth,
+    int targetHeight,
+    int clampedWidth,
+    int clampedHeight,
+  ) {
+    return '$targetWidth×$targetHeight exceeds the request area limit, so $clampedWidth×$clampedHeight is sent instead.';
+  }
+
+  @override
   String editor_focusRequestSummary(
     int outerWidth,
     int outerHeight,

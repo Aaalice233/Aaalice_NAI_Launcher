@@ -1130,6 +1130,15 @@
   },
   "editor_compressionUnavailable": "This work canvas is already below the lowest compression step.",
   "editor_compressionFocusLimited": "Higher resolutions are unavailable because the current Focused Inpaint selection would exceed the request area limit.",
+  "editor_compressionClampedToLimit": "{targetWidth}×{targetHeight} exceeds the request area limit, so {clampedWidth}×{clampedHeight} is sent instead.",
+  "@editor_compressionClampedToLimit": {
+    "placeholders": {
+      "targetWidth": {"type": "int"},
+      "targetHeight": {"type": "int"},
+      "clampedWidth": {"type": "int"},
+      "clampedHeight": {"type": "int"}
+    }
+  },
   "editor_focusRequestSummary": "Outer crop {outerWidth}×{outerHeight}, request {requestWidth}×{requestHeight}, estimated {cost} Anlas.",
   "@editor_focusRequestSummary": {
     "placeholders": {
