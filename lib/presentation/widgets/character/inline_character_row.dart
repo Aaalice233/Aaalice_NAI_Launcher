@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,10 +8,8 @@ import '../../../data/models/character/character_prompt.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
-import '../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
-import '../common/collapsible_image_panel.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'add_to_library_dialog.dart';
 import 'character_position_canvas.dart';
@@ -137,74 +133,10 @@ enum _CharacterAddAction {
   final CharacterGender? gender;
 }
 
-/// 经典布局角色二级菜单。
+/// 移动端全屏角色管理器的卡片与编辑器主体。
 ///
-/// 只折叠角色管理界面，不改变角色启用状态或生成参数；展开后继续复用原有
-/// 横向卡片和全宽编辑器，避免为两种布局维护两套角色业务逻辑。
-class ClassicCharacterSection extends ConsumerWidget {
-  const ClassicCharacterSection({super.key});
-
-  static const panel = GenerationWorkbenchPanel.characters;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isV4Model = ref.watch(
-      generationParamsNotifierProvider.select(
-        (params) => ImageModels.isV4Model(params.model),
-      ),
-    );
-    if (!isV4Model) return const SizedBox.shrink();
-
-    final characters = ref.watch(characterPromptNotifierProvider).characters;
-    if (characters.isEmpty) return const SizedBox.shrink();
-
-    final isExpanded = ref.watch(
-      generationPanelExpansionProvider.select(
-        (state) => state.isExpanded(panel),
-      ),
-    );
-    final theme = Theme.of(context);
-
-    return CollapsibleImagePanel(
-      key: const Key('classic-character-secondary-menu'),
-      title: AppLocalizations.of(context)!.character_buttonLabel,
-      icon: Icons.people_outline_rounded,
-      isExpanded: isExpanded,
-      onToggle: () => unawaited(
-        ref.read(generationPanelExpansionProvider.notifier).toggle(panel),
-      ),
-      hasData: true,
-      badge: Container(
-        key: const Key('classic-character-count'),
-        constraints: const BoxConstraints(minWidth: 22),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          '${characters.length}',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onPrimaryContainer,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-      ),
-      childBuilder: (context) => const InlineCharacterRow(),
-    );
-  }
-}
-
-/// 内联角色行（经典布局用，横排）
-///
-/// 位于提示词横条正下方，与主提示词同屏相邻：
-/// - 角色卡固定宽度横排（Wrap 换行），网格始终整齐
-/// - 选中的角色在网格下方展开全宽编辑面板，不打乱卡片排版
-/// - 行尾「+」按钮弹出添加菜单（女/男/其他/词库）
-/// - 无角色或非 V4 模型时整行隐藏，零高度成本
-///
-/// 全屏编辑与非全屏共用此组件，始终紧贴提示词区下方。
+/// 管理器使用单列卡片和全宽编辑器；角色状态仍由共享 Provider 持有，
+/// 与桌面侧栏角色菜单保持一致。
 class InlineCharacterRow extends ConsumerWidget {
   const InlineCharacterRow({
     super.key,

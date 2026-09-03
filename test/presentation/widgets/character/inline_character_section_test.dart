@@ -10,7 +10,6 @@ import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_card.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
-import 'package:nai_launcher/presentation/widgets/character/inline_character_row.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_section.dart';
 
 class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
@@ -150,7 +149,7 @@ void main() {
   testWidgets('无角色时标题显示空态动态图标和全部添加入口', (tester) async {
     final container = createContainer(empty: true);
 
-    await tester.pumpWidget(subject(container, 700));
+    await tester.pumpWidget(subject(container, 300));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('character-stack-icon')), findsOneWidget);
@@ -202,30 +201,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('character-stack-person-0')), findsOneWidget);
     expect(find.byKey(const Key('character-stack-person-1')), findsOneWidget);
-  });
-
-  testWidgets('经典布局默认折叠且展开不会改变角色状态', (tester) async {
-    final container = createContainer();
-    final before = container.read(characterPromptNotifierProvider);
-
-    await tester.pumpWidget(
-      subject(container, 1180, child: const ClassicCharacterSection()),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('classic-character-count')), findsOneWidget);
-    expect(find.byType(InlineCharacterCard), findsNothing);
-
-    await tester.tap(find.byKey(const Key('collapsible-chevron-角色')));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(InlineCharacterCard), findsNWidgets(2));
-    expect(container.read(characterPromptNotifierProvider), before);
-
-    await tester.tap(find.byKey(const Key('collapsible-chevron-角色')));
-    await tester.pumpAndSettle();
-    expect(find.byType(InlineCharacterCard), findsNothing);
-    expect(container.read(characterPromptNotifierProvider), before);
   });
 
   testWidgets('标题栏添加按钮新增角色且不会切换面板展开状态', (tester) async {

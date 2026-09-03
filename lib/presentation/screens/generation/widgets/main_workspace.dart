@@ -6,7 +6,6 @@ import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
-import '../../../widgets/character/inline_character_row.dart';
 import 'generation_controls/generation_controls.dart';
 import 'image_preview.dart';
 import 'prompt_input.dart';
@@ -104,9 +103,6 @@ class MainWorkspace extends ConsumerWidget {
                   child: _buildPromptInput(theme, isPromptMaximized),
                 ),
               ),
-
-            // 角色二级菜单：紧贴提示词区下方（画布模式收起，画布内有芯片条）
-            if (!canvasOpen) const ClassicCharacterSection(),
 
             // 提示词区域拖拽分隔条（最大化/画布模式隐藏）
             if (!isPromptMaximized && !canvasOpen)
