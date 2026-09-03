@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -615,6 +616,7 @@ void main() {
   testWidgets('narrow 3x toolbar stays on-screen and supports keyboard', (
     tester,
   ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     tester.view.devicePixelRatio = 3;
     tester.view.physicalSize = const Size(960, 1800);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -656,12 +658,24 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    final toolbarMaterial = find.descendant(
-      of: find.byType(CompositedTransformFollower),
-      matching: find.byType(Material),
+    final toolbarMaterial = find.byKey(
+      const ValueKey('weight_adjust_toolbar_surface'),
     );
-    expect(tester.getSize(toolbarMaterial.first).width, lessThanOrEqualTo(304));
+    expect(tester.getSize(toolbarMaterial).width, lessThanOrEqualTo(304));
     expect(tester.takeException(), isNull);
+
+    final resetTooltip = find.ancestor(
+      of: find.byIcon(Icons.refresh),
+      matching: find.byType(Tooltip),
+    );
+    final tooltipMessage = tester.widget<Tooltip>(resetTooltip).message!;
+    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await pointer.addPointer();
+    await pointer.moveTo(tester.getCenter(find.byIcon(Icons.refresh)));
+    await tester.pumpAndSettle();
+    expect(find.text(tooltipMessage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await pointer.removePointer();
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
@@ -673,6 +687,7 @@ void main() {
     focus.unfocus();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 250));
+    debugDefaultTargetPlatformOverride = null;
   });
 }
 
