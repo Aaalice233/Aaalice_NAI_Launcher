@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
@@ -6,7 +7,7 @@ import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_entry_tile.dart';
 
 void main() {
-  testWidgets('桌面禁用态保留原阴影和文字独立弱化样式', (tester) async {
+  testWidgets('桌面禁用态保留清晰色面、边界和文字弱化样式', (tester) async {
     final entry = FixedTagEntry.create(
       name: '禁用固定词',
       content: '1girl, blue eyes',
@@ -20,15 +21,10 @@ void main() {
       find.byType(AnimatedContainer),
     );
     final decoration = container.decoration! as BoxDecoration;
-    expect(decoration.boxShadow, hasLength(1));
-    expect(
-      decoration.boxShadow!.single,
-      BoxShadow(
-        color: theme.colorScheme.shadow.withValues(alpha: 0.05),
-        blurRadius: 4,
-        offset: const Offset(0, 1),
-      ),
-    );
+    expect(decoration.color, theme.colorScheme.surfaceContainer);
+    expect(decoration.border, isA<Border>());
+    expect(decoration.boxShadow, isEmpty);
+    expect(tester.getSize(find.byType(Switch)).width, greaterThanOrEqualTo(48));
 
     final nameStyle = tester.widget<Text>(find.text('禁用固定词')).style!;
     expect(nameStyle.color, theme.colorScheme.onSurface.withValues(alpha: 0.5));
@@ -51,6 +47,39 @@ void main() {
       contentStyle.decorationColor,
       theme.colorScheme.outline.withValues(alpha: 0.4),
     );
+  });
+
+  testWidgets('桌面条目整行可点击并在 hover 时提升层级', (tester) async {
+    var toggleCount = 0;
+    final entry = FixedTagEntry.create(
+      name: '悬浮固定词',
+      content: 'masterpiece',
+      enabled: false,
+    );
+
+    await _pumpTile(tester, entry: entry, onToggleEnabled: () => toggleCount++);
+
+    final entrySurface = find.byKey(ValueKey('fixed-tag-entry-${entry.id}'));
+    final animatedSurface = find.descendant(
+      of: entrySurface,
+      matching: find.byType(AnimatedContainer),
+    );
+    final before = tester.widget<AnimatedContainer>(animatedSurface);
+    final beforeDecoration = before.decoration! as BoxDecoration;
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(entrySurface));
+    await tester.pumpAndSettle();
+
+    final after = tester.widget<AnimatedContainer>(animatedSurface);
+    final afterDecoration = after.decoration! as BoxDecoration;
+    expect(afterDecoration.color, isNot(beforeDecoration.color));
+    expect(afterDecoration.boxShadow, hasLength(1));
+
+    await tester.tapAt(tester.getTopLeft(entrySurface) + const Offset(4, 4));
+    expect(toggleCount, 1);
   });
 
   testWidgets('桌面文字点击区域使用点击光标并切换启用状态', (tester) async {

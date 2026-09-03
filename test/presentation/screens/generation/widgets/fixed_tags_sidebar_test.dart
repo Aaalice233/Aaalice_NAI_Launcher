@@ -296,6 +296,16 @@ void main() {
     final rect = tester.getRect(surface);
     expect(rect.width, 980);
     expect(rect.center, const Offset(800, 450));
+    expect(find.text('管理固定词'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-panel-header-divider')),
+      findsNothing,
+    );
+    final headerRect = tester.getRect(
+      find.byKey(const ValueKey('fixed-tags-dialog-header')),
+    );
+    final closeRect = tester.getRect(find.byTooltip('关闭'));
+    expect(closeRect.center.dy, closeTo(headerRect.center.dy, 2));
     expect(tester.takeException(), isNull);
   });
 

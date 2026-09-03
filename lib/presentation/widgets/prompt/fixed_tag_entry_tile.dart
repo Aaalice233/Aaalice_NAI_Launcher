@@ -37,6 +37,7 @@ class FixedTagEntryTile extends StatefulWidget {
 
 class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
   bool _hovering = false;
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
@@ -46,60 +47,60 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
     final positionColor = entry.isPrefix
         ? theme.colorScheme.primary
         : theme.colorScheme.tertiary;
-    final tile = MouseRegion(
-      onEnter: interactionPolicy.precisePointerAvailable
-          ? (_) => setState(() => _hovering = true)
-          : null,
-      onExit: interactionPolicy.precisePointerAvailable
-          ? (_) => setState(() => _hovering = false)
-          : null,
-      child: AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        margin: EdgeInsets.symmetric(
-          horizontal: widget.compact ? 6 : 10,
-          vertical: 4,
-        ),
-        padding: EdgeInsets.symmetric(
-          horizontal: widget.compact ? 8 : 12,
-          vertical: 8,
-        ),
-        decoration: BoxDecoration(
-          color: entry.enabled
-              ? (widget.isDark
-                    ? theme.colorScheme.surfaceContainerHigh
-                    : theme.colorScheme.surfaceContainerHighest)
-              : theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: entry.enabled
-              ? [
-                  BoxShadow(
-                    color: theme.colorScheme.shadow.withValues(
-                      alpha: widget.isDark ? 0.3 : 0.1,
-                    ),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                    spreadRadius: -2,
-                  ),
-                  if (interactionPolicy.precisePointerAvailable && _hovering)
+    final highlighted = _hovering || _focused;
+    final baseColor = entry.enabled
+        ? theme.colorScheme.surfaceContainerHigh
+        : theme.colorScheme.surfaceContainer;
+    final tile = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey('fixed-tag-entry-${entry.id}'),
+        borderRadius: BorderRadius.circular(10),
+        mouseCursor: SystemMouseCursors.click,
+        onTap: widget.onToggleEnabled,
+        onHover: interactionPolicy.precisePointerAvailable
+            ? (value) => setState(() => _hovering = value)
+            : null,
+        onFocusChange: (value) => setState(() => _focused = value),
+        child: AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+          margin: EdgeInsets.symmetric(
+            horizontal: widget.compact ? 6 : 10,
+            vertical: 4,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.compact ? 8 : 12,
+            vertical: 8,
+          ),
+          decoration: BoxDecoration(
+            color: highlighted
+                ? Color.alphaBlend(
+                    theme.colorScheme.primary.withValues(alpha: 0.08),
+                    baseColor,
+                  )
+                : baseColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: highlighted
+                  ? theme.colorScheme.primary.withValues(alpha: 0.38)
+                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.28),
+            ),
+            boxShadow: highlighted
+                ? [
                     BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                      color: theme.colorScheme.shadow.withValues(
+                        alpha: widget.isDark ? 0.24 : 0.1,
+                      ),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                      spreadRadius: -3,
                     ),
-                ]
-              : [
-                  BoxShadow(
-                    color: theme.colorScheme.shadow.withValues(alpha: 0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-        ),
-        child: Opacity(
-          opacity: entry.enabled ? 1 : 0.5,
+                  ]
+                : const [],
+          ),
           child: widget.compact
               ? _buildCompact(context, positionColor)
               : _buildDesktop(context, positionColor),
@@ -130,24 +131,16 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
         ThemedSwitch(
           value: entry.enabled,
           onChanged: (_) => widget.onToggleEnabled(),
-          scale: 0.7,
         ),
         Expanded(
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: widget.onToggleEnabled,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 10, right: 8),
-                child: Row(
-                  children: [
-                    Expanded(child: _EntryLabels(entry: entry)),
-                    const SizedBox(width: 8),
-                    _EntryBadges(entry: entry, positionColor: positionColor),
-                  ],
-                ),
-              ),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 10, right: 8),
+            child: Row(
+              children: [
+                Expanded(child: _EntryLabels(entry: entry)),
+                const SizedBox(width: 8),
+                _EntryBadges(entry: entry, positionColor: positionColor),
+              ],
             ),
           ),
         ),
@@ -192,76 +185,69 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
         ThemedSwitch(
           value: entry.enabled,
           onChanged: (_) => widget.onToggleEnabled(),
-          scale: 0.62,
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.onToggleEnabled,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    decoration: entry.enabled
-                        ? null
-                        : TextDecoration.lineThrough,
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                entry.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  decoration: entry.enabled ? null : TextDecoration.lineThrough,
                 ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Expanded(
-                      child: entry.content.isEmpty
-                          ? Text(context.l10n.fixedTags_empty)
-                          : TranslatedPromptText(
-                              entry.content,
-                              originalText: entry.content.replaceAll('\n', ' '),
-                              selectable: false,
-                              maxLines: 1,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  Expanded(
+                    child: entry.content.isEmpty
+                        ? Text(context.l10n.fixedTags_empty)
+                        : TranslatedPromptText(
+                            entry.content,
+                            originalText: entry.content.replaceAll('\n', ' '),
+                            selectable: false,
+                            maxLines: 1,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      entry.isPrefix
-                          ? Icons.arrow_forward_rounded
-                          : Icons.arrow_back_rounded,
-                      size: 12,
+                          ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    entry.isPrefix
+                        ? Icons.arrow_forward_rounded
+                        : Icons.arrow_back_rounded,
+                    size: 12,
+                    color: positionColor,
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    entry.isPrefix
+                        ? context.l10n.fixedTags_prefix
+                        : context.l10n.fixedTags_suffix,
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: positionColor,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 2),
+                  ),
+                  if (entry.weight != 1) ...[
+                    const SizedBox(width: 5),
                     Text(
-                      entry.isPrefix
-                          ? context.l10n.fixedTags_prefix
-                          : context.l10n.fixedTags_suffix,
+                      '${entry.weight.toStringAsFixed(1)}×',
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: positionColor,
-                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.secondary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    if (entry.weight != 1) ...[
-                      const SizedBox(width: 5),
-                      Text(
-                        '${entry.weight.toStringAsFixed(1)}×',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.secondary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
                   ],
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
         ),
         if (widget.linkAnchor != null) ...[

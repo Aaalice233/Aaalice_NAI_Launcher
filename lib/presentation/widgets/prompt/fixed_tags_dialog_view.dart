@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
@@ -36,68 +34,58 @@ class FixedTagsDialogView extends StatelessWidget {
             MediaQuery.textScalerOf(context).scale(1) >= 2;
         return ClipRRect(
           borderRadius: BorderRadius.circular(presentationIsCompact ? 0 : 8),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: AnimatedContainer(
-              key: const ValueKey('fixed-tags-dialog-surface'),
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                color: isDark
-                    ? theme.colorScheme.surface.withValues(alpha: 0.85)
-                    : theme.colorScheme.surface.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(
-                  presentationIsCompact ? 0 : 8,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
-                    blurRadius: 32,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 16),
-                  ),
-                  if (isDark)
-                    BoxShadow(
-                      color: theme.colorScheme.secondary.withValues(
-                        alpha: 0.08,
+          child: AnimatedContainer(
+            key: const ValueKey('fixed-tags-dialog-surface'),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(
+                presentationIsCompact ? 0 : 8,
+              ),
+              boxShadow: presentationManaged
+                  ? const []
+                  : [
+                      BoxShadow(
+                        color: theme.colorScheme.shadow.withValues(
+                          alpha: isDark ? 0.32 : 0.14,
+                        ),
+                        blurRadius: 32,
+                        spreadRadius: -4,
+                        offset: const Offset(0, 16),
                       ),
-                      blurRadius: 48,
-                      spreadRadius: -8,
-                    ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  FixedTagsDialogHeader(
-                    data: data,
-                    commands: commands,
-                    isCompact: isCompact,
-                    isDark: isDark,
-                    presentationManaged: presentationManaged,
-                  ),
-                  Expanded(
-                    child:
-                        data.state.entries.isEmpty &&
-                            !data.state.negativePanelExpanded &&
-                            !isCompact
-                        ? const _EmptyState()
-                        : FixedTagsColumns(
-                            data: data,
-                            commands: commands,
-                            controller: controller,
-                            isCompact: isCompact,
-                            isDark: isDark,
-                          ),
-                  ),
-                  FixedTagsDialogFooter(
-                    data: data,
-                    commands: commands,
-                    isCompact: isCompact,
-                  ),
-                ],
-              ),
+                    ],
+            ),
+            child: Column(
+              children: [
+                FixedTagsDialogHeader(
+                  data: data,
+                  commands: commands,
+                  isCompact: isCompact,
+                  isDark: isDark,
+                ),
+                Expanded(
+                  child:
+                      data.state.entries.isEmpty &&
+                          !data.state.negativePanelExpanded &&
+                          !isCompact
+                      ? const _EmptyState()
+                      : FixedTagsColumns(
+                          data: data,
+                          commands: commands,
+                          controller: controller,
+                          isCompact: isCompact,
+                          isDark: isDark,
+                        ),
+                ),
+                FixedTagsDialogFooter(
+                  data: data,
+                  commands: commands,
+                  isCompact: isCompact,
+                ),
+              ],
             ),
           ),
         );

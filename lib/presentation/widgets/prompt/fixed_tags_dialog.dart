@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
@@ -24,7 +23,7 @@ class FixedTagsDialog extends ConsumerStatefulWidget {
   static Future<void> show(BuildContext context) {
     return AdaptivePresenter.showForm<void>(
       context: context,
-      title: context.l10n.fixedTags_manage,
+      showHeader: false,
       sideSheetWidth: 980,
       builder: (_, __) => const FixedTagsDialog(presentationManaged: true),
     );
