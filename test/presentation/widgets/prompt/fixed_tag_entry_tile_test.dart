@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_entry_tile.dart';
 
 void main() {
@@ -21,9 +22,10 @@ void main() {
       find.byType(AnimatedContainer),
     );
     final decoration = container.decoration! as BoxDecoration;
-    expect(decoration.color, theme.colorScheme.surfaceContainerLow);
+    expect(decoration.color, controlSurfaceColor(theme.colorScheme));
+    expect(decoration.color, isNot(theme.colorScheme.surface));
     expect(decoration.border, isNull);
-    expect(decoration.boxShadow, isEmpty);
+    expect(decoration.boxShadow, isNull);
     expect(tester.getSize(find.byType(Switch)).width, greaterThanOrEqualTo(48));
 
     final nameStyle = tester.widget<Text>(find.text('禁用固定词')).style!;
@@ -66,6 +68,9 @@ void main() {
     );
     final before = tester.widget<AnimatedContainer>(animatedSurface);
     final beforeDecoration = before.decoration! as BoxDecoration;
+    final inkWell = tester.widget<InkWell>(entrySurface);
+    expect(inkWell.hoverColor, Colors.transparent);
+    expect(inkWell.focusColor, Colors.transparent);
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
@@ -76,7 +81,7 @@ void main() {
     final after = tester.widget<AnimatedContainer>(animatedSurface);
     final afterDecoration = after.decoration! as BoxDecoration;
     expect(afterDecoration.color, isNot(beforeDecoration.color));
-    expect(afterDecoration.boxShadow, hasLength(1));
+    expect(afterDecoration.boxShadow, isNull);
 
     await tester.tapAt(tester.getTopLeft(entrySurface) + const Offset(4, 4));
     expect(toggleCount, 1);
@@ -165,7 +170,6 @@ Future<void> _pumpTile(
           body: FixedTagEntryTile(
             entry: entry,
             index: 0,
-            isDark: false,
             onToggleEnabled: onToggleEnabled ?? () {},
             onEdit: () {},
             onDelete: () {},

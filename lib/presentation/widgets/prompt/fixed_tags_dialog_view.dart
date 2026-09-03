@@ -77,7 +77,6 @@ class FixedTagsDialogView extends StatelessWidget {
                           commands: commands,
                           controller: controller,
                           isCompact: isCompact,
-                          isDark: isDark,
                         ),
                 ),
                 FixedTagsDialogFooter(

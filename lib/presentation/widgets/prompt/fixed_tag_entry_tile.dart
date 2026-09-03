@@ -4,6 +4,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../../themes/core/layered_surface_style.dart';
 import '../common/translated_tag_text.dart';
 import '../common/themed_switch.dart';
 
@@ -14,7 +15,6 @@ class FixedTagEntryTile extends StatefulWidget {
     super.key,
     required this.entry,
     required this.index,
-    required this.isDark,
     required this.onToggleEnabled,
     required this.onEdit,
     required this.onDelete,
@@ -24,7 +24,6 @@ class FixedTagEntryTile extends StatefulWidget {
 
   final FixedTagEntry entry;
   final int index;
-  final bool isDark;
   final bool compact;
   final Widget? linkAnchor;
   final VoidCallback onToggleEnabled;
@@ -48,15 +47,23 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
         ? theme.colorScheme.primary
         : theme.colorScheme.tertiary;
     final highlighted = _hovering || _focused;
+    final restingColor = controlSurfaceColor(theme.colorScheme);
     final baseColor = entry.enabled
-        ? theme.colorScheme.surfaceContainerHigh
-        : theme.colorScheme.surfaceContainerLow;
+        ? Color.alphaBlend(
+            theme.colorScheme.primary.withValues(alpha: 0.04),
+            restingColor,
+          )
+        : restingColor;
     final tile = Material(
       color: Colors.transparent,
       child: InkWell(
         key: ValueKey('fixed-tag-entry-${entry.id}'),
         borderRadius: BorderRadius.circular(10),
         mouseCursor: SystemMouseCursors.click,
+        hoverColor: Colors.transparent,
+        focusColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        splashColor: Colors.transparent,
         onTap: widget.onToggleEnabled,
         onHover: interactionPolicy.precisePointerAvailable
             ? (value) => setState(() => _hovering = value)
@@ -78,23 +85,11 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
           decoration: BoxDecoration(
             color: highlighted
                 ? Color.alphaBlend(
-                    theme.colorScheme.primary.withValues(alpha: 0.08),
+                    theme.colorScheme.primary.withValues(alpha: 0.1),
                     baseColor,
                   )
                 : baseColor,
             borderRadius: BorderRadius.circular(10),
-            boxShadow: highlighted
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.shadow.withValues(
-                        alpha: widget.isDark ? 0.24 : 0.1,
-                      ),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                      spreadRadius: -3,
-                    ),
-                  ]
-                : const [],
           ),
           child: widget.compact
               ? _buildCompact(context, positionColor)

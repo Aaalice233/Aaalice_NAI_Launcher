@@ -22,14 +22,12 @@ class FixedTagsColumns extends StatelessWidget {
     required this.commands,
     required this.controller,
     required this.isCompact,
-    required this.isDark,
   });
 
   final FixedTagsDialogViewData data;
   final FixedTagsDialogCommands commands;
   final FixedTagsDialogController controller;
   final bool isCompact;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +160,6 @@ class FixedTagsColumns extends StatelessWidget {
       controller: controller,
       commands: commands,
       data: data,
-      isDark: isDark,
       compact: compact,
     );
   }
@@ -182,7 +179,6 @@ class FixedTagColumnConfig {
     required this.controller,
     required this.commands,
     required this.data,
-    required this.isDark,
     required this.compact,
   });
 
@@ -197,7 +193,6 @@ class FixedTagColumnConfig {
   final FixedTagsDialogController controller;
   final FixedTagsDialogCommands commands;
   final FixedTagsDialogViewData data;
-  final bool isDark;
   final bool compact;
 
   bool get hasSearch => searchQuery.trim().isNotEmpty;
@@ -420,7 +415,6 @@ class _EntryList extends StatelessWidget {
       final tile = FixedTagEntryTile(
         entry: entry,
         index: index,
-        isDark: config.isDark,
         compact: config.compact,
         linkAnchor: showLinkAnchors
             ? FixedTagLinkAnchor(
