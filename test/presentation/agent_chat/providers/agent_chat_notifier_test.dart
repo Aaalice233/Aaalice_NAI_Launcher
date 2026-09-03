@@ -649,6 +649,45 @@ User instructions.
       );
     });
 
+    test('publishes provider text deltas before the stream finishes', () async {
+      await _selectChatModel(container);
+      final stream = StreamController<AgentWireEvent>();
+      wireCompletion = (request) {
+        requests.add(request);
+        return stream.stream;
+      };
+      final notifier = container.read(provider.notifier);
+      final send = notifier.send('stream this');
+      await _waitForCondition(
+        () => requests.isNotEmpty,
+        'Agent run did not reach the provider',
+      );
+
+      stream.add(const AgentWireTextDelta('first'));
+      await _waitForCondition(
+        () => container.read(provider).streamingMessage?.text == 'first',
+        'First provider delta was not published',
+      );
+      expect(container.read(provider).workPhase, AgentChatWorkPhase.responding);
+
+      stream
+        ..add(const AgentWireTextDelta(' second'))
+        ..add(const AgentWireFinish(stopReason: StopReason.stop));
+      await stream.close();
+      await send;
+
+      expect(container.read(provider).streamingMessage, isNull);
+      expect(
+        container
+            .read(provider)
+            .messages
+            .whereType<AssistantMessage>()
+            .last
+            .text,
+        'first second',
+      );
+    });
+
     test('persists steering and follow-up input before delivery', () async {
       final configNotifier = container.read(
         promptAssistantConfigProvider.notifier,
