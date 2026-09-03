@@ -118,4 +118,72 @@ void main() {
     expect(result.text, contains('1.40::artist:mx2j::'));
     expect(result.translatedTagCount, 23);
   });
+
+  test('完整提示词支持转义、画师前缀、通配符、复数和安全错字回退', () async {
+    const source =
+        r'year\_2026, year\_2025, 30::best\_quality::, '
+        r'10::very\_aesthetic::, 2::amazing\_quality, masterpiece, '
+        r'ultra-detailed, absurdres::, 1.2::*digital\_illustration::, '
+        r'1.55::artist:honnryou\_hanaru::, 1.20::kanzarin::, '
+        r'1.20::artist:rido*(ridograph)::, 2::loli::, 1.45::todder::, '
+        r'1.40::artist:mx2j::, 1.7::blender (medium), 3d::, '
+        r'1.3::realistic, photorealistic, photo (medium)::, '
+        r'[[greasy\_skin]], {skindentation, curvy}, detailed\_skin, '
+        r'1.9::handmade, octane\_render, c4d::, '
+        r'1.75::perfect\_rendering, realistic\_rendering, '
+        r'detailed\_textures, steam, heavy\_breath, steaming\_body, '
+        r'fine\_fabric\_emphasis::, artist:as109, 1.30::smell::, nov1527, '
+        r'-2.00::artist\_name, watermarks, ::';
+    final exactRequests = <String>[];
+    final fuzzyRequests = <String>[];
+    final lookup = TagTranslationLookup.fromResolver(
+      (tags) async {
+        exactRequests.addAll(tags);
+        const values = {
+          'best_quality': '最佳质量',
+          'honnryou_hanaru': '本领花流',
+          'rido_(ridograph)': 'Rido（画师）',
+          'loli': '幼女',
+          'mx2j': 'Mx2J',
+          'blender_(medium)': 'Blender（绘图软件）',
+          'photo_(medium)': '照片（载体）',
+          'greasy_skin': '油腻皮肤',
+          'as109': 'AS109',
+          'smell': '气味',
+          'watermark': '水印',
+        };
+        return {
+          for (final tag in tags)
+            if (values[tag] case final translation?) tag: translation,
+        };
+      },
+      fuzzyResolver: (tags) async {
+        fuzzyRequests.addAll(tags);
+        return {if (tags.contains('todder')) 'todder': '幼儿'};
+      },
+    );
+
+    final result = await lookup.translateTagText(source);
+
+    expect(result.text, contains(r'1.55::本领花流::'));
+    expect(result.text, contains(r'1.20::Rido（画师）::'));
+    expect(result.text, contains(r'1.45::幼儿::'));
+    expect(result.text, contains(r'1.40::Mx2J::'));
+    expect(result.text, contains(r'1.7::Blender（绘图软件）, 3d::'));
+    expect(result.text, contains(r'1.3::realistic, photorealistic, 照片（载体）::'));
+    expect(result.text, contains(r'[[油腻皮肤]]'));
+    expect(result.text, contains(r'::, AS109, 1.30::气味::'));
+    expect(result.text, contains(r'-2.00::artist\_name, 水印, ::'));
+    expect(
+      exactRequests,
+      containsAll(<String>[
+        'honnryou_hanaru',
+        'rido_(ridograph)',
+        'mx2j',
+        'watermark',
+      ]),
+    );
+    expect(fuzzyRequests, contains('todder'));
+    expect(result.translatedTagCount, 12);
+  });
 }

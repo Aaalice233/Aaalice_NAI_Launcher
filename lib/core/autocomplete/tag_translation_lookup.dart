@@ -19,15 +19,21 @@ class TagTextTranslation {
 
 /// Shared optional Chinese lookup used outside the autocomplete overlay.
 class TagTranslationLookup {
-  const TagTranslationLookup(this._dictionary) : _resolver = null;
+  TagTranslationLookup(ZhDictionaryService dictionary)
+    : _dictionary = dictionary,
+      _resolver = null,
+      _fuzzyResolver = dictionary.resolveFuzzy;
 
   const TagTranslationLookup.fromResolver(
-    Future<Map<String, String>> Function(List<String> tags) resolver,
-  ) : _dictionary = null,
-      _resolver = resolver;
+    Future<Map<String, String>> Function(List<String> tags) resolver, {
+    Future<Map<String, String>> Function(List<String> tags)? fuzzyResolver,
+  }) : _dictionary = null,
+       _resolver = resolver,
+       _fuzzyResolver = fuzzyResolver;
 
   final ZhDictionaryService? _dictionary;
   final Future<Map<String, String>> Function(List<String> tags)? _resolver;
+  final Future<Map<String, String>> Function(List<String> tags)? _fuzzyResolver;
 
   Future<String?> translate(String tag) async {
     final normalized = normalizeTag(tag);
@@ -43,9 +49,37 @@ class TagTranslationLookup {
         .toSet()
         .toList(growable: false);
     if (normalized.isEmpty) return const {};
+
+    final candidatesByTag = {
+      for (final tag in normalized) tag: lookupCandidates(tag),
+    };
+    final candidates = candidatesByTag.values
+        .expand((values) => values)
+        .toSet()
+        .toList(growable: false);
     final resolver = _resolver;
-    if (resolver != null) return resolver(normalized);
-    return _dictionary!.resolve(normalized, locale: 'zh-CN');
+    final resolved = resolver != null
+        ? await resolver(candidates)
+        : await _dictionary!.resolve(candidates, locale: 'zh-CN');
+    final result = <String, String>{};
+    for (final entry in candidatesByTag.entries) {
+      for (final candidate in entry.value) {
+        final translation = resolved[candidate]?.trim();
+        if (translation != null && translation.isNotEmpty) {
+          result[entry.key] = translation;
+          break;
+        }
+      }
+    }
+
+    final fuzzyResolver = _fuzzyResolver;
+    if (fuzzyResolver != null && result.length < normalized.length) {
+      final missing = normalized
+          .where((tag) => !result.containsKey(tag))
+          .toList(growable: false);
+      result.addAll(await fuzzyResolver(missing));
+    }
+    return result;
   }
 
   Future<bool> hasTranslation(String tag) async => await translate(tag) != null;
@@ -115,7 +149,42 @@ class TagTranslationLookup {
       value = value.substring(1, value.length - 1).trim();
     }
     value = value.replaceFirst(RegExp(r'::$'), '').trim();
-    return TagNormalizer.normalize(value);
+    return TagNormalizer.normalize(value.replaceAll(r'\_', '_'));
+  }
+
+  /// Builds conservative aliases for common NAI tag notation without changing
+  /// the tag's meaning. The first dictionary hit wins.
+  static List<String> lookupCandidates(String tag) {
+    final canonical = normalizeTag(tag);
+    if (canonical.isEmpty) return const [];
+    final candidates = <String>{canonical};
+
+    void addFormattingVariants(String value) {
+      if (value.isEmpty) return;
+      candidates.add(value);
+      final withoutWildcard = value.replaceAll('*', '');
+      candidates.add(withoutWildcard);
+      candidates.add(withoutWildcard.replaceAll('-', '_'));
+      candidates.add(
+        withoutWildcard.replaceAllMapped(
+          RegExp(r'(^|[^_])\('),
+          (match) => '${match.group(1)}_(',
+        ),
+      );
+    }
+
+    addFormattingVariants(canonical);
+    if (canonical.startsWith('artist:')) {
+      addFormattingVariants(canonical.substring('artist:'.length));
+    }
+    for (final candidate in candidates.toList(growable: false)) {
+      if (candidate.length > 4 &&
+          candidate.endsWith('s') &&
+          RegExp(r'^[a-z][a-z0-9_]*s$').hasMatch(candidate)) {
+        candidates.add(candidate.substring(0, candidate.length - 1));
+      }
+    }
+    return candidates.toList(growable: false);
   }
 
   static bool _isTagSeparator(String value) =>

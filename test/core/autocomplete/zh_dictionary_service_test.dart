@@ -70,6 +70,29 @@ void main() {
     expect(results.first.translation, '标签0');
   });
 
+  test(
+    'fuzzy translation accepts one unambiguous typo and skips identifiers',
+    () async {
+      final dictionaryDirectory = Directory(
+        p.join(temp.path, 'autocomplete', 'ffdkj'),
+      );
+      await dictionaryDirectory.create(recursive: true);
+      _createDictionary(
+        p.join(dictionaryDirectory.path, 'tag.sqlite'),
+        rows: 1000,
+        extraRows: const {'toddler': '幼儿'},
+      );
+
+      final result = await service.resolveFuzzy([
+        'todder',
+        'artist:mx2j',
+        'year_2026',
+      ]);
+
+      expect(result, {'todder': '幼儿'});
+    },
+  );
+
   test('rejects a corrupt SQLite file', () async {
     final file = File('${temp.path}/corrupt.sqlite');
     await file.writeAsString('not a sqlite database');
@@ -410,7 +433,11 @@ class _RoutingAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-File _createDictionary(String path, {required int rows}) {
+File _createDictionary(
+  String path, {
+  required int rows,
+  Map<String, String> extraRows = const {},
+}) {
   final db = native.sqlite3.open(path);
   db.execute('''
     CREATE TABLE tags(
@@ -426,6 +453,9 @@ File _createDictionary(String path, {required int rows}) {
   db.execute('BEGIN');
   for (var index = 0; index < rows; index++) {
     statement.execute(['tag_$index', 0, '标签$index', rows - index]);
+  }
+  for (final entry in extraRows.entries) {
+    statement.execute([entry.key, 0, entry.value, 1]);
   }
   db.execute('COMMIT');
   statement.dispose();

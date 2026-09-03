@@ -264,6 +264,44 @@ class ZhDictionaryService extends ChangeNotifier
     return result;
   }
 
+  /// Resolves a narrowly scoped typo fallback for plain single-word tags.
+  ///
+  /// Structured tags, artist names, identifiers and multi-word tags are
+  /// deliberately excluded because an approximate match could silently change
+  /// their meaning. A match is accepted only when exactly one dictionary tag
+  /// is one edit away.
+  Future<Map<String, String>> resolveFuzzy(List<String> canonicalTags) async {
+    if (canonicalTags.isEmpty || !await _openIfInstalled()) return const {};
+    final result = <String, String>{};
+    for (final source in canonicalTags) {
+      final tag = _normalize(source);
+      if (!RegExp(r'^[a-z]{5,12}$').hasMatch(tag)) continue;
+      final prefix = tag.substring(0, 2);
+      final prefixUpperBound =
+          '${prefix[0]}'
+          '${String.fromCharCode(prefix.codeUnitAt(1) + 1)}';
+      final rows = await _database!.rawQuery(
+        '''
+        SELECT name, cn_name FROM tags
+        WHERE name >= ? AND name < ?
+          AND LENGTH(name) BETWEEN ? AND ?
+          AND cn_name IS NOT NULL
+          AND TRIM(cn_name) <> ''
+        ORDER BY post_count DESC
+        ''',
+        [prefix, prefixUpperBound, tag.length - 1, tag.length + 1],
+      );
+      final matches = rows.where(
+        (row) => _isOneEditApart(tag, row['name'] as String),
+      );
+      final unique = matches.take(2).toList(growable: false);
+      if (unique.length == 1) {
+        result[source] = (unique.single['cn_name'] as String).trim();
+      }
+    }
+    return result;
+  }
+
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
     if (!query.isChinese || query.token.trim().isEmpty) return const [];
@@ -408,6 +446,37 @@ class ZhDictionaryService extends ChangeNotifier
 
   static String _normalize(String value) =>
       value.trim().toLowerCase().replaceAll(' ', '_');
+
+  static bool _isOneEditApart(String left, String right) {
+    if ((left.length - right.length).abs() > 1 || left == right) return false;
+    if (left.length == right.length) {
+      var differences = 0;
+      for (var index = 0; index < left.length; index++) {
+        if (left.codeUnitAt(index) != right.codeUnitAt(index) &&
+            ++differences > 1) {
+          return false;
+        }
+      }
+      return differences == 1;
+    }
+    final shorter = left.length < right.length ? left : right;
+    final longer = left.length < right.length ? right : left;
+    var shortIndex = 0;
+    var longIndex = 0;
+    var skipped = false;
+    while (shortIndex < shorter.length && longIndex < longer.length) {
+      if (shorter.codeUnitAt(shortIndex) == longer.codeUnitAt(longIndex)) {
+        shortIndex++;
+        longIndex++;
+      } else if (skipped) {
+        return false;
+      } else {
+        skipped = true;
+        longIndex++;
+      }
+    }
+    return true;
+  }
 
   static String _escapeLike(String value) => value
       .replaceAll('\\', '\\\\')
