@@ -95,6 +95,49 @@ void main() {
     expect(source.text, 'new_prompt');
   });
 
+  testWidgets('完整混合语法提示词可翻译且短标签不会触发模糊查找越界', (tester) async {
+    const reportedPrompt =
+        r'''ultra\_complexity, year\_2026, year\_2024, year\_2025, 20::best\_quality::, 30::very\_aesthetic::, 2::amazing\_quality, masterpiece, ultra-detailed, absurdres::, 1.2::*digital\_illustration::, -2::simple\_illustration::, artist:sweetonedollar, artist:modare, artist:mx2j, artist:shycocoa, artist:1=2, artist:bacheally, artist:kanzarin, artist:wlop, artist:rido*(ridograph), 1.45::todder::, 1.40::artist:mx2j::, 1.3::blender (medium), 3d::, 1.3::realistic, photorealistic, photo (medium)::, [[greasy\_skin]], {shiny\_skin, shiny, skindentation, curvy}, detailed\_skin, 1.4::handmade, octane\_render, c4d::, perfect\_rendering, realistic\_rendering, detailed\_textures, steam, heavy\_breath, steaming\_body, fine\_fabric\_emphasis,
+-3::unfinished\_small\_objects, chibi::,
+ultra\_complexity, perfect\_rendering, realistic\_rendering, detailed\_textures, intricate\_details, depth\_of\_field, -3::oiled\_skin, shiny\_skin::, 3::realistic\_skin::''';
+    final source = TextEditingController(text: reportedPrompt);
+    addTearDown(source.dispose);
+    await _pumpField(
+      tester,
+      source: source,
+      dictionary: _FakeZhDictionaryService(installed: true),
+      lookup: TagTranslationLookup.fromResolver(
+        (tags) async => {
+          if (tags.contains('rido_(ridograph)')) 'rido_(ridograph)': 'Rido（画师）',
+          if (tags.contains('3d')) '3d': '3D',
+        },
+        fuzzyResolver: (tags) async => {
+          if (tags.contains('todder')) 'todder': '幼儿',
+        },
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('quick-translate-button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('quick-translate-preview-input')),
+      findsOneWidget,
+    );
+    final previewText = tester
+        .widget<EditableText>(
+          find.descendant(
+            of: find.byKey(const ValueKey('quick-translate-preview-input')),
+            matching: find.byType(EditableText),
+          ),
+        )
+        .controller
+        .text;
+    expect(previewText, contains('artist:wlop, Rido（画师）, 1.45::幼儿::'));
+    expect(previewText, contains('3D::'));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('未安装词库时确认后跳转数据设置并开始下载', (tester) async {
     final source = TextEditingController(text: 'best_quality');
     final dictionary = _FakeZhDictionaryService(installed: false);

@@ -275,7 +275,11 @@ class ZhDictionaryService extends ChangeNotifier
     final result = <String, String>{};
     for (final source in canonicalTags) {
       final tag = _normalize(source);
-      if (!RegExp(r'^[a-z]{5,12}$').hasMatch(tag)) continue;
+      if (tag.length < 5 ||
+          tag.length > 12 ||
+          !RegExp(r'^[a-z]+$').hasMatch(tag)) {
+        continue;
+      }
       final prefix = tag.substring(0, 2);
       final prefixUpperBound =
           '${prefix[0]}'

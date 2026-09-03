@@ -84,6 +84,10 @@ void main() {
       );
 
       final result = await service.resolveFuzzy([
+        '',
+        'a',
+        '3d',
+        '::',
         'todder',
         'artist:mx2j',
         'year_2026',
