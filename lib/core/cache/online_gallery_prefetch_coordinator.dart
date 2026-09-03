@@ -41,15 +41,18 @@ enum GalleryPrefetchPauseReason {
 class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   OnlineGalleryPrefetchCoordinator({
     required GalleryImagePreloader preloader,
-    this.maxConcurrent = 4,
+    this.maxConcurrent = 8,
+    this.maxSpeculativeConcurrent = 4,
     this.maxQueued = 64,
     DateTime Function()? now,
   }) : assert(maxConcurrent > 0),
+       assert(maxSpeculativeConcurrent >= 0),
        _preloader = preloader,
        _now = now ?? DateTime.now;
 
   final GalleryImagePreloader _preloader;
   final int maxConcurrent;
+  final int maxSpeculativeConcurrent;
   final int maxQueued;
   final DateTime Function() _now;
   final Map<GalleryImagePriority, ListQueue<_PrefetchTask>> _queues = {
@@ -65,6 +68,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
 
   int _generation = 0;
   int _active = 0;
+  int _activeSpeculative = 0;
   int _interactiveStreak = 0;
   bool _notificationScheduled = false;
   bool _disposed = false;
@@ -75,6 +79,8 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
 
   int get generation => _generation;
   int get activeCount => _active;
+  @visibleForTesting
+  int get activeSpeculativeCount => _activeSpeculative;
   int get queueDepth => _pending.length;
   bool get isPaused => _pauseReasons.isNotEmpty;
   bool get isScrollingPaused =>
@@ -377,6 +383,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
       GalleryImagePriority.hover,
       GalleryImagePriority.lookahead,
     ]) {
+      if (_activeSpeculative >= maxSpeculativeConcurrent) return null;
       if (!_accepts(priority)) continue;
       final queue = _queues[priority]!;
       if (queue.isNotEmpty) return queue.removeFirst();
@@ -395,6 +402,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
         continue;
       }
       _active++;
+      if (_isSpeculative(task.priority)) _activeSpeculative++;
       _inFlight[key] = task;
       debugRequestCount++;
       unawaited(_run(task));
@@ -435,6 +443,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     } finally {
       if (_inFlight[taskKey] == task) _inFlight.remove(taskKey);
       _active--;
+      if (_isSpeculative(task.priority)) _activeSpeculative--;
       _pump();
       _scheduleNotification();
     }
@@ -495,6 +504,10 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
       completed.remove(completed.keys.first);
     }
   }
+
+  bool _isSpeculative(GalleryImagePriority priority) =>
+      priority == GalleryImagePriority.hover ||
+      priority == GalleryImagePriority.lookahead;
 }
 
 class _PrefetchTask {
