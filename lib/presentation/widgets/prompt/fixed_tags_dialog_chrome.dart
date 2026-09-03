@@ -124,14 +124,30 @@ class FixedTagsDialogHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           if (totalCount > 0) ...[
-            Tooltip(
-              message: enabledCount == totalCount
-                  ? context.l10n.fixedTags_disableAll
-                  : context.l10n.fixedTags_enableAll,
-              child: ThemedSwitch(
-                value: enabledCount == totalCount,
-                onChanged: commands.setAllEnabled,
-              ),
+            Row(
+              key: const ValueKey('fixed-tags-global-toggle'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  enabledCount == totalCount
+                      ? context.l10n.fixedTags_disableAll
+                      : context.l10n.fixedTags_enableAll,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Tooltip(
+                  message: enabledCount == totalCount
+                      ? context.l10n.fixedTags_disableAll
+                      : context.l10n.fixedTags_enableAll,
+                  child: ThemedSwitch(
+                    value: enabledCount == totalCount,
+                    onChanged: commands.setAllEnabled,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 8),
           ],

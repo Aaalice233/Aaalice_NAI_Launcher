@@ -311,6 +311,73 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'desktop manager labels the global switch and separates columns',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final storage = _SidebarTestStorage(
+        fixedEntries: [
+          FixedTagEntry.create(
+            name: 'positive',
+            content: 'masterpiece',
+            enabled: false,
+          ),
+          FixedTagEntry.create(
+            name: 'negative',
+            content: 'lowres',
+            enabled: false,
+            promptType: FixedTagPromptType.negative,
+          ),
+        ],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final globalToggle = find.byKey(
+        const ValueKey('fixed-tags-global-toggle'),
+      );
+      expect(globalToggle, findsOneWidget);
+      expect(
+        find.descendant(of: globalToggle, matching: find.text('全开')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: globalToggle, matching: find.byType(ThemedSwitch)),
+        findsOneWidget,
+      );
+
+      final divider = tester.widget<VerticalDivider>(
+        find.byKey(const ValueKey('fixed-tags-column-divider')),
+      );
+      final theme = Theme.of(tester.element(find.byType(FixedTagsDialog)));
+      expect(divider.thickness, 1);
+      expect(divider.width, 28);
+      expect(
+        divider.color,
+        theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('desktop fixed-tag editor keeps binary selectors horizontal', (
     tester,
   ) async {

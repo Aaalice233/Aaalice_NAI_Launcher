@@ -83,7 +83,16 @@ class FixedTagsColumns extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: fixedTagColumnGap),
+              VerticalDivider(
+                key: const ValueKey('fixed-tags-column-divider'),
+                width: fixedTagColumnGap,
+                thickness: 1,
+                indent: 12,
+                endIndent: 12,
+                color: Theme.of(
+                  context,
+                ).colorScheme.outlineVariant.withValues(alpha: 0.24),
+              ),
               Expanded(
                 child: FixedTagColumn(
                   config: _configFor(

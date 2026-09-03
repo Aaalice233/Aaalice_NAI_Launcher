@@ -2,9 +2,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
+import 'package:nai_launcher/presentation/themes/prompt_semantic_colors.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_entry_tile.dart';
 
 void main() {
@@ -22,7 +24,13 @@ void main() {
       find.byType(AnimatedContainer),
     );
     final decoration = container.decoration! as BoxDecoration;
-    expect(decoration.color, controlSurfaceColor(theme.colorScheme));
+    expect(
+      decoration.color,
+      Color.alphaBlend(
+        theme.promptSemanticColors.positiveFixedTag.withValues(alpha: 0.07),
+        controlSurfaceColor(theme.colorScheme),
+      ),
+    );
     expect(decoration.color, isNot(theme.colorScheme.surface));
     expect(decoration.border, isNull);
     expect(decoration.boxShadow, isNull);
@@ -85,6 +93,48 @@ void main() {
 
     await tester.tapAt(tester.getTopLeft(entrySurface) + const Offset(4, 4));
     expect(toggleCount, 1);
+  });
+
+  testWidgets('正向与负向固定词使用各自的低对比语义色面', (tester) async {
+    final positive = FixedTagEntry.create(
+      name: '正向固定词',
+      content: 'masterpiece',
+    );
+    final negative = FixedTagEntry.create(
+      name: '负向固定词',
+      content: 'lowres',
+      promptType: FixedTagPromptType.negative,
+    );
+
+    Future<Color?> surfaceColor(FixedTagEntry entry) async {
+      await _pumpTile(tester, entry: entry);
+      return (tester
+                  .widget<AnimatedContainer>(find.byType(AnimatedContainer))
+                  .decoration!
+              as BoxDecoration)
+          .color;
+    }
+
+    final positiveColor = await surfaceColor(positive);
+    final theme = Theme.of(tester.element(find.byType(FixedTagEntryTile)));
+    final expectedPositive = Color.alphaBlend(
+      theme.promptSemanticColors.positiveFixedTag.withValues(alpha: 0.12),
+      controlSurfaceColor(theme.colorScheme),
+    );
+    expect(positiveColor, expectedPositive);
+
+    final negativeColor = await surfaceColor(negative);
+    final negativeTheme = Theme.of(
+      tester.element(find.byType(FixedTagEntryTile)),
+    );
+    final expectedNegative = Color.alphaBlend(
+      negativeTheme.promptSemanticColors.negativeFixedTag.withValues(
+        alpha: 0.12,
+      ),
+      controlSurfaceColor(negativeTheme.colorScheme),
+    );
+    expect(negativeColor, expectedNegative);
+    expect(negativeColor, isNot(positiveColor));
   });
 
   testWidgets('桌面文字点击区域使用点击光标并切换启用状态', (tester) async {

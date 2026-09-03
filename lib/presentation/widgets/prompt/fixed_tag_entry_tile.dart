@@ -5,6 +5,7 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../themes/core/layered_surface_style.dart';
+import '../../themes/prompt_semantic_colors.dart';
 import '../common/translated_tag_text.dart';
 import '../common/themed_switch.dart';
 
@@ -46,14 +47,15 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
     final positionColor = entry.isPrefix
         ? theme.colorScheme.primary
         : theme.colorScheme.tertiary;
+    final promptTypeColor = entry.promptType == FixedTagPromptType.positive
+        ? theme.promptSemanticColors.positiveFixedTag
+        : theme.promptSemanticColors.negativeFixedTag;
     final highlighted = _hovering || _focused;
     final restingColor = controlSurfaceColor(theme.colorScheme);
-    final baseColor = entry.enabled
-        ? Color.alphaBlend(
-            theme.colorScheme.primary.withValues(alpha: 0.04),
-            restingColor,
-          )
-        : restingColor;
+    final baseColor = Color.alphaBlend(
+      promptTypeColor.withValues(alpha: entry.enabled ? 0.12 : 0.07),
+      restingColor,
+    );
     final tile = Material(
       color: Colors.transparent,
       child: InkWell(
@@ -85,7 +87,7 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
           decoration: BoxDecoration(
             color: highlighted
                 ? Color.alphaBlend(
-                    theme.colorScheme.primary.withValues(alpha: 0.1),
+                    promptTypeColor.withValues(alpha: 0.08),
                     baseColor,
                   )
                 : baseColor,
