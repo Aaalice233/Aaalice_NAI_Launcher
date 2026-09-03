@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/models/prompt/algorithm_config.dart';
 import '../../data/models/prompt/default_categories.dart';
+import '../../data/models/prompt/official_wordlist.dart';
 import '../../data/models/prompt/pool_mapping.dart';
 import '../../data/models/prompt/random_category.dart';
 import '../../data/models/prompt/random_preset.dart';
@@ -711,9 +712,10 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   }
 }
 
-/// 计算真实的标签数量（包括内置词库）
+/// 计算当前预设实际使用的数据条目数量。
 ///
-/// 这个 Provider 会从 TagLibrary 获取内置词库的标签数量
+/// 官网默认预设执行的是锁定的 NovelAI 官方 recipe，因此不能把仅供
+/// “基于默认预设”复制使用的 catalog 模板统计成官网词库。
 /// 性能优化：使用 select 只监听必要的数据变化
 @riverpod
 int presetTotalTagCount(Ref ref) {
@@ -722,6 +724,7 @@ int presetTotalTagCount(Ref ref) {
     randomPresetNotifierProvider.select((s) => s.selectedPreset),
   );
   if (preset == null) return 0;
+  if (preset.isDefault) return officialWordlistTotalEntryCount;
 
   final library = ref.watch(
     tagLibraryNotifierProvider.select((s) => s.library),

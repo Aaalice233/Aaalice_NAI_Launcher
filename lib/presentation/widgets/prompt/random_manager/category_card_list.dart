@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/models/prompt/official_wordlist.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
@@ -132,10 +133,12 @@ class _RecipeSummary extends ConsumerWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final tagCount = ref.watch(presetTotalTagCountProvider);
-    final groupCount = preset.categories.fold<int>(
-      0,
-      (total, category) => total + category.groupCount,
-    );
+    final groupCount = preset.isDefault
+        ? officialWordlistTotalGroupCount
+        : preset.categories.fold<int>(
+            0,
+            (total, category) => total + category.groupCount,
+          );
     final enabledCount = preset.categories.where((item) => item.enabled).length;
 
     final metrics = Wrap(

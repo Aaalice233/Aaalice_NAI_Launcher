@@ -180,6 +180,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('官网预设统计锁定的官方词库而不是完整 catalog', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomPresetNotifierProvider.overrideWith(
+            _ScreenTestRandomPresetNotifier.new,
+          ),
+          tagLibraryNotifierProvider.overrideWith(
+            _ScreenTestTagLibraryNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: PromptConfigScreen(),
+        ),
+      ),
+    );
+    await _pumpBounded(tester);
+
+    await tester.tap(find.byType(DropdownButton<String>));
+    await _pumpBounded(tester);
+    await tester.tap(find.text('NovelAI 官网预设').last);
+    await _pumpBounded(tester);
+
+    expect(find.text('118'), findsOneWidget);
+    expect(find.text('5960'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('blank preset exposes a complete create and edit path', (
     tester,
   ) async {
