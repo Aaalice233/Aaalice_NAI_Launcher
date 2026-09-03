@@ -23,7 +23,6 @@ import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/font_provider.dart';
 import 'presentation/providers/font_scale_provider.dart';
 import 'presentation/providers/locale_provider.dart';
-import 'presentation/providers/background_refresh_provider.dart';
 import 'presentation/providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import 'presentation/providers/krita/krita_bridge_notifier.dart';
 import 'presentation/providers/image_generation_provider.dart';
@@ -41,7 +40,6 @@ import 'presentation/widgets/shortcuts/shortcut_help_dialog.dart';
 class AppBootstrapEffects extends ConsumerStatefulWidget {
   final Widget child;
   final ProviderListenable<dynamic>? anlasWatcher;
-  final ProviderListenable<dynamic>? backgroundRefresh;
   final ProviderListenable<dynamic>? kritaBridge;
   final ProviderListenable<dynamic>? cooccurrenceDataPack;
   final Future<void> Function()? cloudSyncLifecycle;
@@ -50,7 +48,6 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
     super.key,
     required this.child,
     this.anlasWatcher,
-    this.backgroundRefresh,
     this.kritaBridge,
     this.cooccurrenceDataPack,
     this.cloudSyncLifecycle,
@@ -64,7 +61,6 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
 class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     with WidgetsBindingObserver {
   ProviderSubscription<dynamic>? _anlasWatcherSubscription;
-  ProviderSubscription<dynamic>? _backgroundRefreshSubscription;
   ProviderSubscription<dynamic>? _kritaBridgeSubscription;
   ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
   bool _queuePausedForBackground = false;
@@ -81,9 +77,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
         (_, __) {},
       );
       final usesTestOverrides =
-          widget.backgroundRefresh != null ||
-          widget.kritaBridge != null ||
-          widget.cooccurrenceDataPack != null;
+          widget.kritaBridge != null || widget.cooccurrenceDataPack != null;
       if (usesTestOverrides) {
         _mountInjectedEffects();
       } else {
@@ -117,10 +111,6 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
   }
 
   void _mountInjectedEffects() {
-    _backgroundRefreshSubscription = ref.listenManual(
-      widget.backgroundRefresh ?? backgroundRefreshNotifierProvider,
-      (_, __) {},
-    );
     if (widget.kritaBridge != null ||
         PlatformCapabilities.current.supportsKritaBridge) {
       _kritaBridgeSubscription = ref.listenManual(
@@ -136,21 +126,8 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
 
   Future<void> _mountProductionIdleEffects() async {
     await _runProductionIdleEffect(
-      'background refresh',
-      minimumDelay: const Duration(seconds: 10),
-      action: () async {
-        if (!mounted) return;
-        _backgroundRefreshSubscription = ref.listenManual(
-          backgroundRefreshNotifierProvider,
-          (_, __) {},
-        );
-        await ref
-            .read(backgroundRefreshNotifierProvider.notifier)
-            .whenInitialRefreshComplete;
-      },
-    );
-    await _runProductionIdleEffect(
       'Krita bridge',
+      minimumDelay: const Duration(seconds: 10),
       action: () async {
         if (!mounted || !PlatformCapabilities.current.supportsKritaBridge) {
           return;
@@ -264,7 +241,6 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _anlasWatcherSubscription?.close();
-    _backgroundRefreshSubscription?.close();
     _kritaBridgeSubscription?.close();
     _cooccurrenceDataPackSubscription?.close();
     super.dispose();

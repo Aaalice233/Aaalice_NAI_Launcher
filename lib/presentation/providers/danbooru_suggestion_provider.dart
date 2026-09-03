@@ -30,8 +30,6 @@ class TagSuggestionState {
 
 enum TagSuggestionSource { none, memoryCache, storageCache, danbooru, novelai }
 
-/// Compatibility facade for tag-library search surfaces.
-///
 /// Prompt inputs and auxiliary tag browsers now share the same local-first
 /// orchestrator, cache, filtering, and translation pipeline.
 @riverpod
@@ -122,8 +120,6 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
     _activeQuery = '';
     state = const TagSuggestionState();
   }
-
-  Map<String, dynamic> getCacheStats() => const {};
 
   Future<void> clearCache() async {
     await ref.read(autocompleteCacheDatabaseProvider).clearDanbooruCache();

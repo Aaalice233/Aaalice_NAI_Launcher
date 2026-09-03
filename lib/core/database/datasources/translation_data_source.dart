@@ -38,9 +38,7 @@ class TranslationMatch {
   final int count;
 }
 
-/// Compatibility facade for callers not yet migrated to the autocomplete
-/// orchestrator. It reads the optional user-installed ffdkj database and never
-/// falls back to the removed bundled translation database.
+/// Reads the optional user-installed ffdkj translation database.
 class TranslationDataSource {
   TranslationDataSource({Database? database})
     : _database = database,

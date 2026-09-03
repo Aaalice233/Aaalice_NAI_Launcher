@@ -50,7 +50,6 @@ class TagCategoryStats {
     );
   }
 }
-
 /// Danbooru 标签缓存状态
 class DanbooruTagsCacheState {
   final bool isRefreshing;
@@ -67,7 +66,6 @@ class DanbooruTagsCacheState {
   final double artistsProgress;
   final int artistsTotal;
   final DateTime? artistsLastUpdate;
-  // 分类阈值配置（V2新增）
   final TagCategoryThresholds categoryThresholds;
   // 预构建数据库统计
   final int translationCount; // 翻译数据数量
@@ -162,64 +160,31 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
       'DanbooruTagsCacheNotifier',
     );
 
-    // 新架构：监听数据库状态，如果正在清除则等待
-    try {
-      final dbState = ref.read(databaseStatusNotifierProvider);
-      if (dbState == DatabaseState.clearing ||
-          dbState == DatabaseState.closing ||
-          dbState == DatabaseState.recovering) {
-        AppLogger.w(
-          '[ProviderLifecycle] Database is $dbState, waiting...',
-          'DanbooruTagsCacheNotifier',
-        );
-        // 等待数据库就绪
-        await ref.read(databaseStateMachineProvider).waitForReady(
-              timeout: const Duration(seconds: 30),
-            );
-        AppLogger.i(
-          '[ProviderLifecycle] Database is now ready, continuing build',
-          'DanbooruTagsCacheNotifier',
-        );
-      }
-    } catch (e) {
-      // 如果新架构不可用，继续执行（兼容旧架构）
-      AppLogger.d(
-        '[ProviderLifecycle] New architecture not available, continuing with legacy mode',
+    final dbState = ref.read(databaseStatusNotifierProvider);
+    if (dbState == DatabaseState.clearing ||
+        dbState == DatabaseState.closing ||
+        dbState == DatabaseState.recovering) {
+      AppLogger.w(
+        '[ProviderLifecycle] Database is $dbState, waiting...',
+        'DanbooruTagsCacheNotifier',
+      );
+      await ref.read(databaseStateMachineProvider).waitForReady(
+            timeout: const Duration(seconds: 30),
+          );
+      AppLogger.i(
+        '[ProviderLifecycle] Database is now ready, continuing build',
         'DanbooruTagsCacheNotifier',
       );
     }
 
-    // 等待服务初始化完成（带重试，处理数据库关闭错误）
-    var retryCount = 0;
-    const maxRetries = 5;
-    while (retryCount < maxRetries) {
-      try {
-        _service = await ref.watch(danbooruTagsLazyServiceProvider.future);
-        break; // 成功，跳出重试循环
-      } catch (e) {
-        final errorStr = e.toString().toLowerCase();
-        final isDbClosed = errorStr.contains('database_closed') || 
-                          errorStr.contains('databaseexception');
-        if (isDbClosed && retryCount < maxRetries - 1) {
-          retryCount++;
-          AppLogger.w(
-            '[ProviderLifecycle] Database closed during service initialization, retrying ($retryCount/$maxRetries)...',
-            'DanbooruTagsCacheNotifier',
-          );
-          // 增加等待时间，给数据库重建连接池留出更多时间
-          await Future.delayed(Duration(milliseconds: 300 * retryCount));
-        } else {
-          rethrow;
-        }
-      }
-    }
+    _service = await ref.watch(danbooruTagsLazyServiceProvider.future);
     
     AppLogger.i(
       '[ProviderLifecycle] DanbooruTagsCacheNotifier.build() - service initialized, hash=${_service.hashCode}',
       'DanbooruTagsCacheNotifier',
     );
 
-    final refreshInterval = _service!.getRefreshInterval();
+    final refreshInterval = _service!.refreshInterval;
 
     // 获取标签数量和分类统计（带重试机制）
     var count = 0;
@@ -581,10 +546,6 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
     final currentState = await future;
     state = AsyncValue.data(currentState.copyWith(isSyncingArtists: false));
   }
-
-  // ===========================================================================
-  // 分类阈值设置（V2新增）
-  // ===========================================================================
 
   /// 设置一般标签的阈值
   Future<void> setGeneralThreshold(TagHotPreset preset, {int? customThreshold}) async {

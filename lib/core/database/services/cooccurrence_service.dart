@@ -30,8 +30,6 @@ class Recommendation {
 ///
 /// 提供标签共现关系分析和推荐功能的高级服务层。
 /// 基于可选下载数据包的 CooccurrenceDataSource，支持获取相关标签推荐。
-///
-/// V2 简化版：移除所有 CSV 导入逻辑，直接使用已校验的紧凑数据库。
 class CooccurrenceService {
   final CooccurrenceDataSource _dataSource;
 

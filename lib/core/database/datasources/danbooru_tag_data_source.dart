@@ -1,6 +1,6 @@
 import '../../utils/app_logger.dart';
+import '../base_data_source.dart';
 import '../data_source.dart';
-import '../lease_extensions.dart';
 
 /// 标签分类枚举
 enum TagCategory {
@@ -42,13 +42,10 @@ class DanbooruTagRecord {
 /// Danbooru 标签数据源
 ///
 /// 管理 Danbooru 标签数据的查询、存储和热门标签缓存。
-class DanbooruTagDataSource extends BaseDataSource {
+class DanbooruTagDataSource extends EnhancedBaseDataSource {
   static const String _tableName = 'danbooru_tags';
 
   List<DanbooruTagRecord>? _hotTagsCache;
-  final SimpleLeaseHelper _leaseHelper = SimpleLeaseHelper(
-    'DanbooruTagDataSource',
-  );
 
   @override
   String get name => 'danbooruTag';
@@ -65,7 +62,7 @@ class DanbooruTagDataSource extends BaseDataSource {
 
     final normalizedTag = tag.toLowerCase().trim();
 
-    return _leaseHelper.execute('getByName', (db) async {
+    return execute('getByName', (db) async {
       final result = await db.query(
         _tableName,
         columns: ['tag', 'category', 'post_count', 'last_updated'],
@@ -87,7 +84,7 @@ class DanbooruTagDataSource extends BaseDataSource {
     final normalizedTags = tags.map((t) => t.toLowerCase().trim()).toList();
     final placeholders = normalizedTags.map((_) => '?').join(',');
 
-    return _leaseHelper.execute('getByNames', (db) async {
+    return execute('getByNames', (db) async {
       final result = await db.rawQuery(
         'SELECT tag, category, post_count, last_updated '
         'FROM $_tableName WHERE tag IN ($placeholders)',
@@ -111,7 +108,7 @@ class DanbooruTagDataSource extends BaseDataSource {
 
     final normalizedQuery = query.toLowerCase().trim();
 
-    return _leaseHelper.execute('search', (db) async {
+    return execute('search', (db) async {
       String whereClause = 'tag LIKE ?';
       final List<dynamic> whereArgs = ['$normalizedQuery%'];
 
@@ -151,7 +148,7 @@ class DanbooruTagDataSource extends BaseDataSource {
 
     final normalizedQuery = query.toLowerCase().trim();
 
-    return _leaseHelper.execute('searchFuzzy', (db) async {
+    return execute('searchFuzzy', (db) async {
       String whereClause = 'tag LIKE ?';
       final List<dynamic> whereArgs = ['%$normalizedQuery%'];
 
@@ -197,7 +194,7 @@ class DanbooruTagDataSource extends BaseDataSource {
           .toList();
     }
 
-    return _leaseHelper.execute('getHotTags', (db) async {
+    return execute('getHotTags', (db) async {
       String whereClause = 'post_count >= ?';
       final List<dynamic> whereArgs = [minPostCount];
 
@@ -237,7 +234,7 @@ class DanbooruTagDataSource extends BaseDataSource {
 
   /// 确保表结构存在
   Future<void> _ensureTableExists() async {
-    await _leaseHelper.execute('ensureTableExists', (db) async {
+    await execute('ensureTableExists', (db) async {
       final result = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
         [_tableName],
@@ -276,7 +273,7 @@ class DanbooruTagDataSource extends BaseDataSource {
   @override
   Future<DataSourceHealth> doCheckHealth() async {
     try {
-      return await _leaseHelper.execute('checkHealth', (db) async {
+      return await execute('checkHealth', (db) async {
         await db.rawQuery('SELECT 1');
         return DataSourceHealth(
           status: HealthStatus.healthy,
@@ -321,7 +318,7 @@ class DanbooruTagDataSource extends BaseDataSource {
 
     final normalizedTag = tag.toLowerCase().trim();
 
-    return _leaseHelper.execute('exists', (db) async {
+    return execute('exists', (db) async {
       final result = await db.query(
         _tableName,
         columns: ['tag'],
@@ -341,7 +338,7 @@ class DanbooruTagDataSource extends BaseDataSource {
     final normalizedTags = tags.map((t) => t.toLowerCase().trim()).toList();
     final placeholders = normalizedTags.map((_) => '?').join(',');
 
-    return _leaseHelper.execute('existsBatch', (db) async {
+    return execute('existsBatch', (db) async {
       final result = await db.rawQuery(
         'SELECT tag FROM $_tableName WHERE tag IN ($placeholders)',
         normalizedTags,
@@ -358,7 +355,7 @@ class DanbooruTagDataSource extends BaseDataSource {
 
   /// 获取标签总数
   Future<int> getCount({int? category}) async {
-    return _leaseHelper.execute('getCount', (db) async {
+    return execute('getCount', (db) async {
       if (category != null) {
         final result = await db.rawQuery(
           'SELECT COUNT(*) as count FROM $_tableName WHERE category = ?',
@@ -378,7 +375,7 @@ class DanbooruTagDataSource extends BaseDataSource {
   Future<void> upsertBatch(List<DanbooruTagRecord> records) async {
     if (records.isEmpty) return;
 
-    await _leaseHelper.execute('upsertBatch', (db) async {
+    await execute('upsertBatch', (db) async {
       final batch = db.batch();
 
       for (final record in records) {

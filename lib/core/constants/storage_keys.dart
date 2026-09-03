@@ -308,9 +308,6 @@ class StorageKeys {
   static const String cooccurrenceRefreshInterval =
       'cooccurrence_refresh_interval';
 
-  // 数据源后台刷新相关
-  static const String pendingDataSourceRefresh = 'pending_data_source_refresh';
-
   // 在线画廊黑名单设置
   static const String onlineGalleryBlacklistTags =
       'online_gallery_blacklist_tags';
