@@ -36,12 +36,12 @@ import '../../router/app_routes.dart';
 import '../watermark/watermark_editor_launcher.dart';
 import 'local_gallery_move_target.dart';
 import '../../services/image_workflow_launcher.dart';
+import '../../services/image_metadata_import_workflow.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../utils/fixed_tag_metadata_matcher.dart';
 import '../../utils/krita_send_helper.dart';
 import '../../utils/local_gallery_metadata_resolver.dart';
 import '../../utils/local_gallery_reference_factory.dart';
-import '../../utils/metadata_import_coordinator.dart';
 import '../../utils/precise_ref_library_import_helper.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
@@ -53,7 +53,6 @@ import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/discord_share/discord_share_dialog.dart';
 import '../../widgets/gallery/local_image_context_menu.dart';
 import '../../widgets/gallery/zip_export_metadata_dialog.dart';
-import '../../widgets/metadata/metadata_import_dialog.dart';
 
 Future<void> showLocalGalleryZipFailureDetails(
   BuildContext context,
@@ -709,30 +708,11 @@ class LocalGalleryActionCoordinator {
         );
         return;
       }
-      final options = await MetadataImportDialog.show(
-        _context(),
-        metadata: metadata,
-      );
-      if (options == null || !_mounted()) return;
-      final appliedCount = await MetadataImportCoordinator.apply(
+      await ImageMetadataImportWorkflow.shared.run(
+        context: _context(),
         read: _ref.read,
         metadata: metadata,
-        options: options,
-        l10n: _context().l10n,
       );
-      if (!_mounted()) return;
-      if (appliedCount == 0) {
-        AppToast.warning(
-          _context(),
-          _context().l10n.metadataImport_noParamsSelected,
-        );
-        return;
-      }
-      AppToast.success(
-        _context(),
-        _context().l10n.metadataImport_appliedCount(appliedCount),
-      );
-      _context().go(AppRoutes.home);
     } catch (error, stackTrace) {
       AppLogger.e('导入图片元数据失败', error, stackTrace, 'LocalGallery');
       if (_mounted()) {

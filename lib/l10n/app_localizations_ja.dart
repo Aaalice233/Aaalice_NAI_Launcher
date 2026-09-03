@@ -7910,6 +7910,33 @@ class AppLocalizationsJa extends AppLocalizations {
   String get metadataImport_fixedTags => '固定タグ';
 
   @override
+  String get metadataImport_fixedSourceStructured => 'ソース：画像に明示的に記録';
+
+  @override
+  String get metadataImport_fixedSourceLegacy => 'ソース：旧形式の画像フィールド';
+
+  @override
+  String get metadataImport_fixedSourceLibrary => 'ソース：現在の固定タグライブラリとの完全一致';
+
+  @override
+  String get metadataImport_fixedSourceUnknown => 'ソース：記録がなく判別不能';
+
+  @override
+  String get metadataImport_unknownFixedTagsHint =>
+      'この画像には固定タグの記録がありません。現在有効な固定タグの扱いを選択してください。';
+
+  @override
+  String get metadataImport_disableCurrentFixedTags => '現在の固定タグを無効にする（推奨）';
+
+  @override
+  String get metadataImport_keepCurrentFixedTags => '保持して画像プロンプトに重ねる';
+
+  @override
+  String metadataImport_imageVersionName(Object name) {
+    return '$name（画像バージョン）';
+  }
+
+  @override
   String metadataImport_fixedPrefix(Object text) {
     return 'プレフィックス: $text';
   }
@@ -8318,10 +8345,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get drop_addedToCharacterRef => '精密参照に追加しました';
 
   @override
-  String get drop_extractMetadata => 'メタデータの抽出';
+  String get drop_extractMetadata => 'テキストから画像へ送信';
 
   @override
-  String get drop_extractMetadataSubtitle => '画像からプロンプト、シード、その他のパラメーターを読み取ります';
+  String get drop_extractMetadataSubtitle => '適用するプロンプト、固定タグ、生成パラメータを選択します';
 
   @override
   String get drop_addToQueue => 'キューに追加';

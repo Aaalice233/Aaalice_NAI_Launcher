@@ -189,6 +189,8 @@ class NaiImageMetadataRawDecoder {
         fixedSuffixTags: parts['fixedSuffix'] ?? [],
         fixedNegativePrefixTags: parts['fixedNegativePrefix'] ?? [],
         fixedNegativeSuffixTags: parts['fixedNegativeSuffix'] ?? [],
+        fixedTagUsageData: _extractFixedTagUsageData(commentData),
+        hasRecordedFixedTagFields: _hasRecordedFixedTagFields(commentData),
         qualityTags: parts['qualityTags'] ?? [],
         characterInfos: characterInfos,
         characterUseCoords: characterUseCoords,
@@ -392,6 +394,24 @@ class NaiImageMetadataRawDecoder {
     }
 
     return parts;
+  }
+
+  static Map<String, dynamic>? _extractFixedTagUsageData(
+    Map<String, dynamic> commentData,
+  ) {
+    final value = commentData['aaalice_fixed_tags'];
+    if (value is Map<String, dynamic>) return Map<String, dynamic>.from(value);
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  static bool _hasRecordedFixedTagFields(Map<String, dynamic> commentData) {
+    return const {
+      'fixed_prefix',
+      'fixed_suffix',
+      'fixed_negative_prefix',
+      'fixed_negative_suffix',
+    }.any(commentData.containsKey);
   }
 
   /// 提取角色提示词信息
@@ -1042,6 +1062,8 @@ class NaiImageMetadataFields {
     this.fixedNegativePrefixTags = const [],
     this.fixedNegativeSuffixTags = const [],
     this.transparentBackground,
+    this.fixedTagUsageData,
+    this.hasRecordedFixedTagFields = false,
   });
 
   final String prompt;
@@ -1084,4 +1106,6 @@ class NaiImageMetadataFields {
   final List<String> fixedNegativePrefixTags;
   final List<String> fixedNegativeSuffixTags;
   final bool? transparentBackground;
+  final Map<String, dynamic>? fixedTagUsageData;
+  final bool hasRecordedFixedTagFields;
 }

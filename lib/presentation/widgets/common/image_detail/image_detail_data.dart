@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../../data/models/gallery/local_image_record.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../../data/services/metadata/isolate_metadata_service.dart';
 
@@ -180,6 +181,7 @@ class GeneratedImageDetailData implements ImageDetailData {
   final String _id;
   final bool _showSaveButton;
   final bool _showCopyButton;
+  final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
   @override
   final bool preserveOriginalBytesOnSave;
 
@@ -190,6 +192,7 @@ class GeneratedImageDetailData implements ImageDetailData {
     bool showSaveButton = true,
     bool showCopyButton = true,
     this.preserveOriginalBytesOnSave = false,
+    this.fixedTagUsageSnapshot,
   }) : _metadata = metadata,
        _id = id ?? imageBytes.hashCode.toString(),
        _showSaveButton = showSaveButton,

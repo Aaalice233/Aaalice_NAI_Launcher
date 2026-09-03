@@ -14393,6 +14393,54 @@ abstract class AppLocalizations {
   /// **'Fixed Tags'**
   String get metadataImport_fixedTags;
 
+  /// No description provided for @metadataImport_fixedSourceStructured.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: explicitly recorded by the image'**
+  String get metadataImport_fixedSourceStructured;
+
+  /// No description provided for @metadataImport_fixedSourceLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: legacy image fields'**
+  String get metadataImport_fixedSourceLegacy;
+
+  /// No description provided for @metadataImport_fixedSourceLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: exact match from the current fixed-tag library'**
+  String get metadataImport_fixedSourceLibrary;
+
+  /// No description provided for @metadataImport_fixedSourceUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: not recorded; cannot be determined'**
+  String get metadataImport_fixedSourceUnknown;
+
+  /// No description provided for @metadataImport_unknownFixedTagsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This image does not record fixed tags. Choose how to handle the currently enabled fixed tags.'**
+  String get metadataImport_unknownFixedTagsHint;
+
+  /// No description provided for @metadataImport_disableCurrentFixedTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable current fixed tags (recommended)'**
+  String get metadataImport_disableCurrentFixedTags;
+
+  /// No description provided for @metadataImport_keepCurrentFixedTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep and stack with the image prompt'**
+  String get metadataImport_keepCurrentFixedTags;
+
+  /// No description provided for @metadataImport_imageVersionName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} (image version)'**
+  String metadataImport_imageVersionName(Object name);
+
   /// No description provided for @metadataImport_fixedPrefix.
   ///
   /// In en, this message translates to:
@@ -15145,13 +15193,13 @@ abstract class AppLocalizations {
   /// No description provided for @drop_extractMetadata.
   ///
   /// In en, this message translates to:
-  /// **'Extract Metadata'**
+  /// **'Send to Text to Image'**
   String get drop_extractMetadata;
 
   /// No description provided for @drop_extractMetadataSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Read Prompt, Seed and other parameters from image'**
+  /// **'Choose prompts, fixed tags, and generation parameters to apply'**
   String get drop_extractMetadataSubtitle;
 
   /// No description provided for @drop_addToQueue.

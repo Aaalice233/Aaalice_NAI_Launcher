@@ -1880,8 +1880,8 @@
     }
   },
   "drop_addedToCharacterRef": "已添加到精准参考",
-  "drop_extractMetadata": "提取元数据",
-  "drop_extractMetadataSubtitle": "读取图片中的 Prompt、Seed 等参数",
+  "drop_extractMetadata": "发送到文生图",
+  "drop_extractMetadataSubtitle": "选择要套用的提示词、固定词和生成参数",
   "drop_addToQueue": "加入队列",
   "drop_addToQueueSubtitle": "提取正面提示词并加入生成队列",
   "drop_vibeDetected": "检测到预编码 Vibe（可节省 2 Anlas）",
@@ -3756,6 +3756,15 @@
   "metadataImport_clear": "清空",
   "metadataImport_mainPrompt": "主提示词",
   "metadataImport_fixedTags": "固定词",
+  "metadataImport_fixedSourceStructured": "来源：图片明确记录",
+  "metadataImport_fixedSourceLegacy": "来源：旧版图片字段",
+  "metadataImport_fixedSourceLibrary": "来源：根据当前固定词库严格匹配",
+  "metadataImport_fixedSourceUnknown": "来源：图片未记录，无法确认",
+  "metadataImport_unknownFixedTagsHint": "图片没有记录固定词。请选择如何处理当前已启用的固定词。",
+  "metadataImport_disableCurrentFixedTags": "关闭当前固定词（推荐）",
+  "metadataImport_keepCurrentFixedTags": "保留并与图片提示词叠加",
+  "metadataImport_imageVersionName": "{name}（图像版本）",
+  "@metadataImport_imageVersionName": {"placeholders": {"name": {}}},
   "metadataImport_fixedPrefix": "前缀: {text}",
   "@metadataImport_fixedPrefix": {
     "placeholders": {

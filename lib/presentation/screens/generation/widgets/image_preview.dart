@@ -23,6 +23,9 @@ import '../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../core/utils/prompt_preset_resolution.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../../data/models/image/image_stream_chunk.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
@@ -1070,6 +1073,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         showSaveButton: img.canSave,
         showCopyButton: img.canSave,
         preserveOriginalBytesOnSave: img.preserveOriginalBytesOnSave,
+        fixedTagUsageSnapshot: img.fixedTagUsageSnapshot,
       );
     }).toList();
 
@@ -1119,6 +1123,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final actualSeed = finalSeed < 0
           ? Random().nextInt(4294967295)
           : finalSeed;
+      final capturedFixedTags = image is GeneratedImageDetailData
+          ? image.fixedTagUsageSnapshot
+          : null;
 
       // 构建最终字节：外部结果可要求保留原始字节；其他图像缺少 NAI
       // 元数据时仍按当前参数重建。
@@ -1126,10 +1133,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       if (image.preserveOriginalBytesOnSave) {
         finalBytes = imageBytes;
       } else if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)) {
-        finalBytes = imageBytes;
+        finalBytes = capturedFixedTags == null
+            ? imageBytes
+            : await ImageSaveUtils.mergeFixedTagUsageMetadata(
+                imageBytes: imageBytes,
+                snapshot: capturedFixedTags,
+              );
       } else {
         final characterConfig = ref.read(characterPromptNotifierProvider);
         final fixedTagsState = ref.read(fixedTagsNotifierProvider);
+        final fixedTagUsageSnapshot =
+            capturedFixedTags ??
+            FixedTagUsageSnapshot.capture(fixedTagsState.entries);
 
         // 解析别名
         final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
@@ -1197,22 +1212,35 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           imageBytes: imageBytes,
           params: paramsForSave,
           actualSeed: actualSeed,
-          fixedPrefixTags: fixedTagsState.enabledPrefixes
-              .map((entry) => entry.weightedContent)
-              .where((content) => content.isNotEmpty)
-              .toList(growable: false),
-          fixedSuffixTags: fixedTagsState.enabledSuffixes
-              .map((entry) => entry.weightedContent)
-              .where((content) => content.isNotEmpty)
-              .toList(growable: false),
-          fixedNegativePrefixTags: fixedTagsState.negativeEnabledPrefixes
-              .map((entry) => entry.weightedContent)
-              .where((content) => content.isNotEmpty)
-              .toList(growable: false),
-          fixedNegativeSuffixTags: fixedTagsState.negativeEnabledSuffixes
-              .map((entry) => entry.weightedContent)
-              .where((content) => content.isNotEmpty)
-              .toList(growable: false),
+          fixedPrefixTags: fixedTagUsageSnapshot
+              .entriesFor(
+                promptType: FixedTagPromptType.positive,
+                position: FixedTagPosition.prefix,
+              )
+              .map((entry) => entry.renderedContent)
+              .toList(),
+          fixedSuffixTags: fixedTagUsageSnapshot
+              .entriesFor(
+                promptType: FixedTagPromptType.positive,
+                position: FixedTagPosition.suffix,
+              )
+              .map((entry) => entry.renderedContent)
+              .toList(),
+          fixedNegativePrefixTags: fixedTagUsageSnapshot
+              .entriesFor(
+                promptType: FixedTagPromptType.negative,
+                position: FixedTagPosition.prefix,
+              )
+              .map((entry) => entry.renderedContent)
+              .toList(),
+          fixedNegativeSuffixTags: fixedTagUsageSnapshot
+              .entriesFor(
+                promptType: FixedTagPromptType.negative,
+                position: FixedTagPosition.suffix,
+              )
+              .map((entry) => entry.renderedContent)
+              .toList(),
+          fixedTagUsageSnapshot: fixedTagUsageSnapshot,
           charCaptions: charCaptions,
           charNegCaptions: charNegCaptions,
           useCoords: !characterConfig.globalAiChoice,

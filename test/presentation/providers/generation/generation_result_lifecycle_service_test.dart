@@ -4,6 +4,11 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/core/utils/image_save_utils.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
+import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_result_lifecycle_service.dart';
 import 'package:nai_launcher/presentation/services/generation_history_storage_service.dart';
@@ -104,5 +109,69 @@ void main() {
     expect(indexedCount, 1);
     expect(await File(result.savedPaths.single).exists(), isTrue);
     expect(result.images.single.filePath, result.savedPaths.single);
+  });
+
+  test('自动保存给已有 NAI 元数据补写生成时固定词快照', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'nai_generation_fixed_snapshot_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final plain = Uint8List.fromList(
+      image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
+    );
+    final bytes = await ImageSaveUtils.rebuildImageBytesWithMetadata(
+      imageBytes: plain,
+      params: const ImageParams(
+        prompt: 'masterpiece, subject',
+        width: 2,
+        height: 2,
+      ),
+      actualSeed: 321,
+    );
+    const generatedSnapshot = FixedTagUsageSnapshot(
+      entries: [
+        FixedTagUsageEntry(
+          fixedTagId: 'a',
+          name: 'A',
+          content: 'masterpiece',
+          weight: 1,
+          renderedContent: 'masterpiece',
+          position: FixedTagPosition.prefix,
+          promptType: FixedTagPromptType.positive,
+          order: 0,
+        ),
+      ],
+    );
+    final service = GenerationResultLifecycleService(
+      GenerationResultLifecycleDependencies(
+        historyStorage: GenerationHistoryStorageService(enabled: false),
+        resolveGalleryRootPath: () async => directory.path,
+        addGalleryImages: (paths) async => paths.length,
+        refreshGallery: () async {},
+        incrementStatistics: (_) async {},
+      ),
+    );
+
+    final result = await service.saveImages(
+      [
+        GeneratedImage.create(
+          bytes,
+          width: 2,
+          height: 2,
+          fixedTagUsageSnapshot: generatedSnapshot,
+        ),
+      ],
+      const ImageParams(prompt: 'changed later', seed: 999),
+      snapshot: const GenerationSaveSnapshot(
+        fixedTagUsageSnapshot: FixedTagUsageSnapshot(),
+      ),
+    );
+    final saved = await File(result.savedPaths.single).readAsBytes();
+    final metadata = UnifiedMetadataParser.parseFromPng(saved).metadata!;
+
+    expect(metadata.prompt, 'masterpiece, subject');
+    expect(metadata.seed, 321);
+    expect(metadata.fixedPrefixTags, ['masterpiece']);
+    expect(metadata.fixedTagUsageSnapshot?.entries.single.fixedTagId, 'a');
   });
 }

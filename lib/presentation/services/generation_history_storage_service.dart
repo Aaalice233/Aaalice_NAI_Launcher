@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
+import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../providers/generation/generation_models.dart';
 
 /// Tests and embedders opt in explicitly so independently-created provider
@@ -159,6 +160,9 @@ class GenerationHistoryStorageService {
       'metadata': image.metadata == null
           ? null
           : jsonEncode(image.metadata!.toJson()),
+      'fixedTagUsageSnapshot': image.fixedTagUsageSnapshot == null
+          ? null
+          : jsonEncode(image.fixedTagUsageSnapshot!.toJson()),
       'preserveOriginalBytesOnSave': image.preserveOriginalBytesOnSave,
       'filePath': image.filePath,
     };
@@ -200,6 +204,17 @@ class GenerationHistoryStorageService {
       }
     }
 
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot;
+    final fixedTagUsageJson = raw['fixedTagUsageSnapshot'];
+    if (fixedTagUsageJson is String && fixedTagUsageJson.isNotEmpty) {
+      final decoded = jsonDecode(fixedTagUsageJson);
+      if (decoded is Map) {
+        fixedTagUsageSnapshot = FixedTagUsageSnapshot.fromJson(
+          Map<String, dynamic>.from(decoded),
+        );
+      }
+    }
+
     return GeneratedImage(
       id: id,
       bytes: bytes,
@@ -208,6 +223,7 @@ class GenerationHistoryStorageService {
       createdAt: createdAt,
       kind: kind,
       metadata: metadata,
+      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       preserveOriginalBytesOnSave:
           raw['preserveOriginalBytesOnSave'] as bool? ?? false,
       filePath: raw['filePath'] as String?,

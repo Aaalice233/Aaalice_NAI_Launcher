@@ -28,10 +28,9 @@ import '../../providers/vibe_library_provider.dart';
 import '../../router/app_routes.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../utils/internal_drag_protocol.dart';
-import '../../utils/metadata_import_coordinator.dart';
+import '../../services/image_metadata_import_workflow.dart';
 import '../../utils/precise_ref_library_import_helper.dart';
 import '../common/app_toast.dart';
-import '../metadata/metadata_import_dialog.dart';
 import 'dropped_image_inspector.dart';
 import 'image_destination_dialog.dart';
 import 'tag_library_drop_handler.dart';
@@ -317,8 +316,9 @@ class GlobalDropActionCoordinator {
       ImageDestination.vibeTransfer ||
       ImageDestination.vibeTransferReuse ||
       ImageDestination.vibeTransferRaw ||
-      ImageDestination.characterReference ||
-      ImageDestination.extractMetadata => true,
+      ImageDestination.characterReference => true,
+      // The shared metadata workflow owns navigation after its second dialog.
+      ImageDestination.extractMetadata ||
       ImageDestination.saveToVibeLibrary ||
       ImageDestination.addToQueue => false,
     };
@@ -569,27 +569,12 @@ class GlobalDropActionCoordinator {
         return false;
       }
       if (!context.mounted) return false;
-      final options = await MetadataImportDialog.show(
-        context,
-        metadata: metadata,
-      );
-      if (options == null || !context.mounted) return false;
-      final appliedCount = await MetadataImportCoordinator.apply(
+      final result = await ImageMetadataImportWorkflow.shared.run(
+        context: context,
         read: ref.read,
         metadata: metadata,
-        options: options,
-        l10n: context.l10n,
       );
-      if (!context.mounted) return false;
-      if (appliedCount > 0) {
-        AppToast.success(
-          context,
-          l10n.metadataImport_appliedCount(appliedCount),
-        );
-        return true;
-      }
-      AppToast.warning(context, l10n.metadataImport_noParamsSelected);
-      return false;
+      return result == ImageMetadataImportResult.applied;
     } catch (error) {
       if (kDebugMode) {
         AppLogger.d('Error extracting metadata: $error', 'DropHandler');

@@ -7,6 +7,13 @@ NaiImageMetadata matchMetadataFixedTags({
   required Iterable<FixedTagEntry> positiveEntries,
   required Iterable<FixedTagEntry> negativeEntries,
 }) {
+  if (metadata.hasExplicitFixedTagMetadata ||
+      metadata.fixedPrefixTags.isNotEmpty ||
+      metadata.fixedSuffixTags.isNotEmpty ||
+      metadata.fixedNegativePrefixTags.isNotEmpty ||
+      metadata.fixedNegativeSuffixTags.isNotEmpty) {
+    return metadata;
+  }
   final positiveMatches = _inferMatches(
     metadata.prompt,
     positiveEntries,
@@ -42,14 +49,16 @@ NaiImageMetadata matchMetadataFixedTags({
 
 List<String> _mergeMatches(List<String> recorded, List<String> inferred) {
   final result = <String>[...recorded];
-  final normalized = recorded.map(_normalizeEntry).toSet();
+  final normalized = recorded.map(normalizeFixedTagMetadataEntry).toSet();
   for (final match in inferred) {
-    if (normalized.add(_normalizeEntry(match))) result.add(match);
+    if (normalized.add(normalizeFixedTagMetadataEntry(match))) {
+      result.add(match);
+    }
   }
   return result;
 }
 
-String _normalizeEntry(String entry) =>
+String normalizeFixedTagMetadataEntry(String entry) =>
     _extractTags(entry).map(_normalizeTag).join(',');
 
 ({List<String> prefix, List<String> suffix}) _inferMatches(

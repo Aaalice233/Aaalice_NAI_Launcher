@@ -8104,6 +8104,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get metadataImport_fixedTags => 'Fixed Tags';
 
   @override
+  String get metadataImport_fixedSourceStructured =>
+      'Source: explicitly recorded by the image';
+
+  @override
+  String get metadataImport_fixedSourceLegacy => 'Source: legacy image fields';
+
+  @override
+  String get metadataImport_fixedSourceLibrary =>
+      'Source: exact match from the current fixed-tag library';
+
+  @override
+  String get metadataImport_fixedSourceUnknown =>
+      'Source: not recorded; cannot be determined';
+
+  @override
+  String get metadataImport_unknownFixedTagsHint =>
+      'This image does not record fixed tags. Choose how to handle the currently enabled fixed tags.';
+
+  @override
+  String get metadataImport_disableCurrentFixedTags =>
+      'Disable current fixed tags (recommended)';
+
+  @override
+  String get metadataImport_keepCurrentFixedTags =>
+      'Keep and stack with the image prompt';
+
+  @override
+  String metadataImport_imageVersionName(Object name) {
+    return '$name (image version)';
+  }
+
+  @override
   String metadataImport_fixedPrefix(Object text) {
     return 'Prefix: $text';
   }
@@ -8515,11 +8547,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drop_addedToCharacterRef => 'Added to Precise Reference';
 
   @override
-  String get drop_extractMetadata => 'Extract Metadata';
+  String get drop_extractMetadata => 'Send to Text to Image';
 
   @override
   String get drop_extractMetadataSubtitle =>
-      'Read Prompt, Seed and other parameters from image';
+      'Choose prompts, fixed tags, and generation parameters to apply';
 
   @override
   String get drop_addToQueue => 'Add to Queue';

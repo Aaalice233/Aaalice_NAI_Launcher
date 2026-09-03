@@ -7789,6 +7789,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataImport_fixedTags => '固定词';
 
   @override
+  String get metadataImport_fixedSourceStructured => '来源：图片明确记录';
+
+  @override
+  String get metadataImport_fixedSourceLegacy => '来源：旧版图片字段';
+
+  @override
+  String get metadataImport_fixedSourceLibrary => '来源：根据当前固定词库严格匹配';
+
+  @override
+  String get metadataImport_fixedSourceUnknown => '来源：图片未记录，无法确认';
+
+  @override
+  String get metadataImport_unknownFixedTagsHint =>
+      '图片没有记录固定词。请选择如何处理当前已启用的固定词。';
+
+  @override
+  String get metadataImport_disableCurrentFixedTags => '关闭当前固定词（推荐）';
+
+  @override
+  String get metadataImport_keepCurrentFixedTags => '保留并与图片提示词叠加';
+
+  @override
+  String metadataImport_imageVersionName(Object name) {
+    return '$name（图像版本）';
+  }
+
+  @override
   String metadataImport_fixedPrefix(Object text) {
     return '前缀: $text';
   }
@@ -8196,10 +8223,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get drop_addedToCharacterRef => '已添加到精准参考';
 
   @override
-  String get drop_extractMetadata => '提取元数据';
+  String get drop_extractMetadata => '发送到文生图';
 
   @override
-  String get drop_extractMetadataSubtitle => '读取图片中的 Prompt、Seed 等参数';
+  String get drop_extractMetadataSubtitle => '选择要套用的提示词、固定词和生成参数';
 
   @override
   String get drop_addToQueue => '加入队列';
@@ -21606,6 +21633,33 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get metadataImport_fixedTags => '固定詞';
 
   @override
+  String get metadataImport_fixedSourceStructured => '來源：圖片明確記錄';
+
+  @override
+  String get metadataImport_fixedSourceLegacy => '來源：舊版圖片欄位';
+
+  @override
+  String get metadataImport_fixedSourceLibrary => '來源：根據目前固定詞庫嚴格匹配';
+
+  @override
+  String get metadataImport_fixedSourceUnknown => '來源：圖片未記錄，無法確認';
+
+  @override
+  String get metadataImport_unknownFixedTagsHint =>
+      '圖片沒有記錄固定詞。請選擇如何處理目前已啟用的固定詞。';
+
+  @override
+  String get metadataImport_disableCurrentFixedTags => '關閉目前固定詞（推薦）';
+
+  @override
+  String get metadataImport_keepCurrentFixedTags => '保留並與圖片提示詞疊加';
+
+  @override
+  String metadataImport_imageVersionName(Object name) {
+    return '$name（圖片版本）';
+  }
+
+  @override
   String metadataImport_fixedPrefix(Object text) {
     return '字首: $text';
   }
@@ -22013,10 +22067,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get drop_addedToCharacterRef => '已新增到精準參考';
 
   @override
-  String get drop_extractMetadata => '提取後設資料';
+  String get drop_extractMetadata => '傳送到文生圖';
 
   @override
-  String get drop_extractMetadataSubtitle => '讀取圖片中的 Prompt、Seed 等引數';
+  String get drop_extractMetadataSubtitle => '選擇要套用的提示詞、固定詞和生成引數';
 
   @override
   String get drop_addToQueue => '加入佇列';

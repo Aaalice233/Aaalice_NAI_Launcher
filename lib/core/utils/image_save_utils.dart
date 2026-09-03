@@ -5,6 +5,9 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
+import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
+import '../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
@@ -38,6 +41,7 @@ class ImageSaveUtils {
     List<String>? fixedSuffixTags,
     List<String>? fixedNegativePrefixTags,
     List<String>? fixedNegativeSuffixTags,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -92,17 +96,24 @@ class ImageSaveUtils {
         'upscale': {'declared_blur_sigma': E2eUpscale.declaredBlurSigma},
     };
 
-    if (fixedPrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_prefix'] = fixedPrefixTags;
+    if (fixedTagUsageSnapshot != null) {
+      commentJson['aaalice_fixed_tags'] = fixedTagUsageSnapshot.toJson();
     }
-    if (fixedSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_suffix'] = fixedSuffixTags;
+    if (fixedTagUsageSnapshot != null || fixedPrefixTags?.isNotEmpty == true) {
+      commentJson['fixed_prefix'] = fixedPrefixTags ?? const <String>[];
     }
-    if (fixedNegativePrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_prefix'] = fixedNegativePrefixTags;
+    if (fixedTagUsageSnapshot != null || fixedSuffixTags?.isNotEmpty == true) {
+      commentJson['fixed_suffix'] = fixedSuffixTags ?? const <String>[];
     }
-    if (fixedNegativeSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_suffix'] = fixedNegativeSuffixTags;
+    if (fixedTagUsageSnapshot != null ||
+        fixedNegativePrefixTags?.isNotEmpty == true) {
+      commentJson['fixed_negative_prefix'] =
+          fixedNegativePrefixTags ?? const <String>[];
+    }
+    if (fixedTagUsageSnapshot != null ||
+        fixedNegativeSuffixTags?.isNotEmpty == true) {
+      commentJson['fixed_negative_suffix'] =
+          fixedNegativeSuffixTags ?? const <String>[];
     }
 
     // V4多角色提示词
@@ -192,6 +203,7 @@ class ImageSaveUtils {
     List<String>? fixedSuffixTags,
     List<String>? fixedNegativePrefixTags,
     List<String>? fixedNegativeSuffixTags,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -223,6 +235,7 @@ class ImageSaveUtils {
       fixedSuffixTags: fixedSuffixTags,
       fixedNegativePrefixTags: fixedNegativePrefixTags,
       fixedNegativeSuffixTags: fixedNegativeSuffixTags,
+      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,
@@ -251,6 +264,58 @@ class ImageSaveUtils {
     );
   }
 
+  /// Adds Launcher fixed-tag provenance without replacing existing NAI fields.
+  static Future<Uint8List> mergeFixedTagUsageMetadata({
+    required Uint8List imageBytes,
+    required FixedTagUsageSnapshot snapshot,
+    bool useStealth = false,
+  }) async {
+    final existing = _extractEmbeddedPngMetadata(imageBytes);
+    if (existing?.commentJson == null) return imageBytes;
+    final commentJson = <String, dynamic>{
+      ...existing!.commentJson,
+      'aaalice_fixed_tags': snapshot.toJson(),
+      'fixed_prefix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.positive,
+        FixedTagPosition.prefix,
+      ),
+      'fixed_suffix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.positive,
+        FixedTagPosition.suffix,
+      ),
+      'fixed_negative_prefix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.negative,
+        FixedTagPosition.prefix,
+      ),
+      'fixed_negative_suffix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.negative,
+        FixedTagPosition.suffix,
+      ),
+    };
+    return _embedNaiAlignedMetadata(
+      imageBytes: imageBytes,
+      commentJson: commentJson,
+      description: existing.description,
+      source: existing.source,
+      software: existing.software,
+      useStealth: useStealth,
+    );
+  }
+
+  static List<String> _fixedTagContents(
+    FixedTagUsageSnapshot snapshot,
+    FixedTagPromptType promptType,
+    FixedTagPosition position,
+  ) => snapshot
+      .entriesFor(promptType: promptType, position: position)
+      .map((entry) => entry.renderedContent)
+      .where((content) => content.isNotEmpty)
+      .toList(growable: false);
+
   /// 保存图像并嵌入完整元数据
   ///
   /// [imageBytes] - 图像字节数据
@@ -276,6 +341,7 @@ class ImageSaveUtils {
     List<String>? fixedSuffixTags,
     List<String>? fixedNegativePrefixTags,
     List<String>? fixedNegativeSuffixTags,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -290,6 +356,7 @@ class ImageSaveUtils {
       fixedSuffixTags: fixedSuffixTags,
       fixedNegativePrefixTags: fixedNegativePrefixTags,
       fixedNegativeSuffixTags: fixedNegativeSuffixTags,
+      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,

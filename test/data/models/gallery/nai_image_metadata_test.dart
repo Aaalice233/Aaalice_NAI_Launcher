@@ -49,6 +49,45 @@ void main() {
       expect(NaiImageMetadata.fromJson(metadata.toJson()), metadata);
     });
 
+    test('fromNaiComment preserves an explicit empty fixed-tag record', () {
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'prompt': 'subject',
+        'fixed_prefix': <String>[],
+        'fixed_suffix': <String>[],
+        'fixed_negative_prefix': <String>[],
+        'fixed_negative_suffix': <String>[],
+      });
+
+      expect(metadata.hasRecordedFixedTagFields, isTrue);
+      expect(metadata.hasExplicitFixedTagMetadata, isTrue);
+    });
+
+    test('fromNaiComment parses the structured fixed-tag snapshot', () {
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'prompt': 'masterpiece, subject',
+        'aaalice_fixed_tags': {
+          'version': 1,
+          'entries': [
+            {
+              'fixed_tag_id': 'tag-a',
+              'name': 'A',
+              'content': 'masterpiece',
+              'weight': 1,
+              'rendered_content': 'masterpiece',
+              'position': 'prefix',
+              'prompt_type': 'positive',
+              'order': 0,
+            },
+          ],
+        },
+      });
+
+      expect(
+        metadata.fixedTagUsageSnapshot?.entries.single.fixedTagId,
+        'tag-a',
+      );
+    });
+
     test('displayNegativePrompt should mirror embedded raw uc text', () {
       final preset = UcPresets.getPresetContent(
         ImageModels.animeDiffusionV45Full,
