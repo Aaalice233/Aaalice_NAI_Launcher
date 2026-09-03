@@ -103,7 +103,6 @@ class PositivePromptTooltip extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
-        const _TooltipDivider(),
         _CopyableFinalPrompt(
           theme: theme,
           prompt: effectivePrompt,
@@ -238,7 +237,6 @@ class NegativePromptTooltip extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
-        const _TooltipDivider(),
         _CopyableFinalPrompt(
           theme: theme,
           prompt: effectivePrompt,
@@ -283,17 +281,6 @@ class NegativePromptTooltip extends StatelessWidget {
         .where((value) => value.isNotEmpty)
         .map(_resolve),
   ].join(', ');
-}
-
-class _TooltipDivider extends StatelessWidget {
-  const _TooltipDivider();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.symmetric(vertical: 6),
-    height: 1,
-    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
-  );
 }
 
 class _CopyableFinalPrompt extends StatelessWidget {

@@ -471,6 +471,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                 TranslatedPromptText(
                   content,
                   selectable: false,
+                  includeUntranslated: true,
                   style: theme.textTheme.bodySmall?.copyWith(color: mutedColor),
                 ),
             ],

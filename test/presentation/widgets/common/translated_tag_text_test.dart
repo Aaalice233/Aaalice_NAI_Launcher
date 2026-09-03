@@ -72,4 +72,38 @@ void main() {
 
     expect(find.text('单人，unknown artist，very aesthetic'), findsOneWidget);
   });
+
+  testWidgets('完整翻译模式不会丢弃加权艺术家与未收录标签', (tester) async {
+    final partialLookup = TagTranslationLookup.fromResolver((tags) async {
+      return {
+        if (tags.contains('best_quality')) 'best_quality': '极高分辨率',
+        if (tags.contains('masterpiece')) 'masterpiece': '杰作',
+      };
+    });
+    const prompt =
+        '1.60::asahina_yoshitoshi::, yutokamizu, '
+        '0.7::artist:hermityy::, year_2025, best_quality, masterpiece';
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tagTranslationLookupProvider.overrideWithValue(partialLookup),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: TranslatedPromptText(prompt, includeUntranslated: true),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.text(
+        'asahina yoshitoshi，yutokamizu，artist:hermityy，year 2025，'
+        '极高分辨率，杰作',
+      ),
+      findsOneWidget,
+    );
+  });
 }

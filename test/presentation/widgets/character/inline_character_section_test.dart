@@ -366,6 +366,7 @@ void main() {
       ),
     )) {
       expect(prompt.maxLines, isNull);
+      expect(prompt.includeUntranslated, isTrue);
     }
     expect(tester.takeException(), isNull);
 

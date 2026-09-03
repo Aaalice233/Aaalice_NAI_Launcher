@@ -174,6 +174,7 @@ class _CharacterPreviewRow extends StatelessWidget {
               TranslatedPromptText(
                 promptPreview.replaceAll(' · ', ', '),
                 selectable: false,
+                includeUntranslated: true,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                   height: 1.2,

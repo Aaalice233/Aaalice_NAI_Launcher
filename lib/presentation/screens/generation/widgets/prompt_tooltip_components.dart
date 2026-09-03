@@ -64,8 +64,16 @@ class TooltipSection extends StatelessWidget {
   final bool isDark;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+    decoration: BoxDecoration(
+      color: Color.alphaBlend(
+        color.withValues(alpha: isDark ? 0.075 : 0.045),
+        theme.colorScheme.surfaceContainerLow,
+      ),
+      borderRadius: BorderRadius.circular(8),
+    ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -93,6 +101,7 @@ class TooltipSection extends StatelessWidget {
           child: TranslatedPromptText(
             content,
             selectable: false,
+            includeUntranslated: true,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               height: 1.35,
@@ -123,8 +132,16 @@ class TooltipCharacterSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = theme.colorScheme.tertiary;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          color.withValues(alpha: isDark ? 0.075 : 0.045),
+          theme.colorScheme.surfaceContainerLow,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -184,6 +201,7 @@ class TooltipCharacterSection extends StatelessWidget {
                             originalText:
                                 '${character.name}: ${character.toNaiPrompt(useAiPosition: globalAiChoice)}',
                             selectable: false,
+                            includeUntranslated: true,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                               height: 1.35,
@@ -272,6 +290,7 @@ class TooltipFinalPromptSection extends StatelessWidget {
           TranslatedPromptText(
             prompt,
             selectable: false,
+            includeUntranslated: true,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurface,
               height: 1.4,

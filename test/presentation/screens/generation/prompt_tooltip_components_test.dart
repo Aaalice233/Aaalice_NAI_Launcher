@@ -12,7 +12,7 @@ import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dar
 void main() {
   for (final brightness in Brightness.values) {
     testWidgets(
-      'prompt tooltip uses one quiet result surface in ${brightness.name}',
+      'prompt tooltip uses quiet cards without borders in ${brightness.name}',
       (tester) async {
         final theme = ThemeData(brightness: brightness);
         final isDark = brightness == Brightness.dark;
@@ -66,13 +66,18 @@ void main() {
           ),
           findsNothing,
         );
-        expect(
-          find.descendant(
-            of: find.byKey(const ValueKey('step')),
-            matching: find.byType(DecoratedBox),
-          ),
-          findsNothing,
+        final stepContainer = tester.widget<Container>(
+          find
+              .descendant(
+                of: find.byKey(const ValueKey('step')),
+                matching: find.byType(Container),
+              )
+              .first,
         );
+        final stepDecoration = stepContainer.decoration! as BoxDecoration;
+        expect(stepDecoration.color, isNotNull);
+        expect(stepDecoration.border, isNull);
+        expect(stepDecoration.borderRadius, BorderRadius.circular(8));
         final stepPrompt = tester.widget<TranslatedPromptText>(
           find.descendant(
             of: find.byKey(const ValueKey('step')),
@@ -81,6 +86,7 @@ void main() {
         );
         expect(stepPrompt.prompt, 'best quality, detailed');
         expect(stepPrompt.maxLines, isNull);
+        expect(stepPrompt.includeUntranslated, isTrue);
         final resultContainer = tester.widget<Container>(
           find
               .descendant(
@@ -399,6 +405,17 @@ void main() {
     for (final section in find.byType(TooltipFinalPromptSection).evaluate()) {
       expect(section.findAncestorWidgetOfExactType<Stack>(), isNull);
     }
+    for (final prompt in tester.widgetList<TranslatedPromptText>(
+      find.byType(TranslatedPromptText),
+    )) {
+      expect(prompt.includeUntranslated, isTrue);
+    }
+    expect(
+      tester
+          .widgetList<Container>(find.byType(Container))
+          .where((container) => container.constraints?.maxHeight == 1),
+      isEmpty,
+    );
     final copyButtons = find.byIcon(Icons.copy_rounded);
     expect(copyButtons, findsNWidgets(2));
 

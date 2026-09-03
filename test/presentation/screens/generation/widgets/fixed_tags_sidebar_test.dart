@@ -28,6 +28,7 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_lin
 import 'package:nai_launcher/presentation/widgets/common/hover_image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
+import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_edit_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_entry_tile.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tags_button.dart';
@@ -934,6 +935,14 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('rich-tooltip-surface')), findsOneWidget);
+    for (final prompt in tester.widgetList<TranslatedPromptText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('rich-tooltip-surface')),
+        matching: find.byType(TranslatedPromptText),
+      ),
+    )) {
+      expect(prompt.includeUntranslated, isTrue);
+    }
 
     final positiveDecoration =
         tester.widget<Container>(positiveSection).decoration! as BoxDecoration;
