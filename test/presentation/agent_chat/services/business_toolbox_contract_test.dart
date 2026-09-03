@@ -7,7 +7,8 @@ import 'package:nai_launcher/core/agent/permissions/permissions.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/harness/env/dart_io_execution_env.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
-import 'package:nai_launcher/presentation/agent_chat/services/application_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/application_context_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/fixed_tags_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/gallery_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_image_favorite_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_image_workflow_service.dart';
@@ -19,6 +20,7 @@ import 'package:nai_launcher/presentation/agent_chat/services/image_presentation
 import 'package:nai_launcher/presentation/agent_chat/services/queue_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/reference_library_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/tag_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/tag_library_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
@@ -29,7 +31,9 @@ void main() {
     addTearDown(container.dispose);
     final ref = container.read(_refProvider);
     final tools = <AgentTool>[
-      ...ApplicationToolbox(ref).tools(),
+      ...ApplicationContextToolbox(ref).tools(),
+      ...TagLibraryToolbox(ref).tools(),
+      ...FixedTagsToolbox(ref).tools(),
       ...GalleryToolbox(ref).tools(),
       ...ReferenceLibraryToolbox(ref, AgentResourceResolver(ref)).tools(),
       ...ImagePresentationToolbox(AgentResourceResolver(ref)).tools(),

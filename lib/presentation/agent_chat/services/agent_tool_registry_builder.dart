@@ -14,8 +14,9 @@ import '../../router/app_router_config.dart';
 import '../../router/app_routes.dart';
 import 'agent_image_observation_ledger.dart';
 import 'agent_resource_resolver.dart';
-import 'application_toolbox.dart';
+import 'application_context_toolbox.dart';
 import 'execution_toolbox.dart';
+import 'fixed_tags_toolbox.dart';
 import 'gallery_toolbox.dart';
 import 'generation_image_favorite_toolbox.dart';
 import 'generation_image_workflow_launcher_adapter.dart';
@@ -32,6 +33,7 @@ import 'prompt_toolbox.dart';
 import 'queue_toolbox.dart';
 import 'reference_library_toolbox.dart';
 import 'tag_toolbox.dart';
+import 'tag_library_toolbox.dart';
 import 'web_access_toolbox.dart';
 
 class AgentToolRegistry {
@@ -197,11 +199,12 @@ class AgentToolRegistryBuilder {
       ...QueueToolbox(_ref, _queueRuntime).tools(),
       ..._manualInpaintToolbox.tools(),
       ...TagToolbox(_ref).tools(),
-      ...ApplicationToolbox(
+      ...ApplicationContextToolbox(
         _ref,
         loadDrafts: _manualInpaintToolbox.listDraftSummaries,
-        resourceResolver: resourceResolver,
       ).tools(),
+      ...TagLibraryToolbox(_ref, resourceResolver: resourceResolver).tools(),
+      ...FixedTagsToolbox(_ref).tools(),
       ...GalleryToolbox(_ref).tools(),
       ...ReferenceLibraryToolbox(_ref, resourceResolver).tools(),
       ...ImagePresentationToolbox(resourceResolver).tools(),

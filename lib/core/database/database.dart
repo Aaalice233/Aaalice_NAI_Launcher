@@ -29,10 +29,7 @@ library;
 // Infrastructure (V2)
 // ============================================================================
 
-export 'database_manager.dart'
-    show
-        DatabaseManager,
-        DatabaseInitState;
+export 'database_manager.dart' show DatabaseManager, DatabaseInitState;
 
 export 'database_providers.dart'
     show
@@ -40,13 +37,9 @@ export 'database_providers.dart'
         databaseInitializedProvider,
         databaseStatisticsProvider;
 
-export 'connection_pool_holder.dart'
-    show
-        ConnectionPoolHolder;
+export 'connection_pool_holder.dart' show ConnectionPoolHolder;
 
-export 'connection_pool.dart'
-    show
-        ConnectionPool;
+export 'connection_pool.dart' show ConnectionPool;
 
 export 'data_source.dart'
     show
@@ -58,19 +51,14 @@ export 'data_source.dart'
         DataSourceInfo,
         HealthStatus;
 
-export 'data_source_types.dart'
-    show
-        HealthCheckResult;
+export 'data_source_types.dart' show HealthCheckResult;
 
 // ============================================================================
 // DataSources
 // ============================================================================
 
 export 'datasources/danbooru_tag_data_source.dart'
-    show
-        DanbooruTagRecord,
-        TagCategory,
-        TagSearchMode;
+    show DanbooruTagRecord, TagCategory;
 
 // ============================================================================
 // Services

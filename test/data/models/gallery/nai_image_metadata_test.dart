@@ -6,7 +6,6 @@ import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
-import 'package:nai_launcher/data/models/gallery/nai_image_metadata_codec.dart';
 import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
@@ -15,30 +14,6 @@ import 'package:nai_launcher/presentation/widgets/common/image_detail/image_deta
 
 void main() {
   group('NaiImageMetadata', () {
-    test('codec facade keeps decode and upgrade compatibility', () {
-      final rawJson = jsonEncode({
-        'prompt': '1girl',
-        'uc': 'bad hands',
-        'skip_cfg_above_sigma': 58,
-      });
-      final decoded = NaiImageMetadataCodec.decode({
-        'Comment': rawJson,
-        'Software': 'NovelAI',
-        'Source': 'NovelAI Diffusion V4.5 4BDE2A90',
-      }, rawJson: rawJson);
-
-      expect(decoded.model, ImageModels.animeDiffusionV45Full);
-      expect(decoded.varietyPlus, isTrue);
-      expect(
-        const NaiImageMetadataCodec()
-            .upgradeFromRawJsonIfNeeded(
-              NaiImageMetadata(prompt: '1girl', rawJson: rawJson),
-            )
-            .varietyPlus,
-        isTrue,
-      );
-    });
-
     test('generated JSON round-trip remains compatible', () {
       const metadata = NaiImageMetadata(
         prompt: '1girl',

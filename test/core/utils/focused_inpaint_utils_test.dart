@@ -259,7 +259,7 @@ void main() {
     );
 
     test(
-      'compositeGeneratedImage should merge focused result back into original canvas',
+      'composeGeneratedImageArtifact should merge the focused result into the display image',
       () {
         final source = img.Image(width: 400, height: 300);
         img.fill(source, color: img.ColorRgb8(16, 32, 64));
@@ -285,16 +285,6 @@ void main() {
         img.fill(generated, color: img.ColorRgb8(255, 255, 255));
         final generatedBytes = Uint8List.fromList(img.encodePng(generated));
 
-        final merged = request.compositeGeneratedImage(generatedBytes);
-        final decoded = img.decodeImage(merged)!;
-
-        expect(decoded.width, equals(400));
-        expect(decoded.height, equals(300));
-        expect(decoded.getPixel(170, 140).r.toInt(), equals(255));
-        expect(decoded.getPixel(110, 80).r.toInt(), equals(16));
-        expect(decoded.getPixel(110, 80).g.toInt(), equals(32));
-        expect(decoded.getPixel(110, 80).b.toInt(), equals(64));
-
         final maskArtifacts =
             InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
               request.requestMaskImage,
@@ -313,6 +303,10 @@ void main() {
         expect((patch.width, patch.height), equals((400, 300)));
         expect(patch.getPixel(0, 0).a.toInt(), equals(0));
         expect(patch.getPixel(170, 140).a.toInt(), greaterThan(245));
+        expect(display.getPixel(170, 140).r.toInt(), equals(255));
+        expect(display.getPixel(110, 80).r.toInt(), equals(16));
+        expect(display.getPixel(110, 80).g.toInt(), equals(32));
+        expect(display.getPixel(110, 80).b.toInt(), equals(64));
         expectPixelsWithin(
           reconstructed,
           display,
@@ -322,7 +316,7 @@ void main() {
     );
 
     test(
-      'compositeGeneratedImage should clear old pixels for transparent focused results',
+      'composeGeneratedImageArtifact clears old pixels for transparent focused results',
       () {
         final source = img.Image(width: 400, height: 300);
         img.fill(source, color: img.ColorRgb8(16, 32, 64));
@@ -348,10 +342,16 @@ void main() {
         );
         img.fill(generated, color: img.ColorRgba8(255, 255, 255, 0));
 
-        final result = request.compositeGeneratedImage(
-          Uint8List.fromList(img.encodePng(generated)),
+        final artifacts = InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
+          request.requestMaskImage,
+          targetWidth: request.targetWidth,
+          targetHeight: request.targetHeight,
         );
-        final decoded = img.decodeImage(result)!;
+        final result = request.composeGeneratedImageArtifact(
+          Uint8List.fromList(img.encodePng(generated)),
+          artifacts,
+        );
+        final decoded = img.decodeImage(result.displayImageBytes)!;
 
         expect(decoded.numChannels, equals(4));
         expect(decoded.getPixel(170, 140).a.toInt(), equals(0));
@@ -363,7 +363,7 @@ void main() {
     );
 
     test(
-      'compositeGeneratedImage should use a soft edge and preserve distant pixels',
+      'composeGeneratedImageArtifact uses a soft edge and preserves distant pixels',
       () {
         final source = img.Image(width: 400, height: 300);
         img.fill(source, color: img.ColorRgb8(16, 32, 64));
@@ -388,10 +388,16 @@ void main() {
         );
         img.fill(generated, color: img.ColorRgb8(255, 255, 255));
 
-        final merged = request.compositeGeneratedImage(
-          Uint8List.fromList(img.encodePng(generated)),
+        final artifacts = InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
+          request.requestMaskImage,
+          targetWidth: request.targetWidth,
+          targetHeight: request.targetHeight,
         );
-        final decoded = img.decodeImage(merged)!;
+        final result = request.composeGeneratedImageArtifact(
+          Uint8List.fromList(img.encodePng(generated)),
+          artifacts,
+        );
+        final decoded = img.decodeImage(result.displayImageBytes)!;
 
         expect(decoded.getPixel(150, 140).r.toInt(), greaterThan(245));
         expect(decoded.getPixel(149, 140).r.toInt(), inInclusiveRange(17, 254));
@@ -584,25 +590,6 @@ void main() {
         expect(
           asyncRequest.requestMaskImage,
           equals(syncRequest.requestMaskImage),
-        );
-
-        final generated = img.Image(
-          width: asyncRequest.targetWidth,
-          height: asyncRequest.targetHeight,
-        );
-        img.fill(generated, color: img.ColorRgb8(255, 255, 255));
-        final generatedBytes = Uint8List.fromList(img.encodePng(generated));
-
-        final syncComposite = syncRequest.compositeGeneratedImage(
-          generatedBytes,
-        );
-        expect(
-          asyncRequest.compositeGeneratedImage(generatedBytes),
-          equals(syncComposite),
-        );
-        expect(
-          await asyncRequest.compositeGeneratedImageAsync(generatedBytes),
-          equals(syncComposite),
         );
       },
     );

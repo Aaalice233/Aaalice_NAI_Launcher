@@ -168,25 +168,6 @@ class FocusedInpaintRequest {
       ),
     );
   }
-
-  /// Compatibility wrapper for callers that do not already own artifacts.
-  Future<Uint8List> compositeGeneratedImageAsync(Uint8List generatedBytes) {
-    return ComputeGate().runIsolate(
-      () => compositeGeneratedImage(generatedBytes),
-    );
-  }
-
-  Uint8List compositeGeneratedImage(Uint8List generatedBytes) {
-    final artifacts = InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
-      requestMaskImage,
-      targetWidth: targetWidth,
-      targetHeight: targetHeight,
-    );
-    return composeGeneratedImageArtifact(
-      generatedBytes,
-      artifacts,
-    ).displayImageBytes;
-  }
 }
 
 class FocusedInpaintUtils {
