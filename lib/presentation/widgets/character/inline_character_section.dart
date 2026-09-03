@@ -87,6 +87,7 @@ class InlineCharacterSection extends ConsumerWidget {
       collapsedHoverPreviewBuilder: characters.isEmpty
           ? null
           : (context) => CharacterTooltipContent(config: config),
+      collapsedHoverPreviewInteractive: true,
       childBuilder: (context) => _CharacterPanelContent(characters: characters),
     );
   }

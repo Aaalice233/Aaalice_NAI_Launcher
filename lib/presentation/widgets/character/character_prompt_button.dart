@@ -6,6 +6,7 @@ import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
+import '../common/rich_tooltip_surface.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'character_tooltip_content.dart';
 
@@ -432,23 +433,12 @@ class _CharacterTooltipWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Tooltip(
       richMessage: WidgetSpan(child: CharacterTooltipContent(config: config)),
       constraints: const BoxConstraints(maxWidth: 380),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      ignorePointer: false,
+      decoration: richTooltipOuterDecoration,
+      padding: EdgeInsets.zero,
       waitDuration: const Duration(milliseconds: 400),
       showDuration: const Duration(seconds: 8),
       preferBelow: true,

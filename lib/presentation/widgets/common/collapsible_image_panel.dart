@@ -24,6 +24,7 @@ class CollapsibleImagePanel extends StatefulWidget {
     this.centerHeaderActions = false,
     this.alignHeaderActionsAfterTitle = false,
     this.collapsedHoverPreviewBuilder,
+    this.collapsedHoverPreviewInteractive = false,
     this.hoverPreviewWaitDuration = const Duration(milliseconds: 350),
     this.child,
     this.childBuilder,
@@ -51,8 +52,11 @@ class CollapsibleImagePanel extends StatefulWidget {
 
   /// 折叠态鼠标停留在标题行时显示的只读预览。
   ///
-  /// 预览绘制在根 Overlay 中且不接收指针，点击语义仍完整属于标题行。
+  /// 预览绘制在根 Overlay 中；默认不接收指针，交互式长内容可单独开启滚动。
   final WidgetBuilder? collapsedHoverPreviewBuilder;
+
+  /// 允许指针进入悬浮预览并滚动长内容；默认关闭以维持纯摘要面板的点击语义。
+  final bool collapsedHoverPreviewInteractive;
   final Duration hoverPreviewWaitDuration;
 
   final Widget? child;
@@ -195,20 +199,36 @@ class _CollapsibleImagePanelState extends State<CollapsibleImagePanel>
             ? Alignment.bottomCenter
             : Alignment.topCenter,
         offset: Offset(0, _showHoverPreviewAbove ? -8 : 8),
-        child: IgnorePointer(
-          child: Material(
-            type: MaterialType.transparency,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: _hoverPreviewVisible,
-              child: previewBuilder(overlayContext),
-              builder: (context, visible, child) => AnimatedOpacity(
-                key: const Key('collapsed-hover-preview'),
-                opacity: visible ? 1 : 0,
-                duration: disableAnimations
-                    ? Duration.zero
-                    : const Duration(milliseconds: 120),
-                curve: visible ? Curves.easeOut : Curves.easeIn,
-                child: child,
+        child: MouseRegion(
+          hitTestBehavior: widget.collapsedHoverPreviewInteractive
+              ? HitTestBehavior.opaque
+              : HitTestBehavior.deferToChild,
+          onEnter: widget.collapsedHoverPreviewInteractive
+              ? (_) {
+                  _hoverRemoveTimer?.cancel();
+                  _hoverRemoveTimer = null;
+                  _hoverPreviewVisible.value = true;
+                }
+              : null,
+          onExit: widget.collapsedHoverPreviewInteractive
+              ? (_) => _hideHoverPreview()
+              : null,
+          child: IgnorePointer(
+            ignoring: !widget.collapsedHoverPreviewInteractive,
+            child: Material(
+              type: MaterialType.transparency,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _hoverPreviewVisible,
+                child: previewBuilder(overlayContext),
+                builder: (context, visible, child) => AnimatedOpacity(
+                  key: const Key('collapsed-hover-preview'),
+                  opacity: visible ? 1 : 0,
+                  duration: disableAnimations
+                      ? Duration.zero
+                      : const Duration(milliseconds: 120),
+                  curve: visible ? Curves.easeOut : Curves.easeIn,
+                  child: child,
+                ),
               ),
             ),
           ),

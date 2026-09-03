@@ -6,6 +6,7 @@ import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/layout_state_provider.dart';
+import '../common/rich_tooltip_surface.dart';
 import '../common/translated_tag_text.dart';
 import 'fixed_tags_dialog.dart';
 
@@ -47,26 +48,17 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       cursor: SystemMouseCursors.click,
       child: Tooltip(
         richMessage: WidgetSpan(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
+          child: RichTooltipSurface(
+            maxWidth: 380,
             child: _buildTooltipContent(theme, fixedTagsState),
           ),
         ),
         preferBelow: true,
         verticalOffset: 20,
         waitDuration: const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.24),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(14),
+        ignorePointer: false,
+        decoration: richTooltipOuterDecoration,
+        padding: EdgeInsets.zero,
         child: Semantics(
           button: true,
           label: context.l10n.fixedTags_label,
@@ -320,7 +312,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     final allEnabled = [
       ...prefixes.map((e) => (entry: e, isPrefix: true)),
       ...suffixes.map((e) => (entry: e, isPrefix: false)),
-    ].take(4).toList(growable: false);
+    ];
 
     return Container(
       key: ValueKey(
@@ -479,7 +471,6 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                 TranslatedPromptText(
                   content,
                   selectable: false,
-                  maxLines: 1,
                   style: theme.textTheme.bodySmall?.copyWith(color: mutedColor),
                 ),
             ],
@@ -524,9 +515,9 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              ...disabledEntries
-                  .take(3)
-                  .map((entry) => _buildDisabledChip(theme, entry)),
+              ...disabledEntries.map(
+                (entry) => _buildDisabledChip(theme, entry),
+              ),
             ],
           ),
         ),

@@ -90,16 +90,12 @@ class TooltipSection extends StatelessWidget {
         const SizedBox(height: 3),
         Padding(
           padding: const EdgeInsets.only(left: 21),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 104),
-            child: SingleChildScrollView(
-              child: Text(
-                content,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.35,
-                ),
-              ),
+          child: TranslatedPromptText(
+            content,
+            selectable: false,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.35,
             ),
           ),
         ),
@@ -161,48 +157,43 @@ class TooltipCharacterSection extends StatelessWidget {
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.only(left: 21),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 112),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final character in characters)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              character.gender == CharacterGender.female
-                                  ? Icons.female
-                                  : character.gender == CharacterGender.male
-                                  ? Icons.male
-                                  : Icons.person,
-                              size: 14,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: TranslatedPromptText(
-                                character.toNaiPrompt(
-                                  useAiPosition: globalAiChoice,
-                                ),
-                                originalText:
-                                    '${character.name}: ${character.toNaiPrompt(useAiPosition: globalAiChoice)}',
-                                selectable: false,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ),
-                          ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final character in characters)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          character.gender == CharacterGender.female
+                              ? Icons.female
+                              : character.gender == CharacterGender.male
+                              ? Icons.male
+                              : Icons.person,
+                          size: 14,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                      ),
-                  ],
-                ),
-              ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: TranslatedPromptText(
+                            character.toNaiPrompt(
+                              useAiPosition: globalAiChoice,
+                            ),
+                            originalText:
+                                '${character.name}: ${character.toNaiPrompt(useAiPosition: globalAiChoice)}',
+                            selectable: false,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -278,17 +269,12 @@ class TooltipFinalPromptSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 136),
-            child: SingleChildScrollView(
-              child: TranslatedPromptText(
-                prompt,
-                selectable: false,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  height: 1.4,
-                ),
-              ),
+          TranslatedPromptText(
+            prompt,
+            selectable: false,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              height: 1.4,
             ),
           ),
         ],

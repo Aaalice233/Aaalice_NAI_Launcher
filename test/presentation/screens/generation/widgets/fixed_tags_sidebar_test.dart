@@ -847,6 +847,9 @@ void main() {
     final storage = _SidebarTestStorage(
       fixedEntries: [
         FixedTagEntry.create(name: '正面前缀条目', content: 'best quality'),
+        FixedTagEntry.create(name: '正面前缀条目 2', content: 'detailed'),
+        FixedTagEntry.create(name: '正面前缀条目 3', content: 'masterpiece'),
+        FixedTagEntry.create(name: '正面前缀条目 4', content: 'sharp focus'),
         FixedTagEntry.create(
           name: '正面后缀条目',
           content: 'cinematic lighting',
@@ -904,11 +907,15 @@ void main() {
       find.descendant(of: negativeSection, matching: find.text('负面')),
       findsOneWidget,
     );
+    expect(
+      find.descendant(of: positiveSection, matching: find.text('前缀 4')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: negativeSection, matching: find.text('前缀 1')),
+      findsOneWidget,
+    );
     for (final section in [positiveSection, negativeSection]) {
-      expect(
-        find.descendant(of: section, matching: find.text('前缀 1')),
-        findsOneWidget,
-      );
       expect(
         find.descendant(of: section, matching: find.text('后缀 1')),
         findsOneWidget,
@@ -922,6 +929,11 @@ void main() {
       find.descendant(of: negativeSection, matching: find.text('负面后缀条目')),
       findsOneWidget,
     );
+    expect(
+      find.descendant(of: positiveSection, matching: find.text('正面后缀条目')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('rich-tooltip-surface')), findsOneWidget);
 
     final positiveDecoration =
         tester.widget<Container>(positiveSection).decoration! as BoxDecoration;

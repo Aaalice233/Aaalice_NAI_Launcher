@@ -6,6 +6,8 @@ import 'package:nai_launcher/data/services/alias_resolver_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_tooltips.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_tooltip_components.dart';
+import 'package:nai_launcher/presentation/widgets/common/rich_tooltip_surface.dart';
+import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
 
 void main() {
   for (final brightness in Brightness.values) {
@@ -71,6 +73,14 @@ void main() {
           ),
           findsNothing,
         );
+        final stepPrompt = tester.widget<TranslatedPromptText>(
+          find.descendant(
+            of: find.byKey(const ValueKey('step')),
+            matching: find.byType(TranslatedPromptText),
+          ),
+        );
+        expect(stepPrompt.prompt, 'best quality, detailed');
+        expect(stepPrompt.maxLines, isNull);
         final resultContainer = tester.widget<Container>(
           find
               .descendant(
@@ -88,6 +98,44 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'rich tooltip surface separates overlay and scrolls long content',
+    (tester) async {
+      tester.view.physicalSize = const Size(600, 360);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: const Scaffold(
+            body: RichTooltipSurface(
+              maxWidth: 420,
+              child: SizedBox(height: 900),
+            ),
+          ),
+        ),
+      );
+
+      final surface = find.byKey(const ValueKey('rich-tooltip-surface'));
+      final material = tester.widget<Material>(surface);
+      final shape = material.shape! as RoundedRectangleBorder;
+      expect(material.elevation, 18);
+      expect(material.color, isNot(ThemeData.dark().colorScheme.surface));
+      expect(shape.side, BorderSide.none);
+      expect(tester.getSize(surface).height, 328);
+      expect(
+        find.descendant(
+          of: surface,
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final locale in const [Locale('zh'), Locale('en'), Locale('ja')]) {
     testWidgets(
@@ -245,8 +293,8 @@ void main() {
         home: Scaffold(
           body: Align(
             alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: 320,
+            child: RichTooltipSurface(
+              maxWidth: 320,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

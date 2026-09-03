@@ -8,6 +8,7 @@ import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_card.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_section.dart';
@@ -333,7 +334,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('悬浮预览最多显示三个角色并标出停用与剩余数量', (tester) async {
+  testWidgets('悬浮预览显示全部角色及完整提示词', (tester) async {
     final container = createContainer(many: true);
     await tester.pumpWidget(subject(container, 700));
     await tester.pumpAndSettle();
@@ -349,16 +350,23 @@ void main() {
     expect(find.byKey(const Key('character-hover-item-alice')), findsOneWidget);
     expect(find.byKey(const Key('character-hover-item-bob')), findsOneWidget);
     expect(find.byKey(const Key('character-hover-item-robot')), findsOneWidget);
-    expect(find.byKey(const Key('character-hover-item-carol')), findsNothing);
+    expect(find.byKey(const Key('character-hover-item-carol')), findsOneWidget);
     expect(find.text('已禁用'), findsOneWidget);
-    expect(find.text('还有 1 个角色'), findsOneWidget);
     expect(
       find.byKey(const Key('character-stack-overflow-count')),
       findsOneWidget,
     );
     expect(find.text('+1'), findsOneWidget);
-    expect(find.text('girl, red hair, green eyes'), findsOneWidget);
-    expect(find.textContaining('smile'), findsNothing);
+    expect(find.text('girl, red hair, green eyes, smile'), findsOneWidget);
+    expect(find.text('girl, black hair, hat'), findsOneWidget);
+    for (final prompt in tester.widgetList<TranslatedPromptText>(
+      find.descendant(
+        of: find.byKey(const Key('character-hover-preview')),
+        matching: find.byType(TranslatedPromptText),
+      ),
+    )) {
+      expect(prompt.maxLines, isNull);
+    }
     expect(tester.takeException(), isNull);
 
     await mouse.moveTo(Offset.zero);

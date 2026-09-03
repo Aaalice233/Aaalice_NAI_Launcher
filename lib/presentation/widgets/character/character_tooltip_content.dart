@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../common/rich_tooltip_surface.dart';
 import '../common/translated_tag_text.dart';
 
 /// 折叠角色栏的只读悬浮预览。
 ///
-/// 只展示快速判断配置所需的信息：启用数量、性别、名称和前三个提示词标签。
+/// 展示启用数量、性别、名称和完整提示词；内容过长时由悬浮层整体滚动。
 /// 预览本身不接收指针，完整编辑仍由角色栏展开态承载。
 class CharacterTooltipContent extends StatelessWidget {
   const CharacterTooltipContent({super.key, required this.config});
-
-  static const _maxVisibleCharacters = 3;
 
   final CharacterPromptConfig config;
 
@@ -21,87 +20,53 @@ class CharacterTooltipContent extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final characters = config.characters;
-    final visibleCharacters = characters.take(_maxVisibleCharacters).toList();
     final enabledCount = characters
         .where((character) => character.enabled)
         .length;
-    final remainingCount = characters.length - visibleCharacters.length;
-
-    return Material(
+    return RichTooltipSurface(
       key: const Key('character-hover-preview'),
-      color: colorScheme.surfaceContainerHigh,
-      surfaceTintColor: Colors.transparent,
-      elevation: 10,
-      shadowColor: Colors.black.withValues(alpha: 0.28),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 11, 12, 9),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.people_outline,
-                  size: 17,
-                  color: colorScheme.primary,
-                ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    l10n.characterTooltip_previewTitle,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+      maxWidth: 380,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 9),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.people_outline, size: 17, color: colorScheme.primary),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  l10n.characterTooltip_previewTitle,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                _EnabledSummaryBadge(
-                  label: l10n.characterTooltip_enabledSummary(
-                    enabledCount,
-                    characters.length,
-                  ),
+              ),
+              _EnabledSummaryBadge(
+                label: l10n.characterTooltip_enabledSummary(
+                  enabledCount,
+                  characters.length,
                 ),
-              ],
-            ),
-            const SizedBox(height: 9),
-            Divider(
-              height: 1,
-              thickness: 1,
-              color: colorScheme.outlineVariant.withValues(alpha: 0.55),
-            ),
-            const SizedBox(height: 8),
-            for (var index = 0; index < visibleCharacters.length; index++) ...[
-              if (index > 0) const SizedBox(height: 6),
-              _CharacterPreviewRow(
-                character: visibleCharacters[index],
-                fallbackName: l10n.character_number(index + 1),
               ),
             ],
-            if (remainingCount > 0) ...[
-              const SizedBox(height: 7),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.more_horiz,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    l10n.characterTooltip_more(remainingCount),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 2),
+          ),
+          const SizedBox(height: 9),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.55),
+          ),
+          const SizedBox(height: 8),
+          for (var index = 0; index < characters.length; index++) ...[
+            if (index > 0) const SizedBox(height: 6),
+            _CharacterPreviewRow(
+              character: characters[index],
+              fallbackName: l10n.character_number(index + 1),
+            ),
           ],
-        ),
+          const SizedBox(height: 2),
+        ],
       ),
     );
   }
@@ -149,7 +114,7 @@ class _CharacterPreviewRow extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final gender = character.effectiveGender;
     final genderColor = _genderColor(gender);
-    final promptPreview = _buildPromptPreview(character.prompt);
+    final promptPreview = character.prompt.trim();
     final name = character.name.trim().isEmpty
         ? fallbackName
         : character.name.trim();
@@ -209,7 +174,6 @@ class _CharacterPreviewRow extends StatelessWidget {
               TranslatedPromptText(
                 promptPreview.replaceAll(' · ', ', '),
                 selectable: false,
-                maxLines: 1,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                   height: 1.2,
@@ -219,15 +183,6 @@ class _CharacterPreviewRow extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static String _buildPromptPreview(String prompt) {
-    return prompt
-        .split(',')
-        .map((tag) => tag.trim())
-        .where((tag) => tag.isNotEmpty)
-        .take(3)
-        .join(' · ');
   }
 
   static Color _genderColor(CharacterGender gender) => switch (gender) {

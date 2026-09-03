@@ -9,6 +9,7 @@ import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/uc_preset_provider.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../adaptive/interaction_policy.dart';
+import '../../../widgets/common/rich_tooltip_surface.dart';
 import 'prompt_input_controller.dart';
 import 'prompt_input_models.dart';
 import 'prompt_input_tooltips.dart';
@@ -253,38 +254,18 @@ class _PromptTypeButtonState extends State<PromptTypeButton>
       message: rich ? null : widget.label,
       richMessage: rich
           ? WidgetSpan(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final availableHeight = MediaQuery.sizeOf(context).height;
-                  final maxHeight = (availableHeight * 0.72)
-                      .clamp(180.0, 520.0)
-                      .toDouble();
-                  return ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: 420,
-                      maxHeight: maxHeight,
-                    ),
-                    child: SingleChildScrollView(child: tooltipBuilder(theme)),
-                  );
-                },
+              child: RichTooltipSurface(
+                maxWidth: 420,
+                child: tooltipBuilder(theme),
               ),
             )
           : null,
       preferBelow: true,
       verticalOffset: 20,
       waitDuration: const Duration(milliseconds: 300),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
+      ignorePointer: false,
+      decoration: richTooltipOuterDecoration,
+      padding: EdgeInsets.zero,
       child: button,
     );
   }
