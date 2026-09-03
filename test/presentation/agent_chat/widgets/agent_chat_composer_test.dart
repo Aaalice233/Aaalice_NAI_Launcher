@@ -20,6 +20,8 @@ import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_vi
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
+import 'package:nai_launcher/presentation/themes/modules/color/palettes/grunge_palette.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -155,6 +157,30 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('dark composer stays visibly elevated above the chat canvas', (
+    tester,
+  ) async {
+    final colors = const GrungePalette().darkScheme;
+    await _pumpComposer(
+      tester,
+      width: 520,
+      mobile: false,
+      theme: ThemeData(colorScheme: colors),
+    );
+
+    final surface = tester.widget<Container>(
+      find.byKey(const ValueKey('agent-chat-composer-surface')),
+    );
+    final decoration = surface.decoration! as BoxDecoration;
+
+    expect(decoration.color, controlSurfaceColor(colors));
+    expect(
+      decoration.color!.computeLuminance(),
+      greaterThan(colors.surface.computeLuminance()),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('unavailable context stays compact and has no empty ring', (
     tester,
@@ -1088,11 +1114,13 @@ Future<void> _pumpComposer(
   PromptAssistantConfigState? config,
   AgentSettingsState? agentSettings,
   bool mobile = true,
+  ThemeData? theme,
 }) async {
   await tester.binding.setSurfaceSize(Size(width, height));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
+      theme: theme,
       locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

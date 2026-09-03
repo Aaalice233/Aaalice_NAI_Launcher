@@ -12,7 +12,7 @@ import '../../../core/windowing/agent_chat_layout_contract.dart';
 import '../../../core/windowing/agent_chat_shared_widgets.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
-import '../../themes/core/input_surface_style.dart';
+import '../../themes/core/layered_surface_style.dart';
 import '../models/agent_chat_slash_command.dart';
 import '../providers/agent_chat_state.dart';
 import 'agent_chat_header.dart';
@@ -156,7 +156,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         child: Container(
           key: const ValueKey('agent-chat-composer-surface'),
           decoration: BoxDecoration(
-            color: inputSurfaceFillColor(theme.colorScheme, prominent: true),
+            color: controlSurfaceColor(theme.colorScheme),
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
