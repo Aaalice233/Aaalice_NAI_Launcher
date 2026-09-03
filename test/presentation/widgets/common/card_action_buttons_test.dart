@@ -228,6 +228,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('long horizontal action groups wrap inside landscape cards', (
+    tester,
+  ) async {
+    const cardSize = Size(236, 100);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox.fromSize(
+            key: const ValueKey('landscape-card-bounds'),
+            size: cardSize,
+            child: CardActionButtons(
+              visible: true,
+              buttons: [
+                for (var index = 0; index < 6; index++)
+                  CardActionButtonConfig(
+                    key: ValueKey('landscape-action-$index'),
+                    icon: Icons.circle_outlined,
+                    tooltip: 'action $index',
+                    onPressed: () {},
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cardRect = tester.getRect(
+      find.byKey(const ValueKey('landscape-card-bounds')),
+    );
+    final actionRects = [
+      for (var index = 0; index < 6; index++)
+        tester.getRect(find.byKey(ValueKey('landscape-action-$index'))),
+    ];
+
+    expect(actionRects, hasLength(6));
+    for (final rect in actionRects) {
+      expect(cardRect.contains(rect.topLeft), isTrue);
+      expect(cardRect.contains(rect.bottomRight), isTrue);
+    }
+    expect(actionRects.last.top, greaterThan(actionRects.first.top));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('hiding actions dismisses an active tooltip', (tester) async {
     var visible = true;
     late StateSetter setHostState;

@@ -666,10 +666,8 @@ class _CategoryItemState extends State<_CategoryItem> {
     final theme = Theme.of(context);
     final interactionPolicy = context.interactionPolicy;
     final isTouch = interactionPolicy.touchAvailable;
-    final controlExtent = interactionPolicy.minimumControlExtent;
-    final backgroundInset = (24.0 + widget.depth * 12.0)
-        .clamp(24.0, 48.0)
-        .toDouble();
+    const controlExtent = 48.0;
+    final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -682,12 +680,7 @@ class _CategoryItemState extends State<_CategoryItem> {
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
               : const Duration(milliseconds: 150),
-          margin: EdgeInsets.only(
-            left: backgroundInset,
-            right: 8,
-            top: 1,
-            bottom: 1,
-          ),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
@@ -700,14 +693,9 @@ class _CategoryItemState extends State<_CategoryItem> {
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: controlExtent),
+              constraints: const BoxConstraints(minHeight: controlExtent),
               child: Padding(
-                padding: EdgeInsets.only(
-                  left: 4,
-                  right: isTouch ? 0 : 8,
-                  top: isTouch ? 0 : 8,
-                  bottom: isTouch ? 0 : 8,
-                ),
+                padding: EdgeInsets.only(left: indent, right: isTouch ? 0 : 8),
                 child: Row(
                   children: [
                     if (widget.hasChildren)
@@ -724,13 +712,13 @@ class _CategoryItemState extends State<_CategoryItem> {
                           color: theme.colorScheme.outline,
                         ),
                         padding: EdgeInsets.zero,
-                        constraints: BoxConstraints.tightFor(
+                        constraints: const BoxConstraints.tightFor(
                           width: controlExtent,
                           height: controlExtent,
                         ),
                       )
                     else
-                      SizedBox(width: controlExtent, height: controlExtent),
+                      const SizedBox.square(dimension: controlExtent),
                     Icon(
                       widget.icon,
                       size: 18,

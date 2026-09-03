@@ -263,6 +263,83 @@ void main() {
     },
   );
 
+  testWidgets('compact footer keeps its rows stable while generating', (
+    tester,
+  ) async {
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.autoSaveImages: false,
+      StorageKeys.showRandomPromptTools: true,
+    });
+    late ProviderContainer container;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+          imageGenerationNotifierProvider.overrideWith(
+            _TestImageGenerationNotifier.new,
+          ),
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          kritaBridgeNotifierProvider.overrideWith(
+            (ref) => _TestKritaBridgeNotifier(),
+          ),
+          replicationQueueNotifierProvider.overrideWith(
+            _TestReplicationQueueNotifier.new,
+          ),
+          queueExecutionNotifierProvider.overrideWith(
+            _TestQueueExecutionNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _TestSubscriptionNotifier.new,
+          ),
+          estimatedCostProvider.overrideWith((ref) => 0),
+          isFreeGenerationProvider.overrideWith((ref) => true),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) {
+            container = ProviderScope.containerOf(context);
+            return const MaterialApp(
+              locale: Locale('zh'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: 475,
+                    height: 180,
+                    child: GenerationControls(compact: true),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final layoutFinder = find.byKey(
+      const ValueKey('generation-footer-adaptive-layout'),
+    );
+    final primaryFinder = find.byKey(
+      const ValueKey('generation-footer-primary-action'),
+    );
+    final idleLayoutSize = tester.getSize(layoutFinder);
+    final idlePrimaryRect = tester.getRect(primaryFinder);
+
+    final generationNotifier =
+        container.read(imageGenerationNotifierProvider.notifier)
+            as _TestImageGenerationNotifier;
+    generationNotifier.setGenerating(true);
+    await tester.pumpAndSettle();
+
+    expect(find.text('取消'), findsOneWidget);
+    expect(tester.getSize(layoutFinder), idleLayoutSize);
+    expect(tester.getRect(primaryFinder), idlePrimaryRect);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('batch settings uses a scrollable compact form at worst width', (
     tester,
   ) async {
@@ -398,6 +475,17 @@ class _AuthenticatedAuthNotifier extends AuthNotifier {
 class _UnauthenticatedAuthNotifier extends AuthNotifier {
   @override
   AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+}
+
+class _TestImageGenerationNotifier extends ImageGenerationNotifier {
+  @override
+  ImageGenerationState build() => const ImageGenerationState();
+
+  void setGenerating(bool value) {
+    state = ImageGenerationState(
+      status: value ? GenerationStatus.generating : GenerationStatus.idle,
+    );
+  }
 }
 
 class _MemoryLocalStorageService extends LocalStorageService {

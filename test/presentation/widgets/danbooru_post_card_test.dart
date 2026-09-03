@@ -417,6 +417,77 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('landscape cards keep every hover action inside the image', (
+    tester,
+  ) async {
+    const post = DanbooruPost(
+      id: 131,
+      width: 900,
+      height: 600,
+      rating: 'g',
+      previewFileUrl: 'https://example.com/landscape.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          builder: (context, child) => _pointerPolicy(child!),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 240,
+                child: DanbooruPostCard(
+                  post: post,
+                  itemWidth: 240,
+                  isFavorited: false,
+                  onFavoriteToggle: () {},
+                  onTap: () {},
+                  onTagTap: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cardFinder = find.byKey(const ValueKey('online-gallery-card-layout'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(cardFinder));
+    await tester.pump();
+
+    final cardRect = tester.getRect(cardFinder);
+    final actionsFinder = find.descendant(
+      of: find.byKey(const ValueKey('online-gallery-card-action-buttons')),
+      matching: find.byType(IconButton),
+    );
+    final actionRects = [
+      for (var index = 0; index < actionsFinder.evaluate().length; index++)
+        tester.getRect(actionsFinder.at(index)),
+    ];
+
+    expect(actionRects, hasLength(6));
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('online-gallery-card-action-buttons')),
+        matching: find.byIcon(Icons.copy),
+      ),
+      findsOneWidget,
+    );
+    for (final rect in actionRects) {
+      expect(cardRect.contains(rect.topLeft), isTrue);
+      expect(cardRect.contains(rect.bottomRight), isTrue);
+    }
+    expect(actionRects.last.top, greaterThan(actionRects.first.top));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('passes Gelbooru image headers and cache key to preview image', (
     tester,
   ) async {

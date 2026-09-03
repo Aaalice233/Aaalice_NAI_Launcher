@@ -14,6 +14,7 @@ import '../common/context_menu_anchor.dart';
 import '../common/themed_input.dart';
 import 'gallery_category_tree_view.dart'
     show galleryFilePathFromDataReader, galleryInternalDragPathFromLocalData;
+import 'gallery_sidebar.dart';
 
 enum _AlbumAction { rename, addSubAlbum, moveUp, moveToRoot, delete }
 
@@ -121,10 +122,12 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
             isSelected: widget.selectedAlbumId == null,
             onTap: () => widget.onAlbumSelected(null),
           ),
-        _AlbumItem(
+        GallerySidebarNavigationItem(
+          key: const ValueKey('local-gallery-favorites'),
           icon: widget.selectedAlbumId == 'favorites'
               ? Icons.favorite
               : Icons.favorite_border,
+          selectedIcon: Icons.favorite,
           iconColor: Colors.red.shade400,
           label: context.l10n.common_favorite,
           count: widget.favoriteCount,
@@ -632,7 +635,6 @@ class _AlbumItem extends StatefulWidget {
     required this.count,
     required this.isSelected,
     required this.onTap,
-    this.iconColor,
     this.depth = 0,
     this.hasChildren = false,
     this.isExpanded = false,
@@ -645,7 +647,6 @@ class _AlbumItem extends StatefulWidget {
   });
 
   final IconData icon;
-  final Color? iconColor;
   final String label;
   final int count;
   final bool isSelected;
@@ -695,10 +696,8 @@ class _AlbumItemState extends State<_AlbumItem> {
     final theme = Theme.of(context);
     final interactionPolicy = context.interactionPolicy;
     final isTouch = interactionPolicy.touchAvailable;
-    final controlExtent = interactionPolicy.minimumControlExtent;
-    final backgroundInset = (24.0 + widget.depth * 12.0)
-        .clamp(24.0, 48.0)
-        .toDouble();
+    const controlExtent = 48.0;
+    final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
 
     final row = Row(
       children: [
@@ -714,21 +713,19 @@ class _AlbumItemState extends State<_AlbumItem> {
               color: theme.colorScheme.outline,
             ),
             padding: EdgeInsets.zero,
-            constraints: BoxConstraints.tightFor(
+            constraints: const BoxConstraints.tightFor(
               width: controlExtent,
               height: controlExtent,
             ),
           )
         else
-          SizedBox(width: controlExtent, height: controlExtent),
+          const SizedBox.square(dimension: controlExtent),
         Icon(
           widget.icon,
           size: 18,
-          color:
-              widget.iconColor ??
-              (widget.isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant),
+          color: widget.isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant,
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -854,12 +851,7 @@ class _AlbumItemState extends State<_AlbumItem> {
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
               : const Duration(milliseconds: 150),
-          margin: EdgeInsets.only(
-            left: backgroundInset,
-            right: 8,
-            top: 1,
-            bottom: 1,
-          ),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
@@ -873,13 +865,11 @@ class _AlbumItemState extends State<_AlbumItem> {
               hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(8),
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: controlExtent),
+                constraints: const BoxConstraints(minHeight: controlExtent),
                 child: Padding(
                   padding: EdgeInsets.only(
-                    left: 4,
+                    left: indent,
                     right: isTouch ? 0 : 8,
-                    top: isTouch ? 0 : 8,
-                    bottom: isTouch ? 0 : 8,
                   ),
                   child: row,
                 ),

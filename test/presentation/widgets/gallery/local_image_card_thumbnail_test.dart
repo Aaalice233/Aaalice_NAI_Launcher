@@ -15,6 +15,7 @@ import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
@@ -103,6 +104,71 @@ void main() {
       provider.target,
       const LocalGalleryThumbnailTarget(width: 384, height: 448),
     );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('横向窄卡片保留全部悬浮操作', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: LocalImageCard3D(
+                  record: LocalImageRecord(
+                    path: 'missing-landscape.png',
+                    size: 0,
+                    modifiedAt: DateTime(2026, 9, 3),
+                  ),
+                  width: 180,
+                  height: 120,
+                  onTap: () {},
+                  onFavoriteToggle: () {},
+                  onSendAction: (_) async {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final cardFinder = find.byType(LocalImageCard3D);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(cardFinder));
+    await tester.pump();
+
+    final cardRect = tester.getRect(cardFinder);
+    final actionsFinder = find.descendant(
+      of: find.byType(CardActionButtons),
+      matching: find.byType(IconButton),
+    );
+    final actionRects = [
+      for (var index = 0; index < actionsFinder.evaluate().length; index++)
+        tester.getRect(actionsFinder.at(index)),
+    ];
+
+    expect(actionRects, hasLength(5));
+    for (final rect in actionRects) {
+      expect(cardRect.contains(rect.topLeft), isTrue);
+      expect(cardRect.contains(rect.bottomRight), isTrue);
+    }
+    expect(actionRects.last.top, greaterThan(actionRects.first.top));
+    expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

@@ -45,6 +45,124 @@ class GallerySidebarSurface extends StatelessWidget {
   }
 }
 
+/// Shared leaf row used inside gallery-like sidebar sections.
+///
+/// Root entries such as "All" remain visually prominent; favorites and other
+/// section children use this quieter, consistently indented treatment.
+class GallerySidebarNavigationItem extends StatefulWidget {
+  const GallerySidebarNavigationItem({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.isSelected,
+    required this.onTap,
+    this.selectedIcon,
+    this.iconColor,
+    this.depth = 0,
+  });
+
+  final IconData icon;
+  final IconData? selectedIcon;
+  final Color? iconColor;
+  final String label;
+  final int count;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final int depth;
+
+  @override
+  State<GallerySidebarNavigationItem> createState() =>
+      _GallerySidebarNavigationItemState();
+}
+
+class _GallerySidebarNavigationItemState
+    extends State<GallerySidebarNavigationItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    const controlExtent = 48.0;
+    final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0);
+
+    return Semantics(
+      button: true,
+      selected: widget.isSelected,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? colors.primaryContainer
+                : _isHovered
+                ? colors.surfaceContainerHighest
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: controlExtent),
+              child: Padding(
+                padding: EdgeInsets.only(left: indent, right: 8),
+                child: Row(
+                  children: [
+                    const SizedBox.square(dimension: controlExtent),
+                    Icon(
+                      widget.isSelected
+                          ? widget.selectedIcon ?? widget.icon
+                          : widget.icon,
+                      size: 18,
+                      color:
+                          widget.iconColor ??
+                          (widget.isSelected
+                              ? colors.primary
+                              : colors.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: widget.isSelected
+                              ? colors.primary
+                              : colors.onSurface,
+                          fontWeight: widget.isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      widget.count.toString(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant.withValues(alpha: 0.72),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class GallerySidebarSectionHeader extends StatefulWidget {
   const GallerySidebarSectionHeader({
     super.key,

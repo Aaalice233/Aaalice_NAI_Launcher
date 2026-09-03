@@ -826,7 +826,8 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
   Widget _buildActionButtons() {
     return Positioned(
-      top: 8,
+      // 收藏按钮位于 top 8 且保留 48dp 命中区，操作组再留 4dp 间距。
+      top: widget.showFavoriteIndicator ? 60 : 8,
       right: 8,
       child: Column(
         mainAxisSize: MainAxisSize.min,

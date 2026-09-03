@@ -136,6 +136,12 @@ class CardActionButtons extends StatelessWidget {
       );
     }
 
+    // Landscape cards can be narrower than the combined pointer shortcuts.
+    // Wrap within the card's bounded width instead of clipping trailing actions.
+    if (direction == Axis.horizontal) {
+      return Wrap(spacing: 4, runSpacing: 4, children: actionWidgets);
+    }
+
     return Flex(
       direction: direction,
       mainAxisSize: MainAxisSize.min,

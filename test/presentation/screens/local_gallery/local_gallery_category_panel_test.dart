@@ -10,6 +10,7 @@ import 'package:nai_launcher/presentation/providers/gallery_album_provider.dart'
 import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_category_panel.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 void main() {
   final now = DateTime(2026);
@@ -99,6 +100,23 @@ void main() {
     expect(find.text('测试相簿'), findsOneWidget);
     expect(find.text('新建'), findsNWidgets(2));
     expect(find.byType(Divider), findsNothing);
+    expect(find.byType(GallerySidebarNavigationItem), findsOneWidget);
+
+    double navigationIconX(String label) {
+      final row = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(InkWell),
+      );
+      return tester
+          .getCenter(
+            find.descendant(of: row, matching: find.byType(Icon)).first,
+          )
+          .dx;
+    }
+
+    final favoriteIconX = navigationIconX('收藏');
+    expect(navigationIconX('测试相簿'), closeTo(favoriteIconX, 0.1));
+    expect(navigationIconX('测试文件夹'), closeTo(favoriteIconX, 0.1));
 
     final allImagesSize = tester.getSize(
       find.byKey(const ValueKey('local-gallery-all-images')),

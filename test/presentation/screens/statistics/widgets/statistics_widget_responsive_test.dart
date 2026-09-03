@@ -228,6 +228,41 @@ void main() {
     );
 
     expect(tester.getSize(find.byType(Tooltip).first).height, 48);
+    expect(tester.getSize(find.byType(AnimatedContainer).first).height, 20);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pointer heatmap keeps requested visual cell size and spacing', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testApp(
+        InteractionPolicyScope(
+          initialPolicy: const InteractionPolicy(
+            modality: InteractionModality.pointer,
+            touchAvailable: false,
+            precisePointerAvailable: true,
+          ),
+          child: SizedBox(
+            width: 400,
+            child: HeatmapChart(
+              data: List.generate(14, (_) => List.filled(7, 0.0)),
+              cellSize: 20,
+              cellSpacing: 4,
+              showDayLabels: false,
+              showMonthLabels: false,
+              onCellTap: (_, __, ___) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.getSize(find.byType(Tooltip).first), const Size.square(24));
+    expect(
+      tester.getSize(find.byType(AnimatedContainer).first),
+      const Size.square(20),
+    );
     expect(tester.takeException(), isNull);
   });
 

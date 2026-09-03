@@ -64,21 +64,26 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     final compact = widget.compact;
     final opusUsage = OpusUsageChip(compact: compact);
     final anlasBalance = AnlasBalanceChip(compact: compact);
+    final sampleCountInput = DraggableNumberInput(
+      value: nSamples,
+      min: 1,
+      prefix: '×',
+      onChanged: (value) {
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updateNSamples(value);
+      },
+    );
     final leftActions = <Widget>[opusUsage, anlasBalance];
     final rightActions = <Widget>[
-      // 生成中批量参数不可变更；隐藏后为跳过/停止操作保留空间。
-      if (compact && !showCancel) const BatchSettingsButton(compact: true),
-      if (!(compact && showCancel))
-        DraggableNumberInput(
-          value: nSamples,
-          min: 1,
-          prefix: '×',
-          onChanged: (value) {
-            ref
-                .read(generationParamsNotifierProvider.notifier)
-                .updateNSamples(value);
-          },
+      if (compact)
+        Visibility.maintain(
+          visible: !showCancel,
+          child: const BatchSettingsButton(compact: true),
         ),
+      if (!compact) sampleCountInput,
+      if (compact)
+        Visibility.maintain(visible: !showCancel, child: sampleCountInput),
       if (showRandomTools)
         RandomModeToggle(enabled: randomMode, compact: compact),
       if (compact) const AutoSaveToggleChip(compact: true),

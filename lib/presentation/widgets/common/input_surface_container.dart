@@ -18,6 +18,7 @@ class InputSurfaceContainer extends StatelessWidget {
     this.enabled,
     this.backgroundColor,
     this.borderColor,
+    this.focusedBorderColor,
     this.borderWidth = 0,
     this.padding,
     this.hasError = false,
@@ -32,6 +33,7 @@ class InputSurfaceContainer extends StatelessWidget {
   final bool? enabled;
   final Color? backgroundColor;
   final Color? borderColor;
+  final Color? focusedBorderColor;
   final double borderWidth;
   final EdgeInsetsGeometry? padding;
   final bool hasError;
@@ -62,7 +64,7 @@ class InputSurfaceContainer extends StatelessWidget {
         : hasError
         ? (borderColor ?? colors.error).withValues(alpha: focused ? 0.9 : 0.62)
         : focused
-        ? colors.primary.withValues(alpha: 0.68)
+        ? focusedBorderColor ?? colors.primary.withValues(alpha: 0.68)
         : showsRestingBorder
         ? (borderColor ?? colors.outlineVariant).withValues(alpha: 0.4)
         : Colors.transparent;

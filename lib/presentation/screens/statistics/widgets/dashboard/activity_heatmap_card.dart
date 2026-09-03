@@ -41,7 +41,6 @@ class ActivityHeatmapCard extends StatelessWidget {
         cellSize: 20,
         cellSpacing: 4,
         todayPosition: heatmapResult.todayPosition,
-        onCellTap: (week, day, value) {},
       ),
     );
   }

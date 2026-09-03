@@ -272,7 +272,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                 Positioned(
                   key: const ValueKey('local-image-card-actions'),
                   top: 4,
-                  right: buttonDirection == Axis.vertical || isTouch ? 4 : null,
+                  right: 4,
                   left: buttonDirection == Axis.horizontal && !isTouch
                       ? 4
                       : null,

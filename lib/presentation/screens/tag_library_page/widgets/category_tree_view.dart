@@ -10,6 +10,7 @@ import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/gallery/gallery_album_tree_view.dart';
+import '../../../widgets/gallery/gallery_sidebar.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 分类树视图
@@ -119,7 +120,8 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
             ),
 
           // 收藏 - 不接收拖拽
-          GalleryAllImagesItem(
+          GallerySidebarNavigationItem(
+            key: const ValueKey('tag-library-favorites'),
             icon: Icons.favorite_border,
             selectedIcon: Icons.favorite,
             iconColor: Colors.red.shade400,

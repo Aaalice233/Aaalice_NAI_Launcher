@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/category_tree_view.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 void main() {
   testWidgets('分类悬停切换时仅高亮当前行且不改变选中行', (tester) async {
@@ -50,6 +51,26 @@ void main() {
             ),
           ),
         ),
+      ),
+    );
+
+    expect(find.byType(GallerySidebarNavigationItem), findsOneWidget);
+
+    double navigationIconX(Finder row) {
+      return tester
+          .getCenter(
+            find.descendant(of: row, matching: find.byType(Icon)).first,
+          )
+          .dx;
+    }
+
+    expect(
+      navigationIconX(
+        find.ancestor(of: find.text('已选分类'), matching: find.byType(InkWell)),
+      ),
+      closeTo(
+        navigationIconX(find.byKey(const ValueKey('tag-library-favorites'))),
+        0.1,
       ),
     );
 

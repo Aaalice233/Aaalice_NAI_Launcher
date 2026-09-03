@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,7 @@ import 'package:nai_launcher/presentation/providers/precise_ref_library_provider
 import 'package:nai_launcher/presentation/screens/precise_ref_library/precise_ref_library_screen.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_entry_edit_dialog.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_selector_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
 
 void main() {
@@ -336,6 +338,94 @@ void main() {
   );
 
   testWidgets(
+    'desktop search focus keeps the pill radius and geometry stable',
+    (tester) async {
+      await _setViewport(tester, const Size(1180, 800));
+      await _pumpLibrary(
+        tester,
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+      );
+
+      const surfaceKey = Key('precise-ref-library-search-surface');
+      const fieldKey = Key('precise-ref-library-search');
+      final surface = tester.widget<InputSurfaceContainer>(
+        find.byKey(surfaceKey),
+      );
+      final restingRect = tester.getRect(find.byKey(surfaceKey));
+
+      expect(surface.height, 40);
+      expect(surface.borderRadius, 20);
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: const Offset(1100, 700));
+      await mouse.moveTo(tester.getCenter(find.byKey(fieldKey)));
+      await mouse.down(tester.getCenter(find.byKey(fieldKey)));
+      await mouse.up();
+      await tester.pumpAndSettle();
+
+      expect(tester.getRect(find.byKey(surfaceKey)), restingRect);
+      final focusedDecoration =
+          tester
+                  .widget<AnimatedContainer>(
+                    find.descendant(
+                      of: find.byKey(surfaceKey),
+                      matching: find.byType(AnimatedContainer),
+                    ),
+                  )
+                  .decoration!
+              as BoxDecoration;
+      expect(focusedDecoration.borderRadius, BorderRadius.circular(20));
+      expect(
+        (focusedDecoration.border! as Border).top.color.a,
+        closeTo(0.38, 0.01),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('desktop toolbar actions expose distinct hover feedback', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpLibrary(
+      tester,
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+    );
+
+    final favorites = tester.widget<IconButton>(
+      find.byKey(const Key('precise-ref-library-favorites-toggle')),
+    );
+    final sort = tester.widget<PopupMenuButton<PreciseRefLibrarySortOrder>>(
+      find.byKey(const Key('precise-ref-library-sort-menu')),
+    );
+    final import = tester.widget<FilledButton>(
+      find.byKey(const Key('precise-ref-library-import-button')),
+    );
+
+    void expectHoverDiffers(ButtonStyle style) {
+      final resting = style.backgroundColor?.resolve(<WidgetState>{});
+      final hovered = style.backgroundColor?.resolve({WidgetState.hovered});
+      final pressed = style.backgroundColor?.resolve({WidgetState.pressed});
+      expect(hovered, isNot(resting));
+      expect(pressed, isNot(hovered));
+    }
+
+    expectHoverDiffers(favorites.style!);
+    expectHoverDiffers(sort.style!);
+    expectHoverDiffers(import.style!);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
     '320px 3x text with SafeArea and IME keeps filtering and edit fields reachable',
     (tester) async {
       await _setViewport(
@@ -416,6 +506,7 @@ Future<void> _pumpLibrary(
   WidgetTester tester, {
   double textScale = 1,
   PreciseRefLibraryNotifier Function()? notifier,
+  InteractionPolicy interactionPolicy = InteractionPolicy.touchFirst,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -437,13 +528,9 @@ Future<void> _pumpLibrary(
           ).copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
-        home: const InteractionPolicyScope(
-          initialPolicy: InteractionPolicy(
-            modality: InteractionModality.touch,
-            touchAvailable: true,
-            precisePointerAvailable: false,
-          ),
-          child: PreciseRefLibraryScreen(),
+        home: InteractionPolicyScope(
+          initialPolicy: interactionPolicy,
+          child: const PreciseRefLibraryScreen(),
         ),
       ),
     ),

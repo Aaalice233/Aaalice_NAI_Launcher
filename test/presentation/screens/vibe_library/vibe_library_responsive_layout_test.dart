@@ -20,6 +20,7 @@ import 'package:nai_launcher/presentation/screens/vibe_library/widgets/menus/vib
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
 import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 void main() {
   test('vibe grid uses fewer larger cards at 3x text scale', () {
@@ -130,6 +131,21 @@ void main() {
     expect(find.text('收藏'), findsOneWidget);
     expect(find.text('肖像'), findsOneWidget);
     expect(find.text('文件夹'), findsNothing);
+    expect(find.byType(GallerySidebarNavigationItem), findsOneWidget);
+
+    double navigationIconX(String label) {
+      final row = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(InkWell),
+      );
+      return tester
+          .getCenter(
+            find.descendant(of: row, matching: find.byType(Icon)).first,
+          )
+          .dx;
+    }
+
+    expect(navigationIconX('肖像'), closeTo(navigationIconX('收藏'), 0.1));
     expect(
       tester
           .widget<VibeCategoryItem>(

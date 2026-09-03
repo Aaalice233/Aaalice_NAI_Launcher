@@ -661,11 +661,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       // 垂直布局：右上角向下展开
                       // 水平布局：左上角向右展开
                       top: 4,
-                      right:
-                          usesTouchActionMenu ||
-                              buttonDirection == Axis.vertical
-                          ? 4
-                          : null,
+                      right: 4,
                       left:
                           !usesTouchActionMenu &&
                               buttonDirection == Axis.horizontal

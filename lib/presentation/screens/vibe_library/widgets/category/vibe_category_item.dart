@@ -91,6 +91,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
+    const controlExtent = 48.0;
     // Preserve a usable label/action area for deeply nested imported trees.
     final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
 
@@ -121,16 +122,9 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: isTouch || !widget.reserveExpansionSpace ? 48 : 0,
-              ),
+              constraints: const BoxConstraints(minHeight: controlExtent),
               child: Padding(
-                padding: EdgeInsets.only(
-                  left: indent,
-                  right: isTouch ? 0 : 8,
-                  top: isTouch || !widget.reserveExpansionSpace ? 0 : 8,
-                  bottom: isTouch || !widget.reserveExpansionSpace ? 0 : 8,
-                ),
+                padding: EdgeInsets.only(left: indent, right: isTouch ? 0 : 8),
                 child: Row(
                   children: [
                     // 展开/折叠按钮
@@ -149,12 +143,12 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                         ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints.tightFor(
-                          width: 48,
-                          height: 48,
+                          width: controlExtent,
+                          height: controlExtent,
                         ),
                       )
                     else if (widget.reserveExpansionSpace)
-                      const SizedBox(width: 48, height: 48),
+                      const SizedBox.square(dimension: controlExtent),
 
                     // 图标
                     Icon(

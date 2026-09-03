@@ -4,6 +4,7 @@ import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
 import '../../../../widgets/gallery/gallery_album_tree_view.dart';
+import '../../../../widgets/gallery/gallery_sidebar.dart';
 import 'vibe_category_item.dart';
 
 /// Flat collection navigation for the Vibe library.
@@ -59,7 +60,7 @@ class VibeCategoryTreeView extends StatelessWidget {
               isSelected: selectedCategoryId == null,
               onTap: () => onCategorySelected(null),
             ),
-          GalleryAllImagesItem(
+          GallerySidebarNavigationItem(
             key: const ValueKey('vibe-library-favorites'),
             label: context.l10n.vibeLibrary_favorites,
             icon: Icons.favorite_border,
@@ -76,7 +77,6 @@ class VibeCategoryTreeView extends StatelessWidget {
               label: category.displayName,
               count: categoryEntryCounts[category.id] ?? 0,
               isSelected: selectedCategoryId == category.id,
-              reserveExpansionSpace: false,
               onTap: () => onCategorySelected(category.id),
               onRename: onCategoryRename == null
                   ? null

@@ -45,7 +45,7 @@ class _PreciseRefLibrarySidebarState extends State<PreciseRefLibrarySidebar> {
             isSelected: !state.favoritesOnly && state.typeFilter == null,
             onTap: () => widget.onFilterChanged(favoritesOnly: false),
           ),
-          GalleryAllImagesItem(
+          GallerySidebarNavigationItem(
             key: const Key('precise-ref-sidebar-favorites'),
             icon: Icons.star_border_rounded,
             selectedIcon: Icons.star_rounded,
@@ -68,7 +68,7 @@ class _PreciseRefLibrarySidebarState extends State<PreciseRefLibrarySidebar> {
                 padding: const EdgeInsets.only(bottom: 8),
                 children: [
                   for (final type in PreciseRefType.values)
-                    GalleryAllImagesItem(
+                    GallerySidebarNavigationItem(
                       key: Key('precise-ref-sidebar-type-${type.name}'),
                       icon: type.icon,
                       selectedIcon: type.icon,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
+import '../../../../adaptive/interaction_policy.dart';
 import '../../utils/chart_colors.dart';
 
 /// Heatmap chart widget for displaying activity distribution
@@ -92,11 +93,15 @@ class _HeatmapChartState extends State<HeatmapChart>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    final requiredCellSize = 48 - widget.cellSpacing;
-    final cellSize =
-        widget.onCellTap != null && widget.cellSize < requiredCellSize
-        ? requiredCellSize
-        : widget.cellSize;
+    final naturalCellExtent = widget.cellSize + widget.cellSpacing;
+    final minimumInteractiveExtent =
+        context.interactionPolicy.minimumControlExtent;
+    final needsTouchTarget =
+        widget.onCellTap != null && context.interactionPolicy.touchAvailable;
+    final cellExtent =
+        needsTouchTarget && naturalCellExtent < minimumInteractiveExtent
+        ? minimumInteractiveExtent
+        : naturalCellExtent;
     // Use abbreviated weekday names from l10n
     final dayLabels = [
       l10n.statistics_monday,
@@ -125,7 +130,7 @@ class _HeatmapChartState extends State<HeatmapChart>
                     child: Column(
                       children: List.generate(7, (dayIndex) {
                         return SizedBox(
-                          height: cellSize + widget.cellSpacing,
+                          height: cellExtent,
                           child: Center(
                             child: Text(
                               dayLabels[dayIndex],
@@ -177,64 +182,67 @@ class _HeatmapChartState extends State<HeatmapChart>
                               cursor: widget.onCellTap != null
                                   ? SystemMouseCursors.click
                                   : MouseCursor.defer,
-                              child: GestureDetector(
-                                onTap: widget.onCellTap != null
-                                    ? () => widget.onCellTap!(
-                                        weekIndex,
-                                        dayIndex,
-                                        value,
+                              child: Tooltip(
+                                message: value > 0
+                                    ? l10n.statistics_heatmapActivities(
+                                        (value * 100).toInt(),
                                       )
-                                    : null,
-                                child: Tooltip(
-                                  message: value > 0
-                                      ? l10n.statistics_heatmapActivities(
-                                          (value * 100).toInt(),
-                                        )
-                                      : l10n.statistics_heatmapNoActivity,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(8),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.15,
-                                        ),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
+                                    : l10n.statistics_heatmapNoActivity,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.15,
                                       ),
-                                    ],
-                                  ),
-                                  textStyle: theme.textTheme.bodySmall,
-                                  child: AnimatedContainer(
-                                    duration: _reducedMotion
-                                        ? Duration.zero
-                                        : theme.appTheme.fastDuration,
-                                    curve: theme.appTheme.standardCurve,
-                                    width: cellSize,
-                                    height: cellSize,
-                                    margin: EdgeInsets.all(
-                                      widget.cellSpacing / 2,
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: value > 0
-                                          ? ChartColors.getHeatmapColor(
-                                              animatedValue,
-                                            )
-                                          : colorScheme.surfaceContainerHighest
-                                                .withValues(alpha: 0.5),
-                                      borderRadius: BorderRadius.circular(
-                                        isToday ? 4 : 3,
-                                      ),
-                                      border: Border.all(
-                                        color: isToday
-                                            ? colorScheme.primary
-                                            : isHovered
-                                            ? colorScheme.primary.withValues(
-                                                alpha: 0.6,
-                                              )
-                                            : colorScheme.outlineVariant
-                                                  .withValues(alpha: 0.3),
-                                        width: isToday ? 2 : 1,
+                                  ],
+                                ),
+                                textStyle: theme.textTheme.bodySmall,
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: widget.onCellTap != null
+                                      ? () => widget.onCellTap!(
+                                          weekIndex,
+                                          dayIndex,
+                                          value,
+                                        )
+                                      : null,
+                                  child: SizedBox.square(
+                                    dimension: cellExtent,
+                                    child: Center(
+                                      child: AnimatedContainer(
+                                        duration: _reducedMotion
+                                            ? Duration.zero
+                                            : theme.appTheme.fastDuration,
+                                        curve: theme.appTheme.standardCurve,
+                                        width: widget.cellSize,
+                                        height: widget.cellSize,
+                                        decoration: BoxDecoration(
+                                          color: value > 0
+                                              ? ChartColors.getHeatmapColor(
+                                                  animatedValue,
+                                                )
+                                              : colorScheme
+                                                    .surfaceContainerHighest
+                                                    .withValues(alpha: 0.5),
+                                          borderRadius: BorderRadius.circular(
+                                            isToday ? 4 : 3,
+                                          ),
+                                          border: Border.all(
+                                            color: isToday
+                                                ? colorScheme.primary
+                                                : isHovered
+                                                ? colorScheme.primary
+                                                      .withValues(alpha: 0.6)
+                                                : colorScheme.outlineVariant
+                                                      .withValues(alpha: 0.3),
+                                            width: isToday ? 2 : 1,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),

@@ -501,10 +501,12 @@ class _PreciseRefLibraryScreenState
         ),
       ],
     );
+    final searchHeight = touchTarget ? 48.0 : 40.0;
     final search = InputSurfaceContainer(
       key: const Key('precise-ref-library-search-surface'),
-      height: touchTarget ? 48 : 40,
-      borderRadius: 999,
+      height: searchHeight,
+      borderRadius: searchHeight / 2,
+      focusedBorderColor: theme.colorScheme.primary.withValues(alpha: 0.38),
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: _searchController,
         builder: (context, value, _) => TextField(
@@ -592,9 +594,9 @@ class _PreciseRefLibraryScreenState
       onPressed: _isPickingFile ? null : _importImages,
       icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
       label: Text(l10n.preciseRefLib_import),
-      style: FilledButton.styleFrom(
-        minimumSize: Size(64, touchTarget ? 48 : 40),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      style: _toolbarImportButtonStyle(
+        theme,
+        minimumHeight: touchTarget ? 48 : 40,
       ),
     );
     final showToolbarImport = state.totalCount > 0 || state.hasFilters;
@@ -681,12 +683,76 @@ class _PreciseRefLibraryScreenState
   }
 
   ButtonStyle _toolbarIconButtonStyle(ThemeData theme) {
-    return IconButton.styleFrom(
-      minimumSize: Size.square(context.interactionPolicy.minimumControlExtent),
-      foregroundColor: theme.colorScheme.onSurfaceVariant,
-      hoverColor: theme.colorScheme.surfaceContainerHighest,
-      focusColor: theme.colorScheme.surfaceContainerHighest,
+    final colors = theme.colorScheme;
+    return ButtonStyle(
+      minimumSize: WidgetStatePropertyAll(
+        Size.square(context.interactionPolicy.minimumControlExtent),
+      ),
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return colors.onSurface.withValues(alpha: 0.38);
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return colors.primary;
+        }
+        return colors.onSurfaceVariant;
+      }),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) return Colors.transparent;
+        if (states.contains(WidgetState.pressed)) {
+          return colors.primaryContainer.withValues(alpha: 0.72);
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return colors.primaryContainer.withValues(alpha: 0.48);
+        }
+        return Colors.transparent;
+      }),
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      elevation: const WidgetStatePropertyAll(0),
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  ButtonStyle _toolbarImportButtonStyle(
+    ThemeData theme, {
+    required double minimumHeight,
+  }) {
+    final colors = theme.colorScheme;
+    return FilledButton.styleFrom(
+      minimumSize: Size(64, minimumHeight),
+      elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ).copyWith(
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        return states.contains(WidgetState.disabled)
+            ? colors.onSurface.withValues(alpha: 0.38)
+            : colors.onPrimary;
+      }),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return colors.onSurface.withValues(alpha: 0.12);
+        }
+        if (states.contains(WidgetState.pressed)) {
+          return Color.alphaBlend(
+            colors.onPrimary.withValues(alpha: 0.14),
+            colors.primary,
+          );
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return Color.alphaBlend(
+            colors.onPrimary.withValues(alpha: 0.08),
+            colors.primary,
+          );
+        }
+        return colors.primary;
+      }),
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      elevation: const WidgetStatePropertyAll(0),
     );
   }
 
