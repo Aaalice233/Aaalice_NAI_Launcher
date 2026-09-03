@@ -485,10 +485,6 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
             style: theme.textTheme.labelSmall?.copyWith(color: color),
           ),
         ],
-        if (entry.sourceEntryId != null) ...[
-          const SizedBox(width: 6),
-          Icon(Icons.sync_alt_rounded, size: 12, color: color),
-        ],
       ],
     );
   }

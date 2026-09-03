@@ -863,7 +863,11 @@ void main() {
   testWidgets('FixedTagsButton 预览区分正负面与前后缀', (tester) async {
     final storage = _SidebarTestStorage(
       fixedEntries: [
-        FixedTagEntry.create(name: '正面前缀条目', content: 'best quality'),
+        FixedTagEntry.create(
+          name: '正面前缀条目',
+          content: 'best quality',
+          sourceEntryId: 'linked-positive-entry',
+        ),
         FixedTagEntry.create(name: '正面前缀条目 2', content: 'detailed'),
         FixedTagEntry.create(name: '正面前缀条目 3', content: 'masterpiece'),
         FixedTagEntry.create(name: '正面前缀条目 4', content: 'sharp focus'),
@@ -876,6 +880,7 @@ void main() {
           name: '负面前缀条目',
           content: 'lowres',
           promptType: FixedTagPromptType.negative,
+          sourceEntryId: 'linked-negative-entry',
         ),
         FixedTagEntry.create(
           name: '负面后缀条目',
@@ -983,6 +988,13 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('rich-tooltip-surface')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('rich-tooltip-surface')),
+        matching: find.byIcon(Icons.sync_alt_rounded),
+      ),
+      findsNothing,
+    );
     for (final prompt in tester.widgetList<TranslatedPromptText>(
       find.descendant(
         of: find.byKey(const ValueKey('rich-tooltip-surface')),
