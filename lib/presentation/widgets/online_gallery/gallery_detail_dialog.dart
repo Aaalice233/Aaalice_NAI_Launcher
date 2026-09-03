@@ -38,6 +38,7 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
     this.onSendToReverse,
     this.isOutputFiltered,
     this.prefetchCoordinator,
+    this.embedded = false,
   });
 
   final GalleryItem item;
@@ -60,6 +61,7 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
   final Future<void> Function(GalleryMedia media)? onSendToReverse;
   final bool Function(String tag)? isOutputFiltered;
   final OnlineGalleryPrefetchCoordinator? prefetchCoordinator;
+  final bool embedded;
 
   @override
   ConsumerState<GalleryDetailDialog> createState() =>
@@ -178,6 +180,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
       controller: _controller,
       viewModel: viewModel,
       actions: actions,
+      embedded: widget.embedded,
     );
   }
 

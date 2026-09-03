@@ -44,7 +44,8 @@ class OverviewStatsRow extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 600) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        if (constraints.maxWidth / textScale.clamp(1.0, 3.0) < 600) {
           return Column(
             children: [
               for (var index = 0; index < cards.length; index++) ...[

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../../../core/services/interactive_work_gate.dart';
 import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/first_launch_detector.dart';
+import '../../../core/windowing/windows_native_window_state.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/warmup_provider.dart';
@@ -49,6 +51,27 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
   bool _mainAppMountScheduled = false;
   bool _warmupCompletionNotified = false;
   Widget? _mountedMainApp;
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    if (Platform.isWindows) {
+      unawaited(_synchronizeWindowsViewMetrics());
+    }
+  }
+
+  Future<void> _synchronizeWindowsViewMetrics() async {
+    try {
+      await const WindowsNativeWindowStatePlatform().synchronizeViewMetrics();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to synchronize Windows view metrics after hot reload',
+        error,
+        stackTrace,
+        'AppBootstrap',
+      );
+    }
+  }
 
   @override
   void initState() {

@@ -361,6 +361,8 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "ウェブアクセスを有効にする",
   "agentChat_disableWebAccess": "ウェブアクセスを無効にする",
+  "agentChat_webAccessLabel": "ウェブ",
+  "agentChat_contextUsageLabel": "コンテキスト",
   "agentChat_unsupportedImageFormat": "サポートされていない画像形式です: {fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -370,6 +372,8 @@
   "agentChat_newChat": "新しいチャット",
   "agentChat_searchSessions": "チャットを検索",
   "agentChat_send": "送信",
+  "agentChat_sendEmptyHint": "メッセージを入力するか画像を追加してください",
+  "agentChat_sendUnavailableHint": "AI アシスタントはまだ送信できません",
   "agentChat_stop": "停止",
   "agentChat_queued": "待機中",
   "agentChat_queueSteering": "現在の作業に割り込む",
@@ -784,6 +788,14 @@
     }
   },
   "img2img_directorRunning": "処理中...",
+  "img2img_directorConfirmTitle": "Anlas 消費の確認",
+  "img2img_directorConfirmContent": "{tool} の実行には推定 {cost} Anlas が必要です。続行しますか？",
+  "@img2img_directorConfirmContent": {
+    "placeholders": {
+      "tool": {},
+      "cost": {"type": "int"}
+    }
+  },
   "img2img_directorResult": "結果",
   "img2img_directorResultReady": "{tool} が完了しました",
   "@img2img_directorResultReady": {
@@ -2283,12 +2295,12 @@
   "randomManager_emphasisProbability": "強調確率",
   "randomManager_probability": "確率",
   "randomManager_selectionMode": "選択モード",
-  "randomManager_previewGeneration": "プレビューの生成",
+  "randomManager_previewGeneration": "出力プレビュー",
   "randomManager_generating": "生成中",
-  "randomManager_generate": "生成",
+  "randomManager_generate": "サンプルを生成",
   "randomManager_generationFailed": "生成に失敗しました",
-  "randomManager_copy": "コピー",
-  "randomManager_regenerate": "再生成",
+  "randomManager_copy": "すべてコピー",
+  "randomManager_regenerate": "別のサンプルを生成",
   "randomManager_copiedToClipboard": "クリップボードにコピーされました",
   "randomManager_selectPresetRequired": "プリセットを選択してください",
   "randomManager_characterCountLabel": "{count} キャラクター",
@@ -2303,7 +2315,7 @@
       "count": {}
     }
   },
-  "randomManager_previewHint": "[生成] をクリックしてランダムなタグをプレビューします",
+  "randomManager_previewHint": "サンプルはまだ生成されていません",
   "randomManager_generateNow": "今すぐ生成",
   "randomManager_moreActions": "その他のアクション",
   "randomManager_deleteSelected": "選択したものを削除",
@@ -6285,7 +6297,7 @@
   "randomManager_recipeSubtitle": "各ステージで意味カテゴリごとの発動確率と抽出範囲を設定します",
   "randomManager_inspectorTitle": "生成設定",
   "randomManager_inspectorSubtitle": "現在のプリセットのキャラクター分布と出力動作を調整します",
-  "randomManager_previewEmptyDescription": "サンプルを生成して、現在のレシピの出力を確認します。",
+  "randomManager_previewEmptyDescription": "プロンプトのサンプルを生成して、現在のレシピの出力を確認します。",
   "randomManager_category_composition": "構図",
   "randomManager_category_camera": "カメラアングル",
   "randomManager_category_framing": "フレーミング",

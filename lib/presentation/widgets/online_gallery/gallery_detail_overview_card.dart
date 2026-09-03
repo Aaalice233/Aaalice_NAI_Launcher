@@ -243,16 +243,20 @@ class _OverviewMetadataRow extends StatelessWidget {
         ),
         const SizedBox(width: 7),
         if (entry.label.isNotEmpty) ...[
-          Text(
-            entry.label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.3,
+          Flexible(
+            flex: 2,
+            child: Text(
+              entry.label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.3,
+              ),
             ),
           ),
           const SizedBox(width: 8),
         ],
         Expanded(
+          flex: 3,
           child: Text(
             entry.value,
             style: theme.textTheme.bodySmall?.copyWith(

@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
+import '../../adaptive/interaction_policy.dart';
 
 /// 项目统一开关。
 ///
@@ -27,30 +31,32 @@ class ThemedSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final effectiveOnChanged = enabled ? onChanged : null;
+    final minimumExtent = context.interactionPolicy.minimumControlExtent;
+    final targetHeight = math.max(40 * scale, minimumExtent);
+    final targetWidth = math.max(52 * scale, minimumExtent);
 
     return Opacity(
       opacity: effectiveOnChanged == null ? 0.5 : 1,
       child: SizedBox(
-        width: 52 * scale,
-        height: 40 * scale,
-        child: FittedBox(
-          fit: BoxFit.contain,
-          child: Switch(
-            value: value,
-            onChanged: effectiveOnChanged,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: EdgeInsets.zero,
-            activeTrackColor: activeColor ?? colors.primary,
-            inactiveTrackColor: inactiveColor ?? colors.surfaceContainerHighest,
-            thumbColor: WidgetStateProperty.resolveWith((states) {
-              if (thumbColor != null) return thumbColor;
-              if (states.contains(WidgetState.selected)) {
-                return colors.onPrimary;
-              }
-              return colors.onSurfaceVariant;
-            }),
-            trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
-          ),
+        width: targetWidth,
+        height: targetHeight,
+        child: Switch(
+          value: value,
+          onChanged: effectiveOnChanged,
+          materialTapTargetSize: minimumExtent >= 48
+              ? MaterialTapTargetSize.padded
+              : MaterialTapTargetSize.shrinkWrap,
+          padding: EdgeInsets.zero,
+          activeTrackColor: activeColor ?? colors.primary,
+          inactiveTrackColor: inactiveColor ?? colors.surfaceContainerHighest,
+          thumbColor: WidgetStateProperty.resolveWith((states) {
+            if (thumbColor != null) return thumbColor;
+            if (states.contains(WidgetState.selected)) {
+              return colors.onPrimary;
+            }
+            return colors.onSurfaceVariant;
+          }),
+          trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
     );

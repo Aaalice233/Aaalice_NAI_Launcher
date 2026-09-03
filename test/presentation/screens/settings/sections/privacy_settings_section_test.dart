@@ -33,8 +33,14 @@ void main() {
     }
   });
 
-  Future<void> pumpSection(WidgetTester tester) async {
-    await tester.binding.setSurfaceSize(const Size(1000, 2000));
+  Future<void> pumpSection(
+    WidgetTester tester, {
+    Size size = const Size(1000, 2000),
+    double textScale = 1,
+    double bottomInset = 0,
+    EdgeInsets safePadding = EdgeInsets.zero,
+  }) async {
+    await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       ProviderScope(
@@ -46,11 +52,20 @@ void main() {
             _TestShareImageSettingsNotifier.new,
           ),
         ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
+        child: MaterialApp(
+          locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(textScale),
+              padding: safePadding,
+              viewPadding: safePadding,
+              viewInsets: EdgeInsets.only(bottom: bottomInset),
+            ),
+            child: child!,
+          ),
+          home: const Scaffold(
             body: SingleChildScrollView(child: PrivacySettingsSection()),
           ),
         ),
@@ -71,6 +86,101 @@ void main() {
     expect(find.text('启用水印工具'), findsOneWidget);
     expect(find.text('水印副本保留元数据'), findsOneWidget);
     expect(find.byType(OnlineGalleryBlacklistSettingsPanel), findsOneWidget);
+  });
+
+  for (final width in [320.0, 600.0, 840.0, 1600.0]) {
+    testWidgets('隐私设置在 ${width.toInt()} 宽度无布局异常', (tester) async {
+      await pumpSection(
+        tester,
+        size: Size(width, width == 320 ? 520 : 1200),
+        textScale: width == 320 ? 3 : 1,
+      );
+
+      expect(find.text('保护模式'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('320 宽、3x 文本、IME 和 SafeArea 下数字编辑器仍可用', (tester) async {
+    const safePadding = EdgeInsets.fromLTRB(8, 24, 8, 16);
+    await pumpSection(
+      tester,
+      size: const Size(320, 568),
+      textScale: 3,
+      bottomInset: 160,
+      safePadding: safePadding,
+    );
+
+    await tester.tap(find.text('保护模式'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Anlas 警告阈值'));
+    await tester.tap(find.text('Anlas 警告阈值'));
+    await tester.pumpAndSettle();
+
+    final panel = find.byWidgetPredicate(
+      (widget) =>
+          widget.key == const ValueKey('adaptive-full-screen-form') ||
+          widget.key == const ValueKey('adaptive-centered-form'),
+    );
+    expect(panel, findsOneWidget);
+    expect(
+      find.descendant(of: panel, matching: find.byType(TextField)),
+      findsOne,
+    );
+    await tester.ensureVisible(find.text('保存'));
+    expect(find.text('保存'), findsOneWidget);
+    final panelRect = tester.getRect(panel);
+    expect(panelRect.left, greaterThanOrEqualTo(safePadding.left));
+    expect(panelRect.top, greaterThanOrEqualTo(safePadding.top));
+    expect(panelRect.right, lessThanOrEqualTo(320 - safePadding.right));
+    expect(panelRect.bottom, lessThanOrEqualTo(568 - 160 - safePadding.bottom));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('两个数字编辑器保留校验与保存返回语义', (tester) async {
+    await pumpSection(tester);
+
+    await tester.tap(find.text('保护模式'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Anlas 警告阈值'));
+    await tester.tap(find.text('Anlas 警告阈值'));
+    await tester.pumpAndSettle();
+    var panel = find.byWidgetPredicate(
+      (widget) =>
+          widget.key == const ValueKey('adaptive-centered-form') ||
+          widget.key == const ValueKey('adaptive-side-sheet'),
+    );
+    var editor = find.descendant(of: panel, matching: find.byType(TextField));
+    await tester.enterText(editor, '0');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(panel, findsOneWidget);
+    await tester.enterText(editor, '75');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(find.text('75 Anlas'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('限制生图频率'));
+    await tester.tap(find.text('限制生图频率'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('生图间隔'));
+    await tester.tap(find.text('生图间隔'));
+    await tester.pumpAndSettle();
+    panel = find.byWidgetPredicate(
+      (widget) =>
+          widget.key == const ValueKey('adaptive-centered-form') ||
+          widget.key == const ValueKey('adaptive-side-sheet'),
+    );
+    editor = find.descendant(of: panel, matching: find.byType(TextField));
+    await tester.enterText(editor, '3601');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(panel, findsOneWidget);
+    await tester.enterText(editor, '30');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(find.text('30 秒'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('保护模式卡片保留整卡点击并控制子设置', (tester) async {
@@ -162,5 +272,20 @@ class _TestShareImageSettingsNotifier extends ShareImageSettingsNotifier {
   @override
   Future<void> setProtectionMode(bool value) async {
     state = state.copyWith(protectionMode: value);
+  }
+
+  @override
+  Future<void> setHighAnlasCostThreshold(int value) async {
+    state = state.copyWith(highAnlasCostThreshold: value);
+  }
+
+  @override
+  Future<void> setLimitGenerationInterval(bool value) async {
+    state = state.copyWith(limitGenerationInterval: value);
+  }
+
+  @override
+  Future<void> setGenerationIntervalSeconds(int value) async {
+    state = state.copyWith(generationIntervalSeconds: value);
   }
 }

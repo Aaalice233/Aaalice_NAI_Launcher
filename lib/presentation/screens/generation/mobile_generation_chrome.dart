@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../themes/design_tokens.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
@@ -15,6 +16,7 @@ import 'mobile_generation_gestures.dart';
 import 'mobile_generation_view_data.dart';
 import 'widgets/history_panel.dart';
 import 'widgets/parameter_panel.dart';
+import 'widgets/generation_controls/random_mode_toggle.dart';
 
 class MobileGenerationChrome extends ConsumerWidget {
   const MobileGenerationChrome({
@@ -51,7 +53,18 @@ class MobileGenerationChrome extends ConsumerWidget {
                 label: context.l10n.promptToken_prompt,
               ),
             )
-          : Text(context.l10n.generation_title),
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.brush_outlined,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Flexible(child: Text(context.l10n.nav_canvas)),
+              ],
+            ),
       actions: data.isPromptMaximized
           ? null
           : [
@@ -82,7 +95,10 @@ class MobileGenerationChrome extends ConsumerWidget {
     final theme = Theme.of(context);
     return Drawer(
       key: const ValueKey('generation-parameters-drawer'),
-      width: MediaQuery.sizeOf(context).width * 0.9,
+      width: (AdaptiveWindowMetrics.of(context).usableSize.width * 0.9).clamp(
+        0.0,
+        520.0,
+      ),
       child: SafeArea(
         child: Column(
           children: [
@@ -125,7 +141,10 @@ class MobileGenerationChrome extends ConsumerWidget {
     if (data.isPromptMaximized || controller.agentFullScreen) return null;
     return Drawer(
       key: const ValueKey('generation-history-drawer'),
-      width: MediaQuery.sizeOf(context).width * 0.9,
+      width: (AdaptiveWindowMetrics.of(context).usableSize.width * 0.9).clamp(
+        0.0,
+        520.0,
+      ),
       child: SafeArea(
         child: HistoryPanel(
           onClose: controller.closeHistoryDrawer,
@@ -151,18 +170,25 @@ class MobileGenerationChrome extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 const OpusUsageChip(compact: true),
-                const SizedBox(width: 4),
                 const AnlasBalanceChip(compact: true),
-                if (data.showRandomTools) ...[
-                  const Spacer(),
-                  _MobileRandomModeToggle(
+                if (data.showRandomTools)
+                  RandomModeToggle(
                     enabled: data.randomModeEnabled,
                     showLabel: true,
                   ),
-                ],
+                IconButton(
+                  key: const ValueKey('generation-add-current-to-queue'),
+                  onPressed: () => controller.addCurrentPromptToQueue(context),
+                  icon: const Icon(Icons.playlist_add_rounded),
+                  tooltip: context.l10n.queue_addCurrentTask,
+                ),
               ],
             ),
             const SizedBox(height: 5),
@@ -220,83 +246,6 @@ class _FullscreenHeaderTitle extends StatelessWidget {
         const SizedBox(height: DesignTokens.spacingXxs),
         Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
-    );
-  }
-}
-
-class _MobileRandomModeToggle extends ConsumerWidget {
-  const _MobileRandomModeToggle({
-    required this.enabled,
-    this.showLabel = false,
-  });
-
-  final bool enabled;
-  final bool showLabel;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final semanticLabel = enabled
-        ? context.l10n.randomMode_enabledTip
-        : context.l10n.randomMode_disabledTip;
-    return Semantics(
-      button: true,
-      toggled: enabled,
-      label: semanticLabel,
-      child: Tooltip(
-        message: semanticLabel,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => ref.read(randomPromptModeProvider.notifier).toggle(),
-            borderRadius: BorderRadius.circular(12),
-            child: AnimatedContainer(
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 140),
-              curve: Curves.easeOutCubic,
-              width: showLabel ? null : 44,
-              height: 44,
-              padding: showLabel
-                  ? const EdgeInsets.symmetric(horizontal: 12)
-                  : EdgeInsets.zero,
-              decoration: BoxDecoration(
-                color: enabled
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.casino_outlined,
-                    size: 20,
-                    color: enabled
-                        ? theme.colorScheme.onPrimaryContainer
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
-                  if (showLabel) ...[
-                    const SizedBox(width: 7),
-                    Text(
-                      context.l10n.toolbar_randomPrompt,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: enabled
-                            ? theme.colorScheme.onPrimaryContainer
-                            : theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../utils/chart_colors.dart';
@@ -42,6 +43,8 @@ class _FunnelChartState extends State<FunnelChart>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool _entranceStarted = false;
+  bool? _disableAnimations;
   int? _hoveredIndex;
 
   @override
@@ -55,7 +58,24 @@ class _FunnelChartState extends State<FunnelChart>
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
-    _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 1;
+      _entranceStarted = true;
+    } else if (!_entranceStarted) {
+      _entranceStarted = true;
+      _controller.forward();
+    }
   }
 
   @override
@@ -134,7 +154,10 @@ class _FunnelChartState extends State<FunnelChart>
                 ? () => widget.onItemTap!(index, item)
                 : null,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : theme.appTheme.fastDuration,
+              curve: theme.appTheme.standardCurve,
               height: segmentHeight,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -163,9 +186,7 @@ class _FunnelChartState extends State<FunnelChart>
                           Text(
                             item.label,
                             style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: isHovered
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+                              fontWeight: FontWeight.normal,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

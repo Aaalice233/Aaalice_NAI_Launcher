@@ -61,6 +61,7 @@ class _VibeLibraryContentViewState
   static const String _vibeLibraryGridKey = 'vibe_library_3d_grid';
   final FrameStaggerController _frameStaggerController =
       FrameStaggerController();
+  bool _exportDialogLocked = false;
 
   @override
   void dispose() {
@@ -86,7 +87,11 @@ class _VibeLibraryContentViewState
 
     // 加载中状态
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(
+          value: MediaQuery.disableAnimationsOf(context) ? 0.5 : null,
+        ),
+      );
     }
 
     // 空状态处理
@@ -125,7 +130,7 @@ class _VibeLibraryContentViewState
         crossAxisCount: widget.columns,
         mainAxisSpacing: vibeLibraryGridSpacing,
         crossAxisSpacing: vibeLibraryGridSpacing,
-        childAspectRatio: 1.0,
+        childAspectRatio: vibeCardAspectRatio,
       ),
       itemCount: entries.length,
       itemBuilder: (context, index) {
@@ -152,7 +157,7 @@ class _VibeLibraryContentViewState
             child: VibeCard(
               entry: entry,
               width: widget.itemWidth,
-              height: widget.itemWidth,
+              height: computeVibeCardHeight(widget.itemWidth),
               isSelected: isSelected,
               showFavoriteIndicator: true,
               onTap: () {
@@ -654,6 +659,8 @@ class _VibeLibraryContentViewState
     BuildContext context,
     VibeLibraryEntry entry,
   ) async {
+    if (_exportDialogLocked) return;
+    _exportDialogLocked = true;
     final span = VibePerformanceDiagnostics.start(
       'content.exportSingleEntry',
       details: {'entryId': entry.id, 'isBundle': entry.isBundle},
@@ -672,12 +679,13 @@ class _VibeLibraryContentViewState
           .categories;
       categoryCount = categories.length;
 
-      showDialog<void>(
-        context: context,
-        builder: (context) =>
-            VibeExportDialog(entries: [actualEntry], categories: categories),
+      await VibeExportDialog.show(
+        context,
+        entries: [actualEntry],
+        categories: categories,
       );
     } finally {
+      _exportDialogLocked = false;
       span.finish(details: {'hydrated': hydrated, 'categories': categoryCount});
     }
   }
@@ -854,7 +862,8 @@ class _VibeLibraryContentViewState
   }
 }
 
-double computeVibeGridCacheExtent(double itemWidth) => itemWidth * 0.5;
+double computeVibeGridCacheExtent(double itemWidth) =>
+    computeVibeCardHeight(itemWidth) * 0.5;
 
 Future<VibeLibraryDetailData> resolveVibeDetailDataForOpen(
   VibeLibraryStorageService storage,

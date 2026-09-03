@@ -369,6 +369,8 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "Enable web access",
   "agentChat_disableWebAccess": "Disable web access",
+  "agentChat_webAccessLabel": "Web access",
+  "agentChat_contextUsageLabel": "Context",
   "agentChat_unsupportedImageFormat": "Unsupported image format: {fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -378,6 +380,8 @@
   "agentChat_newChat": "New chat",
   "agentChat_searchSessions": "Search chats",
   "agentChat_send": "Send",
+  "agentChat_sendEmptyHint": "Enter a message or add an image to send",
+  "agentChat_sendUnavailableHint": "The AI assistant is not ready to send yet",
   "agentChat_stop": "Stop",
   "agentChat_queued": "Queued",
   "agentChat_queueSteering": "Steer current work",
@@ -794,6 +798,14 @@
     }
   },
   "img2img_directorRunning": "Processing...",
+  "img2img_directorConfirmTitle": "Confirm Anlas usage",
+  "img2img_directorConfirmContent": "Running {tool} is estimated to cost {cost} Anlas. Do you want to continue?",
+  "@img2img_directorConfirmContent": {
+    "placeholders": {
+      "tool": {},
+      "cost": {"type": "int"}
+    }
+  },
   "img2img_directorResult": "Result",
   "img2img_directorResultReady": "{tool} completed",
   "@img2img_directorResultReady": {
@@ -2314,12 +2326,12 @@
   "randomManager_emphasisProbability": "Emphasis Probability",
   "randomManager_probability": "Probability",
   "randomManager_selectionMode": "Selection Mode",
-  "randomManager_previewGeneration": "Preview Generation",
+  "randomManager_previewGeneration": "Output Preview",
   "randomManager_generating": "Generating",
-  "randomManager_generate": "Generate",
+  "randomManager_generate": "Generate Sample",
   "randomManager_generationFailed": "Generation Failed",
-  "randomManager_copy": "Copy",
-  "randomManager_regenerate": "Regenerate",
+  "randomManager_copy": "Copy All",
+  "randomManager_regenerate": "Generate Another",
   "randomManager_copiedToClipboard": "Copied to clipboard",
   "randomManager_selectPresetRequired": "Please select a preset",
   "randomManager_characterCountLabel": "{count} characters",
@@ -2334,7 +2346,7 @@
       "count": {}
     }
   },
-  "randomManager_previewHint": "Click \"Generate\" to preview random tags",
+  "randomManager_previewHint": "No sample generated yet",
   "randomManager_generateNow": "Generate Now",
   "randomManager_moreActions": "More Actions",
   "randomManager_deleteSelected": "Delete Selected",
@@ -6262,7 +6274,7 @@
   "randomManager_recipeSubtitle": "Each stage controls the chance and sampling range of one semantic tag group",
   "randomManager_inspectorTitle": "Generation setup",
   "randomManager_inspectorSubtitle": "Adjust character distribution and global output behavior for this preset",
-  "randomManager_previewEmptyDescription": "Generate a sample to inspect the actual output of this recipe.",
+  "randomManager_previewEmptyDescription": "Generate a prompt sample to inspect the actual output of this recipe.",
   "randomManager_category_composition": "Composition",
   "randomManager_category_camera": "Camera angle",
   "randomManager_category_framing": "Framing",

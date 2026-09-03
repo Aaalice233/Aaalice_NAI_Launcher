@@ -28,7 +28,6 @@ final class CloudDriveOAuthProviderConfig {
     required this.provider,
     required this.platform,
     required this.clientId,
-    required this.clientSecret,
     required this.redirectUri,
     required this.scopes,
     required this.authorizationEndpoint,
@@ -40,7 +39,6 @@ final class CloudDriveOAuthProviderConfig {
   final CloudDriveOAuthProvider provider;
   final CloudDriveOAuthPlatform platform;
   final String clientId;
-  final String? clientSecret;
   final Uri redirectUri;
   final List<String> scopes;
   final Uri authorizationEndpoint;
@@ -71,9 +69,6 @@ final class CloudDriveOAuthConfig {
     ),
     'GOOGLE_DRIVE_WINDOWS_CLIENT_ID': String.fromEnvironment(
       'GOOGLE_DRIVE_WINDOWS_CLIENT_ID',
-    ),
-    'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET': String.fromEnvironment(
-      'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET',
     ),
     'GOOGLE_DRIVE_WINDOWS_REDIRECT_URI': String.fromEnvironment(
       'GOOGLE_DRIVE_WINDOWS_REDIRECT_URI',
@@ -152,11 +147,6 @@ final class CloudDriveOAuthConfig {
         !(provider == CloudDriveOAuthProvider.googleDrive &&
             platform == CloudDriveOAuthPlatform.android);
     if (clientId.isEmpty) reasons.add('Missing --dart-define=$clientKey');
-    if (provider == CloudDriveOAuthProvider.googleDrive &&
-        platform == CloudDriveOAuthPlatform.windows &&
-        (_values['GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET'] ?? '').trim().isEmpty) {
-      reasons.add('Missing --dart-define=GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET');
-    }
     if (redirectValue.isEmpty && requiresRedirect) {
       reasons.add('Missing --dart-define=$redirectKey');
     } else if (redirectValue.isNotEmpty) {
@@ -193,11 +183,6 @@ final class CloudDriveOAuthConfig {
       provider: provider,
       platform: platform,
       clientId: _values[_key(provider, 'CLIENT_ID')]!.trim(),
-      clientSecret:
-          provider == CloudDriveOAuthProvider.googleDrive &&
-              platform == CloudDriveOAuthPlatform.windows
-          ? _values['GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET']!.trim()
-          : null,
       redirectUri: Uri.parse(
         (_values[_key(provider, 'REDIRECT_URI')] ?? '').trim().isEmpty
             ? 'com.googleusercontent.apps.sdk:/oauth2redirect'

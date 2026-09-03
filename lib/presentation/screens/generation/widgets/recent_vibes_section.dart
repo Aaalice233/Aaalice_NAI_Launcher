@@ -31,6 +31,9 @@ class RecentVibesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final transitionDuration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 200);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,7 +62,7 @@ class RecentVibesSection extends StatelessWidget {
                 // 折叠/展开图标
                 AnimatedRotation(
                   turns: isCollapsed ? 0.75 : 1.0,
-                  duration: const Duration(milliseconds: 200),
+                  duration: transitionDuration,
                   child: Icon(
                     Icons.chevron_left,
                     size: 16,
@@ -94,7 +97,7 @@ class RecentVibesSection extends StatelessWidget {
           crossFadeState: isCollapsed
               ? CrossFadeState.showFirst
               : CrossFadeState.showSecond,
-          duration: const Duration(milliseconds: 200),
+          duration: transitionDuration,
         ),
       ],
     );

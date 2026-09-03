@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/prompt/random_prompt_result.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/random_mode_provider.dart';
-import '../../widgets/common/themed_divider.dart';
 
 /// 随机模式选择器
 ///
@@ -12,10 +12,7 @@ import '../../widgets/common/themed_divider.dart';
 class RandomModeSelector extends ConsumerWidget {
   final VoidCallback? onModeChanged;
 
-  const RandomModeSelector({
-    super.key,
-    this.onModeChanged,
-  });
+  const RandomModeSelector({super.key, this.onModeChanged});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,13 +23,7 @@ class RandomModeSelector extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: RandomGenerationMode.values
           .map(
-            (mode) => _buildModeOption(
-              context,
-              ref,
-              mode,
-              currentMode,
-              theme,
-            ),
+            (mode) => _buildModeOption(context, ref, mode, currentMode, theme),
           )
           .toList(),
     );
@@ -91,10 +82,7 @@ class RandomModeSelector extends ConsumerWidget {
               ),
             ),
             if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.check_circle, color: theme.colorScheme.primary),
           ],
         ),
       ),
@@ -132,21 +120,9 @@ class RandomModePopupMenu extends ConsumerWidget {
         onModeChanged?.call();
       },
       itemBuilder: (context) => [
-        _buildMenuItem(
-          context,
-          RandomGenerationMode.naiOfficial,
-          currentMode,
-        ),
-        _buildMenuItem(
-          context,
-          RandomGenerationMode.custom,
-          currentMode,
-        ),
-        _buildMenuItem(
-          context,
-          RandomGenerationMode.hybrid,
-          currentMode,
-        ),
+        _buildMenuItem(context, RandomGenerationMode.naiOfficial, currentMode),
+        _buildMenuItem(context, RandomGenerationMode.custom, currentMode),
+        _buildMenuItem(context, RandomGenerationMode.hybrid, currentMode),
       ],
       child: child,
     );
@@ -194,11 +170,7 @@ class RandomModePopupMenu extends ConsumerWidget {
             ),
           ),
           if (isSelected)
-            Icon(
-              Icons.check,
-              size: 20,
-              color: theme.colorScheme.primary,
-            ),
+            Icon(Icons.check, size: 20, color: theme.colorScheme.primary),
         ],
       ),
     );
@@ -216,57 +188,50 @@ class RandomModePopupMenu extends ConsumerWidget {
 /// 随机模式选择底部表单
 class RandomModeBottomSheet extends StatelessWidget {
   final VoidCallback? onModeChanged;
+  final ScrollController? scrollController;
 
   const RandomModeBottomSheet({
     super.key,
     this.onModeChanged,
+    this.scrollController,
   });
 
   static Future<void> show(
     BuildContext context, {
     VoidCallback? onModeChanged,
   }) {
-    return showModalBottomSheet(
+    return AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (context) => RandomModeBottomSheet(onModeChanged: onModeChanged),
+      titleBuilder: (context) => Row(
+        children: [
+          Icon(Icons.casino, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(child: Text(context.l10n.randomMode_title)),
+        ],
+      ),
+      initialChildSize: 0.68,
+      minChildSize: 0.42,
+      sideSheetWidth: 440,
+      builder: (context, scrollController) => RandomModeBottomSheet(
+        scrollController: scrollController,
+        onModeChanged: onModeChanged,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(Icons.casino, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.randomMode_title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const ThemedDivider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: RandomModeSelector(
-              onModeChanged: () {
-                Navigator.of(context).pop();
-                onModeChanged?.call();
-              },
-            ),
-          ),
-        ],
-      ),
+    return ListView(
+      controller: scrollController,
+      padding: const EdgeInsets.all(8),
+      children: [
+        RandomModeSelector(
+          onModeChanged: () {
+            Navigator.of(context).pop();
+            onModeChanged?.call();
+          },
+        ),
+      ],
     );
   }
 }
@@ -275,10 +240,7 @@ class RandomModeBottomSheet extends StatelessWidget {
 class RandomModeIndicator extends ConsumerWidget {
   final VoidCallback? onTap;
 
-  const RandomModeIndicator({
-    super.key,
-    this.onTap,
-  });
+  const RandomModeIndicator({super.key, this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

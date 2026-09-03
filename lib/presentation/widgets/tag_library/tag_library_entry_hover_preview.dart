@@ -8,6 +8,7 @@ import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../common/gallery_hover_controller.dart';
 import '../common/themed_divider.dart';
 import '../common/thumbnail_display.dart';
+import '../common/translated_tag_text.dart';
 
 /// 使用词库条目卡片同款内容面板显示悬浮预览。
 class TagLibraryEntryHoverPreview extends StatefulWidget {
@@ -177,15 +178,15 @@ class TagLibraryEntryPreviewOverlay extends StatelessWidget {
                             const SizedBox(height: 8),
                             const ThemedDivider(height: 1),
                             const SizedBox(height: 8),
-                            Text(
+                            TranslatedPromptText(
                               entry.content,
+                              selectable: false,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontFamily: 'monospace',
                                 color: theme.colorScheme.onSurfaceVariant,
                                 height: 1.4,
                               ),
                               maxLines: 8,
-                              overflow: TextOverflow.ellipsis,
                             ),
                             if (entry.tags.isNotEmpty) ...[
                               const SizedBox(height: 12),
@@ -203,7 +204,7 @@ class TagLibraryEntryPreviewOverlay extends StatelessWidget {
                                           .withValues(alpha: 0.5),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: Text(
+                                    child: TranslatedTagText(
                                       tag,
                                       style: TextStyle(
                                         fontSize: 11,

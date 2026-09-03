@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +12,7 @@ import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../presentation/utils/text_selection_utils.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../screens/tag_library_page/widgets/entry_add_dialog.dart';
@@ -162,19 +162,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     ),
   };
 
-  bool get _isDesktop {
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.windows:
-      case TargetPlatform.macOS:
-      case TargetPlatform.linux:
-        return true;
-      default:
-        return false;
-    }
-  }
-
   bool _handleHardwareKeyEvent(KeyEvent event) {
-    if (!_isDesktop || event is! KeyDownEvent) {
+    if (event is! KeyDownEvent) {
       return false;
     }
 
@@ -1044,13 +1033,10 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   ) async {
     final categories = ref.read(tagLibraryPageCategoriesProvider);
 
-    await showDialog<void>(
-      context: context,
-      builder: (context) => EntryAddDialog(
-        categories: categories,
-        entry: null,
-        initialContent: selectedText,
-      ),
+    await EntryAddDialog.show(
+      context,
+      categories: categories,
+      initialContent: selectedText,
     );
 
     // 注意：EntryAddDialog 会自己处理保存逻辑并显示 toast
@@ -1078,6 +1064,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           PromptAssistantOverlay(
             sessionId: _sessionId,
             controller: _effectiveController,
+            interactionPolicy: context.interactionPolicy,
             onChanged: widget.onChanged,
             onOpenSettings: widget.onOpenAssistantSettings,
           ),
@@ -1170,24 +1157,21 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     final total = _searchMatches.length;
     final current = total == 0 ? 0 : _activeSearchMatchIndex + 1;
 
-    return Row(
+    final field = _buildToolbarField(
+      context: context,
+      theme: theme,
+      colorScheme: colorScheme,
+      fieldKey: const ValueKey('prompt_input_search_field'),
+      controller: _searchController,
+      focusNode: _searchFocusNode,
+      hintText: context.l10n.prompt_searchHint,
+      prefixIcon: Icons.search,
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) => _goToSearchMatch(previous: false),
+    );
+    final actions = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: _buildToolbarField(
-            context: context,
-            theme: theme,
-            colorScheme: colorScheme,
-            fieldKey: const ValueKey('prompt_input_search_field'),
-            controller: _searchController,
-            focusNode: _searchFocusNode,
-            hintText: context.l10n.prompt_searchHint,
-            prefixIcon: Icons.search,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _goToSearchMatch(previous: false),
-          ),
-        ),
-        const SizedBox(width: 8),
         Text(
           context.l10n.prompt_searchMatchCount(current, total),
           style: theme.textTheme.labelMedium?.copyWith(
@@ -1217,6 +1201,24 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         ),
       ],
     );
+    if (MediaQuery.textScalerOf(context).scale(14) >= 20) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          field,
+          const SizedBox(height: 4),
+          Align(alignment: Alignment.centerRight, child: actions),
+        ],
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Expanded(child: field),
+        const SizedBox(width: 8),
+        actions,
+      ],
+    );
   }
 
   Widget _buildReplaceRow(
@@ -1226,24 +1228,21 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   ) {
     final canRun = _canRunReplace;
 
-    return Row(
+    final field = _buildToolbarField(
+      context: context,
+      theme: theme,
+      colorScheme: colorScheme,
+      fieldKey: const ValueKey('prompt_input_replace_field'),
+      controller: _replaceController,
+      focusNode: _replaceFocusNode,
+      hintText: context.l10n.prompt_replaceHint,
+      prefixIcon: Icons.find_replace,
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => _replaceActiveMatch(),
+    );
+    final actions = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: _buildToolbarField(
-            context: context,
-            theme: theme,
-            colorScheme: colorScheme,
-            fieldKey: const ValueKey('prompt_input_replace_field'),
-            controller: _replaceController,
-            focusNode: _replaceFocusNode,
-            hintText: context.l10n.prompt_replaceHint,
-            prefixIcon: Icons.find_replace,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _replaceActiveMatch(),
-          ),
-        ),
-        const SizedBox(width: 2),
         _PromptSearchIconButton(
           key: const ValueKey('prompt_input_replace_current'),
           icon: Icons.find_replace,
@@ -1256,6 +1255,23 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           tooltip: context.l10n.prompt_replaceAll,
           onPressed: canRun ? _replaceAllMatches : null,
         ),
+      ],
+    );
+    if (MediaQuery.textScalerOf(context).scale(14) >= 20) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          field,
+          Align(alignment: Alignment.centerRight, child: actions),
+        ],
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Expanded(child: field),
+        const SizedBox(width: 2),
+        actions,
       ],
     );
   }
@@ -1272,8 +1288,10 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     required TextInputAction textInputAction,
     required ValueChanged<String> onSubmitted,
   }) {
-    return SizedBox(
-      height: 34,
+    final minHeight = (MediaQuery.textScalerOf(context).scale(14) * 1.35 + 16)
+        .clamp(34.0, double.infinity);
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minHeight),
       child: TextField(
         key: fieldKey,
         controller: controller,
@@ -1306,7 +1324,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     final shouldReserveAssistantSpace =
         assistantConfig != null &&
         assistantConfig.enabled &&
-        (!_isDesktop || assistantConfig.desktopOverlayEnabled);
+        (!context.interactionPolicy.usesAnchoredMenus ||
+            assistantConfig.desktopOverlayEnabled);
     final requestedContentPadding =
         widget.decoration?.contentPadding ??
         const EdgeInsets.symmetric(horizontal: 12, vertical: 10);
@@ -1359,7 +1378,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       expands: widget.expands,
       scrollPhysics:
           enableWheelAdjustment &&
-              supportsPromptWeightScrollPhysics(defaultTargetPlatform)
+              context.interactionPolicy.precisePointerAvailable
           ? WeightAdjustScrollPhysics(
               controllerProvider: _effectiveControllerProvider,
             )
@@ -1425,12 +1444,13 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
 
     final resolved = contentPadding.resolve(Directionality.of(context));
-    if (resolved.bottom >= PromptAssistantOverlay.contentBottomClearance) {
+    final clearance = PromptAssistantOverlay.effectiveContentBottomClearance(
+      context.interactionPolicy,
+    );
+    if (resolved.bottom >= clearance) {
       return resolved;
     }
-    return resolved.copyWith(
-      bottom: PromptAssistantOverlay.contentBottomClearance,
-    );
+    return resolved.copyWith(bottom: clearance);
   }
 }
 

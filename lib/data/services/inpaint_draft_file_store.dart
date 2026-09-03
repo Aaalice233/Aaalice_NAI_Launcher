@@ -12,41 +12,51 @@ import 'inpaint_draft_repository.dart';
 
 /// Owns atomic file replacement and integrity checks for inpaint draft assets.
 class InpaintDraftFileStore {
-  final Map<String, Future<void>> _pendingWrites = {};
+  static final Map<String, Future<void>> _pendingOperations = {};
 
-  Future<void> atomicWriteBytes(File target, List<int> bytes) async {
-    final previous = _pendingWrites[target.path] ?? Future<void>.value();
-    final completer = Completer<void>();
-    _pendingWrites[target.path] = completer.future;
-    try {
-      await previous;
-      await _atomicWriteBytesUnlocked(target, bytes);
-    } finally {
-      completer.complete();
-      if (identical(_pendingWrites[target.path], completer.future)) {
-        _pendingWrites.remove(target.path);
-      }
-    }
+  Future<void> atomicWriteBytes(File target, List<int> bytes) {
+    return _synchronized(
+      target.path,
+      () => _atomicWriteBytesUnlocked(target, bytes),
+    );
   }
 
-  Future<void> recoverAtomicTarget(File target) async {
-    final pending = _pendingWrites[target.path];
-    if (pending != null) await pending;
-    final backup = File('${target.path}.bak');
-    if (!await target.exists() && await backup.exists()) {
-      await backup.rename(target.path);
-    }
-    if (await target.exists() && await backup.exists()) {
-      await backup.delete();
-    }
-    final parent = target.parent;
-    if (!await parent.exists()) return;
-    final prefix = '${p.basename(target.path)}.';
-    await for (final entity in parent.list()) {
-      if (entity is File &&
-          p.basename(entity.path).startsWith(prefix) &&
-          entity.path.endsWith('.tmp')) {
-        await entity.delete();
+  Future<void> recoverAtomicTarget(File target) {
+    return _synchronized(target.path, () async {
+      final backup = File('${target.path}.bak');
+      if (!await target.exists() && await backup.exists()) {
+        await backup.rename(target.path);
+      }
+      if (await target.exists() && await backup.exists()) {
+        await backup.delete();
+      }
+      final parent = target.parent;
+      if (!await parent.exists()) return;
+      final prefix = '${p.basename(target.path)}.';
+      await for (final entity in parent.list()) {
+        if (entity is File &&
+            p.basename(entity.path).startsWith(prefix) &&
+            entity.path.endsWith('.tmp')) {
+          await entity.delete();
+        }
+      }
+    });
+  }
+
+  Future<T> _synchronized<T>(
+    String path,
+    Future<T> Function() operation,
+  ) async {
+    final previous = _pendingOperations[path] ?? Future<void>.value();
+    final completer = Completer<void>();
+    _pendingOperations[path] = completer.future;
+    try {
+      await previous;
+      return await operation();
+    } finally {
+      completer.complete();
+      if (identical(_pendingOperations[path], completer.future)) {
+        _pendingOperations.remove(path);
       }
     }
   }

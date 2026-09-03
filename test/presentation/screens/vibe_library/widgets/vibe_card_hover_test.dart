@@ -10,6 +10,7 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/animated_favorite_button.dart';
 
 void main() {
   test('悬浮大图按比例适配且不会随高窗口无限增高', () {
@@ -108,6 +109,71 @@ void main() {
       (resized.imageProvider as MemoryImage).bytes,
       same(highResolutionImage),
     );
+  });
+
+  testWidgets('Vibe 卡片悬浮操作不会遮住收藏按钮', (tester) async {
+    tester.view.physicalSize = const Size(400, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final thumbnail = _onePixelPng;
+    final entry = _entry(rawImageData: Uint8List.fromList(thumbnail));
+    final storage = _HoverStorage(entry, thumbnail);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: VibeCard(
+                entry: entry.toDisplayEntry(),
+                width: 170,
+                height: computeVibeCardHeight(170),
+                onFavoriteToggle: () {},
+                onSendToGeneration: () {},
+                onExport: () {},
+                onEdit: () {},
+                onDelete: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cardFinder = find.byType(VibeCard);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(cardFinder));
+    await tester.pump();
+
+    final cardRect = tester.getRect(cardFinder);
+    final favoriteRect = tester.getRect(
+      find.descendant(
+        of: find.byType(CardFavoriteButton),
+        matching: find.byType(IconButton),
+      ),
+    );
+    final actionRects = [
+      for (final icon in [Icons.send, Icons.download, Icons.edit, Icons.delete])
+        tester.getRect(find.byIcon(icon)),
+    ];
+
+    for (final rect in actionRects) {
+      expect(cardRect.contains(rect.topLeft), isTrue);
+      expect(cardRect.contains(rect.bottomRight), isTrue);
+      expect(favoriteRect.overlaps(rect), isFalse);
+    }
+    expect(tester.takeException(), isNull);
   });
 }
 

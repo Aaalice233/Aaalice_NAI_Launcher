@@ -193,8 +193,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     if (!_isInitialized || _controller == null) {
       return Container(
         color: Colors.black,
-        child: const Center(
-          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+        child: Center(
+          child: CircularProgressIndicator(
+            value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
         ),
       );
     }
@@ -259,7 +263,9 @@ class OnlineGalleryVideoControls extends StatelessWidget {
           children: [
             AnimatedOpacity(
               opacity: showControls && !isPlaying ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(16),
@@ -281,7 +287,9 @@ class OnlineGalleryVideoControls extends StatelessWidget {
               bottom: 0,
               child: AnimatedOpacity(
                 opacity: showControls ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,

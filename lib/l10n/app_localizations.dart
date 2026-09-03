@@ -1889,6 +1889,18 @@ abstract class AppLocalizations {
   /// **'Disable web access'**
   String get agentChat_disableWebAccess;
 
+  /// No description provided for @agentChat_webAccessLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Web access'**
+  String get agentChat_webAccessLabel;
+
+  /// No description provided for @agentChat_contextUsageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Context'**
+  String get agentChat_contextUsageLabel;
+
   /// No description provided for @agentChat_unsupportedImageFormat.
   ///
   /// In en, this message translates to:
@@ -1912,6 +1924,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send'**
   String get agentChat_send;
+
+  /// No description provided for @agentChat_sendEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a message or add an image to send'**
+  String get agentChat_sendEmptyHint;
+
+  /// No description provided for @agentChat_sendUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI assistant is not ready to send yet'**
+  String get agentChat_sendUnavailableHint;
 
   /// No description provided for @agentChat_stop.
   ///
@@ -3562,6 +3586,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Processing...'**
   String get img2img_directorRunning;
+
+  /// No description provided for @img2img_directorConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Anlas usage'**
+  String get img2img_directorConfirmTitle;
+
+  /// No description provided for @img2img_directorConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Running {tool} is estimated to cost {cost} Anlas. Do you want to continue?'**
+  String img2img_directorConfirmContent(Object tool, int cost);
 
   /// No description provided for @img2img_directorResult.
   ///
@@ -9550,7 +9586,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomManager_previewGeneration.
   ///
   /// In en, this message translates to:
-  /// **'Preview Generation'**
+  /// **'Output Preview'**
   String get randomManager_previewGeneration;
 
   /// No description provided for @randomManager_generating.
@@ -9562,7 +9598,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomManager_generate.
   ///
   /// In en, this message translates to:
-  /// **'Generate'**
+  /// **'Generate Sample'**
   String get randomManager_generate;
 
   /// No description provided for @randomManager_generationFailed.
@@ -9574,13 +9610,13 @@ abstract class AppLocalizations {
   /// No description provided for @randomManager_copy.
   ///
   /// In en, this message translates to:
-  /// **'Copy'**
+  /// **'Copy All'**
   String get randomManager_copy;
 
   /// No description provided for @randomManager_regenerate.
   ///
   /// In en, this message translates to:
-  /// **'Regenerate'**
+  /// **'Generate Another'**
   String get randomManager_regenerate;
 
   /// No description provided for @randomManager_copiedToClipboard.
@@ -9610,7 +9646,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomManager_previewHint.
   ///
   /// In en, this message translates to:
-  /// **'Click \"Generate\" to preview random tags'**
+  /// **'No sample generated yet'**
   String get randomManager_previewHint;
 
   /// No description provided for @randomManager_generateNow.
@@ -22679,7 +22715,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomManager_previewEmptyDescription.
   ///
   /// In en, this message translates to:
-  /// **'Generate a sample to inspect the actual output of this recipe.'**
+  /// **'Generate a prompt sample to inspect the actual output of this recipe.'**
   String get randomManager_previewEmptyDescription;
 
   /// No description provided for @randomManager_category_composition.

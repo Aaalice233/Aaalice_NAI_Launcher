@@ -85,7 +85,9 @@ class _VibeCardState extends ConsumerState<VibeCard> {
       child: AnimatedOpacity(
         key: ValueKey('vibe-card-enabled-opacity-${widget.index}'),
         opacity: vibe.enabled ? 1.0 : _disabledVibeCardOpacity,
-        duration: const Duration(milliseconds: 160),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 160),
         curve: Curves.easeOut,
         child: LayoutBuilder(
           builder: (context, constraints) {

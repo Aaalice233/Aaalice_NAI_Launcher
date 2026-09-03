@@ -160,8 +160,14 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
       );
     });
 
-    // 获取上次选中的预设ID
-    final selectedId = _box.get(_selectedIdKey) ?? presets.first.id;
+    // 只恢复仍然存在的预设，避免删除或异常退出后留下失效选中项。
+    final storedSelectedId = _box.get(_selectedIdKey);
+    final selectedId = presets.any((preset) => preset.id == storedSelectedId)
+        ? storedSelectedId!
+        : presets.first.id;
+    if (storedSelectedId != selectedId) {
+      await _box.put(_selectedIdKey, selectedId);
+    }
 
     state = state.copyWith(
       presets: presets,
@@ -292,7 +298,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     );
 
     await _deletePreset(id);
-    if (newSelectedId != null && state.selectedPresetId != newSelectedId) {
+    if (newSelectedId != null) {
       await _box.put(_selectedIdKey, newSelectedId);
     }
   }

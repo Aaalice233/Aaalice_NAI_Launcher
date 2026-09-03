@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../l10n/app_localizations.dart';
 import '../models/agent_chat_slash_command.dart';
 import 'agent_chat_panel_view_data.dart';
@@ -14,14 +15,12 @@ class AgentChatSlashMenu extends StatefulWidget {
     super.key,
     required this.commands,
     required this.highlightIndex,
-    required this.touchOptimized,
     required this.onSelected,
     required this.onHighlightChanged,
   });
 
   final List<AgentChatSlashCommand> commands;
   final int highlightIndex;
-  final bool touchOptimized;
   final ValueChanged<AgentChatSlashCommand> onSelected;
   final ValueChanged<int> onHighlightChanged;
 
@@ -35,8 +34,8 @@ class _AgentChatSlashMenuState extends State<AgentChatSlashMenu> {
 
   final ScrollController _scrollController = ScrollController();
 
-  double get _itemExtent => widget.touchOptimized ? 58 : 48;
-  double get _maxHeight => widget.touchOptimized ? 208 : 244;
+  double get _itemExtent => context.interactionPolicy.touchAvailable ? 58 : 48;
+  double get _maxHeight => context.interactionPolicy.touchAvailable ? 208 : 244;
 
   @override
   void didUpdateWidget(AgentChatSlashMenu oldWidget) {
@@ -189,8 +188,7 @@ class _AgentChatSlashMenuState extends State<AgentChatSlashMenu> {
   Widget _item(ThemeData theme, int index) {
     final command = widget.commands[index];
     final highlighted = index == widget.highlightIndex;
-    final destructive =
-        command.sessionAction == AgentChatMoreAction.delete;
+    final destructive = command.sessionAction == AgentChatMoreAction.delete;
     final accent = destructive
         ? theme.colorScheme.error
         : theme.colorScheme.primary;
@@ -271,11 +269,7 @@ enum _SlashRowKind { header, item, divider }
 
 @immutable
 class _SlashRow {
-  const _SlashRow({
-    required this.kind,
-    this.groupKind,
-    this.commandIndex = -1,
-  });
+  const _SlashRow({required this.kind, this.groupKind, this.commandIndex = -1});
 
   final _SlashRowKind kind;
   final AgentChatSlashCommandKind? groupKind;

@@ -27,14 +27,22 @@ import 'widgets/left_panel.dart';
 import 'widgets/fixed_tags_sidebar_slot.dart';
 import 'widgets/generation_workspace_row.dart';
 import 'widgets/main_workspace.dart';
+import 'widgets/prompt_input_controller.dart';
 import 'widgets/right_panel.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// 桌面端三栏布局
 class DesktopGenerationLayout extends ConsumerStatefulWidget {
-  const DesktopGenerationLayout({super.key, required this.historyViewport});
+  const DesktopGenerationLayout({
+    super.key,
+    required this.historyViewport,
+    required this.promptInputController,
+    required this.promptInputKey,
+  });
 
   final OwnedViewportOffset historyViewport;
+  final PromptInputController promptInputController;
+  final GlobalKey promptInputKey;
 
   @override
   ConsumerState<DesktopGenerationLayout> createState() =>
@@ -142,11 +150,12 @@ class _DesktopGenerationLayoutState
         : 0.0;
     final occupiedLeadingWidth =
         leftWidth +
-        (layoutState.leftPanelExpanded ? ResizeHandle.defaultWidth : 0.0) +
-        fixedTagsWidth;
+        (layoutState.leftPanelExpanded ? ResizeHandle.defaultWidth : 0.0);
 
     return GenerationWorkspaceRow(
       occupiedLeadingWidth: occupiedLeadingWidth,
+      overlayableLeading: const FixedTagsSidebarSlot(),
+      overlayableLeadingWidth: fixedTagsWidth,
       leading: [
         LeftPanel(isResizing: _isResizingLeft),
         if (layoutState.leftPanelExpanded)
@@ -166,13 +175,16 @@ class _DesktopGenerationLayoutState
                   .setLeftPanelWidth(newWidth);
             },
           ),
-        const FixedTagsSidebarSlot(),
       ],
       main: ShortcutAwareWidget(
         contextType: ShortcutContext.generation,
         shortcuts: shortcuts,
         autofocus: true,
-        child: MainWorkspace(onToggleMaximize: _togglePromptMaximize),
+        child: MainWorkspace(
+          onToggleMaximize: _togglePromptMaximize,
+          promptInputController: widget.promptInputController,
+          promptInputKey: widget.promptInputKey,
+        ),
       ),
       rightPanelExpanded: layoutState.rightPanelExpanded,
       preferredRightPanelWidth: layoutState.rightPanelWidth,

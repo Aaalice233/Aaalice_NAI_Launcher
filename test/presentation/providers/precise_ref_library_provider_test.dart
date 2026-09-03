@@ -230,6 +230,34 @@ void main() {
     expect(state().hasFilters, isFalse);
   });
 
+  test('setSidebarFilter 原子切换收藏和类型分类', () async {
+    await notifier().initialize();
+    await notifier().importFromBytes(
+      _pngBytes(),
+      name: 'character',
+      type: PreciseRefType.character,
+    );
+    final style = await notifier().importFromBytes(
+      _pngBytes(),
+      name: 'style',
+      type: PreciseRefType.style,
+    );
+    await notifier().toggleFavorite(style.id);
+
+    notifier().setSidebarFilter(
+      favoritesOnly: false,
+      type: PreciseRefType.style,
+    );
+    expect(state().favoritesOnly, isFalse);
+    expect(state().typeFilter, PreciseRefType.style);
+    expect(state().filteredEntries.single.name, 'style');
+
+    notifier().setSidebarFilter(favoritesOnly: true);
+    expect(state().favoritesOnly, isTrue);
+    expect(state().typeFilter, isNull);
+    expect(state().filteredEntries.single.name, 'style');
+  });
+
   test('setSortOrder 重复选择同一排序时翻转方向', () async {
     await notifier().initialize();
     await notifier().importFromBytes(_pngBytes(), name: 'b');

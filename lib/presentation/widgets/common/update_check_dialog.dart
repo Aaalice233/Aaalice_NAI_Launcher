@@ -10,8 +10,11 @@ import '../../../core/utils/byte_format.dart';
 import '../../../core/utils/in_app_release_notes.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/version/version_info.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/update_provider.dart';
+import 'adaptive_dialog_frame.dart';
 import 'app_toast.dart';
 
 /// 更新检查弹窗组件
@@ -23,35 +26,94 @@ import 'app_toast.dart';
 /// - 加载状态指示器（检查中）
 /// - 错误状态显示
 class UpdateCheckDialog extends ConsumerWidget {
-  const UpdateCheckDialog({super.key});
+  const UpdateCheckDialog({super.key, this.presentationManaged = false});
+
+  final bool presentationManaged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(updateStateProvider);
     final actions = _buildActions(context, ref, state);
-    final compact = MediaQuery.sizeOf(context).width < 600;
+    final mediaQuery = MediaQuery.of(context);
 
-    return AlertDialog(
-      insetPadding: compact
-          ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
-          : null,
-      contentPadding: compact
-          ? const EdgeInsets.fromLTRB(20, 12, 20, 12)
-          : null,
-      actionsPadding: compact ? const EdgeInsets.fromLTRB(16, 0, 16, 12) : null,
-      title: Text(_getTitle(context, state)),
-      content: SizedBox(width: 620, child: _buildContent(context, ref, state)),
-      actions: actions.isEmpty
-          ? null
-          : [
-              SizedBox(
-                width: double.infinity,
-                child: _ResponsiveDialogActions(
-                  compact: compact,
-                  children: actions,
-                ),
+    final content = AdaptiveDialogFrame(
+      maxWidth: 620,
+      maxHeight: 680,
+      reservedVerticalSpace: 24,
+      scaleReservedVerticalSpace: true,
+      horizontalMargin: 12,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+          final compact = sizeClass.isCompact;
+          final useSingleColumnActions =
+              constraints.maxWidth < 320 || mediaQuery.textScaler.scale(1) >= 2;
+          final padding = EdgeInsets.all(compact ? 16 : 24);
+          final title = Text(
+            _getTitle(context, state),
+            style: Theme.of(context).textTheme.headlineSmall,
+          );
+          final content = _buildContent(context, ref, state);
+          final actionPanel = SizedBox(
+            width: double.infinity,
+            child: _ResponsiveDialogActions(
+              compact: compact,
+              singleColumn: useSingleColumnActions,
+              children: actions,
+            ),
+          );
+          final scrollWholeDialog =
+              mediaQuery.textScaler.scale(1) >= 2 ||
+              constraints.maxHeight < 400;
+
+          if (scrollWholeDialog) {
+            return SingleChildScrollView(
+              padding: padding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  title,
+                  const SizedBox(height: 12),
+                  content,
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    actionPanel,
+                  ],
+                ],
               ),
-            ],
+            );
+          }
+
+          return Padding(
+            padding: padding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                title,
+                const SizedBox(height: 12),
+                Expanded(child: content),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight:
+                          constraints.maxHeight * (compact ? 0.48 : 0.36),
+                    ),
+                    child: SingleChildScrollView(child: actionPanel),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (presentationManaged) return content;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: content,
     );
   }
 
@@ -93,12 +155,17 @@ class UpdateCheckDialog extends ConsumerWidget {
 
   /// 构建加载状态内容
   Widget _buildLoadingContent(BuildContext context) {
-    return const SizedBox(
+    return SizedBox(
       height: 120,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [CircularProgressIndicator(), SizedBox(height: 16)],
+          children: [
+            CircularProgressIndicator(
+              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
@@ -116,92 +183,103 @@ class UpdateCheckDialog extends ConsumerWidget {
     final releaseNotesBackground = theme.colorScheme.surfaceContainerLowest;
     final releaseNotesForeground = _readableForeground(releaseNotesBackground);
 
-    final versionSummary = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackVersionTiles =
+            constraints.maxWidth < 420 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 2;
+        final currentVersionTile = _buildVersionInfoTile(
+          context,
+          label: context.l10n.currentVersion,
+          value: versionInfo.displayCurrentVersion,
+        );
+        final latestVersionTile = _buildVersionInfoTile(
+          context,
+          label: context.l10n.latestVersion,
+          value: versionInfo.displayVersion,
+          isHighlighted: true,
+        );
+        final versionSummary = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: _buildVersionInfoTile(
-                context,
-                label: context.l10n.currentVersion,
-                value: versionInfo.displayCurrentVersion,
+            if (stackVersionTiles) ...[
+              currentVersionTile,
+              const SizedBox(height: 8),
+              latestVersionTile,
+            ] else
+              Row(
+                children: [
+                  Expanded(child: currentVersionTile),
+                  const SizedBox(width: 16),
+                  Expanded(child: latestVersionTile),
+                ],
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildVersionInfoTile(
-                context,
-                label: context.l10n.latestVersion,
-                value: versionInfo.displayVersion,
-                isHighlighted: true,
-              ),
-            ),
-          ],
-        ),
-        if (versionInfo.primaryAsset != null) ...[
-          const SizedBox(height: 8),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              versionInfo.supportsInAppInstall
-                  ? Icons.system_update_alt
-                  : Icons.open_in_new,
-            ),
-            title: Text(
-              versionInfo.primaryAsset!.label ?? context.l10n.common_download,
-            ),
-            subtitle: Text(
-              versionInfo.primaryAsset!.description ??
-                  context.l10n.updatePortableManualHint,
-            ),
-          ),
-        ],
-      ],
-    );
-
-    if (releaseNotes.isEmpty) {
-      return SingleChildScrollView(child: versionSummary);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        versionSummary,
-        const SizedBox(height: 12),
-        Text(
-          context.l10n.releaseNotes,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Flexible(
-          child: Container(
-            key: const ValueKey('update-release-notes-region'),
-            constraints: const BoxConstraints(maxHeight: 380),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: releaseNotesBackground,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Scrollbar(
-              child: SingleChildScrollView(
-                key: const ValueKey('update-release-notes-scroll-view'),
-                child: _buildReleaseNotes(
-                  context,
-                  versionInfo,
-                  releaseNotes,
-                  backgroundColor: releaseNotesBackground,
-                  foregroundColor: releaseNotesForeground,
+            if (versionInfo.primaryAsset != null) ...[
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  versionInfo.supportsInAppInstall
+                      ? Icons.system_update_alt
+                      : Icons.open_in_new,
+                ),
+                title: Text(
+                  versionInfo.primaryAsset!.label ??
+                      context.l10n.common_download,
+                ),
+                subtitle: Text(
+                  versionInfo.primaryAsset!.description ??
+                      context.l10n.updatePortableManualHint,
                 ),
               ),
-            ),
+            ],
+          ],
+        );
+
+        if (releaseNotes.isEmpty) {
+          return SingleChildScrollView(child: versionSummary);
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              versionSummary,
+              const SizedBox(height: 12),
+              Text(
+                context.l10n.releaseNotes,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                key: const ValueKey('update-release-notes-region'),
+                constraints: const BoxConstraints(maxHeight: 380),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: releaseNotesBackground,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Scrollbar(
+                  child: SingleChildScrollView(
+                    key: const ValueKey('update-release-notes-scroll-view'),
+                    child: _buildReleaseNotes(
+                      context,
+                      versionInfo,
+                      releaseNotes,
+                      backgroundColor: releaseNotesBackground,
+                      foregroundColor: releaseNotesForeground,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -217,7 +295,11 @@ class UpdateCheckDialog extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            LinearProgressIndicator(value: progress == 0 ? null : progress),
+            LinearProgressIndicator(
+              value: progress == 0
+                  ? (MediaQuery.disableAnimationsOf(context) ? 0.72 : null)
+                  : progress,
+            ),
             const SizedBox(height: 16),
             Text(context.l10n.updateDownloadingProgress(percent)),
             if (state.totalBytes > 0) ...[
@@ -315,7 +397,9 @@ class UpdateCheckDialog extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(),
+            CircularProgressIndicator(
+              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+            ),
             const SizedBox(height: 16),
             Text(
               PlatformCapabilities.current.requiresExternalInstallerFlow
@@ -793,10 +877,13 @@ class UpdateCheckDialog extends ConsumerWidget {
 
   /// 显示更新检查弹窗
   static Future<void> show(BuildContext context) {
-    return showDialog<void>(
+    return AdaptivePresenter.showForm<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const UpdateCheckDialog(),
+      showHeader: false,
+      sideSheetWidth: 680,
+      builder: (context, scrollController) =>
+          const UpdateCheckDialog(presentationManaged: true),
     );
   }
 }
@@ -804,16 +891,24 @@ class UpdateCheckDialog extends ConsumerWidget {
 class _ResponsiveDialogActions extends StatelessWidget {
   const _ResponsiveDialogActions({
     required this.compact,
+    required this.singleColumn,
     required this.children,
   });
 
   final bool compact;
+  final bool singleColumn;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     const spacing = 8.0;
-    if (!compact || children.length <= 2) {
+    if (!compact) {
+      return SizedBox(
+        key: const ValueKey('update-dialog-actions'),
+        child: _ActionRow(children: children),
+      );
+    }
+    if (children.length <= 2) {
       return Wrap(
         key: const ValueKey('update-dialog-actions'),
         alignment: WrapAlignment.end,
@@ -846,9 +941,16 @@ class _ResponsiveDialogActions extends StatelessWidget {
         key: const ValueKey('update-dialog-actions'),
         mainAxisSize: MainAxisSize.min,
         children: [
-          _ActionRow(children: children.take(2).toList()),
-          const SizedBox(height: spacing),
-          _ActionRow(children: children.skip(2).toList()),
+          if (singleColumn)
+            for (var index = 0; index < children.length; index++) ...[
+              if (index > 0) const SizedBox(height: spacing),
+              SizedBox(width: double.infinity, child: children[index]),
+            ]
+          else ...[
+            _ActionRow(children: children.take(2).toList()),
+            const SizedBox(height: spacing),
+            _ActionRow(children: children.skip(2).toList()),
+          ],
         ],
       ),
     );

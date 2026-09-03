@@ -6,20 +6,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
+import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_filter_service.dart';
 import 'package:nai_launcher/data/services/gallery/local_gallery_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_resource_widgets.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/precise_ref_library_provider.dart';
+import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
+import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
 
 void main() {
-  for (final width in [320.0, 840.0]) {
+  for (final width in [320.0, 600.0, 840.0, 1180.0]) {
     testWidgets(
       'local reference gallery reaches history and searches the complete library at ${width.toInt()}',
       (tester) async {
-        await tester.binding.setSurfaceSize(Size(width, 800));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 800);
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
         final service = _FakeLocalGalleryService();
         late _FakeLocalGalleryNotifier gallery;
         AgentChatResourceReference? selected;
@@ -36,6 +44,14 @@ void main() {
         expect(
           find.byKey(const ValueKey('agent-chat-resource-search')),
           findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('adaptive-bottom-sheet')),
+          width < 840 ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.byKey(const ValueKey('adaptive-side-sheet')),
+          width >= 840 ? findsOneWidget : findsNothing,
         );
 
         await tester.tap(find.text('本地图库'));
@@ -73,6 +89,102 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'attachment and resource pickers fit a 320x568 3x viewport with IME and preserve back dismissal',
+    (tester) async {
+      tester.view.devicePixelRatio = 3;
+      tester.view.physicalSize = const Size(960, 1704);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 720);
+      tester.view.padding = const FakeViewPadding(top: 60, bottom: 90);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetViewInsets();
+        tester.view.resetPadding();
+      });
+
+      AgentChatResourceReference? selected;
+      await tester.pumpWidget(
+        _TestApp(
+          galleryOverride: () =>
+              _FakeLocalGalleryNotifier(_FakeLocalGalleryService()),
+          onSelected: (reference) async => selected = reference,
+          textScale: 3,
+        ),
+      );
+
+      final sheet = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(sheet, findsOneWidget);
+      expect(tester.getRect(sheet).top, greaterThanOrEqualTo(20));
+      expect(tester.getRect(sheet).bottom, lessThanOrEqualTo(328));
+      expect(tester.takeException(), isNull, reason: 'attachment picker');
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(sheet, findsNothing);
+      expect(selected, isNull);
+
+      await tester.tap(find.text('open resource'));
+      await tester.pumpAndSettle();
+      expect(sheet, findsOneWidget);
+      expect(tester.getRect(sheet).top, greaterThanOrEqualTo(20));
+      expect(tester.getRect(sheet).bottom, lessThanOrEqualTo(328));
+      expect(tester.takeException(), isNull, reason: 'resource picker');
+
+      final resource = find.text('测试资源');
+      await tester.ensureVisible(resource);
+      await tester.tap(resource);
+      await tester.pumpAndSettle();
+      expect(sheet, findsNothing);
+      expect(selected?.kind, AgentChatResourceKind.tagLibraryEntry);
+      expect(selected?.resourceId, 'tag-1');
+    },
+  );
+
+  testWidgets('both resource managers use an adaptive side sheet at 1180', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 800);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    AgentChatResourceReference? selected;
+    await tester.pumpWidget(
+      _TestApp(
+        galleryOverride: () =>
+            _FakeLocalGalleryNotifier(_FakeLocalGalleryService()),
+        onSelected: (reference) async => selected = reference,
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(find.text('生成历史'), findsOneWidget);
+    expect(find.text('本地图库'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('open resource'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(find.text('标签词库'), findsOneWidget);
+    expect(find.text('Vibe 库'), findsOneWidget);
+    expect(find.text('精准参考库'), findsOneWidget);
+    await tester.tap(find.text('测试资源'));
+    await tester.pumpAndSettle();
+
+    expect(selected?.kind, AgentChatResourceKind.tagLibraryEntry);
+    expect(selected?.resourceId, 'tag-1');
+    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('local history exposes an initialization error and retry', (
     tester,
@@ -133,10 +245,15 @@ void main() {
 }
 
 class _TestApp extends StatelessWidget {
-  const _TestApp({required this.galleryOverride, required this.onSelected});
+  const _TestApp({
+    required this.galleryOverride,
+    required this.onSelected,
+    this.textScale = 1,
+  });
 
   final _FakeLocalGalleryNotifier Function() galleryOverride;
   final Future<void> Function(AgentChatResourceReference) onSelected;
+  final double textScale;
 
   @override
   Widget build(BuildContext context) {
@@ -146,22 +263,49 @@ class _TestApp extends StatelessWidget {
         imageGenerationNotifierProvider.overrideWith(
           _FakeImageGenerationNotifier.new,
         ),
+        tagLibraryPageNotifierProvider.overrideWith(
+          _FakeTagLibraryPageNotifier.new,
+        ),
+        vibeLibraryNotifierProvider.overrideWith(_FakeVibeLibraryNotifier.new),
+        preciseRefLibraryNotifierProvider.overrideWith(
+          _FakePreciseRefLibraryNotifier.new,
+        ),
       ],
       child: MaterialApp(
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
         home: Scaffold(
           body: Consumer(
-            builder: (context, ref, _) => FilledButton(
-              onPressed: () {
-                AgentChatResourcePicker.showReferenceGallery(
-                  context: context,
-                  ref: ref,
-                  onSelected: onSelected,
-                );
-              },
-              child: const Text('open'),
+            builder: (context, ref, _) => Column(
+              children: [
+                FilledButton(
+                  onPressed: () {
+                    AgentChatResourcePicker.showReferenceGallery(
+                      context: context,
+                      ref: ref,
+                      onSelected: onSelected,
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    AgentChatResourcePicker.showResourceLibrary(
+                      context: context,
+                      ref: ref,
+                      onSelected: onSelected,
+                    );
+                  },
+                  child: const Text('open resource'),
+                ),
+              ],
             ),
           ),
         ),
@@ -308,4 +452,32 @@ class _QueryRequest {
 class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
   @override
   ImageGenerationState build() => const ImageGenerationState();
+}
+
+class _FakeTagLibraryPageNotifier extends TagLibraryPageNotifier {
+  @override
+  TagLibraryPageState build() => TagLibraryPageState(
+    entries: [
+      TagLibraryEntry.create(
+        name: '测试资源',
+        content: 'resource content',
+      ).copyWith(id: 'tag-1'),
+    ],
+  );
+}
+
+class _FakeVibeLibraryNotifier extends VibeLibraryNotifier {
+  @override
+  VibeLibraryState build() => const VibeLibraryState();
+
+  @override
+  Future<void> initialize() async {}
+}
+
+class _FakePreciseRefLibraryNotifier extends PreciseRefLibraryNotifier {
+  @override
+  PreciseRefLibraryState build() => const PreciseRefLibraryState();
+
+  @override
+  Future<void> initialize() async {}
 }

@@ -266,7 +266,9 @@ class EmphasisConfigPanel extends StatelessWidget {
                           : () => onBracketCountChanged(count),
                       borderRadius: BorderRadius.circular(8),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           gradient: isSelected

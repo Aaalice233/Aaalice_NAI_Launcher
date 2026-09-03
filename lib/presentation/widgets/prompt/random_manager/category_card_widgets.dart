@@ -4,6 +4,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/tag_scope.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../common/themed_input_dialog.dart';
 
@@ -98,11 +99,12 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
     final currentColor = widget.enabled
         ? _scopeColors[currentScope]!
         : colorScheme.outline;
+    final controlExtent = context.interactionPolicy.minimumControlExtent;
 
     return Opacity(
       opacity: widget.enabled ? 1.0 : 0.6,
       child: Container(
-        height: 32,
+        constraints: BoxConstraints(minHeight: controlExtent),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
@@ -114,7 +116,9 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
               children: [
                 // 滑动高亮背景
                 AnimatedPositioned(
-                  duration: const Duration(milliseconds: 200),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 200),
                   curve: Curves.easeOutCubic,
                   left: _currentIndex * itemWidth + 2,
                   top: 2,
@@ -145,13 +149,12 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
                               ? () => _onTap(index)
                               : null,
                           style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
                             foregroundColor: isSelected
                                 ? currentColor
                                 : colorScheme.onSurfaceVariant,
                             backgroundColor: Colors.transparent,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            minimumSize: Size(0, controlExtent),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -372,7 +375,9 @@ class _AddTagGroupCardState extends State<AddTagGroupCard> {
                 children: [
                   // 图标
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 200),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: (_isHovered && isEnabled)
@@ -426,8 +431,7 @@ class AddCategoryButton extends ConsumerStatefulWidget {
 class _AddCategoryButtonState extends ConsumerState<AddCategoryButton> {
   bool _isHovered = false;
 
-  /// 未传入回调时使用默认行为：输入名称后直接创建新类别。
-  /// 历史上该回调从未被接线，导致按钮点击无任何反应。
+  /// 未传入上层流程时，按钮仍能完成标准的类别创建。
   Future<void> _handlePressed() async {
     final customHandler = widget.onPressed;
     if (customHandler != null) {
@@ -471,7 +475,10 @@ class _AddCategoryButtonState extends ConsumerState<AddCategoryButton> {
       child: GestureDetector(
         onTap: _handlePressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
+          constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             gradient: _isHovered

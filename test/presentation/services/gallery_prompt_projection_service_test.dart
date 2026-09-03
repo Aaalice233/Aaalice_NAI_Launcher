@@ -205,6 +205,73 @@ void main() {
     });
   });
 
+  group('selection eligibility', () {
+    test('select-all keys use the same usable projection as cards', () {
+      final items = <GalleryItem>[
+        const GalleryItem(
+          id: 30,
+          sourceId: GallerySourceId.danbooru,
+          tags: ['solo'],
+        ),
+        const GalleryItem(
+          id: 31,
+          sourceId: GallerySourceId.danbooru,
+          tags: ['watermark'],
+        ),
+        const GalleryItem(
+          id: 32,
+          workId: 'character-only',
+          sourceId: GallerySourceId.quickTagCloud,
+          rawSourceMetadata: {
+            'characterPrompts': [
+              {'negativePrompt': 'bad hands'},
+            ],
+          },
+        ),
+      ];
+
+      final selectableKeys = service.selectableStableKeys(
+        items: items,
+        promptTagSettings: defaultPromptSettings,
+        outputFilter: outputFilter,
+      );
+
+      expect(selectableKeys, [items[0].stableKey, items[2].stableKey]);
+      for (final item in items) {
+        final cardCanSelect = service
+            .project(
+              item: item,
+              promptTagSettings: defaultPromptSettings,
+              outputFilter: outputFilter,
+            )
+            .hasUsableOutput;
+        expect(selectableKeys.contains(item.stableKey), cardCanSelect);
+      }
+    });
+
+    test('select-all includes usable prompts from cached details', () {
+      const item = GalleryItem(
+        id: 33,
+        workId: 'detail-only',
+        sourceId: GallerySourceId.quickTagCloud,
+      );
+      const detail = GalleryDetail(
+        item: item,
+        media: [],
+        negativePrompt: 'bad hands',
+      );
+
+      final selectableKeys = service.selectableStableKeys(
+        items: const [item],
+        promptTagSettings: defaultPromptSettings,
+        outputFilter: outputFilter,
+        detailForItem: (_) => detail,
+      );
+
+      expect(selectableKeys, [item.stableKey]);
+    });
+  });
+
   group('copy selection', () {
     test('selects Danbooru categories without changing generation policy', () {
       const item = GalleryItem(

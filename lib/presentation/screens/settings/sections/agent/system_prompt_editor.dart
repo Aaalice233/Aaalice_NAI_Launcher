@@ -88,7 +88,9 @@ class _AgentSystemPromptEditorState
         ),
       ),
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 180),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
         child: _showPreview
             ? SelectableText(
                 _preview,

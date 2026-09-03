@@ -3,30 +3,69 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../../data/models/gallery/nai_prompt_export_codec.dart';
+import '../../../../adaptive/adaptive_presenter.dart';
 import '../../prompt_selection_tile.dart';
 
 /// Reuses the image-metadata prompt categories for both privacy-safe positive
 /// copying and complete/custom prompt export.
 class PromptCopyDialog extends StatefulWidget {
-  const PromptCopyDialog._({required this.metadata, required this.exportMode});
+  const PromptCopyDialog._({
+    required this.metadata,
+    required this.exportMode,
+    required this.scrollController,
+  });
 
   final NaiImageMetadata metadata;
   final bool exportMode;
+  final ScrollController scrollController;
 
   static Future<String?> show(
     BuildContext context, {
     required NaiImageMetadata metadata,
-  }) => showDialog<String>(
+  }) => AdaptivePresenter.showForm<String>(
     context: context,
-    builder: (_) => PromptCopyDialog._(metadata: metadata, exportMode: false),
+    sideSheetWidth: 480,
+    titleBuilder: (context) {
+      final theme = Theme.of(context);
+      return Row(
+        children: [
+          Icon(Icons.privacy_tip_outlined, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              context.l10n.detail_copyPromptTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge,
+            ),
+          ),
+        ],
+      );
+    },
+    builder: (context, scrollController) => PromptCopyDialog._(
+      metadata: metadata,
+      exportMode: false,
+      scrollController: scrollController,
+    ),
   );
 
   static Future<String?> showExport(
     BuildContext context, {
     required NaiImageMetadata metadata,
-  }) => showDialog<String>(
+  }) => AdaptivePresenter.showForm<String>(
     context: context,
-    builder: (_) => PromptCopyDialog._(metadata: metadata, exportMode: true),
+    sideSheetWidth: 480,
+    titleBuilder: (context) => Text(
+      context.l10n.promptCopy_exportTitle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.titleLarge,
+    ),
+    builder: (context, scrollController) => PromptCopyDialog._(
+      metadata: metadata,
+      exportMode: true,
+      scrollController: scrollController,
+    ),
   );
 
   @override
@@ -86,14 +125,26 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.exportMode) return _buildSafeDialog(context);
-    return AlertDialog(
-      title: Text(context.l10n.promptCopy_exportTitle),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440, maxHeight: 560),
-        child: SingleChildScrollView(child: _buildExportOptions()),
-      ),
-      actions: [
+    return ListView(
+      key: const Key('prompt-copy-options-list'),
+      controller: widget.scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      children: [
+        if (widget.exportMode) _buildExportOptions() else _buildSafeOptions(),
+        const SizedBox(height: 20),
+        Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+        const SizedBox(height: 12),
+        _buildActions(),
+      ],
+    );
+  }
+
+  Widget _buildActions() {
+    return Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 8,
+      runSpacing: 8,
+      children: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(context.l10n.common_cancel),
@@ -107,7 +158,7 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
     );
   }
 
-  Widget _buildSafeDialog(BuildContext context) {
+  Widget _buildSafeOptions() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final fixedCount =
@@ -116,122 +167,92 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
         _metadata.qualityTags.length +
         (_metadata.hasRecordedTransparentBackgroundTag ? 1 : 0);
 
-    return AlertDialog(
-      icon: Icon(Icons.privacy_tip_outlined, color: colorScheme.primary),
-      title: Text(context.l10n.detail_copyPromptTitle),
-      content: SizedBox(
-        width: 440,
-        child: SingleChildScrollView(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          context.l10n.detail_copyPromptDescription,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Material(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                context.l10n.detail_copyPromptDescription,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  height: 1.45,
-                ),
+              PromptSelectionTile(
+                icon: Icons.subject,
+                title: context.l10n.detail_promptCategoryMain,
+                subtitle: context.l10n.detail_promptCategoryMainHint,
+                unavailableLabel: context.l10n.detail_promptCategoryUnavailable,
+                value: _includeMainPrompt,
+                enabled: _hasMainPrompt,
+                onChanged: (value) =>
+                    setState(() => _includeMainPrompt = value),
               ),
-              const SizedBox(height: 14),
-              Material(
-                color: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.45,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    PromptSelectionTile(
-                      icon: Icons.subject,
-                      title: context.l10n.detail_promptCategoryMain,
-                      subtitle: context.l10n.detail_promptCategoryMainHint,
-                      unavailableLabel:
-                          context.l10n.detail_promptCategoryUnavailable,
-                      value: _includeMainPrompt,
-                      enabled: _hasMainPrompt,
-                      onChanged: (value) =>
-                          setState(() => _includeMainPrompt = value),
-                    ),
-                    const Divider(height: 1),
-                    PromptSelectionTile(
-                      icon: Icons.people_outline,
-                      title: context.l10n.detail_promptCategoryCharacters,
-                      subtitle:
-                          context.l10n.detail_promptCategoryCharactersHint,
-                      unavailableLabel:
-                          context.l10n.detail_promptCategoryUnavailable,
-                      count: _metadata.characterPrompts.length,
-                      value: _includeCharacterPrompts,
-                      enabled: _hasCharacters,
-                      onChanged: (value) =>
-                          setState(() => _includeCharacterPrompts = value),
-                    ),
-                    const Divider(height: 1),
-                    PromptSelectionTile(
-                      icon: Icons.auto_awesome_outlined,
-                      title: context.l10n.detail_promptCategoryQuality,
-                      subtitle: context.l10n.detail_promptCategoryQualityHint,
-                      unavailableLabel:
-                          context.l10n.detail_promptCategoryUnavailable,
-                      count: qualityCount,
-                      value: _includeQualityTags,
-                      enabled: _hasQualityTags,
-                      onChanged: (value) =>
-                          setState(() => _includeQualityTags = value),
-                    ),
-                    const Divider(height: 1),
-                    PromptSelectionTile(
-                      icon: Icons.push_pin_outlined,
-                      title: context.l10n.detail_promptCategoryFixed,
-                      subtitle: context.l10n.detail_promptCategoryFixedHint,
-                      unavailableLabel:
-                          context.l10n.detail_promptCategoryUnavailable,
-                      count: fixedCount,
-                      value: _includeFixedTags,
-                      enabled: _hasFixedTags,
-                      warning: true,
-                      onChanged: (value) =>
-                          setState(() => _includeFixedTags = value),
-                    ),
-                  ],
-                ),
+              const Divider(height: 1),
+              PromptSelectionTile(
+                icon: Icons.people_outline,
+                title: context.l10n.detail_promptCategoryCharacters,
+                subtitle: context.l10n.detail_promptCategoryCharactersHint,
+                unavailableLabel: context.l10n.detail_promptCategoryUnavailable,
+                count: _metadata.characterPrompts.length,
+                value: _includeCharacterPrompts,
+                enabled: _hasCharacters,
+                onChanged: (value) =>
+                    setState(() => _includeCharacterPrompts = value),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 15,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      context.l10n.detail_copyPromptDefaultHint,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
+              const Divider(height: 1),
+              PromptSelectionTile(
+                icon: Icons.auto_awesome_outlined,
+                title: context.l10n.detail_promptCategoryQuality,
+                subtitle: context.l10n.detail_promptCategoryQualityHint,
+                unavailableLabel: context.l10n.detail_promptCategoryUnavailable,
+                count: qualityCount,
+                value: _includeQualityTags,
+                enabled: _hasQualityTags,
+                onChanged: (value) =>
+                    setState(() => _includeQualityTags = value),
+              ),
+              const Divider(height: 1),
+              PromptSelectionTile(
+                icon: Icons.push_pin_outlined,
+                title: context.l10n.detail_promptCategoryFixed,
+                subtitle: context.l10n.detail_promptCategoryFixedHint,
+                unavailableLabel: context.l10n.detail_promptCategoryUnavailable,
+                count: fixedCount,
+                value: _includeFixedTags,
+                enabled: _hasFixedTags,
+                warning: true,
+                onChanged: (value) => setState(() => _includeFixedTags = value),
               ),
             ],
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(context.l10n.common_cancel),
-        ),
-        FilledButton.icon(
-          onPressed: _canCopy ? _copy : null,
-          icon: const Icon(Icons.copy, size: 17),
-          label: Text(context.l10n.common_copy),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 15,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                context.l10n.detail_copyPromptDefaultHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

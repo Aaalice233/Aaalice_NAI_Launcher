@@ -427,8 +427,6 @@ final class LoopbackCloudDriveOAuthClient
         'redirect_uri': redirectUri.toString(),
         'grant_type': 'authorization_code',
       };
-      final clientSecret = _config.clientSecret;
-      if (clientSecret != null) fields['client_secret'] = clientSecret;
       final response = await _transport.postForm(_config.tokenEndpoint, fields);
       return _OAuthTokenResponse.parse(response, now: _clock());
     } on OAuthHttpException catch (error) {
@@ -458,8 +456,6 @@ final class LoopbackCloudDriveOAuthClient
         'grant_type': 'refresh_token',
         'scope': _config.scopes.join(' '),
       };
-      final clientSecret = _config.clientSecret;
-      if (clientSecret != null) fields['client_secret'] = clientSecret;
       final json = await _transport.postForm(_config.tokenEndpoint, fields);
       final response = _OAuthTokenResponse.parse(
         json,
@@ -597,10 +593,6 @@ final class LoopbackCloudDriveOAuthClient
 
   CloudDriveOAuthException _mapHttpError(OAuthHttpException error) {
     var description = error.description?.replaceAll(RegExp(r'[\r\n]+'), ' ');
-    final clientSecret = _config.clientSecret;
-    if (description != null && clientSecret != null) {
-      description = description.replaceAll(clientSecret, '[redacted]');
-    }
     if (description != null && description.length > 300) {
       description = '${description.substring(0, 300)}…';
     }

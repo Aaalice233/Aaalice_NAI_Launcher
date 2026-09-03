@@ -19,6 +19,8 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_generation_service.dart';
 
+import '../../../helpers/image_pixel_matchers.dart';
+
 void main() {
   test(
     'encodes generation payloads with the official multipart layout',
@@ -587,7 +589,11 @@ void main() {
       expect(display.getPixel(128, 128).r.toInt(), greaterThan(190));
       expect(patch.getPixel(0, 0).a.toInt(), equals(0));
       expect(patch.getPixel(128, 128).a.toInt(), equals(255));
-      _expectSameImagePixels(reconstructed, display);
+      expectPixelsWithin(
+        reconstructed,
+        display,
+        tolerance: inpaintQuantizationTolerance,
+      );
     },
   );
 
@@ -1279,36 +1285,6 @@ class _PendingRequest {
         },
       ),
     );
-  }
-}
-
-void _expectSameImagePixels(img.Image actual, img.Image expected) {
-  expect((actual.width, actual.height), (expected.width, expected.height));
-  // image's integer source-over path can differ from rounded replacement
-  // compositing by up to two RGB levels; alpha remains an exact contract.
-  const maxRgbQuantizationDelta = 2;
-  for (var y = 0; y < actual.height; y++) {
-    for (var x = 0; x < actual.width; x++) {
-      final a = actual.getPixel(x, y);
-      final b = expected.getPixel(x, y);
-      final reason = 'Pixel mismatch at $x,$y';
-      expect(
-        (a.r.toInt() - b.r.toInt()).abs(),
-        lessThanOrEqualTo(maxRgbQuantizationDelta),
-        reason: reason,
-      );
-      expect(
-        (a.g.toInt() - b.g.toInt()).abs(),
-        lessThanOrEqualTo(maxRgbQuantizationDelta),
-        reason: reason,
-      );
-      expect(
-        (a.b.toInt() - b.b.toInt()).abs(),
-        lessThanOrEqualTo(maxRgbQuantizationDelta),
-        reason: reason,
-      );
-      expect(a.a.toInt(), b.a.toInt(), reason: reason);
-    }
   }
 }
 

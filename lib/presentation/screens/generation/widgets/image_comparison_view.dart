@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 
 /// Synchronized before/after image comparison with a draggable divider.
@@ -136,7 +137,15 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
     final colors = Theme.of(context).colorScheme;
     final inverseScale = scale <= 0 ? 1.0 : 1 / scale;
     final lineWidth = _dividerLineWidth * inverseScale;
-    final hitWidth = (_dividerHitWidth * inverseScale).clamp(0.0, width);
+    final interactionPolicy = context.interactionPolicy;
+    final paintedHitWidth =
+        interactionPolicy.prefersTouchPresentation &&
+            _dividerHitWidth < interactionPolicy.minimumControlExtent
+        ? interactionPolicy.minimumControlExtent
+        : _dividerHitWidth;
+    // This subtree is scaled by InteractiveViewer, so inverse-scale the local
+    // hit box to preserve the required physical touch target.
+    final hitWidth = (paintedHitWidth * inverseScale).clamp(0.0, width);
     final dividerX = width * _position;
     final hitLeft = (dividerX - hitWidth / 2).clamp(
       0.0,

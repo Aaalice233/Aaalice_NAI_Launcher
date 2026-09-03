@@ -132,6 +132,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
   final ManualInpaintDraftListener? _onDraftChanged;
   final ManualInpaintAnlasEstimator _estimateAnlas;
   final Map<String, ManualInpaintEditorSession> _sessions = {};
+  final Map<String, Future<void>> _editorObservers = {};
   final Map<String, String> _draftSessionIds = {};
   ManualInpaintResourceLoader? _resourceLoader;
   ManualInpaintPanelHandoff? _panelHandoff;
@@ -300,7 +301,8 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
     } on Object catch (error) {
       return agentToolError('cancel_failed', '$error');
     }
-    _sessions[id]?.close();
+    _sessions.remove(id)?.close();
+    await _editorObservers[id];
     return agentToolJsonResult({
       'ok': true,
       'draft': manualInpaintDraftJson(draft),
@@ -315,13 +317,14 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
       final source = await _repository.readSource(editing.id);
       final mask = await _repository.readMask(editing.id);
       _sessions.remove(editing.id)?.close();
+      await _editorObservers[editing.id];
       final session = (_editorLauncher ?? _openEditor)(
         editing.id,
         source,
         mask,
       );
       _sessions[editing.id] = session;
-      unawaited(_observeEditor(editing.id, source, session.result));
+      _startObservingEditor(editing.id, source, session.result);
       return agentToolJsonResult({
         'ok': true,
         'draft': manualInpaintDraftJson(editing),
@@ -455,7 +458,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
         null,
       );
       _sessions[editing.id] = session;
-      unawaited(_observeEditor(editing.id, source, session.result));
+      _startObservingEditor(editing.id, source, session.result);
       return agentToolJsonResult({
         'ok': true,
         'draft': manualInpaintDraftJson(editing),
@@ -471,6 +474,22 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
       }
       return agentToolError('create_failed', '$error');
     }
+  }
+
+  void _startObservingEditor(
+    String id,
+    Uint8List originalSource,
+    Future<ImageEditorResult?> resultFuture,
+  ) {
+    final observation = _observeEditor(id, originalSource, resultFuture);
+    _editorObservers[id] = observation;
+    unawaited(
+      observation.whenComplete(() {
+        if (identical(_editorObservers[id], observation)) {
+          _editorObservers.remove(id);
+        }
+      }),
+    );
   }
 
   Future<void> _observeEditor(

@@ -155,10 +155,13 @@ class _ThirdPartyApiLoginCardState
           FilledButton.icon(
             onPressed: authState.isLoading ? null : _handleLogin,
             icon: authState.isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(
+                      value: MediaQuery.disableAnimationsOf(context)
+                          ? 0.75
+                          : null,
                       strokeWidth: 2,
                       color: Colors.white,
                     ),

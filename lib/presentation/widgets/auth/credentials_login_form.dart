@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../common/floating_label_input.dart';
@@ -109,22 +110,58 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           const SizedBox(height: 16),
 
           // 自动登录开关
-          Row(
-            children: [
-              ThemedCheckbox(
-                value: ref.watch(autoLoginProvider),
-                onChanged: (value) {
-                  ref.read(authModeNotifierProvider.notifier).toggleAutoLogin();
-                },
-              ),
-              const SizedBox(width: 8),
-              Text(context.l10n.auth_autoLogin),
-              const Spacer(),
-              TextButton(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final interactionPolicy = context.interactionPolicy;
+              final useStackedLayout =
+                  constraints.maxWidth < 360 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 2;
+              final autoLoginControl = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ThemedCheckbox(
+                    key: const Key('credentials_auto_login_checkbox'),
+                    value: ref.watch(autoLoginProvider),
+                    onChanged: (value) {
+                      ref
+                          .read(authModeNotifierProvider.notifier)
+                          .toggleAutoLogin();
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(child: Text(context.l10n.auth_autoLogin)),
+                ],
+              );
+              final forgotPasswordButton = TextButton(
+                key: const Key('credentials_forgot_password'),
                 onPressed: _openPasswordReset,
+                style: TextButton.styleFrom(
+                  minimumSize: Size(0, interactionPolicy.minimumControlExtent),
+                ),
                 child: Text(context.l10n.auth_forgotPassword),
-              ),
-            ],
+              );
+
+              if (useStackedLayout) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    autoLoginControl,
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: forgotPasswordButton,
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: autoLoginControl),
+                  const SizedBox(width: 8),
+                  forgotPasswordButton,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 24),
 
@@ -141,10 +178,13 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                 ),
               ),
               child: isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 24,
                       height: 24,
                       child: CircularProgressIndicator(
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.75
+                            : null,
                         strokeWidth: 2,
                         color: Colors.white,
                       ),

@@ -212,6 +212,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _controller.setReducedMotion(MediaQuery.disableAnimationsOf(context));
     _controller.scheduleCompletedImagePrecache(context);
   }
 

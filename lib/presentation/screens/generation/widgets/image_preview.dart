@@ -29,6 +29,7 @@ import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../providers/generation/generation_error_classifier.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
+import '../../../providers/generation/generation_view_state_provider.dart';
 import '../../../providers/generation/preview_selection_provider.dart';
 import '../../../providers/history_click_behavior_provider.dart';
 import '../../../providers/character_position_canvas_provider.dart';
@@ -117,13 +118,30 @@ class PreviewNavShortcuts extends ConsumerWidget {
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({super.key});
 
+  /// Resolves a grid that never squeezes preview cards below their usable size.
+  @visibleForTesting
+  static int resolveGridColumnCount(int imageCount, double availableWidth) {
+    const minCardWidth = 150.0;
+    const spacing = 12.0;
+    const horizontalPadding = 16.0;
+    final idealColumns = imageCount <= 4
+        ? 2
+        : imageCount <= 6
+        ? 3
+        : 4;
+    final usableWidth = max(0.0, availableWidth - horizontalPadding);
+    final fittingColumns = max(
+      1,
+      ((usableWidth + spacing) / (minCardWidth + spacing)).floor(),
+    );
+    return min(idealColumns, fittingColumns);
+  }
+
   @override
   ConsumerState<ImagePreviewWidget> createState() => _ImagePreviewWidgetState();
 }
 
 class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
-  bool _comparisonEnabled = false;
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(imageGenerationNotifierProvider);
@@ -221,47 +239,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     return _buildEmptyState(theme, context);
   }
 
-  /// 计算自适应列数（基于可用宽度和最小/最大卡片尺寸）
-  int _calculateColumnCount(int imageCount, double availableWidth) {
-    // 最小卡片宽度: 150px，最大卡片宽度: 280px
-    const minCardWidth = 150.0;
-    const maxCardWidth = 280.0;
-    const spacing = 12.0;
-
-    // 计算基于图片数量的理想列数
-    int idealColumns;
-    if (imageCount <= 2) {
-      idealColumns = 2;
-    } else if (imageCount <= 4) {
-      idealColumns = 2;
-    } else if (imageCount <= 6) {
-      idealColumns = 3;
-    } else {
-      idealColumns = 4;
-    }
-
-    // 根据可用宽度调整列数，确保卡片尺寸在合理范围内
-    // 计算每种列数下的卡片宽度
-    for (int cols = idealColumns; cols >= 2; cols--) {
-      final cardWidth =
-          (availableWidth - spacing * (cols - 1) - 16) / cols; // 16 = padding
-      if (cardWidth >= minCardWidth && cardWidth <= maxCardWidth) {
-        return cols;
-      }
-    }
-
-    // 如果空间不足，尝试更多列数
-    for (int cols = idealColumns + 1; cols <= 6; cols++) {
-      final cardWidth = (availableWidth - spacing * (cols - 1) - 16) / cols;
-      if (cardWidth >= minCardWidth) {
-        return cols;
-      }
-    }
-
-    // 回退到理想列数
-    return idealColumns;
-  }
-
   List<StreamPreviewSlot> _visibleStreamPreviewSlots(
     ImageGenerationState state,
   ) {
@@ -306,7 +283,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = _calculateColumnCount(
+        final crossAxisCount = ImagePreviewWidget.resolveGridColumnCount(
           images.length,
           constraints.maxWidth,
         );
@@ -352,7 +329,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = _calculateColumnCount(
+        final crossAxisCount = ImagePreviewWidget.resolveGridColumnCount(
           totalItems,
           constraints.maxWidth,
         );
@@ -600,14 +577,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   ) {
     const gap = 8.0;
     final comparisonAvailable = image.canCompareWithSource;
-    final comparisonEnabled = comparisonAvailable && _comparisonEnabled;
+    final comparisonEnabled =
+        comparisonAvailable && ref.watch(generationComparisonEnabledProvider);
 
     // 信息条紧贴图片下沿并与图片左对齐（官网 bottom.start 口径），
     // 因此先扣掉信息条高度再按比例算卡片尺寸，避免二者互相挤压。
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableHeight = constraints.maxHeight.isFinite
-            ? max(0.0, constraints.maxHeight - PreviewInfoBar.barHeight - gap)
+            ? max(
+                0.0,
+                constraints.maxHeight - PreviewInfoBar.heightFor(context) - gap,
+              )
             : constraints.maxHeight;
         final cardSize = _fitAspectRatio(
           aspectRatio: image.aspectRatio,
@@ -638,7 +619,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                   comparisonEnabled: comparisonEnabled,
                   onComparisonChanged: comparisonAvailable
                       ? (enabled) =>
-                            setState(() => _comparisonEnabled = enabled)
+                            ref
+                                    .read(
+                                      generationComparisonEnabledProvider
+                                          .notifier,
+                                    )
+                                    .state =
+                                enabled
                       : null,
                 ),
               ),

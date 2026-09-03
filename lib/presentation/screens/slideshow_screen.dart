@@ -4,9 +4,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/local_image_record.dart';
+import '../adaptive/adaptive_layout.dart';
+import '../adaptive/interaction_policy.dart';
+import '../router/app_routes.dart';
 
 const int _maxSlideshowImageDimension = 4096;
 
@@ -49,7 +53,9 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex.clamp(0, widget.images.length - 1);
+    _currentIndex = widget.images.isEmpty
+        ? 0
+        : widget.initialIndex.clamp(0, widget.images.length - 1);
     _focusNode = FocusNode();
 
     // 请求焦点以接收键盘事件
@@ -155,27 +161,9 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
 
     // 无图片时显示提示
     if (widget.images.isEmpty) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.image_not_supported,
-                size: 64,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                l10n.slideshow_noImages,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return _SlideshowEmptyScreen(
+        iconColor: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+        title: l10n.slideshow_noImages,
       );
     }
 
@@ -186,177 +174,270 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: Stack(
-          children: [
-            // 主图片显示区域
-            Center(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Image(
-                  image: buildSlideshowImageProvider(currentImage.path),
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: theme.colorScheme.surface,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline, size: 64),
-                          const SizedBox(height: 16),
-                          Text(
-                            l10n.localGallery_progressiveLoadError,
-                            style: theme.textTheme.bodyLarge,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              // 主图片显示区域
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Image(
+                    image: buildSlideshowImageProvider(currentImage.path),
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: theme.colorScheme.surface,
+                        child: SingleChildScrollView(
+                          key: const ValueKey(
+                            'slideshow_load_error_scroll_view',
                           ),
-                        ],
-                      ),
-                    );
-                  },
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.error_outline, size: 64),
+                              const SizedBox(height: 16),
+                              Text(
+                                l10n.localGallery_progressiveLoadError,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyLarge,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
 
-            // 顶部信息栏
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.7),
-                      Colors.transparent,
+              // 顶部信息栏
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.7),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // 图片计数
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withValues(
+                              alpha: 0.8,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            '${_currentIndex + 1} ${l10n.slideshow_of} ${widget.images.length}',
+                            softWrap: true,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 退出按钮
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        tooltip: l10n.slideshow_exit,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
                     ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    // 图片计数
-                    Container(
+              ),
+
+              // 底部控制栏
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.7),
+                      ],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // 上一张按钮
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_back_ios,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        tooltip: l10n.slideshow_previous,
+                        onPressed: _previousImage,
+                      ),
+                      const Spacer(),
+                      // 播放/暂停按钮
+                      IconButton(
+                        icon: Icon(
+                          _isPlaying ? Icons.pause : Icons.play_arrow,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        tooltip: _isPlaying
+                            ? l10n.slideshow_pause
+                            : l10n.slideshow_play,
+                        onPressed: _toggleAutoPlay,
+                      ),
+                      const Spacer(),
+                      // 下一张按钮
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_forward_ios,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        tooltip: l10n.slideshow_next,
+                        onPressed: _nextImage,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // 精确指针环境保留键盘加速提示，触屏主操作始终在底栏可达。
+              if (context.interactionPolicy.precisePointerAvailable)
+                Positioned(
+                  bottom: 80,
+                  left: 16,
+                  right: 16,
+                  child: Center(
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 16,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '${_currentIndex + 1} ${l10n.slideshow_of} ${widget.images.length}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
+                        l10n.slideshow_keyboardHint,
+                        textAlign: TextAlign.center,
+                        softWrap: true,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    const Spacer(),
-                    // 退出按钮
-                    IconButton(
-                      icon: Icon(
-                        Icons.close,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      tooltip: l10n.slideshow_exit,
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 底部控制栏
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.7),
-                    ],
                   ),
                 ),
-                child: Row(
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SlideshowEmptyScreen extends StatelessWidget {
+  const _SlideshowEmptyScreen({required this.iconColor, required this.title});
+
+  final Color iconColor;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: AdaptiveSlotLayout(
+          builder: (context, areas) => SingleChildScrollView(
+            key: const ValueKey('slideshow_empty_scroll_view'),
+            padding: EdgeInsets.symmetric(
+              horizontal: areas.horizontalPadding,
+              vertical: 24,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: (areas.constraints.maxHeight - 48)
+                    .clamp(0.0, double.infinity)
+                    .toDouble(),
+              ),
+              child: AdaptiveContentBounds(
+                maxWidth: 640,
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // 上一张按钮
-                    IconButton(
-                      icon: Icon(
-                        Icons.arrow_back_ios,
+                    Icon(Icons.image_not_supported, size: 64, color: iconColor),
+                    const SizedBox(height: 16),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleLarge?.copyWith(
                         color: theme.colorScheme.onSurface,
                       ),
-                      tooltip: l10n.slideshow_previous,
-                      onPressed: _previousImage,
                     ),
-                    const Spacer(),
-                    // 播放/暂停按钮
-                    IconButton(
-                      icon: Icon(
-                        _isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      tooltip: _isPlaying
-                          ? l10n.slideshow_pause
-                          : l10n.slideshow_play,
-                      onPressed: _toggleAutoPlay,
-                    ),
-                    const Spacer(),
-                    // 下一张按钮
-                    IconButton(
-                      icon: Icon(
-                        Icons.arrow_forward_ios,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      tooltip: l10n.slideshow_next,
-                      onPressed: _nextImage,
+                    const SizedBox(height: 24),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        TextButton.icon(
+                          key: const ValueKey('slideshow_back'),
+                          onPressed: () {
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            } else {
+                              context.go(AppRoutes.localGallery);
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_back),
+                          label: Text(context.l10n.editor_back),
+                        ),
+                        FilledButton.icon(
+                          key: const ValueKey('slideshow_home'),
+                          onPressed: () => context.go(AppRoutes.home),
+                          icon: const Icon(Icons.home_outlined),
+                          label: Text(
+                            context.l10n.shortcut_action_send_to_home,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
-
-            // 键盘提示（仅在桌面端显示）
-            if (Theme.of(context).platform == TargetPlatform.windows ||
-                Theme.of(context).platform == TargetPlatform.macOS ||
-                Theme.of(context).platform == TargetPlatform.linux)
-              Positioned(
-                bottom: 80,
-                left: 16,
-                right: 16,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      l10n.slideshow_keyboardHint,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );

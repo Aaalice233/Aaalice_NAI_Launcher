@@ -79,6 +79,17 @@ class VibeLibraryState with _$VibeLibraryState {
           orElse: () => null,
         );
   int get favoriteCount => entries.where((entry) => entry.isFavorite).length;
+  Map<String, int> get categoryEntryCounts {
+    final counts = <String, int>{};
+    for (final entry in entries) {
+      final categoryId = entry.categoryId;
+      if (categoryId != null) {
+        counts.update(categoryId, (count) => count + 1, ifAbsent: () => 1);
+      }
+    }
+    return counts;
+  }
+
   Set<String> get allTags => {for (final entry in entries) ...entry.tags};
 }
 

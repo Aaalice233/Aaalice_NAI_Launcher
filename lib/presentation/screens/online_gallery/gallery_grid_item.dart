@@ -213,13 +213,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
             );
           }
           if (_detailFuture == null) {
-            return const AspectRatio(
-              aspectRatio: 1,
-              child: ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(8)),
-                child: OnlineGalleryImagePlaceholder(loading: true),
-              ),
-            );
+            return _buildDeferredCard(layoutAspectRatio);
           }
           return FutureBuilder<GalleryDetail>(
             key: ValueKey((post.detailStableKey, widget.detailRequestScope)),
@@ -229,16 +223,13 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
                 final error = snapshot.error;
                 if (error is DioException &&
                     error.type == DioExceptionType.cancel) {
-                  return const AspectRatio(
-                    aspectRatio: 1,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.all(Radius.circular(8)),
-                      child: OnlineGalleryImagePlaceholder(loading: true),
-                    ),
-                  );
+                  return _buildDeferredCard(layoutAspectRatio);
                 }
-                return AspectRatio(
-                  aspectRatio: 1,
+                return SizedBox(
+                  height: (widget.itemWidth / layoutAspectRatio).clamp(
+                    80.0,
+                    widget.itemWidth * 2.5,
+                  ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerLow,
@@ -257,22 +248,12 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
               final detail = snapshot.data;
               final resolved = detail?.item;
               if (resolved == null) {
-                return const AspectRatio(
-                  aspectRatio: 1,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.all(Radius.circular(8)),
-                    child: OnlineGalleryImagePlaceholder(loading: true),
-                  ),
-                );
+                return _buildDeferredCard(layoutAspectRatio);
               }
-              final resolvedAspectRatio =
-                  resolved.width > 0 && resolved.height > 0
-                  ? resolved.width / resolved.height
-                  : layoutAspectRatio;
               return _buildResourceCard(
                 context,
                 resolved,
-                resolvedAspectRatio,
+                layoutAspectRatio,
                 loadMedia: hasBeenVisible,
                 mediaRequestActive: hasBeenVisible,
                 detail: detail,

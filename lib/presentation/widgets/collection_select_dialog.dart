@@ -4,6 +4,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/gallery/image_collection.dart';
+import '../adaptive/adaptive_presenter.dart';
 import '../providers/collection_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -23,19 +24,40 @@ class CollectionSelectResult {
 /// 用于选择一个集合以添加图片
 class CollectionSelectDialog extends ConsumerStatefulWidget {
   final ThemeData theme;
+  final ScrollController? scrollController;
 
-  const CollectionSelectDialog({super.key, required this.theme});
+  const CollectionSelectDialog({
+    super.key,
+    required this.theme,
+    this.scrollController,
+  });
 
-  /// 显示集合选择对话框
+  /// 显示集合选择面板。
   ///
-  /// 返回选中的集合ID，如果取消则返回null
+  /// 返回选中的集合ID，如果取消则返回null。
   static Future<CollectionSelectResult?> show(
     BuildContext context, {
     required ThemeData theme,
   }) {
-    return showDialog<CollectionSelectResult>(
+    final mediaQuery = MediaQuery.of(context);
+    final effectiveTextScale = mediaQuery.textScaler.scale(16) / 16;
+    final availableHeight =
+        mediaQuery.size.height -
+        mediaQuery.padding.vertical -
+        mediaQuery.viewInsets.vertical;
+    final needsTallPanel = effectiveTextScale > 1.5 || availableHeight < 500;
+
+    return AdaptivePresenter.showPanel<CollectionSelectResult>(
       context: context,
-      builder: (context) => CollectionSelectDialog(theme: theme),
+      title: context.l10n.collectionSelect_dialogTitle,
+      initialChildSize: needsTallPanel ? 0.93 : 0.72,
+      minChildSize: needsTallPanel ? 0.72 : 0.46,
+      maxChildSize: 0.94,
+      sideSheetWidth: 450,
+      builder: (panelContext, scrollController) => CollectionSelectDialog(
+        theme: theme,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -101,21 +123,17 @@ class _CollectionSelectDialogState
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final l10n = context.l10n;
-
-    // 监听集合状态
     final collectionState = ref.watch(collectionNotifierProvider);
-    final collections = collectionState.collections;
-    final isLoading = collectionState.isLoading;
 
-    return AlertDialog(
-      title: Text(l10n.collectionSelect_dialogTitle),
-      content: SizedBox(
-        width: 450,
-        height: 500,
-        child: Column(
-          children: [
-            // 搜索框
-            ThemedInput(
+    return CustomScrollView(
+      key: const Key('collection-select-scroll'),
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          sliver: SliverToBoxAdapter(
+            child: ThemedInput(
               controller: _filterController,
               decoration: InputDecoration(
                 hintText: l10n.collectionSelect_filterHint,
@@ -123,9 +141,7 @@ class _CollectionSelectDialogState
                 suffixIcon: _filterQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _filterController.clear();
-                        },
+                        onPressed: _filterController.clear,
                       )
                     : null,
                 contentPadding: const EdgeInsets.symmetric(
@@ -134,96 +150,125 @@ class _CollectionSelectDialogState
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            // 集合列表
-            Expanded(
-              child: _buildCollectionList(theme, l10n, collections, isLoading),
-            ),
-          ],
+          ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
+        ..._buildCollectionSlivers(
+          theme,
+          l10n,
+          collectionState.collections,
+          collectionState.isLoading,
+        ),
+        SliverSafeArea(
+          top: false,
+          sliver: SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            sliver: SliverToBoxAdapter(
+              child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.common_cancel),
+                ),
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  /// 构建集合列表
-  Widget _buildCollectionList(
+  List<Widget> _buildCollectionSlivers(
     ThemeData theme,
     AppLocalizations l10n,
     List<ImageCollection> collections,
     bool isLoading,
   ) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return [
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 120,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
+              ),
+            ),
+          ),
+        ),
+      ];
     }
 
     final filteredCollections = _getFilteredCollections(collections);
 
     if (collections.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.folder_outlined,
-              size: 48,
-              color: theme.colorScheme.outline,
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.folder_outlined,
+                  size: 48,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.collectionSelect_noCollections,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.collectionSelect_createCollectionHint,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.collectionSelect_noCollections,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.collectionSelect_createCollectionHint,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+          ),
         ),
-      );
+      ];
     }
 
     if (filteredCollections.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.search_off_outlined,
-              size: 48,
-              color: theme.colorScheme.outline,
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.search_off_outlined,
+                  size: 48,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.collectionSelect_noFilterResults,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.collectionSelect_noFilterResults,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+      ];
     }
 
-    return ListView.builder(
-      itemCount: filteredCollections.length,
-      itemBuilder: (context, index) {
-        final collection = filteredCollections[index];
-        return _buildCollectionTile(theme, l10n, collection);
-      },
-    );
+    return [
+      SliverList.builder(
+        itemCount: filteredCollections.length,
+        itemBuilder: (context, index) =>
+            _buildCollectionTile(theme, l10n, filteredCollections[index]),
+      ),
+    ];
   }
 
   /// 构建集合列表项

@@ -14,13 +14,17 @@ import '../../providers/random_mode_provider.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../themes/core/input_surface_style.dart';
+import '../../themes/core/layered_surface_style.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/prompt/diy/dialogs/preset_import_dialog.dart';
 import '../../widgets/prompt/global_settings_dialog.dart';
 import '../../widgets/prompt/random_manager/algorithm_config_card.dart';
-import '../../widgets/prompt/random_manager/category_card.dart';
+import '../../widgets/prompt/random_manager/category_card_list.dart';
 import '../../widgets/prompt/random_manager/preset_selector_bar.dart';
 import '../../widgets/prompt/random_manager/preview_generator_panel.dart';
+import 'prompt_source_details_dialog.dart';
+
+export 'prompt_source_details_dialog.dart' show PromptSourceDetailsDialog;
 
 class PromptConfigScreen extends ConsumerStatefulWidget {
   const PromptConfigScreen({super.key});
@@ -32,13 +36,15 @@ class PromptConfigScreen extends ConsumerStatefulWidget {
 class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
-  bool _showPreview = false;
+  final _previewController = PreviewGeneratorController();
   String _query = '';
+  int _compactSection = 0;
 
   @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _previewController.dispose();
     super.dispose();
   }
 
@@ -64,7 +70,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             onInvoke: (_) => _searchFocusNode.requestFocus(),
           ),
           _PreviewIntent: CallbackAction<_PreviewIntent>(
-            onInvoke: (_) => setState(() => _showPreview = true),
+            onInvoke: (_) => _previewController.generate(),
           ),
         },
         child: Focus(
@@ -74,11 +80,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             body: SafeArea(
               child: Column(
                 children: [
-                  _StudioHeader(
-                    onGeneratePreview: () =>
-                        setState(() => _showPreview = true),
-                    onImportExport: _showImportExportActions,
-                  ),
+                  _StudioHeader(onImportExport: _showImportExportActions),
                   Expanded(
                     child: _buildBody(
                       presetState: presetState,
@@ -118,26 +120,30 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= 1050) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _RecipeWorkspace(
-                  libraryState: libraryState,
-                  query: _query,
-                  searchController: _searchController,
-                  searchFocusNode: _searchFocusNode,
-                  onQueryChanged: _updateQuery,
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        if (useExpandedPromptConfigLayout(constraints.maxWidth, textScale)) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _RecipeWorkspace(
+                    libraryState: libraryState,
+                    query: _query,
+                    searchController: _searchController,
+                    searchFocusNode: _searchFocusNode,
+                    onQueryChanged: _updateQuery,
+                  ),
                 ),
-              ),
-              _InspectorPanel(
-                width: constraints.maxWidth >= 1500 ? 420 : 370,
-                showPreview: _showPreview,
-                onGlobalSettings: _showGlobalSettings,
-                onClosePreview: () => setState(() => _showPreview = false),
-              ),
-            ],
+                const SizedBox(width: 16),
+                _InspectorPanel(
+                  width: constraints.maxWidth >= 1500 ? 420 : 370,
+                  onGlobalSettings: _showGlobalSettings,
+                  previewController: _previewController,
+                ),
+              ],
+            ),
           );
         }
 
@@ -147,9 +153,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           searchController: _searchController,
           searchFocusNode: _searchFocusNode,
           onQueryChanged: _updateQuery,
-          showPreview: _showPreview,
           onGlobalSettings: _showGlobalSettings,
-          onClosePreview: () => setState(() => _showPreview = false),
+          previewController: _previewController,
+          selectedSection: _compactSection,
+          onSectionSelected: (value) => setState(() => _compactSection = value),
         );
       },
     );
@@ -171,16 +178,18 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       maxChildSize: 0.62,
       builder: (context, scrollController) => ListView(
         controller: scrollController,
+        padding: const EdgeInsets.all(16),
         children: [
-          ListTile(
-            leading: const Icon(Icons.download_rounded),
+          _ImportExportActionCard(
+            icon: Icons.download_rounded,
             title: Text(context.l10n.randomManager_importPreset),
             subtitle: Text(context.l10n.randomManager_importPresetSubtitle),
             onTap: () => Navigator.pop(context, 'import'),
           ),
-          ListTile(
+          const SizedBox(height: 10),
+          _ImportExportActionCard(
             enabled: selectedPreset != null,
-            leading: const Icon(Icons.upload_rounded),
+            icon: Icons.upload_rounded,
             title: Text(context.l10n.randomManager_exportCurrentPreset),
             subtitle: Text(
               selectedPreset?.name ??
@@ -236,49 +245,114 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   }
 }
 
-class _StudioHeader extends StatelessWidget {
-  const _StudioHeader({
-    required this.onGeneratePreview,
-    required this.onImportExport,
+class _ImportExportActionCard extends StatelessWidget {
+  const _ImportExportActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.enabled = true,
   });
 
-  final VoidCallback onGeneratePreview;
+  final IconData icon;
+  final Widget title;
+  final Widget subtitle;
+  final VoidCallback? onTap;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: Material(
+        color: sectionSurfaceColor(colors),
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: controlSurfaceColor(colors),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 21),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DefaultTextStyle.merge(
+                        style: Theme.of(context).textTheme.titleSmall,
+                        child: title,
+                      ),
+                      const SizedBox(height: 3),
+                      DefaultTextStyle.merge(
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                        child: subtitle,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: colors.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StudioHeader extends StatelessWidget {
+  const _StudioHeader({required this.onImportExport});
+
   final VoidCallback onImportExport;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     return Container(
-      constraints: const BoxConstraints(minHeight: 72),
-      color: colors.surfaceContainerLow,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      constraints: const BoxConstraints(minHeight: 56),
+      color: sectionSurfaceColor(colors),
+      padding: EdgeInsets.symmetric(
+        horizontal: textScale > 1.5 ? 12 : 20,
+        vertical: 8,
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 840;
-          final title = Column(
+          final compact = constraints.maxWidth < 840 || textScale > 1.5;
+          final title = Row(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Icon(Icons.casino_outlined, size: 22, color: colors.primary),
+              const SizedBox(width: 10),
               Text(
                 context.l10n.randomManager_workspaceTitle,
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (!compact)
-                Text(
-                  context.l10n.randomManager_workspaceSubtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
             ],
           );
 
           if (compact) {
             return PresetSelectorBar(
-              onGeneratePreview: onGeneratePreview,
               onImportExport: onImportExport,
               showWorkspaceHeading: true,
             );
@@ -288,10 +362,7 @@ class _StudioHeader extends StatelessWidget {
               SizedBox(width: 220, child: title),
               const SizedBox(width: 24),
               Expanded(
-                child: PresetSelectorBar(
-                  onGeneratePreview: onGeneratePreview,
-                  onImportExport: onImportExport,
-                ),
+                child: PresetSelectorBar(onImportExport: onImportExport),
               ),
             ],
           );
@@ -318,22 +389,14 @@ class _RecipeWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _RecipeHeading(libraryState: libraryState),
-          const SizedBox(height: 16),
-          _LibrarySearchField(
-            query: query,
-            controller: searchController,
-            focusNode: searchFocusNode,
-            onChanged: onQueryChanged,
-          ),
-          const SizedBox(height: 18),
-          Expanded(child: CategoryCardList(query: query)),
-        ],
+    return CategoryCardList(
+      query: query,
+      overviewHeader: _RecipeOverviewHeader(
+        libraryState: libraryState,
+        query: query,
+        searchController: searchController,
+        searchFocusNode: searchFocusNode,
+        onQueryChanged: onQueryChanged,
       ),
     );
   }
@@ -346,9 +409,10 @@ class _CompactWorkspace extends StatelessWidget {
     required this.searchController,
     required this.searchFocusNode,
     required this.onQueryChanged,
-    required this.showPreview,
     required this.onGlobalSettings,
-    required this.onClosePreview,
+    required this.previewController,
+    required this.selectedSection,
+    required this.onSectionSelected,
   });
 
   final TagLibraryState libraryState;
@@ -356,45 +420,73 @@ class _CompactWorkspace extends StatelessWidget {
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
   final ValueChanged<String> onQueryChanged;
-  final bool showPreview;
   final VoidCallback onGlobalSettings;
-  final VoidCallback onClosePreview;
+  final PreviewGeneratorController previewController;
+  final int selectedSection;
+  final ValueChanged<int> onSectionSelected;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-      children: [
-        _RecipeHeading(libraryState: libraryState),
-        const SizedBox(height: 14),
-        _LibrarySearchField(
+    final pages = <Widget>[
+      CategoryCardList(
+        query: query,
+        overviewHeader: _RecipeOverviewHeader(
+          libraryState: libraryState,
           query: query,
-          controller: searchController,
-          focusNode: searchFocusNode,
-          onChanged: onQueryChanged,
+          searchController: searchController,
+          searchFocusNode: searchFocusNode,
+          onQueryChanged: onQueryChanged,
           showShortcutHint: false,
         ),
-        const SizedBox(height: 16),
-        const AlgorithmConfigCard(),
-        const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.tonalIcon(
-            onPressed: onGlobalSettings,
-            icon: const Icon(Icons.people_outline_rounded),
-            label: Text(context.l10n.randomManager_globalPeopleSettings),
+      ),
+      ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+        children: [
+          PreviewGeneratorPanel(controller: previewController, inline: true),
+        ],
+      ),
+      ListView(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+        children: [AlgorithmConfigCard(onGlobalSettings: onGlobalSettings)],
+      ),
+    ];
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          child: SegmentedButton<int>(
+            key: const ValueKey('random-manager-compact-sections'),
+            segments: [
+              ButtonSegment(
+                value: 0,
+                icon: const Icon(Icons.layers_outlined, size: 17),
+                label: Text(context.l10n.randomManager_recipeTitle),
+              ),
+              ButtonSegment(
+                value: 1,
+                icon: const Icon(Icons.preview_outlined, size: 17),
+                label: Text(context.l10n.randomManager_previewGeneration),
+              ),
+              ButtonSegment(
+                value: 2,
+                icon: const Icon(Icons.tune_rounded, size: 17),
+                label: Text(context.l10n.randomManager_inspectorTitle),
+              ),
+            ],
+            selected: {selectedSection},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) =>
+                onSectionSelected(selection.first),
+            style: const ButtonStyle(
+              visualDensity: VisualDensity(horizontal: -2, vertical: -1),
+            ),
           ),
         ),
-        if (showPreview) ...[
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 360,
-            child: _PreviewSection(onClose: onClosePreview),
-          ),
-        ],
-        const SizedBox(height: 22),
-        CategoryCardList(query: query, shrinkWrap: true),
+        const SizedBox(height: 2),
+        Expanded(
+          child: IndexedStack(index: selectedSection, children: pages),
+        ),
       ],
     );
   }
@@ -403,55 +495,87 @@ class _CompactWorkspace extends StatelessWidget {
 class _InspectorPanel extends StatelessWidget {
   const _InspectorPanel({
     required this.width,
-    required this.showPreview,
     required this.onGlobalSettings,
-    required this.onClosePreview,
+    required this.previewController,
   });
 
   final double width;
-  final bool showPreview;
   final VoidCallback onGlobalSettings;
-  final VoidCallback onClosePreview;
+  final PreviewGeneratorController previewController;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Container(
+    return SizedBox(
       width: width,
-      color: colors.surfaceContainerLow,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 22, 18, 24),
-        children: [
-          Text(
-            context.l10n.randomManager_inspectorTitle,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            context.l10n.randomManager_inspectorSubtitle,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 18),
-          const AlgorithmConfigCard(),
-          const SizedBox(height: 10),
-          FilledButton.tonalIcon(
-            onPressed: onGlobalSettings,
-            icon: const Icon(Icons.people_outline_rounded),
-            label: Text(context.l10n.randomManager_globalPeopleSettings),
-          ),
-          if (showPreview) ...[
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final setup = <Widget>[
+            AlgorithmConfigCard(onGlobalSettings: onGlobalSettings),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 390,
-              child: _PreviewSection(onClose: onClosePreview),
+          ];
+          if (constraints.maxHeight < 620) {
+            return ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.zero,
+              children: [
+                ...setup,
+                PreviewGeneratorPanel(
+                  controller: previewController,
+                  inline: true,
+                ),
+              ],
+            );
+          }
+          return Padding(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ...setup,
+                Expanded(
+                  child: PreviewGeneratorPanel(controller: previewController),
+                ),
+              ],
             ),
-          ],
-        ],
+          );
+        },
       ),
+    );
+  }
+}
+
+class _RecipeOverviewHeader extends StatelessWidget {
+  const _RecipeOverviewHeader({
+    required this.libraryState,
+    required this.query,
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.onQueryChanged,
+    this.showShortcutHint = true,
+  });
+
+  final TagLibraryState libraryState;
+  final String query;
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final ValueChanged<String> onQueryChanged;
+  final bool showShortcutHint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _RecipeHeading(libraryState: libraryState),
+        const SizedBox(height: 14),
+        _LibrarySearchField(
+          query: query,
+          controller: searchController,
+          focusNode: searchFocusNode,
+          onChanged: onQueryChanged,
+          showShortcutHint: showShortcutHint,
+        ),
+      ],
     );
   }
 }
@@ -471,37 +595,56 @@ class _RecipeHeading extends ConsumerWidget {
     final officialData = mode == RandomGenerationMode.custom
         ? null
         : ref.watch(officialWordlistDataProvider).valueOrNull;
-    return Row(
+    final heading = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.randomManager_recipeTitle,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                context.l10n.randomManager_recipeSubtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-            ],
+        Text(
+          context.l10n.randomManager_recipeTitle,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
         ),
-        if (libraryState.library case final library?)
-          _LibraryStatusButton(
+        const SizedBox(height: 3),
+        Text(
+          context.l10n.randomManager_recipeSubtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    final library = libraryState.library;
+    final status = library == null
+        ? null
+        : _LibraryStatusButton(
             library: library,
             mode: mode,
             profile: profile,
             officialData: officialData,
-          ),
-      ],
+          );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        if (constraints.maxWidth < 600 || textScale > 1.5) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              heading,
+              if (status != null) ...[
+                const SizedBox(height: 8),
+                Align(alignment: Alignment.centerLeft, child: status),
+              ],
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: heading),
+            if (status != null) status,
+          ],
+        );
+      },
     );
   }
 }
@@ -584,19 +727,19 @@ class _LibraryStatusButton extends StatelessWidget {
     final supportedProfile = profile ?? RandomPromptProfile.characterPrompts;
     final officialCount = unsupported
         ? null
-        : _officialProfileCount(supportedProfile);
+        : randomPromptProfileCount(supportedProfile);
     final label = unsupported
         ? context.l10n.randomMode_unsupportedModel
         : switch (mode) {
             RandomGenerationMode.naiOfficial =>
               context.l10n.randomManager_sourceOfficial(
-                _officialProfileName(context, supportedProfile),
+                randomPromptProfileName(context, supportedProfile),
               ),
             RandomGenerationMode.custom =>
               context.l10n.randomManager_sourceCatalog,
             RandomGenerationMode.hybrid =>
               context.l10n.randomManager_sourceHybrid(
-                _officialProfileName(context, supportedProfile),
+                randomPromptProfileName(context, supportedProfile),
               ),
           };
     final count = unsupported
@@ -612,6 +755,7 @@ class _LibraryStatusButton extends StatelessWidget {
           ? context.l10n.randomMode_unsupportedModelHint
           : context.l10n.randomManager_sourceDetails,
       child: InkWell(
+        key: const ValueKey('random-manager-source-status'),
         onTap: unsupported
             ? null
             : () => _showSourceDetails(
@@ -635,8 +779,7 @@ class _LibraryStatusButton extends StatelessWidget {
                 color: unsupported ? colors.error : colors.primary,
               ),
               const SizedBox(width: 7),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 230),
+              Flexible(
                 child: Text(
                   label,
                   maxLines: 1,
@@ -668,154 +811,13 @@ Future<void> _showSourceDetails(
   required RandomGenerationMode mode,
   required RandomPromptProfile profile,
   required OfficialWordlistData? officialData,
-}) {
-  final includesOfficial = mode != RandomGenerationMode.custom;
-  final includesCatalog = mode != RandomGenerationMode.naiOfficial;
-  return showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(context.l10n.randomManager_sourceDetails),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620),
-        child: SelectionArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _SourceDetailRow(
-                label: context.l10n.randomManager_currentMode,
-                value: mode.getName(context.l10n),
-              ),
-              if (includesOfficial) ...[
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_officialWordlist,
-                  value: context.l10n.randomManager_officialWordlistCount(
-                    _officialProfileName(context, profile),
-                    _officialProfileCount(profile),
-                  ),
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_officialAsset,
-                  value: context.l10n.randomManager_officialAssetCount(
-                    officialWordlistTotalEntryCount,
-                    officialWordlistTotalGroupCount,
-                  ),
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceFile,
-                  value: officialData?.sourceFileName ?? '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceSha256,
-                  value: officialData?.sourceSha256 ?? '—',
-                ),
-              ],
-              if (includesCatalog) ...[
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceUrl,
-                  value: library.sourceUrl ?? '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceCommit,
-                  value: library.sourceCommit ?? '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceDate,
-                  value:
-                      library.sourceVersionDate?.toUtc().toIso8601String() ??
-                      '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceLicense,
-                  value: library.sourceLicense ?? '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_catalogExtension,
-                  value: context.l10n.randomManager_catalogCounts(
-                    library.sourceCatalogTagCount ?? 0,
-                    library.sourceCatalogAliasCount ?? 0,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        FilledButton.tonal(
-          onPressed: () => Navigator.pop(context),
-          child: Text(context.l10n.common_close),
-        ),
-      ],
-    ),
-  );
-}
-
-String _officialProfileName(
-  BuildContext context,
-  RandomPromptProfile profile,
-) => switch (profile) {
-  RandomPromptProfile.legacyAnime =>
-    context.l10n.randomManager_wordlistLegacyAnime,
-  RandomPromptProfile.furryV3 => context.l10n.randomManager_wordlistFurryV3,
-  RandomPromptProfile.characterPrompts =>
-    context.l10n.randomManager_wordlistCharacterPrompts,
-};
-
-int _officialProfileCount(RandomPromptProfile profile) =>
-    officialWordlistGeneratorEntryCounts[profile.name]!;
-
-class _SourceDetailRow extends StatelessWidget {
-  const _SourceDetailRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 3),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreviewSection extends StatelessWidget {
-  const _PreviewSection({required this.onClose});
-
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        const Positioned.fill(child: PreviewGeneratorPanel()),
-        Positioned(
-          right: 8,
-          top: 8,
-          child: IconButton(
-            tooltip: context.l10n.common_close,
-            onPressed: onClose,
-            icon: const Icon(Icons.close_rounded, size: 18),
-          ),
-        ),
-      ],
-    );
-  }
-}
+}) => PromptSourceDetailsDialog.show(
+  context,
+  library: library,
+  mode: mode,
+  profile: profile,
+  officialData: officialData,
+);
 
 class _LibraryLoadingState extends StatelessWidget {
   const _LibraryLoadingState();
@@ -908,6 +910,10 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+bool useExpandedPromptConfigLayout(double availableWidth, double textScale) {
+  return availableWidth >= 1050 && textScale <= 1.5;
 }
 
 class _FocusSearchIntent extends Intent {

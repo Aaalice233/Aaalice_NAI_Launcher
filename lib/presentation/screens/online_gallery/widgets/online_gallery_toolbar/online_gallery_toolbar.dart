@@ -2,9 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/online_gallery/danbooru_post.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../providers/online_gallery_state.dart';
 
 /// Structural toolbar widget. The four slots intentionally mirror the fixed
@@ -41,26 +41,37 @@ class OnlineGalleryToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = scrollPrimary
-        ? SingleChildScrollView(
-            key: const ValueKey('online-gallery-primary-controls-scroll'),
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ToolbarLeading(child: leading),
-                if (showQuery) ...[
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: queryWidth,
-                    child: _ToolbarQuery(
-                      revealKey: queryRevealKey,
-                      child: query,
+        ? LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              key: const ValueKey('online-gallery-primary-controls-scroll'),
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _ToolbarLeading(child: leading),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (showQuery) ...[
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: queryWidth,
+                            child: _ToolbarQuery(
+                              revealKey: queryRevealKey,
+                              child: query,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 8),
+                        _ToolbarTrailing(child: trailing),
+                      ],
                     ),
-                  ),
-                ],
-                const SizedBox(width: 8),
-                _ToolbarTrailing(child: trailing),
-              ],
+                  ],
+                ),
+              ),
             ),
           )
         : Row(
@@ -86,7 +97,7 @@ class OnlineGalleryToolbar extends StatelessWidget {
       children: [
         SizedBox(
           key: const ValueKey('online-gallery-toolbar-primary-row'),
-          height: galleryToolbarControlHeight,
+          height: galleryToolbarControlHeightFor(context),
           child: primary,
         ),
         const SizedBox(height: 8),
@@ -151,7 +162,7 @@ class _ToolbarSecondary extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       key: const ValueKey('online-gallery-toolbar-secondary-row'),
-      height: gallerySecondaryToolbarHeight,
+      height: gallerySecondaryToolbarHeightFor(context),
       child: Row(
         children: [
           if (collapsed) ...[
@@ -163,7 +174,8 @@ class _ToolbarSecondary extends StatelessWidget {
               label: Text(filterLabel),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                visualDensity: PlatformCapabilities.current.isMobile
+                visualDensity:
+                    context.interactionPolicy.prefersTouchPresentation
                     ? VisualDensity.standard
                     : VisualDensity.compact,
                 shape: RoundedRectangleBorder(
@@ -185,14 +197,20 @@ class _ToolbarSecondary extends StatelessWidget {
   }
 }
 
-double get galleryToolbarControlHeight =>
-    PlatformCapabilities.current.isMobile ? 48 : 40;
+double galleryToolbarControlHeightFor(BuildContext context) => max(
+  context.interactionPolicy.minimumControlExtent,
+  MediaQuery.textScalerOf(context).scale(16) + 20,
+);
 
-double get gallerySearchFieldHeight =>
-    PlatformCapabilities.current.isMobile ? 48 : 36;
+double gallerySearchFieldHeightFor(BuildContext context) => max(
+  context.interactionPolicy.minimumControlExtent,
+  MediaQuery.textScalerOf(context).scale(16) + 16,
+);
 
-double get gallerySecondaryToolbarHeight =>
-    PlatformCapabilities.current.isMobile ? 56 : 40;
+double gallerySecondaryToolbarHeightFor(BuildContext context) => max(
+  context.interactionPolicy.minimumControlExtent,
+  MediaQuery.textScalerOf(context).scale(16) + 20,
+);
 
 /// 模式切换按钮
 class OnlineGalleryModeButton extends StatelessWidget {
@@ -255,7 +273,7 @@ class OnlineGalleryModeButton extends StatelessWidget {
             focusColor: selectedBackgroundColor.withValues(alpha: 0.14),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: galleryToolbarControlHeight,
+                minHeight: galleryToolbarControlHeightFor(context),
               ),
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
@@ -311,8 +329,9 @@ class OnlineGallerySourceDropdown extends StatelessWidget {
     final theme = Theme.of(context);
     return PopupMenuButton<GallerySourceId>(
       key: const ValueKey('online-gallery-source-selector'),
+      tooltip: sources[selected] ?? selected.label,
       onSelected: onChanged,
-      offset: Offset(0, galleryToolbarControlHeight + 4),
+      offset: Offset(0, galleryToolbarControlHeightFor(context) + 4),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       itemBuilder: (context) => sources.entries.map((e) {
         final isSelected = selected == e.key;
@@ -335,7 +354,7 @@ class OnlineGallerySourceDropdown extends StatelessWidget {
         );
       }).toList(),
       child: Container(
-        height: galleryToolbarControlHeight,
+        height: galleryToolbarControlHeightFor(context),
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -417,10 +436,11 @@ class OnlineGalleryFuzzySearchToggle extends StatelessWidget {
       ),
       tooltip: context.l10n.onlineGallery_fuzzySearchTooltip,
       onSelected: onChanged,
-      visualDensity: PlatformCapabilities.current.isMobile
+      visualDensity: context.interactionPolicy.prefersTouchPresentation
           ? VisualDensity.standard
           : VisualDensity.compact,
-      materialTapTargetSize: PlatformCapabilities.current.isMobile
+      materialTapTargetSize:
+          context.interactionPolicy.shouldExposeTouchAlternatives
           ? MaterialTapTargetSize.padded
           : MaterialTapTargetSize.shrinkWrap,
       labelPadding: const EdgeInsets.symmetric(horizontal: 2),
@@ -537,7 +557,8 @@ class OnlineGalleryDateRangePopupState
                   IconButton(
                     onPressed: widget.onClose,
                     icon: const Icon(Icons.close, size: 18),
-                    visualDensity: PlatformCapabilities.current.isMobile
+                    visualDensity:
+                        context.interactionPolicy.prefersTouchPresentation
                         ? VisualDensity.standard
                         : VisualDensity.compact,
                     tooltip: context.l10n.common_close,
@@ -747,7 +768,7 @@ class OnlineGalleryRatingDropdown extends StatelessWidget {
       }).toList(),
       tooltip: buttonText(),
       child: Container(
-        height: galleryToolbarControlHeight,
+        height: galleryToolbarControlHeightFor(context),
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(

@@ -10,18 +10,17 @@ import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../common/app_toast.dart';
 import '../../common/safe_dropdown.dart';
+import '../../common/themed_input_dialog.dart';
 import '../new_preset_dialog.dart';
 import 'random_config_l10n.dart';
 
 class PresetSelectorBar extends ConsumerWidget {
   const PresetSelectorBar({
     super.key,
-    this.onGeneratePreview,
     this.onImportExport,
     this.showWorkspaceHeading = false,
   });
 
-  final VoidCallback? onGeneratePreview;
   final VoidCallback? onImportExport;
   final bool showWorkspaceHeading;
 
@@ -34,7 +33,7 @@ class PresetSelectorBar extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final showDescription = constraints.maxWidth >= 760;
+        final showExpandedActions = constraints.maxWidth >= 760;
         final dropdown = KeyedSubtree(
           key: const ValueKey('random-manager-mode-selector'),
           child: _PresetDropdown(
@@ -51,91 +50,91 @@ class PresetSelectorBar extends ConsumerWidget {
           ref,
           selected,
           syncState,
-          includeSync: !showDescription,
+          includeSync: !showExpandedActions,
         );
-        final previewButton = FilledButton.icon(
-          key: const ValueKey('random-manager-preview-action'),
-          onPressed: onGeneratePreview,
-          icon: const Icon(Icons.shuffle_rounded),
-          label: Text(context.l10n.randomManager_generatePreview),
-          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-        );
-
         if (showWorkspaceHeading) {
-          final controls = constraints.maxWidth < 360
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final stackControls = shouldStackWorkspacePresetHeader(
+            constraints.maxWidth,
+            textScale,
+          );
+          final controls = KeyedSubtree(
+            key: const ValueKey('random-manager-controls-row'),
+            child: dropdown,
+          );
+          final title = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.casino_outlined,
+                size: 22,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  context.l10n.randomManager_workspaceTitle,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          );
+          final modeLabel = Text(
+            '${context.l10n.randomManager_currentMode} · ${mode.getName(context.l10n)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+          final heading = stackControls
               ? Column(
-                  key: const ValueKey('random-manager-controls-row'),
+                  key: const ValueKey('random-manager-heading-row'),
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    dropdown,
-                    const SizedBox(height: 8),
-                    previewButton,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: title),
+                        menu,
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    modeLabel,
                   ],
                 )
               : Row(
-                  key: const ValueKey('random-manager-controls-row'),
+                  key: const ValueKey('random-manager-heading-row'),
                   children: [
-                    Expanded(child: dropdown),
-                    const SizedBox(width: 8),
-                    previewButton,
+                    title,
+                    const SizedBox(width: 12),
+                    Expanded(child: modeLabel),
+                    menu,
                   ],
                 );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                key: const ValueKey('random-manager-heading-row'),
-                children: [
-                  Text(
-                    context.l10n.randomManager_workspaceTitle,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '${context.l10n.randomManager_currentMode} · ${mode.getName(context.l10n)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  menu,
-                ],
-              ),
-              const SizedBox(height: 8),
-              controls,
-            ],
+            children: [heading, const SizedBox(height: 8), controls],
           );
         }
 
+        if (!showExpandedActions) {
+          return Row(
+            children: [
+              Expanded(child: dropdown),
+              const SizedBox(width: 8),
+              menu,
+            ],
+          );
+        }
         return Row(
           children: [
-            Flexible(
-              flex: showDescription ? 0 : 1,
-              child: SizedBox(
-                width: showDescription ? 250 : double.infinity,
-                child: dropdown,
-              ),
-            ),
-            if (showDescription && selected != null) ...[
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  context.l10n.presetDisplayDescription(selected) ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ] else
-              const SizedBox(width: 8),
-            if (selected?.isDefault == true && showDescription)
+            SizedBox(width: 250, child: dropdown),
+            const Spacer(),
+            if (selected?.isDefault == true)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: _ReadOnlyIndicator(
@@ -143,20 +142,13 @@ class PresetSelectorBar extends ConsumerWidget {
                 ),
               ),
             _ToolbarAction(
-              icon: Icons.shuffle_rounded,
-              tooltip: context.l10n.randomManager_generatePreview,
-              emphasized: true,
-              onPressed: onGeneratePreview,
+              icon: Icons.sync_rounded,
+              tooltip: context.l10n.randomManager_syncDanbooruTags,
+              loading: syncState.isSyncing,
+              onPressed: selected != null && !selected.isDefault
+                  ? () => _syncDanbooru(context, ref)
+                  : null,
             ),
-            if (showDescription)
-              _ToolbarAction(
-                icon: Icons.sync_rounded,
-                tooltip: context.l10n.randomManager_syncDanbooruTags,
-                loading: syncState.isSyncing,
-                onPressed: selected != null && !selected.isDefault
-                    ? () => _syncDanbooru(context, ref)
-                    : null,
-              ),
             menu,
           ],
         );
@@ -212,6 +204,16 @@ class PresetSelectorBar extends ConsumerWidget {
             ),
           ),
         if (selected != null && !selected.isDefault) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: _PresetAction.rename,
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(context.l10n.common_rename),
+            ),
+          ),
           if (selected.isBasedOnDefault)
             PopupMenuItem(
               value: _PresetAction.reset,
@@ -275,6 +277,8 @@ class PresetSelectorBar extends ConsumerWidget {
         onImportExport?.call();
       case _PresetAction.create:
         await _showCreatePresetDialog(context, ref);
+      case _PresetAction.rename:
+        if (preset != null) await _renamePreset(context, ref, preset);
       case _PresetAction.sync:
         await _syncDanbooru(context, ref);
       case _PresetAction.reset:
@@ -282,6 +286,27 @@ class PresetSelectorBar extends ConsumerWidget {
       case _PresetAction.delete:
         if (preset != null) await _deletePreset(context, ref, preset);
     }
+  }
+
+  Future<void> _renamePreset(
+    BuildContext context,
+    WidgetRef ref,
+    RandomPreset preset,
+  ) async {
+    final name = await ThemedInputDialog.show(
+      context: context,
+      title: context.l10n.common_rename,
+      labelText: context.l10n.newPresetDialog_nameLabel,
+      initialValue: preset.name,
+      confirmText: context.l10n.common_save,
+      validator: (value) => value.trim().isEmpty
+          ? context.l10n.newPresetDialog_nameRequired
+          : null,
+    );
+    if (name == null || name == preset.name) return;
+    await ref
+        .read(randomPresetNotifierProvider.notifier)
+        .renamePreset(preset.id, name);
   }
 
   Future<void> _syncDanbooru(BuildContext context, WidgetRef ref) async {
@@ -470,14 +495,12 @@ class _ToolbarAction extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
-    this.emphasized = false,
     this.loading = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
-  final bool emphasized;
   final bool loading;
 
   @override
@@ -492,18 +515,13 @@ class _ToolbarAction extends StatelessWidget {
             )
           : Icon(icon, size: 19),
     );
-    if (!emphasized) return button;
-    return IconButton.filledTonal(
-      onPressed: loading ? null : onPressed,
-      tooltip: tooltip,
-      icon: loading
-          ? const SizedBox.square(
-              dimension: 17,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(icon, size: 19),
-    );
+    return button;
   }
 }
 
-enum _PresetAction { importExport, create, sync, reset, delete }
+bool shouldStackWorkspacePresetHeader(double availableWidth, double textScale) {
+  final scaleAdjustment = (textScale - 1).clamp(0, 2) * 100;
+  return availableWidth < 360 + scaleAdjustment;
+}
+
+enum _PresetAction { importExport, create, rename, sync, reset, delete }

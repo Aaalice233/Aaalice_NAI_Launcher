@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../../adaptive/window_size_class.dart';
+import '../../../../widgets/common/translated_tag_text.dart';
+
 /// Tag ranking item data
 class TagRankItem {
   final String tag;
@@ -38,25 +41,28 @@ class TopTagsRanking extends StatelessWidget {
       return Center(child: Text(context.l10n.statistics_noTagData));
     }
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 900;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
 
-    // Use grid for desktop, list for mobile
-    if (isDesktop && displayItems.length > 5) {
-      return _buildGrid(context, displayItems);
-    }
+        // Split only when this ranking itself has enough room for two columns.
+        if (sizeClass.isExpandedOrWider && displayItems.length > 5) {
+          return _buildGrid(context, displayItems);
+        }
 
-    return Column(
-      children: displayItems.asMap().entries.map((entry) {
-        final index = entry.key;
-        final item = entry.value;
-        return _TagRankRow(
-          rank: index + 1,
-          item: item,
-          showTrend: showTrend,
-          onTap: onItemTap != null ? () => onItemTap!(item) : null,
+        return Column(
+          children: displayItems.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            return _TagRankRow(
+              rank: index + 1,
+              item: item,
+              showTrend: showTrend,
+              onTap: onItemTap != null ? () => onItemTap!(item) : null,
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 
@@ -133,8 +139,8 @@ class _TagRankRow extends StatelessWidget {
           child: Row(
             children: [
               // Rank number
-              SizedBox(
-                width: 28,
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 28),
                 child: Text(
                   '#$rank',
                   style: theme.textTheme.labelMedium?.copyWith(
@@ -156,7 +162,7 @@ class _TagRankRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: rankColor.withValues(alpha: 0.3)),
                   ),
-                  child: Text(
+                  child: TranslatedTagText(
                     item.tag,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: rankColor,

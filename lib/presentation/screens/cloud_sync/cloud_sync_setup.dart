@@ -328,20 +328,47 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
         ),
         _dataScope(),
         const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            key: const ValueKey('cloud-sync-save-connection'),
-            onPressed: _busy ? null : _connect,
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-            icon: _busy
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 360;
+            final button = compact
+                ? FilledButton(
+                    key: const ValueKey('cloud-sync-save-connection'),
+                    onPressed: _busy ? null : _connect,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    child: _busy
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            context.l10n.cloudSync_saveConnection,
+                            textAlign: TextAlign.center,
+                          ),
                   )
-                : const Icon(Icons.save_outlined),
-            label: Text(context.l10n.cloudSync_saveConnection),
-          ),
+                : FilledButton.icon(
+                    key: const ValueKey('cloud-sync-save-connection'),
+                    onPressed: _busy ? null : _connect,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 48),
+                    ),
+                    icon: _busy
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: Text(context.l10n.cloudSync_saveConnection),
+                  );
+            return Align(
+              alignment: Alignment.centerRight,
+              child: compact
+                  ? SizedBox(width: double.infinity, child: button)
+                  : button,
+            );
+          },
         ),
       ],
     );

@@ -134,7 +134,12 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
 
   /// 切换只看收藏
   void toggleFavoritesOnly() {
-    state = state.copyWith(favoritesOnly: !state.favoritesOnly);
+    setFavoritesOnly(!state.favoritesOnly);
+  }
+
+  void setFavoritesOnly(bool value) {
+    if (state.favoritesOnly == value) return;
+    state = state.copyWith(favoritesOnly: value);
     _applyFilters();
   }
 
@@ -142,6 +147,15 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
   void setTypeFilter(PreciseRefType? type) {
     if (state.typeFilter == type) return;
     state = state.copyWith(typeFilter: type);
+    _applyFilters();
+  }
+
+  /// 侧栏分类同时切换收藏与类型，避免连续刷新产生中间态。
+  void setSidebarFilter({required bool favoritesOnly, PreciseRefType? type}) {
+    if (state.favoritesOnly == favoritesOnly && state.typeFilter == type) {
+      return;
+    }
+    state = state.copyWith(favoritesOnly: favoritesOnly, typeFilter: type);
     _applyFilters();
   }
 

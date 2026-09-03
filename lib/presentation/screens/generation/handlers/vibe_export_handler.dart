@@ -11,6 +11,7 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
 
@@ -268,67 +269,8 @@ class VibeExportHandler {
   }
 
   /// 选择要嵌入的 Vibes
-  Future<List<VibeReference>> _selectVibesToEmbed(
-    List<VibeReference> vibes,
-  ) async {
-    final selected = <VibeReference>[];
-    final l10n = context.l10n;
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(l10n.vibe_export_selectToEmbed),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: vibes.length,
-                  itemBuilder: (context, index) {
-                    final vibe = vibes[index];
-                    final isSelected = selected.contains(vibe);
-
-                    return CheckboxListTile(
-                      title: Text(vibe.displayName),
-                      subtitle: Text(
-                        context.vibeSourceTypeLabel(vibe.sourceType),
-                      ),
-                      value: isSelected,
-                      onChanged: (value) {
-                        setState(() {
-                          if (value == true) {
-                            selected.add(vibe);
-                          } else {
-                            selected.remove(vibe);
-                          }
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    selected.clear();
-                    Navigator.of(context).pop(<VibeReference>[]);
-                  },
-                  child: Text(context.l10n.common_cancel),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(selected),
-                  child: Text(context.l10n.common_confirm),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    return selected.isEmpty ? <VibeReference>[] : selected;
+  Future<List<VibeReference>> _selectVibesToEmbed(List<VibeReference> vibes) {
+    return showVibeEmbedSelectionForm(context: context, vibes: vibes);
   }
 
   /// 执行嵌入操作
@@ -420,4 +362,88 @@ class VibeExportHandler {
       },
     );
   }
+}
+
+/// 显示可跨窗口尺寸使用的多 Vibe 嵌入选择表单。
+///
+/// 显式取消返回空列表；通过遮罩、关闭按钮或系统返回关闭时保留旧对话框
+/// 已勾选内容的返回语义。
+Future<List<VibeReference>> showVibeEmbedSelectionForm({
+  required BuildContext context,
+  required List<VibeReference> vibes,
+}) async {
+  final selected = <VibeReference>[];
+  final result = await AdaptivePresenter.showForm<List<VibeReference>>(
+    context: context,
+    title: context.l10n.vibe_export_selectToEmbed,
+    sideSheetWidth: 480,
+    builder: (panelContext, scrollController) => StatefulBuilder(
+      builder: (panelContext, setState) => Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              key: const ValueKey('vibe-embed-selection-list'),
+              controller: scrollController,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: vibes.length,
+              itemBuilder: (context, index) {
+                final vibe = vibes[index];
+                final isSelected = selected.contains(vibe);
+                return CheckboxListTile(
+                  title: Text(vibe.displayName),
+                  subtitle: Text(
+                    panelContext.vibeSourceTypeLabel(vibe.sourceType),
+                  ),
+                  value: isSelected,
+                  onChanged: (value) {
+                    setState(() {
+                      if (value == true) {
+                        selected.add(vibe);
+                      } else {
+                        selected.remove(vibe);
+                      }
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: Theme.of(panelContext).colorScheme.outlineVariant,
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  TextButton(
+                    key: const ValueKey('vibe-embed-selection-cancel'),
+                    onPressed: () {
+                      selected.clear();
+                      Navigator.of(panelContext).pop(<VibeReference>[]);
+                    },
+                    child: Text(panelContext.l10n.common_cancel),
+                  ),
+                  FilledButton(
+                    key: const ValueKey('vibe-embed-selection-confirm'),
+                    onPressed: () => Navigator.of(
+                      panelContext,
+                    ).pop(List<VibeReference>.unmodifiable(selected)),
+                    child: Text(panelContext.l10n.common_confirm),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  return result ?? List<VibeReference>.unmodifiable(selected);
 }

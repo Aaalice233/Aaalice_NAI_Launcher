@@ -32,7 +32,7 @@ void main() {
 
     controller.text =
         '2girls, outdoors, sunset | alice, blonde hair | bob, black hair';
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byType(ComfyuiImportDialog), findsOneWidget);
     expect(importedBase, isNull);
@@ -72,7 +72,7 @@ void main() {
     );
 
     controller.text = 'a | b';
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byType(ComfyuiImportDialog), findsOneWidget);
     expect(importedBase, isNull);
@@ -120,7 +120,7 @@ void main() {
       text: pastedText,
       selection: TextSelection.collapsed(offset: pastedText.length),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byType(ComfyuiImportDialog), findsOneWidget);
     expect(importedBase, isNull);
@@ -163,12 +163,73 @@ void main() {
       text: pastedText,
       selection: TextSelection.collapsed(offset: pastedText.length),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byType(ComfyuiImportDialog), findsOneWidget);
 
     await tester.tap(find.byType(TextButton).first);
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('import panel adapts from 320 to 1600 with 3x text', (
+    tester,
+  ) async {
+    for (final width in [320.0, 600.0, 840.0, 1600.0]) {
+      final height = width == 320 ? 568.0 : 900.0;
+      final keyboardInset = width == 320 ? 220.0 : 0.0;
+      await tester.binding.setSurfaceSize(Size(width, height));
+      final controller = TextEditingController();
+      String? importedBase;
+      List<CharacterPrompt>? importedCharacters;
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(3),
+              padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+              viewPadding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+              viewInsets: EdgeInsets.only(bottom: keyboardInset),
+            ),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: ComfyuiImportWrapper(
+              controller: controller,
+              onImport: (base, characters) {
+                importedBase = base;
+                importedCharacters = characters;
+              },
+              child: TextField(controller: controller),
+            ),
+          ),
+        ),
+      );
+
+      controller.text = 'scene | first character | second character';
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ComfyuiImportDialog), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+
+      final import = find.byType(FilledButton);
+      await tester.ensureVisible(import);
+      await tester.pumpAndSettle();
+      final sheet = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+      final visibleImport = tester
+          .getRect(import)
+          .intersect(tester.getRect(sheet));
+      expect(visibleImport.height, greaterThan(0), reason: 'width=$width');
+      await tester.tapAt(visibleImport.center);
+      await tester.pumpAndSettle();
+
+      expect(importedBase, 'scene');
+      expect(importedCharacters, hasLength(2));
+      expect(tester.takeException(), isNull, reason: 'import width=$width');
+    }
+    await tester.binding.setSurfaceSize(null);
   });
 
   testWidgets('typing a separator incrementally does not interrupt editing', (

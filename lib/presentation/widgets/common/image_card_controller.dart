@@ -50,6 +50,8 @@ class ImageCardController extends ChangeNotifier {
   Uint8List? _lastStreamPreviewBytes;
   Timer? _completionPlaceholderFallbackTimer;
   bool _isTapping = false;
+  bool _reducedMotion = false;
+  bool _motionPreferenceInitialized = false;
   DateTime? _lastTapTime;
   Offset? _lastTapPosition;
   PointerDeviceKind? _lastTapKind;
@@ -136,7 +138,7 @@ class ImageCardController extends ChangeNotifier {
       isHovering = false;
     } else if (isPointerInside && hoverEffectsBecameAvailable) {
       isHovering = true;
-      if (capabilities.enableGlossEffect) {
+      if (capabilities.enableGlossEffect && !_reducedMotion) {
         glossController.forward(from: 0);
       }
     }
@@ -151,12 +153,34 @@ class ImageCardController extends ChangeNotifier {
     }
   }
 
+  void setReducedMotion(bool reducedMotion) {
+    if (_motionPreferenceInitialized && _reducedMotion == reducedMotion) return;
+    _motionPreferenceInitialized = true;
+    _reducedMotion = reducedMotion;
+    if (reducedMotion) {
+      glossController.stop();
+      glossController.value = 0;
+    }
+    final controller = glowController;
+    if (controller == null) return;
+    if (reducedMotion) {
+      controller.stop();
+      controller.value = 1 / 3;
+    } else if (!controller.isAnimating) {
+      controller.repeat(reverse: true);
+    }
+  }
+
   void _initGlowAnimation(TickerProvider vsync) {
     glowController?.dispose();
     glowController = AnimationController(
       duration: const Duration(milliseconds: 2000),
+      value: 1 / 3,
       vsync: vsync,
-    )..repeat(reverse: true);
+    );
+    if (_motionPreferenceInitialized && !_reducedMotion) {
+      glowController!.repeat(reverse: true);
+    }
     glowAnimation = Tween<double>(begin: 0.04, end: 0.1).animate(
       CurvedAnimation(parent: glowController!, curve: Curves.easeInOut),
     );
@@ -174,7 +198,9 @@ class ImageCardController extends ChangeNotifier {
       isHovering = true;
       notifyListeners();
     }
-    if (_capabilities.enableGlossEffect) glossController.forward(from: 0);
+    if (_capabilities.enableGlossEffect && !_reducedMotion) {
+      glossController.forward(from: 0);
+    }
   }
 
   void hoverExit() {

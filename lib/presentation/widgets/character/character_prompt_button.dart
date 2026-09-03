@@ -27,11 +27,18 @@ enum _CharacterAddAction {
 /// - 无角色时点击弹出添加菜单（女/男/其他/词库）
 /// - 当存在角色时，显示角色数量徽章
 class CharacterPromptButton extends ConsumerWidget {
-  const CharacterPromptButton({super.key, this.onManage});
+  const CharacterPromptButton({
+    super.key,
+    this.onManage,
+    this.compact = false,
+    this.iconOnly = false,
+  });
 
   /// When supplied, the button opens an existing-character manager instead of
   /// acting as another add shortcut. The manager owns its own add action.
   final VoidCallback? onManage;
+  final bool compact;
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,8 +49,11 @@ class CharacterPromptButton extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
 
     final buttonContent = Container(
-      constraints: const BoxConstraints(minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      constraints: BoxConstraints(minHeight: compact ? 36 : 48),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 4 : 6,
+      ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         color: hasCharacters
@@ -59,16 +69,18 @@ class CharacterPromptButton extends ConsumerWidget {
             size: 18,
             emptyColor: colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: 6),
-          Text(
-            AppLocalizations.of(context)!.character_buttonLabel,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: hasCharacters
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
+          if (!iconOnly) ...[
+            const SizedBox(width: 6),
+            Text(
+              AppLocalizations.of(context)!.character_buttonLabel,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: hasCharacters
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -178,10 +190,7 @@ class _AddCharacterMenu extends ConsumerWidget {
       return;
     }
 
-    final entry = await showDialog(
-      context: context,
-      builder: (context) => const TagLibraryPickerDialog(),
-    );
+    final entry = await TagLibraryPickerDialog.show(context);
     if (entry != null) {
       final parsed = CharacterPromptBlockParser.parse(entry.content);
       ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
@@ -428,6 +437,7 @@ class _CharacterTooltipWrapper extends StatelessWidget {
 
     return Tooltip(
       richMessage: WidgetSpan(child: CharacterTooltipContent(config: config)),
+      constraints: const BoxConstraints(maxWidth: 380),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),

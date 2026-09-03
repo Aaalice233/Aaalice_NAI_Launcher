@@ -349,6 +349,8 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "開啟聯網",
   "agentChat_disableWebAccess": "關閉聯網",
+  "agentChat_webAccessLabel": "聯網",
+  "agentChat_contextUsageLabel": "上下文",
   "agentChat_unsupportedImageFormat": "不支援的圖片格式：{fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -358,6 +360,8 @@
   "agentChat_newChat": "新對話",
   "agentChat_searchSessions": "搜尋對話",
   "agentChat_send": "傳送",
+  "agentChat_sendEmptyHint": "輸入訊息或加入圖片後即可傳送",
+  "agentChat_sendUnavailableHint": "AI 助手尚未準備好傳送訊息",
   "agentChat_stop": "停止",
   "agentChat_queued": "已排隊",
   "agentChat_queueSteering": "插入目前工作",
@@ -717,6 +721,14 @@
     }
   },
   "img2img_directorRunning": "正在處理...",
+  "img2img_directorConfirmTitle": "確認 Anlas 消耗",
+  "img2img_directorConfirmContent": "執行{tool}預計消耗 {cost} Anlas，是否繼續？",
+  "@img2img_directorConfirmContent": {
+    "placeholders": {
+      "tool": {},
+      "cost": {"type": "int"}
+    }
+  },
   "img2img_directorResult": "處理結果",
   "img2img_directorResultReady": "{tool} 處理完成",
   "@img2img_directorResultReady": {
@@ -2348,12 +2360,12 @@
   "randomManager_emphasisProbability": "強調機率",
   "randomManager_probability": "機率",
   "randomManager_selectionMode": "選擇模式",
-  "randomManager_previewGeneration": "預覽生成",
+  "randomManager_previewGeneration": "輸出預覽",
   "randomManager_generating": "生成中",
-  "randomManager_generate": "生成",
+  "randomManager_generate": "生成範例",
   "randomManager_generationFailed": "生成失敗",
-  "randomManager_copy": "複製",
-  "randomManager_regenerate": "重新生成",
+  "randomManager_copy": "複製全部",
+  "randomManager_regenerate": "換一個範例",
   "randomManager_copiedToClipboard": "已複製到剪貼簿",
   "randomManager_selectPresetRequired": "請選擇一個預設",
   "randomManager_characterCountLabel": "{count}人",
@@ -2368,7 +2380,7 @@
       "count": {}
     }
   },
-  "randomManager_previewHint": "點選\"生成\"預覽隨機標籤",
+  "randomManager_previewHint": "尚未生成範例",
   "randomManager_generateNow": "立即生成",
   "randomManager_moreActions": "更多操作",
   "randomManager_deleteSelected": "刪除選中",
@@ -6606,7 +6618,7 @@
   "randomManager_recipeSubtitle": "每個階段獨立控制一類語義標籤的觸發機率與抽取範圍",
   "randomManager_inspectorTitle": "生成設定",
   "randomManager_inspectorSubtitle": "調整目前預設的角色分佈與全域輸出行為",
-  "randomManager_previewEmptyDescription": "生成一次範例，檢查目前配方的實際輸出。",
+  "randomManager_previewEmptyDescription": "生成一組提示詞範例，檢查目前配方的實際輸出。",
   "randomManager_category_composition": "構圖",
   "randomManager_category_camera": "視角",
   "randomManager_category_framing": "景別",

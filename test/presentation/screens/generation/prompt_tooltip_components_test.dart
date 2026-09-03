@@ -7,19 +7,10 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_tooltips.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_tooltip_components.dart';
 
-BoxDecoration _decoration(WidgetTester tester, Key key) {
-  final container = tester.widget<Container>(
-    find
-        .descendant(of: find.byKey(key), matching: find.byType(Container))
-        .first,
-  );
-  return container.decoration! as BoxDecoration;
-}
-
 void main() {
   for (final brightness in Brightness.values) {
     testWidgets(
-      'prompt tooltip gradients match the original ${brightness.name} visuals',
+      'prompt tooltip uses one quiet result surface in ${brightness.name}',
       (tester) async {
         final theme = ThemeData(brightness: brightness);
         final isDark = brightness == Brightness.dark;
@@ -28,79 +19,72 @@ void main() {
           MaterialApp(
             theme: theme,
             home: Scaffold(
-              body: Column(
-                children: [
-                  TooltipHeader(
-                    key: const ValueKey('header'),
-                    theme: theme,
-                    label: 'Positive',
-                    icon: Icons.auto_awesome,
-                    color: theme.colorScheme.primary,
-                    isDark: isDark,
-                  ),
-                  TooltipFinalPromptSection(
-                    key: const ValueKey('positive-final'),
-                    theme: theme,
-                    prompt: 'positive prompt',
-                    isDark: isDark,
-                    label: 'Final prompt',
-                    color: theme.colorScheme.primary,
-                    backgroundStartColor: theme.colorScheme.primaryContainer,
-                    backgroundEndColor: theme.colorScheme.secondaryContainer,
-                  ),
-                  TooltipFinalPromptSection(
-                    key: const ValueKey('negative-final'),
-                    theme: theme,
-                    prompt: 'negative prompt',
-                    isDark: isDark,
-                    label: 'Final negative',
-                    color: theme.colorScheme.error,
-                    backgroundStartColor: theme.colorScheme.errorContainer,
-                    backgroundEndColor:
-                        theme.colorScheme.surfaceContainerHighest,
-                  ),
-                ],
+              body: SizedBox(
+                width: 320,
+                child: Column(
+                  children: [
+                    TooltipHeader(
+                      key: const ValueKey('header'),
+                      theme: theme,
+                      label: 'Positive',
+                      icon: Icons.auto_awesome,
+                      color: theme.colorScheme.primary,
+                      isDark: isDark,
+                    ),
+                    TooltipSection(
+                      key: const ValueKey('step'),
+                      theme: theme,
+                      icon: Icons.push_pin,
+                      label: 'Fixed tags',
+                      color: theme.colorScheme.secondary,
+                      content: 'best quality, detailed',
+                      isDark: isDark,
+                    ),
+                    TooltipFinalPromptSection(
+                      key: const ValueKey('result'),
+                      theme: theme,
+                      prompt: 'positive prompt',
+                      isDark: isDark,
+                      label: 'Final prompt',
+                      color: theme.colorScheme.primary,
+                      backgroundStartColor: theme.colorScheme.primaryContainer,
+                      backgroundEndColor: theme.colorScheme.secondaryContainer,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         );
 
-        final headerDecoration = _decoration(tester, const ValueKey('header'));
-        final headerGradient = headerDecoration.gradient! as LinearGradient;
-        expect(headerDecoration.color, isNull);
-        expect(headerDecoration.border, isNull);
-        expect(headerDecoration.borderRadius, BorderRadius.circular(8));
-        expect(headerGradient.begin, Alignment.centerLeft);
-        expect(headerGradient.end, Alignment.centerRight);
-        expect(headerGradient.colors, [
-          theme.colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.1),
-          theme.colorScheme.primary.withValues(alpha: isDark ? 0.1 : 0.05),
-        ]);
-
-        void expectFinalGradient(Key key, Color startColor, Color endColor) {
-          final decoration = _decoration(tester, key);
-          final gradient = decoration.gradient! as LinearGradient;
-          expect(decoration.color, isNull);
-          expect(decoration.border, isNull);
-          expect(decoration.borderRadius, BorderRadius.circular(10));
-          expect(gradient.begin, Alignment.topLeft);
-          expect(gradient.end, Alignment.bottomRight);
-          expect(gradient.colors, [
-            startColor.withValues(alpha: isDark ? 0.3 : 0.4),
-            endColor.withValues(alpha: isDark ? 0.2 : 0.3),
-          ]);
-        }
-
-        expectFinalGradient(
-          const ValueKey('positive-final'),
-          theme.colorScheme.primaryContainer,
-          theme.colorScheme.secondaryContainer,
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('header')),
+            matching: find.byType(DecoratedBox),
+          ),
+          findsNothing,
         );
-        expectFinalGradient(
-          const ValueKey('negative-final'),
-          theme.colorScheme.errorContainer,
-          theme.colorScheme.surfaceContainerHighest,
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('step')),
+            matching: find.byType(DecoratedBox),
+          ),
+          findsNothing,
         );
+        final resultContainer = tester.widget<Container>(
+          find
+              .descendant(
+                of: find.byKey(const ValueKey('result')),
+                matching: find.byType(Container),
+              )
+              .first,
+        );
+        final resultDecoration = resultContainer.decoration! as BoxDecoration;
+        expect(resultDecoration.color, isNotNull);
+        expect(resultDecoration.gradient, isNull);
+        expect(resultDecoration.border, isNull);
+        expect(resultDecoration.borderRadius, BorderRadius.circular(8));
+        expect(tester.takeException(), isNull);
       },
     );
   }
@@ -167,19 +151,16 @@ void main() {
           findsNothing,
         );
         expect(
-          find.descendant(of: section, matching: find.byType(Spacer)),
-          findsOneWidget,
-        );
-        expect(
           tester.getRect(title).right,
           lessThanOrEqualTo(tester.getRect(copy).left),
         );
         final copyTarget = find
-            .ancestor(of: copy, matching: find.byType(MouseRegion))
+            .ancestor(of: copy, matching: find.byType(IconButton))
             .first;
+        expect(tester.getSize(copyTarget), const Size(40, 40));
         expect(
           tester.getRect(copyTarget).right,
-          tester.getRect(section).right - 10,
+          tester.getRect(section).right - 8,
         );
 
         final copyTooltip = tester.widget<Tooltip>(
@@ -239,6 +220,75 @@ void main() {
     expect(
       tester.getRect(title).right,
       lessThanOrEqualTo(tester.getRect(copy).left),
+    );
+  });
+
+  testWidgets('fixed-tag composition stays readable at 320 and 3x text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final theme = ThemeData.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: theme,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(3)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TooltipHeader(
+                    theme: theme,
+                    label: '正向提示词完整组合预览',
+                    icon: Icons.auto_awesome,
+                    color: theme.colorScheme.primary,
+                    isDark: true,
+                  ),
+                  TooltipSection(
+                    theme: theme,
+                    icon: Icons.push_pin,
+                    label: '固定词前缀与质量词',
+                    color: theme.colorScheme.secondary,
+                    content: List.filled(12, 'highly detailed').join(', '),
+                    isDark: true,
+                  ),
+                  TooltipFinalPromptSection(
+                    theme: theme,
+                    prompt: List.filled(16, 'effective tag').join(', '),
+                    isDark: true,
+                    label: '最终生效的完整正向提示词',
+                    color: theme.colorScheme.primary,
+                    backgroundStartColor: theme.colorScheme.primaryContainer,
+                    backgroundEndColor: theme.colorScheme.secondaryContainer,
+                    onCopy: () {},
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('固定词前缀与质量词'), findsOneWidget);
+    expect(find.byIcon(Icons.copy_rounded), findsOneWidget);
+    expect(
+      tester.getRect(find.byIcon(Icons.copy_rounded)).right,
+      lessThanOrEqualTo(320),
     );
   });
 
@@ -364,11 +414,8 @@ void main() {
 
       for (final icon in [Icons.female, Icons.male, Icons.person]) {
         final iconWidget = tester.widget<Icon>(find.byIcon(icon));
-        expect(iconWidget.size, 11);
-        expect(
-          iconWidget.color,
-          theme.colorScheme.onSurface.withValues(alpha: 0.5),
-        );
+        expect(iconWidget.size, 14);
+        expect(iconWidget.color, theme.colorScheme.onSurfaceVariant);
         final padding = tester.widget<Padding>(
           find
               .ancestor(of: find.byIcon(icon), matching: find.byType(Padding))

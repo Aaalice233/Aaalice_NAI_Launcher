@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
+import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_library_content_view.dart';
 
 void main() {
@@ -12,8 +13,13 @@ void main() {
   });
 
   test('首屏网格缓存范围应收敛，避免额外预构建过多卡片', () {
-    expect(computeVibeGridCacheExtent(200), 100);
-    expect(computeVibeGridCacheExtent(160), 80);
+    expect(computeVibeGridCacheExtent(200), 125);
+    expect(computeVibeGridCacheExtent(160), 100);
+  });
+
+  test('Vibe 库与选择器共用 4:5 图像卡片比例', () {
+    expect(vibeCardAspectRatio, 0.8);
+    expect(computeVibeCardHeight(200), 250);
   });
 
   test('打开详情前应优先回读真实条目参数，而不是继续使用列表旧快照', () async {

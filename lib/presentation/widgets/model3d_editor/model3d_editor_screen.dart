@@ -8,6 +8,8 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../image_editor/layers/model3d_layer_data.dart';
 import 'local_asset_server.dart';
 import 'model3d_bridge.dart';
@@ -113,7 +115,8 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
   Future<void> _startServices() async {
     final library = widget.libraryService ?? await _defaultLibrary();
     if (widget.viewportBuilder == null) {
-      final server = widget.serverOverride ??
+      final server =
+          widget.serverOverride ??
           LocalAssetServer(modelLibraryDir: library.libraryDir);
       final base = await server.start();
       if (!mounted) {
@@ -151,9 +154,7 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
       case 'onDirty':
         setState(() => _dirty = true);
       case 'onLoadError':
-        _showSnack(
-          '${context.l10n.model3d_loadError}: ${data['error'] ?? ''}',
-        );
+        _showSnack('${context.l10n.model3d_loadError}: ${data['error'] ?? ''}');
     }
   }
 
@@ -217,10 +218,7 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
   }) async {
     if (confirm && !await _confirmReplace()) return;
     await _runBusy(() async {
-      await _bridge!.loadModel(
-        builtin: 'mannequin',
-        sceneState: sceneState,
-      );
+      await _bridge!.loadModel(builtin: 'mannequin', sceneState: sceneState);
       if (!mounted) return;
       setState(() {
         _modelRef = Model3dLibraryService.builtinMannequinRef;
@@ -238,9 +236,7 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
       try {
         final ref = await _library!.importModel(file);
         final path = _library!.urlPathFor(ref)!;
-        await _bridge!.loadModel(
-          url: _editorUrl!.resolve(path).toString(),
-        );
+        await _bridge!.loadModel(url: _editorUrl!.resolve(path).toString());
         if (!mounted) return;
         setState(() {
           _modelRef = ref;
@@ -290,53 +286,56 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
   }
 
   Future<void> _showLightDialog() async {
-    await showDialog<void>(
+    await AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          Widget slider(
-            String label,
-            double value,
-            double min,
-            double max,
-            ValueChanged<double> onChanged,
-          ) {
-            return Row(
-              children: [
-                SizedBox(width: 72, child: Text(label)),
-                Expanded(
-                  child: Slider(
-                    value: value,
-                    min: min,
-                    max: max,
-                    onChanged: (v) {
-                      setDialogState(() => onChanged(v));
-                      _bridge?.setLight(
-                        intensity: _lightIntensity,
-                        azimuth: _lightAzimuth,
-                        elevation: _lightElevation,
-                      );
-                    },
-                  ),
-                ),
-              ],
+      title: context.l10n.model3d_light,
+      sideSheetWidth: 520,
+      builder: (panelContext, scrollController) => StatefulBuilder(
+        builder: (context, setFormState) {
+          void updateLight(ValueChanged<double> update, double value) {
+            setFormState(() => update(value));
+            _bridge?.setLight(
+              intensity: _lightIntensity,
+              azimuth: _lightAzimuth,
+              elevation: _lightElevation,
             );
           }
 
-          final l10n = context.l10n;
-          return AlertDialog(
-            title: Text(l10n.model3d_light),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                slider(l10n.model3d_lightIntensity, _lightIntensity, 0, 3,
-                    (v) => _lightIntensity = v),
-                slider(l10n.model3d_lightAzimuth, _lightAzimuth, -180, 180,
-                    (v) => _lightAzimuth = v),
-                slider(l10n.model3d_lightElevation, _lightElevation, 0, 90,
-                    (v) => _lightElevation = v),
-              ],
-            ),
+          final l10n = panelContext.l10n;
+          return ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(20),
+            children: [
+              _LightSliderField(
+                key: const ValueKey('model3d-light-intensity'),
+                label: l10n.model3d_lightIntensity,
+                value: _lightIntensity,
+                min: 0,
+                max: 3,
+                onChanged: (value) =>
+                    updateLight((next) => _lightIntensity = next, value),
+              ),
+              const SizedBox(height: 20),
+              _LightSliderField(
+                key: const ValueKey('model3d-light-azimuth'),
+                label: l10n.model3d_lightAzimuth,
+                value: _lightAzimuth,
+                min: -180,
+                max: 180,
+                onChanged: (value) =>
+                    updateLight((next) => _lightAzimuth = next, value),
+              ),
+              const SizedBox(height: 20),
+              _LightSliderField(
+                key: const ValueKey('model3d-light-elevation'),
+                label: l10n.model3d_lightElevation,
+                value: _lightElevation,
+                min: 0,
+                max: 90,
+                onChanged: (value) =>
+                    updateLight((next) => _lightElevation = next, value),
+              ),
+            ],
           );
         },
       ),
@@ -359,8 +358,9 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<bool> _confirmExit() async {
@@ -398,136 +398,178 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
           Navigator.pop(context);
         }
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(l10n.model3d_editorTitle),
-          actions: [
-            IconButton(
-              tooltip: l10n.model3d_undo,
-              icon: const Icon(Icons.undo),
-              onPressed:
-                  hasModel && !_busy ? () => _bridge!.undoPose() : null,
-            ),
-            IconButton(
-              tooltip: l10n.model3d_resetPose,
-              icon: const Icon(Icons.restart_alt),
-              onPressed:
-                  hasModel && !_busy ? () => _bridge!.resetPose() : null,
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: hasModel && !_busy ? _apply : null,
-              child: Text(l10n.model3d_apply),
-            ),
-            const SizedBox(width: 12),
-          ],
-        ),
-        body: Column(
-          children: [
-            _buildToolbar(l10n, hasModel),
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (widget.viewportBuilder != null)
-                    widget.viewportBuilder!(context)
-                  else if (_editorUrl != null)
-                    Model3dWebViewport(
-                      editorUrl: _editorUrl!,
-                      onBridgeMessage: (args) =>
-                          _bridge?.handleJsMessage(args),
-                      onControllerReady: (controller) {
-                        _bridge ??= Model3dBridge(
-                          evalJs: (source) =>
-                              controller.evaluateJavascript(source: source),
-                          onEvent: _onBridgeEvent,
-                        );
-                      },
-                    )
-                  else
-                    const Center(child: CircularProgressIndicator()),
-                  if (_ready && !hasModel) _buildEmptyState(l10n),
-                  if (_busy)
-                    const ColoredBox(
-                      color: Color(0x66000000),
-                      child: Center(child: CircularProgressIndicator()),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactActions = constraints.maxWidth < 520;
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                l10n.model3d_editorTitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              actions: [
+                IconButton(
+                  tooltip: l10n.model3d_undo,
+                  icon: const Icon(Icons.undo),
+                  onPressed: hasModel && !_busy
+                      ? () => _bridge!.undoPose()
+                      : null,
+                ),
+                IconButton(
+                  tooltip: l10n.model3d_resetPose,
+                  icon: const Icon(Icons.restart_alt),
+                  onPressed: hasModel && !_busy
+                      ? () => _bridge!.resetPose()
+                      : null,
+                ),
+                const SizedBox(width: 4),
+                if (compactActions)
+                  IconButton.filled(
+                    constraints: BoxConstraints.tightFor(
+                      width: context.interactionPolicy.minimumControlExtent,
+                      height: context.interactionPolicy.minimumControlExtent,
                     ),
+                    tooltip: l10n.model3d_apply,
+                    onPressed: hasModel && !_busy ? _apply : null,
+                    icon: const Icon(Icons.check),
+                  )
+                else
+                  FilledButton(
+                    onPressed: hasModel && !_busy ? _apply : null,
+                    child: Text(l10n.model3d_apply),
+                  ),
+                const SizedBox(width: 8),
+              ],
+            ),
+            body: SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  _buildToolbar(l10n, hasModel),
+                  Expanded(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (widget.viewportBuilder != null)
+                          widget.viewportBuilder!(context)
+                        else if (_editorUrl != null)
+                          Model3dWebViewport(
+                            editorUrl: _editorUrl!,
+                            onBridgeMessage: (args) =>
+                                _bridge?.handleJsMessage(args),
+                            onControllerReady: (controller) {
+                              _bridge ??= Model3dBridge(
+                                evalJs: (source) => controller
+                                    .evaluateJavascript(source: source),
+                                onEvent: _onBridgeEvent,
+                              );
+                            },
+                          )
+                        else
+                          Center(
+                            child: CircularProgressIndicator(
+                              value: MediaQuery.disableAnimationsOf(context)
+                                  ? 0.72
+                                  : null,
+                            ),
+                          ),
+                        if (_ready && !hasModel) _buildEmptyState(l10n),
+                        if (_busy)
+                          ColoredBox(
+                            color: const Color(0x66000000),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: MediaQuery.disableAnimationsOf(context)
+                                    ? 0.72
+                                    : null,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildToolbar(AppLocalizations l10n, bool hasModel) {
     // 用横向滚动包裹:分段按钮的多语言文案长度不一,窄窗口下避免 RenderFlex 溢出。
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SegmentedButton<String>(
-              segments: [
-                ButtonSegment(
-                  value: 'transform',
-                  label: Text(l10n.model3d_modeTransform),
-                ),
-                ButtonSegment(
-                  value: 'pose',
-                  label: Text(l10n.model3d_modePose),
-                ),
-              ],
-              selected: {_mode},
-              onSelectionChanged: hasModel
-                  ? (selection) => _setMode(
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: context.interactionPolicy.minimumControlExtent + 12,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                    value: 'transform',
+                    label: Text(l10n.model3d_modeTransform),
+                  ),
+                  ButtonSegment(
+                    value: 'pose',
+                    label: Text(l10n.model3d_modePose),
+                  ),
+                ],
+                selected: {_mode},
+                onSelectionChanged: hasModel
+                    ? (selection) => _setMode(
                         selection.first,
                         selection.first == 'pose' ? 'rotate' : _gizmo,
                       )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            SegmentedButton<String>(
-              segments: [
-                ButtonSegment(
-                  value: 'translate',
-                  label: Text(l10n.model3d_gizmoTranslate),
-                ),
-                ButtonSegment(
-                  value: 'rotate',
-                  label: Text(l10n.model3d_gizmoRotate),
-                ),
-                ButtonSegment(
-                  value: 'scale',
-                  label: Text(l10n.model3d_gizmoScale),
-                ),
-              ],
-              selected: {_gizmo},
-              onSelectionChanged: hasModel
-                  ? (selection) => _setMode(_mode, selection.first)
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              tooltip: l10n.model3d_light,
-              icon: const Icon(Icons.light_mode, size: 20),
-              onPressed: hasModel && !_busy ? _showLightDialog : null,
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              tooltip: l10n.model3d_addMannequin,
-              icon: const Icon(Icons.accessibility_new, size: 20),
-              onPressed: _ready && !_busy ? () => _loadBuiltin() : null,
-            ),
-            IconButton(
-              tooltip: l10n.model3d_importModel,
-              icon: const Icon(Icons.file_open, size: 20),
-              onPressed: _ready && !_busy ? _importModel : null,
-            ),
-          ],
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                    value: 'translate',
+                    label: Text(l10n.model3d_gizmoTranslate),
+                  ),
+                  ButtonSegment(
+                    value: 'rotate',
+                    label: Text(l10n.model3d_gizmoRotate),
+                  ),
+                  ButtonSegment(
+                    value: 'scale',
+                    label: Text(l10n.model3d_gizmoScale),
+                  ),
+                ],
+                selected: {_gizmo},
+                onSelectionChanged: hasModel
+                    ? (selection) => _setMode(_mode, selection.first)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              IconButton(
+                tooltip: l10n.model3d_light,
+                icon: const Icon(Icons.light_mode, size: 20),
+                onPressed: hasModel && !_busy ? _showLightDialog : null,
+              ),
+              const SizedBox(width: 12),
+              IconButton(
+                tooltip: l10n.model3d_addMannequin,
+                icon: const Icon(Icons.accessibility_new, size: 20),
+                onPressed: _ready && !_busy ? () => _loadBuiltin() : null,
+              ),
+              IconButton(
+                tooltip: l10n.model3d_importModel,
+                icon: const Icon(Icons.file_open, size: 20),
+                onPressed: _ready && !_busy ? _importModel : null,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -535,29 +577,79 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
 
   Widget _buildEmptyState(AppLocalizations l10n) {
     return Center(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(l10n.model3d_emptyHint),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: _busy ? null : () => _loadBuiltin(confirm: false),
-                icon: const Icon(Icons.accessibility_new),
-                label: Text(l10n.model3d_addMannequin),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(l10n.model3d_emptyHint),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () => _loadBuiltin(confirm: false),
+                    icon: const Icon(Icons.accessibility_new),
+                    label: Text(l10n.model3d_addMannequin),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _importModel,
+                    icon: const Icon(Icons.file_open),
+                    label: Text(l10n.model3d_importModel),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : _importModel,
-                icon: const Icon(Icons.file_open),
-                label: Text(l10n.model3d_importModel),
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LightSliderField extends StatelessWidget {
+  const _LightSliderField({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: Text(label, style: theme.textTheme.labelLarge)),
+            const SizedBox(width: 12),
+            Text(
+              value.toStringAsFixed(1),
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        Slider(value: value, min: min, max: max, onChanged: onChanged),
+      ],
     );
   }
 }

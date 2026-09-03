@@ -5,6 +5,7 @@ import 'package:nai_launcher/presentation/router/app_routes.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/windowing/agent_chat_session_picker.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../themes/theme_extension.dart';
 import 'agent_chat_panel_view_data.dart';
@@ -23,13 +24,13 @@ class AgentChatHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
-    final mobile = viewData.mobile;
+    final fullScreenLayout = viewData.fullScreen;
     final leadingTooltip = viewData.fullScreen
         ? MaterialLocalizations.of(context).backButtonTooltip
         : MaterialLocalizations.of(context).closeButtonTooltip;
     final header = Container(
       key: ValueKey(
-        mobile
+        fullScreenLayout
             ? 'agent-chat-mobile-header'
             : viewData.compactWidth
             ? 'agent-chat-compact-header'
@@ -50,7 +51,9 @@ class AgentChatHeader extends StatelessWidget {
         children: [
           _HeaderIconButton(
             key: ValueKey(
-              mobile ? 'agent-chat-mobile-close' : 'agent-chat-collapse',
+              fullScreenLayout
+                  ? 'agent-chat-mobile-close'
+                  : 'agent-chat-collapse',
             ),
             icon: viewData.fullScreen
                 ? Icons.arrow_back_rounded
@@ -89,7 +92,7 @@ class AgentChatHeader extends StatelessWidget {
           ),
           _HeaderIconButton(
             key: ValueKey(
-              mobile
+              fullScreenLayout
                   ? 'agent-chat-mobile-new-session'
                   : 'agent-chat-new-session',
             ),
@@ -112,7 +115,7 @@ class AgentChatHeader extends StatelessWidget {
     );
     return PopupMenuButton<String>(
       key: ValueKey(
-        viewData.mobile
+        viewData.fullScreen
             ? 'agent-chat-mobile-more'
             : viewData.compactWidth
             ? 'agent-chat-compact-more'
@@ -150,9 +153,9 @@ class AgentChatHeader extends StatelessWidget {
         ],
         _menuItem('settings', Icons.settings_outlined, l10n.settings_agent),
       ],
-      child: const SizedBox.square(
-        dimension: 48,
-        child: Icon(Icons.more_vert_rounded, size: 22),
+      child: SizedBox.square(
+        dimension: context.interactionPolicy.minimumControlExtent,
+        child: const Icon(Icons.more_vert_rounded, size: 22),
       ),
     );
   }
@@ -196,7 +199,7 @@ class AgentChatHeader extends StatelessWidget {
       ],
       activeSessionId: state.activeSessionId,
       enabled: viewData.sessionActionsEnabled,
-      touchOptimized: viewData.mobile,
+      touchOptimized: context.interactionPolicy.shouldExposeTouchAlternatives,
       compactTitle: true,
       onSelect: commands.selectSession,
       onNew: commands.newSession,
@@ -224,7 +227,10 @@ class _HeaderIconButton extends StatelessWidget {
     tooltip: tooltip,
     onPressed: onPressed,
     padding: EdgeInsets.zero,
-    constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+    constraints: BoxConstraints.tightFor(
+      width: context.interactionPolicy.minimumControlExtent,
+      height: context.interactionPolicy.minimumControlExtent,
+    ),
   );
 }
 

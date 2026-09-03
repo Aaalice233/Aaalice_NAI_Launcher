@@ -5,6 +5,7 @@ import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/windowing/workspace_side_panel_contract.dart';
+import '../../../adaptive/window_size_class.dart';
 import '../../../agent_chat/widgets/agent_chat_panel.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../widgets/common/owned_scroll_controller.dart';
@@ -73,7 +74,9 @@ class _RightPanelState extends ConsumerState<RightPanel> {
         widget.width ??
         (expanded
             ? WorkspaceSidePanelContract.constrainedWorkspaceWidth(
-                workspaceWidth: MediaQuery.sizeOf(context).width,
+                workspaceWidth: AdaptiveWindowMetrics.of(
+                  context,
+                ).usableSize.width,
                 preferredWidth: layoutState.rightPanelWidth,
               )
             : 40.0);

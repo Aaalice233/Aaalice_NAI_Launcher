@@ -54,10 +54,54 @@ void main() {
             extension.normalDuration.inMicroseconds,
             lessThanOrEqualTo(extension.slowDuration.inMicroseconds),
           );
+          expect(
+            extension.fastDuration,
+            lessThanOrEqualTo(const Duration(milliseconds: 180)),
+            reason: '${style.name}/${brightness.name} fast motion',
+          );
+          expect(
+            extension.slowDuration,
+            lessThanOrEqualTo(const Duration(milliseconds: 300)),
+            reason: '${style.name}/${brightness.name} slow motion',
+          );
           expect(extension.dividerThickness, greaterThan(0));
           expect(extension.dividerColor.a, lessThan(0.2));
         }
       }
+    });
+
+    testWidgets('页面转场在 Reduce Motion 下直接到终态', (tester) async {
+      final theme = AppTheme.getTheme(AppStyle.grungeCollage, Brightness.dark);
+      final transitionBuilder =
+          theme.pageTransitionsTheme.builders[TargetPlatform.windows]!;
+      final route = PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => const SizedBox(),
+      );
+      const child = SizedBox(key: ValueKey('reduced-motion-child'));
+      late Widget transition;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: Builder(
+              builder: (context) {
+                transition = transitionBuilder.buildTransitions(
+                  route,
+                  context,
+                  const AlwaysStoppedAnimation(0.5),
+                  kAlwaysDismissedAnimation,
+                  child,
+                );
+                return transition;
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(transition, same(child));
     });
 
     testWidgets('普通组件保持无描边，输入框使用低对比单层细边界', (tester) async {
@@ -70,6 +114,8 @@ void main() {
           );
           final inputBorder = theme.inputDecorationTheme.enabledBorder;
           final tooltipDecoration = theme.tooltipTheme.decoration;
+          final dropdownElevation = theme.dropdownMenuTheme.menuStyle?.elevation
+              ?.resolve({});
 
           expect(
             cardShape,
@@ -100,6 +146,11 @@ void main() {
             inputBorder.borderSide.width,
             lessThanOrEqualTo(1),
             reason: '${style.name}/${brightness.name} input border width',
+          );
+          expect(
+            dropdownElevation,
+            8,
+            reason: '${style.name}/${brightness.name} dropdown elevation',
           );
           if (tooltipDecoration is BoxDecoration) {
             expect(

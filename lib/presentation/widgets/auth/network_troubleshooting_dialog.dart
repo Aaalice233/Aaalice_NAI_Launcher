@@ -1,17 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-/// 网络故障排除对话框
-///
-/// 提供常见的网络问题解决方案提示
-class NetworkTroubleshootingDialog extends StatelessWidget {
-  const NetworkTroubleshootingDialog({super.key});
+import '../../adaptive/adaptive_presenter.dart';
 
-  /// 显示对话框
+/// 提供常见网络问题解决方案的自适应帮助面板。
+class NetworkTroubleshootingDialog extends StatelessWidget {
+  const NetworkTroubleshootingDialog({super.key, this.scrollController});
+
+  final ScrollController? scrollController;
+
   static Future<void> show(BuildContext context) {
-    return showDialog(
+    return AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (context) => const NetworkTroubleshootingDialog(),
+      sideSheetWidth: 498,
+      titleBuilder: (context) {
+        final theme = Theme.of(context);
+        return Row(
+          children: [
+            Icon(Icons.wifi_find, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                context.l10n.api_error_network,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+          ],
+        );
+      },
+      builder: (context, scrollController) =>
+          NetworkTroubleshootingDialog(scrollController: scrollController),
     );
   }
 
@@ -20,72 +40,78 @@ class NetworkTroubleshootingDialog extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
-    return AlertDialog(
-      title: Row(
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
         children: [
-          Icon(
-            Icons.wifi_find,
-            color: theme.colorScheme.primary,
+          Expanded(
+            child: ListView(
+              key: const Key('network-troubleshooting-tips-list'),
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              children: [
+                _buildTipItem(
+                  context,
+                  icon: Icons.check_circle_outline,
+                  title: l10n.auth_troubleshoot_checkConnection_title,
+                  description: l10n.auth_troubleshoot_checkConnection_desc,
+                ),
+                const SizedBox(height: 12),
+                _buildTipItem(
+                  context,
+                  icon: Icons.refresh,
+                  title: l10n.auth_troubleshoot_retry_title,
+                  description: l10n.auth_troubleshoot_retry_desc,
+                ),
+                const SizedBox(height: 12),
+                _buildTipItem(
+                  context,
+                  icon: Icons.vpn_lock,
+                  title: l10n.auth_troubleshoot_proxy_title,
+                  description: l10n.auth_troubleshoot_proxy_desc,
+                ),
+                const SizedBox(height: 12),
+                _buildTipItem(
+                  context,
+                  icon: Icons.security,
+                  title: l10n.auth_troubleshoot_firewall_title,
+                  description: l10n.auth_troubleshoot_firewall_desc,
+                ),
+                const SizedBox(height: 12),
+                _buildTipItem(
+                  context,
+                  icon: Icons.cloud_off,
+                  title: l10n.auth_troubleshoot_serverStatus_title,
+                  description: l10n.auth_troubleshoot_serverStatus_desc,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: 8),
-          Text(l10n.api_error_network),
+          Divider(height: 1, color: theme.colorScheme.outlineVariant),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: constraints.maxHeight * 0.8),
+            child: SingleChildScrollView(
+              key: const Key('network-troubleshooting-actions-scroll'),
+              primary: false,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(l10n.common_close),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
-      titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 450),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTipItem(
-              context,
-              icon: Icons.check_circle_outline,
-              title: l10n.auth_troubleshoot_checkConnection_title,
-              description: l10n.auth_troubleshoot_checkConnection_desc,
-            ),
-            const SizedBox(height: 12),
-            _buildTipItem(
-              context,
-              icon: Icons.refresh,
-              title: l10n.auth_troubleshoot_retry_title,
-              description: l10n.auth_troubleshoot_retry_desc,
-            ),
-            const SizedBox(height: 12),
-            _buildTipItem(
-              context,
-              icon: Icons.vpn_lock,
-              title: l10n.auth_troubleshoot_proxy_title,
-              description: l10n.auth_troubleshoot_proxy_desc,
-            ),
-            const SizedBox(height: 12),
-            _buildTipItem(
-              context,
-              icon: Icons.security,
-              title: l10n.auth_troubleshoot_firewall_title,
-              description: l10n.auth_troubleshoot_firewall_desc,
-            ),
-            const SizedBox(height: 12),
-            _buildTipItem(
-              context,
-              icon: Icons.cloud_off,
-              title: l10n.auth_troubleshoot_serverStatus_title,
-              description: l10n.auth_troubleshoot_serverStatus_desc,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_close),
-        ),
-      ],
     );
   }
 
-  /// 构建提示项
   Widget _buildTipItem(
     BuildContext context, {
     required IconData icon,
@@ -97,11 +123,7 @@ class NetworkTroubleshootingDialog extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 20,
-          color: theme.colorScheme.primary,
-        ),
+        Icon(icon, size: 20, color: theme.colorScheme.primary),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

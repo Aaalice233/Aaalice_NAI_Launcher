@@ -1,10 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/watermark/watermark_font_catalog.dart';
 import '../../../data/models/watermark/watermark_settings.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../widgets/image_editor/widgets/color_picker.dart';
 
 class WatermarkEditorControls extends StatelessWidget {
@@ -61,21 +60,24 @@ class WatermarkEditorControls extends StatelessWidget {
           onTap: onOpenMetadataSettings,
         ),
         const SizedBox(height: 8),
-        SegmentedButton<WatermarkEditableLayer>(
-          segments: [
-            ButtonSegment(
-              value: WatermarkEditableLayer.text,
-              icon: const Icon(Icons.text_fields),
-              label: Text(context.l10n.watermark_textLayer),
-            ),
-            ButtonSegment(
-              value: WatermarkEditableLayer.logo,
-              icon: const Icon(Icons.image_outlined),
-              label: Text(context.l10n.watermark_logoLayer),
-            ),
-          ],
-          selected: {selectedLayer},
-          onSelectionChanged: (value) => onSelectedLayerChanged(value.first),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SegmentedButton<WatermarkEditableLayer>(
+            segments: [
+              ButtonSegment(
+                value: WatermarkEditableLayer.text,
+                icon: const Icon(Icons.text_fields),
+                label: Text(context.l10n.watermark_textLayer),
+              ),
+              ButtonSegment(
+                value: WatermarkEditableLayer.logo,
+                icon: const Icon(Icons.image_outlined),
+                label: Text(context.l10n.watermark_logoLayer),
+              ),
+            ],
+            selected: {selectedLayer},
+            onSelectionChanged: (value) => onSelectedLayerChanged(value.first),
+          ),
         ),
         const SizedBox(height: 12),
         if (selectedLayer == WatermarkEditableLayer.text) ...[
@@ -99,6 +101,18 @@ class WatermarkEditorControls extends StatelessWidget {
             initialValue: WatermarkFontCatalog.contains(text.fontFamily)
                 ? text.fontFamily
                 : WatermarkFontCatalog.options.first.family,
+            isExpanded: true,
+            selectedItemBuilder: (context) => [
+              for (final option in WatermarkFontCatalog.options)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    option.family,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
             decoration: _controlDecoration(
               context,
               context.l10n.watermark_font,
@@ -176,32 +190,35 @@ class WatermarkEditorControls extends StatelessWidget {
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: 8),
-          SegmentedButton<WatermarkTextAlignment>(
-            showSelectedIcon: false,
-            segments: [
-              ButtonSegment(
-                value: WatermarkTextAlignment.left,
-                icon: const Icon(Icons.format_align_left),
-                label: Text(context.l10n.watermark_alignLeft),
-                tooltip: context.l10n.watermark_alignLeft,
-              ),
-              ButtonSegment(
-                value: WatermarkTextAlignment.center,
-                icon: const Icon(Icons.format_align_center),
-                label: Text(context.l10n.watermark_alignCenter),
-                tooltip: context.l10n.watermark_alignCenter,
-              ),
-              ButtonSegment(
-                value: WatermarkTextAlignment.right,
-                icon: const Icon(Icons.format_align_right),
-                label: Text(context.l10n.watermark_alignRight),
-                tooltip: context.l10n.watermark_alignRight,
-              ),
-            ],
-            selected: {text.alignment},
-            onSelectionChanged: (value) => onSettingsChanged(
-              settings.copyWith(
-                textStyle: text.copyWith(alignment: value.first),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<WatermarkTextAlignment>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(
+                  value: WatermarkTextAlignment.left,
+                  icon: const Icon(Icons.format_align_left),
+                  label: Text(context.l10n.watermark_alignLeft),
+                  tooltip: context.l10n.watermark_alignLeft,
+                ),
+                ButtonSegment(
+                  value: WatermarkTextAlignment.center,
+                  icon: const Icon(Icons.format_align_center),
+                  label: Text(context.l10n.watermark_alignCenter),
+                  tooltip: context.l10n.watermark_alignCenter,
+                ),
+                ButtonSegment(
+                  value: WatermarkTextAlignment.right,
+                  icon: const Icon(Icons.format_align_right),
+                  label: Text(context.l10n.watermark_alignRight),
+                  tooltip: context.l10n.watermark_alignRight,
+                ),
+              ],
+              selected: {text.alignment},
+              onSelectionChanged: (value) => onSettingsChanged(
+                settings.copyWith(
+                  textStyle: text.copyWith(alignment: value.first),
+                ),
               ),
             ),
           ),
@@ -402,35 +419,13 @@ class WatermarkEditorControls extends StatelessWidget {
     Color initial,
     ValueChanged<Color> onChanged,
   ) async {
-    var selected = initial;
-    final result = await showDialog<Color>(
+    final result = await AdaptivePresenter.showForm<Color>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        insetPadding: const EdgeInsets.all(16),
-        contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        title: Text(context.l10n.editor_toolColorPicker),
-        content: SizedBox(
-          width: math.min(320, MediaQuery.sizeOf(dialogContext).width - 64),
-          child: HSVColorPicker(
-            color: initial,
-            hexLabel: context.l10n.editor_colorHex,
-            saturationBrightnessLabel:
-                context.l10n.editor_colorSaturationBrightness,
-            hueLabel: context.l10n.editor_colorHue,
-            hueHeight: 48,
-            onColorChanged: (value) => selected = value,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(selected),
-            child: Text(context.l10n.common_confirm),
-          ),
-        ],
+      title: context.l10n.editor_toolColorPicker,
+      sideSheetWidth: 440,
+      builder: (panelContext, scrollController) => _WatermarkColorForm(
+        initial: initial,
+        scrollController: scrollController,
       ),
     );
     if (result != null) onChanged(result);
@@ -461,6 +456,59 @@ class WatermarkEditorControls extends StatelessWidget {
           context.l10n.watermark_anchorBottomCenter,
         WatermarkAnchor.bottomRight => context.l10n.watermark_anchorBottomRight,
       };
+}
+
+class _WatermarkColorForm extends StatefulWidget {
+  const _WatermarkColorForm({
+    required this.initial,
+    required this.scrollController,
+  });
+
+  final Color initial;
+  final ScrollController scrollController;
+
+  @override
+  State<_WatermarkColorForm> createState() => _WatermarkColorFormState();
+}
+
+class _WatermarkColorFormState extends State<_WatermarkColorForm> {
+  late Color _selected = widget.initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      key: const ValueKey('watermark-color-form'),
+      controller: widget.scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      children: [
+        HSVColorPicker(
+          color: widget.initial,
+          hexLabel: context.l10n.editor_colorHex,
+          saturationBrightnessLabel:
+              context.l10n.editor_colorSaturationBrightness,
+          hueLabel: context.l10n.editor_colorHue,
+          hueHeight: 48,
+          onColorChanged: (value) => _selected = value,
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(_selected),
+              child: Text(context.l10n.common_confirm),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 enum WatermarkEditableLayer { text, logo }

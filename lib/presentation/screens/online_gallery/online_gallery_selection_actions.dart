@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -10,6 +9,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/media_mime_type.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
@@ -348,32 +348,26 @@ class OnlineGallerySelectionActions {
         )
         .length;
     final progress = ValueNotifier<int>(0);
-    BuildContext? progressDialogContext;
+    BuildContext? progressPanelContext;
+    Future<void>? progressPresentation;
     if (context.mounted && jobs.isNotEmpty) {
-      unawaited(
-        showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) {
-            progressDialogContext = dialogContext;
-            return AlertDialog(
-              content: ValueListenableBuilder<int>(
-                valueListenable: progress,
-                builder: (_, completed, __) => SizedBox(
-                  width: 320,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      LinearProgressIndicator(value: completed / jobs.length),
-                      const SizedBox(height: 12),
-                      Text('$completed / ${jobs.length}'),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
+      progressPresentation = AdaptivePresenter.showPanel<void>(
+        context: context,
+        barrierDismissible: false,
+        allowDragDismissal: false,
+        showHeader: false,
+        sideSheetWidth: 480,
+        initialChildSize: 0.42,
+        minChildSize: 0.32,
+        maxChildSize: 0.72,
+        builder: (panelContext, scrollController) {
+          progressPanelContext = panelContext;
+          return _GalleryDownloadProgressPanel(
+            progress: progress,
+            total: jobs.length,
+            scrollController: scrollController,
+          );
+        },
       );
       await Future<void>.delayed(Duration.zero);
     }
@@ -416,11 +410,57 @@ class OnlineGallerySelectionActions {
         }),
       );
     }
-    if (progressDialogContext?.mounted == true) {
-      Navigator.of(progressDialogContext!).pop();
+    if (progressPanelContext?.mounted == true) {
+      Navigator.of(progressPanelContext!).pop();
     }
+    await progressPresentation;
     progress.dispose();
     return (successCount, failCount, skippedCount);
+  }
+}
+
+class _GalleryDownloadProgressPanel extends StatelessWidget {
+  const _GalleryDownloadProgressPanel({
+    required this.progress,
+    required this.total,
+    required this.scrollController,
+  });
+
+  final ValueNotifier<int> progress;
+  final int total;
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: ValueListenableBuilder<int>(
+            valueListenable: progress,
+            builder: (context, completed, _) => Semantics(
+              liveRegion: true,
+              value: '$completed / $total',
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LinearProgressIndicator(value: completed / total),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$completed / $total',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

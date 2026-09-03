@@ -12,9 +12,11 @@ import '../../../widgets/character/inline_character_section.dart';
 import 'collapsed_panel.dart';
 import 'generation_controls/generation_controls.dart';
 import 'generation_param_sections.dart';
+import 'generation_workspace_header.dart';
 import 'img2img_panel.dart';
 import 'precise_reference_panel.dart';
 import 'prompt_input.dart';
+import 'prompt_input_controller.dart';
 import 'reverse_prompt_panel.dart';
 import 'unified_reference_panel.dart';
 
@@ -27,11 +29,15 @@ import 'unified_reference_panel.dart';
 /// 悬浮于滚动内容之上（官网式，不与提示词等模块同层）。
 class WebLeftPanel extends ConsumerStatefulWidget {
   final ValueNotifier<bool> negativeModeNotifier;
+  final PromptInputController promptInputController;
+  final GlobalKey promptInputKey;
   final bool isResizing;
 
   const WebLeftPanel({
     super.key,
     required this.negativeModeNotifier,
+    required this.promptInputController,
+    required this.promptInputKey,
     this.isResizing = false,
   });
 
@@ -162,7 +168,9 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
       return Container(width: width, decoration: decoration, child: child);
     }
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
       width: width,
       decoration: decoration,
       child: child,
@@ -178,32 +186,11 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
 
     return Column(
       children: [
-        // 头部条：折叠按钮不悬浮，避免遮挡提示词工具栏
-        Container(
-          height: 36,
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: theme.dividerColor, width: 1),
-            ),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 12),
-              Icon(
-                Icons.edit_note,
-                size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-              const Spacer(),
-              CollapseButton(
-                icon: Icons.chevron_left,
-                onTap: () => ref
-                    .read(layoutStateNotifierProvider.notifier)
-                    .setWebLeftPanelExpanded(false),
-              ),
-              const SizedBox(width: 4),
-            ],
-          ),
+        GenerationWorkspaceHeader(
+          key: const ValueKey('web-generation-workspace-header'),
+          onCollapse: () => ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setWebLeftPanelExpanded(false),
         ),
 
         // 内容区 + 参数二级菜单浮层
@@ -230,6 +217,8 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
 
                         // 提示词：随内容自由增高（官网式）
                         PromptInputWidget(
+                          key: widget.promptInputKey,
+                          controller: widget.promptInputController,
                           autoGrow: true,
                           showMaximizeButton: false,
                           negativeModeNotifier: widget.negativeModeNotifier,

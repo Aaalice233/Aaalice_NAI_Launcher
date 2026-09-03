@@ -166,10 +166,7 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: DetailMetadataPanel(
-              currentImage: detail,
-              expandedWidth: 360,
-            ),
+            body: DetailMetadataPanel(currentImage: detail, expandedWidth: 360),
           ),
         ),
       ),
@@ -226,12 +223,51 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final section = tester.widget<PromptSection>(find.byType(PromptSection));
+    final section = tester
+        .widgetList<PromptSection>(find.byType(PromptSection))
+        .first;
     expect(section.tags, const [fragment, 'city']);
     expect(section.fixedTags, contains(fragment));
     expect(find.textContaining(fragment), findsOneWidget);
     expect(find.text('{{{blue_eyes'), findsNothing);
     expect(find.text('long_hair}}}'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('marks only the fixed occurrence when a negative tag repeats', (
+    tester,
+  ) async {
+    final image = img.Image(width: 1, height: 1);
+    final detail = GeneratedImageDetailData(
+      imageBytes: Uint8List.fromList(img.encodePng(image)),
+      metadata: const NaiImageMetadata(
+        negativePrompt: 'lowres, nsfw, lowres',
+        fixedNegativePrefixTags: ['lowres'],
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DetailMetadataPanel(currentImage: detail, expandedWidth: 600),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final section = tester
+        .widgetList<PromptSection>(find.byType(PromptSection))
+        .singleWhere((section) => section.isNegative);
+    await tester.tap(find.text(section.title));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.push_pin), findsOneWidget);
+    expect(find.text('lowres'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 

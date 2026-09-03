@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/image_generation_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import '../common/themed_input.dart';
@@ -79,8 +79,7 @@ class _TagViewState extends ConsumerState<TagView>
   // 动画控制器
   late AnimationController _entranceController;
   late AnimationController _shimmerController;
-
-  bool get _isMobile => PlatformCapabilities.current.hasTouchInput;
+  bool? _animationsDisabled;
 
   @override
   void initState() {
@@ -94,9 +93,25 @@ class _TagViewState extends ConsumerState<TagView>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    _entranceController.forward();
-    if (widget.isLoading) {
-      _shimmerController.repeat();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final animationsDisabled = MediaQuery.disableAnimationsOf(context);
+    if (_animationsDisabled == animationsDisabled) return;
+
+    _animationsDisabled = animationsDisabled;
+    if (animationsDisabled) {
+      _entranceController
+        ..stop()
+        ..value = 1;
+      _shimmerController.stop();
+    } else {
+      if (_entranceController.value < 1) {
+        _entranceController.forward();
+      }
+      _syncShimmerAnimation();
     }
   }
 
@@ -107,11 +122,15 @@ class _TagViewState extends ConsumerState<TagView>
       _updateTagKeys();
     }
     if (widget.isLoading != oldWidget.isLoading) {
-      if (widget.isLoading) {
-        _shimmerController.repeat();
-      } else {
-        _shimmerController.stop();
-      }
+      _syncShimmerAnimation();
+    }
+  }
+
+  void _syncShimmerAnimation() {
+    if (widget.isLoading && _animationsDisabled == false) {
+      _shimmerController.repeat();
+    } else {
+      _shimmerController.stop();
     }
   }
 
@@ -366,7 +385,9 @@ class _TagViewState extends ConsumerState<TagView>
     );
 
     // 桌面端添加框选功能
-    if (!_isMobile && widget.enableBoxSelection && !widget.readOnly) {
+    if (context.interactionPolicy.precisePointerAvailable &&
+        widget.enableBoxSelection &&
+        !widget.readOnly) {
       content = BoxSelectionOverlay(
         enabled: true,
         getTagRects: _getTagRects,
@@ -542,7 +563,7 @@ class _TagViewState extends ConsumerState<TagView>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // 插画图标容器
-              _buildEmptyStateIllustration(theme, 1.0),
+              _buildEmptyStateIllustration(theme, reducedMotion: true),
               const SizedBox(height: 24),
 
               // 主提示文本
@@ -589,7 +610,7 @@ class _TagViewState extends ConsumerState<TagView>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // 插画图标容器
-                    _buildEmptyStateIllustration(theme, value),
+                    _buildEmptyStateIllustration(theme),
                     const SizedBox(height: 24),
 
                     // 主提示文本
@@ -635,51 +656,60 @@ class _TagViewState extends ConsumerState<TagView>
     );
   }
 
-  Widget _buildEmptyStateIllustration(ThemeData theme, double animValue) {
+  Widget _buildEmptyStateIllustration(
+    ThemeData theme, {
+    bool reducedMotion = false,
+  }) {
+    Widget illustration(double scaleValue, double iconValue) {
+      return Transform.scale(
+        scale: 0.8 + (0.2 * scaleValue),
+        child: Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment.center,
+              radius: 0.8,
+              colors: [
+                theme.colorScheme.primary.withValues(alpha: 0.15),
+                theme.colorScheme.primary.withValues(alpha: 0.05),
+                theme.colorScheme.primary.withValues(alpha: 0.02),
+              ],
+              stops: const [0.0, 0.6, 1.0],
+            ),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Transform.rotate(
+              angle: (1 - iconValue) * 0.3,
+              child: Opacity(
+                opacity: iconValue.clamp(0.0, 1.0),
+                child: Icon(
+                  Icons.label_outline_rounded,
+                  size: 56,
+                  color: theme.colorScheme.primary.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (reducedMotion) return illustration(1, 1);
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 800),
       curve: Curves.easeInOut,
       builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.8 + (0.2 * value),
-          child: Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.center,
-                radius: 0.8,
-                colors: [
-                  theme.colorScheme.primary.withValues(alpha: 0.15),
-                  theme.colorScheme.primary.withValues(alpha: 0.05),
-                  theme.colorScheme.primary.withValues(alpha: 0.02),
-                ],
-                stops: const [0.0, 0.6, 1.0],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 1000),
-                curve: Curves.easeOutBack,
-                builder: (context, iconValue, child) {
-                  return Transform.rotate(
-                    angle: (1 - iconValue) * 0.3,
-                    child: Opacity(
-                      opacity: iconValue.clamp(0.0, 1.0),
-                      child: Icon(
-                        Icons.label_outline_rounded,
-                        size: 56,
-                        color: theme.colorScheme.primary.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 1000),
+          curve: Curves.easeOutCubic,
+          builder: (context, iconValue, child) {
+            return illustration(value, iconValue);
+          },
         );
       },
     );
@@ -854,7 +884,7 @@ class _TagViewState extends ConsumerState<TagView>
     );
 
     // 移动端支持滑动删除
-    if (_isMobile) {
+    if (context.interactionPolicy.touchAvailable) {
       tagWidget = Dismissible(
         key: Key(tag.id),
         direction: DismissDirection.endToStart,
@@ -1025,14 +1055,18 @@ class _TagViewState extends ConsumerState<TagView>
     required Color color,
     required VoidCallback onTap,
   }) {
+    final interactionPolicy = context.interactionPolicy;
+    final extent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
+        : 28.0;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
         child: Container(
-          width: 28,
-          height: 28,
+          width: extent,
+          height: extent,
           alignment: Alignment.center,
           child: Icon(icon, size: 18, color: color),
         ),
@@ -1195,65 +1229,88 @@ class _TagCountBadgeState extends State<_TagCountBadge> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) {
-        setState(() => _isHovering = false);
-        _hideOverlay();
-      },
-      child: GestureDetector(
-        onTap: () {
-          if (_overlayEntry == null) {
-            _showBreakdownMenu();
-          } else {
-            _hideOverlay();
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                widget.theme.colorScheme.primary.withValues(alpha: 0.2),
-                widget.theme.colorScheme.primary.withValues(alpha: 0.1),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: widget.theme.colorScheme.primary.withValues(
-                alpha: _isHovering ? 0.5 : 0.3,
-              ),
-              width: 1,
+    final policy = context.interactionPolicy;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final badge = AnimatedContainer(
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            widget.theme.colorScheme.primary.withValues(alpha: 0.2),
+            widget.theme.colorScheme.primary.withValues(alpha: 0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: widget.theme.colorScheme.primary.withValues(
+            alpha: _isHovering ? 0.5 : 0.3,
+          ),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.totalCount.toString(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: widget.theme.colorScheme.primary,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.totalCount.toString(),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: widget.theme.colorScheme.primary,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+          if (widget.enabledCount < widget.totalCount) ...[
+            const SizedBox(width: 2),
+            Text(
+              '(${widget.enabledCount})',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+                color: widget.theme.colorScheme.onSurface.withValues(
+                  alpha: 0.6,
                 ),
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
-              if (widget.enabledCount < widget.totalCount) ...[
-                const SizedBox(width: 2),
-                Text(
-                  '(${widget.enabledCount})',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w500,
-                    color: widget.theme.colorScheme.onSurface.withValues(
-                      alpha: 0.6,
-                    ),
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ],
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return Semantics(
+      button: true,
+      label: context.l10n.tagGroup_tagCount(widget.totalCount),
+      child: MouseRegion(
+        onEnter: policy.precisePointerAvailable
+            ? (_) => setState(() => _isHovering = true)
+            : null,
+        onExit: policy.precisePointerAvailable
+            ? (_) {
+                setState(() => _isHovering = false);
+                _hideOverlay();
+              }
+            : null,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (_overlayEntry == null) {
+              _showBreakdownMenu();
+            } else {
+              _hideOverlay();
+            }
+          },
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: policy.touchAvailable ? policy.minimumControlExtent : 0,
+              minHeight: policy.touchAvailable
+                  ? policy.minimumControlExtent
+                  : 0,
+            ),
+            child: Center(child: badge),
           ),
         ),
       ),
@@ -1285,142 +1342,182 @@ class _BreakdownMenu extends StatelessWidget {
     return GestureDetector(
       onTap: onDismiss,
       behavior: HitTestBehavior.translucent,
-      child: Stack(
-        children: [
-          Positioned(
-            left: position.left - 50,
-            top: position.top,
-            child: GestureDetector(
-              onTap: () {},
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    constraints: const BoxConstraints(
-                      minWidth: 180,
-                      maxWidth: 220,
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          theme.colorScheme.surfaceContainerHighest.withValues(
-                            alpha: 0.9,
-                          ),
-                          theme.colorScheme.surfaceContainerHigh.withValues(
-                            alpha: 0.85,
-                          ),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: theme.colorScheme.shadow.withValues(
-                            alpha: 0.2,
-                          ),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 标题
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            context.l10n.tag_countBadgeBreakdown,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                        const ThemedDivider(height: 1),
-                        const SizedBox(height: 8),
-                        // 分类统计列表
-                        ...sortedCategories.map((entry) {
-                          final categoryName = getCategoryName(entry.key);
-                          final count = entry.value;
-                          final percentage =
-                              (count /
-                              breakdown.values.reduce((a, b) => a + b) *
-                              100);
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final safeArea = MediaQuery.paddingOf(context);
+          const edgeInset = 8.0;
+          final safeLeft = safeArea.left + edgeInset;
+          final safeTop = safeArea.top + edgeInset;
+          final safeRight = constraints.maxWidth - safeArea.right - edgeInset;
+          final safeBottom =
+              constraints.maxHeight - safeArea.bottom - edgeInset;
+          final availableWidth = (safeRight - safeLeft).clamp(0.0, 220.0);
 
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                // 分类名称
-                                Expanded(
-                                  child: Text(
-                                    categoryName,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: theme.colorScheme.onSurface
-                                          .withValues(alpha: 0.8),
-                                    ),
-                                  ),
-                                ),
-                                // 数量
-                                Text(
-                                  count.toString(),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.primary,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures(),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // 百分比条
-                                Container(
-                                  width: 40,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    color: theme
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                  child: FractionallySizedBox(
-                                    alignment: Alignment.centerLeft,
-                                    widthFactor: percentage / 100,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            theme.colorScheme.primary,
-                                            theme.colorScheme.primary
-                                                .withValues(alpha: 0.7),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+          if (availableWidth == 0 || safeBottom <= safeTop) {
+            return const SizedBox.expand();
+          }
+
+          final menuLeft = (position.left - 50).clamp(
+            safeLeft,
+            safeRight - availableWidth,
+          );
+          final belowTop = position.top.clamp(safeTop, safeBottom);
+          final anchorTop = position.top - position.height - 4;
+          final aboveBottom = anchorTop.clamp(safeTop, safeBottom);
+          final spaceBelow = safeBottom - belowTop;
+          final spaceAbove = aboveBottom - safeTop;
+          final showBelow = spaceBelow >= 180 || spaceBelow >= spaceAbove;
+          final maxMenuHeight = showBelow ? spaceBelow : spaceAbove;
+
+          return Stack(
+            children: [
+              Positioned(
+                left: menuLeft,
+                width: availableWidth,
+                top: showBelow ? belowTop : null,
+                bottom: showBelow ? null : constraints.maxHeight - aboveBottom,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxMenuHeight),
+                  child: GestureDetector(
+                    onTap: () {},
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.9),
+                                theme.colorScheme.surfaceContainerHigh
+                                    .withValues(alpha: 0.85),
                               ],
                             ),
-                          );
-                        }),
-                      ],
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.colorScheme.shadow.withValues(
+                                  alpha: 0.2,
+                                ),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 标题
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    context.l10n.tag_countBadgeBreakdown,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                                const ThemedDivider(height: 1),
+                                const SizedBox(height: 8),
+                                // 分类统计列表
+                                ...sortedCategories.map((entry) {
+                                  final categoryName = getCategoryName(
+                                    entry.key,
+                                  );
+                                  final count = entry.value;
+                                  final percentage =
+                                      (count /
+                                      breakdown.values.reduce((a, b) => a + b) *
+                                      100);
+
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // 分类名称
+                                        Expanded(
+                                          child: Text(
+                                            categoryName,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                              color: theme.colorScheme.onSurface
+                                                  .withValues(alpha: 0.8),
+                                            ),
+                                          ),
+                                        ),
+                                        // 数量
+                                        Text(
+                                          count.toString(),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: theme.colorScheme.primary,
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures(),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // 百分比条
+                                        Flexible(
+                                          child: Container(
+                                            width: 40,
+                                            height: 4,
+                                            decoration: BoxDecoration(
+                                              color: theme
+                                                  .colorScheme
+                                                  .surfaceContainerHighest,
+                                              borderRadius:
+                                                  BorderRadius.circular(2),
+                                            ),
+                                            child: FractionallySizedBox(
+                                              alignment: Alignment.centerLeft,
+                                              widthFactor: percentage / 100,
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      theme.colorScheme.primary,
+                                                      theme.colorScheme.primary
+                                                          .withValues(
+                                                            alpha: 0.7,
+                                                          ),
+                                                    ],
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(2),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

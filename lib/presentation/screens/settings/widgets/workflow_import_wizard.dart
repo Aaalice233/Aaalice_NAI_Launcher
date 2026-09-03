@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/comfyui/workflow_analyzer.dart';
 import '../../../../core/comfyui/workflow_template.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -19,13 +20,34 @@ import '../../../widgets/common/app_toast.dart';
 /// Step 2: 槽位确认/调整
 /// Step 3: 确认保存
 class WorkflowImportWizard extends ConsumerStatefulWidget {
-  const WorkflowImportWizard({super.key});
+  const WorkflowImportWizard({super.key, this.scrollController});
+
+  final ScrollController? scrollController;
 
   static Future<void> show(BuildContext context) {
-    return showDialog(
+    return AdaptivePresenter.showForm<void>(
       context: context,
+      sideSheetWidth: 600,
       barrierDismissible: false,
-      builder: (context) => const WorkflowImportWizard(),
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.upload_file,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              panelContext.l10n.workflowImport_title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(panelContext).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      builder: (panelContext, scrollController) =>
+          WorkflowImportWizard(scrollController: scrollController),
     );
   }
 
@@ -59,67 +81,39 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildHeader(theme),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: _buildStepContent(theme),
-              ),
-            ),
-            _buildFooter(theme),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme) {
     final titles = [
       context.l10n.workflowImport_stepFile,
       context.l10n.workflowImport_stepInfo,
       context.l10n.workflowImport_stepSlots,
       context.l10n.workflowImport_stepDone,
     ];
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.upload_file, color: theme.colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.workflowImport_title,
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  context.l10n.workflowImport_step(_step + 1, titles[_step]),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              context.l10n.workflowImport_step(_step + 1, titles[_step]),
+              key: const Key('workflow-import-step-label'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
+        ),
+        Expanded(
+          child: ListView(
+            key: const Key('workflow-import-form-scroll'),
+            controller: widget.scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(20),
+            children: [_buildStepContent(theme)],
           ),
-        ],
-      ),
+        ),
+        _buildFooter(),
+      ],
     );
   }
 
@@ -138,48 +132,61 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
     }
   }
 
-  Widget _buildFooter(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
+  Widget _buildFooter() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final actions = <Widget>[
           if (_step > 0)
             TextButton(
               onPressed: () => setState(() => _step--),
               child: Text(context.l10n.workflowImport_previous),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.l10n.common_cancel),
+          ),
+          if (_step < 3)
+            FilledButton(
+              onPressed: _canProceed ? _nextStep : null,
+              child: Text(context.l10n.workflowImport_next),
             )
           else
-            const SizedBox.shrink(),
-          Row(
-            children: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(context.l10n.common_cancel),
-              ),
-              const SizedBox(width: 8),
-              if (_step < 3)
-                FilledButton(
-                  onPressed: _canProceed ? _nextStep : null,
-                  child: Text(context.l10n.workflowImport_next),
-                )
-              else
-                FilledButton.icon(
-                  onPressed: _saveWorkflow,
-                  icon: const Icon(Icons.check, size: 18),
-                  label: Text(context.l10n.workflowImport_finish),
-                ),
-            ],
+            FilledButton.icon(
+              onPressed: _saveWorkflow,
+              icon: const Icon(Icons.check, size: 18),
+              label: Text(context.l10n.workflowImport_finish),
+            ),
+        ];
+        final largeText = MediaQuery.textScalerOf(context).scale(1) >= 2;
+        return SingleChildScrollView(
+          key: const Key('workflow-import-actions-scroll'),
+          scrollDirection: largeText ? Axis.horizontal : Axis.vertical,
+          padding: const EdgeInsets.all(12),
+          child: SafeArea(
+            top: false,
+            child: largeText
+                ? Row(
+                    key: const Key('workflow-import-actions'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var index = 0; index < actions.length; index++) ...[
+                        if (index > 0) const SizedBox(width: 8),
+                        actions[index],
+                      ],
+                    ],
+                  )
+                : Wrap(
+                    key: const Key('workflow-import-actions'),
+                    alignment: constraints.maxWidth < 420
+                        ? WrapAlignment.center
+                        : WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: actions,
+                  ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -211,7 +218,8 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
       _enabledSlotIds.add(slot.id);
     }
     if (_nameController.text.isEmpty) {
-      _nameController.text = _fileName?.replaceAll('.json', '') ??
+      _nameController.text =
+          _fileName?.replaceAll('.json', '') ??
           context.l10n.workflowImport_defaultName;
     }
   }
@@ -231,7 +239,8 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
           onTap: _pickWorkflowFile,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            height: 140,
+            constraints: const BoxConstraints(minHeight: 140),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
               border: Border.all(
                 color: _workflowJson != null
@@ -264,8 +273,9 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
                             _workflowJson!.length,
                           ),
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -283,15 +293,17 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
                         Icon(
                           Icons.upload_file,
                           size: 40,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.4),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.4,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           context.l10n.workflowImport_selectWorkflowApi,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.5),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
                         ),
                       ],
@@ -460,8 +472,9 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
           const Spacer(),
           Text(
             value,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -515,9 +528,7 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
               color: theme.colorScheme.errorContainer.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              context.l10n.workflowImport_noSlotsWarning,
-            ),
+            child: Text(context.l10n.workflowImport_noSlotsWarning),
           ),
       ],
     );
@@ -532,8 +543,9 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
           const SizedBox(width: 8),
           Text(
             title,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(color: theme.colorScheme.primary),
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
           ),
         ],
       ),
@@ -573,10 +585,12 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
     final enabledSlots = _analysis!.allSlots
         .where((s) => _enabledSlotIds.contains(s.id))
         .toList();
-    final inputs =
-        enabledSlots.where((s) => s.direction == SlotDirection.input).length;
-    final outputs =
-        enabledSlots.where((s) => s.direction == SlotDirection.output).length;
+    final inputs = enabledSlots
+        .where((s) => s.direction == SlotDirection.input)
+        .length;
+    final outputs = enabledSlots
+        .where((s) => s.direction == SlotDirection.output)
+        .length;
     final params = enabledSlots
         .where((s) => s.direction == SlotDirection.parameter)
         .length;
@@ -654,8 +668,9 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
           Flexible(
             child: Text(
               value,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               textAlign: TextAlign.end,
             ),
           ),
@@ -684,8 +699,9 @@ class _WorkflowImportWizardState extends ConsumerState<WorkflowImportWizard> {
       version: '1.0.0',
       author: 'User',
       category: _category,
-      requiresInputImage:
-          enabledSlots.any((s) => s.direction == SlotDirection.input),
+      requiresInputImage: enabledSlots.any(
+        (s) => s.direction == SlotDirection.input,
+      ),
       requiresMask: enabledSlots.any((s) => s.dataType == SlotDataType.mask),
       slots: enabledSlots,
       workflowJson: _workflowJson!,

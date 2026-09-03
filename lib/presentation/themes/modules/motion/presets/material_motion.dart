@@ -11,10 +11,10 @@ class MaterialMotion extends BaseMotionModule {
   Duration get fastDuration => const Duration(milliseconds: 150);
 
   @override
-  Duration get normalDuration => const Duration(milliseconds: 300);
+  Duration get normalDuration => const Duration(milliseconds: 240);
 
   @override
-  Duration get slowDuration => const Duration(milliseconds: 400);
+  Duration get slowDuration => const Duration(milliseconds: 280);
 
   // MD3 curves: cubic-bezier(0.2, 0, 0, 1)
   @override

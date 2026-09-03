@@ -44,6 +44,11 @@ class OnlineGalleryDetailCoordinator {
     return _completed.length;
   }
 
+  GalleryDetail? peekCompleted(GalleryItem item) {
+    _pruneExpired();
+    return _completed[item.detailStableKey]?.detail;
+  }
+
   Future<GalleryDetail> request(
     GalleryItem item, {
     GalleryDetailPriority priority = GalleryDetailPriority.interactive,

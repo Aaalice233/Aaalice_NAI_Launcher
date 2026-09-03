@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../core/agent/private_data_guard.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/windowing/agent_chat_shared_widgets.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../themes/theme_extension.dart';
 import 'agent_chat_tool_widgets.dart';
 
@@ -17,14 +18,12 @@ class AgentChatApprovalCard extends StatefulWidget {
     required this.toolName,
     required this.args,
     required this.estimatedAnlas,
-    required this.touchOptimized,
     required this.onResolve,
   });
 
   final String toolName;
   final Map<String, dynamic> args;
   final int? estimatedAnlas;
-  final bool touchOptimized;
   final void Function(bool approved) onResolve;
 
   @override
@@ -68,6 +67,7 @@ class _AgentChatApprovalCardState extends State<AgentChatApprovalCard> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final toolLabel = agentToolLabel(context, widget.toolName);
     final description = widget.toolName.toLowerCase().contains('delete')
         ? l10n.common_deleteItemConfirm(toolLabel)
@@ -81,7 +81,7 @@ class _AgentChatApprovalCardState extends State<AgentChatApprovalCard> {
           : l10n.agentChat_approvalEstimatedAnlas(widget.estimatedAnlas!),
       denyLabel: l10n.agentChat_approvalDeny,
       allowLabel: l10n.agentChat_approvalAllow,
-      touchOptimized: widget.touchOptimized,
+      touchOptimized: context.interactionPolicy.shouldExposeTouchAlternatives,
       onDeny: () => _resolve(false),
       onAllow: () => _resolve(true),
     );
@@ -95,7 +95,9 @@ class _AgentChatApprovalCardState extends State<AgentChatApprovalCard> {
           ignoring: _resolutionSubmitted,
           child: AnimatedOpacity(
             opacity: _resolutionSubmitted ? 0.58 : 1,
-            duration: Theme.of(context).appTheme.fastDuration,
+            duration: disableAnimations
+                ? Duration.zero
+                : Theme.of(context).appTheme.fastDuration,
             curve: Theme.of(context).appTheme.standardCurve,
             child: surface,
           ),

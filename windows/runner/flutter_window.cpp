@@ -242,6 +242,12 @@ bool FlutterWindow::OnCreate() {
           return;
         }
 
+        if (call.method_name() == "synchronizeViewMetrics") {
+          SynchronizeChildContentMetrics();
+          result->Success();
+          return;
+        }
+
         if (call.method_name() == "restore") {
           const auto* arguments = call.arguments();
           const auto* values = arguments == nullptr

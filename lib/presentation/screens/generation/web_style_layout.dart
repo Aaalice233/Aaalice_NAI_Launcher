@@ -24,15 +24,25 @@ import 'handlers/generation_action_handlers.dart';
 import 'widgets/fixed_tags_sidebar_slot.dart';
 import 'widgets/generation_workspace_row.dart';
 import 'widgets/image_preview.dart';
+import 'widgets/prompt_input_controller.dart';
 import 'widgets/resize_handle.dart';
 import 'widgets/right_panel.dart';
 import 'widgets/web_left_panel.dart';
 
 /// 官网式布局：提示词与设置固定在最左栏，中间为纯预览区
 class WebStyleGenerationLayout extends ConsumerStatefulWidget {
-  const WebStyleGenerationLayout({super.key, required this.historyViewport});
+  const WebStyleGenerationLayout({
+    super.key,
+    required this.historyViewport,
+    required this.negativeModeNotifier,
+    required this.promptInputController,
+    required this.promptInputKey,
+  });
 
   final OwnedViewportOffset historyViewport;
+  final ValueNotifier<bool> negativeModeNotifier;
+  final PromptInputController promptInputController;
+  final GlobalKey promptInputKey;
 
   @override
   ConsumerState<WebStyleGenerationLayout> createState() =>
@@ -45,16 +55,8 @@ class _WebStyleGenerationLayoutState
   static const double _leftPanelMaxWidth = 560;
   static const double _rightPanelMinWidth = 200;
 
-  final _negativeModeNotifier = ValueNotifier<bool>(false);
-
   bool _isResizingLeft = false;
   bool _isResizingRight = false;
-
-  @override
-  void dispose() {
-    _negativeModeNotifier.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +106,7 @@ class _WebStyleGenerationLayoutState
       },
       // 官网式布局没有全屏编辑，该快捷键改为切换正/负输入
       ShortcutIds.togglePromptMode: () {
-        _negativeModeNotifier.value = !_negativeModeNotifier.value;
+        widget.negativeModeNotifier.value = !widget.negativeModeNotifier.value;
       },
       ShortcutIds.openTagLibrary: () {
         context.go(AppRoutes.tagLibraryPage);
@@ -128,8 +130,7 @@ class _WebStyleGenerationLayoutState
         : 0.0;
     final occupiedLeadingWidth =
         leftWidth +
-        (layoutState.webLeftPanelExpanded ? ResizeHandle.defaultWidth : 0.0) +
-        fixedTagsWidth;
+        (layoutState.webLeftPanelExpanded ? ResizeHandle.defaultWidth : 0.0);
 
     return ShortcutAwareWidget(
       contextType: ShortcutContext.generation,
@@ -137,9 +138,13 @@ class _WebStyleGenerationLayoutState
       autofocus: true,
       child: GenerationWorkspaceRow(
         occupiedLeadingWidth: occupiedLeadingWidth,
+        overlayableLeading: const FixedTagsSidebarSlot(),
+        overlayableLeadingWidth: fixedTagsWidth,
         leading: [
           WebLeftPanel(
-            negativeModeNotifier: _negativeModeNotifier,
+            negativeModeNotifier: widget.negativeModeNotifier,
+            promptInputController: widget.promptInputController,
+            promptInputKey: widget.promptInputKey,
             isResizing: _isResizingLeft,
           ),
           if (layoutState.webLeftPanelExpanded)
@@ -159,7 +164,6 @@ class _WebStyleGenerationLayoutState
                     .setWebLeftPanelWidth(newWidth.toDouble());
               },
             ),
-          const FixedTagsSidebarSlot(),
         ],
         main: const ImagePreviewWidget(),
         rightPanelExpanded: layoutState.rightPanelExpanded,

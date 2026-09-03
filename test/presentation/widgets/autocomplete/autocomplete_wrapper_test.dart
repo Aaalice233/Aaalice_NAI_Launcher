@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +16,7 @@ import 'package:nai_launcher/core/autocomplete/danbooru_completion_source.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_config.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_wrapper.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_settings_notifiers.dart'
@@ -1098,12 +1098,10 @@ void main() {
   testWidgets('keeps phone suggestions inside the keyboard-visible area', (
     tester,
   ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
     tester.view.viewInsets = const FakeViewPadding(bottom: 320);
     addTearDown(() {
-      debugDefaultTargetPlatformOverride = null;
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
       tester.view.resetViewInsets();
@@ -1129,25 +1127,32 @@ void main() {
             ),
           ),
         ],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Padding(
-              padding: const EdgeInsets.only(top: 72),
-              child: SizedBox(
-                width: 360,
-                height: 300,
-                child: AutocompleteWrapper(
-                  controller: controller,
-                  focusNode: focusNode,
-                  expands: true,
-                  child: TextField(
+        child: InteractionPolicyScope(
+          initialPolicy: const InteractionPolicy(
+            modality: InteractionModality.touch,
+            touchAvailable: true,
+            precisePointerAvailable: false,
+          ),
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.only(top: 72),
+                child: SizedBox(
+                  width: 360,
+                  height: 300,
+                  child: AutocompleteWrapper(
                     controller: controller,
                     focusNode: focusNode,
                     expands: true,
-                    maxLines: null,
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      expands: true,
+                      maxLines: null,
+                    ),
                   ),
                 ),
               ),
@@ -1168,8 +1173,6 @@ void main() {
     expect(popupRect.bottom, lessThanOrEqualTo(472));
     expect(find.byIcon(Icons.keyboard_alt_outlined), findsNothing);
     expect(tester.takeException(), isNull);
-
-    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('keyboard navigation scrolls only at the viewport edge', (

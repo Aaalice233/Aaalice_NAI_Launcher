@@ -191,9 +191,21 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 - **Expanded `≥840px`**：桌面 Shell、稳定侧栏与可并行主辅面板。
 - **Wide `≥1180px`**：可增加辅助列或更宽工作区，但不盲目拉宽表单。
 
-桌面 Navigation Rail 折叠宽 60px、展开宽 196px；导航项高 48px。触屏平台核心命中区优先 48×48 logical pixels，最低不小于 44×44；桌面常规点击目标通常不小于 40×40。方向、窗口尺寸、软键盘与导航容器变化后必须保留输入、选择、滚动位置和任务状态。
+桌面 Navigation Rail 折叠宽 60px、展开宽 196px；导航项高 48px。宽度动效只改变导航自身的裁切视口，路由工作区只能接收动画起点与终点约束，不得把每一帧的中间宽度传入页面级 `LayoutBuilder`。触屏平台核心命中区优先 48×48 logical pixels，最低不小于 44×44；桌面常规点击目标通常不小于 40×40。方向、窗口尺寸、软键盘与导航容器变化后必须保留输入、选择、滚动位置和任务状态。
 
-在线画廊在可承载工具栏的桌面/平板宽度维持固定职责分行：第一行只放全局控件，第二行只放来源专属筛选与操作。第一行采用左侧站点/模式/分级、中间弹性搜索、右侧全局操作的三段式结构；宽度不足时整行横向滚动，不把全局控件挪到第二行。回归覆盖 700、840、1180、1600px，QuickTagCloud 单独覆盖。
+在线画廊在可承载工具栏的桌面/平板宽度维持固定职责分行：第一行只放全局控件，第二行只放来源专属筛选与操作。第一行采用左侧站点/模式/分级、中间弹性搜索、右侧全局操作的三段式结构；宽度不足时整行横向滚动，不把全局控件挪到第二行。顶栏使用与 collection workspace 相同的整条 Section 色面，底部分页或随机状态使用独立 Control 色面与 8px 外间距；两者均不使用贯穿式分隔线。设置与统计等工具页面沿用同一顶栏色面规则；设置分类导航作为带 8px 外间距的独立 Section 区域，不用纵向分隔线连接成表格。回归覆盖 700、840、1180、1600px，QuickTagCloud 单独覆盖。
+
+### Collection workspace shell
+
+本地画廊、Vibe 库、精准参考库与词库共用同一种 collection workspace 骨架。工具栏始终是横跨整个工作区的一体化 Section 色面，页面名称固定在工具栏左端；页面标识组按内容取得自然宽度，与后续工具组使用 12px 间距，不得用固定宽度占位制造空白。Expanded/Wide 下的持久分类树位于工具栏下方的独立强 tonal 区域，分页也作为主内容底部的独立强 tonal 区域。三者通过背景色、圆角和 8px 间隔建立层级，不使用贯穿式边线把页面切成表格；色面必须通过 `sectionSurfaceColor` / `controlSurfaceColor` 解析，不能直接读取可能与 Canvas 重合的容器色 token。常规单行工具栏的最小高度统一为 72px，以容纳触屏 48px 命中区；侧栏宽度统一为 250px。新增同类页面必须复用 `GalleryCollectionWorkspace`、`GalleryCollectionToolbarSurface` 与 `GallerySidebarSurface`，不得在各页面复制壳层结构和尺寸。
+
+Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，分类导航由 adaptive panel 承载并使用面板自身标题。窄屏换行、长本地化文案或放大文字可以让工具栏向下扩展，但不得裁切、缩放或隐藏操作；恢复为可容纳单行的宽度后应回到 72px 的共同基线。
+
+### Generation workspace identity
+
+画布是高密度创作工作区，不套用 collection workspace 的整条页面工具栏。Expanded/Wide 下，页面身份固定在展开的生成控制栏顶部，以无副标题的紧凑 Section 色面显示“画布”及画笔图标，并与侧栏折叠操作同排；经典布局与官网式布局必须复用 `GenerationWorkspaceHeader`。Compact/Medium 下由 AppBar 显示相同图标与 `nav_canvas` 文案；进入提示词全屏编辑等子任务后，AppBar 改为当前任务标题。侧栏收起时只保留参数展开入口，不重复页面标题。
+
+经典布局的角色编辑位于左侧生成控制栏，顺序固定在种子之后、反推与图生图等辅助输入面板之前，作为独立的可折叠一级工作区呈现；中央工作区只承载主提示词、图像预览和生成操作。官网式布局在提示词侧栏呈现同一角色模块，两种布局必须共享模型可用性、角色数据、折叠状态、摘要、添加命令和纵向编辑结构。移动端继续使用独立角色管理界面，不把桌面侧栏结构塞入参数面板。支持角色的模型即使尚无角色，也必须保留首个角色的显式添加入口，不能因空列表隐藏整个模块。
 
 **The Capability Parity Rule.** 桌面 hover、右键与快捷键必须有移动端单击、长按、菜单或系统入口的等价路径；低频操作可以折叠，但不能静默消失。
 
@@ -202,6 +214,8 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 ## Elevation & Depth
 
 系统采用 **tonal layered** 深度。Canvas、Section、Control 和 Overlay 主要通过表面色与留白区分；普通 Card、静态内容、输入和按钮在静止状态不使用投影。菜单和 tooltip 使用一级环境阴影，对话框与 bottom sheet 使用二级结构阴影；图像卡片拥有独立的内容交互阴影。
+
+智能体对话的 Composer 是持续可操作的浮起输入区，使用 `controlSurfaceColor` 与聊天 Canvas 建立稳定色阶；不得复用可能向 Canvas 变暗并与背景合并的普通输入填充色。其内部编辑器保持无独立填充和无描边，由同一个 Composer 色面承载输入与操作。附件、权限、展开、模型和上下文等次级控件静止时透明，只用 hover、focus 与 pressed 反馈交互；仅启用的状态开关和可执行的发送主操作保留填充色。
 
 ### Shadow Vocabulary
 
@@ -273,7 +287,9 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 - 移动端通过 press、long-press、selected 和 48px 操作按钮提供等价反馈。
 - `MediaQuery.disableAnimations` 时缩放立即回到 1.0，并保留静态状态提示。
 
-动效由 `AppThemeExtension` 驱动。高频状态通常处于 100–200ms，面板和页面变化可延长到 200–300ms；主题可以改变曲线，但 Operate 界面不得用持续漂浮、旋转或反复弹跳干扰任务。
+动效由 `AppThemeExtension` 驱动。高频状态通常处于 100–200ms，面板和页面变化可延长到 200–300ms。界面禁止使用弹簧、回弹、过冲、弹跳、缩放弹出或会让元素方向反复变化的进出场动画；面板、弹窗、选择器和导航容器优先使用短淡入淡出，确需位移时只允许单向、无过冲的减速过渡。不得在重建时重置 Tween 起点造成横向跳动，Reduce Motion 下必须立即到达终态。
+
+连续拖拽调宽属于高频直接操作。pointer move 不得逐次调用页面级 `setState`、写入 Provider 或重建工作区；宽度变化必须限制在对应分栏的 RenderObject / layout 边界内，由 Flutter 帧调度合并布局，并保持两侧昂贵子树的 Widget identity。拖拽过程中禁止对宽度做补间动画，面板必须一比一跟随指针；需要持久化宽度时只在 drag end 提交最终值。回归测试应同时验证宽度边界、无 overflow，以及拖动期间稳定子树没有 rebuild。
 
 ## Do's and Don'ts
 

@@ -130,7 +130,9 @@ class FixedTagLinkAnchor extends StatelessWidget {
             commands.createLink(details.data, entry.id),
         builder: (_, candidates, _) => AnimatedScale(
           scale: candidates.isNotEmpty ? 1.25 : 1,
-          duration: const Duration(milliseconds: 120),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 120),
           child: visual,
         ),
       ),
@@ -175,14 +177,12 @@ class FixedTagsLinkLayer extends StatelessWidget {
                 ),
                 positiveAnchorX: columnWidth - _anchorInset,
                 negativeAnchorX: columnWidth + fixedTagColumnGap + _anchorInset,
-                positiveScrollOffset:
-                    controller.positiveListController.hasClients
-                    ? controller.positiveListController.offset
-                    : 0,
-                negativeScrollOffset:
-                    controller.negativeListController.hasClients
-                    ? controller.negativeListController.offset
-                    : 0,
+                positiveScrollOffset: controller.scrollOffsetFor(
+                  FixedTagPromptType.positive,
+                ),
+                negativeScrollOffset: controller.scrollOffsetFor(
+                  FixedTagPromptType.negative,
+                ),
               ),
             ),
           ),
