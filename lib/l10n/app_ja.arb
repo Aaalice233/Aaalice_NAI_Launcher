@@ -6363,7 +6363,7 @@
   "queue_selectTask": "タスクを選択",
   "settings_notificationSoundImportFailed": "サウンドを読み込めませんでした。ファイルを選び直してください。",
   "settings_androidManagedStorage": "システムが安全に管理します。エクスポート時に保存先を選択できます",
-  "settings_importLocalOnnxTaggerFiles": "ONNX モデルとラベルファイルをインポート",
+  "settings_importLocalOnnxTaggerFiles": "ONNX モデル、ラベルファイル、ZIP をインポート",
   "settings_localOnnxFilesImported": "モデルファイルを {count} 件インポートしました",
   "@settings_localOnnxFilesImported": {"placeholders":{"count":{"type":"int"}}},
   "settings_localOnnxManagedFiles": "アプリストレージ内のモデルファイル: {count} 件",

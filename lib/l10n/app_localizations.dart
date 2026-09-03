@@ -23057,7 +23057,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_importLocalOnnxTaggerFiles.
   ///
   /// In en, this message translates to:
-  /// **'Import ONNX model and label files'**
+  /// **'Import ONNX model, label files, or a ZIP archive'**
   String get settings_importLocalOnnxTaggerFiles;
 
   /// No description provided for @settings_localOnnxFilesImported.

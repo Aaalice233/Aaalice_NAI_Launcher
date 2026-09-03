@@ -13237,7 +13237,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_importLocalOnnxTaggerFiles =>
-      'Import ONNX model and label files';
+      'Import ONNX model, label files, or a ZIP archive';
 
   @override
   String settings_localOnnxFilesImported(int count) {
