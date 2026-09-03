@@ -10,7 +10,13 @@ import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 
-enum LocalOnnxModelKind { wd14Tagger, clTagger, unknown }
+enum LocalOnnxModelKind {
+  wd14Tagger,
+  clTagger,
+  clTaggerV2,
+  animeTimmEva02,
+  unknown,
+}
 
 class LocalOnnxImportSource {
   const LocalOnnxImportSource({required this.name, required this.path});
@@ -472,6 +478,8 @@ class LocalOnnxModelService {
       allowedKinds: const {
         LocalOnnxModelKind.wd14Tagger,
         LocalOnnxModelKind.clTagger,
+        LocalOnnxModelKind.clTaggerV2,
+        LocalOnnxModelKind.animeTimmEva02,
         LocalOnnxModelKind.unknown,
       },
     );
@@ -496,7 +504,8 @@ class LocalOnnxModelService {
       if (entity is! File) continue;
       if (p.extension(entity.path).toLowerCase() != '.onnx') continue;
 
-      final kind = _inferKind(entity.path);
+      final labelsPath = await _findLabelsFile(entity.path);
+      final kind = _inferKind(entity.path, labelsPath);
       if (!allowedKinds.contains(kind)) continue;
 
       result.add(
@@ -504,7 +513,7 @@ class LocalOnnxModelService {
           name: p.basename(entity.path),
           path: entity.path,
           kind: kind,
-          labelsPath: await _findLabelsFile(entity.path),
+          labelsPath: labelsPath,
         ),
       );
     }
@@ -542,8 +551,18 @@ class LocalOnnxModelService {
     return false;
   }
 
-  LocalOnnxModelKind _inferKind(String filePath) {
+  LocalOnnxModelKind _inferKind(String filePath, String? labelsPath) {
+    final lowerPath = filePath.toLowerCase();
     final lower = p.basenameWithoutExtension(filePath).toLowerCase();
+    final lowerLabels = labelsPath?.toLowerCase() ?? '';
+    if (lowerPath.contains('cl_tagger_v2') ||
+        lowerPath.contains('cl-tagger-v2') ||
+        lowerLabels.endsWith('model_vocabulary.json')) {
+      return LocalOnnxModelKind.clTaggerV2;
+    }
+    if (lowerPath.contains('eva02_large_patch14')) {
+      return LocalOnnxModelKind.animeTimmEva02;
+    }
     if (lower.contains('wd14') ||
         lower.contains('wd-v1-4') ||
         lower.contains('wd-v1-5') ||
@@ -584,6 +603,7 @@ class LocalOnnxModelService {
       'labels.txt',
       'classes.txt',
       'tag_mapping.json',
+      'model_vocabulary.json',
     ]) {
       final candidate = p.join(directory, name);
       if (await File(candidate).exists()) {

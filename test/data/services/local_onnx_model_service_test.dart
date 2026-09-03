@@ -154,6 +154,63 @@ void main() {
   );
 
   test(
+    'discovers CL Tagger v2 vocabulary beside an external-data model',
+    () async {
+      final modelDirectory = await Directory(
+        p.join(tempDirectory.path, 'cl_tagger_v2', 'v2_01a'),
+      ).create(recursive: true);
+      final model = await File(
+        p.join(modelDirectory.path, 'model.onnx'),
+      ).writeAsBytes([1]);
+      await File('${model.path}.data').writeAsBytes([2]);
+      final vocabulary = await File(
+        p.join(modelDirectory.path, 'model_vocabulary.json'),
+      ).writeAsString('{"idx_to_tag":{"0":"1girl"}}');
+      await service.setTaggerDirectory(modelDirectory.path);
+
+      final models = await service.scanTaggerModels();
+
+      expect(models, hasLength(1));
+      expect(models.single.path, model.path);
+      expect(models.single.kind, LocalOnnxModelKind.clTaggerV2);
+      expect(models.single.labelsPath, vocabulary.path);
+    },
+  );
+
+  test('recognizes the AnimeTimm EVA02 model family', () async {
+    for (final layout in const [
+      (
+        directory: 'reported_names',
+        model: 'eva02_large_patch14.onnx',
+        labels: 'eva02_large_patch14.csv',
+      ),
+      (
+        directory: 'eva02_large_patch14_448.dbv4-full',
+        model: 'model.onnx',
+        labels: 'selected_tags.csv',
+      ),
+    ]) {
+      final modelDirectory = await Directory(
+        p.join(tempDirectory.path, 'animetimm', layout.directory),
+      ).create(recursive: true);
+      final model = await File(
+        p.join(modelDirectory.path, layout.model),
+      ).writeAsBytes([1]);
+      final labels = await File(
+        p.join(modelDirectory.path, layout.labels),
+      ).writeAsString('name,category,best_threshold\n1girl,0,0.4\n');
+      await service.setTaggerDirectory(modelDirectory.path);
+
+      final models = await service.scanTaggerModels();
+
+      expect(models, hasLength(1));
+      expect(models.single.path, model.path);
+      expect(models.single.kind, LocalOnnxModelKind.animeTimmEva02);
+      expect(models.single.labelsPath, labels.path);
+    }
+  });
+
+  test(
     'rejects unsupported files selected by an unrestricted picker',
     () async {
       final unsupported = await File(
