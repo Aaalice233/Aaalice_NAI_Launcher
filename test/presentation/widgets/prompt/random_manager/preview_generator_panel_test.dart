@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_prompt_result.dart';
 import 'package:nai_launcher/data/services/random_prompt_generator.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
+import 'package:nai_launcher/presentation/providers/prompt_config_provider.dart';
+import 'package:nai_launcher/presentation/providers/random_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/preview_generator_panel.dart';
 
@@ -20,6 +25,43 @@ class _FixedRandomPresetNotifier extends RandomPresetNotifier {
 class _MockRandomPromptGenerator extends Mock
     implements RandomPromptGenerator {}
 
+class _FixedGenerationParamsNotifier extends GenerationParamsNotifier {
+  @override
+  ImageParams build() =>
+      const ImageParams(model: ImageModels.animeDiffusionV5Full);
+}
+
+class _FixedRandomModeNotifier extends RandomModeNotifier {
+  @override
+  RandomGenerationMode build() => RandomGenerationMode.naiOfficial;
+}
+
+class _RecordingPromptConfigNotifier extends PromptConfigNotifier {
+  String? requestedModel;
+
+  @override
+  PromptConfigState build() => const PromptConfigState(isLoading: false);
+
+  @override
+  Future<RandomPromptResult> generateRandomPrompt({
+    required String model,
+    int? seed,
+  }) async {
+    requestedModel = model;
+    return const RandomPromptResult(
+      mainPrompt: 'solo, portrait, detailed background',
+      characters: [
+        GeneratedCharacter(
+          prompt: '1girl, black hair, red eyes',
+          negativePrompt: 'lowres, bad hands',
+        ),
+      ],
+      seed: 42,
+      mode: RandomGenerationMode.naiOfficial,
+    );
+  }
+}
+
 void main() {
   testWidgets('320px 与 3 倍文字下预览操作重排且全部可达', (tester) async {
     tester.view.physicalSize = const Size(320, 700);
@@ -27,19 +69,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final generator = _MockRandomPromptGenerator();
-    when(() => generator.generateFromPreset(preset: _preset)).thenAnswer(
-      (_) async => const RandomPromptResult(
-        mainPrompt: 'solo, portrait, detailed background',
-        characters: [
-          GeneratedCharacter(
-            prompt: '1girl, black hair, red eyes',
-            negativePrompt: 'lowres, bad hands',
-          ),
-        ],
-        seed: 42,
-      ),
-    );
+    final catalogGenerator = _MockRandomPromptGenerator();
+    late _RecordingPromptConfigNotifier promptConfig;
 
     await tester.pumpWidget(
       ProviderScope(
@@ -47,7 +78,14 @@ void main() {
           randomPresetNotifierProvider.overrideWith(
             _FixedRandomPresetNotifier.new,
           ),
-          randomPromptGeneratorProvider.overrideWithValue(generator),
+          randomModeNotifierProvider.overrideWith(_FixedRandomModeNotifier.new),
+          generationParamsNotifierProvider.overrideWith(
+            _FixedGenerationParamsNotifier.new,
+          ),
+          promptConfigNotifierProvider.overrideWith(
+            () => promptConfig = _RecordingPromptConfigNotifier(),
+          ),
+          randomPromptGeneratorProvider.overrideWithValue(catalogGenerator),
         ],
         child: MaterialApp(
           locale: const Locale('zh'),
@@ -66,6 +104,9 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, '生成样例'));
     await tester.pumpAndSettle();
+
+    expect(promptConfig.requestedModel, ImageModels.animeDiffusionV5Full);
+    verifyNever(() => catalogGenerator.generateFromPreset(preset: _preset));
 
     final characterStat = find.text('1人');
     final copyButton = find.widgetWithText(TextButton, '复制全部');

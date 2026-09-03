@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/prompt/random_prompt_result.dart';
-import '../../../../data/services/random_prompt_generator.dart';
+import '../../../providers/generation/generation_params_notifier.dart';
+import '../../../providers/prompt_config_provider.dart';
+import '../../../providers/random_mode_provider.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../common/app_toast.dart';
@@ -82,6 +84,11 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
 
   Future<void> _generate() async {
     if (_isGenerating) return;
+    final selectedPresetId = ref
+        .read(randomPresetNotifierProvider)
+        .selectedPresetId;
+    final mode = ref.read(randomModeNotifierProvider);
+    final model = ref.read(generationParamsNotifierProvider).model;
     setState(() {
       _isGenerating = true;
       _error = null;
@@ -89,19 +96,17 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
     final revision = ++_generationRevision;
 
     try {
-      final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
-      if (preset == null) {
-        throw StateError(context.l10n.randomManager_selectPresetRequired);
-      }
       final result = await ref
-          .read(randomPromptGeneratorProvider)
-          .generateFromPreset(preset: preset);
-      final selectedId = ref
-          .read(randomPresetNotifierProvider)
-          .selectedPresetId;
+          .read(promptConfigNotifierProvider.notifier)
+          .generateRandomPrompt(model: model);
       if (!mounted || revision != _generationRevision) return;
+      final sourceUnchanged =
+          ref.read(randomPresetNotifierProvider).selectedPresetId ==
+              selectedPresetId &&
+          ref.read(randomModeNotifierProvider) == mode &&
+          ref.read(generationParamsNotifierProvider).model == model;
       setState(() {
-        if (selectedId == preset.id) _result = result;
+        if (sourceUnchanged) _result = result;
         _isGenerating = false;
       });
     } catch (error) {
@@ -111,6 +116,16 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
         _isGenerating = false;
       });
     }
+  }
+
+  void _clearPreview() {
+    if (!mounted) return;
+    _generationRevision++;
+    setState(() {
+      _result = null;
+      _error = null;
+      _isGenerating = false;
+    });
   }
 
   Future<void> _copyToClipboard() async {
@@ -145,13 +160,22 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
     ref.listen<String?>(
       randomPresetNotifierProvider.select((state) => state.selectedPresetId),
       (previous, next) {
-        if (previous == null || previous == next || !mounted) return;
-        _generationRevision++;
-        setState(() {
-          _result = null;
-          _error = null;
-          _isGenerating = false;
-        });
+        if (previous == null || previous == next) return;
+        _clearPreview();
+      },
+    );
+    ref.listen<RandomGenerationMode>(randomModeNotifierProvider, (
+      previous,
+      next,
+    ) {
+      if (previous == null || previous == next) return;
+      _clearPreview();
+    });
+    ref.listen<String>(
+      generationParamsNotifierProvider.select((state) => state.model),
+      (previous, next) {
+        if (previous == null || previous == next) return;
+        _clearPreview();
       },
     );
 
