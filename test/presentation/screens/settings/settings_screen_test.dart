@@ -880,8 +880,13 @@ void _expectSettingsLayeredChrome(
   );
   if (!hasNavigation) {
     expect(navigationSurface, findsNothing);
-    for (final tile in tester.widgetList<ListTile>(find.byType(ListTile))) {
+    for (final element in find.byType(ListTile).evaluate()) {
+      final tile = element.widget as ListTile;
       expect(tile.tileColor, sectionSurfaceColor(theme.colorScheme));
+      expect(
+        element.findAncestorWidgetOfExactType<Material>()?.type,
+        MaterialType.transparency,
+      );
     }
     return;
   }

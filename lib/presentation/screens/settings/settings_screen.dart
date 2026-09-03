@@ -341,18 +341,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final section = sections[index];
-                    return ListTile(
-                      minTileHeight: 56,
-                      tileColor: sectionSurfaceColor(theme.colorScheme),
-                      leading: Icon(section.icon),
-                      title: Text(section.label),
-                      trailing: const Icon(Icons.chevron_right),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      onTap: () => _onSectionSelected(
-                        section.id,
-                        showCompactDetail: true,
+                    return Material(
+                      key: ValueKey('settings-section-material-${section.id}'),
+                      type: MaterialType.transparency,
+                      child: ListTile(
+                        minTileHeight: 56,
+                        tileColor: sectionSurfaceColor(theme.colorScheme),
+                        leading: Icon(section.icon),
+                        title: Text(section.label),
+                        trailing: const Icon(Icons.chevron_right),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onTap: () => _onSectionSelected(
+                          section.id,
+                          showCompactDetail: true,
+                        ),
                       ),
                     );
                   },

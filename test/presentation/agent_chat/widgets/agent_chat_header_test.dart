@@ -132,6 +132,10 @@ void main() {
       find.byKey(const ValueKey('agent-chat-session-search')),
       findsOneWidget,
     );
+    final sessionMaterial = tester.widget<Material>(
+      find.byKey(const ValueKey('agent-chat-session-material-second')),
+    );
+    expect(sessionMaterial.type, MaterialType.transparency);
     await tester.enterText(
       find.byKey(const ValueKey('agent-chat-session-search')),
       '第二',
