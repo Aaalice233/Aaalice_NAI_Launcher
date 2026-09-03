@@ -98,6 +98,7 @@ class BatchSettingsButton extends ConsumerWidget {
           final totalImages = batchCount * currentBatchSize;
           return ListView(
             controller: scrollController,
+            shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             children: [

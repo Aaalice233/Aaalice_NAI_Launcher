@@ -340,6 +340,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('batch settings desktop form follows its content height', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1000, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _MemoryLocalStorageService({}),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: Center(child: BatchSettingsButton(showLabel: true)),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byType(BatchSettingsButton));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    expect(tester.getSize(surface).height, lessThan(480));
+    expect(tester.getRect(surface).center.dy, moreOrLessEquals(400));
+    expect(tester.widget<ListView>(find.byType(ListView)).shrinkWrap, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('batch settings uses a scrollable compact form at worst width', (
     tester,
   ) async {
