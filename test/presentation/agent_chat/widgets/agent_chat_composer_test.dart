@@ -182,6 +182,60 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('secondary composer controls stay flat at rest', (tester) async {
+    await _pumpComposer(tester, width: 520, mobile: false);
+
+    for (final key in const [
+      'agent-chat-composer-expand-surface',
+      'agent-chat-model-selector-surface',
+      'agent-chat-context-surface',
+      'agent-chat-send-surface',
+    ]) {
+      expect(
+        tester.widget<Material>(find.byKey(ValueKey(key))).color,
+        Colors.transparent,
+        reason: '$key should not create a nested resting surface',
+      );
+    }
+    for (final key in const [
+      'agent-chat-permission-surface',
+      'agent-chat-web-access-surface',
+    ]) {
+      final container = tester.widget<Container>(find.byKey(ValueKey(key)));
+      expect(
+        (container.decoration! as BoxDecoration).color,
+        Colors.transparent,
+        reason: '$key should not create a nested resting surface',
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('enabled web access keeps a selected tonal surface', (
+    tester,
+  ) async {
+    final colors = const GrungePalette().darkScheme;
+    await _pumpComposer(
+      tester,
+      width: 520,
+      mobile: false,
+      theme: ThemeData(colorScheme: colors),
+      agentSettings: const AgentSettingsState(
+        initialized: true,
+        settings: AgentSettings(chat: AgentChatConfig(webAccessEnabled: true)),
+      ),
+    );
+
+    final surface = tester.widget<Container>(
+      find.byKey(const ValueKey('agent-chat-web-access-surface')),
+    );
+    expect(
+      (surface.decoration! as BoxDecoration).color,
+      colors.primaryContainer.withValues(alpha: 0.42),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('unavailable context stays compact and has no empty ring', (
     tester,
   ) async {

@@ -74,9 +74,8 @@ class AgentChatConfigurationControl extends StatelessWidget {
         enabled: interactive,
         label: tooltip,
         child: Material(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.42,
-          ),
+          key: const ValueKey('agent-chat-model-selector-surface'),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(11),
           child: InkWell(
             key: const ValueKey('agent-chat-model-selector'),

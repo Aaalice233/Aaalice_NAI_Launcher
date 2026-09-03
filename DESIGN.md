@@ -209,7 +209,7 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 系统采用 **tonal layered** 深度。Canvas、Section、Control 和 Overlay 主要通过表面色与留白区分；普通 Card、静态内容、输入和按钮在静止状态不使用投影。菜单和 tooltip 使用一级环境阴影，对话框与 bottom sheet 使用二级结构阴影；图像卡片拥有独立的内容交互阴影。
 
-智能体对话的 Composer 是持续可操作的浮起输入区，使用 `controlSurfaceColor` 与聊天 Canvas 建立稳定色阶；不得复用可能向 Canvas 变暗并与背景合并的普通输入填充色。其内部编辑器保持无独立填充和无描边，由同一个 Composer 色面承载输入与操作。
+智能体对话的 Composer 是持续可操作的浮起输入区，使用 `controlSurfaceColor` 与聊天 Canvas 建立稳定色阶；不得复用可能向 Canvas 变暗并与背景合并的普通输入填充色。其内部编辑器保持无独立填充和无描边，由同一个 Composer 色面承载输入与操作。附件、权限、展开、模型和上下文等次级控件静止时透明，只用 hover、focus 与 pressed 反馈交互；仅启用的状态开关和可执行的发送主操作保留填充色。
 
 ### Shadow Vocabulary
 

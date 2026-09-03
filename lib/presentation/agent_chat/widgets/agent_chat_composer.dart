@@ -558,9 +558,8 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       child: Tooltip(
         message: label,
         child: Material(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: onPressed == null ? 0.42 : 0.62,
-          ),
+          key: const ValueKey('agent-chat-context-surface'),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -1071,15 +1070,14 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           ),
       ],
       child: Container(
+        key: const ValueKey('agent-chat-permission-surface'),
         width: showLabel
             ? double.infinity
             : context.interactionPolicy.minimumControlExtent,
         height: context.interactionPolicy.minimumControlExtent,
         padding: EdgeInsets.symmetric(horizontal: showLabel ? 10 : 0),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: _agentSettingsInteractive ? 0.5 : 0.28,
-          ),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -1134,6 +1132,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       toggled: enabled,
       label: tooltip,
       child: Container(
+        key: const ValueKey('agent-chat-web-access-surface'),
         width: showLabel
             ? double.infinity
             : context.interactionPolicy.minimumControlExtent,
@@ -1141,9 +1140,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         decoration: BoxDecoration(
           color: enabled
               ? theme.colorScheme.primaryContainer.withValues(alpha: 0.42)
-              : theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.5,
-                ),
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -1259,7 +1256,7 @@ class _SendButton extends StatelessWidget {
     final controlExtent = context.interactionPolicy.minimumControlExtent;
     final backgroundColor = enabled
         ? theme.colorScheme.primary
-        : theme.colorScheme.surfaceContainerHighest;
+        : Colors.transparent;
     final foregroundColor = enabled
         ? theme.colorScheme.onPrimary
         : theme.colorScheme.onSurface.withValues(alpha: 0.34);
@@ -1279,6 +1276,7 @@ class _SendButton extends StatelessWidget {
           height: controlExtent,
           child: Center(
             child: Material(
+              key: const ValueKey('agent-chat-send-surface'),
               color: backgroundColor,
               borderRadius: BorderRadius.circular(touchOptimized ? 14 : 10),
               clipBehavior: Clip.antiAlias,

@@ -91,9 +91,8 @@ class AgentChatComposerExpandButton extends StatelessWidget {
       child: Tooltip(
         message: label,
         child: Material(
-          color: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.52),
+          key: const ValueKey('agent-chat-composer-expand-surface'),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           clipBehavior: Clip.antiAlias,
           child: IconButton(
