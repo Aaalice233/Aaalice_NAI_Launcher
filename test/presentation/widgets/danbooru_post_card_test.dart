@@ -14,6 +14,7 @@ import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
@@ -28,9 +29,55 @@ void main() {
     PlatformCapabilities.debugOverride = null;
   });
 
+  testWidgets('hover actions expose the Agent reference callback', (
+    tester,
+  ) async {
+    var addCount = 0;
+    const post = DanbooruPost(
+      id: 120,
+      width: 600,
+      height: 900,
+      previewFileUrl: 'https://example.com/portrait.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: _pointerPolicy(
+          MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: ImageCardActionScope(
+                onAddToAgent: () => addCount++,
+                child: DanbooruPostCard(
+                  post: post,
+                  itemWidth: 200,
+                  isFavorited: false,
+                  onTap: () {},
+                  onTagTap: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(DanbooruPostCard)));
+    await tester.pump();
+    await tester.tap(find.byTooltip('发送到智能体'));
+    expect(addCount, 1);
+  });
+
   testWidgets('mixed input keeps touch action menu clear of rating badge', (
     tester,
   ) async {
+    var addCount = 0;
     const post = DanbooruPost(
       id: 121,
       width: 600,
@@ -54,12 +101,15 @@ void main() {
             home: Scaffold(
               body: Align(
                 alignment: Alignment.topLeft,
-                child: DanbooruPostCard(
-                  post: post,
-                  itemWidth: 150,
-                  isFavorited: false,
-                  onTap: () {},
-                  onTagTap: (_) {},
+                child: ImageCardActionScope(
+                  onAddToAgent: () => addCount++,
+                  child: DanbooruPostCard(
+                    post: post,
+                    itemWidth: 150,
+                    isFavorited: false,
+                    onTap: () {},
+                    onTagTap: (_) {},
+                  ),
                 ),
               ),
             ),
@@ -78,6 +128,11 @@ void main() {
     expect(actions.overlaps(rating), isFalse);
     expect(rating.right, lessThanOrEqualTo(actions.left));
     expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Send to Agent'));
+    expect(addCount, 1);
   });
 
   testWidgets('QuickTagCloud codex badges stay at the top-left', (

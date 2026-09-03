@@ -41,11 +41,15 @@ void main() {
   });
 
   testWidgets('卡片按实际 DPR 更新动态解码目标', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
     final tempDirectory = (await tester.runAsync(
       () => Directory.systemTemp.createTemp('nai_local_card_thumbnail_'),
     ))!;
     addTearDown(() async {
       LocalGalleryThumbnailMemoryCache.instance.clear();
+      PlatformCapabilities.debugOverride = null;
       tester.view.resetDevicePixelRatio();
       await tempDirectory.delete(recursive: true);
     });
@@ -64,6 +68,7 @@ void main() {
       size: stat.size,
       modifiedAt: stat.modified,
     );
+    final actions = <LocalImageContextAction>[];
 
     tester.view.devicePixelRatio = 1;
     await tester.pumpWidget(
@@ -78,6 +83,7 @@ void main() {
               width: 180,
               height: 220,
               onTap: () {},
+              onSendAction: (action) async => actions.add(action),
             ),
           ),
         ),
@@ -94,6 +100,21 @@ void main() {
     final motion = find.byType(ImageCardHoverMotion);
     expect(motion, findsOneWidget);
     expect(tester.widget<ImageCardHoverMotion>(motion).enabled, isTrue);
+
+    final hoverRegion = tester.widget<MouseRegion>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is MouseRegion &&
+            widget.cursor == SystemMouseCursors.click &&
+            widget.onEnter != null,
+      ),
+    );
+    hoverRegion.onEnter!(const PointerEnterEvent());
+    await tester.pump();
+    final agentAction = find.byTooltip('Send to Agent');
+    expect(agentAction, findsOneWidget);
+    await tester.tap(agentAction);
+    expect(actions, [LocalImageContextAction.addToAgent]);
 
     tester.view.devicePixelRatio = 2;
     await tester.pump();
@@ -162,7 +183,7 @@ void main() {
         tester.getRect(actionsFinder.at(index)),
     ];
 
-    expect(actionRects, hasLength(5));
+    expect(actionRects, hasLength(6));
     for (final rect in actionRects) {
       expect(cardRect.contains(rect.topLeft), isTrue);
       expect(cardRect.contains(rect.bottomRight), isTrue);
@@ -238,6 +259,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Create watermarked copy…'), findsOneWidget);
+    expect(find.text('Send to Agent'), findsOneWidget);
     final menu = tester.widget<PopupMenuButton<Object>>(
       find.byType(PopupMenuButton<Object>),
     );

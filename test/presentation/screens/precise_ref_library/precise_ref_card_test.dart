@@ -10,6 +10,7 @@ import 'package:nai_launcher/data/services/precise_ref_library_storage_service.d
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 
 class _FakeStorage extends PreciseRefLibraryStorageService {
@@ -40,7 +41,16 @@ void main() {
     VoidCallback? onEdit,
     VoidCallback? onDelete,
     VoidCallback? onToggleFavorite,
+    VoidCallback? onAddToAgent,
   }) async {
+    final card = PreciseRefCard(
+      entry: entry,
+      onSendToPreciseRef: onSendToPreciseRef,
+      onSendToImg2Img: onSendToImg2Img,
+      onEdit: onEdit,
+      onDelete: onDelete,
+      onToggleFavorite: onToggleFavorite,
+    );
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -59,14 +69,12 @@ void main() {
                 child: SizedBox(
                   width: 200,
                   height: 250,
-                  child: PreciseRefCard(
-                    entry: entry,
-                    onSendToPreciseRef: onSendToPreciseRef,
-                    onSendToImg2Img: onSendToImg2Img,
-                    onEdit: onEdit,
-                    onDelete: onDelete,
-                    onToggleFavorite: onToggleFavorite,
-                  ),
+                  child: onAddToAgent == null
+                      ? card
+                      : ImageCardActionScope(
+                          onAddToAgent: onAddToAgent,
+                          child: card,
+                        ),
                 ),
               ),
             ),
@@ -251,5 +259,39 @@ void main() {
     expect(img2imgCount, 1);
     expect(editCount, 1);
     expect(deleteCount, 1);
+  });
+
+  testWidgets('桌面与触屏操作均可发送到智能体', (tester) async {
+    var addCount = 0;
+    await pumpCard(tester, onAddToAgent: () => addCount++);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(find.byType(PreciseRefCard)),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('precise-ref-card-agent-entry-1')),
+      kind: PointerDeviceKind.mouse,
+    );
+    expect(addCount, 1);
+
+    await pumpCard(
+      tester,
+      initialPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+      onAddToAgent: () => addCount++,
+    );
+    await tester.tap(
+      find.byKey(const Key('precise-ref-card-more-entry-1')),
+      kind: PointerDeviceKind.touch,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发送到智能体'), kind: PointerDeviceKind.touch);
+    expect(addCount, 2);
   });
 }

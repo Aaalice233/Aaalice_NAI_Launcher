@@ -10,9 +10,16 @@ import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/card_action_buttons.dart';
+import '../../../widgets/common/image_card_actions.dart';
 import '../../../widgets/common/image_card_hover_motion.dart';
 
-enum _PreciseRefCardAction { sendToPreciseRef, sendToImg2Img, edit, delete }
+enum _PreciseRefCardAction {
+  addToAgent,
+  sendToPreciseRef,
+  sendToImg2Img,
+  edit,
+  delete,
+}
 
 /// 精准参考库条目卡片
 ///
@@ -296,10 +303,18 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
   Widget _buildDesktopActions(ThemeData theme) {
     final l10n = context.l10n;
     final entry = widget.entry;
+    final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     return CardActionButtons(
       visible: true,
       direction: Axis.vertical,
       buttons: [
+        if (onAddToAgent != null)
+          CardActionButtonConfig(
+            key: Key('precise-ref-card-agent-${entry.id}'),
+            icon: Icons.auto_awesome_outlined,
+            tooltip: l10n.agentChat_addResource,
+            onPressed: onAddToAgent,
+          ),
         CardActionButtonConfig(
           key: Key('precise-ref-card-favorite-${entry.id}'),
           icon: entry.isFavorite
@@ -347,12 +362,15 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
 
   Widget _buildTouchActions(ThemeData theme) {
     final l10n = context.l10n;
+    final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     return PopupMenuButton<_PreciseRefCardAction>(
       key: Key('precise-ref-card-more-${widget.entry.id}'),
       tooltip: l10n.preciseRefLib_moreActions,
       constraints: const BoxConstraints(minWidth: 220),
       onSelected: (action) {
         switch (action) {
+          case _PreciseRefCardAction.addToAgent:
+            onAddToAgent?.call();
           case _PreciseRefCardAction.sendToPreciseRef:
             widget.onSendToPreciseRef?.call();
           case _PreciseRefCardAction.sendToImg2Img:
@@ -364,6 +382,15 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
         }
       },
       itemBuilder: (context) => [
+        if (onAddToAgent != null)
+          PopupMenuItem(
+            value: _PreciseRefCardAction.addToAgent,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: Text(l10n.agentChat_addResource),
+            ),
+          ),
         PopupMenuItem(
           value: _PreciseRefCardAction.sendToPreciseRef,
           child: ListTile(

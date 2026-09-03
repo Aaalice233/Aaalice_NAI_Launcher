@@ -1220,7 +1220,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_resourceUnavailable => '资源不可用';
 
   @override
-  String get agentChat_addResource => '添加到 Agent';
+  String get agentChat_addResource => '发送到智能体';
 
   @override
   String get agentChat_resourceAdded => '已添加到 Agent 输入区';
@@ -15034,7 +15034,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_resourceUnavailable => '資源不可用';
 
   @override
-  String get agentChat_addResource => '新增至 Agent';
+  String get agentChat_addResource => '傳送至智慧體';
 
   @override
   String get agentChat_resourceAdded => '已新增至 Agent 輸入區';

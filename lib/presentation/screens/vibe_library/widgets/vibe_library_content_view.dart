@@ -148,6 +148,7 @@ class _VibeLibraryContentViewState
           ),
           child: AgentResourceDragSource(
             enableAddToAgentMenu: false,
+            enableAddToAgentAction: !selectionState.isActive,
             reference: AgentChatResourceReference(
               kind: AgentChatResourceKind.vibeLibraryEntry,
               source: 'vibe_library',

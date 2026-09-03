@@ -13,6 +13,7 @@ import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/animated_favorite_button.dart';
 import '../../../widgets/common/card_hover_preview_controller.dart';
+import '../../../widgets/common/image_card_actions.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 
 /// Vibe 图像卡片统一采用 4:5 纵向比例，为缩略图和底部参数保留稳定空间。
@@ -20,7 +21,15 @@ const double vibeCardAspectRatio = 4 / 5;
 
 double computeVibeCardHeight(double width) => width / vibeCardAspectRatio;
 
-enum _VibeCardAction { select, favorite, send, export, edit, delete }
+enum _VibeCardAction {
+  select,
+  favorite,
+  addToAgent,
+  send,
+  export,
+  edit,
+  delete,
+}
 
 /// 统一 Vibe 卡片组件
 ///
@@ -244,6 +253,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = Theme.of(context).colorScheme;
     final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
+    final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
 
     return CompositedTransformTarget(
       link: _layerLink,
@@ -309,6 +319,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
                       (widget.onLongPress != null ||
                           (widget.showFavoriteIndicator &&
                               widget.onFavoriteToggle != null) ||
+                          onAddToAgent != null ||
                           widget.onSendToGeneration != null ||
                           widget.onExport != null ||
                           widget.onEdit != null ||
@@ -724,6 +735,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
   Widget _buildTouchActionMenu() {
     final l10n = context.l10n;
+    final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     return Positioned(
       top: 4,
       right: 4,
@@ -742,6 +754,8 @@ class _VibeCardState extends ConsumerState<VibeCard>
                 widget.onLongPress?.call();
               case _VibeCardAction.favorite:
                 widget.onFavoriteToggle?.call();
+              case _VibeCardAction.addToAgent:
+                onAddToAgent?.call();
               case _VibeCardAction.send:
                 widget.onSendToGeneration?.call();
               case _VibeCardAction.export:
@@ -778,6 +792,15 @@ class _VibeCardState extends ConsumerState<VibeCard>
                         ? l10n.common_unfavorite
                         : l10n.common_favorite,
                   ),
+                ),
+              ),
+            if (onAddToAgent != null)
+              PopupMenuItem(
+                value: _VibeCardAction.addToAgent,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.auto_awesome_outlined),
+                  title: Text(l10n.agentChat_addResource),
                 ),
               ),
             if (widget.onSendToGeneration != null)
@@ -826,6 +849,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
   }
 
   Widget _buildActionButtons() {
+    final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     return Positioned(
       // 收藏按钮位于 top 8 且保留 48dp 命中区，操作组再留 4dp 间距。
       top: widget.showFavoriteIndicator ? 60 : 8,
@@ -833,6 +857,12 @@ class _VibeCardState extends ConsumerState<VibeCard>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (onAddToAgent != null)
+            _ActionButton(
+              icon: Icons.auto_awesome_outlined,
+              tooltip: context.l10n.agentChat_addResource,
+              onTap: onAddToAgent,
+            ),
           if (widget.onSendToGeneration != null)
             _ActionButton(
               icon: Icons.send,

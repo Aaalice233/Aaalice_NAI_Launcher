@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_resource_drop_region.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 void main() {
@@ -45,6 +46,44 @@ void main() {
     expect(decoded.kind, AgentChatResourceKind.onlineGalleryMedia);
     expect(decoded.source, 'danbooru');
     expect(decoded.resourceId, '1');
+    expect(decoded.mediaId, 'cover-1');
+  });
+
+  testWidgets('drag source exposes the card Agent action scope', (
+    tester,
+  ) async {
+    ImageCardActionScope? scope;
+    await tester.pumpWidget(
+      _app(
+        child: Builder(
+          builder: (context) {
+            scope = ImageCardActionScope.maybeOf(context);
+            return const ColoredBox(color: Colors.blue);
+          },
+        ),
+      ),
+    );
+
+    expect(scope, isNotNull);
+  });
+
+  testWidgets('drag source can hide the card Agent action in selection mode', (
+    tester,
+  ) async {
+    ImageCardActionScope? scope;
+    await tester.pumpWidget(
+      _app(
+        enableAddToAgentAction: false,
+        child: Builder(
+          builder: (context) {
+            scope = ImageCardActionScope.maybeOf(context);
+            return const ColoredBox(color: Colors.blue);
+          },
+        ),
+      ),
+    );
+
+    expect(scope, isNull);
   });
 
   testWidgets('parent layout changes preserve the card state', (tester) async {
@@ -132,6 +171,7 @@ Widget _app({
   double width = 100,
   Widget? child,
   bool enableAddToAgentMenu = true,
+  bool enableAddToAgentAction = true,
 }) {
   return ProviderScope(
     child: MaterialApp(
@@ -146,10 +186,12 @@ Widget _app({
             height: 100,
             child: AgentResourceDragSource(
               enableAddToAgentMenu: enableAddToAgentMenu,
+              enableAddToAgentAction: enableAddToAgentAction,
               reference: AgentChatResourceReference(
                 kind: AgentChatResourceKind.onlineGalleryMedia,
                 source: 'danbooru',
                 resourceId: '1',
+                mediaId: 'cover-1',
               ),
               child: child ?? const ColoredBox(color: Colors.blue),
             ),

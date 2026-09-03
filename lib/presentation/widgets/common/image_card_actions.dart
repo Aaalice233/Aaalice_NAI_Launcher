@@ -168,7 +168,6 @@ class ImageCardActionCatalog {
       l10n.agentChat_addResource,
       onAddToAgent,
       group: 1,
-      hover: false,
     );
     add(
       ImageCardActionId.shareDiscord,

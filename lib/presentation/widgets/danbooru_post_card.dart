@@ -24,6 +24,7 @@ import '../providers/reverse_prompt_provider.dart';
 import '../services/generation_prompt_transfer_service.dart';
 import '../themes/theme_extension.dart';
 import 'common/card_action_buttons.dart';
+import 'common/image_card_actions.dart';
 import 'common/image_card_hover_motion.dart';
 import 'online_gallery/online_gallery_hover_controller.dart';
 import 'online_gallery/online_gallery_card_status_overlays.dart';
@@ -378,6 +379,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     // 竖图（宽高比小）：垂直布局
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
     final usesTouchActionMenu = interactionPolicy.touchAvailable;
+    final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     final showStatusOverlays =
         usesTouchActionMenu || (!_isHovering && !_isFocused);
     final showsCodexBadgeOnLeft =
@@ -695,6 +697,12 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                       : Colors.white,
                                   isLoading: widget.isFavoriteLoading,
                                   onPressed: widget.onFavoriteToggle!,
+                                ),
+                              if (onAddToAgent != null)
+                                CardActionButtonConfig(
+                                  icon: Icons.auto_awesome_outlined,
+                                  tooltip: context.l10n.agentChat_addResource,
+                                  onPressed: onAddToAgent,
                                 ),
                               if (widget.post.bestQualityUrl.isNotEmpty)
                                 CardActionButtonConfig(

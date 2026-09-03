@@ -461,7 +461,7 @@
   "agentChat_manualInpaintTitle": "手動インペイント",
   "agentChat_manualInpaintComplete": "完了してエージェントに戻る",
   "agentChat_resourceUnavailable": "利用できません",
-  "agentChat_addResource": "Agent に追加",
+  "agentChat_addResource": "Agent に送信",
   "agentChat_resourceAdded": "Agent の入力欄に追加しました",
   "agentChat_addResourceFailed": "参照の追加に失敗しました：{error}",
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},

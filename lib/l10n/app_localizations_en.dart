@@ -1260,7 +1260,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_resourceUnavailable => 'Unavailable';
 
   @override
-  String get agentChat_addResource => 'Add to Agent';
+  String get agentChat_addResource => 'Send to Agent';
 
   @override
   String get agentChat_resourceAdded => 'Added to the Agent composer';

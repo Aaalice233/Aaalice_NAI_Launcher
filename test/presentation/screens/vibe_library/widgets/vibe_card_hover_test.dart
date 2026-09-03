@@ -9,8 +9,10 @@ import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/animated_favorite_button.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 
 void main() {
   test('悬浮大图按比例适配且不会随高窗口无限增高', () {
@@ -174,6 +176,64 @@ void main() {
       expect(favoriteRect.overlaps(rect), isFalse);
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Vibe 卡片桌面与触屏操作均可发送到智能体', (tester) async {
+    var addCount = 0;
+    final entry = _entry(rawImageData: _onePixelPng);
+    final storage = _HoverStorage(entry, _onePixelPng);
+
+    Future<void> pumpCard(InteractionPolicy policy) => tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: InteractionPolicyScope(
+          initialPolicy: policy,
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: ImageCardActionScope(
+                onAddToAgent: () => addCount++,
+                child: VibeCard(entry: entry.toDisplayEntry(), width: 180),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await pumpCard(
+      const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(VibeCard)));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.auto_awesome_outlined));
+    expect(addCount, 1);
+
+    await pumpCard(
+      const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+    );
+    await tester.tap(
+      find.byIcon(Icons.more_vert_rounded),
+      kind: PointerDeviceKind.touch,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发送到智能体'), kind: PointerDeviceKind.touch);
+    expect(addCount, 2);
   });
 }
 

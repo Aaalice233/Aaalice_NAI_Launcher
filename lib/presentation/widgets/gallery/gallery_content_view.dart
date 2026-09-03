@@ -341,6 +341,7 @@ class _GenericGalleryContentViewState<T>
             onSendAction: widget.onSendAction != null
                 ? (action) => widget.onSendAction!(record, action)
                 : null,
+            enableAddToAgent: !selectionState.isActive,
             isKritaConnected: widget.isKritaConnected,
           ),
         );
@@ -662,6 +663,7 @@ class LocalGalleryContentView extends ConsumerWidget {
         onSendAction: onSendAction != null
             ? (action) => onSendAction!(record, action)
             : null,
+        enableAddToAgent: !config.selectionMode,
         isKritaConnected: isKritaConnected,
       ),
       onSelectionToggle: (record) => ref
