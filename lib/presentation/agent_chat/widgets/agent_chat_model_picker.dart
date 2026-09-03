@@ -12,6 +12,7 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../themes/theme_extension.dart';
+import '../../widgets/common/searchable_model_picker.dart';
 
 double _agentChatControlExtent(BuildContext context) => math.max(
   context.interactionPolicy.minimumControlExtent,
@@ -565,19 +566,31 @@ Future<_AgentChatModelOption?> _showAgentChatModelPicker(
   required List<_AgentChatModelOption> options,
   required _AgentChatModelOption? selected,
 }) {
-  return AdaptivePresenter.showPicker<_AgentChatModelOption>(
+  final l10n = context.l10n;
+  return showSearchableModelPicker<_AgentChatModelOption>(
     context: context,
-    initialChildSize: 0.9,
-    minChildSize: 0.5,
-    maxChildSize: 0.96,
-    width: 620,
-    restoreFocus: false,
-    builder: (_, scrollController) => _AgentChatModelPickerBody(
-      title: context.l10n.agentChat_modelPickerTitle,
-      options: options,
-      selected: selected,
-      scrollController: scrollController,
-    ),
+    title: l10n.agentChat_modelPickerTitle,
+    searchLabel: l10n.agentChat_searchModels,
+    searchHint: l10n.agentChat_searchModelsHint,
+    clearSearchTooltip: l10n.agentChat_clearModelSearch,
+    emptyMessage: l10n.agentChat_noModelResults,
+    options: options
+        .map(
+          (option) => ModelPickerOption(
+            id: '${option.provider.id}\u0000${option.model.name}',
+            value: option,
+            title: option.displayName,
+            subtitle: _modelMetadata(option),
+            searchTerms: [option.provider.id, option.model.name],
+            keyValue: '${option.provider.id}-${option.model.name}',
+          ),
+        )
+        .toList(growable: false),
+    selectedId: selected == null
+        ? null
+        : '${selected.provider.id}\u0000${selected.model.name}',
+    keyPrefix: 'agent-chat-model',
+    headerKeyPrefix: 'agent-chat-model-picker',
   );
 }
 
@@ -910,13 +923,13 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
       );
     });
   }
+}
 
-  String _modelMetadata(_AgentChatModelOption option) {
-    if (option.displayName == option.model.name.trim()) {
-      return '${option.provider.name} · ${option.provider.id}';
-    }
-    return '${option.provider.name} · ${option.model.name}';
+String _modelMetadata(_AgentChatModelOption option) {
+  if (option.displayName == option.model.name.trim()) {
+    return '${option.provider.name} · ${option.provider.id}';
   }
+  return '${option.provider.name} · ${option.model.name}';
 }
 
 class _AgentChatModelOption {

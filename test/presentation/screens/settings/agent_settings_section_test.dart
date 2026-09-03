@@ -11,6 +11,7 @@ import 'package:nai_launcher/core/agent/skill_archive_service.dart';
 import 'package:nai_launcher/core/agent/skill_catalog.dart';
 import 'package:nai_launcher/core/agent/agent_profile_service.dart';
 import 'package:nai_launcher/core/agent/harness/harness_types.dart';
+import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
@@ -124,9 +125,32 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(390, 820));
     final root = Directory('tool/.tmp/agent-settings-section-test')
       ..createSync(recursive: true);
+    final storage = _MemoryLocalStorage();
+    await storage.setSetting(
+      StorageKeys.promptAssistantConfigJson,
+      PromptAssistantConfigState.defaults()
+          .copyWith(
+            providers: const [
+              ProviderConfig(
+                id: 'test-provider',
+                name: 'Test Provider',
+                baseUrl: 'https://example.test',
+              ),
+            ],
+            models: const [
+              ModelConfig(
+                providerId: 'test-provider',
+                name: 'test-chat-model',
+                displayName: 'Test Chat Model',
+                forTask: AssistantTaskType.chat,
+              ),
+            ],
+          )
+          .encode(),
+    );
     final container = ProviderContainer(
       overrides: [
-        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
           (ref) => AgentSettingsNotifier(
@@ -237,6 +261,26 @@ void main() {
         AgentChatDensity.compact,
       );
       expect(tester.takeException(), isNull);
+
+      final modelField = find.byKey(
+        const ValueKey('agent-settings-model-field'),
+      );
+      await tester.ensureVisible(modelField);
+      await tester.tap(modelField);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('agent-settings-model-search')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('agent-settings-model-results')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.tap(
+        find.byKey(const ValueKey('agent-settings-model-header-close')),
+      );
+      await tester.pumpAndSettle();
 
       final skillsTab = find.descendant(
         of: panelSelector,

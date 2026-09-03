@@ -8,6 +8,7 @@ import '../../../agent_settings/providers/agent_settings_provider.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/searchable_model_picker.dart';
 import '../../settings/widgets/settings_card.dart';
 import '../../settings/widgets/settings_page_layout.dart';
 import 'web_access_settings.dart';
@@ -119,6 +120,7 @@ class _ModelCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final available = <AgentModelReference>[];
+    final pickerOptions = <ModelPickerOption<AgentModelReference>>[];
     for (final provider in promptConfig.providers.where(
       (item) => item.enabled,
     )) {
@@ -128,53 +130,79 @@ class _ModelCard extends ConsumerWidget {
             item.forTask == AssistantTaskType.chat &&
             !item.isPlaceholder,
       )) {
-        available.add(
-          AgentModelReference(providerId: provider.id, model: model.name),
+        final reference = AgentModelReference(
+          providerId: provider.id,
+          model: model.name,
+        );
+        available.add(reference);
+        final displayName = model.displayName.trim().isEmpty
+            ? model.name
+            : model.displayName.trim();
+        pickerOptions.add(
+          ModelPickerOption(
+            id: _modelPickerId(reference),
+            value: reference,
+            title: displayName,
+            subtitle: displayName == model.name
+                ? provider.name
+                : '${provider.name} · ${model.name}',
+            searchTerms: [provider.id],
+          ),
         );
       }
     }
     final selected = settings.chat.modelReference;
     final isPending = selected.isConfigured && !available.contains(selected);
+    if (isPending) {
+      pickerOptions.insert(
+        0,
+        ModelPickerOption(
+          id: _modelPickerId(selected),
+          value: selected,
+          title: selected.model,
+          subtitle:
+              '${selected.providerId} · ${context.l10n.agentSettings_pendingMatch}',
+          searchTerms: [selected.providerId],
+        ),
+      );
+    }
+    final selectedOption = pickerOptions
+        .where((option) => option.id == _modelPickerId(selected))
+        .firstOrNull;
     return SettingsCard(
       title: context.l10n.agentSettings_chatModel,
       icon: Icons.smart_toy_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          DropdownButtonFormField<AgentModelReference>(
+          SearchableModelPickerField<AgentModelReference>(
             key: const ValueKey('agent-chat-model-routing'),
-            isExpanded: true,
-            initialValue: selected.isConfigured ? selected : null,
+            keyPrefix: 'agent-settings-model',
+            pickerTitle: context.l10n.agentChat_modelPickerTitle,
+            searchLabel: context.l10n.agentChat_searchModels,
+            searchHint: context.l10n.agentChat_searchModelsHint,
+            clearSearchTooltip: context.l10n.agentChat_clearModelSearch,
+            emptyMessage: context.l10n.agentChat_noModelResults,
+            options: pickerOptions,
+            selectedId: selected.isConfigured ? _modelPickerId(selected) : null,
+            selectedLabel: selectedOption == null
+                ? null
+                : '${_providerName(selected.providerId)} / '
+                      '${selectedOption.title}'
+                      '${isPending ? ' (${context.l10n.agentSettings_pendingMatch})' : ''}',
+            emptyLabel: context.l10n.agentSettings_noModel,
+            enabled: pickerOptions.isNotEmpty,
             decoration: InputDecoration(
               labelText: context.l10n.agentSettings_providerModel,
               helperText: context.l10n.agentSettings_modelManagedInIntegrations,
             ),
-            items: [
-              if (isPending)
-                DropdownMenuItem(
-                  value: selected,
-                  child: Text(
-                    '${selected.providerId} / ${selected.model} '
-                    '(${context.l10n.agentSettings_pendingMatch})',
-                  ),
-                ),
-              for (final reference in available)
-                DropdownMenuItem(
-                  value: reference,
-                  child: Text(
-                    '${_providerName(reference.providerId)} / ${reference.model}',
-                  ),
-                ),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                _reportAgentSettingFailure(
-                  context,
-                  ref
-                      .read(agentSettingsProvider.notifier)
-                      .setModelReference(value),
-                );
-              }
+            onSelected: (value) {
+              _reportAgentSettingFailure(
+                context,
+                ref
+                    .read(agentSettingsProvider.notifier)
+                    .setModelReference(value),
+              );
             },
           ),
           if (available.isEmpty)
@@ -215,6 +243,9 @@ class _ModelCard extends ConsumerWidget {
           .map((provider) => provider.name)
           .firstOrNull ??
       id;
+
+  String _modelPickerId(AgentModelReference reference) =>
+      '${reference.providerId}\u0000${reference.model}';
 }
 
 class _ReadingPreferencesCard extends ConsumerWidget {

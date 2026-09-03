@@ -10,6 +10,7 @@ import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../widgets/common/searchable_model_picker.dart';
 import '../widgets/prompt_assistant_settings_forms.dart';
 import '../widgets/settings_card.dart';
 
@@ -143,9 +144,25 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       providerId: providerId,
       taskType: taskType,
     );
-    final modelItems = models
-        .map((m) => DropdownMenuItem(value: m.name, child: Text(m.displayName)))
-        .toList();
+    final providerName = state.providers
+        .where((provider) => provider.id == providerId)
+        .map((provider) => provider.name)
+        .firstOrNull;
+    final modelOptions = models
+        .map(
+          (model) => ModelPickerOption(
+            id: model.name,
+            value: model.name,
+            title: model.displayName.trim().isEmpty
+                ? model.name
+                : model.displayName.trim(),
+            subtitle: model.displayName.trim() == model.name.trim()
+                ? (providerName ?? providerId)
+                : '${providerName ?? providerId} · ${model.name}',
+            searchTerms: [providerId],
+          ),
+        )
+        .toList(growable: false);
     final hasRealModel = models.any(
       (m) => m.name.trim().isNotEmpty && m.name.trim() != 'default-model',
     );
@@ -161,6 +178,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     return _buildTaskRouteCard(
       context: context,
       title: _assistantTaskLabel(context, taskType),
+      modelPickerKeyPrefix: 'prompt-route-${taskType.name}-model',
       providerValue: providerItems.any((item) => item.value == providerId)
           ? providerId
           : null,
@@ -189,8 +207,8 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         );
       },
       modelValue: modelValue,
-      modelItems: modelItems,
-      onModelChanged: modelItems.isEmpty
+      modelOptions: modelOptions,
+      onModelChanged: modelOptions.isEmpty
           ? null
           : (value) {
               if (value == null) return;
@@ -212,11 +230,12 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
   Widget _buildTaskRouteCard({
     required BuildContext context,
     required String title,
+    required String modelPickerKeyPrefix,
     required String? providerValue,
     required List<DropdownMenuItem<String>> providerItems,
     required ValueChanged<String?> onProviderChanged,
     required String? modelValue,
-    required List<DropdownMenuItem<String>> modelItems,
+    required List<ModelPickerOption<String>> modelOptions,
     required ValueChanged<String?>? onModelChanged,
   }) {
     final colors = Theme.of(context).colorScheme;
@@ -246,12 +265,18 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: modelValue,
-            isExpanded: true,
-            hint: Text(context.l10n.promptAssistant_noModelsPullFirst),
-            items: modelItems,
-            onChanged: onModelChanged,
+          SearchableModelPickerField<String>(
+            keyPrefix: modelPickerKeyPrefix,
+            pickerTitle: context.l10n.agentChat_modelPickerTitle,
+            searchLabel: context.l10n.agentChat_searchModels,
+            searchHint: context.l10n.agentChat_searchModelsHint,
+            clearSearchTooltip: context.l10n.agentChat_clearModelSearch,
+            emptyMessage: context.l10n.agentChat_noModelResults,
+            options: modelOptions,
+            selectedId: modelValue,
+            emptyLabel: context.l10n.promptAssistant_noModelsPullFirst,
+            enabled: onModelChanged != null,
+            onSelected: (value) => onModelChanged?.call(value),
             decoration: InputDecoration(
               labelText: context.l10n.promptAssistant_model,
               isDense: true,
