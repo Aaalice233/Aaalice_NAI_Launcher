@@ -12207,6 +12207,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autocomplete_showTranslations => '显示中文汉化';
 
   @override
+  String get quickTranslate_show => '快速翻译';
+
+  @override
+  String get quickTranslate_restore => '还原原提示词（预览中的修改将被丢弃）';
+
+  @override
+  String get quickTranslate_previewSemantics => '本地汉化预览。此处修改不会影响原提示词。';
+
+  @override
+  String get quickTranslate_noMatches => '当前内容中没有找到可汉化的标签';
+
+  @override
+  String get quickTranslate_failed => '快速翻译失败，请检查汉化词库后重试';
+
+  @override
+  String get quickTranslate_missingTitle => '需要汉化词库';
+
+  @override
+  String get quickTranslate_missingMessage =>
+      '快速翻译需要 ffdkj 简体中文汉化库。是否前往数据与缓存设置并立即下载？';
+
+  @override
+  String get quickTranslate_download => '前往并下载';
+
+  @override
   String get autocomplete_autoComma => '插入后自动添加逗号';
 
   @override
@@ -26055,6 +26080,31 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get autocomplete_showTranslations => '顯示中文漢化';
+
+  @override
+  String get quickTranslate_show => '快速翻譯';
+
+  @override
+  String get quickTranslate_restore => '還原原提示詞（預覽中的修改將被捨棄）';
+
+  @override
+  String get quickTranslate_previewSemantics => '本機漢化預覽。在此修改不會影響原提示詞。';
+
+  @override
+  String get quickTranslate_noMatches => '目前內容中沒有找到可漢化的標籤';
+
+  @override
+  String get quickTranslate_failed => '快速翻譯失敗，請檢查漢化詞庫後重試';
+
+  @override
+  String get quickTranslate_missingTitle => '需要漢化詞庫';
+
+  @override
+  String get quickTranslate_missingMessage =>
+      '快速翻譯需要 ffdkj 簡體中文漢化庫。是否前往資料與快取設定並立即下載？';
+
+  @override
+  String get quickTranslate_download => '前往並下載';
 
   @override
   String get autocomplete_autoComma => '插入後自動新增逗號';

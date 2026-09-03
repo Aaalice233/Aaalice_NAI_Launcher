@@ -106,6 +106,13 @@ void main() {
     expect(thumbnailSection.height, lessThan(210));
     expect(editor.height, 176);
     expect(editor.top, lessThan(490));
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('entry-add-dialog-content-editor')),
+        matching: find.byKey(const ValueKey('quick-translate-button')),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();

@@ -29,6 +29,7 @@ import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/prompt_regex_rules_provider.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
+import '../quick_translate_prompt_field.dart';
 import 'unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
@@ -1329,9 +1330,21 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     final requestedContentPadding =
         widget.decoration?.contentPadding ??
         const EdgeInsets.symmetric(horizontal: 12, vertical: 10);
-    final effectiveContentPadding = _withAssistantBottomClearance(
+    final assistantClearance = shouldReserveAssistantSpace
+        ? PromptAssistantOverlay.effectiveContentBottomClearance(
+            context.interactionPolicy,
+          )
+        : 0.0;
+    final quickTranslationClearance = widget.config.enableQuickTranslation
+        ? QuickTranslatePromptField.contentBottomClearance(
+            context.interactionPolicy,
+          )
+        : 0.0;
+    final effectiveContentPadding = _withBottomActionClearance(
       requestedContentPadding,
-      reserveSpace: shouldReserveAssistantSpace,
+      clearance: assistantClearance > quickTranslationClearance
+          ? assistantClearance
+          : quickTranslationClearance,
     );
 
     // 合并 decoration：优先使用传入的 decoration，但保留 config 中的 hintText
@@ -1404,10 +1417,20 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     );
 
     // 接管 Ctrl+C / Ctrl+X：覆盖 EditableText 内置的 CopySelectionTextIntent
-    final clipboardAwareInput = Actions(
+    Widget clipboardAwareInput = Actions(
       actions: _clipboardActions,
       child: baseInput,
     );
+
+    if (widget.config.enableQuickTranslation) {
+      clipboardAwareInput = QuickTranslatePromptField(
+        controller: _effectiveController,
+        sourceFocusNode: _effectiveFocusNode,
+        surfaceColor: widget.surfaceColor,
+        enabled: !widget.config.readOnly,
+        child: clipboardAwareInput,
+      );
+    }
 
     // 包装权重调整工具条
     Widget result = WeightAdjustToolbarWrapper(
@@ -1435,18 +1458,15 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     return result;
   }
 
-  EdgeInsetsGeometry _withAssistantBottomClearance(
+  EdgeInsetsGeometry _withBottomActionClearance(
     EdgeInsetsGeometry contentPadding, {
-    required bool reserveSpace,
+    required double clearance,
   }) {
-    if (!reserveSpace) {
+    if (clearance <= 0) {
       return contentPadding;
     }
 
     final resolved = contentPadding.resolve(Directionality.of(context));
-    final clearance = PromptAssistantOverlay.effectiveContentBottomClearance(
-      context.interactionPolicy,
-    );
     if (resolved.bottom >= clearance) {
       return resolved;
     }

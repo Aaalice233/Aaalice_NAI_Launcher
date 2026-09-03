@@ -1085,7 +1085,17 @@ void main() {
       tester.getRect(assistant).right,
       closeTo(tester.getRect(footer).right, 0.1),
     );
-    expect(textField.decoration?.contentPadding, const EdgeInsets.all(12));
+    expect(
+      textField.decoration?.contentPadding,
+      const EdgeInsets.fromLTRB(12, 12, 12, 56),
+    );
+    expect(
+      find.descendant(
+        of: input,
+        matching: find.byKey(const ValueKey('quick-translate-button')),
+      ),
+      findsOneWidget,
+    );
     expect(
       tester.getRect(transparent).top,
       greaterThanOrEqualTo(tester.getRect(input).bottom),

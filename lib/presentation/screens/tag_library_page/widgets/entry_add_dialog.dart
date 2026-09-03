@@ -24,6 +24,7 @@ import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_formatter_wrapper.dart';
+import '../../../widgets/prompt/quick_translate_prompt_field.dart';
 import 'thumbnail_crop_dialog.dart';
 
 /// 添加/编辑词库条目对话框
@@ -326,31 +327,42 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                   SizedBox(
                     key: const Key('entry-add-dialog-content-editor'),
                     height: 176,
-                    child: PromptFormatterWrapper(
+                    child: QuickTranslatePromptField(
                       controller: _contentController,
-                      focusNode: _contentFocusNode,
-                      enableAutoFormat: ref.watch(
-                        autoFormatPromptSettingsProvider,
-                      ),
-                      child: AutocompleteWrapper.withAlias(
+                      sourceFocusNode: _contentFocusNode,
+                      child: PromptFormatterWrapper(
                         controller: _contentController,
                         focusNode: _contentFocusNode,
-                        ref: ref,
-                        expands: true,
-                        config: const AutocompleteConfig(
-                          showTranslation: true,
-                          showCategory: true,
-                          autoInsertComma: true,
+                        enableAutoFormat: ref.watch(
+                          autoFormatPromptSettingsProvider,
                         ),
-                        child: ThemedInput(
+                        child: AutocompleteWrapper.withAlias(
                           controller: _contentController,
                           focusNode: _contentFocusNode,
-                          decoration: InputDecoration(
-                            hintText: context.l10n.tagLibrary_contentHint,
-                            contentPadding: const EdgeInsets.all(12),
-                          ),
-                          maxLines: null,
+                          ref: ref,
                           expands: true,
+                          config: const AutocompleteConfig(
+                            showTranslation: true,
+                            showCategory: true,
+                            autoInsertComma: true,
+                          ),
+                          child: ThemedInput(
+                            controller: _contentController,
+                            focusNode: _contentFocusNode,
+                            decoration: InputDecoration(
+                              hintText: context.l10n.tagLibrary_contentHint,
+                              contentPadding: EdgeInsets.fromLTRB(
+                                12,
+                                12,
+                                12,
+                                QuickTranslatePromptField.contentBottomClearance(
+                                  context.interactionPolicy,
+                                ),
+                              ),
+                            ),
+                            maxLines: null,
+                            expands: true,
+                          ),
                         ),
                       ),
                     ),

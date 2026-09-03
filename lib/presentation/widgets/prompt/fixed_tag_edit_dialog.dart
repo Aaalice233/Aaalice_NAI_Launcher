@@ -23,6 +23,7 @@ import '../common/themed_input.dart';
 import '../common/themed_slider.dart';
 import '../prompt/nai_syntax_controller.dart';
 import '../prompt/prompt_formatter_wrapper.dart';
+import '../prompt/quick_translate_prompt_field.dart';
 
 /// 固定词编辑对话框
 class FixedTagEditDialog extends ConsumerStatefulWidget {
@@ -367,7 +368,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   }
 
   Widget _buildPromptEditor() {
-    return PromptFormatterWrapper(
+    final promptEditor = PromptFormatterWrapper(
       controller: _contentController,
       focusNode: _contentFocusNode,
       enableAutoFormat: ref.watch(autoFormatPromptSettingsProvider),
@@ -387,12 +388,24 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           focusNode: _contentFocusNode,
           decoration: InputDecoration(
             hintText: context.l10n.fixedTags_contentHint,
-            contentPadding: const EdgeInsets.all(12),
+            contentPadding: EdgeInsets.fromLTRB(
+              12,
+              12,
+              12,
+              QuickTranslatePromptField.contentBottomClearance(
+                context.interactionPolicy,
+              ),
+            ),
           ),
           maxLines: null,
           expands: true,
         ),
       ),
+    );
+    return QuickTranslatePromptField(
+      controller: _contentController,
+      sourceFocusNode: _contentFocusNode,
+      child: promptEditor,
     );
   }
 

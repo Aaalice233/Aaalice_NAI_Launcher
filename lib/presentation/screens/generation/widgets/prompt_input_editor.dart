@@ -72,6 +72,7 @@ class PromptInputEditor extends ConsumerWidget {
                 ? false
                 : enableSdSyntaxAutoConvert,
             enableComfyuiImport: !negative,
+            enableQuickTranslation: true,
             autocompleteConfig: AutocompleteConfig(
               showTranslation: true,
               showCategory: !negative,

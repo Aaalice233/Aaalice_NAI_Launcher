@@ -22222,6 +22222,54 @@ abstract class AppLocalizations {
   /// **'Show Chinese translations'**
   String get autocomplete_showTranslations;
 
+  /// No description provided for @quickTranslate_show.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick translation'**
+  String get quickTranslate_show;
+
+  /// No description provided for @quickTranslate_restore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore the original prompt (preview edits will be discarded)'**
+  String get quickTranslate_restore;
+
+  /// No description provided for @quickTranslate_previewSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Chinese translation preview. Edits here do not affect the original prompt.'**
+  String get quickTranslate_previewSemantics;
+
+  /// No description provided for @quickTranslate_noMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No translatable tags were found in the current content'**
+  String get quickTranslate_noMatches;
+
+  /// No description provided for @quickTranslate_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick translation failed. Check the translation dictionary and try again'**
+  String get quickTranslate_failed;
+
+  /// No description provided for @quickTranslate_missingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation dictionary required'**
+  String get quickTranslate_missingTitle;
+
+  /// No description provided for @quickTranslate_missingMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick translation requires the ffdkj Simplified Chinese dictionary. Open Data & Cache settings and download it now?'**
+  String get quickTranslate_missingMessage;
+
+  /// No description provided for @quickTranslate_download.
+  ///
+  /// In en, this message translates to:
+  /// **'Open and download'**
+  String get quickTranslate_download;
+
   /// No description provided for @autocomplete_autoComma.
   ///
   /// In en, this message translates to:

@@ -37,7 +37,7 @@ NAI Launcher is built for people who use NovelAI regularly: generate images, ref
 
 - **Generation and editing**: text-to-image, image-to-image, Inpaint, Focused Inpaint, Outpaint, and upscale/enhance workflows.
 - **References and characters**: Vibe Transfer, Precise Reference, multi-character prompts, reference images, and independent negative prompts.
-- **Prompt workspace**: tag autocomplete, weight syntax, token counts, pinned words, random tag libraries, and prompt import/export.
+- **Prompt workspace**: tag autocomplete, weight syntax, token counts, pinned words, random tag libraries, prompt import/export, and local ffdkj Chinese previews that leave the original prompt untouched.
 
 ### 🗂️ Organize
 

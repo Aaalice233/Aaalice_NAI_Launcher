@@ -37,7 +37,7 @@ NAI Launcher 面向长期使用 NovelAI 的创作者：生成图片、反复调�
 
 - **文生图与图像编辑**：文生图、图生图、Inpaint、Focused Inpaint、Outpaint，以及放大/增强。
 - **参考与角色**：Vibe Transfer、Precise Reference、多角色提示词、参考图和独立负面提示词。
-- **Prompt 工作台**：标签自动补全、权重语法、Token 统计、固定词、随机词库和提示词导入导出。
+- **Prompt 工作台**：标签自动补全、权重语法、Token 统计、固定词、随机词库、提示词导入导出，以及不改动原文的 ffdkj 本地快速汉化预览。
 
 ### 🗂️ 整理
 

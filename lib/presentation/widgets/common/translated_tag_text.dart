@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/autocomplete/tag_translation_lookup.dart';
-import '../../../core/utils/prompt_tag_utils.dart';
 import '../../../core/utils/tag_normalizer.dart';
 
 /// Read-only tag label that keeps the canonical tag visible and appends the
@@ -139,7 +138,7 @@ class _TranslatedPromptTextState extends ConsumerState<TranslatedPromptText> {
 
   Future<void> _load() async {
     final revision = ++_revision;
-    final tags = PromptTagUtils.parseForDisplay(widget.prompt);
+    final tags = TagTranslationLookup.extractTagKeys(widget.prompt);
     TagTranslationLookup lookup;
     try {
       lookup = ref.read(tagTranslationLookupProvider);

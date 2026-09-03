@@ -425,6 +425,13 @@ void main() {
       const ValueKey('character-prompt-resize-handle-positive'),
     );
     expect(tester.getSize(positiveArea).height, 112);
+    expect(
+      find.descendant(
+        of: positiveArea,
+        matching: find.byKey(const ValueKey('quick-translate-button')),
+      ),
+      findsOneWidget,
+    );
 
     await tester.drag(positiveHandle, const Offset(0, 96));
     await tester.pump();

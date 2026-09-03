@@ -106,4 +106,40 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('翻译摘要复用复杂权重组与强调组解析', (tester) async {
+    final complexLookup = TagTranslationLookup.fromResolver((tags) async {
+      const values = {
+        'amazing_quality': '惊人质量',
+        'masterpiece': '杰作',
+        'absurdres': '超高分辨率',
+        'shiny_skin': '光泽皮肤',
+        'curvy': '曲线玲珑',
+        'blender_(medium)': 'Blender（媒介）',
+      };
+      return {
+        for (final tag in tags)
+          if (values[tag] != null) tag: values[tag]!,
+      };
+    });
+    const prompt =
+        r'2::amazing\_quality, masterpiece, absurdres::, '
+        r'{shiny\_skin, curvy}, 1.3::blender (medium), 3d::';
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tagTranslationLookupProvider.overrideWithValue(complexLookup),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: TranslatedPromptText(prompt, includeUntranslated: true),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('惊人质量，杰作，超高分辨率，光泽皮肤，曲线玲珑，Blender（媒介），3d'), findsOneWidget);
+  });
 }

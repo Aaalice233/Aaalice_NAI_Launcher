@@ -12411,6 +12411,32 @@ class AppLocalizationsJa extends AppLocalizations {
   String get autocomplete_showTranslations => '中国語訳を表示';
 
   @override
+  String get quickTranslate_show => 'クイック翻訳';
+
+  @override
+  String get quickTranslate_restore => '元のプロンプトに戻す（プレビューでの編集は破棄されます）';
+
+  @override
+  String get quickTranslate_previewSemantics =>
+      'ローカル中国語翻訳のプレビューです。ここでの編集は元のプロンプトに影響しません。';
+
+  @override
+  String get quickTranslate_noMatches => '現在の内容に翻訳可能なタグが見つかりませんでした';
+
+  @override
+  String get quickTranslate_failed => 'クイック翻訳に失敗しました。翻訳辞書を確認してもう一度お試しください';
+
+  @override
+  String get quickTranslate_missingTitle => '翻訳辞書が必要です';
+
+  @override
+  String get quickTranslate_missingMessage =>
+      'クイック翻訳には ffdkj 簡体字中国語辞書が必要です。データとキャッシュ設定を開いて今すぐダウンロードしますか？';
+
+  @override
+  String get quickTranslate_download => '開いてダウンロード';
+
+  @override
   String get autocomplete_autoComma => '挿入後にカンマを追加';
 
   @override

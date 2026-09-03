@@ -12732,6 +12732,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autocomplete_showTranslations => 'Show Chinese translations';
 
   @override
+  String get quickTranslate_show => 'Quick translation';
+
+  @override
+  String get quickTranslate_restore =>
+      'Restore the original prompt (preview edits will be discarded)';
+
+  @override
+  String get quickTranslate_previewSemantics =>
+      'Local Chinese translation preview. Edits here do not affect the original prompt.';
+
+  @override
+  String get quickTranslate_noMatches =>
+      'No translatable tags were found in the current content';
+
+  @override
+  String get quickTranslate_failed =>
+      'Quick translation failed. Check the translation dictionary and try again';
+
+  @override
+  String get quickTranslate_missingTitle => 'Translation dictionary required';
+
+  @override
+  String get quickTranslate_missingMessage =>
+      'Quick translation requires the ffdkj Simplified Chinese dictionary. Open Data & Cache settings and download it now?';
+
+  @override
+  String get quickTranslate_download => 'Open and download';
+
+  @override
   String get autocomplete_autoComma => 'Add a comma after insertion';
 
   @override
