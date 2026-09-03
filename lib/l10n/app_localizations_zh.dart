@@ -12680,7 +12680,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_androidManagedStorage => '由系统安全管理；导出时可选择保存位置';
 
   @override
-  String get settings_importLocalOnnxTaggerFiles => '导入 ONNX 模型及标签文件';
+  String get settings_importLocalOnnxTaggerFiles => '导入 ONNX 模型、标签文件或 ZIP 压缩包';
 
   @override
   String settings_localOnnxFilesImported(int count) {
@@ -26497,7 +26497,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_androidManagedStorage => '由系統安全管理；匯出時可選擇儲存位置';
 
   @override
-  String get settings_importLocalOnnxTaggerFiles => '匯入 ONNX 模型及標籤檔案';
+  String get settings_importLocalOnnxTaggerFiles => '匯入 ONNX 模型、標籤檔案或 ZIP 壓縮檔';
 
   @override
   String settings_localOnnxFilesImported(int count) {

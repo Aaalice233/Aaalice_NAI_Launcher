@@ -6340,7 +6340,7 @@
   "queue_selectTask": "Select task",
   "settings_notificationSoundImportFailed": "Couldn't import the sound. Choose the file again.",
   "settings_androidManagedStorage": "Securely managed by the system; choose a location when exporting",
-  "settings_importLocalOnnxTaggerFiles": "Import ONNX model and label files",
+  "settings_importLocalOnnxTaggerFiles": "Import ONNX model, label files, or a ZIP archive",
   "settings_localOnnxFilesImported": "Imported {count} model files",
   "@settings_localOnnxFilesImported": {"placeholders":{"count":{"type":"int"}}},
   "settings_localOnnxManagedFiles": "{count} model files in app storage",

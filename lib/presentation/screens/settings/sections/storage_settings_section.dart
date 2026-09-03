@@ -88,8 +88,10 @@ class _StorageSettingsSectionState
     try {
       final selection = await FilePicker.platform.pickFiles(
         dialogTitle: context.l10n.settings_importLocalOnnxTaggerFiles,
-        type: FileType.custom,
-        allowedExtensions: const ['onnx', 'data', 'csv', 'txt', 'json'],
+        // Android maps custom extensions to MIME types before opening its
+        // document picker. ONNX and external-data extensions have no standard
+        // mapping and would be hidden, so let the service validate selections.
+        type: FileType.any,
         allowMultiple: true,
       );
       if (selection == null) return;
@@ -101,7 +103,7 @@ class _StorageSettingsSectionState
           .toList(growable: false);
       final importedCount = await ref
           .read(localOnnxModelServiceProvider)
-          .importTaggerFiles(sources);
+          .importTaggerSelections(sources);
       if (mounted) {
         setState(() {});
         AppToast.success(

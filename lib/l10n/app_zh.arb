@@ -6409,7 +6409,7 @@
   "queue_selectTask": "选择任务",
   "settings_notificationSoundImportFailed": "无法导入音效，请重新选择文件。",
   "settings_androidManagedStorage": "由系统安全管理；导出时可选择保存位置",
-  "settings_importLocalOnnxTaggerFiles": "导入 ONNX 模型及标签文件",
+  "settings_importLocalOnnxTaggerFiles": "导入 ONNX 模型、标签文件或 ZIP 压缩包",
   "settings_localOnnxFilesImported": "已导入 {count} 个模型文件",
   "@settings_localOnnxFilesImported": {"placeholders":{"count":{"type":"int"}}},
   "settings_localOnnxManagedFiles": "应用存储中有 {count} 个模型文件",

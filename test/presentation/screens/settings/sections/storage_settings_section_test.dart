@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -81,6 +82,40 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'Android ONNX import does not hide extensions behind MIME filters',
+    (tester) async {
+      FilePicker? originalFilePicker;
+      try {
+        originalFilePicker = FilePicker.platform;
+      } catch (_) {
+        originalFilePicker = null;
+      }
+      final filePicker = _RecordingFilePicker();
+      FilePicker.platform = filePicker;
+      addTearDown(() {
+        if (originalFilePicker != null) {
+          FilePicker.platform = originalFilePicker;
+        }
+      });
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.android,
+      );
+
+      await tester.pumpWidget(_buildSubject(storage));
+      await tester.pump();
+
+      final importButton = find.byTooltip('导入 ONNX 模型、标签文件或 ZIP 压缩包');
+      expect(importButton, findsOneWidget);
+      await tester.tap(importButton);
+      await tester.pump();
+
+      expect(filePicker.type, FileType.any);
+      expect(filePicker.allowedExtensions, isNull);
+      expect(filePicker.allowMultiple, isTrue);
+    },
+  );
 
   testWidgets('聚焦数据与存储：保护模式移出，数据源缓存迁入', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 2400));
@@ -257,6 +292,33 @@ class _ReadyCooccurrenceService extends CooccurrenceDataPackService {
   @override
   Future<void> deleteData() async {
     state = const CooccurrenceDataPackState();
+  }
+}
+
+class _RecordingFilePicker extends FilePicker {
+  FileType? type;
+  List<String>? allowedExtensions;
+  bool? allowMultiple;
+
+  @override
+  Future<FilePickerResult?> pickFiles({
+    String? dialogTitle,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    Function(FilePickerStatus)? onFileLoading,
+    bool allowCompression = true,
+    int compressionQuality = 30,
+    bool allowMultiple = false,
+    bool withData = false,
+    bool withReadStream = false,
+    bool lockParentWindow = false,
+    bool readSequential = false,
+  }) async {
+    this.type = type;
+    this.allowedExtensions = allowedExtensions;
+    this.allowMultiple = allowMultiple;
+    return null;
   }
 }
 
