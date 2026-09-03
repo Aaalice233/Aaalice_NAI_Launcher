@@ -156,6 +156,32 @@ void main() {
     expect(effectiveScale, 2);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('desktop baseline preserves the user reading-size preference', (
+    tester,
+  ) async {
+    late double effectiveScale;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AgentChatReadingPreferences(
+          config: const AgentChatConfig(readingTextScale: 0.9),
+          desktop: true,
+          child: Builder(
+            builder: (context) {
+              effectiveScale = MediaQuery.textScalerOf(context).scale(16) / 16;
+              return const Text('Agent content');
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      effectiveScale,
+      moreOrLessEquals(AgentChatReadingPreferences.desktopBaselineScale * 0.9),
+    );
+  });
 }
 
 final class _NonlinearTestScaler extends TextScaler {

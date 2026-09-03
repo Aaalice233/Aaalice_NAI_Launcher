@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../data/models/agent/agent_settings.dart';
@@ -55,9 +57,15 @@ final class _AgentReadingTextScaler extends TextScaler {
   final double factor;
   final double minimumFactor;
 
-  double _scaledValue(double fontSize) => (delegate.scale(fontSize) * factor)
-      .clamp(fontSize * minimumFactor, fontSize * 3.0)
-      .toDouble();
+  double _scaledValue(double fontSize) {
+    final baselineSize = math.max(
+      delegate.scale(fontSize),
+      fontSize * minimumFactor,
+    );
+    return (baselineSize * factor)
+        .clamp(fontSize * 0.8, fontSize * 3.0)
+        .toDouble();
+  }
 
   @override
   double scale(double fontSize) => _scaledValue(fontSize);
