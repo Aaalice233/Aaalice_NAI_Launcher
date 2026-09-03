@@ -6,6 +6,7 @@ import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/layout_state_provider.dart';
+import '../../themes/prompt_semantic_colors.dart';
 import '../common/rich_tooltip_surface.dart';
 import '../common/translated_tag_text.dart';
 import 'fixed_tags_dialog.dart';
@@ -41,6 +42,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
         .length;
     final hasEntries = fixedTagsState.entries.isNotEmpty;
     final hasEnabled = enabledCount > 0;
+    final activeControlColor = theme.colorScheme.onSurfaceVariant;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -89,7 +91,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
               ),
               decoration: BoxDecoration(
                 color: hasEnabled
-                    ? theme.colorScheme.secondary.withValues(
+                    ? activeControlColor.withValues(
                         alpha: _isHovering ? 0.18 : 0.12,
                       )
                     : (_isHovering
@@ -104,7 +106,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                     hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
                     size: widget.compact ? 15 : 16,
                     color: hasEnabled
-                        ? theme.colorScheme.secondary
+                        ? activeControlColor
                         : theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                   if (!widget.iconOnly) ...[
@@ -123,7 +125,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                               ? FontWeight.w600
                               : FontWeight.w500,
                           color: hasEnabled
-                              ? theme.colorScheme.secondary
+                              ? activeControlColor
                               : theme.colorScheme.onSurface.withValues(
                                   alpha: 0.5,
                                 ),
@@ -139,9 +141,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.secondary.withValues(
-                          alpha: 0.2,
-                        ),
+                        color: activeControlColor.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -149,7 +149,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.secondary,
+                          color: activeControlColor,
                         ),
                       ),
                     ),
@@ -302,8 +302,8 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
   }) {
     final isPositive = promptType == FixedTagPromptType.positive;
     final color = isPositive
-        ? theme.colorScheme.primary
-        : theme.colorScheme.error;
+        ? theme.promptSemanticColors.positiveFixedTag
+        : theme.promptSemanticColors.negativeFixedTag;
     final mutedColor = Color.lerp(
       theme.colorScheme.onSurfaceVariant,
       color,

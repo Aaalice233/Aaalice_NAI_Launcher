@@ -5,6 +5,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../data/services/alias_resolver_service.dart';
+import '../../../themes/prompt_semantic_colors.dart';
 import '../../../widgets/common/app_toast.dart';
 import 'prompt_tooltip_components.dart';
 
@@ -37,6 +38,7 @@ class PositivePromptTooltip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = theme.brightness == Brightness.dark;
+    final promptColors = theme.promptSemanticColors;
     final enabledCharacters = characters
         .where((character) => character.enabled && character.prompt.isNotEmpty)
         .toList();
@@ -57,7 +59,7 @@ class PositivePromptTooltip extends StatelessWidget {
           _section(
             Icons.arrow_forward_rounded,
             l10n.fixedTags_prefix,
-            theme.colorScheme.primary,
+            promptColors.positiveFixedTag,
             prefixes.map((tag) => _resolve(tag.content)).join(', '),
             isDark,
           ),
@@ -67,7 +69,7 @@ class PositivePromptTooltip extends StatelessWidget {
           _section(
             Icons.edit_rounded,
             l10n.prompt_mainPositive,
-            theme.colorScheme.secondary,
+            promptColors.mainPrompt,
             _resolve(userPrompt.trim()),
             isDark,
           ),
@@ -77,7 +79,7 @@ class PositivePromptTooltip extends StatelessWidget {
           _section(
             Icons.star_rounded,
             l10n.qualityTags_positive,
-            theme.colorScheme.tertiary,
+            promptColors.positiveQuality,
             qualityContent!,
             isDark,
           ),
@@ -97,7 +99,7 @@ class PositivePromptTooltip extends StatelessWidget {
           _section(
             Icons.arrow_back_rounded,
             l10n.fixedTags_suffix,
-            theme.colorScheme.tertiary,
+            promptColors.positiveFixedTag,
             suffixes.map((tag) => _resolve(tag.content)).join(', '),
             isDark,
           ),
@@ -184,6 +186,7 @@ class NegativePromptTooltip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = theme.brightness == Brightness.dark;
+    final promptColors = theme.promptSemanticColors;
     final effectivePrompt = _effectivePrompt();
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -201,7 +204,7 @@ class NegativePromptTooltip extends StatelessWidget {
           _section(
             Icons.shield_rounded,
             l10n.qualityTags_negative,
-            theme.colorScheme.error,
+            promptColors.negativeQuality,
             ucPresetContent,
             isDark,
           ),
@@ -211,7 +214,7 @@ class NegativePromptTooltip extends StatelessWidget {
           _section(
             Icons.arrow_forward_rounded,
             l10n.prompt_negativeFixedTagPrefix,
-            theme.colorScheme.error,
+            promptColors.negativeFixedTag,
             prefixes.map((tag) => _resolve(tag.content)).join(', '),
             isDark,
           ),
@@ -221,7 +224,7 @@ class NegativePromptTooltip extends StatelessWidget {
           _section(
             Icons.edit_rounded,
             l10n.prompt_mainNegative,
-            theme.colorScheme.tertiary,
+            promptColors.mainPrompt,
             _resolve(userNegativePrompt.trim()),
             isDark,
           ),
@@ -231,7 +234,7 @@ class NegativePromptTooltip extends StatelessWidget {
           _section(
             Icons.arrow_back_rounded,
             l10n.prompt_negativeFixedTagSuffix,
-            theme.colorScheme.tertiary,
+            promptColors.negativeFixedTag,
             suffixes.map((tag) => _resolve(tag.content)).join(', '),
             isDark,
           ),

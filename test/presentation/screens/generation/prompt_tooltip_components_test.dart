@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/services/alias_resolver_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_tooltips.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_tooltip_components.dart';
+import 'package:nai_launcher/presentation/themes/prompt_semantic_colors.dart';
 import 'package:nai_launcher/presentation/widgets/common/rich_tooltip_surface.dart';
 import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
 
@@ -425,6 +428,92 @@ void main() {
 
     expect(positiveCopies, 1);
     expect(negativeCopies, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('提示词组成预览按五类业务语义分配颜色', (tester) async {
+    final theme = ThemeData.dark();
+    final positivePrefix = FixedTagEntry.create(
+      name: 'positive prefix',
+      content: 'best quality',
+    );
+    final positiveSuffix = FixedTagEntry.create(
+      name: 'positive suffix',
+      content: 'detailed',
+      position: FixedTagPosition.suffix,
+    );
+    final negativePrefix = FixedTagEntry.create(
+      name: 'negative prefix',
+      content: 'lowres',
+      promptType: FixedTagPromptType.negative,
+    );
+    final negativeSuffix = FixedTagEntry.create(
+      name: 'negative suffix',
+      content: 'watermark',
+      position: FixedTagPosition.suffix,
+      promptType: FixedTagPromptType.negative,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: theme,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Consumer(
+            builder: (context, ref, _) {
+              final l10n = AppLocalizations.of(context)!;
+              final aliasResolver = ref.read(
+                aliasResolverServiceProvider.notifier,
+              );
+              return Scaffold(
+                body: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      PositivePromptTooltip(
+                        theme: theme,
+                        userPrompt: 'main prompt',
+                        prefixes: [positivePrefix],
+                        suffixes: [positiveSuffix],
+                        qualityContent: 'quality tags',
+                        characters: const [],
+                        globalAiChoice: true,
+                        l10n: l10n,
+                        aliasResolver: aliasResolver,
+                      ),
+                      NegativePromptTooltip(
+                        theme: theme,
+                        userNegativePrompt: 'main negative prompt',
+                        prefixes: [negativePrefix],
+                        suffixes: [negativeSuffix],
+                        ucPresetContent: 'negative quality tags',
+                        l10n: l10n,
+                        aliasResolver: aliasResolver,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    final colors = theme.promptSemanticColors;
+    final sections = tester
+        .widgetList<TooltipSection>(find.byType(TooltipSection))
+        .toList();
+    expect(sections.map((section) => section.color), [
+      colors.positiveFixedTag,
+      colors.mainPrompt,
+      colors.positiveQuality,
+      colors.positiveFixedTag,
+      colors.negativeQuality,
+      colors.negativeFixedTag,
+      colors.mainPrompt,
+      colors.negativeFixedTag,
+    ]);
     expect(tester.takeException(), isNull);
   });
 

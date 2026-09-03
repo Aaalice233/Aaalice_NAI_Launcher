@@ -26,6 +26,7 @@ import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
+import 'package:nai_launcher/presentation/themes/prompt_semantic_colors.dart';
 import 'package:nai_launcher/presentation/widgets/common/hover_image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
@@ -995,7 +996,17 @@ void main() {
         tester.widget<Container>(positiveSection).decoration! as BoxDecoration;
     final negativeDecoration =
         tester.widget<Container>(negativeSection).decoration! as BoxDecoration;
-    expect(positiveDecoration.color, isNot(negativeDecoration.color));
+    final semanticColors = Theme.of(
+      tester.element(positiveSection),
+    ).promptSemanticColors;
+    expect(
+      positiveDecoration.color,
+      semanticColors.positiveFixedTag.withValues(alpha: 0.08),
+    );
+    expect(
+      negativeDecoration.color,
+      semanticColors.negativeFixedTag.withValues(alpha: 0.08),
+    );
     expect(tester.takeException(), isNull);
   });
 
