@@ -33,7 +33,7 @@ class PresetSelectorBar extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final showDescription = constraints.maxWidth >= 760;
+        final showExpandedActions = constraints.maxWidth >= 760;
         final dropdown = KeyedSubtree(
           key: const ValueKey('random-manager-mode-selector'),
           child: _PresetDropdown(
@@ -50,7 +50,7 @@ class PresetSelectorBar extends ConsumerWidget {
           ref,
           selected,
           syncState,
-          includeSync: !showDescription,
+          includeSync: !showExpandedActions,
         );
         if (showWorkspaceHeading) {
           final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
@@ -62,11 +62,25 @@ class PresetSelectorBar extends ConsumerWidget {
             key: const ValueKey('random-manager-controls-row'),
             child: dropdown,
           );
-          final title = Text(
-            context.l10n.randomManager_workspaceTitle,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+          final title = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.casino_outlined,
+                size: 22,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  context.l10n.randomManager_workspaceTitle,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           );
           final modeLabel = Text(
             '${context.l10n.randomManager_currentMode} · ${mode.getName(context.l10n)}',
@@ -107,45 +121,34 @@ class PresetSelectorBar extends ConsumerWidget {
           );
         }
 
+        if (!showExpandedActions) {
+          return Row(
+            children: [
+              Expanded(child: dropdown),
+              const SizedBox(width: 8),
+              menu,
+            ],
+          );
+        }
         return Row(
           children: [
-            Flexible(
-              flex: showDescription ? 0 : 1,
-              child: SizedBox(
-                width: showDescription ? 250 : double.infinity,
-                child: dropdown,
-              ),
-            ),
-            if (showDescription && selected != null) ...[
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  context.l10n.presetDisplayDescription(selected) ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ] else
-              const SizedBox(width: 8),
-            if (selected?.isDefault == true && showDescription)
+            SizedBox(width: 250, child: dropdown),
+            const Spacer(),
+            if (selected?.isDefault == true)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: _ReadOnlyIndicator(
                   label: context.l10n.randomManager_readOnlyMode,
                 ),
               ),
-            if (showDescription)
-              _ToolbarAction(
-                icon: Icons.sync_rounded,
-                tooltip: context.l10n.randomManager_syncDanbooruTags,
-                loading: syncState.isSyncing,
-                onPressed: selected != null && !selected.isDefault
-                    ? () => _syncDanbooru(context, ref)
-                    : null,
-              ),
+            _ToolbarAction(
+              icon: Icons.sync_rounded,
+              tooltip: context.l10n.randomManager_syncDanbooruTags,
+              loading: syncState.isSyncing,
+              onPressed: selected != null && !selected.isDefault
+                  ? () => _syncDanbooru(context, ref)
+                  : null,
+            ),
             menu,
           ],
         );

@@ -866,6 +866,13 @@ void _expectSettingsLayeredChrome(
 
   expect(appBar.shape, isNull);
   expect(appBar.backgroundColor, sectionSurfaceColor(theme.colorScheme));
+  expect(
+    find.descendant(
+      of: appBarFinder,
+      matching: find.byIcon(Icons.settings_outlined),
+    ),
+    findsOneWidget,
+  );
   expect(find.byType(VerticalDivider), findsNothing);
 
   final navigationSurface = find.byKey(

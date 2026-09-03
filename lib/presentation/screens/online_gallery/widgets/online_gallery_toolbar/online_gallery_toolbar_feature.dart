@@ -200,6 +200,13 @@ class _OnlineGalleryToolbarPresenter {
               final leadingControls = Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  GalleryCollectionPageTitle(
+                    key: const ValueKey('online-gallery-page-title'),
+                    icon: Icons.photo_library_outlined,
+                    title: context.l10n.nav_onlineGallery,
+                    maxWidth: 168,
+                  ),
+                  const SizedBox(width: 16),
                   _buildSourceSelector(state),
                   const SizedBox(width: 8),
                   _buildModeSelector(theme, state, compact: compactModes),
@@ -285,6 +292,13 @@ class _OnlineGalleryToolbarPresenter {
               key: const ValueKey('online-gallery-mobile-primary-row'),
               mainAxisSize: MainAxisSize.min,
               children: [
+                GalleryCollectionPageTitle(
+                  key: const ValueKey('online-gallery-page-title'),
+                  icon: Icons.photo_library_outlined,
+                  title: context.l10n.nav_onlineGallery,
+                  maxWidth: 148,
+                ),
+                const SizedBox(width: 12),
                 SizedBox(
                   key: const ValueKey('online-gallery-mobile-source'),
                   width: sourceWidth,

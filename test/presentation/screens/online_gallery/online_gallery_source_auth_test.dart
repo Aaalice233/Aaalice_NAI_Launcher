@@ -1465,6 +1465,18 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
 
+        expect(
+          find.byKey(const ValueKey('online-gallery-page-title')),
+          findsOneWidget,
+        );
+        expect(find.text('在线画廊'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('online-gallery-page-title')),
+            matching: find.byIcon(Icons.photo_library_outlined),
+          ),
+          findsOneWidget,
+        );
         if (width >= 1400) {
           for (final icon in const [
             Icons.shuffle,

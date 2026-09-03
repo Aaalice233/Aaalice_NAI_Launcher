@@ -314,6 +314,9 @@ void main() {
       );
       await _pumpBounded(tester);
 
+      expect(find.byIcon(Icons.casino_outlined), findsOneWidget);
+      expect(find.text('用完整离线 catalog 组合可复用的随机生成配方'), findsNothing);
+      expect(find.text('适用于 V4/V5 的 catalog 扩展预设，支持多角色'), findsNothing);
       expect(find.text('官网 · Character Prompts'), findsOneWidget);
       expect(find.byTooltip('数据来源详情'), findsOneWidget);
       expect(find.byType(TextField), findsWidgets);

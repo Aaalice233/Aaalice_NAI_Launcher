@@ -370,7 +370,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return AppBar(
       key: const ValueKey('settings-tonal-app-bar'),
       leading: leading,
-      title: Text(context.l10n.settings_title),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.settings_outlined,
+            size: 22,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 10),
+          Flexible(child: Text(context.l10n.settings_title)),
+        ],
+      ),
       backgroundColor: _isContentScrolled
           ? controlSurfaceColor(theme.colorScheme)
           : sectionSurfaceColor(theme.colorScheme),

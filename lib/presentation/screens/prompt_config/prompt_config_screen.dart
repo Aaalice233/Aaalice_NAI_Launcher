@@ -328,32 +328,26 @@ class _StudioHeader extends StatelessWidget {
     final colors = theme.colorScheme;
     final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     return Container(
-      constraints: const BoxConstraints(minHeight: 72),
+      constraints: const BoxConstraints(minHeight: 56),
       color: sectionSurfaceColor(colors),
       padding: EdgeInsets.symmetric(
         horizontal: textScale > 1.5 ? 12 : 20,
-        vertical: 12,
+        vertical: 8,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 840 || textScale > 1.5;
-          final title = Column(
+          final title = Row(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Icon(Icons.casino_outlined, size: 22, color: colors.primary),
+              const SizedBox(width: 10),
               Text(
                 context.l10n.randomManager_workspaceTitle,
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (!compact)
-                Text(
-                  context.l10n.randomManager_workspaceSubtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
             ],
           );
 
