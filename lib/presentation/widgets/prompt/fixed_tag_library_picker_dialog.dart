@@ -6,6 +6,7 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/window_size_class.dart';
 import '../common/adaptive_dialog_frame.dart';
 import '../common/themed_input.dart';
+import '../common/translated_tag_text.dart';
 import '../tag_library/tag_library_entry_hover_preview.dart';
 
 class FixedTagLibraryPickerDialog extends StatefulWidget {
@@ -187,14 +188,15 @@ class _LibraryEntryTile extends StatelessWidget {
                     if (entry.name.isNotEmpty && entry.content.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          entry.content.replaceAll('\n', ' '),
+                        child: TranslatedPromptText(
+                          entry.content,
+                          originalText: entry.content.replaceAll('\n', ' '),
+                          selectable: false,
                           style: TextStyle(
                             fontSize: 11,
                             color: theme.colorScheme.outline,
                           ),
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                   ],

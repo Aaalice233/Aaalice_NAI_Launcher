@@ -6,6 +6,7 @@ import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../common/adaptive_dialog_frame.dart';
+import '../common/translated_tag_text.dart';
 
 /// 元数据导入对话框
 ///
@@ -264,7 +265,11 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
         // 主提示词
         _buildCheckboxTile(
           title: l10n.metadataImport_mainPrompt,
-          subtitle: _truncateText(metadata.mainPrompt, 50),
+          subtitleWidget: TranslatedPromptText(
+            metadata.mainPrompt,
+            selectable: false,
+            maxLines: 1,
+          ),
           value: _options.importPrompt,
           hasData: metadata.prompt.isNotEmpty,
           onChanged: (v) =>
@@ -289,6 +294,14 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   title: l10n.metadataImport_fixedPrefix(
                     _truncateText(metadata.fixedPrefixTags.join(', '), 40),
                   ),
+                  titleWidget: TranslatedPromptText(
+                    metadata.fixedPrefixTags.join(', '),
+                    originalText: l10n.metadataImport_fixedPrefix(
+                      _truncateText(metadata.fixedPrefixTags.join(', '), 40),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
+                  ),
                   value: _options.importFixedPrefix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
@@ -302,6 +315,14 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 _buildChildCheckboxTile(
                   title: l10n.metadataImport_fixedSuffix(
                     _truncateText(metadata.fixedSuffixTags.join(', '), 40),
+                  ),
+                  titleWidget: TranslatedPromptText(
+                    metadata.fixedSuffixTags.join(', '),
+                    originalText: l10n.metadataImport_fixedSuffix(
+                      _truncateText(metadata.fixedSuffixTags.join(', '), 40),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
                   ),
                   value: _options.importFixedSuffix,
                   onChanged: _options.importFixedTags
@@ -320,6 +341,17 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                       40,
                     ),
                   ),
+                  titleWidget: TranslatedPromptText(
+                    metadata.fixedNegativePrefixTags.join(', '),
+                    originalText: l10n.metadataImport_negativeFixedPrefix(
+                      _truncateText(
+                        metadata.fixedNegativePrefixTags.join(', '),
+                        40,
+                      ),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
+                  ),
                   value: _options.importFixedPrefix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
@@ -336,6 +368,17 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                       metadata.fixedNegativeSuffixTags.join(', '),
                       40,
                     ),
+                  ),
+                  titleWidget: TranslatedPromptText(
+                    metadata.fixedNegativeSuffixTags.join(', '),
+                    originalText: l10n.metadataImport_negativeFixedSuffix(
+                      _truncateText(
+                        metadata.fixedNegativeSuffixTags.join(', '),
+                        40,
+                      ),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
                   ),
                   value: _options.importFixedSuffix,
                   onChanged: _options.importFixedTags
@@ -363,6 +406,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 final tag = entry.value;
                 return _buildChildCheckboxTile(
                   title: tag,
+                  titleWidget: TranslatedTagText(tag),
                   value: _options.selectedQualityTags.contains(tag),
                   onChanged: _options.importQualityTags
                       ? (v) => setState(() {
@@ -400,6 +444,15 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   title: l10n.metadataImport_characterIndex(
                     index + 1,
                     _truncateText(character.prompt, 35),
+                  ),
+                  titleWidget: TranslatedPromptText(
+                    character.prompt,
+                    originalText: l10n.metadataImport_characterIndex(
+                      index + 1,
+                      _truncateText(character.prompt, 35),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
                   ),
                   value: _options.selectedCharacterIndices.contains(index),
                   onChanged: _options.importCharacterPrompts
@@ -439,7 +492,11 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
         // 负向提示词
         _buildCheckboxTile(
           title: l10n.metadataImport_negativePrompt,
-          subtitle: _truncateText(metadata.displayNegativePrompt, 50),
+          subtitleWidget: TranslatedPromptText(
+            metadata.displayNegativePrompt,
+            selectable: false,
+            maxLines: 1,
+          ),
           value: _options.importNegativePrompt,
           hasData: metadata.negativePrompt.isNotEmpty,
           onChanged: (v) => setState(
@@ -715,6 +772,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
   Widget _buildCheckboxTile({
     required String title,
     String? subtitle,
+    Widget? subtitleWidget,
     required bool value,
     required bool hasData,
     required ValueChanged<bool> onChanged,
@@ -729,7 +787,9 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           fontWeight: FontWeight.w500,
         ),
       ),
-      subtitle: subtitle != null && hasData
+      subtitle: subtitleWidget != null && hasData
+          ? subtitleWidget
+          : subtitle != null && hasData
           ? Text(
               subtitle,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -797,22 +857,25 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
   /// 构建子级复选框
   Widget _buildChildCheckboxTile({
     required String title,
+    Widget? titleWidget,
     required bool value,
     required ValueChanged<bool>? onChanged,
   }) {
     final theme = Theme.of(context);
 
     return CheckboxListTile(
-      title: Text(
-        title,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: onChanged != null
-              ? null
-              : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title:
+          titleWidget ??
+          Text(
+            title,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: onChanged != null
+                  ? null
+                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
       value: value && onChanged != null,
       onChanged: onChanged != null ? (v) => onChanged(v ?? false) : null,
       dense: true,

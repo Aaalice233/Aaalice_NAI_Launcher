@@ -14,6 +14,7 @@ import '../../providers/selection_mode_provider.dart';
 import '../bulk_action_bar.dart';
 import '../common/compact_icon_button.dart';
 import '../common/input_surface_container.dart';
+import '../common/translated_tag_text.dart';
 import '../gallery_filter_panel.dart';
 import '../grouped_grid_view.dart' show ImageDateGroup;
 
@@ -867,7 +868,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
           for (final tag in tags)
             InputChip(
               avatar: const Icon(Icons.tag, size: 14),
-              label: Text(tag),
+              label: TranslatedTagText(tag),
               onDeleted: () {
                 ref
                     .read(localGalleryNotifierProvider.notifier)

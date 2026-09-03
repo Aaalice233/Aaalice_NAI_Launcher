@@ -11,6 +11,7 @@ import '../../../data/models/queue/replication_task_status.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../common/translated_tag_text.dart';
 import 'queue_task_thumbnail.dart';
 
 enum _TaskItemAction { select, edit, delete }
@@ -234,10 +235,10 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                               _buildStatusRow(theme, l10n),
                               const SizedBox(height: 4),
                               // 提示词
-                              Text(
+                              TranslatedPromptText(
                                 widget.task.prompt,
+                                selectable: false,
                                 maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   height: 1.35,
                                   color: theme.colorScheme.onSurface.withValues(
@@ -943,7 +944,7 @@ class _QueuePromptSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 5),
-        SelectableText(
+        TranslatedPromptText(
           text,
           style: theme.textTheme.bodySmall?.copyWith(
             height: 1.45,
@@ -998,11 +999,14 @@ class _QueueCharacterPromptCard extends StatelessWidget {
           ),
           if (character.prompt.isNotEmpty) ...[
             const SizedBox(height: 6),
-            SelectableText(character.prompt, style: theme.textTheme.bodySmall),
+            TranslatedPromptText(
+              character.prompt,
+              style: theme.textTheme.bodySmall,
+            ),
           ],
           if (character.negativePrompt.isNotEmpty) ...[
             const SizedBox(height: 6),
-            SelectableText(
+            TranslatedPromptText(
               character.negativePrompt,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -1078,10 +1082,10 @@ class FailedTaskListItem extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 提示词
-              Text(
+              TranslatedPromptText(
                 task.prompt,
+                selectable: false,
                 maxLines: 2,
-                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
               ),
 

@@ -10,6 +10,7 @@ import '../../providers/tag_library_page_provider.dart';
 import '../common/app_toast.dart';
 import '../common/image_picker_card/image_picker_card.dart';
 import '../common/themed_input.dart';
+import '../common/translated_tag_text.dart';
 
 /// 收藏到词库弹窗
 ///
@@ -317,17 +318,21 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: SingleChildScrollView(
-            child: Text(
-              widget.content.isNotEmpty
-                  ? widget.content
-                  : l10n.common_emptyValue,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: widget.content.isNotEmpty
-                    ? colorScheme.onSurface
-                    : colorScheme.onSurfaceVariant,
-                height: 1.4,
-              ),
-            ),
+            child: widget.content.isEmpty
+                ? Text(
+                    l10n.common_emptyValue,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                : TranslatedPromptText(
+                    widget.content,
+                    selectable: false,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface,
+                      height: 1.4,
+                    ),
+                  ),
           ),
         ),
       ],

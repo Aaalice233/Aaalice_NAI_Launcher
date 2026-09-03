@@ -5,6 +5,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../common/themed_switch.dart';
+import '../common/translated_tag_text.dart';
 import '../tag_chip.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -167,21 +168,11 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  TranslatedTagText(
                                     widget.tag.displayName,
                                     style: theme.textTheme.titleMedium
                                         ?.copyWith(fontWeight: FontWeight.w600),
                                   ),
-                                  if (widget.tag.translation != null)
-                                    Text(
-                                      widget.tag.translation!,
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: theme
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
-                                    ),
                                 ],
                               ),
                             ),

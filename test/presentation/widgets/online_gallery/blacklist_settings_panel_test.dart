@@ -12,6 +12,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_login_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/blacklist_settings_panel.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_tag_rules_editor.dart';
 
 void main() {
   Future<_FakeDanbooruApiService> pumpPanel(
@@ -91,6 +92,9 @@ void main() {
     expect(find.text('推送到云端'), findsNothing);
     expect(find.text('one'), findsOneWidget);
     expect(find.text('two'), findsOneWidget);
+    expect(find.byType(GalleryTagRulesHeader), findsOneWidget);
+    expect(find.byType(GalleryTagRulesInput), findsOneWidget);
+    expect(find.byType(GalleryTagRulesList), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

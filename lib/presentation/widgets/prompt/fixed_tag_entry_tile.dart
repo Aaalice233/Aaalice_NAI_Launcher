@@ -4,6 +4,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../common/translated_tag_text.dart';
 import '../common/themed_switch.dart';
 
 enum FixedTagEntryAction { edit, delete }
@@ -217,16 +218,17 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        entry.content.isEmpty
-                            ? context.l10n.fixedTags_empty
-                            : entry.content.replaceAll('\n', ' '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      child: entry.content.isEmpty
+                          ? Text(context.l10n.fixedTags_empty)
+                          : TranslatedPromptText(
+                              entry.content,
+                              originalText: entry.content.replaceAll('\n', ' '),
+                              selectable: false,
+                              maxLines: 1,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
                     ),
                     const SizedBox(width: 6),
                     Icon(
@@ -333,8 +335,10 @@ class _EntryLabels extends StatelessWidget {
         if (entry.content.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text(
-              entry.content.replaceAll('\n', ' '),
+            child: TranslatedPromptText(
+              entry.content,
+              originalText: entry.content.replaceAll('\n', ' '),
+              selectable: false,
               style: TextStyle(
                 fontSize: 11,
                 color: entry.enabled
@@ -347,7 +351,6 @@ class _EntryLabels extends StatelessWidget {
                 ),
               ),
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
       ],

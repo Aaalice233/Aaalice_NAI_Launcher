@@ -6,6 +6,7 @@ import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/layout_state_provider.dart';
+import '../common/translated_tag_text.dart';
 import 'fixed_tags_dialog.dart';
 
 /// 固定词按钮组件
@@ -475,10 +476,10 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                 ),
               ),
               if (content.isNotEmpty)
-                Text(
+                TranslatedPromptText(
                   content,
+                  selectable: false,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(color: mutedColor),
                 ),
             ],

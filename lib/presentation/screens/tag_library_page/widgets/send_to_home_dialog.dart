@@ -9,6 +9,7 @@ import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../presentation/providers/pending_prompt_provider.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 // 使用现有的 SendTargetType 从 pending_prompt_provider.dart
 
@@ -603,18 +604,24 @@ class _PreviewItem extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            content.isEmpty ? context.l10n.common_emptyValue : content,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: content.isEmpty
-                  ? theme.colorScheme.outline
-                  : theme.colorScheme.onSurface,
-              fontFamily: 'monospace',
-              height: 1.4,
+          if (content.isEmpty)
+            Text(
+              context.l10n.common_emptyValue,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            )
+          else
+            TranslatedPromptText(
+              content,
+              selectable: false,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontFamily: 'monospace',
+                height: 1.4,
+              ),
+              maxLines: 5,
             ),
-            maxLines: 5,
-            overflow: TextOverflow.ellipsis,
-          ),
         ],
       ),
     );

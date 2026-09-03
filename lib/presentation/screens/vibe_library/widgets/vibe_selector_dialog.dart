@@ -10,6 +10,7 @@ import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../presentation/providers/vibe_library_provider.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 import 'vibe_card.dart';
 
 const int _topTagEntrySampleLimit = 40;
@@ -596,7 +597,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         child: FilterChip(
           selected: isSelected,
           onSelected: (_) => _toggleTag(tag),
-          label: Text(tag),
+          label: TranslatedTagText(tag),
           padding: EdgeInsets.zero,
         ),
       );

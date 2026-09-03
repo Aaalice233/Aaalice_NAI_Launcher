@@ -182,6 +182,7 @@ class GalleryDetailInfoPanel extends StatelessWidget {
                       content: viewModel.currentRawTags.join('\n'),
                       accentColor: theme.colorScheme.secondary,
                       monospace: true,
+                      translateTags: true,
                     ),
                   ],
                   if (!isQuickTagCloud && preferredFile.isNotEmpty) ...[
@@ -602,6 +603,7 @@ class GalleryDetailInfoPanel extends StatelessWidget {
           content: viewModel.currentRawTags.join('\n'),
           accentColor: theme.colorScheme.secondary,
           monospace: true,
+          translateTags: true,
         ),
       );
     }

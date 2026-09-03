@@ -8,6 +8,7 @@ import '../../../../data/models/image/image_params.dart'
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_token_counter_provider.dart';
 import '../../../widgets/prompt/prompt_token_count_bar.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 import 'generation_toggle_button.dart';
 
 class PromptInputFooter extends ConsumerWidget {
@@ -72,8 +73,8 @@ class PromptInputFooter extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      ', ${QualityTags.transparentBackgroundTag}',
+                    TranslatedTagText(
+                      QualityTags.transparentBackgroundTag,
                       style: TextStyle(
                         color: Colors.green.shade700,
                         fontSize: 11,

@@ -8,6 +8,7 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/window_size_class.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/adaptive_dialog_frame.dart';
+import '../common/translated_tag_text.dart';
 import '../common/app_toast.dart';
 import '../common/safe_dropdown.dart';
 
@@ -430,7 +431,7 @@ class _PromptLibraryEntryDialogState
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: SingleChildScrollView(
-                        child: SelectableText(
+                        child: TranslatedPromptText(
                           appendPromptSnippet(
                             targetEntry.content,
                             _contentController.text,

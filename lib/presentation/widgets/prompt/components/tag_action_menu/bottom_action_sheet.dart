@@ -6,6 +6,7 @@ import '../../../../adaptive/interaction_policy.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/prompt_tag.dart';
 import '../../core/prompt_tag_colors.dart';
+import '../../../common/translated_tag_text.dart';
 
 /// 移动端标签操作底部面板
 /// 长按标签时显示，提供权重滑块和操作按钮
@@ -65,7 +66,7 @@ class TagBottomActionSheet extends StatefulWidget {
     HapticFeedback.mediumImpact();
     return AdaptivePresenter.showPanel<void>(
       context: context,
-      titleBuilder: (context) => Text(
+      titleBuilder: (context) => TranslatedTagText(
         tag.displayName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -139,7 +140,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                TranslatedTagText(
                   _getDisplayText(),
                   style: TextStyle(
                     fontSize: 16,
@@ -152,16 +153,6 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
                         : TextDecoration.lineThrough,
                   ),
                 ),
-                if (widget.tag.translation != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.tag.translation!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),

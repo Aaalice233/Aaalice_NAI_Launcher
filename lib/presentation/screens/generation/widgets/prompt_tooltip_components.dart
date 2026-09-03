@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/character/character_prompt.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 /// Compact heading for prompt composition previews.
 class TooltipHeader extends StatelessWidget {
@@ -183,8 +184,13 @@ class TooltipCharacterSection extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
                             Expanded(
-                              child: Text(
-                                '${character.name}: ${character.toNaiPrompt(useAiPosition: globalAiChoice)}',
+                              child: TranslatedPromptText(
+                                character.toNaiPrompt(
+                                  useAiPosition: globalAiChoice,
+                                ),
+                                originalText:
+                                    '${character.name}: ${character.toNaiPrompt(useAiPosition: globalAiChoice)}',
+                                selectable: false,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                   height: 1.35,
@@ -275,8 +281,9 @@ class TooltipFinalPromptSection extends StatelessWidget {
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 136),
             child: SingleChildScrollView(
-              child: Text(
+              child: TranslatedPromptText(
                 prompt,
+                selectable: false,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurface,
                   height: 1.4,

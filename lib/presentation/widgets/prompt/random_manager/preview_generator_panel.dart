@@ -9,6 +9,7 @@ import '../../../../data/services/random_prompt_generator.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../common/app_toast.dart';
+import '../../common/translated_tag_text.dart';
 
 class PreviewGeneratorController {
   VoidCallback? _generateAction;
@@ -528,7 +529,7 @@ class _PromptText extends StatelessWidget {
           ),
           const SizedBox(height: 4),
         ],
-        SelectableText(
+        TranslatedPromptText(
           text,
           style: theme.textTheme.bodySmall?.copyWith(
             color: colors.onSurface,

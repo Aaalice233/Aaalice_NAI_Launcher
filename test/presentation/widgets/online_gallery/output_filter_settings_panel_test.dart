@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_output_filter_provider.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/output_filter_settings_panel.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_tag_rules_editor.dart';
 
 void main() {
   testWidgets('adds multiple output filter tags from one input', (
@@ -47,6 +48,9 @@ void main() {
     final inputTop = tester.getTopLeft(find.byType(TextField)).dy;
     final addIconCenter = tester.getCenter(find.byIcon(Icons.add)).dy;
     expect(addIconCenter - inputTop, moreOrLessEquals(24));
+    expect(find.byType(GalleryTagRulesHeader), findsOneWidget);
+    expect(find.byType(GalleryTagRulesInput), findsOneWidget);
+    expect(find.byType(GalleryTagRulesList), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Custom Tag，watermark');
     await tester.testTextInput.receiveAction(TextInputAction.done);

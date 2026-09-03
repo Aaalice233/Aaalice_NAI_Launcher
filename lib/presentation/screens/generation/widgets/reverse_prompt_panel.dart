@@ -18,6 +18,7 @@ import '../../../utils/asset_protection_guard.dart';
 import '../../../utils/dropped_file_reader.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -402,10 +403,10 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
+          TranslatedPromptText(
             selectedCharacter.prompt,
+            selectable: false,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -649,7 +650,7 @@ class _PromptOutputBlock extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.labelMedium),
           const SizedBox(height: 4),
-          SelectableText(text, style: theme.textTheme.bodySmall),
+          TranslatedPromptText(text, style: theme.textTheme.bodySmall),
         ],
       ),
     );

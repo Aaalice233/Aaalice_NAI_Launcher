@@ -10,6 +10,7 @@ import '../../../../data/services/tag_library_io_service.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 double _compactControlExtent(BuildContext context) =>
     context.interactionPolicy.shouldExposeTouchAlternatives ? 48 : 32;
@@ -604,13 +605,13 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
+                  TranslatedPromptText(
                     entry.contentPreview,
+                    selectable: false,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.outline,
                     ),
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

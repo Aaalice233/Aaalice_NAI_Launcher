@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../common/translated_tag_text.dart';
+
 class GalleryDetailTextSection extends StatelessWidget {
   const GalleryDetailTextSection({
     super.key,
@@ -7,12 +9,14 @@ class GalleryDetailTextSection extends StatelessWidget {
     required this.content,
     required this.accentColor,
     this.monospace = false,
+    this.translateTags = false,
   });
 
   final String title;
   final String content;
   final Color accentColor;
   final bool monospace;
+  final bool translateTags;
 
   @override
   Widget build(BuildContext context) {
@@ -48,14 +52,24 @@ class GalleryDetailTextSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 7),
-            SelectableText(
-              content,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-                height: 1.4,
-                fontFamily: monospace ? 'monospace' : null,
+            if (translateTags)
+              TranslatedPromptText(
+                content,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  height: 1.4,
+                  fontFamily: monospace ? 'monospace' : null,
+                ),
+              )
+            else
+              SelectableText(
+                content,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  height: 1.4,
+                  fontFamily: monospace ? 'monospace' : null,
+                ),
               ),
-            ),
           ],
         ),
       ),

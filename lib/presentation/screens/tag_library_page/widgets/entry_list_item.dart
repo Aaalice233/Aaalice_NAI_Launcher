@@ -6,6 +6,7 @@ import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/thumbnail_display.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 enum _EntryListAction { select, edit, favorite, copy, delete }
 
@@ -312,13 +313,13 @@ class _EntryListItemState extends State<EntryListItem> {
         const SizedBox(height: 4),
 
         // 内容预览
-        Text(
+        TranslatedPromptText(
           entry.content,
+          selectable: false,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
           maxLines: 2,
-          overflow: TextOverflow.ellipsis,
         ),
 
         const SizedBox(height: 6),
@@ -589,7 +590,7 @@ class _TagChip extends StatelessWidget {
         color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(
+      child: TranslatedTagText(
         tag,
         style: TextStyle(
           fontSize: 10,

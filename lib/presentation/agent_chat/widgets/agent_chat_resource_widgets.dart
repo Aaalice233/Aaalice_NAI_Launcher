@@ -18,6 +18,7 @@ import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/translated_tag_text.dart';
 import '../services/agent_resource_resolver.dart';
 import 'agent_chat_panel_controller.dart';
 
@@ -623,6 +624,7 @@ class _AgentChatResourcePickerBodyState
             imageFile: entry.hasThumbnail ? File(entry.thumbnail!) : null,
             title: entry.displayName,
             subtitle: entry.contentPreview,
+            translateSubtitle: true,
             onTap: () => _select(
               AgentChatResourceReference(
                 kind: AgentChatResourceKind.tagLibraryEntry,
@@ -949,6 +951,7 @@ class _PickerItem extends StatelessWidget {
     required this.onTap,
     this.imageBytes,
     this.imageFile,
+    this.translateSubtitle = false,
   });
 
   final String title;
@@ -956,6 +959,7 @@ class _PickerItem extends StatelessWidget {
   final Future<void> Function() onTap;
   final Uint8List? imageBytes;
   final File? imageFile;
+  final bool translateSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -986,14 +990,30 @@ class _PickerItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      if (translateSubtitle)
+                        TranslatedPromptText(
+                          subtitle,
+                          selectable: false,
+                          maxLines: 1,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        )
+                      else
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
-                      ),
                     ],
                   ),
                 ),

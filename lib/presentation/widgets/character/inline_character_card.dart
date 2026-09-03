@@ -10,6 +10,7 @@ import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../common/decoded_memory_image.dart';
+import '../common/translated_tag_text.dart';
 import 'add_to_library_dialog.dart';
 import 'inline_character_editor.dart';
 
@@ -388,17 +389,24 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
         onTap: _toggleEditing,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Text(
-            isEmpty ? l10n.characterEditor_promptHint : prompt,
-            maxLines: widget.compact ? 2 : 3,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: isEmpty
-                  ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
-                  : theme.colorScheme.onSurfaceVariant,
-              height: 1.4,
-            ),
-          ),
+          child: isEmpty
+              ? Text(
+                  l10n.characterEditor_promptHint,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.5,
+                    ),
+                  ),
+                )
+              : TranslatedPromptText(
+                  prompt,
+                  selectable: false,
+                  maxLines: widget.compact ? 2 : 3,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
         ),
       ),
     );

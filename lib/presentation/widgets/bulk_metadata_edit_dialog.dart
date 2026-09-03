@@ -13,6 +13,7 @@ import '../providers/selection_mode_provider.dart';
 import 'bulk_progress_dialog.dart';
 import '../widgets/common/themed_divider.dart';
 import '../widgets/common/app_toast.dart';
+import '../widgets/common/translated_tag_text.dart';
 import '../widgets/autocomplete/autocomplete_config.dart';
 import '../widgets/autocomplete/autocomplete_wrapper.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -386,7 +387,7 @@ class _BulkMetadataEditDialogState
       runSpacing: 6,
       children: chips.map((tag) {
         return Chip(
-          label: Text(
+          label: TranslatedTagText(
             tag,
             style: theme.textTheme.bodySmall?.copyWith(
               color: color.withValues(alpha: 0.9),

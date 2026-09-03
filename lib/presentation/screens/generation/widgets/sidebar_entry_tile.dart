@@ -10,6 +10,7 @@ import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/thumbnail_display.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 typedef SidebarDragHandleBuilder = Widget Function(Widget child);
 
@@ -255,10 +256,10 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
           ),
         ),
         const SizedBox(height: 2),
-        Text(
+        TranslatedPromptText(
           entry.content,
+          selectable: false,
           maxLines: maxLines,
-          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodySmall?.copyWith(color: secondaryColor),
         ),
         if (widget.categoryName != null && !widget.isListMode) ...[

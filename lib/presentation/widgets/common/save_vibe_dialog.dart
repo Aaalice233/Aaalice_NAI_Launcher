@@ -8,6 +8,7 @@ import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
 import 'adaptive_dialog_frame.dart';
 import 'app_toast.dart';
+import 'translated_tag_text.dart';
 
 /// 保存 Vibe 到库对话框
 ///
@@ -299,7 +300,7 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
                   runSpacing: 8,
                   children: _tags.map((tag) {
                     return Chip(
-                      label: Text(tag),
+                      label: TranslatedTagText(tag),
                       deleteIcon: const Icon(Icons.close, size: 18),
                       onDeleted: _isSaving ? null : () => _removeTag(tag),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

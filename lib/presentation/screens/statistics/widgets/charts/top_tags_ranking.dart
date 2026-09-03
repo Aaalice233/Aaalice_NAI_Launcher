@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../adaptive/window_size_class.dart';
+import '../../../../widgets/common/translated_tag_text.dart';
 
 /// Tag ranking item data
 class TagRankItem {
@@ -161,7 +162,7 @@ class _TagRankRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: rankColor.withValues(alpha: 0.3)),
                   ),
-                  child: Text(
+                  child: TranslatedTagText(
                     item.tag,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: rankColor,

@@ -13,6 +13,7 @@ import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/animated_favorite_button.dart';
 import '../../../widgets/common/card_hover_preview_controller.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 /// Vibe 图像卡片统一采用 4:5 纵向比例，为缩略图和底部参数保留稳定空间。
 const double vibeCardAspectRatio = 4 / 5;
@@ -996,7 +997,7 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
     final theme = Theme.of(context);
     final entry = widget.entry;
     final hasTags = entry.tags.isNotEmpty;
-    final metadataHeight = hasTags ? 124.0 : 92.0;
+    final metadataHeight = hasTags ? 160.0 : 92.0;
     final imageSize = computeVibeHoverImageSize(
       aspectRatio: aspectRatio,
       maxWidth: widget.maxWidth,
@@ -1128,10 +1129,14 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
                     ),
                     if (hasTags) ...[
                       const SizedBox(height: 10),
-                      Text(
-                        entry.tags.take(6).map((tag) => '#$tag').join('  '),
+                      TranslatedPromptText(
+                        entry.tags.take(6).join(', '),
+                        originalText: entry.tags
+                            .take(6)
+                            .map((tag) => '#$tag')
+                            .join('  '),
+                        selectable: false,
                         maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                           height: 1.35,

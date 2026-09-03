@@ -8,13 +8,11 @@ import '../../../data/models/online_gallery/gallery_blacklist.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
-import '../../adaptive/interaction_policy.dart';
 import '../../adaptive/window_size_class.dart';
 import '../../providers/online_gallery_blacklist_provider.dart';
-import '../autocomplete/autocomplete_config.dart';
-import '../autocomplete/autocomplete_wrapper.dart';
 import '../common/app_toast.dart';
 import '../danbooru_login_dialog.dart';
+import 'gallery_tag_rules_editor.dart';
 
 class OnlineGalleryBlacklistSettingsPanel extends ConsumerStatefulWidget {
   const OnlineGalleryBlacklistSettingsPanel({
@@ -100,7 +98,7 @@ class _OnlineGalleryBlacklistSettingsPanelState
           ),
         ],
         const SizedBox(height: 12),
-        _buildTagList(theme, tags),
+        _buildTagList(tags),
         const SizedBox(height: 8),
         _buildListActions(state),
         if (_supportsCloud) ...[
@@ -125,179 +123,44 @@ class _OnlineGalleryBlacklistSettingsPanelState
   }
 
   Widget _buildHeader(ThemeData theme, OnlineGalleryBlacklistState state) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.errorContainer.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Icon(
-            Icons.block,
-            size: 19,
-            color: theme.colorScheme.onErrorContainer,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.onlineGallery_blacklistTitle,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                context.l10n.onlineGallery_blacklistSubtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (state.canUndo)
-          IconButton(
-            tooltip: context.l10n.common_undo,
-            onPressed: _undo,
-            icon: const Icon(Icons.undo, size: 19),
-          ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.errorContainer,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            '${state.tags.length}',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onErrorContainer,
-              fontWeight: FontWeight.w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-      ],
+    return GalleryTagRulesHeader(
+      icon: Icons.block,
+      title: context.l10n.onlineGallery_blacklistTitle,
+      subtitle: context.l10n.onlineGallery_blacklistSubtitle,
+      count: state.tags.length,
+      accent: theme.colorScheme.error,
+      onUndo: state.canUndo ? _undo : null,
     );
   }
 
   Widget _buildAddRow(OnlineGalleryBlacklistState state) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: AutocompleteWrapper(
-            controller: _tagController,
-            focusNode: _tagFocusNode,
-            config: const AutocompleteConfig(
-              minQueryLength: 1,
-              autoInsertComma: false,
-              showTranslation: true,
-              enableChineseSearch: true,
-            ),
-            onSuggestionSelected: (_) => _addTag(),
-            child: TextField(
-              controller: _tagController,
-              focusNode: _tagFocusNode,
-              decoration: InputDecoration(
-                isDense: true,
-                border: const OutlineInputBorder(),
-                hintText: context.l10n.onlineGallery_addBlacklistTagHint,
-              ),
-              onSubmitted: (_) => _addTag(),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          height: 48,
-          child: Center(
-            child: IconButton.filledTonal(
-              tooltip: context.l10n.common_add,
-              onPressed: _addTag,
-              icon: const Icon(Icons.add),
-            ),
-          ),
-        ),
-      ],
+    return GalleryTagRulesInput(
+      controller: _tagController,
+      focusNode: _tagFocusNode,
+      hintText: context.l10n.onlineGallery_addBlacklistTagHint,
+      onAdd: _addTag,
     );
   }
 
-  Widget _buildTagList(ThemeData theme, List<String> tags) {
-    final controlExtent = context.interactionPolicy.minimumControlExtent;
-    return Container(
-      width: double.infinity,
-      height: 250,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: tags.isEmpty
-          ? Center(
-              child: Text(
-                context.l10n.onlineGallery_noLocalBlacklistTags,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            )
-          : ListView.builder(
-              key: const ValueKey('online-gallery-blacklist-virtual-list'),
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              itemExtent: controlExtent,
-              itemCount: tags.length,
-              itemBuilder: (context, index) {
-                final tag = tags[index];
-                return ListTile(
-                  key: ValueKey('online-gallery-blacklist-item-$tag'),
-                  dense: true,
-                  minTileHeight: controlExtent,
-                  title: Text(
-                    tag,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: IconButton(
-                    key: ValueKey('online-gallery-blacklist-delete-$tag'),
-                    tooltip: context.l10n.common_delete,
-                    visualDensity: VisualDensity.standard,
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints.tightFor(
-                      width: controlExtent,
-                      height: controlExtent,
-                    ),
-                    onPressed: () => _removeTag(tag),
-                    icon: const Icon(Icons.close, size: 17),
-                  ),
-                );
-              },
-            ),
+  Widget _buildTagList(List<String> tags) {
+    return GalleryTagRulesList(
+      tags: tags,
+      emptyLabel: context.l10n.onlineGallery_noLocalBlacklistTags,
+      keyPrefix: 'online-gallery-blacklist',
+      maxHeight: 250,
+      onDelete: _removeTag,
     );
   }
 
   Widget _buildListActions(OnlineGalleryBlacklistState state) {
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      runSpacing: 4,
-      spacing: 8,
-      children: [
-        OutlinedButton.icon(
-          onPressed: _showImportDialog,
-          icon: const Icon(Icons.playlist_add, size: 17),
-          label: Text(context.l10n.common_import),
-        ),
-        TextButton.icon(
-          onPressed: state.tags.isEmpty ? null : _confirmClear,
-          icon: const Icon(Icons.delete_sweep_outlined, size: 17),
-          label: Text(context.l10n.common_clear),
-        ),
-      ],
+    return GalleryTagRulesActions(
+      clearEnabled: state.tags.isNotEmpty,
+      onClear: _confirmClear,
+      leading: OutlinedButton.icon(
+        onPressed: _showImportDialog,
+        icon: const Icon(Icons.playlist_add, size: 17),
+        label: Text(context.l10n.common_import),
+      ),
     );
   }
 
@@ -857,6 +720,7 @@ Future<void> showOnlineGalleryBlacklistDialog(
       padding: const EdgeInsets.all(16),
       child: OnlineGalleryBlacklistSettingsPanel(
         compact: true,
+        embedded: true,
         showSyncStatus: true,
         sourceId: sourceId,
       ),

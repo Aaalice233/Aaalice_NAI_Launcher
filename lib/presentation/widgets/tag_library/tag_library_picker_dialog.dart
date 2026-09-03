@@ -12,6 +12,7 @@ import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/thumbnail_display.dart';
+import '../common/translated_tag_text.dart';
 
 /// 词库条目选择对话框
 ///
@@ -463,13 +464,13 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
 
           // 内容预览
           Expanded(
-            child: Text(
+            child: TranslatedPromptText(
               entry.contentPreview,
+              selectable: false,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

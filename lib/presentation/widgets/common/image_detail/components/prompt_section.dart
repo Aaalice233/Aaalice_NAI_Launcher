@@ -7,6 +7,7 @@ import '../../../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../../../core/utils/nai_prompt_parser.dart';
 import '../../../../adaptive/interaction_policy.dart';
 import '../../app_toast.dart';
+import '../../translated_tag_text.dart';
 import 'selection_copy_shortcuts.dart';
 
 /// 提示词分组展示组件
@@ -546,7 +547,7 @@ class CharacterPromptCard extends StatelessWidget {
           _buildHeader(context, colorScheme, theme),
           const SizedBox(height: 8),
           SelectionCopyShortcuts(
-            child: SelectableText(
+            child: TranslatedPromptText(
               prompt,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontFamily: 'monospace',
@@ -661,7 +662,7 @@ class CharacterPromptCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               SelectionCopyShortcuts(
-                child: SelectableText(
+                child: TranslatedPromptText(
                   negativePrompt!,
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontFamily: 'monospace',

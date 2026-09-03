@@ -8,6 +8,7 @@ import '../../../../data/models/prompt/weighted_tag.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/tag_library_provider.dart';
 import 'app_toast.dart';
+import 'translated_tag_text.dart';
 
 /// 添加到词库对话框
 ///
@@ -368,7 +369,10 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
               children: _tags
                   .map(
                     (tag) => Chip(
-                      label: Text(tag, style: theme.textTheme.bodySmall),
+                      label: TranslatedTagText(
+                        tag,
+                        style: theme.textTheme.bodySmall,
+                      ),
                       deleteIcon: const Icon(Icons.clear, size: 16),
                       onDeleted: () => _removeTag(tag),
                       visualDensity: VisualDensity.compact,

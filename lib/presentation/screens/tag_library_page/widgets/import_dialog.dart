@@ -11,6 +11,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 /// 导入对话框
 class ImportDialog extends ConsumerStatefulWidget {
@@ -407,6 +408,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                 subtitle: isConflict
                     ? _getConflictSubtitle(resolution)
                     : entry.contentPreview,
+                translateSubtitle: !isConflict,
                 isSelected: _selectedEntryIds.contains(entry.id),
                 isConflict: isConflict,
                 resolution: resolution,
@@ -438,6 +440,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
     required ThemeData theme,
     required String title,
     required String? subtitle,
+    bool translateSubtitle = false,
     required bool isSelected,
     required bool isConflict,
     required ConflictResolution resolution,
@@ -468,16 +471,26 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (subtitle != null)
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: isConflict
-                          ? theme.colorScheme.tertiary
-                          : theme.colorScheme.outline,
+                  if (translateSubtitle)
+                    TranslatedPromptText(
+                      subtitle,
+                      selectable: false,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                      maxLines: 1,
+                    )
+                  else
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isConflict
+                            ? theme.colorScheme.tertiary
+                            : theme.colorScheme.outline,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
               ],
             ),
           ),

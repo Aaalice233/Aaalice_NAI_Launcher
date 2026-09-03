@@ -8,6 +8,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
+import '../../common/translated_tag_text.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../../data/models/prompt/tag_category.dart';
 import '../diy/panels/conditional_branch_panel.dart';
@@ -761,7 +762,10 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                         final tag = tagList[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text(tag, style: theme.textTheme.bodyMedium),
+                          child: TranslatedTagText(
+                            tag,
+                            style: theme.textTheme.bodyMedium,
+                          ),
                         );
                       },
                     ),

@@ -5,6 +5,7 @@ import '../../../adaptive/interaction_policy.dart';
 
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../common/thumbnail_display.dart';
+import '../../common/translated_tag_text.dart';
 
 /// 词库条目菜单项组件
 ///
@@ -96,14 +97,14 @@ class _LibraryEntryMenuItemState extends State<LibraryEntryMenuItem> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
+                    TranslatedPromptText(
                       widget.entry.contentPreview,
+                      selectable: false,
                       style: TextStyle(
                         fontSize: 11,
                         color: theme.colorScheme.outline,
                       ),
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
