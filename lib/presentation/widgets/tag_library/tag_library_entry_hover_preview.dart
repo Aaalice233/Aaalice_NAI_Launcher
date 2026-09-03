@@ -181,12 +181,12 @@ class TagLibraryEntryPreviewOverlay extends StatelessWidget {
                             TranslatedPromptText(
                               entry.content,
                               selectable: false,
+                              includeUntranslated: true,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontFamily: 'monospace',
                                 color: theme.colorScheme.onSurfaceVariant,
                                 height: 1.4,
                               ),
-                              maxLines: 8,
                             ),
                             if (entry.tags.isNotEmpty) ...[
                               const SizedBox(height: 12),

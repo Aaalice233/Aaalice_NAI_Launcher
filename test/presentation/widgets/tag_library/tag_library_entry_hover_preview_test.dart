@@ -1,13 +1,18 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/tag_library/tag_library_entry_hover_preview.dart';
 
 void main() {
   const previewKey = ValueKey('tag-library-entry-preview-overlay');
+  final lookup = TagTranslationLookup.fromResolver((tags) async {
+    return {if (tags.contains('1girl')) '1girl': '1个女孩'};
+  });
 
   final entry = TagLibraryEntry.create(
     name: '角色预设',
@@ -30,20 +35,23 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('zh'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: Align(
-            alignment: alignment,
-            child: SizedBox(
-              width: 80,
-              height: 64,
-              child: TagLibraryEntryHoverPreview(
-                entry: entry,
-                hoverDelay: Duration.zero,
-                child: const ColoredBox(color: Colors.black),
+      ProviderScope(
+        overrides: [tagTranslationLookupProvider.overrideWithValue(lookup)],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: alignment,
+              child: SizedBox(
+                width: 80,
+                height: 64,
+                child: TagLibraryEntryHoverPreview(
+                  entry: entry,
+                  hoverDelay: Duration.zero,
+                  child: const ColoredBox(color: Colors.black),
+                ),
               ),
             ),
           ),
@@ -58,6 +66,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
     expect(find.byKey(previewKey), findsOneWidget);
     return mouse;
   }
@@ -81,6 +90,7 @@ void main() {
 
     expect(find.text('角色预设'), findsOneWidget);
     expect(find.text('1girl, blue eyes'), findsOneWidget);
+    expect(find.text('1个女孩，blue eyes'), findsOneWidget);
     expect(find.text('角色'), findsOneWidget);
     expect(find.text('蓝色'), findsOneWidget);
     expect(find.byIcon(Icons.repeat), findsNothing);

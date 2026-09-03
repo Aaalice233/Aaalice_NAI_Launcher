@@ -97,6 +97,7 @@ class TranslatedPromptText extends ConsumerStatefulWidget {
     this.selectable = true,
     this.maxLines,
     this.originalText,
+    this.includeUntranslated = false,
   });
 
   final String prompt;
@@ -105,6 +106,10 @@ class TranslatedPromptText extends ConsumerStatefulWidget {
   final bool selectable;
   final int? maxLines;
   final String? originalText;
+
+  /// Keeps every parsed source tag visible in the translated summary by
+  /// falling back to its display form when the dictionary has no translation.
+  final bool includeUntranslated;
 
   @override
   ConsumerState<TranslatedPromptText> createState() =>
@@ -124,7 +129,10 @@ class _TranslatedPromptTextState extends ConsumerState<TranslatedPromptText> {
   @override
   void didUpdateWidget(covariant TranslatedPromptText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.prompt == widget.prompt) return;
+    if (oldWidget.prompt == widget.prompt &&
+        oldWidget.includeUntranslated == widget.includeUntranslated) {
+      return;
+    }
     _translations = const [];
     _load();
   }
@@ -145,10 +153,13 @@ class _TranslatedPromptTextState extends ConsumerState<TranslatedPromptText> {
     for (final tag in tags) {
       final normalized = TagTranslationLookup.normalizeTag(tag);
       final translation = values[normalized]?.trim();
-      if (translation != null &&
-          translation.isNotEmpty &&
-          seen.add(translation)) {
-        translations.add(translation);
+      final display = translation?.isNotEmpty == true
+          ? translation!
+          : widget.includeUntranslated
+          ? TagNormalizer.toDisplay(normalized)
+          : null;
+      if (display != null && display.isNotEmpty && seen.add(display)) {
+        translations.add(display);
       }
     }
     setState(() => _translations = translations);

@@ -48,4 +48,28 @@ void main() {
     expect(find.text('solo, 1.2::blonde hair::, blue eyes'), findsOneWidget);
     expect(find.text('单人，金发，蓝眼睛'), findsOneWidget);
   });
+
+  testWidgets('完整翻译模式为词典缺失项保留原标签', (tester) async {
+    final partialLookup = TagTranslationLookup.fromResolver((tags) async {
+      return {if (tags.contains('solo')) 'solo': '单人'};
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tagTranslationLookupProvider.overrideWithValue(partialLookup),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: TranslatedPromptText(
+              'solo, unknown_artist, very_aesthetic',
+              includeUntranslated: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('单人，unknown artist，very aesthetic'), findsOneWidget);
+  });
 }
