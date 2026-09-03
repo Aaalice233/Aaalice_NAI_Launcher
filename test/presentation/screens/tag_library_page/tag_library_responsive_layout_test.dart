@@ -13,6 +13,7 @@ import 'package:nai_launcher/presentation/providers/tag_library_page_provider.da
 import 'package:nai_launcher/presentation/providers/tag_library_selection_provider.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/tag_library_page_screen.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 import '../../../helpers/light_theme_contrast.dart';
 
@@ -48,6 +49,28 @@ void main() {
         expect(find.byType(GridView), findsOneWidget);
         expect(find.text('目标条目'), findsOneWidget);
         expect(find.byType(TextField), findsOneWidget);
+
+        if (width >= 840) {
+          const pageHeaderKey = Key('tag-library-sidebar-page-header');
+          expect(find.byKey(pageHeaderKey), findsOneWidget);
+          expect(
+            tester.getSize(find.byKey(pageHeaderKey)).height,
+            GalleryCollectionChrome.toolbarHeight,
+          );
+          expect(
+            find.descendant(
+              of: find.byKey(const Key('tag-library-toolbar')),
+              matching: find.text('词库'),
+            ),
+            findsNothing,
+          );
+        }
+        if (width == 1600) {
+          expect(
+            tester.getSize(find.byKey(const Key('tag-library-toolbar'))).height,
+            GalleryCollectionChrome.toolbarHeight,
+          );
+        }
 
         await tester.enterText(find.byType(TextField), '目标');
         await tester.pump();

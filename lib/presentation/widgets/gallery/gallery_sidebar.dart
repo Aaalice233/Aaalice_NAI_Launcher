@@ -3,6 +3,70 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 
+/// Shared geometry for collection pages that pair a navigation sidebar with a
+/// content toolbar. Keeping both regions on one vertical rhythm prevents the
+/// library screens from drifting as their controls evolve independently.
+abstract final class GalleryCollectionChrome {
+  static const sidebarWidth = 250.0;
+  static const toolbarHeight = 72.0;
+  static const navigationTopPadding = 4.0;
+
+  static EdgeInsets toolbarPadding(BuildContext context) =>
+      EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: context.interactionPolicy.shouldExposeTouchAlternatives
+            ? 11
+            : 12,
+      );
+}
+
+/// Page identity shown at the top of persistent collection sidebars.
+///
+/// Compact layouts keep their identity in the content toolbar because the
+/// sidebar is presented as a temporary panel with its own route title.
+class GallerySidebarPageHeader extends StatelessWidget {
+  const GallerySidebarPageHeader({
+    super.key,
+    required this.icon,
+    required this.title,
+  });
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      height: GalleryCollectionChrome.toolbarHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Shared visual shell for gallery-like collection navigation.
 class GallerySidebarSurface extends StatelessWidget {
   const GallerySidebarSurface({
@@ -10,7 +74,7 @@ class GallerySidebarSurface extends StatelessWidget {
     required this.child,
     this.footer,
     this.modal = false,
-    this.width = 250,
+    this.width = GalleryCollectionChrome.sidebarWidth,
   });
 
   final Widget child;

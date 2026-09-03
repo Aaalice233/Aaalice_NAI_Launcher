@@ -132,6 +132,24 @@ void main() {
     expect(find.text('肖像'), findsOneWidget);
     expect(find.text('文件夹'), findsNothing);
     expect(find.byType(GallerySidebarNavigationItem), findsOneWidget);
+    const pageHeaderKey = ValueKey('vibe-library-sidebar-page-header');
+    const toolbarKey = ValueKey('vibe-library-toolbar');
+    expect(find.byKey(pageHeaderKey), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(pageHeaderKey)).height,
+      GalleryCollectionChrome.toolbarHeight,
+    );
+    expect(
+      tester.getSize(find.byKey(toolbarKey)).height,
+      GalleryCollectionChrome.toolbarHeight,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(toolbarKey),
+        matching: find.text('Vibe 库'),
+      ),
+      findsNothing,
+    );
 
     double navigationIconX(String label) {
       final row = find.ancestor(

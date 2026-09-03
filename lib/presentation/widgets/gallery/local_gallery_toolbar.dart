@@ -17,6 +17,7 @@ import '../common/input_surface_container.dart';
 import '../common/translated_tag_text.dart';
 import '../gallery_filter_panel.dart';
 import '../grouped_grid_view.dart' show ImageDateGroup;
+import 'gallery_sidebar.dart';
 
 import '../common/app_toast.dart';
 import '../autocomplete/autocomplete_config.dart';
@@ -95,6 +96,9 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
   /// 是否启用搜索自动补全。
   final bool enableSearchAutocomplete;
 
+  /// Persistent sidebars own page identity; compact layouts keep it here.
+  final bool showPageTitle;
+
   const LocalGalleryToolbar({
     super.key,
     this.use3DCardView = true,
@@ -116,6 +120,7 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
     this.showCategoryPanel = true,
     this.onToggleCategoryPanel,
     this.enableSearchAutocomplete = true,
+    this.showPageTitle = true,
   });
 
   @override
@@ -288,8 +293,11 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          constraints: const BoxConstraints(minHeight: 62),
+          key: const Key('local-gallery-toolbar'),
+          padding: GalleryCollectionChrome.toolbarPadding(context),
+          constraints: const BoxConstraints(
+            minHeight: GalleryCollectionChrome.toolbarHeight,
+          ),
           decoration: BoxDecoration(
             color: isDark
                 ? theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.9)
@@ -317,14 +325,15 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                     Row(
                       key: const ValueKey('localGalleryDesktopToolbar'),
                       children: [
-                        // Title
-                        Text(
-                          l10n.localGallery_title,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
+                        if (widget.showPageTitle) ...[
+                          Text(
+                            l10n.localGallery_title,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
+                          const SizedBox(width: 8),
+                        ],
                         // Image count
                         if (!state.isIndexing)
                           Container(
@@ -514,11 +523,11 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (stackTitle) ...[
+        if (stackTitle && widget.showPageTitle) ...[
           title,
           const SizedBox(height: 8),
           search,
-        ] else
+        ] else if (widget.showPageTitle)
           Row(
             key: const ValueKey('localGalleryMobileSearchRow'),
             children: [
@@ -526,7 +535,9 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
               const SizedBox(width: 12),
               Expanded(child: search),
             ],
-          ),
+          )
+        else
+          search,
         const SizedBox(height: 8),
         ConstrainedBox(
           constraints: BoxConstraints(minHeight: minimumControlExtent),

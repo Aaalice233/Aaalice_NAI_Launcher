@@ -163,6 +163,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                     child: Column(
                       children: [
                         TagLibraryToolbar(
+                          showPageTitle: !showSidebar,
                           onShowCategories: showSidebar
                               ? null
                               : () => _showCategoryPanel(state),
@@ -298,6 +299,16 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       modal: forPanel,
       child: Column(
         children: [
+          if (!forPanel) ...[
+            GallerySidebarPageHeader(
+              key: const Key('tag-library-sidebar-page-header'),
+              icon: Icons.bookmarks_outlined,
+              title: context.l10n.nav_dictionary,
+            ),
+            const SizedBox(
+              height: GalleryCollectionChrome.navigationTopPadding,
+            ),
+          ],
           allEntries,
           GallerySidebarSectionHeader(
             toggleKey: const Key('tag-library-category-section-toggle'),

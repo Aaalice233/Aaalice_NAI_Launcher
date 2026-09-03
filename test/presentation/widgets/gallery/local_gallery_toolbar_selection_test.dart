@@ -10,6 +10,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
 
 void _noop() {}
@@ -78,6 +79,29 @@ void main() {
     expect(find.byType(LocalGalleryToolbar), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'persistent sidebar owns the desktop page title and toolbar height',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 500));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await _pumpToolbar(tester, selectionActive: false, showPageTitle: false);
+
+      const toolbarKey = Key('local-gallery-toolbar');
+      expect(
+        tester.getSize(find.byKey(toolbarKey)).height,
+        GalleryCollectionChrome.toolbarHeight,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(toolbarKey),
+          matching: find.text('本地画廊'),
+        ),
+        findsNothing,
+      );
+    },
+  );
 
   for (final width in [320.0, 360.0, 600.0, 840.0, 1180.0, 1600.0]) {
     testWidgets(
@@ -208,6 +232,7 @@ Future<ProviderContainer> _pumpToolbar(
   bool selectionActive = true,
   VoidCallback? onRemoveFromAlbum,
   double textScaleFactor = 1,
+  bool showPageTitle = true,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -252,6 +277,7 @@ Future<ProviderContainer> _pumpToolbar(
             child: Scaffold(
               body: LocalGalleryToolbar(
                 enableSearchAutocomplete: false,
+                showPageTitle: showPageTitle,
                 onToggleCategoryPanel: _noop,
                 onRemoveFromAlbum: onRemoveFromAlbum,
               ),

@@ -196,6 +196,7 @@ class _LocalGalleryShell extends ConsumerWidget {
     final browsingAlbum =
         selectedAlbumId != null && selectedAlbumId != 'favorites';
     return LocalGalleryToolbar(
+      showPageTitle: !viewModel.showPersistentCategories,
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
       onEnterSelectionMode: () =>

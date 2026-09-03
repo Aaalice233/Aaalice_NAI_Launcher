@@ -47,7 +47,7 @@ class VibeLibraryWorkspace extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const categoryPanelWidth = 250.0;
+        const categoryPanelWidth = GalleryCollectionChrome.sidebarWidth;
         final persistent = constraints.maxWidth >= 1000;
         final showCategories = controller.showCategoryPanel && persistent;
         final contentWidth =
@@ -85,6 +85,7 @@ class VibeLibraryWorkspace extends StatelessWidget {
                             currentModel: currentModel,
                             controller: controller,
                             compact: contentWidth < 1050 || textScale > 1.5,
+                            showPageTitle: !showCategories,
                             showCategoryPanel: showCategories,
                             usePersistentCategories: persistent,
                             onCommand: onCommand,
@@ -201,9 +202,14 @@ class _CategoryPanelState extends State<_CategoryPanel> {
   @override
   Widget build(BuildContext context) {
     return GallerySidebarSurface(
-      width: 250,
       child: Column(
         children: [
+          GallerySidebarPageHeader(
+            key: const ValueKey('vibe-library-sidebar-page-header'),
+            icon: Icons.auto_awesome_outlined,
+            title: context.l10n.vibeLibrary_title,
+          ),
+          const SizedBox(height: GalleryCollectionChrome.navigationTopPadding),
           GalleryAllImagesItem(
             key: const ValueKey('vibe-library-all'),
             label: context.l10n.vibeLibrary_allVibes,
@@ -256,6 +262,7 @@ class _Toolbar extends StatelessWidget {
     required this.currentModel,
     required this.controller,
     required this.compact,
+    required this.showPageTitle,
     required this.showCategoryPanel,
     required this.usePersistentCategories,
     required this.onCommand,
@@ -266,6 +273,7 @@ class _Toolbar extends StatelessWidget {
   final String currentModel;
   final VibeLibraryScreenController controller;
   final bool compact;
+  final bool showPageTitle;
   final bool showCategoryPanel;
   final bool usePersistentCategories;
   final ValueChanged<VibeLibraryCommand> onCommand;
@@ -278,8 +286,11 @@ class _Toolbar extends StatelessWidget {
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          constraints: const BoxConstraints(minHeight: 62),
+          key: const Key('vibe-library-toolbar'),
+          padding: GalleryCollectionChrome.toolbarPadding(context),
+          constraints: const BoxConstraints(
+            minHeight: GalleryCollectionChrome.toolbarHeight,
+          ),
           decoration: BoxDecoration(
             color: theme.brightness == Brightness.dark
                 ? theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.9)
@@ -294,13 +305,15 @@ class _Toolbar extends StatelessWidget {
               ? _buildCompact(context)
               : Row(
                   children: [
-                    Text(
-                      context.l10n.vibeLibrary_title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                    if (showPageTitle) ...[
+                      Text(
+                        context.l10n.vibeLibrary_title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
+                      const SizedBox(width: 8),
+                    ],
                     if (!libraryState.isLoading)
                       _CountBadge(state: libraryState),
                     const SizedBox(width: 12),
@@ -386,13 +399,14 @@ class _Toolbar extends StatelessWidget {
             Expanded(
               child: Row(
                 children: [
-                  Flexible(
-                    child: Text(
-                      context.l10n.vibeLibrary_title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  if (showPageTitle)
+                    Flexible(
+                      child: Text(
+                        context.l10n.vibeLibrary_title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
                   if (!libraryState.isLoading) ...[
                     const SizedBox(width: 8),
                     Text(

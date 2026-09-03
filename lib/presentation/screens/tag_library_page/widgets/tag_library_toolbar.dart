@@ -10,6 +10,7 @@ import '../../../widgets/autocomplete/autocomplete_config.dart';
 import '../../../widgets/common/input_surface_container.dart';
 import '../../../widgets/autocomplete/autocomplete_wrapper.dart';
 import '../../../widgets/bulk_action_bar.dart';
+import '../../../widgets/gallery/gallery_sidebar.dart';
 
 /// 词库工具栏（搜索、视图切换、批量操作）
 class TagLibraryToolbar extends ConsumerStatefulWidget {
@@ -43,6 +44,9 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
   /// 窄屏分类抽屉入口
   final VoidCallback? onOpenCategories;
 
+  /// Persistent sidebars own page identity; compact layouts keep it here.
+  final bool showPageTitle;
+
   const TagLibraryToolbar({
     super.key,
     this.onShowCategories,
@@ -55,6 +59,7 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
     this.onExport,
     this.onAddEntry,
     this.onOpenCategories,
+    this.showPageTitle = true,
   });
 
   @override
@@ -150,8 +155,11 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
 
     // 普通工具栏
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      constraints: const BoxConstraints(minHeight: 62),
+      key: const Key('tag-library-toolbar'),
+      padding: GalleryCollectionChrome.toolbarPadding(context),
+      constraints: const BoxConstraints(
+        minHeight: GalleryCollectionChrome.toolbarHeight,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         border: Border(
@@ -266,7 +274,19 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
                   );
             return Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (widget.showPageTitle) ...[
+                  Text(
+                    context.l10n.nav_dictionary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 primaryControls,
                 const SizedBox(height: 8),
                 Align(
@@ -282,6 +302,15 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
 
           return Row(
             children: [
+              if (widget.showPageTitle) ...[
+                Text(
+                  context.l10n.nav_dictionary,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
               if (categoriesButton != null) ...[
                 categoriesButton,
                 const SizedBox(width: 8),

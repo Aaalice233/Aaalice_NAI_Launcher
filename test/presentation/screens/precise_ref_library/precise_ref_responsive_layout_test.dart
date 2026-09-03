@@ -15,6 +15,7 @@ import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/pr
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_selector_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 void main() {
   setUp(() {
@@ -77,6 +78,12 @@ void main() {
             find.byKey(const Key('precise-ref-library-category-sidebar')),
             findsOneWidget,
           );
+          const pageHeaderKey = Key('precise-ref-library-sidebar-page-header');
+          expect(find.byKey(pageHeaderKey), findsOneWidget);
+          expect(
+            tester.getSize(find.byKey(pageHeaderKey)).height,
+            GalleryCollectionChrome.toolbarHeight,
+          );
           expect(
             find.byKey(const Key('precise-ref-sidebar-type-characterAndStyle')),
             findsOneWidget,
@@ -86,6 +93,20 @@ void main() {
           find.byKey(const Key('precise-ref-library-unified-toolbar')),
           findsOneWidget,
         );
+        if (width == 1600) {
+          const toolbarKey = Key('precise-ref-library-unified-toolbar');
+          expect(
+            tester.getSize(find.byKey(toolbarKey)).height,
+            GalleryCollectionChrome.toolbarHeight,
+          );
+          expect(
+            find.descendant(
+              of: find.byKey(toolbarKey),
+              matching: find.text('精准参考库'),
+            ),
+            findsNothing,
+          );
+        }
         expect(find.byType(PaginationBar), findsOneWidget);
 
         await tester.enterText(

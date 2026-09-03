@@ -25,6 +25,7 @@ import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/input_surface_container.dart';
 import '../../widgets/common/pagination_bar.dart';
+import '../../widgets/gallery/gallery_sidebar.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'widgets/precise_ref_card.dart';
 import 'widgets/precise_ref_entry_edit_dialog.dart';
@@ -341,7 +342,11 @@ class _PreciseRefLibraryScreenState
                 Expanded(
                   child: Column(
                     children: [
-                      _buildToolbar(state, showCategoryButton: !showSidebar),
+                      _buildToolbar(
+                        state,
+                        showCategoryButton: !showSidebar,
+                        showPageTitle: !showSidebar,
+                      ),
                       Expanded(
                         child: state.isLoading
                             ? Center(
@@ -462,6 +467,7 @@ class _PreciseRefLibraryScreenState
   Widget _buildToolbar(
     PreciseRefLibraryState state, {
     required bool showCategoryButton,
+    required bool showPageTitle,
   }) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
@@ -625,7 +631,10 @@ class _PreciseRefLibraryScreenState
 
     return Container(
       key: const Key('precise-ref-library-unified-toolbar'),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: GalleryCollectionChrome.toolbarPadding(context),
+      constraints: const BoxConstraints(
+        minHeight: GalleryCollectionChrome.toolbarHeight,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
         border: Border(
@@ -644,8 +653,10 @@ class _PreciseRefLibraryScreenState
                   categories,
                   const SizedBox(width: 8),
                 ],
-                SizedBox(width: 210, child: title),
-                const SizedBox(width: 16),
+                if (showPageTitle) ...[
+                  SizedBox(width: 210, child: title),
+                  const SizedBox(width: 16),
+                ],
                 Expanded(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
@@ -667,7 +678,7 @@ class _PreciseRefLibraryScreenState
                     categories,
                     const SizedBox(width: 4),
                   ],
-                  Expanded(child: title),
+                  if (showPageTitle) Expanded(child: title) else const Spacer(),
                   utilityActions,
                 ],
               ),

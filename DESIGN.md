@@ -195,6 +195,12 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 
 在线画廊在可承载工具栏的桌面/平板宽度维持固定职责分行：第一行只放全局控件，第二行只放来源专属筛选与操作。第一行采用左侧站点/模式/分级、中间弹性搜索、右侧全局操作的三段式结构；宽度不足时整行横向滚动，不把全局控件挪到第二行。回归覆盖 700、840、1180、1600px，QuickTagCloud 单独覆盖。
 
+### Collection workspace shell
+
+本地画廊、Vibe 库、精准参考库与词库共用同一种 collection workspace 骨架。Expanded/Wide 下页面名称与图标固定放在持久侧栏顶部，主内容工具栏不重复页面名称；侧栏标题区和主工具栏的常规单行高度统一为 72px，以容纳触屏 48px 命中区，侧栏导航内容在标题区后保留 4px 间隔，侧栏宽度统一为 250px。新增同类页面必须复用 `GalleryCollectionChrome` 与 `GallerySidebarPageHeader`，不得在各页面复制这些尺寸和标题结构。
+
+Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，分类导航由 adaptive panel 承载并使用面板自身标题。窄屏换行、长本地化文案或放大文字可以让工具栏向下扩展，但不得裁切、缩放或隐藏操作；恢复为可容纳单行的宽度后应回到 72px 的共同基线。
+
 **The Capability Parity Rule.** 桌面 hover、右键与快捷键必须有移动端单击、长按、菜单或系统入口的等价路径；低频操作可以折叠，但不能静默消失。
 
 **The Local Constraint Rule.** 响应式判断使用局部 `LayoutBuilder.constraints` 与 capabilities；禁止按设备型号、`FittedBox` 缩小交互工具栏或在共享页面散落平台判断。
