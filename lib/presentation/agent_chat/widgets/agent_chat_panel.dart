@@ -154,6 +154,12 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         );
         return AgentChatReadingPreferences(
           config: agentSettings.settings.chat,
+          desktop: switch (Theme.of(context).platform) {
+            TargetPlatform.windows ||
+            TargetPlatform.macOS ||
+            TargetPlatform.linux => true,
+            _ => false,
+          },
           child: SafeArea(child: panel),
         );
       },

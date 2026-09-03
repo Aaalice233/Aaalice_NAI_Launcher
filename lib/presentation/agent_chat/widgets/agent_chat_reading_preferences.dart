@@ -7,10 +7,14 @@ class AgentChatReadingPreferences extends StatelessWidget {
   const AgentChatReadingPreferences({
     super.key,
     required this.config,
+    required this.desktop,
     required this.child,
   });
 
+  static const desktopBaselineScale = 1.15;
+
   final AgentChatConfig config;
+  final bool desktop;
   final Widget child;
 
   @override
@@ -26,6 +30,7 @@ class AgentChatReadingPreferences extends StatelessWidget {
         textScaler: _AgentReadingTextScaler(
           mediaQuery.textScaler,
           config.readingTextScale,
+          minimumFactor: desktop ? desktopBaselineScale : 0.8,
         ),
       ),
       child: Theme(
@@ -40,27 +45,34 @@ class AgentChatReadingPreferences extends StatelessWidget {
 }
 
 final class _AgentReadingTextScaler extends TextScaler {
-  const _AgentReadingTextScaler(this.delegate, this.factor);
+  const _AgentReadingTextScaler(
+    this.delegate,
+    this.factor, {
+    required this.minimumFactor,
+  });
 
   final TextScaler delegate;
   final double factor;
+  final double minimumFactor;
 
-  @override
-  double scale(double fontSize) => (delegate.scale(fontSize) * factor)
-      .clamp(fontSize * 0.8, fontSize * 3.0)
+  double _scaledValue(double fontSize) => (delegate.scale(fontSize) * factor)
+      .clamp(fontSize * minimumFactor, fontSize * 3.0)
       .toDouble();
 
   @override
-  double get textScaleFactor =>
-      (delegate.scale(1) * factor).clamp(0.8, 3.0).toDouble();
+  double scale(double fontSize) => _scaledValue(fontSize);
+
+  @override
+  double get textScaleFactor => _scaledValue(1);
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is _AgentReadingTextScaler &&
           other.delegate == delegate &&
-          other.factor == factor;
+          other.factor == factor &&
+          other.minimumFactor == minimumFactor;
 
   @override
-  int get hashCode => Object.hash(delegate, factor);
+  int get hashCode => Object.hash(delegate, factor, minimumFactor);
 }
