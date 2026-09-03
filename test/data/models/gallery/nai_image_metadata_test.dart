@@ -403,6 +403,42 @@ void main() {
       },
     );
 
+    test(
+      'metadata should not classify markup-wrapped main prompt as fixed tags',
+      () {
+        const prompt = '''<quality>
+2::best quality::,masterpiece,very aesthetic, highres, absurdres, highly finished
+</quality>''';
+        final metadata = NaiImageMetadata.fromNaiComment({
+          'Comment': jsonEncode({
+            'prompt': prompt,
+            'v4_prompt': {
+              'caption': {'base_caption': prompt, 'char_captions': []},
+            },
+          }),
+          'Software': 'NovelAI',
+          'Source': 'NovelAI Diffusion V4.5 4BDE2A90',
+        });
+
+        expect(metadata.fixedPrefixTags, isEmpty);
+        expect(metadata.fixedSuffixTags, isEmpty);
+        expect(metadata.qualityTags, isEmpty);
+        expect(metadata.mainPrompt, prompt);
+      },
+    );
+
+    test('metadata should not infer fixed tags from common prompt words', () {
+      const prompt = '2::best quality::, masterpiece, 1girl';
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({'prompt': prompt}),
+        'Software': 'NovelAI',
+      });
+
+      expect(metadata.fixedPrefixTags, isEmpty);
+      expect(metadata.fixedSuffixTags, isEmpty);
+      expect(metadata.mainPrompt, prompt);
+    });
+
     test('V5 metadata should restore the Light tier and transparent suffix', () {
       const prompt =
           '1girl, transparent background, very aesthetic, amazing quality, no text';
