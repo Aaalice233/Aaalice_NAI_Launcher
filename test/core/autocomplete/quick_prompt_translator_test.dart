@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 
@@ -41,6 +43,40 @@ void main() {
     expect(result.text, source);
     expect(result.translatedTagCount, 0);
     expect(result.hasTranslations, isFalse);
+  });
+
+  test('重复查询会缓存命中项与未命中项', () async {
+    var resolveCount = 0;
+    final cachedLookup = TagTranslationLookup.fromResolver((tags) async {
+      resolveCount++;
+      return {if (tags.contains('solo')) 'solo': '单人'};
+    });
+
+    expect(await cachedLookup.translateBatch(['solo', 'unknown_artist']), {
+      'solo': '单人',
+    });
+    expect(await cachedLookup.translateBatch(['unknown_artist', 'solo']), {
+      'solo': '单人',
+    });
+    expect(resolveCount, 1);
+  });
+
+  test('并发重叠查询会复用进行中的翻译请求', () async {
+    var resolveCount = 0;
+    final gate = Completer<void>();
+    final cachedLookup = TagTranslationLookup.fromResolver((tags) async {
+      resolveCount++;
+      await gate.future;
+      return {if (tags.contains('solo')) 'solo': '单人'};
+    });
+
+    final first = cachedLookup.translateBatch(['solo', 'unknown_artist']);
+    final second = cachedLookup.translateBatch(['solo', 'unknown_artist']);
+    gate.complete();
+
+    expect(await first, {'solo': '单人'});
+    expect(await second, {'solo': '单人'});
+    expect(resolveCount, 1);
   });
 
   test('空标签与只含空白的行不会破坏翻译或原始排版', () async {

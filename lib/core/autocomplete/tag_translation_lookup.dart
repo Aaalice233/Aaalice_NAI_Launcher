@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/tag_normalizer.dart';
@@ -19,21 +21,31 @@ class TagTextTranslation {
 
 /// Shared optional Chinese lookup used outside the autocomplete overlay.
 class TagTranslationLookup {
-  TagTranslationLookup(ZhDictionaryService dictionary)
-    : _dictionary = dictionary,
-      _resolver = null,
-      _fuzzyResolver = dictionary.resolveFuzzy;
+  TagTranslationLookup(
+    ZhDictionaryService dictionary, {
+    int maxCacheEntries = 4096,
+  }) : assert(maxCacheEntries > 0),
+       _dictionary = dictionary,
+       _resolver = null,
+       _fuzzyResolver = dictionary.resolveFuzzy,
+       _maxCacheEntries = maxCacheEntries;
 
-  const TagTranslationLookup.fromResolver(
+  TagTranslationLookup.fromResolver(
     Future<Map<String, String>> Function(List<String> tags) resolver, {
     Future<Map<String, String>> Function(List<String> tags)? fuzzyResolver,
-  }) : _dictionary = null,
+    int maxCacheEntries = 4096,
+  }) : assert(maxCacheEntries > 0),
+       _dictionary = null,
        _resolver = resolver,
-       _fuzzyResolver = fuzzyResolver;
+       _fuzzyResolver = fuzzyResolver,
+       _maxCacheEntries = maxCacheEntries;
 
   final ZhDictionaryService? _dictionary;
   final Future<Map<String, String>> Function(List<String> tags)? _resolver;
   final Future<Map<String, String>> Function(List<String> tags)? _fuzzyResolver;
+  final int _maxCacheEntries;
+  final LinkedHashMap<String, String?> _cache = LinkedHashMap();
+  final Map<String, Future<Map<String, String?>>> _inFlight = {};
 
   Future<String?> translate(String tag) async {
     final normalized = normalizeTag(tag);
@@ -50,6 +62,51 @@ class TagTranslationLookup {
         .toList(growable: false);
     if (normalized.isEmpty) return const {};
 
+    final result = <String, String>{};
+    final uncached = <String>[];
+    final pending = <String, Future<Map<String, String?>>>{};
+    for (final tag in normalized) {
+      if (_cache.containsKey(tag)) {
+        final translation = _readCached(tag);
+        if (translation != null) result[tag] = translation;
+        continue;
+      }
+      final inFlight = _inFlight[tag];
+      if (inFlight == null) {
+        uncached.add(tag);
+      } else {
+        pending[tag] = inFlight;
+      }
+    }
+
+    if (uncached.isNotEmpty) {
+      final request = _resolveUncached(uncached);
+      for (final tag in uncached) {
+        _inFlight[tag] = request;
+      }
+      try {
+        final resolved = await request;
+        for (final tag in uncached) {
+          final translation = resolved[tag];
+          _writeCached(tag, translation);
+          if (translation != null) result[tag] = translation;
+        }
+      } finally {
+        for (final tag in uncached) {
+          if (identical(_inFlight[tag], request)) _inFlight.remove(tag);
+        }
+      }
+    }
+
+    for (final entry in pending.entries) {
+      final translation = (await entry.value)[entry.key];
+      _writeCached(entry.key, translation);
+      if (translation != null) result[entry.key] = translation;
+    }
+    return result;
+  }
+
+  Future<Map<String, String?>> _resolveUncached(List<String> normalized) async {
     final candidatesByTag = {
       for (final tag in normalized) tag: lookupCandidates(tag),
     };
@@ -61,7 +118,7 @@ class TagTranslationLookup {
     final resolved = resolver != null
         ? await resolver(candidates)
         : await _dictionary!.resolve(candidates, locale: 'zh-CN');
-    final result = <String, String>{};
+    final result = <String, String?>{};
     for (final entry in candidatesByTag.entries) {
       for (final candidate in entry.value) {
         final translation = resolved[candidate]?.trim();
@@ -79,7 +136,21 @@ class TagTranslationLookup {
           .toList(growable: false);
       result.addAll(await fuzzyResolver(missing));
     }
-    return result;
+    return {for (final tag in normalized) tag: result[tag]};
+  }
+
+  String? _readCached(String tag) {
+    final value = _cache.remove(tag);
+    _cache[tag] = value;
+    return value;
+  }
+
+  void _writeCached(String tag, String? translation) {
+    _cache.remove(tag);
+    if (_cache.length >= _maxCacheEntries) {
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[tag] = translation;
   }
 
   Future<bool> hasTranslation(String tag) async => await translate(tag) != null;
