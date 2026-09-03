@@ -6684,7 +6684,7 @@
   "queue_selectTask": "選擇任務",
   "settings_notificationSoundImportFailed": "無法匯入音效，請重新選擇檔案。",
   "settings_androidManagedStorage": "由系統安全管理；匯出時可選擇儲存位置",
-  "settings_importLocalOnnxTaggerFiles": "匯入 ONNX 模型及標籤檔案",
+  "settings_importLocalOnnxTaggerFiles": "匯入 ONNX 模型、標籤檔案或 ZIP 壓縮檔",
   "settings_localOnnxFilesImported": "已匯入 {count} 個模型檔案",
   "@settings_localOnnxFilesImported": {"placeholders":{"count":{"type":"int"}}},
   "settings_localOnnxManagedFiles": "應用程式儲存空間中有 {count} 個模型檔案",

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -41,6 +42,10 @@ final localOnnxModelServiceProvider = Provider<LocalOnnxModelService>((ref) {
 class LocalOnnxModelService {
   const LocalOnnxModelService(this._storage);
 
+  static const int _archiveFileCountLimit = 64;
+  static const int _archiveExpandedBytesLimit = 4 * 1024 * 1024 * 1024;
+  static const int _archiveEntryBytesLimit = 2 * 1024 * 1024 * 1024;
+
   final LocalStorageService _storage;
 
   String get taggerDirectory =>
@@ -53,6 +58,151 @@ class LocalOnnxModelService {
   Future<String> getManagedTaggerDirectory() async {
     final supportDirectory = await getApplicationSupportDirectory();
     return p.join(supportDirectory.path, 'models', 'onnx_taggers');
+  }
+
+  Future<int> importTaggerSelections(
+    List<LocalOnnxImportSource> sources,
+  ) async {
+    if (sources.isEmpty) return 0;
+    if (!sources.any(
+      (source) => p.extension(source.name).toLowerCase() == '.zip',
+    )) {
+      return importTaggerFiles(sources);
+    }
+
+    final temporaryDirectory = await getTemporaryDirectory();
+    final extractionDirectory = Directory(
+      p.join(
+        temporaryDirectory.path,
+        'onnx-tagger-import-${DateTime.now().microsecondsSinceEpoch}',
+      ),
+    );
+    final expandedSources = <LocalOnnxImportSource>[];
+    var extractionCreated = false;
+    try {
+      for (var index = 0; index < sources.length; index++) {
+        final source = sources[index];
+        if (p.extension(source.name).toLowerCase() != '.zip') {
+          expandedSources.add(source);
+          continue;
+        }
+        extractionCreated = true;
+        expandedSources.addAll(
+          await _extractTaggerArchive(
+            source,
+            Directory(p.join(extractionDirectory.path, '$index')),
+          ),
+        );
+      }
+      return await importTaggerFiles(expandedSources);
+    } finally {
+      if (extractionCreated && await extractionDirectory.exists()) {
+        await extractionDirectory.delete(recursive: true);
+      }
+    }
+  }
+
+  Future<List<LocalOnnxImportSource>> _extractTaggerArchive(
+    LocalOnnxImportSource source,
+    Directory outputDirectory,
+  ) async {
+    final sourceFile = File(source.path);
+    if (!await sourceFile.exists()) {
+      throw FileSystemException(
+        'Selected model archive is unavailable',
+        source.path,
+      );
+    }
+
+    final input = InputFileStream(source.path);
+    late final Archive archive;
+    try {
+      archive = ZipDecoder().decodeBuffer(input);
+    } catch (error) {
+      input.closeSync();
+      throw FormatException('Invalid ONNX model ZIP: $error');
+    }
+
+    if (archive.files.isEmpty ||
+        archive.files.length > _archiveFileCountLimit) {
+      for (final entry in archive.files) {
+        entry.closeSync();
+      }
+      input.closeSync();
+      throw const FormatException('ONNX model ZIP has an invalid file count');
+    }
+
+    final extracted = <LocalOnnxImportSource>[];
+    final selectedNames = <String>{};
+    final budget = _OnnxArchiveExtractionBudget(
+      entryBytesLimit: _archiveEntryBytesLimit,
+      expandedBytesLimit: _archiveExpandedBytesLimit,
+    );
+    try {
+      for (final entry in archive.files) {
+        final source = await _extractTaggerArchiveEntry(
+          entry,
+          outputDirectory: outputDirectory,
+          selectedNames: selectedNames,
+          budget: budget,
+        );
+        if (source != null) extracted.add(source);
+      }
+    } finally {
+      for (final entry in archive.files) {
+        entry.closeSync();
+      }
+      input.closeSync();
+    }
+    if (extracted.isEmpty) {
+      throw const FormatException(
+        'ONNX model ZIP contains no supported model files',
+      );
+    }
+    return extracted;
+  }
+
+  Future<LocalOnnxImportSource?> _extractTaggerArchiveEntry(
+    ArchiveFile entry, {
+    required Directory outputDirectory,
+    required Set<String> selectedNames,
+    required _OnnxArchiveExtractionBudget budget,
+  }) async {
+    if (entry.isSymbolicLink) {
+      throw FormatException(
+        'Symbolic links are not allowed in ONNX model ZIPs: ${entry.name}',
+      );
+    }
+    if (!entry.isFile) return null;
+
+    final fileName = _sanitizeImportedFileName(entry.name);
+    if (!_isSupportedImportFile(fileName)) return null;
+    budget.reserveDeclared(entry.size, entry.name);
+    if (!selectedNames.add(fileName.toLowerCase())) {
+      throw FormatException(
+        'Duplicate model file name in ONNX model ZIP: $fileName',
+      );
+    }
+
+    await outputDirectory.create(recursive: true);
+    final outputPath = p.join(outputDirectory.path, fileName);
+    final output = OutputFileStream(outputPath, bufferSize: 64 * 1024);
+    try {
+      entry.clear();
+      entry.decompress(output);
+      await output.close();
+    } catch (error) {
+      await output.close();
+      throw FormatException(
+        'Cannot extract ${entry.name} from ONNX model ZIP: $error',
+      );
+    }
+    if (output.length != entry.size) {
+      throw FormatException(
+        'ONNX model ZIP entry has an invalid size: ${entry.name}',
+      );
+    }
+    return LocalOnnxImportSource(name: fileName, path: outputPath);
   }
 
   Future<int> importTaggerFiles(List<LocalOnnxImportSource> sources) async {
@@ -454,4 +604,25 @@ class _OnnxImportEntry {
   final File source;
   final String fileName;
   final bool hadDestination;
+}
+
+class _OnnxArchiveExtractionBudget {
+  _OnnxArchiveExtractionBudget({
+    required this.entryBytesLimit,
+    required this.expandedBytesLimit,
+  });
+
+  final int entryBytesLimit;
+  final int expandedBytesLimit;
+  var _declaredBytes = 0;
+
+  void reserveDeclared(int count, String entryName) {
+    if (count < 0 || count > entryBytesLimit) {
+      throw FormatException('ONNX model ZIP entry is too large: $entryName');
+    }
+    _declaredBytes += count;
+    if (_declaredBytes > expandedBytesLimit) {
+      throw const FormatException('Expanded ONNX model ZIP is too large');
+    }
+  }
 }

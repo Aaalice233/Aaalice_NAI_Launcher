@@ -12895,7 +12895,8 @@ class AppLocalizationsJa extends AppLocalizations {
       'システムが安全に管理します。エクスポート時に保存先を選択できます';
 
   @override
-  String get settings_importLocalOnnxTaggerFiles => 'ONNX モデルとラベルファイルをインポート';
+  String get settings_importLocalOnnxTaggerFiles =>
+      'ONNX モデル、ラベルファイル、ZIP をインポート';
 
   @override
   String settings_localOnnxFilesImported(int count) {
