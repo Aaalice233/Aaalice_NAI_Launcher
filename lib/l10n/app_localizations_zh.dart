@@ -4506,38 +4506,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get randomMode_title => '选择随机模式';
+  String get randomPrompt_unsupportedModel => '当前模型不支持官网随机词库';
 
   @override
-  String get randomMode_naiOfficial => '默认';
-
-  @override
-  String get randomMode_custom => '自定义模式';
-
-  @override
-  String get randomMode_hybrid => '混合模式';
-
-  @override
-  String get randomMode_naiOfficialDesc => '按当前模型自动选择内置随机方案';
-
-  @override
-  String get randomMode_customDesc => '使用完整离线标签 catalog 与自定义预设生成';
-
-  @override
-  String get randomMode_hybridDesc => '同时使用模型感知的默认方案与 catalog 扩展';
-
-  @override
-  String get randomMode_naiIndicator => '默认';
-
-  @override
-  String get randomMode_customIndicator => '自定义';
-
-  @override
-  String get randomMode_unsupportedModel => '当前模型不支持默认随机模式';
-
-  @override
-  String get randomMode_unsupportedModelHint =>
-      '当前模型没有可验证的内置随机方案。请选择受支持的 NovelAI 模型，或改用自定义模式。';
+  String get randomPrompt_unsupportedModelHint =>
+      '当前模型没有对应的 NovelAI 官网随机方案。请选择受支持的 NovelAI 模型，或使用自己的自定义预设。';
 
   @override
   String get naiMode_noTags => '暂无标签';
@@ -4885,29 +4858,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => '通用预设 (V4/V5)';
-
-  @override
-  String get randomManager_defaultPresetLegacy => '通用预设 (Legacy)';
-
-  @override
-  String get randomManager_defaultPresetFurry => '通用预设 (Furry)';
-
-  @override
-  String get randomManager_defaultPresetV4Description =>
-      '适用于 V4/V5 的 catalog 扩展预设，支持多角色';
-
-  @override
-  String get randomManager_defaultPresetLegacyDescription =>
-      '基于 NAI Legacy 模型的随机算法配置';
-
-  @override
-  String get randomManager_defaultPresetFurryDescription =>
-      '基于 NAI Furry 模型的随机算法配置';
-
-  @override
-  String get randomManager_defaultPresetOfficialDescription =>
-      '基于 NAI 官网的随机算法配置';
+  String get randomManager_defaultPreset => 'NovelAI 官网预设';
 
   @override
   String get randomManager_femaleClothing => '女性服装';
@@ -12600,76 +12551,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_category_detail => '创意细节';
 
   @override
-  String randomManager_sourceOfficial(String wordlist) {
-    return '官网 · $wordlist';
-  }
-
-  @override
-  String get randomManager_sourceCatalog => '自定义 · Catalog 扩展';
-
-  @override
-  String randomManager_sourceHybrid(String wordlist) {
-    return '混合 · $wordlist + Catalog';
-  }
-
-  @override
-  String get randomManager_currentMode => '当前模式';
-
-  @override
-  String get randomManager_officialWordlist => '当前模型官网词库';
-
-  @override
-  String randomManager_officialWordlistCount(String wordlist, int count) {
-    return '$wordlist：$count 条原始记录';
-  }
-
-  @override
-  String get randomManager_officialAsset => '完整官网资产';
-
-  @override
-  String randomManager_officialAssetCount(int entries, int groups) {
-    return '$entries 条记录，$groups 个原始数组';
-  }
-
-  @override
-  String get randomManager_sourceFile => '来源文件';
-
-  @override
-  String get randomManager_sourceSha256 => '来源 SHA-256';
-
-  @override
-  String get randomManager_catalogExtension => 'Catalog 扩展';
-
-  @override
-  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
-
-  @override
-  String get randomManager_wordlistFurryV3 => 'Furry V3';
-
-  @override
-  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
-
-  @override
-  String get randomManager_sourceDetails => '数据来源详情';
-
-  @override
-  String get randomManager_sourceUrl => '来源 URL';
-
-  @override
-  String get randomManager_sourceCommit => '来源提交';
-
-  @override
-  String get randomManager_sourceDate => '来源日期';
-
-  @override
-  String get randomManager_sourceLicense => '许可证';
-
-  @override
-  String randomManager_catalogCounts(Object tags, Object aliases) {
-    return '完整 catalog：$tags 个标签，$aliases 个别名';
-  }
-
-  @override
   String get randomManager_libraryUnavailable => '随机词库无法使用';
 
   @override
@@ -18381,38 +18262,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get randomMode_title => '選擇隨機模式';
+  String get randomPrompt_unsupportedModel => '目前模型不支援官網隨機詞庫';
 
   @override
-  String get randomMode_naiOfficial => '預設';
-
-  @override
-  String get randomMode_custom => '自定義模式';
-
-  @override
-  String get randomMode_hybrid => '混合模式';
-
-  @override
-  String get randomMode_naiOfficialDesc => '按目前模型自動選擇內建隨機方案';
-
-  @override
-  String get randomMode_customDesc => '使用完整離線標籤 catalog 與自定義預設生成';
-
-  @override
-  String get randomMode_hybridDesc => '同時使用模型感知的預設方案與 catalog 擴展';
-
-  @override
-  String get randomMode_naiIndicator => '預設';
-
-  @override
-  String get randomMode_customIndicator => '自定義';
-
-  @override
-  String get randomMode_unsupportedModel => '目前模型不支援預設隨機模式';
-
-  @override
-  String get randomMode_unsupportedModelHint =>
-      '目前模型沒有可驗證的內建隨機方案。請選擇支援的 NovelAI 模型，或改用自定義模式。';
+  String get randomPrompt_unsupportedModelHint =>
+      '目前模型沒有對應的 NovelAI 官網隨機方案。請選擇支援的 NovelAI 模型，或使用自己的自訂預設。';
 
   @override
   String get naiMode_noTags => '暫無標籤';
@@ -18760,29 +18614,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => '通用預設 (V4/V5)';
-
-  @override
-  String get randomManager_defaultPresetLegacy => '通用預設 (Legacy)';
-
-  @override
-  String get randomManager_defaultPresetFurry => '通用預設 (Furry)';
-
-  @override
-  String get randomManager_defaultPresetV4Description =>
-      '適用於 V4/V5 的 catalog 擴展預設，支援多角色';
-
-  @override
-  String get randomManager_defaultPresetLegacyDescription =>
-      '基於 NAI Legacy 模型的隨機演算法配置';
-
-  @override
-  String get randomManager_defaultPresetFurryDescription =>
-      '基於 NAI Furry 模型的隨機演算法配置';
-
-  @override
-  String get randomManager_defaultPresetOfficialDescription =>
-      '基於 NAI 官網的隨機演算法配置';
+  String get randomManager_defaultPreset => 'NovelAI 官網預設';
 
   @override
   String get randomManager_femaleClothing => '女性服裝';
@@ -26473,76 +26305,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_category_detail => '創意細節';
-
-  @override
-  String randomManager_sourceOfficial(String wordlist) {
-    return '官網 · $wordlist';
-  }
-
-  @override
-  String get randomManager_sourceCatalog => '自訂 · Catalog 擴充';
-
-  @override
-  String randomManager_sourceHybrid(String wordlist) {
-    return '混合 · $wordlist + Catalog';
-  }
-
-  @override
-  String get randomManager_currentMode => '目前模式';
-
-  @override
-  String get randomManager_officialWordlist => '目前模型官網詞庫';
-
-  @override
-  String randomManager_officialWordlistCount(String wordlist, int count) {
-    return '$wordlist：$count 條原始記錄';
-  }
-
-  @override
-  String get randomManager_officialAsset => '完整官網資產';
-
-  @override
-  String randomManager_officialAssetCount(int entries, int groups) {
-    return '$entries 條記錄，$groups 個原始陣列';
-  }
-
-  @override
-  String get randomManager_sourceFile => '來源檔案';
-
-  @override
-  String get randomManager_sourceSha256 => '來源 SHA-256';
-
-  @override
-  String get randomManager_catalogExtension => 'Catalog 擴充';
-
-  @override
-  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
-
-  @override
-  String get randomManager_wordlistFurryV3 => 'Furry V3';
-
-  @override
-  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
-
-  @override
-  String get randomManager_sourceDetails => '資料來源詳情';
-
-  @override
-  String get randomManager_sourceUrl => '來源 URL';
-
-  @override
-  String get randomManager_sourceCommit => '來源提交';
-
-  @override
-  String get randomManager_sourceDate => '來源日期';
-
-  @override
-  String get randomManager_sourceLicense => '授權條款';
-
-  @override
-  String randomManager_catalogCounts(Object tags, Object aliases) {
-    return '完整 catalog：$tags 個標籤，$aliases 個別名';
-  }
 
   @override
   String get randomManager_libraryUnavailable => '隨機詞庫無法使用';

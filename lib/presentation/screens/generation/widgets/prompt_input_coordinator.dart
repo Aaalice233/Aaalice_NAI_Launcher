@@ -14,7 +14,6 @@ import '../../../providers/pending_prompt_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
 import '../../../widgets/character/mobile_character_manager_sheet.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/prompt/random_mode_selector.dart';
 import 'prompt_input_controller.dart';
 
 /// Coordinates prompt commands that span providers, navigation and editors.
@@ -248,13 +247,9 @@ class PromptInputCoordinator {
     if (!_mounted()) return;
     final context = _context();
     final message = error is UnsupportedRandomPromptModelException
-        ? context.l10n.randomMode_unsupportedModelHint
+        ? context.l10n.randomPrompt_unsupportedModelHint
         : context.l10n.tagLibrary_generateFailed(error.toString());
     AppToast.error(context, message);
-  }
-
-  void showRandomModeSelector() {
-    if (_mounted()) RandomModeBottomSheet.show(_context());
   }
 
   void openAssistantSettings() {

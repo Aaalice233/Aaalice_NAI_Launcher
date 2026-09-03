@@ -10,7 +10,6 @@ import 'package:nai_launcher/data/services/random_prompt_generator.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/providers/prompt_config_provider.dart';
-import 'package:nai_launcher/presentation/providers/random_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/preview_generator_panel.dart';
 
@@ -31,16 +30,11 @@ class _FixedGenerationParamsNotifier extends GenerationParamsNotifier {
       const ImageParams(model: ImageModels.animeDiffusionV5Full);
 }
 
-class _FixedRandomModeNotifier extends RandomModeNotifier {
-  @override
-  RandomGenerationMode build() => RandomGenerationMode.naiOfficial;
-}
-
 class _RecordingPromptConfigNotifier extends PromptConfigNotifier {
   String? requestedModel;
 
   @override
-  PromptConfigState build() => const PromptConfigState(isLoading: false);
+  void build() {}
 
   @override
   Future<RandomPromptResult> generateRandomPrompt({
@@ -57,7 +51,6 @@ class _RecordingPromptConfigNotifier extends PromptConfigNotifier {
         ),
       ],
       seed: 42,
-      mode: RandomGenerationMode.naiOfficial,
     );
   }
 }
@@ -78,7 +71,6 @@ void main() {
           randomPresetNotifierProvider.overrideWith(
             _FixedRandomPresetNotifier.new,
           ),
-          randomModeNotifierProvider.overrideWith(_FixedRandomModeNotifier.new),
           generationParamsNotifierProvider.overrideWith(
             _FixedGenerationParamsNotifier.new,
           ),
@@ -106,8 +98,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(promptConfig.requestedModel, ImageModels.animeDiffusionV5Full);
-    verifyNever(() => catalogGenerator.generateFromPreset(preset: _preset));
-
     final characterStat = find.text('1人');
     final copyButton = find.widgetWithText(TextButton, '复制全部');
     final regenerateButton = find.widgetWithText(FilledButton, '换一个样例');

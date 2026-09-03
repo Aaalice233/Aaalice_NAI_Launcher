@@ -19,11 +19,9 @@ import '../online_gallery_output_filter_provider.dart';
 import '../online_gallery_prompt_tag_settings_provider.dart';
 import '../precise_ref_library_provider.dart';
 import '../preview_transparency_provider.dart';
-import '../prompt_config_provider.dart';
 import '../prompt_regex_rules_provider.dart';
 import '../quality_preset_provider.dart';
 import '../quick_tag_cloud_gallery_provider.dart';
-import '../random_mode_provider.dart';
 import '../random_preset_provider.dart';
 import '../share_image_settings_provider.dart';
 import '../shortcuts_provider.dart';
@@ -54,7 +52,6 @@ Future<void> refreshCloudSyncRuntime(Ref ref, Set<String> adapterIds) async {
     ref.invalidate(onlineGalleryOutputFilterProvider);
     ref.invalidate(onlineGalleryPromptTagSettingsProvider);
     ref.invalidate(promptRegexRulesProvider);
-    ref.invalidate(randomModeNotifierProvider);
     ref.invalidate(autocomplete.autocompleteSettingsProvider);
     ref.invalidate(autoFormatPromptSettingsProvider);
     ref.invalidate(highlightEmphasisSettingsProvider);
@@ -83,9 +80,6 @@ Future<void> refreshCloudSyncRuntime(Ref ref, Set<String> adapterIds) async {
   }
   if (adapterIds.contains('random-presets')) {
     ref.invalidate(randomPresetNotifierProvider);
-  }
-  if (adapterIds.contains('prompt-presets')) {
-    ref.invalidate(promptConfigNotifierProvider);
   }
   if (adapterIds.contains('shortcuts')) {
     ref.invalidate(shortcutConfigNotifierProvider);

@@ -8407,71 +8407,17 @@ abstract class AppLocalizations {
   /// **'Generation failed: {error}'**
   String tagLibrary_generateFailed(Object error);
 
-  /// No description provided for @randomMode_title.
+  /// No description provided for @randomPrompt_unsupportedModel.
   ///
   /// In en, this message translates to:
-  /// **'Select Random Mode'**
-  String get randomMode_title;
+  /// **'Official random wordlist unavailable'**
+  String get randomPrompt_unsupportedModel;
 
-  /// No description provided for @randomMode_naiOfficial.
+  /// No description provided for @randomPrompt_unsupportedModelHint.
   ///
   /// In en, this message translates to:
-  /// **'Default'**
-  String get randomMode_naiOfficial;
-
-  /// No description provided for @randomMode_custom.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom Mode'**
-  String get randomMode_custom;
-
-  /// No description provided for @randomMode_hybrid.
-  ///
-  /// In en, this message translates to:
-  /// **'Hybrid Mode'**
-  String get randomMode_hybrid;
-
-  /// No description provided for @randomMode_naiOfficialDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Automatically select the bundled random recipe for the current model'**
-  String get randomMode_naiOfficialDesc;
-
-  /// No description provided for @randomMode_customDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Generate from the complete offline tag catalog and custom presets'**
-  String get randomMode_customDesc;
-
-  /// No description provided for @randomMode_hybridDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Combine the model-aware default recipe with the catalog extension'**
-  String get randomMode_hybridDesc;
-
-  /// No description provided for @randomMode_naiIndicator.
-  ///
-  /// In en, this message translates to:
-  /// **'Default'**
-  String get randomMode_naiIndicator;
-
-  /// No description provided for @randomMode_customIndicator.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom'**
-  String get randomMode_customIndicator;
-
-  /// No description provided for @randomMode_unsupportedModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Default random mode is unavailable'**
-  String get randomMode_unsupportedModel;
-
-  /// No description provided for @randomMode_unsupportedModelHint.
-  ///
-  /// In en, this message translates to:
-  /// **'No verified bundled random profile is available for the current model. Select a supported NovelAI model or use Custom mode.'**
-  String get randomMode_unsupportedModelHint;
+  /// **'No matching official NovelAI random recipe is available for this model. Select a supported NovelAI model or use one of your custom presets.'**
+  String get randomPrompt_unsupportedModelHint;
 
   /// No description provided for @naiMode_noTags.
   ///
@@ -9109,47 +9055,11 @@ abstract class AppLocalizations {
   /// **'Imported preset \"{name}\"'**
   String randomManager_presetImported(Object name);
 
-  /// No description provided for @randomManager_defaultPresetV4.
+  /// No description provided for @randomManager_defaultPreset.
   ///
   /// In en, this message translates to:
-  /// **'General Preset (V4/V5)'**
-  String get randomManager_defaultPresetV4;
-
-  /// No description provided for @randomManager_defaultPresetLegacy.
-  ///
-  /// In en, this message translates to:
-  /// **'General Preset (Legacy)'**
-  String get randomManager_defaultPresetLegacy;
-
-  /// No description provided for @randomManager_defaultPresetFurry.
-  ///
-  /// In en, this message translates to:
-  /// **'General Preset (Furry)'**
-  String get randomManager_defaultPresetFurry;
-
-  /// No description provided for @randomManager_defaultPresetV4Description.
-  ///
-  /// In en, this message translates to:
-  /// **'Catalog extension preset for V4 and V5, with multi-character support'**
-  String get randomManager_defaultPresetV4Description;
-
-  /// No description provided for @randomManager_defaultPresetLegacyDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Random algorithm configuration based on the NAI Legacy model'**
-  String get randomManager_defaultPresetLegacyDescription;
-
-  /// No description provided for @randomManager_defaultPresetFurryDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Random algorithm configuration based on the NAI Furry model'**
-  String get randomManager_defaultPresetFurryDescription;
-
-  /// No description provided for @randomManager_defaultPresetOfficialDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Random algorithm configuration based on the NAI official setup'**
-  String get randomManager_defaultPresetOfficialDescription;
+  /// **'NovelAI Official Preset'**
+  String get randomManager_defaultPreset;
 
   /// No description provided for @randomManager_femaleClothing.
   ///
@@ -22921,126 +22831,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Creative details'**
   String get randomManager_category_detail;
-
-  /// No description provided for @randomManager_sourceOfficial.
-  ///
-  /// In en, this message translates to:
-  /// **'Official · {wordlist}'**
-  String randomManager_sourceOfficial(String wordlist);
-
-  /// No description provided for @randomManager_sourceCatalog.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom · Catalog extension'**
-  String get randomManager_sourceCatalog;
-
-  /// No description provided for @randomManager_sourceHybrid.
-  ///
-  /// In en, this message translates to:
-  /// **'Hybrid · {wordlist} + Catalog'**
-  String randomManager_sourceHybrid(String wordlist);
-
-  /// No description provided for @randomManager_currentMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Current mode'**
-  String get randomManager_currentMode;
-
-  /// No description provided for @randomManager_officialWordlist.
-  ///
-  /// In en, this message translates to:
-  /// **'Official wordlist for current model'**
-  String get randomManager_officialWordlist;
-
-  /// No description provided for @randomManager_officialWordlistCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{wordlist}: {count} raw records'**
-  String randomManager_officialWordlistCount(String wordlist, int count);
-
-  /// No description provided for @randomManager_officialAsset.
-  ///
-  /// In en, this message translates to:
-  /// **'Complete official asset'**
-  String get randomManager_officialAsset;
-
-  /// No description provided for @randomManager_officialAssetCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{entries} records in {groups} source arrays'**
-  String randomManager_officialAssetCount(int entries, int groups);
-
-  /// No description provided for @randomManager_sourceFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Source file'**
-  String get randomManager_sourceFile;
-
-  /// No description provided for @randomManager_sourceSha256.
-  ///
-  /// In en, this message translates to:
-  /// **'Source SHA-256'**
-  String get randomManager_sourceSha256;
-
-  /// No description provided for @randomManager_catalogExtension.
-  ///
-  /// In en, this message translates to:
-  /// **'Catalog extension'**
-  String get randomManager_catalogExtension;
-
-  /// No description provided for @randomManager_wordlistLegacyAnime.
-  ///
-  /// In en, this message translates to:
-  /// **'Legacy Anime'**
-  String get randomManager_wordlistLegacyAnime;
-
-  /// No description provided for @randomManager_wordlistFurryV3.
-  ///
-  /// In en, this message translates to:
-  /// **'Furry V3'**
-  String get randomManager_wordlistFurryV3;
-
-  /// No description provided for @randomManager_wordlistCharacterPrompts.
-  ///
-  /// In en, this message translates to:
-  /// **'Character Prompts'**
-  String get randomManager_wordlistCharacterPrompts;
-
-  /// No description provided for @randomManager_sourceDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'Data source details'**
-  String get randomManager_sourceDetails;
-
-  /// No description provided for @randomManager_sourceUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'Source URL'**
-  String get randomManager_sourceUrl;
-
-  /// No description provided for @randomManager_sourceCommit.
-  ///
-  /// In en, this message translates to:
-  /// **'Source commit'**
-  String get randomManager_sourceCommit;
-
-  /// No description provided for @randomManager_sourceDate.
-  ///
-  /// In en, this message translates to:
-  /// **'Source date'**
-  String get randomManager_sourceDate;
-
-  /// No description provided for @randomManager_sourceLicense.
-  ///
-  /// In en, this message translates to:
-  /// **'License'**
-  String get randomManager_sourceLicense;
-
-  /// No description provided for @randomManager_catalogCounts.
-  ///
-  /// In en, this message translates to:
-  /// **'Complete catalog: {tags} tags, {aliases} aliases'**
-  String randomManager_catalogCounts(Object tags, Object aliases);
 
   /// No description provided for @randomManager_libraryUnavailable.
   ///

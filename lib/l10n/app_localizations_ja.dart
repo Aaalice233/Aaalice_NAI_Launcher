@@ -4593,38 +4593,11 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get randomMode_title => 'ランダム モードを選択';
+  String get randomPrompt_unsupportedModel => '公式ランダムワードリストは利用できません';
 
   @override
-  String get randomMode_naiOfficial => 'デフォルト';
-
-  @override
-  String get randomMode_custom => 'カスタムモード';
-
-  @override
-  String get randomMode_hybrid => 'ハイブリッド モード';
-
-  @override
-  String get randomMode_naiOfficialDesc => '現在のモデルに応じて内蔵ランダムレシピを自動選択';
-
-  @override
-  String get randomMode_customDesc => '完全なオフラインタグカタログとカスタムプリセットから生成';
-
-  @override
-  String get randomMode_hybridDesc => 'モデル対応のデフォルトレシピとカタログ拡張を組み合わせる';
-
-  @override
-  String get randomMode_naiIndicator => 'デフォルト';
-
-  @override
-  String get randomMode_customIndicator => 'カスタム';
-
-  @override
-  String get randomMode_unsupportedModel => '現在のモデルではデフォルトランダムモードを使用できません';
-
-  @override
-  String get randomMode_unsupportedModelHint =>
-      '現在のモデルに利用できる検証済みの内蔵ランダムプロファイルがありません。対応する NovelAI モデルを選択するか、カスタムモードを使用してください。';
+  String get randomPrompt_unsupportedModelHint =>
+      'このモデルに対応する NovelAI 公式ランダムレシピはありません。対応モデルを選択するか、自分のカスタムプリセットを使用してください。';
 
   @override
   String get naiMode_noTags => 'タグがありません';
@@ -4976,29 +4949,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => '汎用プリセット (V4/V5)';
-
-  @override
-  String get randomManager_defaultPresetLegacy => '汎用プリセット (レガシー)';
-
-  @override
-  String get randomManager_defaultPresetFurry => '汎用プリセット (Furry)';
-
-  @override
-  String get randomManager_defaultPresetV4Description =>
-      'V4/V5 向けのカタログ拡張プリセット (複数キャラクター対応)';
-
-  @override
-  String get randomManager_defaultPresetLegacyDescription =>
-      'NAI レガシー モデルに基づくランダム アルゴリズム構成';
-
-  @override
-  String get randomManager_defaultPresetFurryDescription =>
-      'NAI Furry モデルに基づくランダム アルゴリズム構成';
-
-  @override
-  String get randomManager_defaultPresetOfficialDescription =>
-      'NAI 公式設定に基づくランダム アルゴリズム設定';
+  String get randomManager_defaultPreset => 'NovelAI 公式プリセット';
 
   @override
   String get randomManager_femaleClothing => '女性服';
@@ -12812,76 +12763,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_category_detail => 'クリエイティブ詳細';
-
-  @override
-  String randomManager_sourceOfficial(String wordlist) {
-    return '公式 · $wordlist';
-  }
-
-  @override
-  String get randomManager_sourceCatalog => 'カスタム · Catalog 拡張';
-
-  @override
-  String randomManager_sourceHybrid(String wordlist) {
-    return 'ハイブリッド · $wordlist + Catalog';
-  }
-
-  @override
-  String get randomManager_currentMode => '現在のモード';
-
-  @override
-  String get randomManager_officialWordlist => '現在のモデルの公式ワードリスト';
-
-  @override
-  String randomManager_officialWordlistCount(String wordlist, int count) {
-    return '$wordlist：元データ $count 件';
-  }
-
-  @override
-  String get randomManager_officialAsset => '公式アセット全体';
-
-  @override
-  String randomManager_officialAssetCount(int entries, int groups) {
-    return '$entries 件、元配列 $groups 個';
-  }
-
-  @override
-  String get randomManager_sourceFile => 'ソースファイル';
-
-  @override
-  String get randomManager_sourceSha256 => 'ソース SHA-256';
-
-  @override
-  String get randomManager_catalogExtension => 'Catalog 拡張';
-
-  @override
-  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
-
-  @override
-  String get randomManager_wordlistFurryV3 => 'Furry V3';
-
-  @override
-  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
-
-  @override
-  String get randomManager_sourceDetails => 'データソースの詳細';
-
-  @override
-  String get randomManager_sourceUrl => 'ソース URL';
-
-  @override
-  String get randomManager_sourceCommit => 'ソースコミット';
-
-  @override
-  String get randomManager_sourceDate => 'ソース日付';
-
-  @override
-  String get randomManager_sourceLicense => 'ライセンス';
-
-  @override
-  String randomManager_catalogCounts(Object tags, Object aliases) {
-    return '完全なカタログ：$tags タグ、$aliases エイリアス';
-  }
 
   @override
   String get randomManager_libraryUnavailable => 'ランダムライブラリを利用できません';

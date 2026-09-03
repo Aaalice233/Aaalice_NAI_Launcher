@@ -7,7 +7,6 @@ import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/prompt/random_prompt_result.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/prompt_config_provider.dart';
-import '../../../providers/random_mode_provider.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../common/app_toast.dart';
@@ -87,7 +86,6 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
     final selectedPresetId = ref
         .read(randomPresetNotifierProvider)
         .selectedPresetId;
-    final mode = ref.read(randomModeNotifierProvider);
     final model = ref.read(generationParamsNotifierProvider).model;
     setState(() {
       _isGenerating = true;
@@ -103,7 +101,6 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
       final sourceUnchanged =
           ref.read(randomPresetNotifierProvider).selectedPresetId ==
               selectedPresetId &&
-          ref.read(randomModeNotifierProvider) == mode &&
           ref.read(generationParamsNotifierProvider).model == model;
       setState(() {
         if (sourceUnchanged) _result = result;
@@ -164,13 +161,6 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
         _clearPreview();
       },
     );
-    ref.listen<RandomGenerationMode>(randomModeNotifierProvider, (
-      previous,
-      next,
-    ) {
-      if (previous == null || previous == next) return;
-      _clearPreview();
-    });
     ref.listen<String>(
       generationParamsNotifierProvider.select((state) => state.model),
       (previous, next) {
@@ -396,10 +386,6 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
           label: context.l10n.randomManager_tagCountLabel(
             _countResultTags(result),
           ),
-        ),
-        _InlineStat(
-          icon: result.mode.icon,
-          label: result.mode.getName(context.l10n),
         ),
         if (result.seed != null)
           _InlineStat(

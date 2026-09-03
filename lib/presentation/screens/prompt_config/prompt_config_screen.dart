@@ -2,15 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/model_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../../data/models/prompt/official_wordlist.dart';
-import '../../../data/models/prompt/random_prompt_result.dart';
-import '../../../data/models/prompt/tag_library.dart';
-import '../../../data/services/wordlist_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
-import '../../providers/generation/generation_params_notifier.dart';
-import '../../providers/random_mode_provider.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../themes/core/input_surface_style.dart';
@@ -22,9 +15,6 @@ import '../../widgets/prompt/random_manager/algorithm_config_card.dart';
 import '../../widgets/prompt/random_manager/category_card_list.dart';
 import '../../widgets/prompt/random_manager/preset_selector_bar.dart';
 import '../../widgets/prompt/random_manager/preview_generator_panel.dart';
-import 'prompt_source_details_dialog.dart';
-
-export 'prompt_source_details_dialog.dart' show PromptSourceDetailsDialog;
 
 class PromptConfigScreen extends ConsumerStatefulWidget {
   const PromptConfigScreen({super.key});
@@ -129,7 +119,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
               children: [
                 Expanded(
                   child: _RecipeWorkspace(
-                    libraryState: libraryState,
                     query: _query,
                     searchController: _searchController,
                     searchFocusNode: _searchFocusNode,
@@ -148,7 +137,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         }
 
         return _CompactWorkspace(
-          libraryState: libraryState,
           query: _query,
           searchController: _searchController,
           searchFocusNode: _searchFocusNode,
@@ -374,14 +362,12 @@ class _StudioHeader extends StatelessWidget {
 
 class _RecipeWorkspace extends StatelessWidget {
   const _RecipeWorkspace({
-    required this.libraryState,
     required this.query,
     required this.searchController,
     required this.searchFocusNode,
     required this.onQueryChanged,
   });
 
-  final TagLibraryState libraryState;
   final String query;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
@@ -392,7 +378,6 @@ class _RecipeWorkspace extends StatelessWidget {
     return CategoryCardList(
       query: query,
       overviewHeader: _RecipeOverviewHeader(
-        libraryState: libraryState,
         query: query,
         searchController: searchController,
         searchFocusNode: searchFocusNode,
@@ -404,7 +389,6 @@ class _RecipeWorkspace extends StatelessWidget {
 
 class _CompactWorkspace extends StatelessWidget {
   const _CompactWorkspace({
-    required this.libraryState,
     required this.query,
     required this.searchController,
     required this.searchFocusNode,
@@ -415,7 +399,6 @@ class _CompactWorkspace extends StatelessWidget {
     required this.onSectionSelected,
   });
 
-  final TagLibraryState libraryState;
   final String query;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
@@ -431,7 +414,6 @@ class _CompactWorkspace extends StatelessWidget {
       CategoryCardList(
         query: query,
         overviewHeader: _RecipeOverviewHeader(
-          libraryState: libraryState,
           query: query,
           searchController: searchController,
           searchFocusNode: searchFocusNode,
@@ -546,7 +528,6 @@ class _InspectorPanel extends StatelessWidget {
 
 class _RecipeOverviewHeader extends StatelessWidget {
   const _RecipeOverviewHeader({
-    required this.libraryState,
     required this.query,
     required this.searchController,
     required this.searchFocusNode,
@@ -554,7 +535,6 @@ class _RecipeOverviewHeader extends StatelessWidget {
     this.showShortcutHint = true,
   });
 
-  final TagLibraryState libraryState;
   final String query;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
@@ -566,7 +546,7 @@ class _RecipeOverviewHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _RecipeHeading(libraryState: libraryState),
+        const _RecipeHeading(),
         const SizedBox(height: 14),
         _LibrarySearchField(
           query: query,
@@ -580,22 +560,14 @@ class _RecipeOverviewHeader extends StatelessWidget {
   }
 }
 
-class _RecipeHeading extends ConsumerWidget {
-  const _RecipeHeading({required this.libraryState});
-
-  final TagLibraryState libraryState;
+class _RecipeHeading extends StatelessWidget {
+  const _RecipeHeading();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final mode = ref.watch(randomModeNotifierProvider);
-    final model = ref.watch(generationParamsNotifierProvider).model;
-    final profile = ModelCapabilityRegistry.tryOf(model)?.randomPromptProfile;
-    final officialData = mode == RandomGenerationMode.custom
-        ? null
-        : ref.watch(officialWordlistDataProvider).valueOrNull;
-    final heading = Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -612,39 +584,6 @@ class _RecipeHeading extends ConsumerWidget {
           ),
         ),
       ],
-    );
-    final library = libraryState.library;
-    final status = library == null
-        ? null
-        : _LibraryStatusButton(
-            library: library,
-            mode: mode,
-            profile: profile,
-            officialData: officialData,
-          );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-        if (constraints.maxWidth < 600 || textScale > 1.5) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              heading,
-              if (status != null) ...[
-                const SizedBox(height: 8),
-                Align(alignment: Alignment.centerLeft, child: status),
-              ],
-            ],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: heading),
-            if (status != null) status,
-          ],
-        );
-      },
     );
   }
 }
@@ -705,119 +644,6 @@ class _LibrarySearchField extends StatelessWidget {
     );
   }
 }
-
-class _LibraryStatusButton extends StatelessWidget {
-  const _LibraryStatusButton({
-    required this.library,
-    required this.mode,
-    required this.profile,
-    required this.officialData,
-  });
-
-  final TagLibrary library;
-  final RandomGenerationMode mode;
-  final RandomPromptProfile? profile;
-  final OfficialWordlistData? officialData;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final includesOfficial = mode != RandomGenerationMode.custom;
-    final unsupported = includesOfficial && profile == null;
-    final supportedProfile = profile ?? RandomPromptProfile.characterPrompts;
-    final officialCount = unsupported
-        ? null
-        : randomPromptProfileCount(supportedProfile);
-    final label = unsupported
-        ? context.l10n.randomMode_unsupportedModel
-        : switch (mode) {
-            RandomGenerationMode.naiOfficial =>
-              context.l10n.randomManager_sourceOfficial(
-                randomPromptProfileName(context, supportedProfile),
-              ),
-            RandomGenerationMode.custom =>
-              context.l10n.randomManager_sourceCatalog,
-            RandomGenerationMode.hybrid =>
-              context.l10n.randomManager_sourceHybrid(
-                randomPromptProfileName(context, supportedProfile),
-              ),
-          };
-    final count = unsupported
-        ? null
-        : switch (mode) {
-            RandomGenerationMode.naiOfficial => '$officialCount',
-            RandomGenerationMode.custom => '${library.totalTagCount}',
-            RandomGenerationMode.hybrid =>
-              '$officialCount + ${library.totalTagCount}',
-          };
-    return Tooltip(
-      message: unsupported
-          ? context.l10n.randomMode_unsupportedModelHint
-          : context.l10n.randomManager_sourceDetails,
-      child: InkWell(
-        key: const ValueKey('random-manager-source-status'),
-        onTap: unsupported
-            ? null
-            : () => _showSourceDetails(
-                context,
-                library,
-                mode: mode,
-                profile: supportedProfile,
-                officialData: officialData,
-              ),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                unsupported
-                    ? Icons.error_outline_rounded
-                    : Icons.verified_rounded,
-                size: 17,
-                color: unsupported ? colors.error : colors.primary,
-              ),
-              const SizedBox(width: 7),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-              ),
-              if (count != null) ...[
-                const SizedBox(width: 5),
-                Text(
-                  count,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-Future<void> _showSourceDetails(
-  BuildContext context,
-  TagLibrary library, {
-  required RandomGenerationMode mode,
-  required RandomPromptProfile profile,
-  required OfficialWordlistData? officialData,
-}) => PromptSourceDetailsDialog.show(
-  context,
-  library: library,
-  mode: mode,
-  profile: profile,
-  officialData: officialData,
-);
 
 class _LibraryLoadingState extends StatelessWidget {
   const _LibraryLoadingState();

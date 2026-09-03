@@ -515,8 +515,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         );
       case UnsupportedRandomPromptModelException.errorCode:
         return (
-          context.l10n.randomMode_unsupportedModel,
-          context.l10n.randomMode_unsupportedModelHint,
+          context.l10n.randomPrompt_unsupportedModel,
+          context.l10n.randomPrompt_unsupportedModelHint,
         );
       case 'GENERATION_ERROR_INVALID_RESOLUTION':
         if (parts.length >= 5) {

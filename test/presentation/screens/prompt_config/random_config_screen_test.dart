@@ -75,12 +75,7 @@ void main() {
     expect(find.byTooltip('更多操作'), findsOneWidget);
     expect(find.byTooltip('导入/导出'), findsNothing);
 
-    await tester.tap(find.byTooltip('数据来源详情'));
-    await _pumpBounded(tester);
-    expect(find.text('Character Prompts：2456 条原始记录'), findsOneWidget);
-    expect(find.text('5960 条记录，118 个原始数组'), findsOneWidget);
-    await tester.tap(find.text('关闭'));
-    await _pumpBounded(tester);
+    expect(find.byTooltip('数据来源详情'), findsNothing);
 
     await tester.tap(find.byType(DropdownButton<String>));
     await _pumpBounded(tester);
@@ -317,8 +312,7 @@ void main() {
       expect(find.byIcon(Icons.casino_outlined), findsOneWidget);
       expect(find.text('用完整离线 catalog 组合可复用的随机生成配方'), findsNothing);
       expect(find.text('适用于 V4/V5 的 catalog 扩展预设，支持多角色'), findsNothing);
-      expect(find.text('官网 · Character Prompts'), findsOneWidget);
-      expect(find.byTooltip('数据来源详情'), findsOneWidget);
+      expect(find.byTooltip('数据来源详情'), findsNothing);
       expect(find.byType(TextField), findsWidgets);
       expect(find.text('新增类别'), findsOneWidget);
       final searchHints = tester
@@ -334,7 +328,7 @@ void main() {
           find.byKey(const ValueKey('random-manager-heading-row')),
         );
         final selector = tester.getRect(
-          find.byKey(const ValueKey('random-manager-mode-selector')),
+          find.byKey(const ValueKey('random-manager-preset-selector')),
         );
         final more = tester.getRect(
           find.byKey(const ValueKey('random-manager-more-actions')),
@@ -416,7 +410,7 @@ void main() {
           await _pumpBounded(tester);
 
           final selector = tester.getRect(
-            find.byKey(const ValueKey('random-manager-mode-selector')),
+            find.byKey(const ValueKey('random-manager-preset-selector')),
           );
           final heading = tester.getRect(
             find.byKey(const ValueKey('random-manager-heading-row')),
@@ -462,7 +456,7 @@ void main() {
     await _pumpBounded(tester);
 
     final selector = tester.getRect(
-      find.byKey(const ValueKey('random-manager-mode-selector')),
+      find.byKey(const ValueKey('random-manager-preset-selector')),
     );
     expect(selector.height, greaterThanOrEqualTo(44));
     expect(

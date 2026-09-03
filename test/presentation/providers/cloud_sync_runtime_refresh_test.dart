@@ -10,10 +10,8 @@ import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_runtim
 import 'package:nai_launcher/presentation/providers/history_click_behavior_provider.dart';
 import 'package:nai_launcher/presentation/providers/locale_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_output_filter_provider.dart';
-import 'package:nai_launcher/presentation/providers/random_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/providers/watermark_settings_provider.dart';
-import 'package:nai_launcher/data/models/prompt/random_prompt_result.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 
@@ -45,7 +43,6 @@ void main() {
     final storage = LocalStorageService();
     await storage.setSetting(StorageKeys.locale, 'en');
     await storage.setSetting(StorageKeys.historyClickBehavior, 'open_detail');
-    await storage.setSetting(StorageKeys.randomGenerationMode, 'nai_official');
     await storage.setSetting(
       StorageKeys.onlineGalleryOutputFilterTags,
       <String>['old_tag'],
@@ -65,10 +62,6 @@ void main() {
       container.read(historyClickBehaviorNotifierProvider),
       HistoryClickBehavior.openDetail,
     );
-    expect(
-      container.read(randomModeNotifierProvider),
-      RandomGenerationMode.naiOfficial,
-    );
     expect(container.read(onlineGalleryOutputFilterProvider).tags, {'old_tag'});
     expect(
       container.read(watermarkSettingsProvider).configuration.enabled,
@@ -80,7 +73,6 @@ void main() {
       StorageKeys.historyClickBehavior,
       'select_preview',
     );
-    await storage.setSetting(StorageKeys.randomGenerationMode, 'custom');
     await storage.setSetting(
       StorageKeys.onlineGalleryOutputFilterTags,
       <String>['new_tag'],
@@ -98,10 +90,6 @@ void main() {
     expect(
       container.read(historyClickBehaviorNotifierProvider),
       HistoryClickBehavior.selectPreview,
-    );
-    expect(
-      container.read(randomModeNotifierProvider),
-      RandomGenerationMode.custom,
     );
     expect(container.read(onlineGalleryOutputFilterProvider).tags, {'new_tag'});
     expect(

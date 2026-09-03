@@ -228,7 +228,6 @@ class CatalogRandomGeneratorStrategy {
       mainPrompt: tags.join(', '),
       noHumans: true,
       seed: seed,
-      mode: RandomGenerationMode.naiOfficial,
     );
   }
 
@@ -319,7 +318,6 @@ class CatalogRandomGeneratorStrategy {
       mainPrompt: allTags.join(', '),
       characters: characters,
       seed: seed,
-      mode: RandomGenerationMode.naiOfficial,
     );
   }
 
@@ -407,7 +405,6 @@ class CatalogRandomGeneratorStrategy {
       mainPrompt: mainTags.join(', '),
       characters: characters,
       seed: seed,
-      mode: RandomGenerationMode.naiOfficial,
     );
   }
 

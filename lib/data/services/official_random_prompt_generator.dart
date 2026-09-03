@@ -57,7 +57,6 @@ class OfficialRandomPromptGenerator {
           mainPrompt.split(', ').contains('no humans') ||
           mainPrompt.split(', ').contains('zero pictured'),
       seed: seed,
-      mode: RandomGenerationMode.naiOfficial,
     );
   }
 

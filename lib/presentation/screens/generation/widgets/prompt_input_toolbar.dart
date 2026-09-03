@@ -388,9 +388,6 @@ class PromptInputBottomActions extends ConsumerWidget {
         showFullscreenButton: false,
       ),
       onRandomPressed: showRandomTools ? commands.generateRandomPrompt : null,
-      onRandomLongPressed: showRandomTools
-          ? commands.showRandomModeSelector
-          : null,
       onClearPressed: controller.isNegativeMode
           ? commands.clearNegativePrompt
           : commands.clearPrompt,

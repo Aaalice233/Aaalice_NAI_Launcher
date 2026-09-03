@@ -4709,42 +4709,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomMode_title => 'Select Random Mode';
+  String get randomPrompt_unsupportedModel =>
+      'Official random wordlist unavailable';
 
   @override
-  String get randomMode_naiOfficial => 'Default';
-
-  @override
-  String get randomMode_custom => 'Custom Mode';
-
-  @override
-  String get randomMode_hybrid => 'Hybrid Mode';
-
-  @override
-  String get randomMode_naiOfficialDesc =>
-      'Automatically select the bundled random recipe for the current model';
-
-  @override
-  String get randomMode_customDesc =>
-      'Generate from the complete offline tag catalog and custom presets';
-
-  @override
-  String get randomMode_hybridDesc =>
-      'Combine the model-aware default recipe with the catalog extension';
-
-  @override
-  String get randomMode_naiIndicator => 'Default';
-
-  @override
-  String get randomMode_customIndicator => 'Custom';
-
-  @override
-  String get randomMode_unsupportedModel =>
-      'Default random mode is unavailable';
-
-  @override
-  String get randomMode_unsupportedModelHint =>
-      'No verified bundled random profile is available for the current model. Select a supported NovelAI model or use Custom mode.';
+  String get randomPrompt_unsupportedModelHint =>
+      'No matching official NovelAI random recipe is available for this model. Select a supported NovelAI model or use one of your custom presets.';
 
   @override
   String get naiMode_noTags => 'No tags';
@@ -5103,29 +5073,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => 'General Preset (V4/V5)';
-
-  @override
-  String get randomManager_defaultPresetLegacy => 'General Preset (Legacy)';
-
-  @override
-  String get randomManager_defaultPresetFurry => 'General Preset (Furry)';
-
-  @override
-  String get randomManager_defaultPresetV4Description =>
-      'Catalog extension preset for V4 and V5, with multi-character support';
-
-  @override
-  String get randomManager_defaultPresetLegacyDescription =>
-      'Random algorithm configuration based on the NAI Legacy model';
-
-  @override
-  String get randomManager_defaultPresetFurryDescription =>
-      'Random algorithm configuration based on the NAI Furry model';
-
-  @override
-  String get randomManager_defaultPresetOfficialDescription =>
-      'Random algorithm configuration based on the NAI official setup';
+  String get randomManager_defaultPreset => 'NovelAI Official Preset';
 
   @override
   String get randomManager_femaleClothing => 'Female Clothing';
@@ -13157,77 +13105,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomManager_category_detail => 'Creative details';
-
-  @override
-  String randomManager_sourceOfficial(String wordlist) {
-    return 'Official · $wordlist';
-  }
-
-  @override
-  String get randomManager_sourceCatalog => 'Custom · Catalog extension';
-
-  @override
-  String randomManager_sourceHybrid(String wordlist) {
-    return 'Hybrid · $wordlist + Catalog';
-  }
-
-  @override
-  String get randomManager_currentMode => 'Current mode';
-
-  @override
-  String get randomManager_officialWordlist =>
-      'Official wordlist for current model';
-
-  @override
-  String randomManager_officialWordlistCount(String wordlist, int count) {
-    return '$wordlist: $count raw records';
-  }
-
-  @override
-  String get randomManager_officialAsset => 'Complete official asset';
-
-  @override
-  String randomManager_officialAssetCount(int entries, int groups) {
-    return '$entries records in $groups source arrays';
-  }
-
-  @override
-  String get randomManager_sourceFile => 'Source file';
-
-  @override
-  String get randomManager_sourceSha256 => 'Source SHA-256';
-
-  @override
-  String get randomManager_catalogExtension => 'Catalog extension';
-
-  @override
-  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
-
-  @override
-  String get randomManager_wordlistFurryV3 => 'Furry V3';
-
-  @override
-  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
-
-  @override
-  String get randomManager_sourceDetails => 'Data source details';
-
-  @override
-  String get randomManager_sourceUrl => 'Source URL';
-
-  @override
-  String get randomManager_sourceCommit => 'Source commit';
-
-  @override
-  String get randomManager_sourceDate => 'Source date';
-
-  @override
-  String get randomManager_sourceLicense => 'License';
-
-  @override
-  String randomManager_catalogCounts(Object tags, Object aliases) {
-    return 'Complete catalog: $tags tags, $aliases aliases';
-  }
 
   @override
   String get randomManager_libraryUnavailable => 'Random library unavailable';

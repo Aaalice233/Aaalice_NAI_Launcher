@@ -6,7 +6,6 @@ import '../../core/constants/storage_keys.dart';
 import '../../core/shortcuts/shortcut_config.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../models/gallery/gallery_album.dart';
-import '../models/prompt/prompt_config.dart';
 import '../models/prompt/random_preset.dart';
 import '../models/prompt/tag_favorite.dart';
 import '../models/prompt/tag_template.dart';
@@ -86,14 +85,6 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
       valueNormalizer: _normalizeRandomPreset,
       modelIdOf: (key, _) => key,
       typedStringBox: true,
-      plainStringKeys: const {'selected_preset_id'},
-    ),
-    StrictHiveCloudSyncAdapter(
-      id: 'prompt-presets',
-      boxName: 'prompt_configs',
-      allowedKeys: const {'presets', 'selected_preset_id'},
-      valueNormalizer: _normalizePromptPresetSetting,
-      modelIdOf: (key, _) => key,
       plainStringKeys: const {'selected_preset_id'},
     ),
     StrictHiveCloudSyncAdapter(
@@ -220,7 +211,6 @@ const portableSettingKeys = <String>{
   StorageKeys.randomPromptMode,
   StorageKeys.showRandomPromptTools,
   StorageKeys.generationStreamPreviewEnabled,
-  StorageKeys.randomGenerationMode,
   StorageKeys.imagesPerRequest,
   StorageKeys.enableAutocomplete,
   StorageKeys.autocompleteResultLimit,
@@ -460,32 +450,6 @@ Object? _normalizeRandomPreset(String key, Object? value) {
     );
   }
   return preset.toJson();
-}
-
-Object? _normalizePromptPresetSetting(String key, Object? value) {
-  if (key == 'selected_preset_id') {
-    if (value is! String || !_isPortableModelId(value)) {
-      throw const CloudSyncPreflightException(
-        'Selected prompt preset ID is invalid',
-      );
-    }
-    return value;
-  }
-  if (value is! List) {
-    throw const CloudSyncPreflightException('Prompt presets must be a list');
-  }
-  final seen = <String>{};
-  return value
-      .map((item) {
-        final preset = RandomPromptPreset.fromJson(_portableMap(item));
-        if (!_isPortableModelId(preset.id) || !seen.add(preset.id)) {
-          throw const CloudSyncPreflightException(
-            'Prompt preset IDs must be unique UUIDs',
-          );
-        }
-        return preset.toJson();
-      })
-      .toList(growable: false);
 }
 
 Object? _normalizeShortcutConfig(String _, Object? value) {

@@ -188,7 +188,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       clearPrompt: _coordinator.clearPrompt,
       clearNegativePrompt: _coordinator.clearNegativePrompt,
       generateRandomPrompt: _coordinator.generateRandomPrompt,
-      showRandomModeSelector: _coordinator.showRandomModeSelector,
       openAssistantSettings: _coordinator.openAssistantSettings,
       showMobileCharacterManager: _coordinator.showMobileCharacterManager,
       toggleMaximize:

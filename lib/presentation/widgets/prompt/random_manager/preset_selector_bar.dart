@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../data/models/prompt/random_prompt_result.dart';
 import '../../../../data/models/prompt/random_preset.dart';
-import '../../../providers/random_mode_provider.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../common/app_toast.dart';
@@ -28,14 +26,13 @@ class PresetSelectorBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(randomPresetNotifierProvider);
     final syncState = ref.watch(tagGroupSyncNotifierProvider);
-    final mode = ref.watch(randomModeNotifierProvider);
     final selected = state.selectedPreset;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final showExpandedActions = constraints.maxWidth >= 760;
         final dropdown = KeyedSubtree(
-          key: const ValueKey('random-manager-mode-selector'),
+          key: const ValueKey('random-manager-preset-selector'),
           child: _PresetDropdown(
             presets: state.presets,
             selectedPreset: selected,
@@ -82,14 +79,6 @@ class PresetSelectorBar extends ConsumerWidget {
               ),
             ],
           );
-          final modeLabel = Text(
-            '${context.l10n.randomManager_currentMode} · ${mode.getName(context.l10n)}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          );
           final heading = stackControls
               ? Column(
                   key: const ValueKey('random-manager-heading-row'),
@@ -102,18 +91,11 @@ class PresetSelectorBar extends ConsumerWidget {
                         menu,
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    modeLabel,
                   ],
                 )
               : Row(
                   key: const ValueKey('random-manager-heading-row'),
-                  children: [
-                    title,
-                    const SizedBox(width: 12),
-                    Expanded(child: modeLabel),
-                    menu,
-                  ],
+                  children: [title, const Spacer(), menu],
                 );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

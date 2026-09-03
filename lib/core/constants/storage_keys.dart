@@ -127,7 +127,6 @@ class StorageKeys {
   static const String showRandomPromptTools = 'show_random_prompt_tools';
   static const String generationStreamPreviewEnabled =
       'generation_stream_preview_enabled';
-  static const String randomGenerationMode = 'random_generation_mode';
   static const String imagesPerRequest = 'images_per_request';
   static const String enableAutocomplete = 'enable_autocomplete';
   static const String autocompleteResultLimit = 'autocomplete_result_limit';
