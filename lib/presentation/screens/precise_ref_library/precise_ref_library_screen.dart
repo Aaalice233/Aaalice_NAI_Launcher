@@ -466,6 +466,7 @@ class _PreciseRefLibraryScreenState
     final touchTarget = context.interactionPolicy.shouldExposeTouchAlternatives;
 
     final title = GalleryCollectionPageTitle(
+      key: const Key('precise-ref-library-page-title'),
       icon: Icons.center_focus_strong,
       title: l10n.preciseRefLib_title,
       subtitle: l10n.preciseRefLib_entryCount(state.totalCount),
@@ -606,8 +607,10 @@ class _PreciseRefLibraryScreenState
                   const SizedBox(width: 8),
                 ],
                 if (showPageTitle) ...[
-                  SizedBox(width: 210, child: title),
-                  const SizedBox(width: 16),
+                  title,
+                  const SizedBox(
+                    width: GalleryCollectionChrome.toolbarGroupGap,
+                  ),
                 ],
                 Expanded(
                   child: ConstrainedBox(

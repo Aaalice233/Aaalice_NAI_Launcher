@@ -279,7 +279,7 @@ class _Toolbar extends StatelessWidget {
                   const SizedBox(width: 8),
                 ],
                 if (!libraryState.isLoading) _CountBadge(state: libraryState),
-                const SizedBox(width: 12),
+                const SizedBox(width: GalleryCollectionChrome.toolbarGroupGap),
                 Expanded(child: _SearchField(controller: controller)),
                 const SizedBox(width: 8),
                 _SortButton(state: libraryState, onCommand: onCommand),

@@ -95,7 +95,7 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
   /// 是否启用搜索自动补全。
   final bool enableSearchAutocomplete;
 
-  /// Persistent sidebars own page identity; compact layouts keep it here.
+  /// Controls whether the shared collection toolbar includes page identity.
   final bool showPageTitle;
 
   const LocalGalleryToolbar({
@@ -343,7 +343,9 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                           ),
                         ),
                       ),
-                    const SizedBox(width: 12),
+                    const SizedBox(
+                      width: GalleryCollectionChrome.toolbarGroupGap,
+                    ),
                     // Search field (expanded)
                     Expanded(child: _buildSearchField(theme, state)),
                     const SizedBox(width: 8),

@@ -13,6 +13,7 @@ abstract final class GalleryCollectionChrome {
   static const navigationTopPadding = 4.0;
   static const regionGap = 8.0;
   static const regionRadius = 10.0;
+  static const toolbarGroupGap = 12.0;
 
   static EdgeInsets toolbarPadding(BuildContext context) =>
       EdgeInsets.symmetric(

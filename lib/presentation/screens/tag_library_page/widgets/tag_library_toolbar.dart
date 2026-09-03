@@ -44,7 +44,7 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
   /// 窄屏分类抽屉入口
   final VoidCallback? onOpenCategories;
 
-  /// Persistent sidebars own page identity; compact layouts keep it here.
+  /// Controls whether the shared collection toolbar includes page identity.
   final bool showPageTitle;
 
   const TagLibraryToolbar({
@@ -285,7 +285,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
                   icon: Icons.bookmarks_outlined,
                   title: context.l10n.nav_dictionary,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: GalleryCollectionChrome.toolbarGroupGap),
               ],
               if (categoriesButton != null) ...[
                 categoriesButton,

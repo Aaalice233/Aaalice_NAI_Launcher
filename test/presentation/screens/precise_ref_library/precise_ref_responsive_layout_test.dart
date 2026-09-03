@@ -87,6 +87,18 @@ void main() {
           find.byKey(const Key('precise-ref-library-unified-toolbar')),
           findsOneWidget,
         );
+        if (width >= 840) {
+          final titleRect = tester.getRect(
+            find.byKey(const Key('precise-ref-library-page-title')),
+          );
+          final searchRect = tester.getRect(
+            find.byKey(const Key('precise-ref-library-search-surface')),
+          );
+          expect(
+            searchRect.left - titleRect.right,
+            GalleryCollectionChrome.toolbarGroupGap,
+          );
+        }
         if (width == 1600) {
           const toolbarKey = Key('precise-ref-library-unified-toolbar');
           expect(
