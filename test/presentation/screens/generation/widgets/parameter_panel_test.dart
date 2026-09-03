@@ -166,55 +166,6 @@ void main() {
       expect(stepsSliders, hasLength(1));
       expect(stepsSliders.single.hideTickMarks, isTrue);
     });
-
-    testWidgets('经典侧栏显示空角色入口，移动参数面板不重复挂载', (tester) async {
-      Widget buildSubject({required bool showCharacterSection}) {
-        return ProviderScope(
-          overrides: [
-            localStorageServiceProvider.overrideWith(
-              (ref) => _TestLocalStorageService(),
-            ),
-            vibeLibraryStorageServiceProvider.overrideWithValue(
-              _TestVibeLibraryStorageService(),
-            ),
-            kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
-            ),
-          ],
-          child: MaterialApp(
-            locale: const Locale('zh'),
-            supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            home: Scaffold(
-              body: SizedBox(
-                width: 300,
-                height: 1200,
-                child: ParameterPanel(
-                  showCharacterSection: showCharacterSection,
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-
-      await tester.pumpWidget(buildSubject(showCharacterSection: true));
-      await tester.pumpAndSettle();
-
-      final characterSection = find.byKey(
-        const Key('character-secondary-menu'),
-      );
-      expect(characterSection, findsOneWidget);
-      expect(characterSection.hitTestable(), findsOneWidget);
-      expect(find.byKey(const Key('character-add-female')), findsOneWidget);
-      expect(tester.takeException(), isNull);
-
-      await tester.pumpWidget(buildSubject(showCharacterSection: false));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const Key('character-secondary-menu')), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
   });
 
   group('VibeTransferContent', () {

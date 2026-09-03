@@ -203,6 +203,42 @@ void main() {
     expect(find.byKey(const Key('character-stack-person-1')), findsOneWidget);
   });
 
+  testWidgets('经典布局在主提示词区常驻空角色添加入口', (tester) async {
+    final container = createContainer(empty: true);
+
+    await tester.pumpWidget(
+      subject(container, 1180, child: const ClassicCharacterSection()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('classic-character-secondary-menu')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('character-add-female')), findsOneWidget);
+    expect(find.byKey(const Key('character-add-from-library')), findsOneWidget);
+    expect(find.byType(InlineCharacterCard), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('经典布局展开网格但不重复显示添加入口', (tester) async {
+    final container = createContainer();
+    final before = container.read(characterPromptNotifierProvider);
+
+    await tester.pumpWidget(
+      subject(container, 1180, child: const ClassicCharacterSection()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('collapsible-chevron-角色')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(InlineCharacterCard), findsNWidgets(2));
+    expect(find.byKey(const Key('character-add-female')), findsOneWidget);
+    expect(find.byKey(const Key('character-add-menu')), findsNothing);
+    expect(container.read(characterPromptNotifierProvider), before);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('标题栏添加按钮新增角色且不会切换面板展开状态', (tester) async {
     final container = createContainer();
     await tester.pumpWidget(subject(container, 700));

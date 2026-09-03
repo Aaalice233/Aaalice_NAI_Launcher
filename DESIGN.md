@@ -205,6 +205,8 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 画布是高密度创作工作区，不套用 collection workspace 的整条页面工具栏。Expanded/Wide 下，页面身份固定在展开的生成控制栏顶部，以无副标题的紧凑 Section 色面显示“画布”及画笔图标，并与侧栏折叠操作同排；经典布局与官网式布局必须复用 `GenerationWorkspaceHeader`。Compact/Medium 下由 AppBar 显示相同图标与 `nav_canvas` 文案；进入提示词全屏编辑等子任务后，AppBar 改为当前任务标题。侧栏收起时只保留参数展开入口，不重复页面标题。
 
+经典布局的左栏只承载模型、尺寸、采样和高级选项等生成参数；主提示词与角色提示词共同属于中心编辑区，角色区固定紧邻主提示词。官网式布局可将同一角色模块呈现为提示词侧栏列表，但两种布局必须共享模型可用性、角色数据、折叠状态、摘要和添加命令，只替换卡片排布策略。支持角色的模型即使尚无角色，也必须保留首个角色的显式添加入口，不能因空列表隐藏整个模块。
+
 **The Capability Parity Rule.** 桌面 hover、右键与快捷键必须有移动端单击、长按、菜单或系统入口的等价路径；低频操作可以折叠，但不能静默消失。
 
 **The Local Constraint Rule.** 响应式判断使用局部 `LayoutBuilder.constraints` 与 capabilities；禁止按设备型号、`FittedBox` 缩小交互工具栏或在共享页面散落平台判断。

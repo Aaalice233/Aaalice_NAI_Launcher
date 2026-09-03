@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../widgets/character/inline_character_section.dart';
 import '../../../widgets/common/draggable_number_input.dart';
 import '../../../widgets/generation/auto_save_toggle_chip.dart';
 import 'generation_controls/batch_settings_button.dart';
@@ -18,10 +17,7 @@ import 'unified_reference_panel.dart';
 /// 由 generation_param_sections.dart 中的分节控件组合而成，
 /// 官网式布局的一体滚动列复用同一批分节控件。
 class ParameterPanel extends ConsumerWidget {
-  const ParameterPanel({super.key, this.showCharacterSection = false});
-
-  /// 经典桌面布局在参数侧栏中承载角色管理；移动端使用独立角色管理面板。
-  final bool showCharacterSection;
+  const ParameterPanel({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,11 +33,6 @@ class ParameterPanel extends ConsumerWidget {
       children: [
         // 模型选择
         const ModelSection(),
-
-        if (showCharacterSection) ...[
-          const SizedBox(height: 8),
-          const InlineCharacterSection(),
-        ],
 
         const SizedBox(height: 16),
 

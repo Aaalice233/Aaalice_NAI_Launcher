@@ -133,14 +133,16 @@ enum _CharacterAddAction {
   final CharacterGender? gender;
 }
 
-/// 移动端全屏角色管理器的卡片与编辑器主体。
+/// 角色卡网格与编辑器主体。
 ///
-/// 管理器使用单列卡片和全宽编辑器；角色状态仍由共享 Provider 持有，
-/// 与桌面侧栏角色菜单保持一致。
+/// 经典工作区使用横向网格；移动端管理器通过 [managerLayout] 切换为
+/// 单列卡片和全宽编辑器，角色状态始终由共享 Provider 持有。
 class InlineCharacterRow extends ConsumerWidget {
   const InlineCharacterRow({
     super.key,
     this.showWhenEmpty = false,
+    this.showAddAction = true,
+    this.embedded = false,
     this.compactHeader = false,
     this.managerLayout = false,
   });
@@ -148,6 +150,12 @@ class InlineCharacterRow extends ConsumerWidget {
   /// Character managers need to keep the add entry visible before the first
   /// character exists; inline workspace rows retain their zero-height default.
   final bool showWhenEmpty;
+
+  /// 父级工作台标题已提供添加操作时，隐藏网格末尾的重复入口。
+  final bool showAddAction;
+
+  /// 父级面板负责分组色面时，移除本行自己的独立容器样式。
+  final bool embedded;
 
   /// Omits the redundant count badge where phone width is better spent on the
   /// position controls and destructive action.
@@ -192,8 +200,10 @@ class InlineCharacterRow extends ConsumerWidget {
       width: double.infinity,
       padding: managerLayout
           ? const EdgeInsets.fromLTRB(16, 12, 16, 6)
+          : embedded
+          ? const EdgeInsets.fromLTRB(12, 4, 12, 12)
           : const EdgeInsets.fromLTRB(12, 6, 12, 6),
-      decoration: managerLayout
+      decoration: managerLayout || embedded
           ? null
           : BoxDecoration(
               color: theme.colorScheme.surface.withValues(alpha: 0.5),
@@ -222,7 +232,7 @@ class InlineCharacterRow extends ConsumerWidget {
             builder: (context, constraints) {
               const spacing = 6.0;
               final maxW = constraints.maxWidth;
-              final itemCount = characters.length + 1;
+              final itemCount = characters.length + (showAddAction ? 1 : 0);
               var columns = managerLayout
                   ? 1
                   : ((maxW + spacing) / (_cardWidth + spacing)).floor();
@@ -246,10 +256,11 @@ class InlineCharacterRow extends ConsumerWidget {
                         showSelectionBorder: !managerLayout,
                       ),
                     ),
-                  SizedBox(
-                    width: cellWidth,
-                    child: _AddCharacterChip(showLabel: managerLayout),
-                  ),
+                  if (showAddAction)
+                    SizedBox(
+                      width: cellWidth,
+                      child: _AddCharacterChip(showLabel: managerLayout),
+                    ),
                 ],
               );
             },
