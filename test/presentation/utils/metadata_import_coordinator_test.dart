@@ -280,6 +280,51 @@ void main() {
     );
   });
 
+  test('导入负向固定词时只把剩余内容写入负面提示词', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final fixedTags = container.read(fixedTagsNotifierProvider.notifier);
+    final negativeFixed = await fixedTags.addEntry(
+      name: 'negative fixed',
+      content: 'lowres, bad anatomy',
+      promptType: FixedTagPromptType.negative,
+      enabled: false,
+    );
+    final snapshot = FixedTagUsageSnapshot(
+      entries: [FixedTagUsageEntry.fromFixedTag(negativeFixed, order: 0)],
+    );
+    final metadata = NaiImageMetadata(
+      prompt: '1girl, blue eyes',
+      negativePrompt: 'lowres, bad anatomy, watermark',
+      fixedNegativePrefixTags: const ['lowres, bad anatomy'],
+      fixedTagUsageData: snapshot.toJson(),
+    );
+
+    await MetadataImportCoordinator.apply(
+      read: container.read,
+      metadata: metadata,
+      options: const MetadataImportOptions(
+        importFixedPrefix: false,
+        importFixedSuffix: false,
+        importFixedNegativeSuffix: false,
+        importQualityTags: false,
+        importCharacterPrompts: false,
+        importVibeReferences: false,
+        importPreciseReferences: false,
+      ),
+      l10n: AppLocalizationsEn(),
+    );
+
+    final params = container.read(generationParamsNotifierProvider);
+    final restoredFixed = container
+        .read(fixedTagsNotifierProvider)
+        .entries
+        .singleWhere((entry) => entry.id == negativeFixed.id);
+    expect(params.prompt, '1girl, blue eyes');
+    expect(params.negativePrompt, 'watermark');
+    expect(restoredFixed.enabled, isTrue);
+  });
+
   test('fixed-tag restoration changes only the four selected scopes', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

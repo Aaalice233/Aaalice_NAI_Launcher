@@ -140,6 +140,14 @@ class _TranslatableTagSlice {
   );
 
   factory _TranslatableTagSlice.parse(String source) {
+    if (source.trim().isEmpty) {
+      return _TranslatableTagSlice(
+        source: source,
+        prefixEnd: 0,
+        suffixStart: source.length,
+        lookupKey: '',
+      );
+    }
     final leadingLength = source.length - source.trimLeft().length;
     final trailingLength = source.length - source.trimRight().length;
     final contentEnd = source.length - trailingLength;

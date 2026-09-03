@@ -43,6 +43,15 @@ void main() {
     expect(result.hasTranslations, isFalse);
   });
 
+  test('空标签与只含空白的行不会破坏翻译或原始排版', () async {
+    const source = 'best_quality,  ,\n   \nsolo';
+
+    final result = await lookup.translateTagText(source);
+
+    expect(result.text, '极高质量,  ,\n   \n单人');
+    expect(result.translatedTagCount, 2);
+  });
+
   test('翻译跨逗号权重组、强调组和转义标签且完整保留语法', () async {
     const source =
         r'ultra\_complexity, year\_2026, year\_2024, '

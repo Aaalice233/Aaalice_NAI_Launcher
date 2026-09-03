@@ -160,7 +160,9 @@ class MetadataImportApplier {
     required bool importUcPreset,
     required String currentModel,
   }) {
-    final baseNegative = metadata.displayNegativePrompt;
+    final baseNegative = metadata.hasSeparatedFields
+        ? metadata.negativePromptWithoutFixedTags
+        : metadata.displayNegativePrompt;
     if (!importUcPreset || metadata.ucPreset == null) {
       return baseNegative;
     }
