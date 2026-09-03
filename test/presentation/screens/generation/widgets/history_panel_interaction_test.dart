@@ -23,7 +23,7 @@ import 'package:nai_launcher/presentation/widgets/common/workspace_panel_header.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('历史记录使用统一面板顶栏且收起按钮贴齐右侧', (tester) async {
+  testWidgets('历史记录使用统一面板顶栏且收起按钮贴齐左侧', (tester) async {
     final container = _createContainer([_image('header-alignment')]);
     addTearDown(container.dispose);
 
@@ -36,7 +36,7 @@ void main() {
     );
     expect(find.byType(WorkspacePanelHeader), findsOneWidget);
     expect(tester.getSize(find.byType(WorkspacePanelHeader)).height, 56);
-    expect(collapseRect.right, closeTo(panelRect.right - 4, 0.01));
+    expect(collapseRect.left, closeTo(panelRect.left + 4, 0.01));
   });
 
   testWidgets('classic single click opens one image detail', (tester) async {

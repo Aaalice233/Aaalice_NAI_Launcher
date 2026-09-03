@@ -45,7 +45,7 @@ class AgentChatHeader extends StatelessWidget {
             ? 'agent-chat-compact-header'
             : 'agent-chat-desktop-header',
       ),
-      leading: fullScreenLayout ? collapseButton : null,
+      leading: collapseButton,
       icon: Icons.auto_awesome_rounded,
       title: SizedBox(height: 48, child: _sessionSelector(context)),
       actions: [
@@ -63,7 +63,6 @@ class AgentChatHeader extends StatelessWidget {
         ),
         _moreMenu(context, l10n),
       ],
-      trailing: fullScreenLayout ? null : collapseButton,
     );
     return viewData.mobileHeaderWrapper?.call(header) ?? header;
   }

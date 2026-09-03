@@ -68,6 +68,17 @@ void main() {
               reason: '$key at width=$width mobile=$mobile',
             );
           }
+          final collapseRect = tester.getRect(
+            find.byKey(
+              ValueKey(
+                mobile ? 'agent-chat-mobile-close' : 'agent-chat-collapse',
+              ),
+            ),
+          );
+          final selectorRect = tester.getRect(
+            find.byKey(const ValueKey('agent-chat-session-selector')),
+          );
+          expect(collapseRect.right, lessThan(selectorRect.left));
           expect(tester.takeException(), isNull);
         }
       }

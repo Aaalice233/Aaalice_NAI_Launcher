@@ -255,6 +255,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           )
         else
           WorkspacePanelHeader(
+            leading: _buildCollapseButton(),
             icon: Icons.history_rounded,
             title: Row(
               children: [
@@ -337,7 +338,6 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                   ),
                 ),
             ],
-            trailing: _buildCollapseButton(),
           ),
         if (widget.embedded) const ThemedDivider(height: 1),
 
