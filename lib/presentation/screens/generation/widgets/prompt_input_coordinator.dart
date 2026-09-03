@@ -7,7 +7,7 @@ import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../adaptive/adaptive_presenter.dart';
-import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/pending_prompt_provider.dart';
@@ -259,36 +259,7 @@ class PromptInputCoordinator {
 
   void openAssistantSettings() {
     if (!_mounted()) return;
-    final context = _context();
-    AdaptivePresenter.showPanel<void>(
-      context: context,
-      title: context.l10n.promptAssistant_assistantSettings,
-      initialChildSize: 0.42,
-      minChildSize: 0.32,
-      sideSheetWidth: 440,
-      builder: (context, scrollController) => Consumer(
-        builder: (context, ref, _) {
-          final config = ref.watch(promptAssistantConfigProvider);
-          final notifier = ref.read(promptAssistantConfigProvider.notifier);
-          return ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            children: [
-              SwitchListTile(
-                title: Text(context.l10n.promptAssistant_enableAssistant),
-                value: config.enabled,
-                onChanged: notifier.setEnabled,
-              ),
-              SwitchListTile(
-                title: Text(context.l10n.promptAssistant_desktopOverlay),
-                value: config.desktopOverlayEnabled,
-                onChanged: notifier.setDesktopOverlayEnabled,
-              ),
-            ],
-          );
-        },
-      ),
-    );
+    PromptAssistantQuickSettings.show(_context());
   }
 
   Future<void> showMobileCharacterManager() async {

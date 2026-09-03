@@ -19,6 +19,7 @@ import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_resource_drop_region.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
@@ -361,6 +362,42 @@ void main() {
       closeTo(tester.getCenter(weightValue).dy, 1),
     );
     expect(tester.getSize(weightHeader).width, 250);
+    final contentInput = find.byKey(const ValueKey('fixed-tag-content-input'));
+    final contentFooter = find.byKey(
+      const ValueKey('fixed-tag-content-footer'),
+    );
+    final assistant = find.byType(PromptAssistantOverlay);
+    expect(contentFooter, findsOneWidget);
+    expect(assistant, findsOneWidget);
+    expect(
+      tester.getTopLeft(contentFooter).dy,
+      closeTo(tester.getBottomLeft(contentInput).dy + 4, 1),
+    );
+    expect(
+      tester.widget<PromptAssistantOverlay>(assistant).floatOverEditor,
+      false,
+    );
+    expect(
+      tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
+      false,
+    );
+    expect(
+      tester.getTopRight(assistant).dx,
+      closeTo(tester.getTopRight(contentFooter).dx - 4, 1),
+    );
+    await tester.tap(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final expandedAssistantRect = tester.getRect(assistant);
+    final footerRect = tester.getRect(contentFooter);
+    expect(expandedAssistantRect.left, greaterThanOrEqualTo(footerRect.left));
+    expect(expandedAssistantRect.right, lessThanOrEqualTo(footerRect.right));
+    expect(expandedAssistantRect.top, greaterThanOrEqualTo(footerRect.top));
+    expect(expandedAssistantRect.bottom, lessThanOrEqualTo(footerRect.bottom));
     expect(tester.takeException(), isNull);
   });
 

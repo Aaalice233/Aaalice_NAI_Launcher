@@ -77,6 +77,7 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
     this.expandInRootOverlay = false,
     this.tapRegionGroupId,
     this.interactionPolicy,
+    this.stripFixedTagsFromInput = true,
   });
 
   final String sessionId;
@@ -124,6 +125,10 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
 
   /// Captures the owning input's policy when this surface crosses overlays.
   final InteractionPolicy? interactionPolicy;
+
+  /// Generation prompts exclude enabled fixed tags before assistant requests.
+  /// Editors whose entire value is the subject of the request can opt out.
+  final bool stripFixedTagsFromInput;
 
   @override
   ConsumerState<PromptAssistantOverlay> createState() =>
@@ -453,6 +458,7 @@ class _PromptAssistantOverlayState
   }
 
   String _assistantInputText() {
+    if (!widget.stripFixedTagsFromInput) return widget.controller.text;
     return ref
         .read(fixedTagsNotifierProvider)
         .stripFromPrompt(widget.controller.text);

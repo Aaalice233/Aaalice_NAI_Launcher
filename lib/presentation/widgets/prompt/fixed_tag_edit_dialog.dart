@@ -6,7 +6,13 @@ import '../../../core/constants/api_constants.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../adaptive/window_size_class.dart';
+import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
+import '../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import '../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../themes/core/input_surface_style.dart';
 import '../../providers/tag_library_page_provider.dart';
@@ -63,6 +69,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   late FixedTagPromptType _promptType;
   late double _weight;
   late bool _enabled;
+  late final String _assistantSessionId;
   bool _saveToLibrary = false;
   String? _selectedCategoryId;
 
@@ -81,6 +88,9 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     _promptType = entry?.promptType ?? widget.initialPromptType;
     _weight = entry?.weight ?? 1.0;
     _enabled = entry?.enabled ?? true;
+    _assistantSessionId = PromptHistorySessionIds.fixedTag(
+      entry?.id ?? 'draft-${identityHashCode(this)}',
+    );
   }
 
   @override
@@ -253,19 +263,77 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           Expanded(child: promptEditor)
         else
           SizedBox(height: 280, child: promptEditor),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: Text(
-            context.l10n.fixedTags_syntaxHelp,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline,
-              fontSize: 12,
-            ),
-            maxLines: 2,
-          ),
-        ),
+        const SizedBox(height: 4),
+        _buildPromptFooter(theme),
       ],
+    );
+  }
+
+  Widget _buildPromptFooter(ThemeData theme) {
+    final interactionPolicy = context.interactionPolicy;
+    final assistantConfig = ref.watch(promptAssistantConfigProvider);
+    final assistantVisible =
+        assistantConfig.enabled &&
+        (!interactionPolicy.usesAnchoredMenus ||
+            assistantConfig.desktopOverlayEnabled);
+    final assistantExpanded =
+        assistantVisible &&
+        ref.watch(
+          promptAssistantStateProvider.select(
+            (states) => states[_assistantSessionId]?.expanded ?? false,
+          ),
+        );
+    final assistantToolbarHeight = assistantVisible
+        ? PromptAssistantOverlay.effectiveInlineToolbarHeight(interactionPolicy)
+        : 32.0;
+    final assistantIconOnly = interactionPolicy.prefersTouchPresentation;
+    final collapsedAssistantWidth = assistantIconOnly
+        ? assistantToolbarHeight
+        : PromptAssistantOverlay.collapsedInlineButtonWidth(
+            context,
+            context.l10n.promptAssistant_assistant,
+          );
+    final hint = Text(
+      context.l10n.fixedTags_syntaxHelp,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
+        fontSize: 12,
+      ),
+    );
+    final assistant = assistantVisible
+        ? PromptAssistantOverlay(
+            key: ValueKey('fixed-tag-prompt-assistant-$_assistantSessionId'),
+            sessionId: _assistantSessionId,
+            controller: _contentController,
+            interactionPolicy: interactionPolicy,
+            onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+            floatOverEditor: false,
+            iconOnly: assistantIconOnly,
+            stripFixedTagsFromInput: false,
+          )
+        : null;
+
+    return Container(
+      key: const ValueKey('fixed-tag-content-footer'),
+      width: double.infinity,
+      constraints: BoxConstraints(minHeight: assistantToolbarHeight),
+      padding: const EdgeInsets.only(left: 12, right: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          if (!assistantExpanded) Expanded(child: hint),
+          if (!assistantExpanded && assistant != null) const SizedBox(width: 8),
+          if (assistant != null)
+            assistantExpanded
+                ? Expanded(child: assistant)
+                : SizedBox(width: collapsedAssistantWidth, child: assistant),
+        ],
+      ),
     );
   }
 
@@ -314,6 +382,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           autoInsertComma: true,
         ),
         child: ThemedInput(
+          key: const ValueKey('fixed-tag-content-input'),
           controller: _contentController,
           focusNode: _contentFocusNode,
           decoration: InputDecoration(
