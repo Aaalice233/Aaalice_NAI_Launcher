@@ -23,6 +23,7 @@ import 'package:nai_launcher/presentation/screens/settings/sections/integrations
 import 'package:nai_launcher/presentation/screens/settings/sections/prompt_assistant_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -154,7 +155,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    _expectSettingsAppBarBottomDivider(tester);
+    _expectSettingsLayeredChrome(tester, hasNavigation: true);
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
     expect(rail.destinations.length, 11);
 
@@ -434,7 +435,7 @@ void main() {
     );
     await pumpTransition();
 
-    _expectSettingsAppBarBottomDivider(tester);
+    _expectSettingsLayeredChrome(tester);
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('账户'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
@@ -855,13 +856,32 @@ void main() {
   });
 }
 
-void _expectSettingsAppBarBottomDivider(WidgetTester tester) {
+void _expectSettingsLayeredChrome(
+  WidgetTester tester, {
+  bool hasNavigation = false,
+}) {
   final appBarFinder = find.byType(AppBar);
   final appBar = tester.widget<AppBar>(appBarFinder);
-  final border = appBar.shape! as Border;
   final theme = Theme.of(tester.element(appBarFinder));
 
-  expect(border.bottom.width, 1);
-  expect(border.bottom.color, theme.dividerColor);
-  expect(border.bottom.style, BorderStyle.solid);
+  expect(appBar.shape, isNull);
+  expect(appBar.backgroundColor, sectionSurfaceColor(theme.colorScheme));
+  expect(find.byType(VerticalDivider), findsNothing);
+
+  final navigationSurface = find.byKey(
+    const ValueKey('settings-navigation-tonal-surface'),
+  );
+  if (!hasNavigation) {
+    expect(navigationSurface, findsNothing);
+    for (final tile in tester.widgetList<ListTile>(find.byType(ListTile))) {
+      expect(tile.tileColor, sectionSurfaceColor(theme.colorScheme));
+    }
+    return;
+  }
+
+  final decoration =
+      tester.widget<Container>(navigationSurface).decoration! as BoxDecoration;
+  expect(decoration.color, sectionSurfaceColor(theme.colorScheme));
+  expect(decoration.border, isNull);
+  expect(decoration.borderRadius, isNotNull);
 }

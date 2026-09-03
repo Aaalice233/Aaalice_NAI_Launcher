@@ -4,7 +4,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../adaptive/interaction_policy.dart';
-import '../../themes/theme_extension.dart';
+import '../../themes/core/layered_surface_style.dart';
 import '../../widgets/statistics/export_dialog.dart';
 import 'statistics_state.dart';
 import 'widgets/widgets.dart';
@@ -55,8 +55,6 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     StatisticsData data,
   ) {
     final colorScheme = theme.colorScheme;
-    final extension = theme.extension<AppThemeExtension>();
-    final borderColor = extension?.borderColor ?? colorScheme.outlineVariant;
     final exportAction = data.statistics == null
         ? null
         : () => StatisticsExportDialog.show(
@@ -65,21 +63,14 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
           );
 
     return Container(
+      key: const ValueKey('statistics-toolbar-tonal-surface'),
       constraints: const BoxConstraints(minHeight: 56),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: borderColor.withValues(alpha: 0.2),
-            width: 1,
-          ),
-        ),
-      ),
+      color: sectionSurfaceColor(colorScheme),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-          final compact = constraints.maxWidth < 520 || textScale > 1.5;
+          final stackActions = constraints.maxWidth < 320 || textScale > 1.5;
           final title = Row(
             children: [
               Icon(
@@ -91,7 +82,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
               Expanded(
                 child: Text(
                   l10n.statistics_title,
-                  maxLines: compact ? 2 : 1,
+                  maxLines: stackActions ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
@@ -104,7 +95,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (context.interactionPolicy.shouldExposeTouchAlternatives &&
-                  !compact)
+                  !stackActions)
                 TextButton.icon(
                   onPressed: exportAction,
                   icon: const Icon(Icons.download_outlined, size: 18),
@@ -119,7 +110,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
               const AnimatedRefreshButton(),
             ],
           );
-          if (compact) {
+          if (stackActions) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
