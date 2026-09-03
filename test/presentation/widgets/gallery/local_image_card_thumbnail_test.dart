@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -113,6 +114,25 @@ void main() {
     await tester.pump();
     final agentAction = find.byTooltip('Send to Agent');
     expect(agentAction, findsOneWidget);
+    final portraitActionRects = [
+      for (
+        var index = 0;
+        index < find.byType(IconButton).evaluate().length;
+        index++
+      )
+        tester.getRect(find.byType(IconButton).at(index)),
+    ];
+    final portraitColumns = portraitActionRects
+        .map((rect) => rect.left.round())
+        .toSet();
+    expect(portraitColumns, hasLength(2));
+    final columnTops = portraitColumns.map(
+      (left) => portraitActionRects
+          .where((rect) => rect.left.round() == left)
+          .map((rect) => rect.top.round())
+          .reduce(math.min),
+    );
+    expect(columnTops.toSet(), hasLength(1));
     await tester.tap(agentAction);
     expect(actions, [LocalImageContextAction.addToAgent]);
 
@@ -189,6 +209,71 @@ void main() {
       expect(cardRect.contains(rect.bottomRight), isTrue);
     }
     expect(actionRects.last.top, greaterThan(actionRects.first.top));
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('纵向卡片将六个悬浮操作排成完整两列', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: LocalImageCard3D(
+                  record: LocalImageRecord(
+                    path: 'missing-portrait.png',
+                    size: 0,
+                    modifiedAt: DateTime(2026, 9, 3),
+                  ),
+                  width: 180,
+                  height: 220,
+                  onTap: () {},
+                  onFavoriteToggle: () {},
+                  onSendAction: (_) async {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final cardFinder = find.byType(LocalImageCard3D);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(cardFinder));
+    await tester.pump();
+
+    final cardRect = tester.getRect(cardFinder);
+    final actionsFinder = find.descendant(
+      of: find.byType(CardActionButtons),
+      matching: find.byType(IconButton),
+    );
+    final actionRects = [
+      for (var index = 0; index < actionsFinder.evaluate().length; index++)
+        tester.getRect(actionsFinder.at(index)),
+    ];
+    expect(actionRects, hasLength(6));
+    expect(actionRects.map((rect) => rect.left.round()).toSet(), hasLength(2));
+    expect(actionRects.map((rect) => rect.top.round()).toSet(), hasLength(3));
+    for (final rect in actionRects) {
+      expect(cardRect.contains(rect.topLeft), isTrue);
+      expect(cardRect.contains(rect.bottomRight), isTrue);
+    }
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());

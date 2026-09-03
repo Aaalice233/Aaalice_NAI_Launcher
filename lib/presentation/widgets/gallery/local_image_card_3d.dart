@@ -620,9 +620,12 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final availableMainAxisExtent = direction == Axis.horizontal
         ? widget.width
         : cardHeight;
+    final maximumButtonsPerRun = direction == Axis.vertical
+        ? 3
+        : buttons.length;
     final buttonsPerRun = ((availableMainAxisExtent + 4) / buttonStride)
         .floor()
-        .clamp(1, buttons.length);
+        .clamp(1, maximumButtonsPerRun);
     final runs = <List<CardActionButtonConfig>>[
       for (var start = 0; start < buttons.length; start += buttonsPerRun)
         buttons.sublist(
@@ -643,6 +646,9 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
             ? Axis.vertical
             : Axis.horizontal,
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: direction == Axis.vertical
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           for (final run in runs)
             CardActionButtons(
