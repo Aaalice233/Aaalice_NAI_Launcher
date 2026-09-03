@@ -5347,22 +5347,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_selectionMode => 'Selection Mode';
 
   @override
-  String get randomManager_previewGeneration => 'Preview Generation';
+  String get randomManager_previewGeneration => 'Output Preview';
 
   @override
   String get randomManager_generating => 'Generating';
 
   @override
-  String get randomManager_generate => 'Generate';
+  String get randomManager_generate => 'Generate Sample';
 
   @override
   String get randomManager_generationFailed => 'Generation Failed';
 
   @override
-  String get randomManager_copy => 'Copy';
+  String get randomManager_copy => 'Copy All';
 
   @override
-  String get randomManager_regenerate => 'Regenerate';
+  String get randomManager_regenerate => 'Generate Another';
 
   @override
   String get randomManager_copiedToClipboard => 'Copied to clipboard';
@@ -5381,8 +5381,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomManager_previewHint =>
-      'Click \"Generate\" to preview random tags';
+  String get randomManager_previewHint => 'No sample generated yet';
 
   @override
   String get randomManager_generateNow => 'Generate Now';
@@ -13020,7 +13019,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomManager_previewEmptyDescription =>
-      'Generate a sample to inspect the actual output of this recipe.';
+      'Generate a prompt sample to inspect the actual output of this recipe.';
 
   @override
   String get randomManager_category_composition => 'Composition';

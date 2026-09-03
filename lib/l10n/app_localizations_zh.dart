@@ -5120,22 +5120,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_selectionMode => '选择模式';
 
   @override
-  String get randomManager_previewGeneration => '预览生成';
+  String get randomManager_previewGeneration => '输出预览';
 
   @override
   String get randomManager_generating => '生成中';
 
   @override
-  String get randomManager_generate => '生成';
+  String get randomManager_generate => '生成样例';
 
   @override
   String get randomManager_generationFailed => '生成失败';
 
   @override
-  String get randomManager_copy => '复制';
+  String get randomManager_copy => '复制全部';
 
   @override
-  String get randomManager_regenerate => '重新生成';
+  String get randomManager_regenerate => '换一个样例';
 
   @override
   String get randomManager_copiedToClipboard => '已复制到剪贴板';
@@ -5154,7 +5154,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get randomManager_previewHint => '点击\"生成\"预览随机标签';
+  String get randomManager_previewHint => '尚未生成样例';
 
   @override
   String get randomManager_generateNow => '立即生成';
@@ -12472,7 +12472,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_inspectorSubtitle => '调整当前预设的角色分布与全局输出行为';
 
   @override
-  String get randomManager_previewEmptyDescription => '生成一次样例，检查当前配方的实际输出。';
+  String get randomManager_previewEmptyDescription => '生成一组提示词样例，检查当前配方的实际输出。';
 
   @override
   String get randomManager_category_composition => '构图';
@@ -18776,22 +18776,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_selectionMode => '選擇模式';
 
   @override
-  String get randomManager_previewGeneration => '預覽生成';
+  String get randomManager_previewGeneration => '輸出預覽';
 
   @override
   String get randomManager_generating => '生成中';
 
   @override
-  String get randomManager_generate => '生成';
+  String get randomManager_generate => '生成範例';
 
   @override
   String get randomManager_generationFailed => '生成失敗';
 
   @override
-  String get randomManager_copy => '複製';
+  String get randomManager_copy => '複製全部';
 
   @override
-  String get randomManager_regenerate => '重新生成';
+  String get randomManager_regenerate => '換一個範例';
 
   @override
   String get randomManager_copiedToClipboard => '已複製到剪貼簿';
@@ -18810,7 +18810,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get randomManager_previewHint => '點選\"生成\"預覽隨機標籤';
+  String get randomManager_previewHint => '尚未生成範例';
 
   @override
   String get randomManager_generateNow => '立即生成';
@@ -26128,7 +26128,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_inspectorSubtitle => '調整目前預設的角色分佈與全域輸出行為';
 
   @override
-  String get randomManager_previewEmptyDescription => '生成一次範例，檢查目前配方的實際輸出。';
+  String get randomManager_previewEmptyDescription => '生成一組提示詞範例，檢查目前配方的實際輸出。';
 
   @override
   String get randomManager_category_composition => '構圖';

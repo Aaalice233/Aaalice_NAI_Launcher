@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/layout_state_provider.dart';
 import 'fixed_tags_dialog.dart';
@@ -46,7 +47,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       child: Tooltip(
         richMessage: WidgetSpan(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
+            constraints: const BoxConstraints(maxWidth: 380),
             child: _buildTooltipContent(theme, fixedTagsState),
           ),
         ),
@@ -183,32 +184,32 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       return _buildEmptyState(theme);
     }
 
-    final enabledPrefixes = [
-      ...state.enabledPrefixes,
-      ...state.negativeEnabledPrefixes,
-    ].take(4).toList(growable: false);
-    final enabledSuffixes = [
-      ...state.enabledSuffixes,
-      ...state.negativeEnabledSuffixes,
-    ].take(4).toList(growable: false);
     final disabledEntries = entries.where((e) => !e.enabled).toList();
+    final enabledCount = entries.where((entry) => entry.enabled).length;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 顶部双列统计卡片
-        _buildStatisticsHeader(
-          theme,
-          enabledPrefixes.length,
-          enabledSuffixes.length,
-          state.links.length,
-        ),
+        _buildTooltipHeader(theme, enabledCount, state.links.length),
 
-        // 启用的条目列表
-        if (enabledPrefixes.isNotEmpty || enabledSuffixes.isNotEmpty) ...[
+        if (state.enabledEntries.isNotEmpty) ...[
           const SizedBox(height: 12),
-          _buildEnabledEntriesSection(theme, enabledPrefixes, enabledSuffixes),
+          _buildPromptSection(
+            theme,
+            promptType: FixedTagPromptType.positive,
+            prefixes: state.enabledPrefixes,
+            suffixes: state.enabledSuffixes,
+          ),
+        ],
+        if (state.negativeEnabledEntries.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _buildPromptSection(
+            theme,
+            promptType: FixedTagPromptType.negative,
+            prefixes: state.negativeEnabledPrefixes,
+            suffixes: state.negativeEnabledSuffixes,
+          ),
         ],
 
         // 禁用的条目
@@ -257,14 +258,8 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     );
   }
 
-  Widget _buildStatisticsHeader(
-    ThemeData theme,
-    int prefixCount,
-    int suffixCount,
-    int linkCount,
-  ) {
+  Widget _buildTooltipHeader(ThemeData theme, int enabledCount, int linkCount) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           Icons.push_pin_rounded,
@@ -279,95 +274,147 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
           ),
         ),
         const Spacer(),
-        _buildCompactStat(
-          theme,
-          icon: Icons.arrow_forward_rounded,
-          count: prefixCount,
-          label: context.l10n.fixedTags_prefix,
-          color: theme.colorScheme.primary,
-          isActive: prefixCount > 0,
-        ),
-        const SizedBox(width: 10),
-        _buildCompactStat(
-          theme,
-          icon: Icons.arrow_back_rounded,
-          count: suffixCount,
-          label: context.l10n.fixedTags_suffix,
-          color: theme.colorScheme.tertiary,
-          isActive: suffixCount > 0,
+        Text(
+          '${context.l10n.fixedTags_enabled} $enabledCount',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         if (linkCount > 0) ...[
-          const SizedBox(width: 10),
-          _buildCompactStat(
-            theme,
-            icon: Icons.link_rounded,
-            count: linkCount,
-            label: context.l10n.fixedTags_linked,
+          const SizedBox(width: 8),
+          Icon(
+            Icons.link_rounded,
+            size: 12,
             color: theme.colorScheme.secondary,
-            isActive: true,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            '$linkCount',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.secondary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ],
     );
   }
 
-  /// 紧凑统计项
-  Widget _buildCompactStat(
+  Widget _buildPromptSection(
     ThemeData theme, {
-    required IconData icon,
-    required int count,
-    required String label,
-    required Color color,
-    required bool isActive,
+    required FixedTagPromptType promptType,
+    required List<FixedTagEntry> prefixes,
+    required List<FixedTagEntry> suffixes,
   }) {
-    final displayColor = isActive ? color : theme.colorScheme.outline;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: displayColor),
-        const SizedBox(width: 4),
-        Text(
-          count.toString(),
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: displayColor,
-          ),
-        ),
-        const SizedBox(width: 3),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: displayColor.withValues(alpha: 0.8),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 启用条目列表区域
-  Widget _buildEnabledEntriesSection(
-    ThemeData theme,
-    List<FixedTagEntry> prefixes,
-    List<FixedTagEntry> suffixes,
-  ) {
+    final isPositive = promptType == FixedTagPromptType.positive;
+    final color = isPositive
+        ? theme.colorScheme.primary
+        : theme.colorScheme.error;
+    final mutedColor = Color.lerp(
+      theme.colorScheme.onSurfaceVariant,
+      color,
+      0.24,
+    )!;
     final allEnabled = [
       ...prefixes.map((e) => (entry: e, isPrefix: true)),
       ...suffixes.map((e) => (entry: e, isPrefix: false)),
-    ];
+    ].take(4).toList(growable: false);
 
-    return Column(
+    return Container(
+      key: ValueKey(
+        isPositive
+            ? 'fixed-tags-tooltip-positive'
+            : 'fixed-tags-tooltip-negative',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isPositive ? Icons.auto_awesome_rounded : Icons.block_rounded,
+                size: 15,
+                color: color,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  isPositive
+                      ? context.l10n.prompt_positive
+                      : context.l10n.prompt_negative,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            children: [
+              _buildPositionStat(
+                theme,
+                color: color,
+                icon: Icons.arrow_forward_rounded,
+                label: context.l10n.fixedTags_prefix,
+                count: prefixes.length,
+              ),
+              _buildPositionStat(
+                theme,
+                color: color,
+                icon: Icons.arrow_back_rounded,
+                label: context.l10n.fixedTags_suffix,
+                count: suffixes.length,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (int i = 0; i < allEnabled.length; i++) ...[
+            if (i > 0) const SizedBox(height: 7),
+            _buildCompactEntryRow(
+              theme,
+              allEnabled[i].entry,
+              allEnabled[i].isPrefix,
+              color,
+              mutedColor,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPositionStat(
+    ThemeData theme, {
+    required Color color,
+    required IconData icon,
+    required String label,
+    required int count,
+  }) {
+    final displayColor = count > 0 ? color : theme.colorScheme.outline;
+    return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (int i = 0; i < allEnabled.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
-          _buildCompactEntryRow(
-            theme,
-            allEnabled[i].entry,
-            allEnabled[i].isPrefix,
+        Icon(icon, size: 11, color: displayColor),
+        const SizedBox(width: 3),
+        Text(
+          '$label $count',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: displayColor,
+            fontWeight: count > 0 ? FontWeight.w600 : FontWeight.w400,
           ),
-        ],
+        ),
       ],
     );
   }
@@ -376,18 +423,42 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     ThemeData theme,
     FixedTagEntry entry,
     bool isPrefix,
+    Color color,
+    Color mutedColor,
   ) {
-    final color = isPrefix
-        ? theme.colorScheme.primary
-        : theme.colorScheme.tertiary;
     final content = entry.content.trim();
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          isPrefix ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
-          size: 14,
-          color: color,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isPrefix
+                    ? Icons.arrow_forward_rounded
+                    : Icons.arrow_back_rounded,
+                size: 11,
+                color: color,
+              ),
+              const SizedBox(width: 3),
+              Text(
+                isPrefix
+                    ? context.l10n.fixedTags_prefix
+                    : context.l10n.fixedTags_suffix,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -408,9 +479,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                   content,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: mutedColor),
                 ),
             ],
           ),
@@ -485,8 +554,11 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
   }
 
   Widget _buildDisabledChip(ThemeData theme, FixedTagEntry entry) {
+    final promptLabel = entry.promptType == FixedTagPromptType.positive
+        ? context.l10n.prompt_positive
+        : context.l10n.prompt_negative;
     return Text(
-      entry.displayName,
+      '$promptLabel · ${entry.displayName}',
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.labelSmall?.copyWith(

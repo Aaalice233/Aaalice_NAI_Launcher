@@ -32,13 +32,14 @@ class PromptConfigScreen extends ConsumerStatefulWidget {
 class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
-  bool _showPreview = false;
+  final _previewController = PreviewGeneratorController();
   String _query = '';
 
   @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _previewController.dispose();
     super.dispose();
   }
 
@@ -64,7 +65,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             onInvoke: (_) => _searchFocusNode.requestFocus(),
           ),
           _PreviewIntent: CallbackAction<_PreviewIntent>(
-            onInvoke: (_) => setState(() => _showPreview = true),
+            onInvoke: (_) => _previewController.generate(),
           ),
         },
         child: Focus(
@@ -74,11 +75,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             body: SafeArea(
               child: Column(
                 children: [
-                  _StudioHeader(
-                    onGeneratePreview: () =>
-                        setState(() => _showPreview = true),
-                    onImportExport: _showImportExportActions,
-                  ),
+                  _StudioHeader(onImportExport: _showImportExportActions),
                   Expanded(
                     child: _buildBody(
                       presetState: presetState,
@@ -134,9 +131,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
               ),
               _InspectorPanel(
                 width: constraints.maxWidth >= 1500 ? 420 : 370,
-                showPreview: _showPreview,
                 onGlobalSettings: _showGlobalSettings,
-                onClosePreview: () => setState(() => _showPreview = false),
+                previewController: _previewController,
               ),
             ],
           );
@@ -148,9 +144,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           searchController: _searchController,
           searchFocusNode: _searchFocusNode,
           onQueryChanged: _updateQuery,
-          showPreview: _showPreview,
           onGlobalSettings: _showGlobalSettings,
-          onClosePreview: () => setState(() => _showPreview = false),
+          previewController: _previewController,
         );
       },
     );
@@ -238,12 +233,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 }
 
 class _StudioHeader extends StatelessWidget {
-  const _StudioHeader({
-    required this.onGeneratePreview,
-    required this.onImportExport,
-  });
+  const _StudioHeader({required this.onImportExport});
 
-  final VoidCallback onGeneratePreview;
   final VoidCallback onImportExport;
 
   @override
@@ -283,7 +274,6 @@ class _StudioHeader extends StatelessWidget {
 
           if (compact) {
             return PresetSelectorBar(
-              onGeneratePreview: onGeneratePreview,
               onImportExport: onImportExport,
               showWorkspaceHeading: true,
             );
@@ -293,10 +283,7 @@ class _StudioHeader extends StatelessWidget {
               SizedBox(width: 220, child: title),
               const SizedBox(width: 24),
               Expanded(
-                child: PresetSelectorBar(
-                  onGeneratePreview: onGeneratePreview,
-                  onImportExport: onImportExport,
-                ),
+                child: PresetSelectorBar(onImportExport: onImportExport),
               ),
             ],
           );
@@ -351,9 +338,8 @@ class _CompactWorkspace extends StatelessWidget {
     required this.searchController,
     required this.searchFocusNode,
     required this.onQueryChanged,
-    required this.showPreview,
     required this.onGlobalSettings,
-    required this.onClosePreview,
+    required this.previewController,
   });
 
   final TagLibraryState libraryState;
@@ -361,9 +347,8 @@ class _CompactWorkspace extends StatelessWidget {
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
   final ValueChanged<String> onQueryChanged;
-  final bool showPreview;
   final VoidCallback onGlobalSettings;
-  final VoidCallback onClosePreview;
+  final PreviewGeneratorController previewController;
 
   @override
   Widget build(BuildContext context) {
@@ -391,19 +376,8 @@ class _CompactWorkspace extends StatelessWidget {
             label: Text(context.l10n.randomManager_globalPeopleSettings),
           ),
         ),
-        if (showPreview) ...[
-          const SizedBox(height: 14),
-          SizedBox(
-            height:
-                360 +
-                (MediaQuery.textScalerOf(context).scale(14) / 14 - 1).clamp(
-                      0,
-                      2,
-                    ) *
-                    48,
-            child: _PreviewSection(onClose: onClosePreview),
-          ),
-        ],
+        const SizedBox(height: 14),
+        PreviewGeneratorPanel(controller: previewController, inline: true),
         const SizedBox(height: 22),
         CategoryCardList(query: query, shrinkWrap: true),
       ],
@@ -414,15 +388,13 @@ class _CompactWorkspace extends StatelessWidget {
 class _InspectorPanel extends StatelessWidget {
   const _InspectorPanel({
     required this.width,
-    required this.showPreview,
     required this.onGlobalSettings,
-    required this.onClosePreview,
+    required this.previewController,
   });
 
   final double width;
-  final bool showPreview;
   final VoidCallback onGlobalSettings;
-  final VoidCallback onClosePreview;
+  final PreviewGeneratorController previewController;
 
   @override
   Widget build(BuildContext context) {
@@ -430,38 +402,58 @@ class _InspectorPanel extends StatelessWidget {
     return Container(
       width: width,
       color: colors.surfaceContainerLow,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 22, 18, 24),
-        children: [
-          Text(
-            context.l10n.randomManager_inspectorTitle,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            context.l10n.randomManager_inspectorSubtitle,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 18),
-          const AlgorithmConfigCard(),
-          const SizedBox(height: 10),
-          FilledButton.tonalIcon(
-            onPressed: onGlobalSettings,
-            icon: const Icon(Icons.people_outline_rounded),
-            label: Text(context.l10n.randomManager_globalPeopleSettings),
-          ),
-          if (showPreview) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 390,
-              child: _PreviewSection(onClose: onClosePreview),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final setup = <Widget>[
+            Text(
+              context.l10n.randomManager_inspectorTitle,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
-          ],
-        ],
+            const SizedBox(height: 4),
+            Text(
+              context.l10n.randomManager_inspectorSubtitle,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 18),
+            const AlgorithmConfigCard(),
+            const SizedBox(height: 10),
+            FilledButton.tonalIcon(
+              onPressed: onGlobalSettings,
+              icon: const Icon(Icons.people_outline_rounded),
+              label: Text(context.l10n.randomManager_globalPeopleSettings),
+            ),
+            const SizedBox(height: 16),
+          ];
+          if (constraints.maxHeight < 620) {
+            return ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+              children: [
+                ...setup,
+                PreviewGeneratorPanel(
+                  controller: previewController,
+                  inline: true,
+                ),
+              ],
+            );
+          }
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ...setup,
+                Expanded(
+                  child: PreviewGeneratorPanel(controller: previewController),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -862,30 +854,6 @@ class _SourceDetailRow extends StatelessWidget {
           Text(value, style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
-    );
-  }
-}
-
-class _PreviewSection extends StatelessWidget {
-  const _PreviewSection({required this.onClose});
-
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        const Positioned.fill(child: PreviewGeneratorPanel()),
-        Positioned(
-          right: 8,
-          top: 8,
-          child: IconButton(
-            tooltip: context.l10n.common_close,
-            onPressed: onClose,
-            icon: const Icon(Icons.close_rounded, size: 18),
-          ),
-        ),
-      ],
     );
   }
 }

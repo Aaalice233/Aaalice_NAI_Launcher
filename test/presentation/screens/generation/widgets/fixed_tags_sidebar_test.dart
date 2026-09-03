@@ -719,6 +719,94 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('FixedTagsButton 预览区分正负面与前后缀', (tester) async {
+    final storage = _SidebarTestStorage(
+      fixedEntries: [
+        FixedTagEntry.create(name: '正面前缀条目', content: 'best quality'),
+        FixedTagEntry.create(
+          name: '正面后缀条目',
+          content: 'cinematic lighting',
+          position: FixedTagPosition.suffix,
+        ),
+        FixedTagEntry.create(
+          name: '负面前缀条目',
+          content: 'lowres',
+          promptType: FixedTagPromptType.negative,
+        ),
+        FixedTagEntry.create(
+          name: '负面后缀条目',
+          content: 'watermark',
+          position: FixedTagPosition.suffix,
+          promptType: FixedTagPromptType.negative,
+        ),
+      ],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: Center(child: FixedTagsButton())),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(FixedTagsButton)));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    final positiveSection = find.byKey(
+      const ValueKey('fixed-tags-tooltip-positive'),
+    );
+    final negativeSection = find.byKey(
+      const ValueKey('fixed-tags-tooltip-negative'),
+    );
+    expect(positiveSection, findsOneWidget);
+    expect(negativeSection, findsOneWidget);
+    expect(
+      find.descendant(of: positiveSection, matching: find.text('正面')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: negativeSection, matching: find.text('负面')),
+      findsOneWidget,
+    );
+    for (final section in [positiveSection, negativeSection]) {
+      expect(
+        find.descendant(of: section, matching: find.text('前缀 1')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: section, matching: find.text('后缀 1')),
+        findsOneWidget,
+      );
+    }
+    expect(
+      find.descendant(of: positiveSection, matching: find.text('正面前缀条目')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: negativeSection, matching: find.text('负面后缀条目')),
+      findsOneWidget,
+    );
+
+    final positiveDecoration =
+        tester.widget<Container>(positiveSection).decoration! as BoxDecoration;
+    final negativeDecoration =
+        tester.widget<Container>(negativeSection).decoration! as BoxDecoration;
+    expect(positiveDecoration.color, isNot(negativeDecoration.color));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('FixedTagsButton 经典工具栏紧凑模式不会拉伸', (tester) async {
     final storage = _SidebarTestStorage(
       fixedEntries: const [],

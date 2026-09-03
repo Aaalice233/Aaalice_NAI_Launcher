@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/random_prompt_result.dart';
 import '../../../../data/models/prompt/random_preset.dart';
-import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/random_mode_provider.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
@@ -18,12 +17,10 @@ import 'random_config_l10n.dart';
 class PresetSelectorBar extends ConsumerWidget {
   const PresetSelectorBar({
     super.key,
-    this.onGeneratePreview,
     this.onImportExport,
     this.showWorkspaceHeading = false,
   });
 
-  final VoidCallback? onGeneratePreview;
   final VoidCallback? onImportExport;
   final bool showWorkspaceHeading;
 
@@ -55,42 +52,16 @@ class PresetSelectorBar extends ConsumerWidget {
           syncState,
           includeSync: !showDescription,
         );
-        final policyExtent = context.interactionPolicy.minimumControlExtent;
-        final previewMinimumHeight = policyExtent < 44 ? 44.0 : policyExtent;
-        final previewButton = FilledButton.icon(
-          key: const ValueKey('random-manager-preview-action'),
-          onPressed: onGeneratePreview,
-          icon: const Icon(Icons.shuffle_rounded),
-          label: Text(context.l10n.randomManager_generatePreview),
-          style: FilledButton.styleFrom(
-            minimumSize: Size(0, previewMinimumHeight),
-          ),
-        );
-
         if (showWorkspaceHeading) {
           final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-          final stackControls = shouldStackWorkspacePresetControls(
+          final stackControls = shouldStackWorkspacePresetHeader(
             constraints.maxWidth,
             textScale,
           );
-          final controls = stackControls
-              ? Column(
-                  key: const ValueKey('random-manager-controls-row'),
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    dropdown,
-                    const SizedBox(height: 8),
-                    previewButton,
-                  ],
-                )
-              : Row(
-                  key: const ValueKey('random-manager-controls-row'),
-                  children: [
-                    Expanded(child: dropdown),
-                    const SizedBox(width: 8),
-                    previewButton,
-                  ],
-                );
+          final controls = KeyedSubtree(
+            key: const ValueKey('random-manager-controls-row'),
+            child: dropdown,
+          );
           final title = Text(
             context.l10n.randomManager_workspaceTitle,
             style: Theme.of(
@@ -166,12 +137,6 @@ class PresetSelectorBar extends ConsumerWidget {
                   label: context.l10n.randomManager_readOnlyMode,
                 ),
               ),
-            _ToolbarAction(
-              icon: Icons.shuffle_rounded,
-              tooltip: context.l10n.randomManager_generatePreview,
-              emphasized: true,
-              onPressed: onGeneratePreview,
-            ),
             if (showDescription)
               _ToolbarAction(
                 icon: Icons.sync_rounded,
@@ -526,14 +491,12 @@ class _ToolbarAction extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
-    this.emphasized = false,
     this.loading = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
-  final bool emphasized;
   final bool loading;
 
   @override
@@ -548,24 +511,11 @@ class _ToolbarAction extends StatelessWidget {
             )
           : Icon(icon, size: 19),
     );
-    if (!emphasized) return button;
-    return IconButton.filledTonal(
-      onPressed: loading ? null : onPressed,
-      tooltip: tooltip,
-      icon: loading
-          ? const SizedBox.square(
-              dimension: 17,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(icon, size: 19),
-    );
+    return button;
   }
 }
 
-bool shouldStackWorkspacePresetControls(
-  double availableWidth,
-  double textScale,
-) {
+bool shouldStackWorkspacePresetHeader(double availableWidth, double textScale) {
   final scaleAdjustment = (textScale - 1).clamp(0, 2) * 100;
   return availableWidth < 360 + scaleAdjustment;
 }

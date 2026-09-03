@@ -31,6 +31,13 @@ void main() {
     when(() => generator.generateFromPreset(preset: _preset)).thenAnswer(
       (_) async => const RandomPromptResult(
         mainPrompt: 'solo, portrait, detailed background',
+        characters: [
+          GeneratedCharacter(
+            prompt: '1girl, black hair, red eyes',
+            negativePrompt: 'lowres, bad hands',
+          ),
+        ],
+        seed: 42,
       ),
     );
 
@@ -57,15 +64,28 @@ void main() {
       ),
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, '生成'));
+    await tester.tap(find.widgetWithText(FilledButton, '生成样例'));
     await tester.pumpAndSettle();
 
-    final characterStat = find.byIcon(Icons.person_outline_rounded);
-    final copyButton = find.byTooltip('复制');
-    final regenerateButton = find.byTooltip('重新生成');
+    final characterStat = find.text('1人');
+    final copyButton = find.widgetWithText(TextButton, '复制全部');
+    final regenerateButton = find.widgetWithText(FilledButton, '换一个样例');
     expect(characterStat, findsOneWidget);
     expect(copyButton, findsOneWidget);
     expect(regenerateButton, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('random-preview-main-prompt')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('random-preview-character-0')),
+      findsOneWidget,
+    );
+    expect(find.text('角色 1'), findsOneWidget);
+    expect(find.text('正面'), findsOneWidget);
+    expect(find.text('负面'), findsOneWidget);
+    expect(find.text('1girl, black hair, red eyes'), findsOneWidget);
+    expect(find.text('lowres, bad hands'), findsOneWidget);
     expect(
       tester.getBottomLeft(characterStat).dy,
       lessThan(tester.getTopLeft(copyButton).dy),

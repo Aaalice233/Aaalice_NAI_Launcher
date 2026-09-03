@@ -62,7 +62,15 @@ void main() {
 
     expect(find.text('测试预设'), findsOneWidget);
     expect(find.text('全局人数设置'), findsOneWidget);
-    expect(find.byTooltip('生成预览'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('random-manager-preview-panel')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('random-manager-preview-action')),
+      findsNothing,
+    );
+    expect(find.byTooltip('关闭'), findsNothing);
     expect(find.byTooltip('更多操作'), findsOneWidget);
     expect(find.byTooltip('导入/导出'), findsNothing);
 
@@ -108,10 +116,8 @@ void main() {
 
     expect(find.text('人数类别配置'), findsNothing);
 
-    await tester.tap(find.byTooltip('生成预览'));
-    await _pumpBounded(tester);
-
-    expect(find.text('预览生成'), findsOneWidget);
+    expect(find.text('输出预览'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '生成样例'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -263,29 +269,23 @@ void main() {
         final selector = tester.getRect(
           find.byKey(const ValueKey('random-manager-mode-selector')),
         );
-        final preview = tester.getRect(
-          find.byKey(const ValueKey('random-manager-preview-action')),
-        );
         final more = tester.getRect(
           find.byKey(const ValueKey('random-manager-more-actions')),
         );
 
         expect(selector.top, greaterThan(heading.bottom));
-        final stacksControls = shouldStackWorkspacePresetControls(
-          width - 40,
-          1,
-        );
-        if (stacksControls) {
-          expect(preview.top, greaterThan(selector.bottom));
-        } else {
-          expect((selector.center.dy - preview.center.dy).abs(), lessThan(1));
-          expect(selector.width, greaterThan(preview.width));
-        }
         expect(selector.height, greaterThanOrEqualTo(44));
-        expect(preview.height, greaterThanOrEqualTo(44));
         expect(more.width, greaterThanOrEqualTo(44));
         expect(more.height, greaterThanOrEqualTo(44));
       }
+      expect(
+        find.byKey(const ValueKey('random-manager-preview-panel')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('random-manager-preview-action')),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
     });
   }
@@ -300,7 +300,6 @@ void main() {
           addTearDown(tester.view.resetPhysicalSize);
           addTearDown(tester.view.resetDevicePixelRatio);
 
-          var previewRequested = false;
           await tester.pumpWidget(
             ProviderScope(
               overrides: [
@@ -326,7 +325,6 @@ void main() {
                         alignment: Alignment.topCenter,
                         child: PresetSelectorBar(
                           showWorkspaceHeading: true,
-                          onGeneratePreview: () => previewRequested = true,
                           onImportExport: () {},
                         ),
                       ),
@@ -341,30 +339,22 @@ void main() {
           final selector = tester.getRect(
             find.byKey(const ValueKey('random-manager-mode-selector')),
           );
-          final preview = tester.getRect(
-            find.byKey(const ValueKey('random-manager-preview-action')),
+          final heading = tester.getRect(
+            find.byKey(const ValueKey('random-manager-heading-row')),
           );
-          final stacksControls = shouldStackWorkspacePresetControls(
-            width - 24,
-            textScale,
-          );
-          if (stacksControls) {
-            expect(preview.top, greaterThan(selector.bottom));
-          } else {
-            expect((selector.center.dy - preview.center.dy).abs(), lessThan(1));
-          }
+          expect(selector.top, greaterThan(heading.bottom));
           expect(find.byTooltip('更多操作'), findsOneWidget);
-          await tester.tap(
+          expect(
             find.byKey(const ValueKey('random-manager-preview-action')),
+            findsNothing,
           );
-          expect(previewRequested, isTrue);
           expect(tester.takeException(), isNull);
         },
       );
     }
   }
 
-  testWidgets('random library only wraps its primary action at extreme width', (
+  testWidgets('random library keeps the resident preview at extreme width', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(360, 900);
@@ -395,12 +385,15 @@ void main() {
     final selector = tester.getRect(
       find.byKey(const ValueKey('random-manager-mode-selector')),
     );
-    final preview = tester.getRect(
-      find.byKey(const ValueKey('random-manager-preview-action')),
-    );
-    expect(preview.top, greaterThan(selector.bottom));
     expect(selector.height, greaterThanOrEqualTo(44));
-    expect(preview.height, greaterThanOrEqualTo(44));
+    expect(
+      find.byKey(const ValueKey('random-manager-preview-panel')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('random-manager-preview-action')),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 }

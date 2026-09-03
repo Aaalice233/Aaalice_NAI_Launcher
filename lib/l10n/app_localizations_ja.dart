@@ -5210,22 +5210,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_selectionMode => '選択モード';
 
   @override
-  String get randomManager_previewGeneration => 'プレビューの生成';
+  String get randomManager_previewGeneration => '出力プレビュー';
 
   @override
   String get randomManager_generating => '生成中';
 
   @override
-  String get randomManager_generate => '生成';
+  String get randomManager_generate => 'サンプルを生成';
 
   @override
   String get randomManager_generationFailed => '生成に失敗しました';
 
   @override
-  String get randomManager_copy => 'コピー';
+  String get randomManager_copy => 'すべてコピー';
 
   @override
-  String get randomManager_regenerate => '再生成';
+  String get randomManager_regenerate => '別のサンプルを生成';
 
   @override
   String get randomManager_copiedToClipboard => 'クリップボードにコピーされました';
@@ -5244,7 +5244,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get randomManager_previewHint => '[生成] をクリックしてランダムなタグをプレビューします';
+  String get randomManager_previewHint => 'サンプルはまだ生成されていません';
 
   @override
   String get randomManager_generateNow => '今すぐ生成';
@@ -12683,7 +12683,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_previewEmptyDescription =>
-      'サンプルを生成して、現在のレシピの出力を確認します。';
+      'プロンプトのサンプルを生成して、現在のレシピの出力を確認します。';
 
   @override
   String get randomManager_category_composition => '構図';
