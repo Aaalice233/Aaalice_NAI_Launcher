@@ -1,10 +1,24 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/cloud_sync/content_selection.dart';
+import '../../../core/cloud_sync/oauth/cloud_drive_oauth_models.dart';
 import 'cloud_sync_provider_wiring.dart';
 
-enum CloudSyncBackendKind { webDav, github }
+enum CloudSyncBackendKind { webDav, github, googleDrive, oneDrive }
+
+extension CloudSyncBackendKindX on CloudSyncBackendKind {
+  bool get usesOAuth =>
+      this == CloudSyncBackendKind.googleDrive ||
+      this == CloudSyncBackendKind.oneDrive;
+
+  CloudDriveOAuthProvider get oauthProvider => switch (this) {
+    CloudSyncBackendKind.googleDrive => CloudDriveOAuthProvider.googleDrive,
+    CloudSyncBackendKind.oneDrive => CloudDriveOAuthProvider.oneDrive,
+    _ => throw StateError('$name does not use OAuth'),
+  };
+}
 
 enum CloudSyncConnectionStatus { disconnected, connected }
 
@@ -37,13 +51,11 @@ class CloudSyncChangeSummary {
 @immutable
 class CloudSyncPreviewView {
   const CloudSyncPreviewView({
-    required this.title,
     required this.changes,
     this.snapshotId,
     this.isRestore = false,
   });
 
-  final String title;
   final String? snapshotId;
   final bool isRestore;
   final List<CloudSyncChangeSummary> changes;
@@ -63,6 +75,8 @@ class CloudSyncConnectionDraft {
     this.branch = 'main',
     this.path = '',
     this.allowInsecureHttp = false,
+    this.accountId = '',
+    this.accountLabel = '',
   });
 
   final CloudSyncBackendKind backend;
@@ -74,6 +88,8 @@ class CloudSyncConnectionDraft {
   final String branch;
   final String path;
   final bool allowInsecureHttp;
+  final String accountId;
+  final String accountLabel;
 }
 
 @immutable
@@ -102,7 +118,7 @@ class CloudSyncCapabilityResult {
   final String message;
   final bool supportsHistory;
   final bool supportsDelete;
-  final List<String> warnings;
+  final List<CloudBackendWarning> warnings;
   final String? limit;
 }
 
@@ -130,6 +146,7 @@ class CloudSyncProgressView {
     required this.totalBytes,
     required this.completedObjects,
     required this.totalObjects,
+    this.reusedObjects = 0,
   });
 
   final String stage;
@@ -138,6 +155,7 @@ class CloudSyncProgressView {
   final int totalBytes;
   final int completedObjects;
   final int totalObjects;
+  final int reusedObjects;
 
   double? get fraction {
     if (stage == 'preparing') return null;
@@ -145,6 +163,33 @@ class CloudSyncProgressView {
     if (totalObjects > 0) return completedObjects / totalObjects;
     return null;
   }
+}
+
+@immutable
+class CloudSyncMetricsView {
+  const CloudSyncMetricsView({
+    required this.elapsedMilliseconds,
+    required this.requestCount,
+    required this.bytesRead,
+    required this.bytesWritten,
+    required this.hashPasses,
+    required this.payloadReads,
+    required this.localBytesRead,
+    required this.localBytesWritten,
+    required this.flushes,
+    required this.stageMilliseconds,
+  });
+
+  final int elapsedMilliseconds;
+  final int requestCount;
+  final int bytesRead;
+  final int bytesWritten;
+  final int hashPasses;
+  final int payloadReads;
+  final int localBytesRead;
+  final int localBytesWritten;
+  final int flushes;
+  final Map<String, int> stageMilliseconds;
 }
 
 @immutable
@@ -201,6 +246,8 @@ class CloudSyncUiState {
     this.connectionStatus = CloudSyncConnectionStatus.disconnected,
     this.activityStatus = CloudSyncActivityStatus.idle,
     this.backend,
+    this.accountId,
+    this.accountLabel,
     this.deviceName,
     this.lastSync,
     this.remoteRevision,
@@ -210,35 +257,37 @@ class CloudSyncUiState {
     this.capabilityWarnings = const [],
     this.providerLimit,
     this.progress,
+    this.metrics,
     this.logs = const [],
     this.snapshots = const [],
     this.conflicts = const [],
     this.remoteExists,
     this.pendingPreview,
     this.pendingFfdkjInstall = false,
-    this.maintenanceWarning,
     this.error,
   });
 
   final CloudSyncConnectionStatus connectionStatus;
   final CloudSyncActivityStatus activityStatus;
   final CloudSyncBackendKind? backend;
+  final String? accountId;
+  final String? accountLabel;
   final String? deviceName;
   final DateTime? lastSync;
   final String? remoteRevision;
   final CloudSyncCapabilityMode capabilityMode;
   final bool supportsHistory;
   final bool supportsDelete;
-  final List<String> capabilityWarnings;
+  final List<CloudBackendWarning> capabilityWarnings;
   final String? providerLimit;
   final CloudSyncProgressView? progress;
+  final CloudSyncMetricsView? metrics;
   final List<CloudSyncLogEntry> logs;
   final List<CloudSyncSnapshotView> snapshots;
   final List<CloudSyncConflictView> conflicts;
   final bool? remoteExists;
   final CloudSyncPreviewView? pendingPreview;
   final bool pendingFfdkjInstall;
-  final String? maintenanceWarning;
   final String? error;
 
   bool get isConnected =>
@@ -264,31 +313,34 @@ class CloudSyncUiState {
     CloudSyncConnectionStatus? connectionStatus,
     CloudSyncActivityStatus? activityStatus,
     CloudSyncBackendKind? backend,
+    String? accountId,
+    String? accountLabel,
     String? deviceName,
     DateTime? lastSync,
     String? remoteRevision,
     CloudSyncCapabilityMode? capabilityMode,
     bool? supportsHistory,
     bool? supportsDelete,
-    List<String>? capabilityWarnings,
+    List<CloudBackendWarning>? capabilityWarnings,
     String? providerLimit,
     CloudSyncProgressView? progress,
+    CloudSyncMetricsView? metrics,
     List<CloudSyncLogEntry>? logs,
     List<CloudSyncSnapshotView>? snapshots,
     List<CloudSyncConflictView>? conflicts,
     bool? remoteExists,
     CloudSyncPreviewView? pendingPreview,
     bool? pendingFfdkjInstall,
-    String? maintenanceWarning,
     String? error,
     bool clearProgress = false,
     bool clearError = false,
     bool clearPendingPreview = false,
-    bool clearMaintenanceWarning = false,
   }) => CloudSyncUiState(
     connectionStatus: connectionStatus ?? this.connectionStatus,
     activityStatus: activityStatus ?? this.activityStatus,
     backend: backend ?? this.backend,
+    accountId: accountId ?? this.accountId,
+    accountLabel: accountLabel ?? this.accountLabel,
     deviceName: deviceName ?? this.deviceName,
     lastSync: lastSync ?? this.lastSync,
     remoteRevision: remoteRevision ?? this.remoteRevision,
@@ -298,6 +350,7 @@ class CloudSyncUiState {
     capabilityWarnings: capabilityWarnings ?? this.capabilityWarnings,
     providerLimit: providerLimit ?? this.providerLimit,
     progress: clearProgress ? null : progress ?? this.progress,
+    metrics: metrics ?? this.metrics,
     logs: logs ?? this.logs,
     snapshots: snapshots ?? this.snapshots,
     conflicts: conflicts ?? this.conflicts,
@@ -306,9 +359,6 @@ class CloudSyncUiState {
         ? null
         : pendingPreview ?? this.pendingPreview,
     pendingFfdkjInstall: pendingFfdkjInstall ?? this.pendingFfdkjInstall,
-    maintenanceWarning: clearMaintenanceWarning
-        ? null
-        : maintenanceWarning ?? this.maintenanceWarning,
     error: clearError ? null : error ?? this.error,
   );
 }
@@ -321,6 +371,16 @@ abstract interface class CloudSyncUiPort {
   Future<void> detectRemote(CloudSyncConnectionDraft connection);
 
   Future<void> connect(CloudSyncConnectRequest request);
+
+  Future<CloudSyncConnectionDraft> authorizeCloudDrive(
+    CloudSyncBackendKind backend,
+  );
+
+  Future<void> cancelCloudDriveAuthorization(CloudSyncBackendKind backend);
+
+  Future<void> discardCloudDriveAuthorization(
+    CloudSyncConnectionDraft connection,
+  );
 
   Future<void> pushNow();
 
@@ -337,6 +397,8 @@ abstract interface class CloudSyncUiPort {
   Future<void> previewRestoreSnapshot(String snapshotId);
 
   Future<void> confirmRestoreSnapshot();
+
+  Future<void> refreshHistory();
 
   Future<void> deleteRemoteNamespace();
 
@@ -371,6 +433,20 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
   Future<void> connect(CloudSyncConnectRequest request) => _unavailable();
 
   @override
+  Future<CloudSyncConnectionDraft> authorizeCloudDrive(
+    CloudSyncBackendKind backend,
+  ) => _unavailable();
+
+  @override
+  Future<void> cancelCloudDriveAuthorization(CloudSyncBackendKind backend) =>
+      _unavailable();
+
+  @override
+  Future<void> discardCloudDriveAuthorization(
+    CloudSyncConnectionDraft connection,
+  ) => _unavailable();
+
+  @override
   Future<void> deleteRemoteNamespace() => _unavailable();
 
   @override
@@ -382,6 +458,9 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
 
   @override
   Future<void> pause() => _unavailable();
+
+  @override
+  Future<void> refreshHistory() => _unavailable();
 
   @override
   Future<void> resolveAllConflicts(CloudSyncConflictChoice choice) =>
@@ -412,7 +491,7 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
   @override
   Future<void> pullNow() => _unavailable();
 
-  Future<void> _unavailable() async {
+  Future<T> _unavailable<T>() async {
     throw StateError('Cloud sync service is not connected.');
   }
 }

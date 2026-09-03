@@ -33,8 +33,17 @@ class FfdkjInstallIntentAdapter extends ValidatingCloudSyncDataAdapter {
 
   @override
   void validateRecord(PortableSyncRecord record) {
-    if (record.deleted ||
-        record.id != 'install' ||
+    if (record.deleted) {
+      if (record.id != 'install' ||
+          record.resource != null ||
+          record.data.isNotEmpty) {
+        throw const CloudSyncPreflightException(
+          'Invalid ffdkj install-intent tombstone',
+        );
+      }
+      return;
+    }
+    if (record.id != 'install' ||
         record.resource != null ||
         record.data['installed'] != true ||
         record.data['requiresConfirmation'] != true) {
@@ -44,7 +53,7 @@ class FfdkjInstallIntentAdapter extends ValidatingCloudSyncDataAdapter {
 
   @override
   Future<void> apply(List<PortableSyncRecord> records) async {
-    if (records.isEmpty || isInstalled()) return;
+    if (!records.any((record) => !record.deleted) || isInstalled()) return;
     await recordPendingIntent();
   }
 }

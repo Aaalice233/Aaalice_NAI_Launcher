@@ -9,4 +9,5 @@ CloudSyncProgressView mapCloudSyncProgress(SyncProgress progress) =>
       totalBytes: progress.bytesTotal,
       completedObjects: progress.objectsCompleted,
       totalObjects: progress.objectsTotal,
+      reusedObjects: progress.objectsReused,
     );

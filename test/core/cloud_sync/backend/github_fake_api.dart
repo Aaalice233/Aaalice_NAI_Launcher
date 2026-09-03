@@ -28,8 +28,10 @@ class FakeGitHubApi implements HttpClientAdapter {
   String branch = 'c0';
   int _sequence = 1;
   bool conflictNextRefUpdate = false;
-  String? staleInlinePath;
-  Uint8List? staleInlineBytes;
+  bool truncateNextRecursiveTree = false;
+  bool advanceBranchAfterNextBranchRead = false;
+  bool advanceBranchAfterNextTreeBaseRead = false;
+  Map<String, Uint8List>? filesForNextBranchAdvance;
 
   Map<String, Uint8List> get files => _commits[branch]!;
   int get snapshotCommitCount =>
@@ -43,11 +45,17 @@ class FakeGitHubApi implements HttpClientAdapter {
   ) async {
     requests.add(request);
     final result = _handle(request);
-    return ResponseBody.fromString(
-      result.body,
-      result.status,
-      headers: result.headers,
-    );
+    return result.body is List<int>
+        ? ResponseBody.fromBytes(
+            result.body as List<int>,
+            result.status,
+            headers: result.headers,
+          )
+        : ResponseBody.fromString(
+            result.body as String,
+            result.status,
+            headers: result.headers,
+          );
   }
 
   TestHttpResponse _handle(RequestOptions request) {
@@ -63,25 +71,37 @@ class FakeGitHubApi implements HttpClientAdapter {
       );
     }
     if (path.endsWith('/branches/sync')) {
-      return TestHttpResponse(
+      final commit = branch;
+      final response = TestHttpResponse(
         200,
         jsonBody({
-          'commit': {'sha': branch},
+          'commit': {'sha': commit},
         }),
       );
+      if (advanceBranchAfterNextBranchRead) {
+        advanceBranchAfterNextBranchRead = false;
+        final next = filesForNextBranchAdvance;
+        filesForNextBranchAdvance = null;
+        next == null ? _advanceExternal() : _advance(next);
+      }
+      return response;
     }
     if (request.method == 'GET' && path.contains('/git/commits/')) {
       final commit = Uri.decodeComponent(path.split('/').last);
       final tree = _commitTrees[commit];
-      return tree == null
-          ? const TestHttpResponse(404, '{}')
-          : TestHttpResponse(
-              200,
-              jsonBody({
-                'sha': commit,
-                'tree': {'sha': tree},
-              }),
-            );
+      if (tree == null) return const TestHttpResponse(404, '{}');
+      final response = TestHttpResponse(
+        200,
+        jsonBody({
+          'sha': commit,
+          'tree': {'sha': tree},
+        }),
+      );
+      if (advanceBranchAfterNextTreeBaseRead) {
+        advanceBranchAfterNextTreeBaseRead = false;
+        _advanceExternal();
+      }
+      return response;
     }
     if (request.method == 'GET' && path.contains('/contents/')) {
       return _readContents(request);
@@ -91,24 +111,23 @@ class FakeGitHubApi implements HttpClientAdapter {
       final bytes = blobs[sha];
       return bytes == null
           ? const TestHttpResponse(404, '{}')
-          : TestHttpResponse(
-              200,
-              jsonBody({
-                'sha': sha,
-                'encoding': 'base64',
-                'content': base64Encode(bytes),
-              }),
-            );
+          : TestHttpResponse(200, bytes);
     }
     if (request.method == 'GET' && path.contains('/git/trees/')) {
       final treeSha = path.split('/').last;
       final files = _trees[treeSha];
-      return files == null
-          ? const TestHttpResponse(404, '{}')
-          : TestHttpResponse(
-              200,
-              jsonBody({'sha': treeSha, 'tree': _topLevelTree(files)}),
-            );
+      if (files == null) return const TestHttpResponse(404, '{}');
+      final recursive = request.uri.queryParameters['recursive'] == '1';
+      final truncated = recursive && truncateNextRecursiveTree;
+      truncateNextRecursiveTree = false;
+      return TestHttpResponse(
+        200,
+        jsonBody({
+          'sha': treeSha,
+          'truncated': truncated,
+          'tree': recursive ? _recursiveTree(files) : _topLevelTree(files),
+        }),
+      );
     }
     if (request.method == 'POST' && path.endsWith('/git/blobs')) {
       final body = _body(request);
@@ -148,9 +167,6 @@ class FakeGitHubApi implements HttpClientAdapter {
         }),
       );
     }
-    if (request.method == 'PUT' && path.endsWith('/contents/cloud/KEY.json')) {
-      return _putKey(request);
-    }
     return TestHttpResponse(
       500,
       jsonBody({'unexpected': '${request.method} $path'}),
@@ -174,24 +190,32 @@ class FakeGitHubApi implements HttpClientAdapter {
     if (bytes != null) {
       final sha = _blobSha(bytes);
       blobs[sha] = bytes;
-      final inline = staleInlinePath == path ? staleInlineBytes! : bytes;
       return TestHttpResponse(
         200,
         jsonBody({
           'sha': sha,
+          'size': bytes.length,
           'encoding': 'base64',
-          'content': base64Encode(inline),
+          'content': base64Encode(bytes),
         }),
       );
     }
     final prefix = '$path/';
-    if (files.keys.any((key) => key.startsWith(prefix))) {
-      return TestHttpResponse(
-        200,
-        jsonBody([
-          {'type': 'dir', 'path': path},
-        ]),
-      );
+    final children = files.keys
+        .where((key) => key.startsWith(prefix))
+        .map((key) => key.substring(prefix.length))
+        .where((key) => key.isNotEmpty && !key.contains('/'))
+        .map(
+          (key) => <String, Object>{
+            'type': 'file',
+            'name': key,
+            'path': '$path/$key',
+          },
+        )
+        .toList(growable: false);
+    if (children.isNotEmpty ||
+        files.keys.any((key) => key.startsWith(prefix))) {
+      return TestHttpResponse(200, jsonBody(children));
     }
     return const TestHttpResponse(404, '{}');
   }
@@ -217,27 +241,6 @@ class FakeGitHubApi implements HttpClientAdapter {
     return TestHttpResponse(201, jsonBody({'sha': tree}));
   }
 
-  TestHttpResponse _putKey(RequestOptions request) {
-    final body = _body(request);
-    final current = files['cloud/KEY.json'];
-    if (current != null && body['sha'] != _blobSha(current)) {
-      return const TestHttpResponse(409, '{}');
-    }
-    if (current == null && body.containsKey('sha')) {
-      return const TestHttpResponse(409, '{}');
-    }
-    final bytes = base64Decode(body['content'] as String);
-    final next = Map<String, Uint8List>.from(files)..['cloud/KEY.json'] = bytes;
-    _advance(next);
-    return TestHttpResponse(
-      current == null ? 201 : 200,
-      jsonBody({
-        'content': {'sha': _blobSha(bytes)},
-        'commit': {'sha': branch},
-      }),
-    );
-  }
-
   void _advanceExternal() => _advance(Map<String, Uint8List>.from(files));
 
   void _advance(Map<String, Uint8List> next) {
@@ -257,6 +260,23 @@ class FakeGitHubApi implements HttpClientAdapter {
   static String _blobSha(Uint8List bytes) {
     final header = utf8.encode('blob ${bytes.length}\u0000');
     return sha1.convert([...header, ...bytes]).toString();
+  }
+
+  List<Map<String, Object>> _recursiveTree(Map<String, Uint8List> files) => [
+    for (final entry in files.entries)
+      {
+        'path': entry.key,
+        'mode': '100644',
+        'type': 'blob',
+        'sha': _registerBlob(entry.value),
+        'size': entry.value.length,
+      },
+  ];
+
+  String _registerBlob(Uint8List bytes) {
+    final sha = _blobSha(bytes);
+    blobs[sha] = bytes;
+    return sha;
   }
 
   List<Map<String, Object>> _topLevelTree(Map<String, Uint8List> files) {

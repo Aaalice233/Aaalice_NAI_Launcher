@@ -203,7 +203,14 @@ void main() {
     );
     await tester.tap(moreDestination);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('mobile-more-discord')), findsOneWidget);
+    final discord = find.byKey(const ValueKey('mobile-more-discord'));
+    await tester.scrollUntilVisible(
+      discord,
+      240,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    expect(discord, findsOneWidget);
     expect(find.byKey(const ValueKey('mobile-more-github')), findsOneWidget);
     expect(tester.takeException(), isNull);
     router.pop();

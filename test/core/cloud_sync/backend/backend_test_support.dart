@@ -12,7 +12,7 @@ class TestHttpResponse {
   ]);
 
   final int status;
-  final String body;
+  final Object body;
   final Map<String, List<String>> headers;
 }
 
@@ -30,11 +30,17 @@ class RecordingAdapter implements HttpClientAdapter {
   ) async {
     requests.add(options);
     final response = await handler(options);
-    return ResponseBody.fromString(
-      response.body,
-      response.status,
-      headers: response.headers,
-    );
+    return response.body is List<int>
+        ? ResponseBody.fromBytes(
+            response.body as List<int>,
+            response.status,
+            headers: response.headers,
+          )
+        : ResponseBody.fromString(
+            response.body as String,
+            response.status,
+            headers: response.headers,
+          );
   }
 
   @override

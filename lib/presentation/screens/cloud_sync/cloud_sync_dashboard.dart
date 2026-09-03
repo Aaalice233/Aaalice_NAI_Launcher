@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'cloud_sync_conflict_center.dart';
@@ -43,16 +44,7 @@ class CloudSyncDashboard extends ConsumerWidget {
           CloudSyncStatusBanner(
             icon: Icons.privacy_tip_outlined,
             title: context.l10n.cloudSync_providerWarning,
-            message: warning,
-            warning: true,
-          ),
-        ],
-        if (state.maintenanceWarning != null) ...[
-          const SizedBox(height: 12),
-          CloudSyncStatusBanner(
-            icon: Icons.cleaning_services_outlined,
-            title: context.l10n.cloudSync_maintenanceWarning,
-            message: context.l10n.cloudSync_maintenanceWarningDescription,
+            message: _warningMessage(context, warning),
             warning: true,
           ),
         ],
@@ -65,6 +57,11 @@ class CloudSyncDashboard extends ConsumerWidget {
                 label: context.l10n.cloudSync_backend,
                 value: _backendName(state.backend),
               ),
+              if (state.accountLabel != null)
+                CloudSyncMetadata(
+                  label: context.l10n.cloudSync_connectedAccount,
+                  value: state.accountLabel!,
+                ),
               CloudSyncMetadata(
                 label: context.l10n.cloudSync_deviceName,
                 value: state.deviceName ?? '—',
@@ -78,6 +75,7 @@ class CloudSyncDashboard extends ConsumerWidget {
         ),
         _syncActions(context, port),
         if (state.progress != null) _progress(context, state.progress!),
+        if (state.metrics != null) _metrics(context, state.metrics!),
         if (state.pendingFfdkjInstall) const CloudSyncFfdkjPrompt(),
         if (state.pendingPreview != null) CloudSyncPreviewPanel(state: state),
         if (state.conflicts.isNotEmpty)
@@ -87,6 +85,18 @@ class CloudSyncDashboard extends ConsumerWidget {
       ],
     );
   }
+
+  String _warningMessage(BuildContext context, CloudBackendWarning warning) =>
+      switch (warning) {
+        CloudBackendWarning.googleDriveWeakCas =>
+          context.l10n.cloudSync_warningGoogleDriveWeakCas,
+        CloudBackendWarning.githubPublicRepository =>
+          context.l10n.cloudSync_warningGithubPublicRepository,
+        CloudBackendWarning.webDavWeakCas =>
+          context.l10n.cloudSync_warningWebDavWeakCas,
+        CloudBackendWarning.webDavUnverifiedCas =>
+          context.l10n.cloudSync_warningWebDavUnverifiedCas,
+      };
 
   Widget _status(BuildContext context) {
     final needsAction =
@@ -224,6 +234,11 @@ class CloudSyncDashboard extends ConsumerWidget {
               label: context.l10n.cloudSync_objects,
               value: '${progress.completedObjects} / ${progress.totalObjects}',
             ),
+            if (progress.reusedObjects > 0)
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_reusedObjects,
+                value: '${progress.reusedObjects}',
+              ),
             CloudSyncMetadata(
               label: context.l10n.cloudSync_bytes,
               value:
@@ -235,12 +250,73 @@ class CloudSyncDashboard extends ConsumerWidget {
     ),
   );
 
+  Widget _metrics(BuildContext context, CloudSyncMetricsView metrics) =>
+      ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 12),
+        title: Text(context.l10n.cloudSync_metricsDetails),
+        children: [
+          Wrap(
+            children: [
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_metricsElapsed,
+                value: '${metrics.elapsedMilliseconds} ms',
+              ),
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_metricsRequests,
+                value: '${metrics.requestCount}',
+              ),
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_metricsRead,
+                value: formatCloudBytes(metrics.bytesRead),
+              ),
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_metricsWritten,
+                value: formatCloudBytes(metrics.bytesWritten),
+              ),
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_metricsHashPasses,
+                value: '${metrics.hashPasses}',
+              ),
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_metricsPayloadReads,
+                value: '${metrics.payloadReads}',
+              ),
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_metricsLocalRead,
+                value: formatCloudBytes(metrics.localBytesRead),
+              ),
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_metricsLocalWritten,
+                value: formatCloudBytes(metrics.localBytesWritten),
+              ),
+              CloudSyncMetadata(
+                label: context.l10n.cloudSync_metricsFlushes,
+                value: '${metrics.flushes}',
+              ),
+              for (final entry in metrics.stageMilliseconds.entries)
+                CloudSyncMetadata(
+                  label: _stageName(context, entry.key),
+                  value: '${entry.value} ms',
+                ),
+            ],
+          ),
+        ],
+      );
+
   Widget _history(
     BuildContext context,
     CloudSyncUiPort port,
   ) => CloudSyncSection(
     title: context.l10n.cloudSync_snapshotHistory,
     subtitle: context.l10n.cloudSync_snapshotHistoryDescription,
+    trailing: IconButton(
+      tooltip: context.l10n.common_refresh,
+      onPressed: state.isBusy
+          ? null
+          : () => _runAction(context, port.refreshHistory),
+      icon: const Icon(Icons.refresh_rounded),
+    ),
     child: !state.supportsHistory || state.snapshots.isEmpty
         ? Text(context.l10n.cloudSync_noSnapshots)
         : Column(
@@ -310,6 +386,8 @@ class CloudSyncDashboard extends ConsumerWidget {
   String _backendName(CloudSyncBackendKind? backend) => switch (backend) {
     CloudSyncBackendKind.webDav => 'WebDAV',
     CloudSyncBackendKind.github => 'GitHub',
+    CloudSyncBackendKind.googleDrive => 'Google Drive',
+    CloudSyncBackendKind.oneDrive => 'OneDrive',
     null => '—',
   };
 
@@ -318,10 +396,17 @@ class CloudSyncDashboard extends ConsumerWidget {
 
   String _stageName(BuildContext context, String stage) => switch (stage) {
     'preparing' => context.l10n.cloudSync_stagePreparing,
+    'scanning' => context.l10n.cloudSync_stageScanning,
+    'hashing' => context.l10n.cloudSync_stageHashing,
     'downloading' => context.l10n.cloudSync_stageDownloading,
+    'verifying' => context.l10n.cloudSync_stageVerifying,
     'merging' => context.l10n.cloudSync_stageMerging,
+    'reusing' => context.l10n.cloudSync_stageReusing,
     'uploading' => context.l10n.cloudSync_stageUploading,
+    'committing' => context.l10n.cloudSync_stageCommitting,
     'applying' => context.l10n.cloudSync_stageApplying,
+    'saving' => context.l10n.cloudSync_stageSaving,
+    'retryWaiting' => context.l10n.cloudSync_stageRetryWaiting,
     'rollingBack' => context.l10n.cloudSync_stageRollingBack,
     'completed' => context.l10n.cloudSync_stageCompleted,
     _ => context.l10n.cloudSync_stageWorking,

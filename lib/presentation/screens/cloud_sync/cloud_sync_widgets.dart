@@ -4,6 +4,24 @@ import '../../../core/utils/localization_extension.dart';
 import '../../providers/cloud_sync/cloud_sync_error_reporter.dart';
 import '../settings/widgets/settings_card.dart';
 
+String localizeCloudSyncError(BuildContext context, String code) =>
+    switch (code) {
+      'backend.authentication' => context.l10n.cloudSync_errorAuthentication,
+      'backend.authorization' => context.l10n.cloudSync_errorAuthorization,
+      'backend.notFound' => context.l10n.cloudSync_errorNotFound,
+      'backend.conflict' => context.l10n.cloudSync_errorConflict,
+      'backend.quota' => context.l10n.cloudSync_errorQuota,
+      'backend.rateLimited' => context.l10n.cloudSync_errorRateLimited,
+      'backend.redirectRejected' => context.l10n.cloudSync_errorRedirect,
+      'backend.invalidResponse' => context.l10n.cloudSync_errorInvalidResponse,
+      'backend.network' => context.l10n.cloudSync_errorNetwork,
+      'previewStale' => context.l10n.cloudSync_errorPreviewStale,
+      'format' => context.l10n.cloudSync_errorFormat,
+      'configuration' => context.l10n.cloudSync_errorConfiguration,
+      'state' => context.l10n.cloudSync_errorState,
+      _ => context.l10n.cloudSync_errorUnknown,
+    };
+
 void showCloudSyncActionError(BuildContext context, Object error) {
   final messenger = ScaffoldMessenger.of(context);
   messenger
@@ -11,7 +29,9 @@ void showCloudSyncActionError(BuildContext context, Object error) {
     ..showSnackBar(
       SnackBar(
         content: Text(
-          context.l10n.cloudSync_actionFailed(cloudSyncErrorMessage(error)),
+          context.l10n.cloudSync_actionFailed(
+            localizeCloudSyncError(context, cloudSyncErrorMessage(error)),
+          ),
         ),
       ),
     );

@@ -1,13 +1,22 @@
+import 'dart:collection';
 import 'dart:typed_data';
 
+import '../operation.dart';
+
 const maxCloudHeadResponseBytes = 64 * 1024;
-const maxCloudKeyResponseBytes = 64 * 1024;
 const maxCloudManifestResponseBytes = 1024 * 1024 + 64;
 const maxCloudObjectResponseBytes = 4 * 1024 * 1024;
 const maxCloudListingResponseBytes = 4 * 1024 * 1024;
 const maxCloudJsonApiResponseBytes = 6 * 1024 * 1024;
 
 enum CloudBackendMode { bidirectional, manualBackupOnly }
+
+enum CloudBackendWarning {
+  googleDriveWeakCas,
+  githubPublicRepository,
+  webDavWeakCas,
+  webDavUnverifiedCas,
+}
 
 class CloudBackendCapability {
   const CloudBackendCapability({
@@ -22,7 +31,7 @@ class CloudBackendCapability {
   final String message;
   final bool supportsHistory;
   final bool supportsDelete;
-  final List<String> warnings;
+  final List<CloudBackendWarning> warnings;
 
   bool get supportsBidirectional => mode == CloudBackendMode.bidirectional;
 }
@@ -42,18 +51,6 @@ class CloudCommitResult {
   const CloudCommitResult({required this.revision});
 
   final String revision;
-}
-
-/// Rotatable remote key material kept independently from immutable snapshots.
-/// Implementations store it at the namespace root as `KEY.json` and must use
-/// the same compare-and-swap semantics as HEAD.
-abstract interface class CloudKeyEnvelopeBackend {
-  Future<CloudObjectRead?> readKeyEnvelope();
-
-  Future<CloudCommitResult> commitKeyEnvelope(
-    Uint8List bytes, {
-    required String? expectedRevision,
-  });
 }
 
 enum CloudBackendErrorKind {
@@ -96,6 +93,78 @@ abstract interface class ConcurrentCloudObjectUploadBackend {
   int get maxConcurrentObjectUploads;
 }
 
+/// Optional operation-scoped inventory for immutable content-addressed
+/// objects. Implementations must reject duplicate/conflicting entries and may
+/// report an object as existing only after validating its identity and size.
+typedef CloudObjectInventoryProgressCallback =
+    void Function(CloudObjectInventoryProgress progress);
+
+class CloudObjectInventoryProgress {
+  const CloudObjectInventoryProgress({
+    required this.objectsCompleted,
+    required this.objectsTotal,
+    required this.bytesCompleted,
+    required this.bytesTotal,
+  });
+
+  final int objectsCompleted;
+  final int objectsTotal;
+  final int bytesCompleted;
+  final int bytesTotal;
+}
+
+class CloudObjectInventoryResult extends SetBase<String> {
+  CloudObjectInventoryResult({
+    required Set<String> existingObjectIds,
+    required Map<String, String> verifiedRevisions,
+  }) : existingObjectIds = Set.unmodifiable(existingObjectIds),
+       verifiedRevisions = Map.unmodifiable(verifiedRevisions);
+
+  CloudObjectInventoryResult.empty()
+    : existingObjectIds = const {},
+      verifiedRevisions = const {};
+
+  final Set<String> existingObjectIds;
+  final Map<String, String> verifiedRevisions;
+
+  @override
+  bool add(String value) => throw UnsupportedError('Inventory is immutable');
+
+  @override
+  bool contains(Object? element) => existingObjectIds.contains(element);
+
+  @override
+  Iterator<String> get iterator => existingObjectIds.iterator;
+
+  @override
+  int get length => existingObjectIds.length;
+
+  @override
+  String? lookup(Object? element) => existingObjectIds.lookup(element);
+
+  @override
+  bool remove(Object? value) =>
+      throw UnsupportedError('Inventory is immutable');
+
+  @override
+  Set<String> toSet() => Set.of(existingObjectIds);
+}
+
+abstract interface class CloudObjectInventoryBackend {
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  });
+}
+
+/// Optional lightweight validation used while saving or restoring a WebDAV
+/// connection. Implementations must not create, update, or delete remote data.
+abstract interface class ReadOnlyCloudSyncBackendValidation {
+  Future<void> validateConnectionReadOnly();
+}
+
 abstract interface class CloudSyncBackend {
   Future<CloudBackendCapability> testCapability();
 
@@ -105,18 +174,24 @@ abstract interface class CloudSyncBackend {
 
   Future<CloudObjectRead?> readSnapshotManifest(String snapshotId);
 
+  /// [payloadVerified] means the caller already validated [bytes] against
+  /// [sha256]; providers must reuse that proof instead of hashing the payload
+  /// again. Direct callers leave it false and receive backend validation.
   Future<CloudCommitResult> putObject(
     String objectId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   });
 
   /// Creates a manifest once; implementations must not replace different
-  /// bytes at the same snapshot id.
+  /// bytes at the same snapshot id. [payloadVerified] has the same proof
+  /// semantics as [putObject].
   Future<CloudCommitResult> putSnapshotManifest(
     String snapshotId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   });
 
   Future<CloudCommitResult> commitHead(
@@ -127,24 +202,4 @@ abstract interface class CloudSyncBackend {
   Future<List<String>> listSnapshotIds({int limit = 20});
 
   Future<void> deleteNamespace();
-}
-
-/// Optional maintenance implemented only by backends that can safely reclaim
-/// immutable objects without rewriting provider history.
-abstract interface class CloudSyncBackendMaintenance {
-  Future<CloudMaintenanceResult> cleanUnreferencedObjects();
-}
-
-class CloudMaintenanceResult {
-  const CloudMaintenanceResult({
-    required this.scanned,
-    required this.deleted,
-    required this.skipped,
-    this.warnings = const [],
-  });
-
-  final int scanned;
-  final int deleted;
-  final int skipped;
-  final List<String> warnings;
 }

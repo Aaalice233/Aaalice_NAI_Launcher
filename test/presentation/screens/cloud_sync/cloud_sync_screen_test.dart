@@ -1,9 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
+import 'package:nai_launcher/core/cloud_sync/cloud_drive_provider.dart';
+import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_client.dart';
+import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_config.dart';
+import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_models.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_flight_gate.dart';
+import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
@@ -19,6 +27,8 @@ void main() {
       expect(find.text('尚未连接'), findsOneWidget);
       expect(find.text('WebDAV'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
+      expect(find.text('Google Drive'), findsOneWidget);
+      expect(find.text('OneDrive'), findsOneWidget);
       expect(find.text('保存连接'), findsOneWidget);
       expect(tester.takeException(), isNull, reason: 'width=$width');
     }
@@ -126,6 +136,180 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('OAuth 草稿随页面销毁安全清理且不读取已失效 ref', (tester) async {
+    final port = _FakePort();
+    final registry = CloudDriveProviderRegistry([
+      const _ConfiguredCloudDriveProvider(CloudDriveOAuthProvider.oneDrive),
+    ]);
+    await tester.pumpWidget(_subject(port: port, registry: registry));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('OneDrive'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('cloud-sync-authorize-oneDrive')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('test@example.com'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    expect(port.discardedAuthorizations.single.accountId, 'account-1');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('OAuth 等待期间可取消并立即恢复页面操作', (tester) async {
+    final port = _FakePort()
+      ..authorizationCompleter = Completer<CloudSyncConnectionDraft>();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('OneDrive'));
+    await tester.pumpAndSettle();
+    final authorize = find.byKey(
+      const ValueKey('cloud-sync-authorize-oneDrive'),
+    );
+    await tester.tap(authorize);
+    await tester.pump();
+
+    expect(find.text('取消'), findsOneWidget);
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'WebDAV'))
+          .onSelected,
+      isNull,
+    );
+    await tester.tap(authorize);
+    await tester.pumpAndSettle();
+
+    expect(port.authorizationCancellations, 1);
+    expect(find.text('连接账号'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('更换账号时取消会保留原 OAuth 草稿', (tester) async {
+    final port = _FakePort();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+    expect(find.text('test@example.com'), findsOneWidget);
+
+    port.authorizationCompleter = Completer<CloudSyncConnectionDraft>();
+    final authorize = find.byKey(
+      const ValueKey('cloud-sync-authorize-oneDrive'),
+    );
+    await tester.tap(authorize);
+    await tester.pump();
+    await tester.tap(authorize);
+    await tester.pumpAndSettle();
+
+    expect(port.authorizationCancellations, 1);
+    expect(find.text('test@example.com'), findsOneWidget);
+    expect(port.discardedAuthorizations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('OAuth 等待期间销毁页面会取消后台授权', (tester) async {
+    final port = _FakePort()
+      ..authorizationCompleter = Completer<CloudSyncConnectionDraft>();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('OneDrive'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('cloud-sync-authorize-oneDrive')),
+    );
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+
+    expect(port.authorizationCancellations, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('保存期间页面销毁不会撤销已转交给保存操作的 OAuth', (tester) async {
+    final port = _FakePort()..connectCompleter = Completer<void>();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+
+    await _tapSaveConnection(tester);
+    expect(port.request?.connection.accountId, 'account-1');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    expect(port.discardedAuthorizations, isEmpty);
+    port.connectCompleter!.complete();
+    await tester.pumpAndSettle();
+    expect(port.discardedAuthorizations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('保存失败时恢复 OAuth 草稿以便重试', (tester) async {
+    final port = _FakePort()..connectError = StateError('save failed');
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+
+    await _tapSaveConnection(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('test@example.com'), findsOneWidget);
+    expect(port.discardedAuthorizations, isEmpty);
+    final save = find.byKey(const ValueKey('cloud-sync-save-connection'));
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('保存失败且页面已销毁时只清理一次 OAuth', (tester) async {
+    final port = _FakePort()..connectCompleter = Completer<void>();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+    await _tapSaveConnection(tester);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    port.connectCompleter!.completeError(StateError('save failed'));
+    await tester.pumpAndSettle();
+
+    expect(port.discardedAuthorizations, hasLength(1));
+    expect(port.discardedAuthorizations.single.accountId, 'account-1');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('旧云同步操作占用 gate 时显示明确反馈', (tester) async {
+    final port = _FakePort()
+      ..connectError = const CloudSyncOperationInProgressException();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+
+    await _tapSaveConnection(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('另一项云同步操作正在进行，请稍后重试。'), findsOneWidget);
+    expect(find.text('test@example.com'), findsOneWidget);
+    expect(port.discardedAuthorizations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('已连接状态展示降级能力、完整进度、历史与待处理冲突', (tester) async {
     final state = _connectedState();
     final port = _FakePort();
@@ -136,9 +320,6 @@ void main() {
 
       expect(find.text('只支持手动推送与拉取'), findsOneWidget);
       expect(find.text('GitHub 空间说明'), findsOneWidget);
-      expect(find.text('需要注意'), findsOneWidget);
-      expect(find.text('云端空间暂时无法自动整理。现有备份不受影响，稍后会自动重试。'), findsOneWidget);
-      expect(find.text('cleanup delayed'), findsNothing);
       expect(find.text('请选择要保留的内容'), findsWidgets);
       expect(find.text('已连接'), findsNothing);
       expect(find.text('settings.json'), findsNothing);
@@ -209,7 +390,6 @@ void main() {
           clearProgress: true,
           conflicts: const [],
           pendingPreview: const CloudSyncPreviewView(
-            title: 'initial',
             changes: [
               CloudSyncChangeSummary(
                 kind: CloudSyncDataKind.prompts,
@@ -242,15 +422,86 @@ void main() {
     expect(port.ffdkjInstallChoice, isFalse);
   });
 
-  testWidgets('仅手动备份模式隐藏恢复并禁用冲突应用', (tester) async {
+  testWidgets('四语技术详情在五档宽度和大数值下无 overflow', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final state =
+        _connectedState(
+          activityStatus: CloudSyncActivityStatus.syncing,
+          capabilityMode: CloudSyncCapabilityMode.bidirectional,
+        ).copyWith(
+          progress: const CloudSyncProgressView(
+            stage: 'hashing',
+            objectName: 'object-with-a-very-long-content-addressed-name',
+            completedBytes: 9876543210123,
+            totalBytes: 98765432101234,
+            completedObjects: 987654321,
+            totalObjects: 9876543210,
+            reusedObjects: 987654321,
+          ),
+          metrics: const CloudSyncMetricsView(
+            elapsedMilliseconds: 987654321,
+            requestCount: 987654321,
+            bytesRead: 9876543210123,
+            bytesWritten: 9876543210123,
+            hashPasses: 987654321,
+            payloadReads: 987654321,
+            localBytesRead: 9876543210123,
+            localBytesWritten: 9876543210123,
+            flushes: 987654321,
+            stageMilliseconds: {'preparing': 123456789, 'uploading': 987654321},
+          ),
+        );
+    final titles = {
+      const Locale('en'): ('Technical details', 'Service requests'),
+      const Locale('ja'): ('技術的な詳細', 'サービスへのリクエスト'),
+      const Locale('zh'): ('技术详情', '服务请求'),
+      const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'): (
+        '技術詳情',
+        '服務要求',
+      ),
+    };
+    for (final entry in titles.entries) {
+      for (final width in [390.0, 700.0, 840.0, 1180.0, 1600.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 900));
+        await tester.pumpWidget(
+          _subject(state: state, port: _FakePort(), locale: entry.key),
+        );
+        await tester.pumpAndSettle();
+
+        final details = find.text(entry.value.$1);
+        await tester.scrollUntilVisible(
+          details,
+          180,
+          scrollable: _pageScrollable,
+        );
+        await tester.tap(details);
+        await tester.pumpAndSettle();
+
+        expect(find.text(entry.value.$2), findsOneWidget);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'locale=${entry.key} width=$width',
+        );
+      }
+    }
+  });
+
+  testWidgets('仅手动备份模式允许显式拉取但禁用历史恢复和合并', (tester) async {
     await tester.pumpWidget(
       _subject(
-        state: _connectedState(activityStatus: CloudSyncActivityStatus.idle),
+        state: _connectedState(
+          activityStatus: CloudSyncActivityStatus.idle,
+        ).copyWith(remoteExists: true),
         port: _FakePort(),
       ),
     );
     await tester.pumpAndSettle();
     expect(find.text('查看并恢复'), findsNothing);
+    final pull = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '从云端拉取'),
+    );
+    expect(pull.onPressed, isNotNull);
     final bulk = tester.widget<FilledButton>(
       find.byKey(const ValueKey('cloud-sync-bulk-local')),
     );
@@ -263,7 +514,9 @@ void main() {
           activityStatus: CloudSyncActivityStatus.idle,
           capabilityMode: CloudSyncCapabilityMode.bidirectional,
         ).copyWith(
-          capabilityWarnings: const ['当前 GitHub 仓库是公开仓库'],
+          capabilityWarnings: const [
+            CloudBackendWarning.githubPublicRepository,
+          ],
           clearProgress: true,
         );
 
@@ -271,7 +524,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('存储服务提示'), findsOneWidget);
-    expect(find.text('当前 GitHub 仓库是公开仓库'), findsOneWidget);
+    expect(find.textContaining('备份内容也会公开'), findsOneWidget);
   });
 
   testWidgets('推送和拉取使用独立按钮并在执行前二次确认方向', (tester) async {
@@ -298,6 +551,30 @@ void main() {
     expect(port.pulls, 1);
   });
 
+  testWidgets('云盘连接不显示密钥流程且可直接选择同步方向', (tester) async {
+    final state =
+        _connectedState(
+          activityStatus: CloudSyncActivityStatus.idle,
+          capabilityMode: CloudSyncCapabilityMode.bidirectional,
+        ).copyWith(
+          backend: CloudSyncBackendKind.oneDrive,
+          accountId: 'tenant:account',
+          accountLabel: 'user@example.test',
+          conflicts: const [],
+          clearProgress: true,
+        );
+    await tester.pumpWidget(_subject(state: state, port: _FakePort()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('user@example.test'), findsOneWidget);
+    expect(find.textContaining('恢复密钥'), findsNothing);
+    expect(find.textContaining('加密设置'), findsNothing);
+    final push = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '推送到云端'),
+    );
+    expect(push.onPressed, isNotNull);
+  });
+
   testWidgets('网络失败只显示可读提示且不暴露异常类型', (tester) async {
     final port = _FakePort()
       ..syncError = const CloudBackendException(
@@ -320,13 +597,31 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, '确认'));
     await tester.pumpAndSettle();
 
-    expect(find.text('操作失败：无法连接服务器，请检查网络、代理和服务地址后重试。'), findsOneWidget);
+    expect(find.text('操作失败：无法连接云存储，请检查网络后重试。'), findsOneWidget);
     expect(find.textContaining('CloudBackendException'), findsNothing);
   });
 }
 
 Finder _fieldWithLabel(String label) =>
     find.byKey(ValueKey('cloud-sync-field-$label'));
+
+CloudDriveProviderRegistry _oneDriveRegistry() => CloudDriveProviderRegistry([
+  const _ConfiguredCloudDriveProvider(CloudDriveOAuthProvider.oneDrive),
+]);
+
+Future<void> _authorizeOneDrive(WidgetTester tester) async {
+  await tester.tap(find.text('OneDrive'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('cloud-sync-authorize-oneDrive')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapSaveConnection(WidgetTester tester) async {
+  final save = find.byKey(const ValueKey('cloud-sync-save-connection'));
+  await tester.scrollUntilVisible(save, 180, scrollable: _pageScrollable);
+  await tester.tap(save);
+  await tester.pump();
+}
 
 Future<void> _tapText(
   WidgetTester tester,
@@ -351,15 +646,20 @@ Widget _subject({
   CloudSyncUiState? state,
   CloudSyncUiPort? port,
   double textScale = 1,
+  CloudDriveProviderRegistry? registry,
+  Locale locale = const Locale('zh'),
 }) {
   return ProviderScope(
     overrides: [
       if (state != null) cloudSyncUiStateProvider.overrideWithValue(state),
       if (port != null) cloudSyncUiPortProvider.overrideWithValue(port),
+      if (registry != null)
+        cloudDriveProviderRegistryProvider.overrideWithValue(registry),
       localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
     ],
     child: MaterialApp(
-      locale: const Locale('zh'),
+      key: UniqueKey(),
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => MediaQuery(
@@ -386,6 +686,36 @@ class _MemoryStorage extends LocalStorageService {
   }
 }
 
+class _ConfiguredCloudDriveProvider implements CloudDriveProvider {
+  const _ConfiguredCloudDriveProvider(this.id);
+
+  @override
+  final CloudDriveOAuthProvider id;
+
+  @override
+  CloudDriveOAuthConfigDiagnostic diagnose() => CloudDriveOAuthConfigDiagnostic(
+    provider: id,
+    platform: CloudDriveOAuthPlatform.windows,
+    isConfigured: true,
+    reasons: const [],
+  );
+
+  @override
+  Future<CloudDriveOAuthSession> connect() => throw UnimplementedError();
+
+  @override
+  Future<void> cancelConnect() async {}
+
+  @override
+  CloudSyncBackend createBackend({
+    required String accountId,
+    required String namespace,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> disconnect(String accountId) async {}
+}
+
 CloudSyncUiState _connectedState({
   CloudSyncActivityStatus activityStatus = CloudSyncActivityStatus.syncing,
   CloudSyncCapabilityMode capabilityMode =
@@ -398,7 +728,6 @@ CloudSyncUiState _connectedState({
   lastSync: DateTime.utc(2026, 3, 12, 10, 30),
   remoteRevision: 'rev-42',
   capabilityMode: capabilityMode,
-  maintenanceWarning: 'cleanup delayed',
   progress: const CloudSyncProgressView(
     stage: 'uploading',
     objectName: 'settings.json',
@@ -448,8 +777,48 @@ class _FakePort extends CloudSyncUiPortAdapter {
   bool previewApplied = false;
   bool? ffdkjInstallChoice;
   Object? syncError;
+  Object? connectError;
+  Completer<void>? connectCompleter;
   var pushes = 0;
   var pulls = 0;
+  Completer<CloudSyncConnectionDraft>? authorizationCompleter;
+  final discardedAuthorizations = <CloudSyncConnectionDraft>[];
+  var authorizationCancellations = 0;
+
+  @override
+  Future<CloudSyncConnectionDraft> authorizeCloudDrive(
+    CloudSyncBackendKind backend,
+  ) async =>
+      authorizationCompleter?.future ??
+      CloudSyncConnectionDraft(
+        backend: backend,
+        path: 'aaalice-sync',
+        accountId: 'account-1',
+        accountLabel: 'test@example.com',
+      );
+
+  @override
+  Future<void> cancelCloudDriveAuthorization(
+    CloudSyncBackendKind backend,
+  ) async {
+    authorizationCancellations++;
+    final completer = authorizationCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.completeError(
+        const CloudDriveOAuthException(
+          CloudDriveOAuthFailureCode.cancelled,
+          'cancelled by test',
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<void> discardCloudDriveAuthorization(
+    CloudSyncConnectionDraft connection,
+  ) async {
+    discardedAuthorizations.add(connection);
+  }
 
   @override
   Future<void> pushNow() async {
@@ -482,7 +851,7 @@ class _FakePort extends CloudSyncUiPortAdapter {
     message: 'Conditional writes and history are available.',
     supportsHistory: true,
     supportsDelete: true,
-    warnings: ['provider warning'],
+    warnings: [CloudBackendWarning.githubPublicRepository],
     limit: '2 GiB',
   );
 
@@ -494,6 +863,9 @@ class _FakePort extends CloudSyncUiPortAdapter {
   @override
   Future<void> connect(CloudSyncConnectRequest request) async {
     this.request = request;
+    final error = connectError;
+    if (error != null) throw error;
+    await connectCompleter?.future;
   }
 
   @override

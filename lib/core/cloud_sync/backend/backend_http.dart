@@ -1,15 +1,41 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import '../operation.dart';
+import 'backend_http_metrics.dart';
 import 'cloud_sync_backend.dart';
 
+typedef BackendHttpClock = DateTime Function();
+typedef BackendHttpSleeper = Future<void> Function(Duration duration);
+typedef BackendHttpJitter = Duration Function(Duration delay, int attempt);
+typedef BackendHttpRetryResponse = bool Function(Response<Uint8List> response);
+
 class BackendHttp {
-  BackendHttp({Dio? dio}) : dio = dio ?? Dio();
+  BackendHttp({
+    Dio? dio,
+    BackendHttpRequestObserver? observer,
+    BackendHttpClock? clock,
+    BackendHttpSleeper? sleeper,
+    BackendHttpJitter? jitter,
+  }) : dio = dio ?? Dio(),
+       _observer = observer,
+       _clock = clock ?? _systemClock,
+       _sleeper = sleeper ?? Future<void>.delayed,
+       _jitter = jitter ?? _fullJitter;
 
   final Dio dio;
+  final BackendHttpRequestObserver? _observer;
+  final BackendHttpClock _clock;
+  final BackendHttpSleeper _sleeper;
+  final BackendHttpJitter _jitter;
+
+  var _concurrentRequests = 0;
+  var _maxConcurrentRequests = 0;
 
   Future<Response<Uint8List>> request(
     String method,
@@ -20,7 +46,34 @@ class BackendHttp {
     int maxResponseBytes = 1024 * 1024,
     CloudBackendErrorKind tooLargeKind = CloudBackendErrorKind.invalidResponse,
     bool? retryable,
+    BackendHttpRetryResponse? retryResponse,
+    bool followRedirects = true,
+    Duration receiveTimeout = const Duration(minutes: 2),
+    BackendHttpEndpointCategory endpointCategory =
+        BackendHttpEndpointCategory.unspecified,
   }) async {
+    final operation = OperationToken.current;
+    operation?.throwIfCancelled();
+    final effectiveCancelToken = operation == null
+        ? cancelToken
+        : CancelToken();
+    void Function()? removeOperationListener;
+    if (operation != null) {
+      final linked = effectiveCancelToken!;
+      removeOperationListener = operation.addCancellationListener(
+        () => linked.cancel(const OperationCancelledException()),
+      );
+      if (cancelToken != null) {
+        if (cancelToken.isCancelled) {
+          linked.cancel(cancelToken.cancelError);
+        } else {
+          unawaited(
+            cancelToken.whenCancel.then<void>((error) => linked.cancel(error)),
+          );
+        }
+      }
+    }
+
     final normalizedMethod = method.toUpperCase();
     final normalizedData = data is List<int> && data is! Uint8List
         ? Uint8List.fromList(data)
@@ -28,70 +81,188 @@ class BackendHttp {
     final mayRetry =
         retryable ??
         const {'GET', 'HEAD', 'OPTIONS', 'PROPFIND'}.contains(normalizedMethod);
-    const maxAttempts = 3;
-    for (var attempt = 1; ; attempt++) {
-      try {
-        final response = await _request(
-          normalizedMethod,
-          uri,
-          headers: headers,
-          data: normalizedData,
-          cancelToken: cancelToken,
-          maxResponseBytes: maxResponseBytes,
-          tooLargeKind: tooLargeKind,
-          redirectsRemaining: 5,
-        );
-        if (!mayRetry ||
-            attempt >= maxAttempts ||
-            !_transientStatuses.contains(response.statusCode)) {
-          return response;
-        }
-        await _waitBeforeRetry(_retryDelay(response, attempt), cancelToken);
-      } on CloudBackendException catch (error) {
-        if (!mayRetry ||
-            attempt >= maxAttempts ||
-            error.kind != CloudBackendErrorKind.network) {
-          rethrow;
-        }
-        await _waitBeforeRetry(_retryDelay(null, attempt), cancelToken);
+    final observesRequest = _observer != null;
+    final requestBytes = observesRequest ? _requestBytes(normalizedData) : null;
+    if (observesRequest) {
+      _concurrentRequests++;
+      if (_concurrentRequests > _maxConcurrentRequests) {
+        _maxConcurrentRequests = _concurrentRequests;
       }
+    }
+    try {
+      const maxAttempts = 3;
+      for (var attempt = 1; ; attempt++) {
+        final startedAt = observesRequest ? _clock() : null;
+        Response<Uint8List> response;
+        try {
+          response = await _request(
+            normalizedMethod,
+            uri,
+            headers: headers,
+            data: normalizedData,
+            cancelToken: effectiveCancelToken,
+            maxResponseBytes: maxResponseBytes,
+            tooLargeKind: tooLargeKind,
+            receiveTimeout: receiveTimeout,
+            redirectsRemaining: followRedirects ? 5 : 0,
+            returnRedirectResponse: !followRedirects,
+          );
+        } on CloudBackendException catch (error, stackTrace) {
+          final retry =
+              mayRetry &&
+              attempt < maxAttempts &&
+              error.kind == CloudBackendErrorKind.network;
+          _record(
+            method: normalizedMethod,
+            endpointCategory: endpointCategory,
+            attempt: attempt,
+            statusCode: error.statusCode,
+            requestBytes: requestBytes,
+            responseBytes: null,
+            retry: retry,
+            startedAt: startedAt,
+          );
+          if (!retry) {
+            Error.throwWithStackTrace(error, stackTrace);
+          }
+          await _waitBeforeRetry(
+            _retryDelay(null, attempt),
+            effectiveCancelToken,
+          );
+          continue;
+        } on Object catch (error, stackTrace) {
+          _record(
+            method: normalizedMethod,
+            endpointCategory: endpointCategory,
+            attempt: attempt,
+            statusCode: null,
+            requestBytes: requestBytes,
+            responseBytes: null,
+            retry: false,
+            startedAt: startedAt,
+          );
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+
+        final retry =
+            mayRetry &&
+            attempt < maxAttempts &&
+            (_transientStatuses.contains(response.statusCode) ||
+                (retryResponse?.call(response) ?? false));
+        _record(
+          method: normalizedMethod,
+          endpointCategory: endpointCategory,
+          attempt: attempt,
+          statusCode: response.statusCode,
+          requestBytes: requestBytes,
+          responseBytes: response.data?.length ?? 0,
+          retry: retry,
+          startedAt: startedAt,
+        );
+        if (!retry) return response;
+        await _waitBeforeRetry(
+          _retryDelay(response, attempt),
+          effectiveCancelToken,
+        );
+      }
+    } catch (error, stackTrace) {
+      if (operation?.isCancelled ?? false) {
+        Error.throwWithStackTrace(
+          const OperationCancelledException(),
+          stackTrace,
+        );
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    } finally {
+      removeOperationListener?.call();
+      if (observesRequest) _concurrentRequests--;
     }
   }
 
   static const _transientStatuses = {408, 425, 429, 500, 502, 503, 504};
 
-  static Future<void> _waitBeforeRetry(
+  Future<void> _waitBeforeRetry(
     Duration duration,
     CancelToken? cancelToken,
   ) async {
     if (cancelToken == null) {
-      await Future<void>.delayed(duration);
+      await _sleeper(duration);
       return;
     }
     await Future.any<void>([
-      Future<void>.delayed(duration),
+      _sleeper(duration),
       cancelToken.whenCancel.then<void>((error) => throw error),
     ]);
   }
 
-  static Duration _retryDelay(Response<Uint8List>? response, int attempt) {
+  Duration _retryDelay(Response<Uint8List>? response, int attempt) {
+    const maximumDelay = Duration(seconds: 30);
+    Duration bounded(Duration delay) {
+      if (delay.isNegative) return Duration.zero;
+      return delay > maximumDelay ? maximumDelay : delay;
+    }
+
     final retryAfter = response?.headers.value('retry-after');
     final seconds = int.tryParse(retryAfter ?? '');
     if (seconds != null) {
-      return Duration(seconds: seconds.clamp(0, 30));
+      return bounded(Duration(seconds: seconds));
     }
     if (retryAfter != null) {
       final date = _parseHttpDate(retryAfter);
       if (date != null) {
-        final delay = date.difference(DateTime.now().toUtc());
-        if (!delay.isNegative) {
-          return delay > const Duration(seconds: 30)
-              ? const Duration(seconds: 30)
-              : delay;
-        }
+        final delay = date.difference(_clock().toUtc());
+        if (!delay.isNegative) return bounded(delay);
       }
     }
-    return Duration(milliseconds: attempt == 1 ? 300 : 900);
+    final base = Duration(milliseconds: attempt == 1 ? 300 : 900);
+    final jittered = _jitter(base, attempt);
+    return bounded(jittered);
+  }
+
+  void _record({
+    required String method,
+    required BackendHttpEndpointCategory endpointCategory,
+    required int attempt,
+    required int? statusCode,
+    required int? requestBytes,
+    required int? responseBytes,
+    required bool retry,
+    required DateTime? startedAt,
+  }) {
+    final observer = _observer;
+    if (observer == null || startedAt == null) return;
+    final measured = _clock().difference(startedAt);
+    observer(
+      BackendHttpRequestMetric(
+        method: method,
+        endpointCategory: endpointCategory,
+        attempt: attempt,
+        statusCode: statusCode,
+        requestBytes: requestBytes,
+        responseBytes: responseBytes,
+        retry: retry,
+        concurrentRequests: _concurrentRequests,
+        maxConcurrentRequests: _maxConcurrentRequests,
+        elapsed: measured.isNegative ? Duration.zero : measured,
+      ),
+    );
+  }
+
+  static int? _requestBytes(Object? data) {
+    if (data == null) return 0;
+    if (data is Uint8List) return data.length;
+    if (data is String) return utf8.encode(data).length;
+    return null;
+  }
+
+  static DateTime _systemClock() => DateTime.now().toUtc();
+
+  static final Random _jitterRandom = Random.secure();
+
+  static Duration _fullJitter(Duration delay, int attempt) {
+    final maximum = delay.inMilliseconds;
+    if (maximum <= 0) return Duration.zero;
+    return Duration(milliseconds: _jitterRandom.nextInt(maximum + 1));
   }
 
   static DateTime? _parseHttpDate(String value) {
@@ -110,7 +281,9 @@ class BackendHttp {
     CancelToken? cancelToken,
     required int maxResponseBytes,
     required CloudBackendErrorKind tooLargeKind,
+    required Duration receiveTimeout,
     required int redirectsRemaining,
+    required bool returnRedirectResponse,
   }) async {
     try {
       final streamed = await dio.request<ResponseBody>(
@@ -124,7 +297,7 @@ class BackendHttp {
           followRedirects: false,
           validateStatus: (_) => true,
           sendTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(minutes: 2),
+          receiveTimeout: receiveTimeout,
         ),
       );
       final response = await _bufferResponse(
@@ -134,6 +307,7 @@ class BackendHttp {
       );
       final status = response.statusCode ?? 0;
       if ({301, 302, 303, 307, 308}.contains(status)) {
+        if (returnRedirectResponse) return response;
         final location = response.headers.value('location');
         if (location == null || redirectsRemaining == 0) {
           throw CloudBackendException(
@@ -161,7 +335,9 @@ class BackendHttp {
           cancelToken: cancelToken,
           maxResponseBytes: maxResponseBytes,
           tooLargeKind: tooLargeKind,
+          receiveTimeout: receiveTimeout,
           redirectsRemaining: redirectsRemaining - 1,
+          returnRedirectResponse: false,
         );
       }
       return response;

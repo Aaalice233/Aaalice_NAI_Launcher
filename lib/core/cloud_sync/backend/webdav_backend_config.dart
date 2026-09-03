@@ -6,7 +6,7 @@ import 'cloud_namespace.dart';
 class WebDavBackendConfig {
   WebDavBackendConfig({
     required this.baseUri,
-    this.namespace = 'aaalice-sync',
+    this.namespace = defaultCloudSyncV3Namespace,
     this.allowInsecureHttp = false,
   }) {
     validate();
@@ -15,7 +15,7 @@ class WebDavBackendConfig {
   factory WebDavBackendConfig.fromJson(Map<String, Object?> json) {
     return WebDavBackendConfig(
       baseUri: Uri.parse(json['baseUri'] as String),
-      namespace: json['namespace'] as String? ?? 'aaalice-sync',
+      namespace: json['namespace'] as String? ?? defaultCloudSyncV3Namespace,
       allowInsecureHttp: json['allowInsecureHttp'] as bool? ?? false,
     );
   }

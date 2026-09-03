@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/autocomplete/tag_catalog_repository.dart';
+import '../../core/network/network_failure_diagnostics.dart';
 import '../../core/network/online_gallery_retry_interceptor.dart';
 import '../../data/datasources/remote/danbooru_api_service.dart';
 import '../../data/datasources/remote/gelbooru_api_service.dart';
@@ -27,7 +28,9 @@ Dio onlineGalleryHttpClient(Ref ref) {
       sendTimeout: const Duration(seconds: 30),
     ),
   );
+  addNetworkFailureDiagnostics(dio, scope: 'Online gallery');
   dio.interceptors.add(OnlineGalleryRetryInterceptor(dio: dio));
+  ref.onDispose(dio.close);
   return dio;
 }
 

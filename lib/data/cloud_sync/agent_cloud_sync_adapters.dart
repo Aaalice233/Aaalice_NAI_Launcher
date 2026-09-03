@@ -54,10 +54,19 @@ class AgentSystemPromptCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
 
   @override
   void validateRecord(PortableSyncRecord record) {
+    if (record.deleted) {
+      if (record.id != 'custom' ||
+          record.resource != null ||
+          record.data.isNotEmpty) {
+        throw const CloudSyncPreflightException(
+          'Invalid Agent system prompt tombstone',
+        );
+      }
+      return;
+    }
     final localChat = _storedAgentChat();
     final mode = record.data['systemPromptMode'];
-    if (record.deleted ||
-        record.id != 'custom' ||
+    if (record.id != 'custom' ||
         record.resource != null ||
         record.data.keys.toSet().difference(const {
           'version',
@@ -88,9 +97,18 @@ class AgentSystemPromptCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
           ? const AgentSettings().toJson()
           : _jsonMap(jsonDecode(raw), 'Agent settings');
       final chat = _jsonMap(settings['chat'], 'Agent chat settings');
-      chat['customSystemPrompt'] = record.data['customSystemPrompt'];
-      final mode = record.data['systemPromptMode'];
-      if (mode != null) chat['systemPromptMode'] = mode;
+      if (record.deleted) {
+        final defaults = _jsonMap(
+          const AgentSettings().toJson()['chat'],
+          'Default Agent chat settings',
+        );
+        chat['customSystemPrompt'] = defaults['customSystemPrompt'];
+        chat['systemPromptMode'] = defaults['systemPromptMode'];
+      } else {
+        chat['customSystemPrompt'] = record.data['customSystemPrompt'];
+        final mode = record.data['systemPromptMode'];
+        if (mode != null) chat['systemPromptMode'] = mode;
+      }
       settings['chat'] = chat;
       await _storage.setSetting(
         StorageKeys.agentSettingsJson,
@@ -194,6 +212,11 @@ class AgentSkillsCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
     _preparedRestorePlans = null;
     _preparedRecords = null;
     await super.preflight(records);
+    if (records.every((record) => record.deleted)) {
+      _preparedRestorePlans = const [];
+      _preparedRecords = records;
+      return;
+    }
     _validateSelectionGraph(records);
     _preparedRestorePlans = await _prepareRestorePlans(records);
     _preparedRecords = records;
@@ -229,9 +252,18 @@ class AgentSkillsCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   @override
   void validateRecord(PortableSyncRecord record) {
     if (record.kind == 'selection') {
+      if (record.deleted) {
+        if (record.id != 'selection' ||
+            record.resource != null ||
+            record.data.isNotEmpty) {
+          throw const CloudSyncPreflightException(
+            'Invalid Skill selection tombstone',
+          );
+        }
+        return;
+      }
       final ids = record.data['skillIds'];
-      if (record.deleted ||
-          record.id != 'selection' ||
+      if (record.id != 'selection' ||
           record.resource != null ||
           record.data.keys.toSet().difference(const {
             'version',
@@ -243,6 +275,14 @@ class AgentSkillsCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
         throw const CloudSyncPreflightException(
           'Invalid Skill selection backup',
         );
+      }
+      return;
+    }
+    if (record.deleted) {
+      if (record.resource != null ||
+          record.data.isNotEmpty ||
+          !_isValidBackupId(record.id)) {
+        throw const CloudSyncPreflightException('Invalid Skill tombstone');
       }
       return;
     }
@@ -267,14 +307,6 @@ class AgentSkillsCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
       throw const CloudSyncPreflightException(
         'Archived Skill identity does not match its source',
       );
-    }
-    if (record.deleted) {
-      if (record.resource != null) {
-        throw const CloudSyncPreflightException(
-          'Deleted Skill cannot contain an archive',
-        );
-      }
-      return;
     }
     final resource = record.resource;
     if (resource == null ||

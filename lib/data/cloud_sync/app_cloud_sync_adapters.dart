@@ -315,10 +315,19 @@ class GalleryBlacklistCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
 
   @override
   void validateRecord(PortableSyncRecord record) {
+    if (record.deleted) {
+      if (record.id != 'unified' ||
+          record.resource != null ||
+          record.data.isNotEmpty) {
+        throw const CloudSyncPreflightException(
+          'Invalid unified blacklist tombstone',
+        );
+      }
+      return;
+    }
     bool strings(Object? value) =>
         value is List && value.every((item) => item is String);
-    if (record.deleted ||
-        record.id != 'unified' ||
+    if (record.id != 'unified' ||
         record.data['revision'] is! int ||
         !strings(record.data['desiredTags']) ||
         !strings(record.data['tombstones'])) {
@@ -332,13 +341,17 @@ class GalleryBlacklistCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
       final current = _repository.load();
       await _repository.save(
         current.copyWith(
-          revision: record.data['revision']! as int,
-          desiredTags: Set.unmodifiable(
-            (record.data['desiredTags']! as List).cast<String>(),
-          ),
-          tombstones: Set.unmodifiable(
-            (record.data['tombstones']! as List).cast<String>(),
-          ),
+          revision: record.deleted ? 0 : record.data['revision']! as int,
+          desiredTags: record.deleted
+              ? const <String>{}
+              : Set.unmodifiable(
+                  (record.data['desiredTags']! as List).cast<String>(),
+                ),
+          tombstones: record.deleted
+              ? const <String>{}
+              : Set.unmodifiable(
+                  (record.data['tombstones']! as List).cast<String>(),
+                ),
         ),
       );
     }
@@ -514,9 +527,17 @@ class PromptAssistantProfileCloudSyncAdapter
 
   @override
   void validateRecord(PortableSyncRecord record) {
-    if (record.deleted ||
-        record.id != 'user-rules' ||
-        record.data['rules'] is! List) {
+    if (record.deleted) {
+      if (record.id != 'user-rules' ||
+          record.resource != null ||
+          record.data.isNotEmpty) {
+        throw const CloudSyncPreflightException(
+          'Invalid Prompt Assistant profile tombstone',
+        );
+      }
+      return;
+    }
+    if (record.id != 'user-rules' || record.data['rules'] is! List) {
       throw const CloudSyncPreflightException(
         'Invalid Prompt Assistant profile',
       );
@@ -532,7 +553,7 @@ class PromptAssistantProfileCloudSyncAdapter
         ? <String, dynamic>{'schemaVersion': 2}
         : jsonDecode(currentRaw) as Map<String, dynamic>;
     for (final record in records) {
-      current['rules'] = record.data['rules'];
+      current['rules'] = record.deleted ? const [] : record.data['rules'];
     }
     // providers/baseUrl/models/routing and secure keys remain target-local.
     await _storage.setSetting(

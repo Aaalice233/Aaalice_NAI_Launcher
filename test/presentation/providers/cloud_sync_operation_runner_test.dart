@@ -7,7 +7,7 @@ void main() {
   test(
     'pending preview blocks every operation that could replace it',
     () async {
-      const pending = CloudSyncPreviewView(title: 'pending merge', changes: []);
+      const pending = CloudSyncPreviewView(changes: []);
       var state = const CloudSyncUiState(pendingPreview: pending);
       final runner = CloudSyncOperationRunner(
         coordinator: () => null,
@@ -15,7 +15,6 @@ void main() {
         writeState: (value) => state = value,
         recordError: (_, {bool resetActivity = false}) {},
         readPendingFfdkjIntent: () => false,
-        afterSuccessfulWrite: () async {},
         persistSyncState: (_, __) async {},
       );
 

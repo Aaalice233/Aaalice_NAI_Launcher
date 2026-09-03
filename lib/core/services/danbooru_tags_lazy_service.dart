@@ -7,6 +7,7 @@ import '../../data/models/tag/local_tag.dart';
 import '../database/datasources/danbooru_tag_data_source.dart';
 import '../database/datasources/translation_data_source.dart';
 import '../database/services/service_providers.dart';
+import '../network/network_failure_diagnostics.dart';
 import '../utils/app_logger.dart';
 import 'danbooru_tags_meta_repository.dart';
 import 'danbooru_tags_protocol.dart';
@@ -339,15 +340,18 @@ Future<DanbooruTagsLazyService> danbooruTagsLazyService(Ref ref) async {
   final translationDataSource = await ref.read(
     translationDataSourceProvider.future,
   );
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 15),
+    ),
+  );
+  addNetworkFailureDiagnostics(dio, scope: 'Danbooru tag refresh');
+  ref.onDispose(dio.close);
   final service = DanbooruTagsLazyService(
     dataSource: tagDataSource,
-    dio: Dio(
-      BaseOptions(
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
-        sendTimeout: const Duration(seconds: 15),
-      ),
-    ),
+    dio: dio,
     translationDataSource: translationDataSource,
   );
   await service.initialize();

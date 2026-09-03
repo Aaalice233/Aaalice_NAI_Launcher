@@ -241,8 +241,29 @@ jobs:
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: Validate cloud-drive OAuth registration
+        shell: pwsh
+        env:
+          GOOGLE_DRIVE_WINDOWS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_WINDOWS_CLIENT_ID }}
+          GOOGLE_DRIVE_WINDOWS_REDIRECT_URI: http://127.0.0.1
+          ONEDRIVE_WINDOWS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_WINDOWS_REDIRECT_URI: http://127.0.0.1
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: ./scripts/verify_cloud_drive_oauth_config.ps1 -Platform windows -RequireConfigured
+
       - name: Build Windows release
-        run: flutter build windows --release --no-pub
+        shell: pwsh
+        env:
+          GOOGLE_DRIVE_WINDOWS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_WINDOWS_CLIENT_ID }}
+          ONEDRIVE_WINDOWS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: |
+          flutter build windows --release --no-pub `
+            "--dart-define=GOOGLE_DRIVE_WINDOWS_CLIENT_ID=$env:GOOGLE_DRIVE_WINDOWS_CLIENT_ID" `
+            "--dart-define=GOOGLE_DRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1" `
+            "--dart-define=ONEDRIVE_WINDOWS_CLIENT_ID=$env:ONEDRIVE_WINDOWS_CLIENT_ID" `
+            "--dart-define=ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1" `
+            "--dart-define=ONEDRIVE_TENANT_ID=$env:ONEDRIVE_TENANT_ID"
 
       - name: Sign Windows application
         shell: pwsh
@@ -362,8 +383,30 @@ jobs:
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: Validate cloud-drive OAuth registration
+        shell: pwsh
+        env:
+          GOOGLE_DRIVE_MACOS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_MACOS_CLIENT_ID }}
+          GOOGLE_DRIVE_MACOS_REDIRECT_URI: ${{ vars.GOOGLE_DRIVE_MACOS_REDIRECT_URI }}
+          ONEDRIVE_MACOS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_MACOS_REDIRECT_URI: ${{ vars.ONEDRIVE_MACOS_REDIRECT_URI }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: ./scripts/verify_cloud_drive_oauth_config.ps1 -Platform macos -RequireConfigured
+
       - name: Build macOS release
-        run: flutter build macos --release
+        env:
+          GOOGLE_DRIVE_MACOS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_MACOS_CLIENT_ID }}
+          GOOGLE_DRIVE_MACOS_REDIRECT_URI: ${{ vars.GOOGLE_DRIVE_MACOS_REDIRECT_URI }}
+          ONEDRIVE_MACOS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_MACOS_REDIRECT_URI: ${{ vars.ONEDRIVE_MACOS_REDIRECT_URI }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: |
+          flutter build macos --release \
+            "--dart-define=GOOGLE_DRIVE_MACOS_CLIENT_ID=$GOOGLE_DRIVE_MACOS_CLIENT_ID" \
+            "--dart-define=GOOGLE_DRIVE_MACOS_REDIRECT_URI=$GOOGLE_DRIVE_MACOS_REDIRECT_URI" \
+            "--dart-define=ONEDRIVE_MACOS_CLIENT_ID=$ONEDRIVE_MACOS_CLIENT_ID" \
+            "--dart-define=ONEDRIVE_MACOS_REDIRECT_URI=$ONEDRIVE_MACOS_REDIRECT_URI" \
+            "--dart-define=ONEDRIVE_TENANT_ID=$ONEDRIVE_TENANT_ID"
 
       - name: Package macOS artifact
         run: |
@@ -476,8 +519,27 @@ jobs:
           echo "ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
           echo "ANDROID_EXPECTED_SIGNER_SHA256=$expected_signer_sha256" >> "$GITHUB_ENV"
 
+      - name: Validate cloud-drive OAuth registration
+        shell: pwsh
+        env:
+          GOOGLE_DRIVE_ANDROID_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_ANDROID_CLIENT_ID }}
+          ONEDRIVE_ANDROID_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_ANDROID_REDIRECT_URI: ${{ vars.ONEDRIVE_ANDROID_REDIRECT_URI }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: ./scripts/verify_cloud_drive_oauth_config.ps1 -Platform android -RequireConfigured
+
       - name: Build signed Android APK
-        run: flutter build apk --release
+        env:
+          GOOGLE_DRIVE_ANDROID_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_ANDROID_CLIENT_ID }}
+          ONEDRIVE_ANDROID_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_ANDROID_REDIRECT_URI: ${{ vars.ONEDRIVE_ANDROID_REDIRECT_URI }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: |
+          flutter build apk --release \
+            "--dart-define=GOOGLE_DRIVE_ANDROID_CLIENT_ID=$GOOGLE_DRIVE_ANDROID_CLIENT_ID" \
+            "--dart-define=ONEDRIVE_ANDROID_CLIENT_ID=$ONEDRIVE_ANDROID_CLIENT_ID" \
+            "--dart-define=ONEDRIVE_ANDROID_REDIRECT_URI=$ONEDRIVE_ANDROID_REDIRECT_URI" \
+            "--dart-define=ONEDRIVE_TENANT_ID=$ONEDRIVE_TENANT_ID"
 
       - name: Verify and package Android APK
         run: |
