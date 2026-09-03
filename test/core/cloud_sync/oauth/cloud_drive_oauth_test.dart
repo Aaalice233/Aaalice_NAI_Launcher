@@ -77,10 +77,6 @@ void main() {
       );
       expect(
         diagnostic.reasons.join(' '),
-        contains('GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET'),
-      );
-      expect(
-        diagnostic.reasons.join(' '),
         contains('GOOGLE_DRIVE_WINDOWS_REDIRECT_URI'),
       );
     });
@@ -158,7 +154,6 @@ void main() {
         platform: CloudDriveOAuthPlatform.windows,
         values: {
           'GOOGLE_DRIVE_WINDOWS_CLIENT_ID': 'client-id',
-          'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET': 'desktop-client-secret',
           'GOOGLE_DRIVE_WINDOWS_REDIRECT_URI': 'http://localhost:8080',
         },
       );
@@ -191,6 +186,41 @@ void main() {
   });
 
   group('SecureCloudDriveOAuthTokenProvider', () {
+    test(
+      'reports missing build configuration instead of unsupported platform',
+      () async {
+        final config = CloudDriveOAuthConfig.forTesting(
+          platform: CloudDriveOAuthPlatform.windows,
+        );
+        final provider = SecureCloudDriveOAuthTokenProvider(
+          store: _MemorySessionStore(),
+          clients: const {},
+          diagnostics: {
+            CloudDriveOAuthProvider.googleDrive: config.diagnose(
+              CloudDriveOAuthProvider.googleDrive,
+            ),
+          },
+        );
+
+        await expectLater(
+          provider.connect(CloudDriveOAuthProvider.googleDrive),
+          throwsA(
+            isA<CloudDriveOAuthException>()
+                .having(
+                  (error) => error.code,
+                  'code',
+                  CloudDriveOAuthFailureCode.notConfigured,
+                )
+                .having(
+                  (error) => error.message,
+                  'message',
+                  contains('GOOGLE_DRIVE_WINDOWS_CLIENT_ID'),
+                ),
+          ),
+        );
+      },
+    );
+
     test(
       'refreshes expired credentials and persists refresh rotation',
       () async {
@@ -605,10 +635,7 @@ void main() {
       expect(receiver.waitCalls, 1);
       expect(receiver.closed, isTrue);
       expect(transport.lastForm, containsPair('code_verifier', isNotEmpty));
-      expect(
-        transport.lastForm,
-        containsPair('client_secret', 'desktop-client-secret'),
-      );
+      expect(transport.lastForm, isNot(contains('client_secret')));
     });
 
     test(
@@ -736,8 +763,6 @@ CloudDriveOAuthConfig _windowsConfig(
     platform: CloudDriveOAuthPlatform.windows,
     values: {
       '${prefix}_WINDOWS_CLIENT_ID': 'client-id',
-      if (provider == CloudDriveOAuthProvider.googleDrive)
-        'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET': 'desktop-client-secret',
       '${prefix}_WINDOWS_REDIRECT_URI': 'http://127.0.0.1',
       ...extras,
     },
