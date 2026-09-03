@@ -1,5 +1,4 @@
-import 'dart:ui' show PointerDeviceKind;
-
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +24,7 @@ void main() {
     required Size viewport,
     required Alignment alignment,
     double devicePixelRatio = 1,
+    TagLibraryEntry? previewEntry,
   }) async {
     tester.view.physicalSize = Size(
       viewport.width * devicePixelRatio,
@@ -48,7 +48,7 @@ void main() {
                 width: 80,
                 height: 64,
                 child: TagLibraryEntryHoverPreview(
-                  entry: entry,
+                  entry: previewEntry ?? entry,
                   hoverDelay: Duration.zero,
                   child: const ColoredBox(color: Colors.black),
                 ),
@@ -98,8 +98,47 @@ void main() {
     expect(find.byIcon(Icons.access_time), findsOneWidget);
 
     await mouse.moveTo(const Offset(10, 10));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 121));
     expect(find.byKey(previewKey), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('超长提示词可将鼠标移入预览并滚动查看', (tester) async {
+    final longEntry = TagLibraryEntry.create(
+      name: '超长固定词',
+      content: List.filled(80, '1girl').join(', '),
+    );
+    final mouse = await showPreview(
+      tester,
+      viewport: const Size(1000, 700),
+      alignment: Alignment.center,
+      previewEntry: longEntry,
+    );
+    addTearDown(mouse.removePointer);
+
+    final previewFinder = find.byKey(previewKey);
+    final scrollViewFinder = find.byKey(
+      const ValueKey('tag-library-entry-preview-scroll-view'),
+    );
+    expect(previewFinder, findsOneWidget);
+    expect(scrollViewFinder, findsOneWidget);
+
+    await mouse.moveTo(tester.getCenter(previewFinder));
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(previewFinder, findsOneWidget);
+
+    final scrollView = tester.widget<SingleChildScrollView>(scrollViewFinder);
+    expect(scrollView.controller!.position.maxScrollExtent, greaterThan(0));
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(previewFinder),
+        scrollDelta: const Offset(0, 240),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(scrollView.controller!.offset, greaterThan(0));
+    expect(previewFinder, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -159,7 +198,7 @@ void main() {
 
     tester.view.physicalSize = const Size(260, 220);
     await tester.pump();
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 121));
 
     expect(find.byKey(previewKey), findsNothing);
     expect(tester.takeException(), isNull);
