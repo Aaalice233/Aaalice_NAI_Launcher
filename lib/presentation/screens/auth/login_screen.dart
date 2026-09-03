@@ -8,6 +8,7 @@ import '../../../core/services/date_formatting_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
+import '../../adaptive/adaptive_layout.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_mode_provider.dart';
@@ -28,8 +29,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  static const double _wideScreenBreakpoint = 800;
-
   final _avatarService = AvatarService();
   final _authErrorService = AuthErrorService();
   final _dateFormattingService = DateFormattingService();
@@ -89,53 +88,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            Positioned.fill(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWideScreen =
-                      constraints.maxWidth >= _wideScreenBreakpoint;
-
-                  return Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _Header(theme: theme),
-                          const SizedBox(height: 32),
-                          _buildMainContent(
-                            context,
-                            theme,
-                            isWideScreen,
-                            isLoading,
-                            accounts,
-                          ),
-                          const SizedBox(height: 12),
-                          TextButton.icon(
-                            key: const Key('auth-skip-login-button'),
-                            onPressed: _continueWithoutLogin,
-                            icon: const Icon(Icons.arrow_forward_rounded),
-                            label: Text(context.l10n.auth_continueWithoutLogin),
-                          ),
-                          const SizedBox(height: 16),
-                          if (_showTroubleshootingButton)
-                            _TroubleshootingButton(),
-                          const SizedBox(height: 24),
-                          _LoginTip(theme: theme),
-                        ],
+            const UpdateNoticeBanner(),
+            Expanded(
+              child: AdaptiveSlotLayout(
+                builder: (context, areas) {
+                  final isWideScreen = areas.sizeClass.isExpandedOrWider;
+                  return SingleChildScrollView(
+                    key: const ValueKey('login_scroll_view'),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: areas.horizontalPadding,
+                      vertical: 24,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: (areas.constraints.maxHeight - 48)
+                            .clamp(0.0, double.infinity)
+                            .toDouble(),
+                      ),
+                      child: AdaptiveContentBounds(
+                        maxWidth: 620,
+                        alignment: Alignment.center,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _Header(theme: theme),
+                            const SizedBox(height: 32),
+                            _buildMainContent(
+                              context,
+                              theme,
+                              isWideScreen,
+                              isLoading,
+                              accounts,
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton.icon(
+                              key: const Key('auth-skip-login-button'),
+                              onPressed: _continueWithoutLogin,
+                              icon: const Icon(Icons.arrow_forward_rounded),
+                              label: Text(
+                                context.l10n.auth_continueWithoutLogin,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            if (_showTroubleshootingButton)
+                              _TroubleshootingButton(),
+                            const SizedBox(height: 24),
+                            _LoginTip(theme: theme),
+                          ],
+                        ),
                       ),
                     ),
                   );
                 },
               ),
-            ),
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: UpdateNoticeBanner(),
             ),
           ],
         ),
@@ -849,10 +859,11 @@ class _QuickLoginButton extends ConsumerWidget {
     return FilledButton.icon(
       onPressed: authState.isLoading ? null : () => onLogin(account),
       icon: authState.isLoading
-          ? const SizedBox(
+          ? SizedBox(
               height: 18,
               width: 18,
               child: CircularProgressIndicator(
+                value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
                 strokeWidth: 2,
                 color: Colors.white,
               ),
@@ -958,6 +969,7 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -970,7 +982,22 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 1;
+    } else if (_controller.value == 0) {
+      _controller.forward();
+    }
   }
 
   @override
@@ -1000,10 +1027,15 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 40,
                       height: 40,
-                      child: CircularProgressIndicator(strokeWidth: 3),
+                      child: CircularProgressIndicator(
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.75
+                            : null,
+                        strokeWidth: 3,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -1052,6 +1084,7 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -1059,10 +1092,26 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
-    )..repeat();
+    );
     _animation = Tween<double>(begin: -2.0, end: 2.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 0;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -1113,6 +1162,7 @@ class _ShimmerCircleAvatarState extends State<_ShimmerCircleAvatar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -1120,10 +1170,26 @@ class _ShimmerCircleAvatarState extends State<_ShimmerCircleAvatar>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
-    )..repeat();
+    );
     _animation = Tween<double>(begin: -2.0, end: 2.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 0;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/shortcuts/shortcut_config.dart';
 import '../../../core/shortcuts/shortcut_manager.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/shortcuts_provider.dart';
 
 /// 快捷键绑定编辑器
@@ -39,6 +40,7 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
   bool _isRecording = false;
   String? _conflictId;
   Set<LogicalKeyboardKey> _pressedKeys = {};
+  final FocusNode _recordingFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -48,6 +50,7 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
 
   @override
   void dispose() {
+    _recordingFocusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -65,9 +68,12 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
 
   Widget _buildInlineEditor(ThemeData theme) {
     final l10n = context.l10n;
+    final controlExtent = context.interactionPolicy.minimumControlExtent;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         // 快捷键显示/输入
         GestureDetector(
@@ -122,20 +128,26 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
 
         // 操作按钮
         if (widget.binding.hasCustomShortcut) ...[
-          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.refresh, size: 16),
             tooltip: l10n.shortcut_settings_reset_to_default,
             visualDensity: VisualDensity.compact,
+            constraints: BoxConstraints.tightFor(
+              width: controlExtent,
+              height: controlExtent,
+            ),
             onPressed: _resetToDefault,
           ),
         ],
         if (_controller.text.isNotEmpty) ...[
-          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.clear, size: 16),
             tooltip: l10n.common_clear,
             visualDensity: VisualDensity.compact,
+            constraints: BoxConstraints.tightFor(
+              width: controlExtent,
+              height: controlExtent,
+            ),
             onPressed: _clear,
           ),
         ],
@@ -147,6 +159,7 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
     final l10n = context.l10n;
 
     return Focus(
+      focusNode: _recordingFocusNode,
       autofocus: true,
       onKeyEvent: _isRecording ? _handleKeyEvent : null,
       child: Column(
@@ -216,6 +229,9 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
                               AppShortcutManager.getDisplayLabel(
                                 _controller.text,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
                               style: theme.textTheme.headlineSmall?.copyWith(
                                 fontFamily: 'monospace',
                                 fontWeight: FontWeight.bold,
@@ -265,33 +281,29 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
 
           const SizedBox(height: 16),
 
-          // 操作按钮
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              // 重置按钮
-              if (widget.binding.hasCustomShortcut)
-                TextButton.icon(
-                  onPressed: _resetToDefault,
-                  icon: const Icon(Icons.refresh),
-                  label: Text(l10n.shortcut_settings_reset_to_default),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (widget.binding.hasCustomShortcut)
+                  TextButton.icon(
+                    onPressed: _resetToDefault,
+                    icon: const Icon(Icons.refresh),
+                    label: Text(l10n.shortcut_settings_reset_to_default),
+                  ),
+                TextButton(
+                  onPressed: widget.onCancel,
+                  child: Text(l10n.common_cancel),
                 ),
-
-              const Spacer(),
-
-              // 取消按钮
-              TextButton(
-                onPressed: widget.onCancel,
-                child: Text(l10n.common_cancel),
-              ),
-              const SizedBox(width: 8),
-
-              // 保存按钮
-              FilledButton(
-                onPressed: _conflictId == null && _canSave() ? _save : null,
-                child: Text(l10n.common_save),
-              ),
-            ],
+                FilledButton(
+                  onPressed: _conflictId == null && _canSave() ? _save : null,
+                  child: Text(l10n.common_save),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -307,6 +319,7 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
       _isRecording = true;
       _pressedKeys = {};
     });
+    _recordingFocusNode.requestFocus();
   }
 
   void _stopRecording() {

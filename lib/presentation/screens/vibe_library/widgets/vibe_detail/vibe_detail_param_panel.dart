@@ -202,11 +202,15 @@ class VibeDetailParamPanel extends StatelessWidget {
         children: [
           Icon(Icons.label_outline, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(
-            context.vibeSourceTypeLabel(entry.sourceType),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w500,
+          Flexible(
+            child: Text(
+              context.vibeSourceTypeLabel(entry.sourceType),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -420,10 +424,13 @@ class VibeDetailParamPanel extends StatelessWidget {
                       child: ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: isSavingParams
-                            ? const SizedBox.square(
+                            ? SizedBox.square(
                                 dimension: 24,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
+                                  value: MediaQuery.disableAnimationsOf(context)
+                                      ? 0.5
+                                      : null,
                                 ),
                               )
                             : const Icon(Icons.save_outlined),
@@ -479,10 +486,15 @@ class VibeDetailParamPanel extends StatelessWidget {
                       ? onSaveParams
                       : null,
                   icon: isSavingParams
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            value: MediaQuery.disableAnimationsOf(context)
+                                ? 0.5
+                                : null,
+                          ),
                         )
                       : const Icon(Icons.save_outlined),
                   label: Text(l10n.vibeDetail_saveParameters),
@@ -504,10 +516,15 @@ class VibeDetailParamPanel extends StatelessWidget {
                     child: TextButton.icon(
                       onPressed: isRenaming ? null : onRename,
                       icon: isRenaming
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                value: MediaQuery.disableAnimationsOf(context)
+                                    ? 0.5
+                                    : null,
+                              ),
                             )
                           : const Icon(Icons.drive_file_rename_outline),
                       label: Text(l10n.common_rename),

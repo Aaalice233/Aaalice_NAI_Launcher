@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/storage/local_storage_service.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -220,7 +221,8 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final theme = Theme.of(context);
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = theme.colorScheme;
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final interactionPolicy = context.interactionPolicy;
+    final isTouch = interactionPolicy.touchAvailable;
     final aspectRatio = widget.width / cardHeight;
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
@@ -270,7 +272,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                 Positioned(
                   key: const ValueKey('local-image-card-actions'),
                   top: 4,
-                  right: buttonDirection == Axis.vertical || isTouch ? 4 : null,
+                  right: 4,
                   left: buttonDirection == Axis.horizontal && !isTouch
                       ? 4
                       : null,
@@ -360,6 +362,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 color: Colors.grey[600],
+                value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
               ),
             ),
             const SizedBox(height: 8),
@@ -396,7 +399,10 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
               ),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: Size.zero,
+                minimumSize: Size(
+                  0,
+                  context.interactionPolicy.minimumControlExtent,
+                ),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),

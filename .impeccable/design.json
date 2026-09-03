@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-31T02:59:25.913Z",
+  "generatedAt": "2026-09-02T15:23:05.839Z",
   "title": "Design System: Aaalice NAI Launcher",
   "extensions": {
     "colorMeta": {
@@ -120,9 +120,9 @@
       {"name": "image-hover", "value": "0 6px 14px rgba(0,0,0,0.16)", "purpose": "Desktop image-card hover feedback."}
     ],
     "motion": [
-      {"name": "fixed-fast", "value": "150ms ease-out", "purpose": "Stable micro-interaction fallback from DesignTokens."},
-      {"name": "fixed-normal", "value": "200ms ease-in-out", "purpose": "Stable state transition fallback from DesignTokens."},
-      {"name": "fixed-slow", "value": "300ms ease-in-out", "purpose": "Stable emphasized transition fallback from DesignTokens."},
+      {"name": "fixed-fast", "value": "150ms ease-out", "purpose": "Stable micro-interaction fallback with no spring, bounce or overshoot."},
+      {"name": "fixed-normal", "value": "200ms ease-in-out", "purpose": "Default state transition; prefer short fades or single-direction deceleration."},
+      {"name": "fixed-slow", "value": "300ms ease-in-out", "purpose": "Maximum emphasized panel or page transition without resetting tween origins."},
       {"name": "grunge-fast", "value": "100ms", "purpose": "Default Grunge Collage runtime fast duration."},
       {"name": "grunge-normal", "value": "200ms", "purpose": "Default Grunge Collage runtime normal duration."},
       {"name": "grunge-slow", "value": "300ms", "purpose": "Default Grunge Collage runtime slow duration."}

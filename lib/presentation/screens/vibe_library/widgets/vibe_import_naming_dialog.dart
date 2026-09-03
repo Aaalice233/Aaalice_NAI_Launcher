@@ -1,9 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../widgets/common/adaptive_dialog_frame.dart';
 
 /// Vibe 导入命名结果
 class VibeImportResult {
@@ -32,6 +36,8 @@ class VibeImportNamingDialog extends StatefulWidget {
 
   /// 是否存在名称冲突
   final bool hasNameConflict;
+  final bool _presented;
+  final ScrollController? _scrollController;
 
   const VibeImportNamingDialog({
     super.key,
@@ -39,7 +45,17 @@ class VibeImportNamingDialog extends StatefulWidget {
     this.thumbnail,
     this.isBatchImport = false,
     this.hasNameConflict = false,
-  });
+  }) : _presented = false,
+       _scrollController = null;
+
+  const VibeImportNamingDialog._presented({
+    required this.suggestedName,
+    required this.thumbnail,
+    required this.isBatchImport,
+    required this.hasNameConflict,
+    required ScrollController scrollController,
+  }) : _presented = true,
+       _scrollController = scrollController;
 
   /// 显示对话框的便捷方法
   static Future<VibeImportResult?> show({
@@ -49,15 +65,42 @@ class VibeImportNamingDialog extends StatefulWidget {
     bool isBatchImport = false,
     bool hasNameConflict = false,
   }) {
-    return showDialog<VibeImportResult>(
+    return AdaptivePresenter.showForm<VibeImportResult>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => VibeImportNamingDialog(
-        suggestedName: suggestedName,
-        thumbnail: thumbnail,
-        isBatchImport: isBatchImport,
-        hasNameConflict: hasNameConflict,
+      titleBuilder: (dialogContext) => Row(
+        children: [
+          Icon(
+            Icons.edit_note,
+            color: Theme.of(dialogContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              dialogContext.l10n.vibe_import_namingTitle,
+              style: Theme.of(dialogContext).textTheme.titleLarge,
+            ),
+          ),
+          if (hasNameConflict)
+            Tooltip(
+              message: dialogContext.l10n.vibe_import_nameConflictOverwrite,
+              child: Icon(
+                Icons.warning_amber,
+                color: Theme.of(dialogContext).colorScheme.error,
+                size: 20,
+              ),
+            ),
+        ],
       ),
+      sideSheetWidth: 400,
+      builder: (dialogContext, scrollController) =>
+          VibeImportNamingDialog._presented(
+            suggestedName: suggestedName,
+            thumbnail: thumbnail,
+            isBatchImport: isBatchImport,
+            hasNameConflict: hasNameConflict,
+            scrollController: scrollController,
+          ),
     );
   }
 
@@ -68,6 +111,7 @@ class VibeImportNamingDialog extends StatefulWidget {
 class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
   late final TextEditingController _nameController;
   late final FocusNode _nameFocusNode;
+  late final FocusNode _keyboardFocusNode;
   bool _applyToAll = false;
   String? _errorText;
 
@@ -76,6 +120,7 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
     super.initState();
     _nameController = TextEditingController(text: widget.suggestedName);
     _nameFocusNode = FocusNode();
+    _keyboardFocusNode = FocusNode();
 
     // 延迟聚焦和全选，确保渲染完成
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -96,6 +141,7 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
   void dispose() {
     _nameController.dispose();
     _nameFocusNode.dispose();
+    _keyboardFocusNode.dispose();
     super.dispose();
   }
 
@@ -141,47 +187,76 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return KeyboardListener(
-      focusNode: FocusNode(),
+    final content = KeyboardListener(
+      focusNode: _keyboardFocusNode,
       onKeyEvent: _handleKeyEvent,
-      child: Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400, minWidth: 320),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 标题栏
-                _buildHeader(theme),
-                const SizedBox(height: 24),
-
-                // 缩略图预览
-                if (widget.thumbnail != null) ...[
-                  _buildThumbnailPreview(theme),
-                  const SizedBox(height: 24),
-                ],
-
-                // 名称输入框
-                _buildNameInput(theme),
-                const SizedBox(height: 16),
-
-                // 批量导入选项
-                if (widget.isBatchImport) ...[
-                  _buildBatchOptions(theme),
-                  const SizedBox(height: 16),
-                ],
-
-                // 底部按钮
-                _buildFooter(theme),
-              ],
-            ),
-          ),
+      child: LayoutBuilder(
+        builder: (context, constraints) => _buildScrollableContent(
+          Theme.of(context),
+          constraints,
+          includeHeader: !widget._presented,
         ),
+      ),
+    );
+
+    if (widget._presented) {
+      return content;
+    }
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: AdaptiveDialogFrame(
+        key: const Key('vibe-import-naming-frame'),
+        maxWidth: 400,
+        maxHeight: 720,
+        reservedVerticalSpace: 0,
+        horizontalMargin: 0,
+        child: SafeArea(child: content),
+      ),
+    );
+  }
+
+  Widget _buildScrollableContent(
+    ThemeData theme,
+    BoxConstraints constraints, {
+    required bool includeHeader,
+  }) {
+    final compact = constraints.maxWidth < 380;
+    final padding = compact ? 16.0 : 24.0;
+    final thumbnailExtent = math
+        .min(
+          math.max(80, constraints.maxHeight * 0.34),
+          math.min(200, constraints.maxWidth * 0.58),
+        )
+        .toDouble();
+
+    return SingleChildScrollView(
+      key: const Key('vibe-import-naming-scroll'),
+      controller: widget._scrollController,
+      padding: EdgeInsets.all(padding),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (includeHeader) ...[
+            _buildHeader(theme),
+            SizedBox(height: compact ? 16 : 24),
+          ],
+          if (widget.thumbnail != null) ...[
+            _buildThumbnailPreview(theme, extent: thumbnailExtent),
+            SizedBox(height: compact ? 16 : 24),
+          ],
+          _buildNameInput(theme),
+          const SizedBox(height: 16),
+          if (widget.isBatchImport) ...[
+            _buildBatchOptions(theme),
+            const SizedBox(height: 16),
+          ],
+          _buildFooter(theme),
+        ],
       ),
     );
   }
@@ -214,39 +289,40 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
   }
 
   /// 构建缩略图预览
-  Widget _buildThumbnailPreview(ThemeData theme) {
+  Widget _buildThumbnailPreview(ThemeData theme, {required double extent}) {
     return Center(
-      child: Container(
-        width: 200,
-        height: 200,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Image.memory(
-          widget.thumbnail!,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            AppLogger.w('缩略图加载失败: $error', 'VibeImportNamingDialog');
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.broken_image,
-                  size: 48,
-                  color: theme.colorScheme.outline,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  context.l10n.vibe_previewLoadFailed,
-                  style: theme.textTheme.bodySmall?.copyWith(
+      child: SizedBox.square(
+        dimension: extent,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: theme.colorScheme.surfaceContainerHighest,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.memory(
+            widget.thumbnail!,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              AppLogger.w('缩略图加载失败: $error', 'VibeImportNamingDialog');
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.broken_image,
+                    size: 48,
                     color: theme.colorScheme.outline,
                   ),
-                ),
-              ],
-            );
-          },
+                  const SizedBox(height: 8),
+                  Text(
+                    context.l10n.vibe_previewLoadFailed,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -328,8 +404,10 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
 
   /// 构建底部按钮
   Widget _buildFooter(ThemeData theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+    return Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         // 跳过按钮（仅批量导入时显示）
         if (widget.isBatchImport) ...[
@@ -338,14 +416,12 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
             icon: const Icon(Icons.skip_next),
             label: Text(context.l10n.vibe_import_skip),
           ),
-          const SizedBox(width: 8),
         ],
         // 取消按钮
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(context.l10n.common_cancel),
         ),
-        const SizedBox(width: 8),
         // 确认按钮
         FilledButton.icon(
           onPressed: _confirm,

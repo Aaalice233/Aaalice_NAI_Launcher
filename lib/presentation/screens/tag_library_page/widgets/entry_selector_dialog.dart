@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/autocomplete/autocomplete_config.dart';
 import '../../../widgets/autocomplete/autocomplete_wrapper.dart';
 import '../../../widgets/common/thumbnail_display.dart';
@@ -18,23 +19,45 @@ class EntrySelectorDialog extends ConsumerStatefulWidget {
   /// 所有分类（用于显示分类名称）
   final List<TagLibraryCategory> categories;
 
+  /// 共享自适应容器提供的滚动控制器
+  final ScrollController? scrollController;
+
   const EntrySelectorDialog({
     super.key,
     required this.entries,
     required this.categories,
+    this.scrollController,
   });
 
-  /// 显示对话框
+  /// 显示自适应选择面；取消或系统返回时返回 null。
   static Future<TagLibraryEntry?> show(
     BuildContext context, {
     required List<TagLibraryEntry> entries,
     required List<TagLibraryCategory> categories,
   }) {
-    return showDialog<TagLibraryEntry?>(
+    return AdaptivePresenter.showForm<TagLibraryEntry>(
       context: context,
-      barrierColor: Colors.black54,
-      builder: (context) =>
-          EntrySelectorDialog(entries: entries, categories: categories),
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.image_search_outlined,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              panelContext.l10n.tagLibrary_selectEntryToUpdate,
+              style: Theme.of(panelContext).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      sideSheetWidth: 500,
+      builder: (panelContext, scrollController) => EntrySelectorDialog(
+        entries: entries,
+        categories: categories,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -86,44 +109,20 @@ class _EntrySelectorDialogState extends ConsumerState<EntrySelectorDialog> {
     final l10n = context.l10n;
     final filteredEntries = _filteredEntries;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 标题
-              Row(
-                children: [
-                  Icon(
-                    Icons.image_search_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      l10n.tagLibrary_selectEntryToUpdate,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: l10n.common_close,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // 搜索框
-              AutocompleteWrapper(
+    return RadioGroup<String>(
+      groupValue: _selectedEntryId,
+      onChanged: (value) {
+        if (value != null) setState(() => _selectedEntryId = value);
+      },
+      child: CustomScrollView(
+        key: const Key('entry-selector-scroll'),
+        controller: widget.scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            sliver: SliverToBoxAdapter(
+              child: AutocompleteWrapper(
                 controller: _searchController,
                 focusNode: _searchFocusNode,
                 config: const AutocompleteConfig(
@@ -150,92 +149,87 @@ class _EntrySelectorDialogState extends ConsumerState<EntrySelectorDialog> {
                   onChanged: _updateSearch,
                 ),
               ),
-
-              const SizedBox(height: 12),
-
-              // 条目列表
-              Expanded(
-                child: filteredEntries.isEmpty
-                    ? _buildEmptyState(theme)
-                    : RadioGroup<String>(
-                        groupValue: _selectedEntryId,
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() => _selectedEntryId = value);
-                          }
-                        },
-                        child: ListView.builder(
-                          itemCount: filteredEntries.length,
-                          itemBuilder: (context, index) {
-                            final entry = filteredEntries[index];
-                            return _EntryListTile(
-                              entry: entry,
-                              categoryName: _getCategoryName(
-                                context,
-                                entry.categoryId,
-                              ),
-                              isSelected: _selectedEntryId == entry.id,
-                              onTap: () {
-                                setState(() {
-                                  _selectedEntryId = entry.id;
-                                });
-                              },
-                            );
-                          },
-                        ),
-                      ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // 底部按钮
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(l10n.common_cancel),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: _selectedEntryId == null
-                        ? null
-                        : () {
-                            final selectedEntry = widget.entries.firstWhere(
-                              (e) => e.id == _selectedEntryId,
-                            );
-                            Navigator.of(context).pop(selectedEntry);
-                          },
-                    icon: const Icon(Icons.update, size: 18),
-                    label: Text(l10n.tagLibrary_updatePreview),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
+          if (filteredEntries.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _buildEmptyState(theme),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              sliver: SliverList.builder(
+                itemCount: filteredEntries.length,
+                itemBuilder: (context, index) {
+                  final entry = filteredEntries[index];
+                  return _EntryListTile(
+                    entry: entry,
+                    categoryName: _getCategoryName(context, entry.categoryId),
+                    isSelected: _selectedEntryId == entry.id,
+                    onTap: () => setState(() => _selectedEntryId = entry.id),
+                  );
+                },
+              ),
+            ),
+          SliverSafeArea(
+            top: false,
+            sliver: SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              sliver: SliverToBoxAdapter(
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(l10n.common_cancel),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _selectedEntryId == null
+                          ? null
+                          : () {
+                              final selectedEntry = widget.entries.firstWhere(
+                                (entry) => entry.id == _selectedEntryId,
+                              );
+                              Navigator.of(context).pop(selectedEntry);
+                            },
+                      icon: const Icon(Icons.update, size: 18),
+                      label: Text(l10n.tagLibrary_updatePreview),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.search_off_outlined,
-            size: 48,
-            color: theme.colorScheme.outline.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            context.l10n.tagLibrary_noSearchResults,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.outline,
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.search_off_outlined,
+              size: 48,
+              color: theme.colorScheme.outline.withValues(alpha: 0.5),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              context.l10n.tagLibrary_noSearchResults,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

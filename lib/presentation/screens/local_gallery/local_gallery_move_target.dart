@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_category.dart';
+import '../../adaptive/adaptive_presenter.dart';
 
 /// 本地图库批量移动的可选分类目标。
 class LocalGalleryMoveTarget {
@@ -41,34 +42,42 @@ Future<String?> showLocalGalleryMoveTargetDialog({
   required List<LocalGalleryMoveTarget> targets,
 }) {
   final l10n = context.l10n;
-  return showDialog<String>(
+  return AdaptivePresenter.showForm<String>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(l10n.localGallery_moveToCategory),
-      content: SizedBox(
-        width: 300,
-        child: ListView.builder(
-          shrinkWrap: true,
-          itemCount: targets.length,
-          itemBuilder: (context, index) {
-            final target = targets[index];
-            return ListTile(
-              leading: const Icon(Icons.folder),
-              title: Text(target.label),
-              subtitle: Text(
-                l10n.localGallery_imageCount(target.category.imageCount),
+    title: l10n.localGallery_moveToCategory,
+    sideSheetWidth: 440,
+    builder: (panelContext, scrollController) => ListView.builder(
+      key: const ValueKey('local-gallery-move-target-list'),
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      itemCount: targets.length + 1,
+      itemBuilder: (context, index) {
+        if (index == targets.length) {
+          return SafeArea(
+            top: false,
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                onPressed: () => Navigator.of(panelContext).pop(),
+                child: Text(l10n.common_cancel),
               ),
-              onTap: () => Navigator.of(dialogContext).pop(target.category.id),
-            );
-          },
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: Text(l10n.common_cancel),
-        ),
-      ],
+            ),
+          );
+        }
+        final target = targets[index];
+        return ListTile(
+          leading: const Icon(Icons.folder_outlined),
+          title: Text(
+            target.label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            l10n.localGallery_imageCount(target.category.imageCount),
+          ),
+          onTap: () => Navigator.of(panelContext).pop(target.category.id),
+        );
+      },
     ),
   );
 }

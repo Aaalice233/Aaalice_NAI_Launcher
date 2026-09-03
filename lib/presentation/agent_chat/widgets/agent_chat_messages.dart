@@ -8,6 +8,7 @@ import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
 import '../../../core/windowing/agent_chat_shared_widgets.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../widgets/common/draggable_memory_image.dart';
 import '../models/agent_chat_prompt_envelope.dart';
 import '../providers/agent_chat_notifier.dart';
@@ -39,11 +40,14 @@ class AgentChatMessages extends StatelessWidget {
         child: Semantics(
           liveRegion: true,
           label: context.l10n.common_loading,
-          child: const SizedBox(
-            key: ValueKey('agent-chat-session-loading'),
+          child: SizedBox(
+            key: const ValueKey('agent-chat-session-loading'),
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
+            ),
           ),
         ),
       );
@@ -110,7 +114,7 @@ class AgentChatMessages extends StatelessWidget {
                 viewData.width,
               ),
           maxWidth: AgentChatLayoutContract.transcriptMaxWidth(viewData.width),
-          mobile: viewData.mobile,
+          compactLayout: viewData.compactWidth,
           hasEarlier: state.hasEarlierTurns,
           historyLoading: state.historyLoading,
           prependAnchorEntryId: state.prependAnchorEntryId,
@@ -162,7 +166,7 @@ class AgentChatMessages extends StatelessWidget {
         ),
         if (controller.showJumpToLatest)
           Positioned(
-            right: viewData.mobile ? 16 : 10,
+            right: viewData.compactWidth ? 16 : 10,
             bottom: 10,
             child: FilledButton.tonalIcon(
               key: const ValueKey('agent-chat-jump-to-latest'),
@@ -170,7 +174,10 @@ class AgentChatMessages extends StatelessWidget {
               icon: const Icon(Icons.arrow_downward_rounded, size: 16),
               label: Text(context.l10n.agentChat_jumpToLatest),
               style: FilledButton.styleFrom(
-                minimumSize: Size(0, viewData.mobile ? 44 : 34),
+                minimumSize: Size(
+                  0,
+                  context.interactionPolicy.minimumControlExtent,
+                ),
                 visualDensity: VisualDensity.compact,
               ),
             ),
@@ -305,7 +312,7 @@ class AgentChatMessages extends StatelessWidget {
   }
 
   Widget _setupHint(BuildContext context, ThemeData theme) {
-    final compact = viewData.compactMobile;
+    final compact = viewData.compactHeight;
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
@@ -466,7 +473,6 @@ class AgentChatMessages extends StatelessWidget {
                                   commands.resolveResourcePreview(
                                     resourceReferences[index],
                                   ),
-                              touchOptimized: viewData.mobile,
                             ),
                         ],
                       ),
@@ -525,7 +531,7 @@ class AgentChatMessages extends StatelessWidget {
                               ),
                               textAlign: TextAlign.left,
                               style:
-                                  (viewData.mobile
+                                  (viewData.compactWidth
                                           ? theme.textTheme.bodyMedium
                                           : theme.textTheme.bodySmall)
                                       ?.copyWith(
@@ -559,16 +565,27 @@ class AgentChatMessages extends StatelessWidget {
                         focused ? messageIndex : null,
                       ),
                   child: SizedBox(
-                    height: viewData.mobile ? 48 : 32,
+                    height: context.interactionPolicy.minimumControlExtent,
                     child: AnimatedOpacity(
                       key: ValueKey('agent-user-message-actions-$messageIndex'),
-                      opacity: viewData.mobile || hovered || actionsFocused
+                      opacity:
+                          context
+                                  .interactionPolicy
+                                  .shouldExposeTouchAlternatives ||
+                              hovered ||
+                              actionsFocused
                           ? 1
                           : 0,
-                      duration: const Duration(milliseconds: 120),
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 120),
                       child: IgnorePointer(
                         ignoring:
-                            !viewData.mobile && !hovered && !actionsFocused,
+                            !context
+                                .interactionPolicy
+                                .shouldExposeTouchAlternatives &&
+                            !hovered &&
+                            !actionsFocused,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -579,7 +596,9 @@ class AgentChatMessages extends StatelessWidget {
                                 ),
                                 tooltip: context.l10n.common_edit,
                                 icon: Icons.edit_outlined,
-                                largeHitArea: viewData.mobile,
+                                largeHitArea: context
+                                    .interactionPolicy
+                                    .shouldExposeTouchAlternatives,
                                 onPressed: controller.isEditingUserMessage
                                     ? null
                                     : () => commands.editUserMessage(
@@ -593,7 +612,9 @@ class AgentChatMessages extends StatelessWidget {
                               ),
                               tooltip: context.l10n.common_copy,
                               icon: Icons.copy_all_outlined,
-                              largeHitArea: viewData.mobile,
+                              largeHitArea: context
+                                  .interactionPolicy
+                                  .shouldExposeTouchAlternatives,
                               onPressed: () =>
                                   commands.copyUserMessage(message),
                             ),
@@ -631,7 +652,7 @@ class AgentChatMessages extends StatelessWidget {
                 if (showReasoning && thinking.trim().isNotEmpty)
                   AgentChatReasoningTile(thinking: thinking),
                 if (message.text.trim().isNotEmpty)
-                  _assistantMarkdown(message.text),
+                  _assistantMarkdown(context, message.text),
                 if (message.text.trim().isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -751,11 +772,12 @@ class AgentChatMessages extends StatelessWidget {
     return AgentChatMarkdownImage(uri: uri, alt: alt, dataBytes: dataBytes);
   }
 
-  Widget _assistantMarkdown(String text) => AgentChatMarkdownContent(
-    text: text,
-    touchOptimized: viewData.mobile,
-    imageBuilder: (uri, _, alt) => _markdownImage(uri, alt),
-  );
+  Widget _assistantMarkdown(BuildContext context, String text) =>
+      AgentChatMarkdownContent(
+        text: text,
+        touchOptimized: context.interactionPolicy.shouldExposeTouchAlternatives,
+        imageBuilder: (uri, _, alt) => _markdownImage(uri, alt),
+      );
 
   Widget _brokenImage(ThemeData theme) => ColoredBox(
     color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
@@ -785,7 +807,7 @@ class AgentChatMessages extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _assistantMarkdown(streaming.text),
+              _assistantMarkdown(context, streaming.text),
               const SizedBox(height: 8),
               _StreamingStatus(theme: theme),
             ],
@@ -819,6 +841,7 @@ class _StreamingStatus extends StatelessWidget {
             dimension: 10,
             child: CircularProgressIndicator(
               strokeWidth: 1.5,
+              value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
               color: theme.colorScheme.primary,
             ),
           ),
@@ -909,17 +932,29 @@ class _MessageActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dimension = largeHitArea ? 48.0 : 32.0;
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
-      disabledColor: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.28),
-      constraints: BoxConstraints.tightFor(width: dimension, height: dimension),
-      padding: EdgeInsets.zero,
-      // Agent density changes spacing, not accessible pointer target sizes.
-      visualDensity: VisualDensity.standard,
+    final dimension = largeHitArea
+        ? 48.0
+        : context.interactionPolicy.minimumControlExtent;
+    return SizedBox.square(
+      dimension: dimension,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16),
+        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
+        disabledColor: theme.colorScheme.onSurfaceVariant.withValues(
+          alpha: 0.28,
+        ),
+        constraints: BoxConstraints.expand(width: dimension, height: dimension),
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          minimumSize: Size.square(dimension),
+          maximumSize: Size.square(dimension),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        // Agent density changes spacing, not accessible pointer target sizes.
+        visualDensity: VisualDensity.standard,
+      ),
     );
   }
 }

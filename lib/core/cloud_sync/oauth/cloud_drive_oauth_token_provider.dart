@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../utils/app_logger.dart';
 import 'cloud_drive_oauth_client.dart';
+import 'cloud_drive_oauth_config.dart';
 import 'cloud_drive_oauth_models.dart';
 
 abstract interface class CloudDriveOAuthSessionStore {
@@ -20,14 +21,19 @@ final class SecureCloudDriveOAuthTokenProvider
   SecureCloudDriveOAuthTokenProvider({
     required CloudDriveOAuthSessionStore store,
     required Map<CloudDriveOAuthProvider, CloudDriveOAuthClient> clients,
+    Map<CloudDriveOAuthProvider, CloudDriveOAuthConfigDiagnostic> diagnostics =
+        const {},
     DateTime Function()? clock,
     this.refreshSkew = const Duration(minutes: 2),
   }) : _store = store,
        _clients = Map.unmodifiable(clients),
+       _diagnostics = Map.unmodifiable(diagnostics),
        _clock = clock ?? DateTime.now;
 
   final CloudDriveOAuthSessionStore _store;
   final Map<CloudDriveOAuthProvider, CloudDriveOAuthClient> _clients;
+  final Map<CloudDriveOAuthProvider, CloudDriveOAuthConfigDiagnostic>
+  _diagnostics;
   final DateTime Function() _clock;
   final Duration refreshSkew;
   final Map<String, Future<CloudDriveOAuthSession>> _refreshes = {};
@@ -269,9 +275,14 @@ final class SecureCloudDriveOAuthTokenProvider
   CloudDriveOAuthClient _client(CloudDriveOAuthProvider provider) {
     final client = _clients[provider];
     if (client == null) {
+      final diagnostic = _diagnostics[provider];
       throw CloudDriveOAuthException(
-        CloudDriveOAuthFailureCode.platformUnsupported,
-        'No OAuth client is registered for ${provider.id}',
+        diagnostic?.platform == CloudDriveOAuthPlatform.unsupported
+            ? CloudDriveOAuthFailureCode.platformUnsupported
+            : CloudDriveOAuthFailureCode.notConfigured,
+        diagnostic == null
+            ? 'No OAuth client is registered for ${provider.id}'
+            : diagnostic.reasons.join('\n'),
       );
     }
     return client;

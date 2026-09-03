@@ -46,7 +46,6 @@ void main() {
             'images': 1,
           },
       estimatedAnlas: estimatedAnlas,
-      touchOptimized: true,
       onResolve: onResolve ?? (_) {},
     );
   }
@@ -160,7 +159,6 @@ void main() {
           toolName: 'delete_tag_library_entry',
           args: const {'id': 'entry-1'},
           estimatedAnlas: null,
-          touchOptimized: true,
           onResolve: (_) {},
         ),
       ),

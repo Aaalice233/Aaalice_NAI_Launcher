@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 
+import '../../presentation/adaptive/interaction_policy.dart';
+
 /// Shared sizing contract for the embedded and detached composer editors.
 abstract final class AgentChatComposerLayout {
   static const defaultMinLines = 2;
@@ -78,23 +80,33 @@ class AgentChatComposerExpandButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = expanded ? collapseLabel : expandLabel;
-    final size = touchOptimized ? 44.0 : 40.0;
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final size = touchOptimized
+        ? policyExtent.clamp(48.0, double.infinity).toDouble()
+        : policyExtent;
     return Semantics(
       button: true,
       toggled: expanded,
       label: label,
       child: Tooltip(
         message: label,
-        child: IconButton(
-          onPressed: onPressed,
-          icon: Icon(
-            expanded
-                ? Icons.close_fullscreen_rounded
-                : Icons.open_in_full_rounded,
+        child: Material(
+          key: const ValueKey('agent-chat-composer-expand-surface'),
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          clipBehavior: Clip.antiAlias,
+          child: IconButton(
+            onPressed: onPressed,
+            icon: Icon(
+              expanded
+                  ? Icons.close_fullscreen_rounded
+                  : Icons.open_in_full_rounded,
+            ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            iconSize: touchOptimized ? 20 : 18,
+            padding: EdgeInsets.zero,
+            constraints: BoxConstraints.tightFor(width: size, height: size),
           ),
-          iconSize: touchOptimized ? 19 : 17,
-          padding: EdgeInsets.zero,
-          constraints: BoxConstraints.tightFor(width: size, height: size),
         ),
       ),
     );
@@ -270,6 +282,10 @@ class _AgentToolDetailSurfaceState extends State<AgentToolDetailSurface> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final interactionPolicy = context.interactionPolicy;
+    final copyButtonExtent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
+        : 40.0;
     return Container(
       margin: widget.margin,
       decoration: BoxDecoration(
@@ -316,6 +332,10 @@ class _AgentToolDetailSurfaceState extends State<AgentToolDetailSurface> {
                 key: const ValueKey('agent-tool-detail-copy'),
                 tooltip: widget.copyTooltip,
                 visualDensity: VisualDensity.compact,
+                constraints: BoxConstraints.tightFor(
+                  width: copyButtonExtent,
+                  height: copyButtonExtent,
+                ),
                 iconSize: 16,
                 onPressed: widget.onCopy,
                 icon: const Icon(Icons.copy_all_outlined),

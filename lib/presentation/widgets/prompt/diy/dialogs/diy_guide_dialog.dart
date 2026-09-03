@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 
 import '../../../../widgets/common/themed_divider.dart';
 import '../../../../widgets/common/elevated_card.dart';
@@ -9,13 +10,23 @@ import '../../../../widgets/common/elevated_card.dart';
 /// 展示 DIY 系统的各项功能说明和使用示例
 /// 采用 Dimensional Layering 设计风格
 class DiyGuideDialog extends StatelessWidget {
-  const DiyGuideDialog({super.key});
+  const DiyGuideDialog({super.key, this.scrollController});
+
+  final ScrollController? scrollController;
 
   /// 显示弹窗
   static Future<void> show(BuildContext context) {
-    return showDialog(
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => const DiyGuideDialog(),
+      titleBuilder: (context) => Text(
+        context.l10n.diyGuide_title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      sideSheetWidth: 680,
+      builder: (context, scrollController) =>
+          DiyGuideDialog(scrollController: scrollController),
     );
   }
 
@@ -25,263 +36,163 @@ class DiyGuideDialog extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Container(
-        width: 680,
-        constraints: const BoxConstraints(maxHeight: 700),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colorScheme.surface,
-              colorScheme.surfaceContainerLow,
-            ],
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题栏
-            _buildHeader(context),
-            // 内容区域
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            key: const ValueKey('diy-guide-scroll'),
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            children: [
+              Text(
+                l10n.diyGuide_subtitle,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // 介绍文本
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      colorScheme.primaryContainer.withValues(alpha: 0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
                   children: [
-                    // 介绍文本
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            colorScheme.primaryContainer.withValues(alpha: 0.3),
-                            colorScheme.primaryContainer.withValues(alpha: 0.1),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: colorScheme.primary.withValues(alpha: 0.2),
+                    Icon(
+                      Icons.lightbulb_outline_rounded,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        l10n.diyGuide_intro,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.lightbulb_outline_rounded,
-                            color: colorScheme.primary,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              l10n.diyGuide_intro,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // 功能指南卡片
-                    _GuideSection(
-                      title: l10n.diyGuide_hierarchyTitle,
-                      icon: Icons.account_tree_rounded,
-                      color: Colors.blue,
-                      description: l10n.diyGuide_hierarchyDescription,
-                      example: l10n.diyGuide_hierarchyExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_selectionModeTitle,
-                      icon: Icons.select_all_rounded,
-                      color: Colors.green,
-                      description: l10n.diyGuide_selectionModeDescription,
-                      example: l10n.diyGuide_selectionModeExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_weightTitle,
-                      icon: Icons.fitness_center_rounded,
-                      color: Colors.orange,
-                      description: l10n.diyGuide_weightDescription,
-                      example: l10n.diyGuide_weightExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_genderTitle,
-                      icon: Icons.wc_rounded,
-                      color: Colors.pink,
-                      description: l10n.diyGuide_genderDescription,
-                      example: l10n.diyGuide_genderExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_scopeTitle,
-                      icon: Icons.layers_rounded,
-                      color: Colors.purple,
-                      description: l10n.diyGuide_scopeDescription,
-                      example: l10n.diyGuide_scopeExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_conditionalTitle,
-                      icon: Icons.call_split_rounded,
-                      color: Colors.teal,
-                      description: l10n.diyGuide_conditionalDescription,
-                      example: l10n.diyGuide_conditionalExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_dependenciesTitle,
-                      icon: Icons.link_rounded,
-                      color: Colors.indigo,
-                      description: l10n.diyGuide_dependenciesDescription,
-                      example: l10n.diyGuide_dependenciesExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_visibilityTitle,
-                      icon: Icons.visibility_rounded,
-                      color: Colors.cyan,
-                      description: l10n.diyGuide_visibilityDescription,
-                      example: l10n.diyGuide_visibilityExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_timeTitle,
-                      icon: Icons.schedule_rounded,
-                      color: Colors.amber,
-                      description: l10n.diyGuide_timeDescription,
-                      example: l10n.diyGuide_timeExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_postProcessingTitle,
-                      icon: Icons.auto_fix_high_rounded,
-                      color: Colors.deepOrange,
-                      description: l10n.diyGuide_postProcessingDescription,
-                      example: l10n.diyGuide_postProcessingExample,
-                    ),
-                    _GuideSection(
-                      title: l10n.diyGuide_emphasisTitle,
-                      icon: Icons.format_bold_rounded,
-                      color: Colors.brown,
-                      description: l10n.diyGuide_emphasisDescription,
-                      example: l10n.diyGuide_emphasisExample,
                     ),
                   ],
                 ),
               ),
-            ),
-            // 底部按钮
-            _buildFooter(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final l10n = context.l10n;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.1),
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          // 图标容器
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  colorScheme.primary.withValues(alpha: 0.2),
-                  colorScheme.primary.withValues(alpha: 0.1),
-                ],
+              const SizedBox(height: 16),
+              // 功能指南卡片
+              _GuideSection(
+                title: l10n.diyGuide_hierarchyTitle,
+                icon: Icons.account_tree_rounded,
+                color: Colors.blue,
+                description: l10n.diyGuide_hierarchyDescription,
+                example: l10n.diyGuide_hierarchyExample,
               ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: colorScheme.primary.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.menu_book_rounded,
-              size: 24,
-              color: colorScheme.primary,
-            ),
+              _GuideSection(
+                title: l10n.diyGuide_selectionModeTitle,
+                icon: Icons.select_all_rounded,
+                color: Colors.green,
+                description: l10n.diyGuide_selectionModeDescription,
+                example: l10n.diyGuide_selectionModeExample,
+              ),
+              _GuideSection(
+                title: l10n.diyGuide_weightTitle,
+                icon: Icons.fitness_center_rounded,
+                color: Colors.orange,
+                description: l10n.diyGuide_weightDescription,
+                example: l10n.diyGuide_weightExample,
+              ),
+              _GuideSection(
+                title: l10n.diyGuide_genderTitle,
+                icon: Icons.wc_rounded,
+                color: Colors.pink,
+                description: l10n.diyGuide_genderDescription,
+                example: l10n.diyGuide_genderExample,
+              ),
+              _GuideSection(
+                title: l10n.diyGuide_scopeTitle,
+                icon: Icons.layers_rounded,
+                color: Colors.purple,
+                description: l10n.diyGuide_scopeDescription,
+                example: l10n.diyGuide_scopeExample,
+              ),
+              _GuideSection(
+                title: l10n.diyGuide_conditionalTitle,
+                icon: Icons.call_split_rounded,
+                color: Colors.teal,
+                description: l10n.diyGuide_conditionalDescription,
+                example: l10n.diyGuide_conditionalExample,
+              ),
+              _GuideSection(
+                title: l10n.diyGuide_dependenciesTitle,
+                icon: Icons.link_rounded,
+                color: Colors.indigo,
+                description: l10n.diyGuide_dependenciesDescription,
+                example: l10n.diyGuide_dependenciesExample,
+              ),
+              _GuideSection(
+                title: l10n.diyGuide_visibilityTitle,
+                icon: Icons.visibility_rounded,
+                color: Colors.cyan,
+                description: l10n.diyGuide_visibilityDescription,
+                example: l10n.diyGuide_visibilityExample,
+              ),
+              _GuideSection(
+                title: l10n.diyGuide_timeTitle,
+                icon: Icons.schedule_rounded,
+                color: Colors.amber,
+                description: l10n.diyGuide_timeDescription,
+                example: l10n.diyGuide_timeExample,
+              ),
+              _GuideSection(
+                title: l10n.diyGuide_postProcessingTitle,
+                icon: Icons.auto_fix_high_rounded,
+                color: Colors.deepOrange,
+                description: l10n.diyGuide_postProcessingDescription,
+                example: l10n.diyGuide_postProcessingExample,
+              ),
+              _GuideSection(
+                title: l10n.diyGuide_emphasisTitle,
+                icon: Icons.format_bold_rounded,
+                color: Colors.brown,
+                description: l10n.diyGuide_emphasisDescription,
+                example: l10n.diyGuide_emphasisExample,
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.diyGuide_title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  l10n.diyGuide_subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.close_rounded,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
+        ),
+        Divider(height: 1, color: colorScheme.outlineVariant),
+        _buildFooter(context),
+      ],
     );
   }
 
   Widget _buildFooter(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.1),
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FilledButton.icon(
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: FilledButton.icon(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.check_rounded, size: 18),
             label: Text(l10n.common_gotIt),
             style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 48),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -321,97 +232,100 @@ class _GuideSection extends StatelessWidget {
             splashColor: color.withValues(alpha: 0.1),
             highlightColor: color.withValues(alpha: 0.05),
           ),
-          child: ExpansionTile(
-            tilePadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    color.withValues(alpha: 0.2),
-                    color.withValues(alpha: 0.1),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(8),
+          child: Material(
+            color: Colors.transparent,
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
               ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            title: Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            expandedCrossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const ThemedDivider(),
-              const SizedBox(height: 8),
-              Text(
-                description,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              // 示例代码框
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: color.withValues(alpha: 0.2),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      color.withValues(alpha: 0.2),
+                      color.withValues(alpha: 0.1),
+                    ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.03),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            context.l10n.diyGuide_exampleLabel,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.bold,
+                child: Icon(icon, color: color, size: 20),
+              ),
+              title: Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const ThemedDivider(),
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // 示例代码框
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: color.withValues(alpha: 0.2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.shadow.withValues(alpha: 0.03),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              context.l10n.diyGuide_exampleLabel,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: color,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      example,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                        color: colorScheme.onSurface.withValues(alpha: 0.9),
-                        height: 1.5,
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        example,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontFamily: 'monospace',
+                          color: colorScheme.onSurface.withValues(alpha: 0.9),
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/services/file_export_service.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/file_name_sanitizer.dart';
@@ -15,13 +14,17 @@ import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
 
-bool get _usesTouchControls => PlatformCapabilities.current.hasTouchInput;
-double get _compactControlExtent => _usesTouchControls ? 48 : 32;
-VisualDensity get _compactControlDensity =>
-    _usesTouchControls ? VisualDensity.standard : VisualDensity.compact;
+double _compactControlExtent(BuildContext context) =>
+    context.interactionPolicy.shouldExposeTouchAlternatives ? 48 : 32;
+VisualDensity _compactControlDensity(BuildContext context) =>
+    context.interactionPolicy.shouldExposeTouchAlternatives
+    ? VisualDensity.standard
+    : VisualDensity.compact;
 
 /// Vibe 导出格式枚举
 enum VibeExportFormat {
@@ -82,6 +85,38 @@ class VibeExportDialog extends ConsumerStatefulWidget {
     required this.entries,
     required this.categories,
   });
+
+  static Future<void> show(
+    BuildContext context, {
+    required List<VibeLibraryEntry> entries,
+    required List<VibeLibraryCategory> categories,
+  }) {
+    return AdaptivePresenter.showForm<void>(
+      context: context,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.waves_outlined,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              panelContext.l10n.vibe_export_title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                panelContext,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      sideSheetWidth: 650,
+      builder: (_, __) =>
+          VibeExportDialog(entries: entries, categories: categories),
+    );
+  }
 
   @override
   ConsumerState<VibeExportDialog> createState() => _VibeExportDialogState();
@@ -178,111 +213,113 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 650, maxHeight: 750),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 标题
-              Row(
-                children: [
-                  Icon(Icons.waves_outlined, color: theme.colorScheme.primary),
-                  const SizedBox(width: 12),
-                  Text(
-                    context.l10n.vibe_export_title,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (!_isExporting)
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                ],
+    return LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        key: const Key('vibe-export-dialog-frame'),
+        padding: EdgeInsets.all(constraints.maxWidth < 380 ? 16 : 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isExporting) ...[
+              // 导出进度
+              LinearProgressIndicator(value: _progress),
+              const SizedBox(height: 12),
+              Text(
+                _progressMessage,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
               ),
+            ] else ...[
+              Expanded(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 统计信息
+                      _buildStatsBar(theme),
 
-              const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-              if (_isExporting) ...[
-                // 导出进度
-                LinearProgressIndicator(value: _progress),
-                const SizedBox(height: 12),
-                Text(
-                  _progressMessage,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ] else ...[
-                // 统计信息
-                _buildStatsBar(theme),
+                      // 导出格式选择
+                      _buildFormatSelection(theme),
 
-                const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                // 导出格式选择
-                _buildFormatSelection(theme),
+                      // 全选/全不选按钮
+                      _buildSelectionActions(theme),
 
-                const SizedBox(height: 16),
+                      const SizedBox(height: 8),
 
-                // 全选/全不选按钮
-                _buildSelectionActions(theme),
+                      // 选择列表与其余选项共用滚动视口，避免 IME 压缩时溢出。
+                      _buildSelectionList(theme),
 
-                const SizedBox(height: 8),
+                      const Divider(height: 24),
 
-                // 可滚动的选择列表
-                Expanded(child: _buildSelectionList(theme)),
-
-                const Divider(height: 24),
-
-                // 选项
-                if (_exportFormat != VibeExportFormat.embeddedPng) ...[
-                  CheckboxListTile(
-                    title: Text(context.l10n.vibe_export_include_thumbnails),
-                    subtitle: Text(
-                      context.l10n.vibe_export_include_thumbnails_subtitle,
-                    ),
-                    value: _includeThumbnails,
-                    onChanged: (value) {
-                      setState(() => _includeThumbnails = value ?? true);
-                    },
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // 操作按钮
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(context.l10n.common_cancel),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: _selectedEntryIds.isEmpty ? null : _export,
-                      icon: const Icon(Icons.file_download),
-                      label: Text(
-                        context.l10n.vibe_export_exportSelected(
-                          _selectedEntryIds.length,
+                      if (_exportFormat != VibeExportFormat.embeddedPng) ...[
+                        CheckboxListTile(
+                          title: Text(
+                            context.l10n.vibe_export_include_thumbnails,
+                          ),
+                          subtitle: Text(
+                            context
+                                .l10n
+                                .vibe_export_include_thumbnails_subtitle,
+                          ),
+                          value: _includeThumbnails,
+                          onChanged: (value) {
+                            setState(() => _includeThumbnails = value ?? true);
+                          },
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
                         ),
-                      ),
-                    ),
-                  ],
+                        const SizedBox(height: 16),
+                      ],
+
+                      _buildDialogActions(),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDialogActions() {
+    final cancel = TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: Text(context.l10n.common_cancel),
+    );
+    final export = FilledButton.icon(
+      onPressed: _selectedEntryIds.isEmpty ? null : _export,
+      icon: const Icon(Icons.file_download),
+      label: Text(
+        context.l10n.vibe_export_exportSelected(_selectedEntryIds.length),
+        textAlign: TextAlign.center,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 360) {
+          return Column(
+            key: const Key('vibe-export-compact-actions'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [cancel, const SizedBox(height: 8), export],
+          );
+        }
+        return Row(
+          key: const Key('vibe-export-actions'),
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [cancel, const SizedBox(width: 8), export],
+        );
+      },
     );
   }
 
@@ -293,36 +330,54 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
         .length;
     final unexportableCount = widget.entries.length - exportableCount;
 
+    final exportable = _StatItem(
+      label: context.l10n.vibe_export_exportable,
+      value: '${_selectedEntryIds.length}/$exportableCount',
+      icon: Icons.check_circle_outline,
+      color: theme.colorScheme.primary,
+    );
+    final unexportable = _StatItem(
+      label: context.l10n.vibe_export_notExportable,
+      value: '$unexportableCount',
+      icon: Icons.error_outline,
+      color: theme.colorScheme.error,
+    );
+    final categories = _StatItem(
+      label: context.l10n.common_category,
+      value: '${_selectedCategoryIds.length}/${widget.categories.length}',
+      icon: Icons.folder_outlined,
+      color: theme.colorScheme.outline,
+    );
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        children: [
-          _StatItem(
-            label: context.l10n.vibe_export_exportable,
-            value: '${_selectedEntryIds.length}/$exportableCount',
-            icon: Icons.check_circle_outline,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(width: 24),
-          if (unexportableCount > 0)
-            _StatItem(
-              label: context.l10n.vibe_export_notExportable,
-              value: '$unexportableCount',
-              icon: Icons.error_outline,
-              color: theme.colorScheme.error,
-            ),
-          const Spacer(),
-          _StatItem(
-            label: context.l10n.common_category,
-            value: '${_selectedCategoryIds.length}/${widget.categories.length}',
-            icon: Icons.folder_outlined,
-            color: theme.colorScheme.outline,
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 360) {
+            return Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              children: [
+                exportable,
+                if (unexportableCount > 0) unexportable,
+                categories,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              exportable,
+              const SizedBox(width: 24),
+              if (unexportableCount > 0) unexportable,
+              const Spacer(),
+              categories,
+            ],
+          );
+        },
       ),
     );
   }
@@ -459,7 +514,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
           ),
           const SizedBox(height: 12),
         ],
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
             OutlinedButton.icon(
               onPressed: _pickCarrierImage,
@@ -470,9 +527,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                     : context.l10n.vibe_export_changeExternalPngImage,
               ),
             ),
-            if (_selectedExternalCarrierImagePath != null &&
-                options.isNotEmpty) ...[
-              const SizedBox(width: 8),
+            if (_selectedExternalCarrierImagePath != null && options.isNotEmpty)
               TextButton(
                 onPressed: () {
                   setState(() {
@@ -483,7 +538,6 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                 },
                 child: Text(context.l10n.vibe_export_useVibeImageInstead),
               ),
-            ],
           ],
         ),
         if (_selectedExternalCarrierImagePath != null) ...[
@@ -703,6 +757,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
         .toList();
 
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount:
           rootCategories.length + (uncategorizedEntries.isNotEmpty ? 1 : 0),
       itemBuilder: (context, index) {
@@ -766,10 +822,10 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                   });
                 },
                 padding: EdgeInsets.zero,
-                visualDensity: _compactControlDensity,
+                visualDensity: _compactControlDensity(context),
                 constraints: BoxConstraints.tightFor(
-                  width: _compactControlExtent,
-                  height: _compactControlExtent,
+                  width: _compactControlExtent(context),
+                  height: _compactControlExtent(context),
                 ),
               ),
               SizedBox(
@@ -913,14 +969,14 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                       });
                     },
                     padding: EdgeInsets.zero,
-                    visualDensity: _compactControlDensity,
+                    visualDensity: _compactControlDensity(context),
                     constraints: BoxConstraints.tightFor(
-                      width: _compactControlExtent,
-                      height: _compactControlExtent,
+                      width: _compactControlExtent(context),
+                      height: _compactControlExtent(context),
                     ),
                   )
                 else
-                  SizedBox(width: _compactControlExtent),
+                  SizedBox(width: _compactControlExtent(context)),
 
                 // 复选框
                 SizedBox(
@@ -1091,10 +1147,12 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 2,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       _SourceTypeBadge(sourceType: entry.sourceType),
-                      const SizedBox(width: 8),
                       Text(
                         context.l10n.vibe_export_strengthPercent(
                           (entry.strength * 100).toInt(),

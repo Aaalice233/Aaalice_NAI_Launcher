@@ -6,7 +6,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/gallery_filter_panel.dart';
 
 void main() {
-  for (final width in [360.0, 390.0]) {
+  for (final width in [320.0, 360.0, 390.0]) {
     testWidgets('窄屏 ${width.toInt()}px 步数和 CFG 筛选独占一行', (tester) async {
       tester.view.physicalSize = Size(width, 800);
       tester.view.devicePixelRatio = 1;
@@ -37,8 +37,8 @@ void main() {
     });
   }
 
-  testWidgets('宽屏步数和 CFG 筛选保持双列', (tester) async {
-    tester.view.physicalSize = const Size(800, 800);
+  testWidgets('Medium 使用有界居中表单并保持双列', (tester) async {
+    tester.view.physicalSize = const Size(700, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -47,6 +47,11 @@ void main() {
 
     await _pumpFilterPanel(tester);
 
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    expect(tester.getSize(surface).width, 460);
+    expect(tester.getRect(surface).top, greaterThan(0));
+    expect(tester.getRect(surface).bottom, lessThan(800));
     expect(
       find.byKey(const ValueKey('galleryFilterWideRangeGroups')),
       findsOneWidget,
@@ -55,6 +60,28 @@ void main() {
       tester.getTopLeft(find.text('按 CFG 筛选')).dy,
       tester.getTopLeft(find.text('按步数筛选')).dy,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('320px 与 3x 字号下筛选面板仍可滚动并操作', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await _pumpFilterPanel(tester, textScaler: const TextScaler.linear(3));
+
+    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    expect(surface, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('galleryFilterScrollView')),
+      findsOneWidget,
+    );
+    expect(find.text('应用筛选').hitTestable(), findsOneWidget);
+    expect(find.byTooltip('关闭').hitTestable(), findsOneWidget);
+    expect(tester.getRect(surface), const Rect.fromLTWH(0, 0, 320, 640));
     expect(tester.takeException(), isNull);
   });
 
@@ -92,21 +119,57 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(GalleryFilterPanel), findsOneWidget);
-    expect(
-      tester.getSize(find.byType(GalleryFilterPanel)).height,
-      lessThanOrEqualTo(432),
+    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    expect(tester.getRect(surface).bottom, lessThanOrEqualTo(480));
+    expect(find.text('应用筛选').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Compact 表单避开 SafeArea 且可由共享关闭入口关闭', (tester) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(
+      left: 12,
+      top: 24,
+      right: 16,
+      bottom: 20,
     );
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPadding();
+    });
+
+    await _pumpFilterPanel(tester);
+
+    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final rect = tester.getRect(surface);
+    expect(rect.left, greaterThanOrEqualTo(12));
+    expect(rect.top, greaterThanOrEqualTo(24));
+    expect(rect.right, lessThanOrEqualTo(304));
+    expect(rect.bottom, lessThanOrEqualTo(680));
+
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+    expect(find.byType(GalleryFilterPanel), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
 
-Future<void> _pumpFilterPanel(WidgetTester tester) async {
+Future<void> _pumpFilterPanel(
+  WidgetTester tester, {
+  TextScaler textScaler = TextScaler.noScaling,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       child: MaterialApp(
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+          child: child!,
+        ),
         home: Builder(
           builder: (context) => Scaffold(
             body: Center(

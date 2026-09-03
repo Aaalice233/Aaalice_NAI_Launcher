@@ -10,7 +10,6 @@ import 'package:path/path.dart' as path;
 import '../../core/cache/gallery_image_request.dart';
 import '../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../core/cache/online_gallery_prefetch_coordinator.dart';
-import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/file_export_service.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/utils/media_mime_type.dart';
@@ -18,6 +17,7 @@ import '../../data/models/character/character_prompt.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../core/autocomplete/tag_translation_lookup.dart';
+import '../adaptive/interaction_policy.dart';
 import '../providers/character_prompt_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
@@ -276,7 +276,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxHeight < 96;
-                final showIcon = constraints.maxHeight >= 52;
+                final scaledBodySize = MediaQuery.textScalerOf(
+                  context,
+                ).scale(14);
+                final showIcon =
+                    constraints.maxHeight >= 52 && scaledBodySize < 28;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -329,7 +333,10 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final activation = widget.selectionMode
         ? (widget.canSelect ? widget.onSelectionToggle : null)
         : widget.onTap;
-    final hoverEnabled = !widget.selectionMode || widget.canSelect;
+    final interactionPolicy = context.interactionPolicy;
+    final hoverEnabled =
+        interactionPolicy.precisePointerAvailable &&
+        (!widget.selectionMode || widget.canSelect);
     final showHover = _isHovering && hoverEnabled;
     final title = widget.post.title?.trim() ?? '';
     final author = widget.post.author?.trim() ?? '';
@@ -370,15 +377,17 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     // 横图（宽高比大）：水平布局，因为高度小放不下垂直按钮
     // 竖图（宽高比小）：垂直布局
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
-    final usesTouchActionMenu = PlatformCapabilities.current.hasTouchInput;
+    final usesTouchActionMenu = interactionPolicy.touchAvailable;
     final showStatusOverlays =
         usesTouchActionMenu || (!_isHovering && !_isFocused);
+    final showsCodexBadgeOnLeft =
+        widget.post.sourceId == GallerySourceId.quickTagCloud &&
+        widget.badgeLabel != null;
     final showsRatingBadge =
         !widget.favoriteReadOnly &&
         widget.post.rating != null &&
         widget.post.mediaCount <= 1 &&
         widget.badgeLabel == null;
-    final leftStatusTop = widget.post.rank != null ? 30.0 : 4.0;
 
     final card = RepaintBoundary(
       child: CompositedTransformTarget(
@@ -534,84 +543,39 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                       widget.secondaryFavoriteIcon,
                                   secondaryFavoriteTooltip:
                                       widget.secondaryFavoriteTooltip,
-                                  badgeLabel: widget.badgeLabel,
+                                  badgeLabel: showsCodexBadgeOnLeft
+                                      ? null
+                                      : widget.badgeLabel,
                                   mediaCount: widget.post.mediaCount,
                                 ),
                               ),
-                            if (widget.post.rank != null)
+                            if (widget.post.rank != null ||
+                                showsCodexBadgeOnLeft ||
+                                showsRatingBadge ||
+                                widget.post.isVideo ||
+                                widget.post.isAnimated)
                               Positioned(
                                 top: 4,
                                 left: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.72),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '#${widget.post.rank}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (showsRatingBadge)
-                              Positioned(
-                                top: leftStatusTop,
-                                left: 4,
-                                child: OnlineGalleryCardRatingBadge(
-                                  label: _getRatingLabel(
-                                    context,
-                                    widget.post.rating,
-                                  ),
-                                  color: _getRatingColor(widget.post.rating),
-                                ),
-                              ),
-                            if (widget.post.isVideo || widget.post.isAnimated)
-                              Positioned(
-                                top:
-                                    leftStatusTop + (showsRatingBadge ? 20 : 0),
-                                left: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 5,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: widget.post.isVideo
-                                        ? Colors.purple
-                                        : Colors.blue,
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        widget.post.isVideo
-                                            ? Icons.play_circle_fill
-                                            : Icons.gif_box,
-                                        size: 10,
-                                        color: Colors.white,
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        widget.post.isVideo
-                                            ? context.l10n.mediaType_video
-                                            : context.l10n.mediaType_gif,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                right: usesTouchActionMenu ? 56 : null,
+                                child: OnlineGalleryCardLeftStatusOverlays(
+                                  rank: widget.post.rank,
+                                  codexBadgeLabel: showsCodexBadgeOnLeft
+                                      ? widget.badgeLabel
+                                      : null,
+                                  ratingLabel: showsRatingBadge
+                                      ? _getRatingLabel(
+                                          context,
+                                          widget.post.rating,
+                                        )
+                                      : null,
+                                  ratingColor: showsRatingBadge
+                                      ? _getRatingColor(widget.post.rating)
+                                      : null,
+                                  isVideo: widget.post.isVideo,
+                                  isAnimated: widget.post.isAnimated,
+                                  videoLabel: context.l10n.mediaType_video,
+                                  animatedLabel: context.l10n.mediaType_gif,
                                 ),
                               ),
                             Positioned(
@@ -697,11 +661,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       // 垂直布局：右上角向下展开
                       // 水平布局：左上角向右展开
                       top: 4,
-                      right:
-                          usesTouchActionMenu ||
-                              buttonDirection == Axis.vertical
-                          ? 4
-                          : null,
+                      right: 4,
                       left:
                           !usesTouchActionMenu &&
                               buttonDirection == Axis.horizontal

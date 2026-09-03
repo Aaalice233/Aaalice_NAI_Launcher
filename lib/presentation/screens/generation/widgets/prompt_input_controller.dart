@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/nai_prompt_parser.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 
 /// Owns the long-lived editor objects used by [PromptInputWidget].
@@ -75,7 +76,7 @@ class PromptInputController extends ChangeNotifier {
   int get negativePromptCount => _tagCount(negativeController.text);
 
   static int _tagCount(String value) =>
-      value.split(',').where((tag) => tag.trim().isNotEmpty).length;
+      NaiPromptParser.splitSegments(value).length;
 
   void _notifyFocusChanged() => notifyListeners();
 

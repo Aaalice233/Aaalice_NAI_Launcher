@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +14,8 @@ import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
@@ -106,6 +109,71 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('横向窄卡片保留全部悬浮操作', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: LocalImageCard3D(
+                  record: LocalImageRecord(
+                    path: 'missing-landscape.png',
+                    size: 0,
+                    modifiedAt: DateTime(2026, 9, 3),
+                  ),
+                  width: 180,
+                  height: 120,
+                  onTap: () {},
+                  onFavoriteToggle: () {},
+                  onSendAction: (_) async {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final cardFinder = find.byType(LocalImageCard3D);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(cardFinder));
+    await tester.pump();
+
+    final cardRect = tester.getRect(cardFinder);
+    final actionsFinder = find.descendant(
+      of: find.byType(CardActionButtons),
+      matching: find.byType(IconButton),
+    );
+    final actionRects = [
+      for (var index = 0; index < actionsFinder.evaluate().length; index++)
+        tester.getRect(actionsFinder.at(index)),
+    ];
+
+    expect(actionRects, hasLength(5));
+    for (final rect in actionRects) {
+      expect(cardRect.contains(rect.topLeft), isTrue);
+      expect(cardRect.contains(rect.bottomRight), isTrue);
+    }
+    expect(actionRects.last.top, greaterThan(actionRects.first.top));
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
   testWidgets('Android 触屏菜单提供水印操作', (tester) async {
     final tempDirectory = (await tester.runAsync(
       () => Directory.systemTemp.createTemp('nai_local_card_watermark_'),
@@ -143,18 +211,20 @@ void main() {
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Center(
-              child: LocalImageCard3D(
-                record: LocalImageRecord(
-                  path: file.path,
-                  size: stat.size,
-                  modifiedAt: stat.modified,
+          home: InteractionPolicyScope(
+            child: Scaffold(
+              body: Center(
+                child: LocalImageCard3D(
+                  record: LocalImageRecord(
+                    path: file.path,
+                    size: stat.size,
+                    modifiedAt: stat.modified,
+                  ),
+                  width: 160,
+                  height: 200,
+                  onTap: () {},
+                  onSendAction: (action) async => actions.add(action),
                 ),
-                width: 160,
-                height: 200,
-                onTap: () {},
-                onSendAction: (action) async => actions.add(action),
               ),
             ),
           ),
@@ -162,6 +232,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await _observeTouch(tester);
     await tester.tap(find.byIcon(Icons.more_vert_rounded));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump();
@@ -213,13 +284,15 @@ void main() {
           locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Center(
-              child: LocalImageCard3D(
-                record: record,
-                width: 132,
-                height: 184,
-                onTap: () {},
+          home: InteractionPolicyScope(
+            child: Scaffold(
+              body: Center(
+                child: LocalImageCard3D(
+                  record: record,
+                  width: 132,
+                  height: 184,
+                  onTap: () {},
+                ),
               ),
             ),
           ),
@@ -227,6 +300,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await _observeTouch(tester);
 
     expect(
       find.byKey(const ValueKey('local-image-card-actions')),
@@ -283,18 +357,20 @@ void main() {
           locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Center(
-              child: LocalImageCard3D(
-                record: LocalImageRecord(
-                  path: file.path,
-                  size: stat.size,
-                  modifiedAt: stat.modified,
+          home: InteractionPolicyScope(
+            child: Scaffold(
+              body: Center(
+                child: LocalImageCard3D(
+                  record: LocalImageRecord(
+                    path: file.path,
+                    size: stat.size,
+                    modifiedAt: stat.modified,
+                  ),
+                  width: 132,
+                  height: 184,
+                  onTap: () {},
+                  onSendAction: (action) async => selected = action,
                 ),
-                width: 132,
-                height: 184,
-                onTap: () {},
-                onSendAction: (action) async => selected = action,
               ),
             ),
           ),
@@ -302,6 +378,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await _observeTouch(tester);
 
     await tester.tap(find.byIcon(Icons.more_vert_rounded));
     await tester.pump();
@@ -318,4 +395,15 @@ void main() {
     await tester.pump();
     expect(selected, LocalImageContextAction.saveToSystemGallery);
   });
+}
+
+Future<void> _observeTouch(WidgetTester tester) async {
+  final position =
+      tester.getBottomRight(find.byType(Scaffold)) - const Offset(1, 1);
+  final touch = await tester.createGesture(kind: PointerDeviceKind.touch);
+  await touch.addPointer(location: position);
+  await touch.down(position);
+  await tester.pump();
+  await touch.up();
+  await tester.pump();
 }

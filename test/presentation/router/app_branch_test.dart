@@ -45,6 +45,27 @@ void main() {
         mobileNavigationIndexForBranch(AppBranch.vibeLibrary.index),
         mobileMoreNavigationIndex,
       );
+      final moreBranches = AppBranch.values
+          .where((branch) => !mobileNavigationBranches.contains(branch))
+          .toList();
+      expect(
+        moreBranches,
+        unorderedEquals([
+          AppBranch.vibeLibrary,
+          AppBranch.preciseRefLibrary,
+          AppBranch.promptConfig,
+          AppBranch.statistics,
+          AppBranch.settings,
+        ]),
+      );
+      expect(
+        mobileNavigationBranches.toSet().intersection(moreBranches.toSet()),
+        isEmpty,
+      );
+      expect({
+        ...mobileNavigationBranches,
+        ...moreBranches,
+      }, AppBranch.values.toSet());
     },
   );
 }

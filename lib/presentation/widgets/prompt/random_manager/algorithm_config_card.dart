@@ -6,12 +6,18 @@ import '../../../../data/models/prompt/algorithm_config.dart';
 import '../../../../data/models/prompt/character_count_config.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
+import '../../../themes/core/layered_surface_style.dart';
 import 'random_config_l10n.dart';
 
 class AlgorithmConfigCard extends ConsumerStatefulWidget {
-  const AlgorithmConfigCard({super.key, this.isPresetDefault = false});
+  const AlgorithmConfigCard({
+    super.key,
+    this.isPresetDefault = false,
+    this.onGlobalSettings,
+  });
 
   final bool isPresetDefault;
+  final VoidCallback? onGlobalSettings;
 
   @override
   ConsumerState<AlgorithmConfigCard> createState() =>
@@ -38,8 +44,9 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return Container(
+      key: const ValueKey('random-manager-algorithm-card'),
       decoration: BoxDecoration(
-        color: colors.surfaceContainer,
+        color: sectionSurfaceColor(colors),
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
@@ -96,6 +103,18 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
               soloOptions: soloOptions,
             ),
           ),
+          if (widget.onGlobalSettings != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: readOnly ? null : widget.onGlobalSettings,
+                  icon: const Icon(Icons.people_outline_rounded, size: 18),
+                  label: Text(context.l10n.randomManager_globalPeopleSettings),
+                ),
+              ),
+            ),
           AnimatedSize(
             duration: reduceMotion
                 ? Duration.zero

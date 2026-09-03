@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../widgets/common/pro_context_menu.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
 
@@ -8,11 +11,7 @@ class ImportMenu extends PopupRoute<void> {
   final List<ProMenuItem> items;
   final void Function(ProMenuItem)? onSelect;
 
-  ImportMenu({
-    required this.position,
-    required this.items,
-    this.onSelect,
-  });
+  ImportMenu({required this.position, required this.items, this.onSelect});
 
   @override
   Color? get barrierColor => null;
@@ -42,7 +41,8 @@ class ImportMenu extends PopupRoute<void> {
           final overlaySize = contextMenuOverlaySize(context);
           final local = contextMenuLocalPosition(context, position);
           const menuWidth = 180.0;
-          final menuHeight = items.where((i) => !i.isDivider).length * 36.0 +
+          final menuHeight =
+              items.where((i) => !i.isDivider).length * 36.0 +
               items.where((i) => i.isDivider).length * 1.0;
 
           double left = local.dx;
@@ -93,14 +93,8 @@ class ImportMenu extends PopupRoute<void> {
     Widget child,
   ) {
     return FadeTransition(
-      opacity: animation,
-      child: ScaleTransition(
-        scale: CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutBack,
-        ),
-        child: child,
-      ),
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+      child: child,
     );
   }
 }
@@ -113,12 +107,38 @@ extension ImportMenuExtension on BuildContext {
     required List<ProMenuItem> items,
     void Function(ProMenuItem)? onSelect,
   }) async {
-    await Navigator.of(this).push(
-      ImportMenu(
-        position: position,
-        items: items,
-        onSelect: onSelect,
+    if (interactionPolicy.usesAnchoredMenus) {
+      await Navigator.of(
+        this,
+      ).push(ImportMenu(position: position, items: items, onSelect: onSelect));
+      return;
+    }
+
+    final selected = await AdaptivePresenter.showPanel<ProMenuItem>(
+      context: this,
+      title: MaterialLocalizations.of(this).moreButtonTooltip,
+      initialChildSize: 0.5,
+      minChildSize: 0.3,
+      maxChildSize: 0.72,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          for (final item in items)
+            if (item.isDivider)
+              const Divider(height: 1)
+            else
+              ListTile(
+                minTileHeight: 48,
+                leading: item.icon == null ? null : Icon(item.icon),
+                title: Text(item.label),
+                onTap: () => Navigator.of(panelContext).pop(item),
+              ),
+        ],
       ),
     );
+    if (selected == null) return;
+    onSelect?.call(selected);
+    selected.onTap?.call();
   }
 }

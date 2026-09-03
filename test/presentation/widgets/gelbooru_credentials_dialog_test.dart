@@ -30,6 +30,55 @@ void main() {
     expect(storage.gelbooru, isNull);
   });
 
+  for (final width in [320.0, 1600.0]) {
+    testWidgets('form stays scrollable with IME and 3x text at width $width', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = Size(width, 900);
+      addTearDown(tester.view.reset);
+      final storage = _FakeSecureStorage();
+      await tester.pumpWidget(
+        _testApp(
+          storage: storage,
+          textScaler: const TextScaler.linear(3),
+          viewInsets: const EdgeInsets.only(bottom: 280),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollable = find
+          .descendant(
+            of: find.byType(GelbooruCredentialsDialog),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      expect(scrollable, findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Verify and Save'),
+        120,
+        scrollable: scrollable,
+      );
+      await tester.drag(scrollable, const Offset(0, -400));
+      await tester.pump();
+      expect(
+        tester
+            .getRect(find.widgetWithText(FilledButton, 'Verify and Save'))
+            .bottom,
+        lessThanOrEqualTo(900),
+      );
+      tester.state<FormState>(find.byType(Form)).validate();
+      await tester.pump();
+      expect(
+        tester
+            .widgetList<InputDecorator>(find.byType(InputDecorator))
+            .where((input) => input.decoration.errorText != null),
+        hasLength(2),
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('masks, verifies, and saves Gelbooru credentials', (
     tester,
   ) async {
@@ -60,6 +109,8 @@ void main() {
 Widget _testApp({
   required _FakeSecureStorage storage,
   _FakeGelbooruApiService? api,
+  TextScaler textScaler = TextScaler.noScaling,
+  EdgeInsets viewInsets = EdgeInsets.zero,
 }) {
   return ProviderScope(
     overrides: [
@@ -71,11 +122,17 @@ Widget _testApp({
         _FakeOnlineGalleryNotifier.new,
       ),
     ],
-    child: const MaterialApp(
-      locale: Locale('en'),
+    child: MaterialApp(
+      locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: GelbooruCredentialsDialog(),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: textScaler, viewInsets: viewInsets),
+        child: child!,
+      ),
+      home: const GelbooruCredentialsDialog(),
     ),
   );
 }

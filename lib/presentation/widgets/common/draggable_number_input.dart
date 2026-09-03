@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../adaptive/interaction_policy.dart';
+
 /// 可拖拽调整的数值输入组件
 /// 支持：单击编辑、拖拽调整、滚轮微调
 class DraggableNumberInput extends StatefulWidget {
@@ -167,6 +169,9 @@ class _DraggableNumberInputState extends State<DraggableNumberInput> {
           onHorizontalDragUpdate: _onDragUpdate,
           onHorizontalDragEnd: _onDragEnd,
           child: Container(
+            constraints: BoxConstraints(
+              minHeight: context.interactionPolicy.minimumControlExtent,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHigh,
@@ -206,8 +211,9 @@ class _DraggableNumberInputState extends State<DraggableNumberInput> {
                             ),
                             decoration: const InputDecoration(
                               isDense: true,
-                              contentPadding:
-                                  EdgeInsets.symmetric(horizontal: 4),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,

@@ -15,6 +15,14 @@ class MagicWandProgressOverlay extends StatelessWidget {
     builder: (context, _) {
       final snapshot = controller.snapshot;
       if (!snapshot.processing) return const SizedBox.shrink();
+      final progress = snapshot.progress;
+      final determinateProgress =
+          progress?.stage == EfficientVitSamProgressStage.downloadingModels
+          ? progress?.fraction
+          : null;
+      final indicatorValue =
+          determinateProgress ??
+          (MediaQuery.disableAnimationsOf(context) ? 0.75 : null);
       return AbsorbPointer(
         child: ColoredBox(
           color: Colors.black26,
@@ -34,11 +42,7 @@ class MagicWandProgressOverlay extends StatelessWidget {
                         dimension: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          value:
-                              snapshot.progress?.stage ==
-                                  EfficientVitSamProgressStage.downloadingModels
-                              ? snapshot.progress?.fraction
-                              : null,
+                          value: indicatorValue,
                         ),
                       ),
                       const SizedBox(width: 12),

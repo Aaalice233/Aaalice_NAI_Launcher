@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_provider.dart';
+import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_service.dart';
 import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
@@ -109,6 +111,62 @@ void main() {
     );
   });
 
+  testWidgets('存储入口在 320–1600 宽度和 3x 文本下无布局溢出', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in const [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 1400));
+      await tester.pumpWidget(_buildSubject(storage, textScale: 3));
+      await tester.pump();
+
+      expect(find.text('图片保存位置'), findsOneWidget);
+      expect(find.text('本地 ONNX tagger 模型'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+    }
+  });
+
+  testWidgets('删除共现数据在 320、3x、IME 与 SafeArea 下使用全屏表单', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 568);
+    addTearDown(tester.view.reset);
+    final service = _ReadyCooccurrenceService(tempDir);
+
+    await tester.pumpWidget(
+      _buildSubject(
+        storage,
+        textScale: 3,
+        cooccurrenceService: service,
+        padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+        viewInsets: const EdgeInsets.only(bottom: 220),
+      ),
+    );
+    await tester.pump();
+
+    final remove = find.byTooltip('移除');
+    expect(remove, findsOneWidget);
+    await tester.ensureVisible(remove);
+    await tester.pump();
+    await tester.tap(remove);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final form = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    expect(form, findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+    final rect = tester.getRect(form);
+    expect(rect.top, greaterThanOrEqualTo(24));
+    expect(rect.bottom, lessThanOrEqualTo(568 - 220));
+    final formScroll = find
+        .descendant(of: form, matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(
+      find.byType(CheckboxListTile),
+      100,
+      scrollable: formScroll,
+    );
+    expect(find.byType(CheckboxListTile), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('数据源缓存卡片与主设置卡片宽度一致', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -130,7 +188,13 @@ void main() {
   });
 }
 
-Widget _buildSubject(_MemoryLocalStorageService storage) {
+Widget _buildSubject(
+  _MemoryLocalStorageService storage, {
+  double textScale = 1,
+  CooccurrenceDataPackService? cooccurrenceService,
+  EdgeInsets padding = EdgeInsets.zero,
+  EdgeInsets viewInsets = EdgeInsets.zero,
+}) {
   return ProviderScope(
     overrides: [
       localStorageServiceProvider.overrideWith((ref) => storage),
@@ -154,16 +218,46 @@ Widget _buildSubject(_MemoryLocalStorageService storage) {
       danbooruTagsCacheNotifierProvider.overrideWith(
         _TestDanbooruTagsCacheNotifier.new,
       ),
+      if (cooccurrenceService != null)
+        cooccurrenceDataPackServiceProvider.overrideWith(
+          (ref) => cooccurrenceService,
+        ),
     ],
-    child: const MaterialApp(
-      locale: Locale('zh'),
+    child: MaterialApp(
+      locale: const Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(textScale),
+          padding: padding,
+          viewPadding: padding,
+          viewInsets: viewInsets,
+        ),
+        child: child!,
+      ),
+      home: const Scaffold(
         body: SingleChildScrollView(child: StorageSettingsSection()),
       ),
     ),
   );
+}
+
+class _ReadyCooccurrenceService extends CooccurrenceDataPackService {
+  _ReadyCooccurrenceService(Directory directory)
+    : super(supportDirectoryLoader: () async => directory) {
+    state = const CooccurrenceDataPackState(
+      status: CooccurrenceDataPackStatus.ready,
+      installedVersion: 'test',
+      relationCount: 1,
+      diskBytes: 1,
+    );
+  }
+
+  @override
+  Future<void> deleteData() async {
+    state = const CooccurrenceDataPackState();
+  }
 }
 
 class _TestDanbooruTagsCacheNotifier extends DanbooruTagsCacheNotifier {

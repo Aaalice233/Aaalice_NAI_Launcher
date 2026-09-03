@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/constants/model_capabilities.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/prompt/algorithm_config.dart';
 import 'package:nai_launcher/data/models/prompt/official_wordlist.dart';
@@ -35,9 +36,16 @@ void main() {
         expect(tester.takeException(), isNull);
 
         if (width == 1600) {
-          await tester.tap(find.text('混合 · Character Prompts + Catalog'));
+          await tester.tap(
+            find.byKey(const ValueKey('random-manager-source-status')),
+          );
           await tester.pumpAndSettle();
 
+          expect(
+            find.byKey(const ValueKey('adaptive-centered-form')),
+            findsOneWidget,
+          );
+          expect(find.byType(AlertDialog), findsNothing);
           expect(find.text('1741-fixture.js'), findsOneWidget);
           expect(find.text('fixture-sha256'), findsOneWidget);
           expect(find.text('https://example.com/catalog.csv'), findsOneWidget);
@@ -64,9 +72,16 @@ void main() {
 
       expect(find.text(scenario.$2), findsOneWidget);
       expect(find.text(scenario.$3), findsOneWidget);
-      await tester.tap(find.text(scenario.$2));
+      await tester.tap(
+        find.byKey(const ValueKey('random-manager-source-status')),
+      );
       await tester.pumpAndSettle();
 
+      expect(
+        find.byKey(const ValueKey('adaptive-centered-form')),
+        findsOneWidget,
+      );
+      expect(find.byType(AlertDialog), findsNothing);
       expect(
         find.text('https://example.com/catalog.csv'),
         scenario.$4 ? findsOneWidget : findsNothing,
@@ -78,6 +93,68 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets(
+    '320x568 3x SafeArea/IME keeps long source details and close reachable',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 160);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPadding();
+        tester.view.resetViewInsets();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(3)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => FilledButton(
+                onPressed: () => PromptSourceDetailsDialog.show(
+                  context,
+                  library: _longFieldLibrary,
+                  mode: RandomGenerationMode.custom,
+                  profile: RandomPromptProfile.characterPrompts,
+                  officialData: null,
+                ),
+                child: const Text('打开'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('打开'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        findsOneWidget,
+      );
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('数据来源详情'), findsOneWidget);
+      expect(find.text(_longSourceUrl), findsOneWidget);
+      expect(find.text(_longSourceCommit), findsOneWidget);
+      final close = find.byIcon(Icons.close).first;
+      expect(close.hitTestable(), findsOneWidget);
+      await tester.tap(close);
+      await tester.pumpAndSettle();
+
+      expect(find.text('数据来源详情'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('unknown models are not presented as verified Legacy sources', (
     tester,
@@ -162,6 +239,18 @@ final _library = TagLibrary(
   categories: {
     'detail': [WeightedTag.simple('fixture tag', 1)],
   },
+);
+
+const _longSourceUrl =
+    'https://example.com/catalog/'
+    'very-long-unbroken-source-segment-very-long-unbroken-source-segment-'
+    'very-long-unbroken-source-segment/catalog.csv';
+const _longSourceCommit =
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+final _longFieldLibrary = _library.copyWith(
+  sourceUrl: _longSourceUrl,
+  sourceCommit: _longSourceCommit,
 );
 
 const _preset = RandomPreset(

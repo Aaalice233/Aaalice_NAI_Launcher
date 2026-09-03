@@ -3,6 +3,40 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 
 void main() {
+  testWidgets('constraint changes do not enter the decoration animation', (
+    tester,
+  ) async {
+    var bounded = true;
+    late StateSetter updateHost;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              updateHost = setState;
+              return Align(
+                child: InputSurfaceContainer(
+                  height: 40,
+                  constraints: bounded
+                      ? const BoxConstraints(maxWidth: 400)
+                      : null,
+                  child: const SizedBox(width: 200),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    updateHost(() => bounded = false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('focus outline keeps surface and child geometry stable', (
     tester,
   ) async {

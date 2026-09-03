@@ -49,16 +49,24 @@ class OnlineGalleryDetailFavoriteService {
   OnlineGalleryState get state => _readState();
   set state(OnlineGalleryState next) => _reduce(next);
 
+  GalleryDetail? peekDetail(GalleryItem item) {
+    if (state.viewMode == GalleryViewMode.favorites) {
+      final record = _ref
+          .read(onlineGalleryLocalFavoritesProvider.notifier)
+          .getByStableKey(item.stableKey);
+      if (record != null) return record.detail;
+    }
+    return _details().peekCompleted(item);
+  }
+
   Future<GalleryDetail> loadDetail(
     GalleryItem item, {
     bool forceRefresh = false,
     GalleryDetailPriority priority = GalleryDetailPriority.interactive,
   }) {
-    if (!forceRefresh && state.viewMode == GalleryViewMode.favorites) {
-      final record = _ref
-          .read(onlineGalleryLocalFavoritesProvider.notifier)
-          .getByStableKey(item.stableKey);
-      if (record != null) return Future.value(record.detail);
+    if (!forceRefresh) {
+      final cached = peekDetail(item);
+      if (cached != null) return Future.value(cached);
     }
     return _details().request(
       item,

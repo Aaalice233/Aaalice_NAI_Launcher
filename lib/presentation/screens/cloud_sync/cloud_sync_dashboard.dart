@@ -194,6 +194,7 @@ class CloudSyncDashboard extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(title),
         content: Text(message),
         actions: [
@@ -321,31 +322,47 @@ class CloudSyncDashboard extends ConsumerWidget {
         : Column(
             children: [
               for (final snapshot in state.snapshots)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  minTileHeight: 56,
-                  title: Text(
-                    context.l10n.cloudSync_backupItemCount(
-                      snapshot.objectCount,
-                    ),
-                  ),
-                  subtitle: Text(_date(snapshot.createdAt)),
-                  trailing:
-                      state.capabilityMode ==
-                          CloudSyncCapabilityMode.manualBackupOnly
-                      ? null
-                      : TextButton(
-                          style: _buttonStyle,
-                          onPressed:
-                              state.isBusy || state.needsPreviewConfirmation
-                              ? null
-                              : () => _runAction(
-                                  context,
-                                  () =>
-                                      port.previewRestoreSnapshot(snapshot.id),
-                                ),
-                          child: Text(context.l10n.cloudSync_previewRestore),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final action =
+                        state.capabilityMode ==
+                            CloudSyncCapabilityMode.manualBackupOnly
+                        ? null
+                        : TextButton(
+                            style: _buttonStyle,
+                            onPressed:
+                                state.isBusy || state.needsPreviewConfirmation
+                                ? null
+                                : () => _runAction(
+                                    context,
+                                    () => port.previewRestoreSnapshot(
+                                      snapshot.id,
+                                    ),
+                                  ),
+                            child: Text(context.l10n.cloudSync_previewRestore),
+                          );
+                    final details = ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      minTileHeight: 56,
+                      title: Text(
+                        context.l10n.cloudSync_backupItemCount(
+                          snapshot.objectCount,
                         ),
+                      ),
+                      subtitle: Text(_date(snapshot.createdAt)),
+                      trailing: constraints.maxWidth >= 520 ? action : null,
+                    );
+                    if (action == null || constraints.maxWidth >= 520) {
+                      return details;
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        details,
+                        Align(alignment: Alignment.centerRight, child: action),
+                      ],
+                    );
+                  },
                 ),
             ],
           ),

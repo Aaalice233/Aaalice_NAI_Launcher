@@ -24,13 +24,22 @@ void main() {
   testWidgets('中文环境下保存多个 Vibe 弹窗不显示硬编码英文', (tester) async {
     await tester.pumpWidget(
       _wrap(
-        const SaveVibeDialog(
-          vibe: _primaryVibe,
-          vibes: [_primaryVibe, _secondaryVibe],
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () => SaveVibeDialog.show(
+              context,
+              vibe: _primaryVibe,
+              vibes: const [_primaryVibe, _secondaryVibe],
+            ),
+            child: const Text('open'),
+          ),
         ),
       ),
     );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
 
+    expect(find.text('保存到库'), findsOneWidget);
     expect(find.text('保存为 Bundle'), findsOneWidget);
     expect(find.text('Save as bundle'), findsNothing);
     expect(find.text('将 2 个 Vibe 保存为一个 Bundle'), findsOneWidget);
@@ -43,6 +52,58 @@ void main() {
     expect(find.text('Info'), findsNothing);
     expect(find.text('图片'), findsOneWidget);
     expect(find.text('Image'), findsNothing);
+  });
+
+  testWidgets('320dp、3x、IME 与 SafeArea 下使用长表单且内容可滚动', (tester) async {
+    final view = tester.view;
+    view.devicePixelRatio = 3;
+    view.physicalSize = const Size(960, 1704);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryNotifierProvider.overrideWith(
+            _TestVibeLibraryNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+              viewInsets: const EdgeInsets.only(bottom: 240),
+              textScaler: const TextScaler.linear(3),
+            ),
+            child: child!,
+          ),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => SaveVibeDialog.show(
+                  context,
+                  vibe: _primaryVibe,
+                  vibes: const [_primaryVibe, _secondaryVibe],
+                  defaultName: '很长很长的 Vibe 名称用于验证输入和布局',
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      findsOneWidget,
+    );
+    expect(find.byType(SingleChildScrollView), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 }
 

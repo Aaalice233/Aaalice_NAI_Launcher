@@ -7,6 +7,9 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../presentation/providers/pending_prompt_provider.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../widgets/common/adaptive_dialog_frame.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 // 使用现有的 SendTargetType 从 pending_prompt_provider.dart
 
@@ -26,16 +29,40 @@ class SendOptions {
 /// 3. 别名解析开关
 class SendToHomeDialog extends ConsumerStatefulWidget {
   final TagLibraryEntry entry;
+  final ScrollController? scrollController;
 
-  const SendToHomeDialog({super.key, required this.entry});
+  const SendToHomeDialog({
+    super.key,
+    required this.entry,
+    this.scrollController,
+  });
 
   static Future<SendOptions?> show(
     BuildContext context, {
     required TagLibraryEntry entry,
   }) {
-    return showDialog<SendOptions>(
+    return AdaptivePresenter.showForm<SendOptions>(
       context: context,
-      builder: (context) => SendToHomeDialog(entry: entry),
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.send_outlined,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              panelContext.l10n.sendToHome_dialogTitle,
+              style: Theme.of(
+                panelContext,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      sideSheetWidth: 480,
+      builder: (panelContext, scrollController) =>
+          SendToHomeDialog(entry: entry, scrollController: scrollController),
     );
   }
 
@@ -94,85 +121,66 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
     final theme = Theme.of(context);
     final parsed = _parsedResult;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 700),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 标题
-              Row(
-                children: [
-                  Icon(Icons.send_outlined, color: theme.colorScheme.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      context.l10n.sendToHome_dialogTitle,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    tooltip: context.l10n.common_close,
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // 发送目标选项
-              _buildTargetOptions(theme),
-
-              const SizedBox(height: 16),
-
-              // 别名解析开关
-              _buildAliasToggle(theme),
-
-              const Divider(height: 24),
-
-              // 预览区域
-              _buildPreviewSection(theme, parsed),
-
-              const SizedBox(height: 16),
-
-              // 操作按钮
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(context.l10n.common_cancel),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop(
-                          SendOptions(
-                            targetType: _selectedTarget,
-                            sendAsAlias: _sendAsAlias,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.send, size: 18),
-                      label: Text(context.l10n.sendToHome_send),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    return AdaptiveDialogFrame(
+      key: const ValueKey('send-to-home-dialog-frame'),
+      maxWidth: 480,
+      maxHeight: 700,
+      reservedVerticalSpace: 0,
+      horizontalMargin: 0,
+      child: SingleChildScrollView(
+        key: const ValueKey('send-to-home-dialog-scroll'),
+        controller: widget.scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildTargetOptions(theme),
+            const SizedBox(height: 16),
+            _buildAliasToggle(theme),
+            const Divider(height: 24),
+            _buildPreviewSection(theme, parsed),
+            const SizedBox(height: 16),
+            _buildActions(),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActions() {
+    final cancelButton = TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: Text(context.l10n.common_cancel),
+    );
+    final sendButton = FilledButton.icon(
+      onPressed: () {
+        Navigator.of(context).pop(
+          SendOptions(targetType: _selectedTarget, sendAsAlias: _sendAsAlias),
+        );
+      },
+      icon: const Icon(Icons.send, size: 18),
+      label: Text(context.l10n.sendToHome_send),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        if (constraints.maxWidth < 360 || textScale > 1.5) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [cancelButton, const SizedBox(height: 8), sendButton],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: cancelButton),
+            const SizedBox(width: 12),
+            Expanded(flex: 2, child: sendButton),
+          ],
+        );
+      },
     );
   }
 
@@ -292,42 +300,36 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
 
   /// 构建预览区域
   Widget _buildPreviewSection(ThemeData theme, ParsedResult parsed) {
-    return Flexible(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.preview_outlined,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.sendToHome_preview,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: SingleChildScrollView(
-                child: _buildPreviewContent(theme, parsed),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.preview_outlined,
+                size: 16,
+                color: theme.colorScheme.primary,
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 8),
+              Text(
+                context.l10n.sendToHome_preview,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildPreviewContent(theme, parsed),
+        ],
       ),
     );
   }
@@ -602,18 +604,24 @@ class _PreviewItem extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            content.isEmpty ? context.l10n.common_emptyValue : content,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: content.isEmpty
-                  ? theme.colorScheme.outline
-                  : theme.colorScheme.onSurface,
-              fontFamily: 'monospace',
-              height: 1.4,
+          if (content.isEmpty)
+            Text(
+              context.l10n.common_emptyValue,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            )
+          else
+            TranslatedPromptText(
+              content,
+              selectable: false,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontFamily: 'monospace',
+                height: 1.4,
+              ),
+              maxLines: 5,
             ),
-            maxLines: 5,
-            overflow: TextOverflow.ellipsis,
-          ),
         ],
       ),
     );

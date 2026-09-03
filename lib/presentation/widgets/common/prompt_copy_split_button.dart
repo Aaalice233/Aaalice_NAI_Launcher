@@ -79,7 +79,9 @@ class PromptCopySplitButton extends StatelessWidget {
                               : controller.open(),
                     child: AnimatedRotation(
                       turns: controller.isOpen ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 160),
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 160),
                       curve: Curves.easeOutCubic,
                       child: const Icon(Icons.expand_more_rounded, size: 19),
                     ),

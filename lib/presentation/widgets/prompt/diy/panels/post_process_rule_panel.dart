@@ -209,27 +209,38 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
-                context.l10n.diy_presetRules,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  context.l10n.diy_presetRules,
+                  softWrap: true,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: presets.map((preset) {
-              final (emoji, label, ruleFactory, color) = preset;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackPresets = constraints.maxWidth < 480;
+
+              Widget buildPresetButton(
+                (String, String, PostProcessRule Function(), Color) preset,
+              ) {
+                final (emoji, label, ruleFactory, color) = preset;
+                return Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: stackPresets ? 0 : 4,
+                    vertical: stackPresets ? 4 : 0,
+                  ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () => _addPresetRule(ruleFactory()),
                       borderRadius: BorderRadius.circular(10),
                       child: Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 12,
@@ -246,10 +257,14 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                           children: [
                             Text(emoji, style: const TextStyle(fontSize: 18)),
                             const SizedBox(width: 8),
-                            Text(
-                              label,
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
+                            Flexible(
+                              child: Text(
+                                label,
+                                textAlign: TextAlign.center,
+                                softWrap: true,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ],
@@ -257,9 +272,22 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                       ),
                     ),
                   ),
-                ),
+                );
+              }
+
+              if (stackPresets) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: presets.map(buildPresetButton).toList(),
+                );
+              }
+
+              return Row(
+                children: presets
+                    .map((preset) => Expanded(child: buildPresetButton(preset)))
+                    .toList(),
               );
-            }).toList(),
+            },
           ),
         ],
       ),
@@ -473,11 +501,15 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
               children: [
                 Icon(Icons.add_rounded, size: 18, color: colorScheme.primary),
                 const SizedBox(width: 8),
-                Text(
-                  context.l10n.diy_addRule,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
+                Flexible(
+                  child: Text(
+                    context.l10n.diy_addRule,
+                    textAlign: TextAlign.center,
+                    softWrap: true,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],

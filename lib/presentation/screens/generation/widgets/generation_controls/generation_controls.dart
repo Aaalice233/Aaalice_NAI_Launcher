@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -23,7 +24,7 @@ import 'random_mode_toggle.dart';
 /// 生成控制按钮
 class GenerationControls extends ConsumerStatefulWidget {
   /// 紧凑模式：用于官网式布局的钉底控制条——
-  /// 强制窄排布、追加批次大小按钮、压低生成按钮高度。
+  /// 追加批次大小按钮，并按可用宽度重排全部操作。
   final bool compact;
 
   const GenerationControls({super.key, this.compact = false});
@@ -60,14 +61,42 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
 
     // 快捷键已由父级 DesktopGenerationLayout 统一处理
     // 这里只负责布局
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = widget.compact || constraints.maxWidth < 500;
+    final compact = widget.compact;
+    final opusUsage = OpusUsageChip(compact: compact);
+    final anlasBalance = AnlasBalanceChip(compact: compact);
+    final sampleCountInput = DraggableNumberInput(
+      value: nSamples,
+      min: 1,
+      prefix: '×',
+      onChanged: (value) {
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updateNSamples(value);
+      },
+    );
+    final leftActions = <Widget>[opusUsage, anlasBalance];
+    final rightActions = <Widget>[
+      if (compact)
+        Visibility.maintain(
+          visible: !showCancel,
+          child: const BatchSettingsButton(compact: true),
+        ),
+      if (!compact) sampleCountInput,
+      if (compact)
+        Visibility.maintain(visible: !showCancel, child: sampleCountInput),
+      if (showRandomTools)
+        RandomModeToggle(enabled: randomMode, compact: compact),
+      if (compact) const AutoSaveToggleChip(compact: true),
+    ];
 
-        // 生成按钮几何居中：左右两个等宽弹性区吸收其余控件，
-        // 按钮位置不随随机工具等元素的显隐漂移
-        final generateButton = GenerateButtonWithCost(
-          height: widget.compact ? 40 : 48,
+    // 由子控件的实际布局尺寸决定是否换行，而不是把 compact 或文本
+    // 缩放直接等同于窄布局。这样能放下时始终保持单行和主按钮几何居中。
+    return _GenerationControlsLayout(
+      leftActions: leftActions,
+      primaryAction: SizedBox(
+        key: const ValueKey('generation-footer-primary-action'),
+        child: GenerateButtonWithCost(
+          height: 48,
           isGenerating: isGenerating,
           showCancel: showCancel,
           generationState: generationState,
@@ -80,170 +109,10 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
               .skipCurrentRequest(),
           showCost: !isUpscaleMode,
           requiresLogin: !isAuthenticated && !isGenerating,
-        );
-
-        if (isNarrow) {
-          final rightGroup = <Widget>[
-            // 紧凑模式生成中隐藏批量调节（此时批量参数不可变更），
-            // 为跳过/停止按钮腾出宽度
-            if (!(widget.compact && showCancel))
-              DraggableNumberInput(
-                value: nSamples,
-                min: 1,
-                prefix: '×',
-                onChanged: (value) {
-                  ref
-                      .read(generationParamsNotifierProvider.notifier)
-                      .updateNSamples(value);
-                },
-              ),
-            // 紧凑模式补上第二种批量控制：批次大小（每次请求张数）
-            if (widget.compact && !showCancel) ...[
-              const SizedBox(width: 4),
-              const BatchSettingsButton(),
-            ],
-          ];
-
-          if (widget.compact) {
-            // 官网钉底条单行：自动保存放右侧空位，左组只剩点数与骰子，
-            // 两侧内容变均衡后不再需要把字缩小
-            return Row(
-              children: [
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const OpusUsageChip(compact: true),
-                          const SizedBox(width: 6),
-                          const AnlasBalanceChip(compact: true),
-                          if (showRandomTools) ...[
-                            const SizedBox(width: 8),
-                            RandomModeToggle(enabled: randomMode),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                generateButton,
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ...rightGroup,
-                          const SizedBox(width: 8),
-                          const AutoSaveToggleChip(compact: true),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          }
-
-          // 经典布局窄宽：单行三段，生成按钮居中
-          return Row(
-            children: [
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: showRandomTools
-                      ? RandomModeToggle(enabled: randomMode)
-                      : const SizedBox.shrink(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              generateButton,
-              const SizedBox(width: 8),
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: rightGroup,
-                  ),
-                ),
-              ),
-            ],
-          );
-        }
-
-        // 正常布局 - 自动保存锚最左，点数/随机贴按钮左，批量控件贴按钮右；
-        // 左右组空间不足时内部等比缩小，避免溢出叠到生成按钮上
-        return Row(
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  const AutoSaveToggleChip(),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const OpusUsageChip(),
-                            const SizedBox(width: 8),
-                            const AnlasBalanceChip(),
-                            const SizedBox(width: 16),
-                            if (showRandomTools) ...[
-                              RandomModeToggle(enabled: randomMode),
-                              const SizedBox(width: 12),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            generateButton,
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(width: 12),
-                      DraggableNumberInput(
-                        value: nSamples,
-                        min: 1,
-                        prefix: '×',
-                        onChanged: (value) {
-                          ref
-                              .read(generationParamsNotifierProvider.notifier)
-                              .updateNSamples(value);
-                        },
-                      ),
-                      const SizedBox(width: 16),
-                      const BatchSettingsButton(),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+          compact: compact,
+        ),
+      ),
+      rightActions: rightActions,
     );
   }
 
@@ -269,5 +138,356 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
 
     // 生成（抽卡模式逻辑在 generate 方法内部处理）
     ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+  }
+}
+
+enum _GenerationControlGroup { left, primary, right }
+
+class _GenerationControlsLayout extends MultiChildRenderObjectWidget {
+  _GenerationControlsLayout({
+    required List<Widget> leftActions,
+    required Widget primaryAction,
+    required List<Widget> rightActions,
+  }) : super(
+         key: const ValueKey('generation-footer-adaptive-layout'),
+         children: [
+           for (final action in leftActions)
+             _GenerationControlSlot(
+               group: _GenerationControlGroup.left,
+               child: action,
+             ),
+           _GenerationControlSlot(
+             group: _GenerationControlGroup.primary,
+             child: primaryAction,
+           ),
+           for (final action in rightActions)
+             _GenerationControlSlot(
+               group: _GenerationControlGroup.right,
+               child: action,
+             ),
+         ],
+       );
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderGenerationControlsLayout();
+}
+
+class _GenerationControlSlot
+    extends ParentDataWidget<_GenerationControlsParentData> {
+  const _GenerationControlSlot({required this.group, required super.child});
+
+  final _GenerationControlGroup group;
+
+  @override
+  void applyParentData(RenderObject renderObject) {
+    final parentData =
+        renderObject.parentData! as _GenerationControlsParentData;
+    if (parentData.group == group) return;
+    parentData.group = group;
+    final parent = renderObject.parent;
+    if (parent is RenderObject) parent.markNeedsLayout();
+  }
+
+  @override
+  Type get debugTypicalAncestorWidgetClass => _GenerationControlsLayout;
+}
+
+class _GenerationControlsParentData extends ContainerBoxParentData<RenderBox> {
+  _GenerationControlGroup group = _GenerationControlGroup.left;
+}
+
+class _RenderGenerationControlsLayout extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _GenerationControlsParentData>,
+        RenderBoxContainerDefaultsMixin<
+          RenderBox,
+          _GenerationControlsParentData
+        > {
+  static const double _itemSpacing = 2;
+  static const double _primarySpacing = 8;
+  static const double _runSpacing = 8;
+  static const double _minimumPrimaryWidth = 160;
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _GenerationControlsParentData) {
+      child.parentData = _GenerationControlsParentData();
+    }
+  }
+
+  @override
+  void performLayout() {
+    final availableWidth = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : 100000.0;
+    final actionConstraints = BoxConstraints(maxWidth: availableWidth);
+    final left = <RenderBox>[];
+    final right = <RenderBox>[];
+    RenderBox? primary;
+
+    RenderBox? child = firstChild;
+    while (child != null) {
+      final parentData = child.parentData! as _GenerationControlsParentData;
+      switch (parentData.group) {
+        case _GenerationControlGroup.left:
+          child.layout(actionConstraints, parentUsesSize: true);
+          if (!child.size.isEmpty) left.add(child);
+        case _GenerationControlGroup.primary:
+          primary = child;
+        case _GenerationControlGroup.right:
+          child.layout(actionConstraints, parentUsesSize: true);
+          if (!child.size.isEmpty) right.add(child);
+      }
+      child = parentData.nextSibling;
+    }
+
+    final primaryChild = primary;
+    if (primaryChild == null) {
+      size = constraints.smallest;
+      return;
+    }
+
+    final leftWidth = _groupWidth(left);
+    final rightWidth = _groupWidth(right);
+    final naturalWidth =
+        leftWidth + rightWidth + _minimumPrimaryWidth + _primarySpacing * 2;
+    final layoutWidth = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : naturalWidth;
+    final useSingleRow = naturalWidth <= layoutWidth;
+    final primaryWidth = useSingleRow
+        ? layoutWidth - leftWidth - rightWidth - _primarySpacing * 2
+        : layoutWidth;
+    primaryChild.layout(
+      BoxConstraints.tightFor(width: primaryWidth),
+      parentUsesSize: true,
+    );
+    final contentHeight = useSingleRow
+        ? _layoutSingleRow(left, primaryChild, right, layoutWidth)
+        : _layoutWrapped(left, primaryChild, right, layoutWidth);
+    size = constraints.constrain(Size(layoutWidth, contentHeight));
+  }
+
+  double _groupWidth(List<RenderBox> children) {
+    if (children.isEmpty) return 0;
+    return children.fold<double>(0, (sum, child) => sum + child.size.width) +
+        _itemSpacing * (children.length - 1);
+  }
+
+  double _layoutSingleRow(
+    List<RenderBox> left,
+    RenderBox primary,
+    List<RenderBox> right,
+    double width,
+  ) {
+    final allChildren = [...left, primary, ...right];
+    final height = allChildren.fold<double>(
+      0,
+      (maximum, child) =>
+          child.size.height > maximum ? child.size.height : maximum,
+    );
+    final leftWidth = _groupWidth(left);
+    final rightWidth = _groupWidth(right);
+    final primaryX = leftWidth + _primarySpacing;
+    _positionGroup(left, 0, height);
+    _position(primary, primaryX, (height - primary.size.height) / 2);
+    _positionGroup(right, width - rightWidth, height);
+    return height;
+  }
+
+  double _layoutWrapped(
+    List<RenderBox> left,
+    RenderBox primary,
+    List<RenderBox> right,
+    double width,
+  ) {
+    _position(primary, 0, 0);
+    if (left.isEmpty && right.isEmpty) return primary.size.height;
+    var y = primary.size.height + _runSpacing;
+    final leftWidth = _groupWidth(left);
+    final rightWidth = _groupWidth(right);
+    if (leftWidth + rightWidth + _primarySpacing <= width) {
+      final height = [...left, ...right].fold<double>(
+        0,
+        (maximum, action) =>
+            action.size.height > maximum ? action.size.height : maximum,
+      );
+      _positionGroup(left, 0, height, y: y);
+      _positionGroup(right, width - rightWidth, height, y: y);
+      return y + height;
+    }
+
+    y = _layoutGroupRuns(left, width, y, alignRight: false);
+    if (left.isNotEmpty && right.isNotEmpty) y += _runSpacing;
+    return _layoutGroupRuns(right, width, y, alignRight: true);
+  }
+
+  double _layoutGroupRuns(
+    List<RenderBox> children,
+    double width,
+    double startY, {
+    required bool alignRight,
+  }) {
+    if (children.isEmpty) return startY;
+    final runs = _buildRuns<RenderBox>(
+      children,
+      width,
+      (child) => child.size.width,
+    );
+    var y = startY;
+    for (final run in runs) {
+      final runWidth = _groupWidth(run);
+      final runHeight = run.fold<double>(
+        0,
+        (maximum, child) =>
+            child.size.height > maximum ? child.size.height : maximum,
+      );
+      _positionGroup(run, alignRight ? width - runWidth : 0, runHeight, y: y);
+      y += runHeight + _runSpacing;
+    }
+    return y - _runSpacing;
+  }
+
+  void _positionGroup(
+    List<RenderBox> children,
+    double x,
+    double height, {
+    double y = 0,
+  }) {
+    for (final child in children) {
+      _position(child, x, y + (height - child.size.height) / 2);
+      x += child.size.width + _itemSpacing;
+    }
+  }
+
+  void _position(RenderBox child, double x, double y) {
+    final parentData = child.parentData! as _GenerationControlsParentData;
+    parentData.offset = Offset(x, y);
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final availableWidth = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : 100000.0;
+    final actionConstraints = BoxConstraints(maxWidth: availableWidth);
+    final left = <Size>[];
+    final right = <Size>[];
+    RenderBox? primaryChild;
+
+    RenderBox? child = firstChild;
+    while (child != null) {
+      final parentData = child.parentData! as _GenerationControlsParentData;
+      switch (parentData.group) {
+        case _GenerationControlGroup.left:
+          final childSize = child.getDryLayout(actionConstraints);
+          if (!childSize.isEmpty) left.add(childSize);
+        case _GenerationControlGroup.primary:
+          primaryChild = child;
+        case _GenerationControlGroup.right:
+          final childSize = child.getDryLayout(actionConstraints);
+          if (!childSize.isEmpty) right.add(childSize);
+      }
+      child = parentData.nextSibling;
+    }
+
+    if (primaryChild == null) return constraints.smallest;
+    final leftWidth = _dryGroupWidth(left);
+    final rightWidth = _dryGroupWidth(right);
+    final singleRowWidth =
+        leftWidth + rightWidth + _minimumPrimaryWidth + _primarySpacing * 2;
+    final width = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : singleRowWidth;
+    final useSingleRow = singleRowWidth <= width;
+    final primaryWidth = useSingleRow
+        ? width - leftWidth - rightWidth - _primarySpacing * 2
+        : width;
+    final primarySize = primaryChild.getDryLayout(
+      BoxConstraints.tightFor(width: primaryWidth),
+    );
+    if (useSingleRow) {
+      final height = [...left, primarySize, ...right].fold<double>(
+        0,
+        (maximum, childSize) =>
+            childSize.height > maximum ? childSize.height : maximum,
+      );
+      return constraints.constrain(Size(width, height));
+    }
+
+    final leftAndRightFit = leftWidth + rightWidth + _primarySpacing <= width;
+    if (leftAndRightFit) {
+      final actionsHeight = [...left, ...right].fold<double>(
+        0,
+        (maximum, action) => action.height > maximum ? action.height : maximum,
+      );
+      return constraints.constrain(
+        Size(width, primarySize.height + _runSpacing + actionsHeight),
+      );
+    }
+    var height = primarySize.height;
+    if (left.isNotEmpty) {
+      height += _runSpacing + _dryRunsHeight(left, width);
+    }
+    if (right.isNotEmpty) {
+      height += _runSpacing + _dryRunsHeight(right, width);
+    }
+    return constraints.constrain(Size(width, height));
+  }
+
+  double _dryRunsHeight(List<Size> children, double width) {
+    final runs = _buildRuns<Size>(children, width, (child) => child.width);
+    return runs.fold<double>(0, (height, run) {
+          final runHeight = run.fold<double>(
+            0,
+            (maximum, child) => child.height > maximum ? child.height : maximum,
+          );
+          return height + runHeight;
+        }) +
+        _runSpacing * (runs.length - 1);
+  }
+
+  List<List<T>> _buildRuns<T>(
+    List<T> children,
+    double width,
+    double Function(T child) widthOf,
+  ) {
+    final runs = <List<T>>[];
+    var run = <T>[];
+    var runWidth = 0.0;
+    for (final child in children) {
+      final childWidth = widthOf(child);
+      final nextWidth = run.isEmpty
+          ? childWidth
+          : runWidth + _itemSpacing + childWidth;
+      if (run.isNotEmpty && nextWidth > width) {
+        runs.add(run);
+        run = <T>[];
+        runWidth = 0;
+      }
+      run.add(child);
+      runWidth = runWidth == 0
+          ? childWidth
+          : runWidth + _itemSpacing + childWidth;
+    }
+    if (run.isNotEmpty) runs.add(run);
+    return runs;
+  }
+
+  double _dryGroupWidth(List<Size> children) {
+    if (children.isEmpty) return 0;
+    return children.fold<double>(0, (sum, child) => sum + child.width) +
+        _itemSpacing * (children.length - 1);
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    defaultPaint(context, offset);
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    return defaultHitTestChildren(result, position: position);
   }
 }

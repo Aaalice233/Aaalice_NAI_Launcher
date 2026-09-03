@@ -284,69 +284,75 @@ class _AgentChatSessionPickerBodyState
                     itemBuilder: (context, index) {
                       final session = filtered[index];
                       final active = session.id == widget.activeSessionId;
-                      return ListTile(
-                        selected: active,
-                        selectedTileColor: theme.colorScheme.primaryContainer
-                            .withValues(alpha: 0.36),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            theme.appTheme.controlRadius,
+                      return Material(
+                        key: ValueKey(
+                          'agent-chat-session-material-${session.id}',
+                        ),
+                        type: MaterialType.transparency,
+                        child: ListTile(
+                          selected: active,
+                          selectedTileColor: theme.colorScheme.primaryContainer
+                              .withValues(alpha: 0.36),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              theme.appTheme.controlRadius,
+                            ),
                           ),
-                        ),
-                        leading: Icon(
-                          active
-                              ? Icons.chat_bubble_rounded
-                              : Icons.chat_bubble_outline_rounded,
-                          size: 19,
-                        ),
-                        title: Text(
-                          session.name.isEmpty
-                              ? l10n.agentChat_untitled
-                              : session.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: session.updatedAt == null
-                            ? null
-                            : Text(_formatTime(session.updatedAt!)),
-                        trailing: PopupMenuButton<String>(
-                          tooltip: l10n.agentChat_moreActions,
-                          onSelected: (value) async {
-                            widget.onClose();
-                            if (value == 'rename') {
-                              await widget.onRename(session.id);
-                            } else {
-                              await widget.onDelete(session.id);
-                            }
-                          },
-                          itemBuilder: (_) => [
-                            PopupMenuItem(
-                              value: 'rename',
-                              child: ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.edit_outlined),
-                                title: Text(l10n.common_rename),
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(
-                                  Icons.delete_outline,
-                                  color: theme.colorScheme.error,
+                          leading: Icon(
+                            active
+                                ? Icons.chat_bubble_rounded
+                                : Icons.chat_bubble_outline_rounded,
+                            size: 19,
+                          ),
+                          title: Text(
+                            session.name.isEmpty
+                                ? l10n.agentChat_untitled
+                                : session.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: session.updatedAt == null
+                              ? null
+                              : Text(_formatTime(session.updatedAt!)),
+                          trailing: PopupMenuButton<String>(
+                            tooltip: l10n.agentChat_moreActions,
+                            onSelected: (value) async {
+                              widget.onClose();
+                              if (value == 'rename') {
+                                await widget.onRename(session.id);
+                              } else {
+                                await widget.onDelete(session.id);
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem(
+                                value: 'rename',
+                                child: ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(Icons.edit_outlined),
+                                  title: Text(l10n.common_rename),
                                 ),
-                                title: Text(l10n.common_delete),
                               ),
-                            ),
-                          ],
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(
+                                    Icons.delete_outline,
+                                    color: theme.colorScheme.error,
+                                  ),
+                                  title: Text(l10n.common_delete),
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () async {
+                            widget.onClose();
+                            if (!active) await widget.onSelect(session.id);
+                          },
                         ),
-                        onTap: () async {
-                          widget.onClose();
-                          if (!active) await widget.onSelect(session.id);
-                        },
                       );
                     },
                   ),

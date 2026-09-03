@@ -15,11 +15,13 @@ import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../utils/image_detail_opener.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../screens/online_gallery/online_gallery_detail_launcher.dart';
 import '../../services/image_send_action_dispatcher.dart';
+import '../../themes/theme_extension.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_card_hover_motion.dart';
 import '../../widgets/common/image_detail/file_image_detail_data.dart';
@@ -48,8 +50,10 @@ String agentToolLabel(BuildContext context, String toolName) {
     'get_generation_status' => l10n.agentChat_toolGenerationStatus,
     'get_generation_settings' => l10n.agentChat_toolGetGenerationSettings,
     'update_generation_settings' => l10n.agentChat_toolUpdateGenerationSettings,
-    'get_generation_source_image' => l10n.agentChat_toolGetGenerationSourceImage,
-    'set_generation_source_image' => l10n.agentChat_toolSetGenerationSourceImage,
+    'get_generation_source_image' =>
+      l10n.agentChat_toolGetGenerationSourceImage,
+    'set_generation_source_image' =>
+      l10n.agentChat_toolSetGenerationSourceImage,
     'clear_generation_source_image' =>
       l10n.agentChat_toolClearGenerationSourceImage,
     'update_generation_source_settings' =>
@@ -462,13 +466,15 @@ class _ToolTaskHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final minimumHeight = policyExtent < 44 ? 44.0 : policyExtent;
     return Material(
       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.62),
       child: InkWell(
         onTap: onTap,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 44),
+          constraints: BoxConstraints(minHeight: minimumHeight),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
@@ -895,7 +901,9 @@ class _AgentChatReasoningTileState extends State<AgentChatReasoningTile> {
             },
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 32),
+              constraints: BoxConstraints(
+                minHeight: context.interactionPolicy.minimumControlExtent,
+              ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Row(
@@ -1423,43 +1431,77 @@ class _ToolResultInteractiveImageCardState
 }
 
 Future<void> _showNetworkImagePreview(BuildContext context, String url) {
-  final viewport = MediaQuery.sizeOf(context);
-  return showDialog<void>(
-    context: context,
-    builder: (dialogContext) => Dialog(
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: (viewport.width * 0.86).clamp(280.0, 1080.0).toDouble(),
-        height: (viewport.height * 0.82).clamp(240.0, 820.0).toDouble(),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 8,
-                child: Center(
-                  child: Image.network(
-                    url,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: IconButton.filledTonal(
-                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ),
-          ],
-        ),
-      ),
+  final reduceMotion = MediaQuery.disableAnimationsOf(context);
+  final motion = Theme.of(context).appTheme;
+  return Navigator.of(context, rootNavigator: true).push<void>(
+    PageRouteBuilder<void>(
+      transitionDuration: reduceMotion ? Duration.zero : motion.normalDuration,
+      reverseTransitionDuration: reduceMotion
+          ? Duration.zero
+          : motion.fastDuration,
+      pageBuilder: (routeContext, _, _) => _NetworkImagePreviewPage(url: url),
+      transitionsBuilder: (_, animation, _, child) => reduceMotion
+          ? child
+          : FadeTransition(opacity: animation, child: child),
     ),
   );
+}
+
+class _NetworkImagePreviewPage extends StatelessWidget {
+  const _NetworkImagePreviewPage({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      child: AnimatedPadding(
+        duration: reduceMotion
+            ? Duration.zero
+            : Theme.of(context).appTheme.fastDuration,
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SafeArea(
+          child: SizedBox.expand(
+            key: const ValueKey('agent-network-image-preview'),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 8,
+                    child: Center(
+                      child: Image.network(
+                        url,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton.filledTonal(
+                    key: const ValueKey('agent-network-image-preview-close'),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).closeButtonTooltip,
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 List<String> _extractImageFiles(ToolResultMessage result) {

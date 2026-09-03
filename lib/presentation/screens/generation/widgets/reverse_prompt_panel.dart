@@ -8,7 +8,6 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/character/character_prompt.dart';
-import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../data/services/local_onnx_model_service.dart';
 import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
@@ -19,6 +18,7 @@ import '../../../utils/asset_protection_guard.dart';
 import '../../../utils/dropped_file_reader.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -403,10 +403,10 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
+          TranslatedPromptText(
             selectedCharacter.prompt,
+            selectable: false,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -440,11 +440,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
   }
 
   Future<void> _selectReverseCharacterFromLibrary() async {
-    final entry = await showDialog<TagLibraryEntry>(
-      context: context,
-      builder: (context) => TagLibraryPickerDialog(
-        title: context.l10n.reversePrompt_selectReplacementTargetTitle,
-      ),
+    final entry = await TagLibraryPickerDialog.show(
+      context,
+      title: context.l10n.reversePrompt_selectReplacementTargetTitle,
     );
 
     if (entry == null) {
@@ -652,7 +650,7 @@ class _PromptOutputBlock extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.labelMedium),
           const SizedBox(height: 4),
-          SelectableText(text, style: theme.textTheme.bodySmall),
+          TranslatedPromptText(text, style: theme.textTheme.bodySmall),
         ],
       ),
     );

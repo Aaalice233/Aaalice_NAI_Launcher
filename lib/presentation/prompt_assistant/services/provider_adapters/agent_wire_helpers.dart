@@ -161,6 +161,7 @@ Stream<Uint8List> agentStreamPost(
   required Object payload,
   required Map<String, dynamic> headers,
   required CancelToken cancelToken,
+  Duration? receiveTimeout = const Duration(minutes: 5),
 }) async* {
   late final Response<ResponseBody> response;
   try {
@@ -171,7 +172,7 @@ Stream<Uint8List> agentStreamPost(
         headers: headers,
         responseType: ResponseType.stream,
         sendTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(minutes: 5),
+        receiveTimeout: receiveTimeout,
       ),
       cancelToken: cancelToken,
     );

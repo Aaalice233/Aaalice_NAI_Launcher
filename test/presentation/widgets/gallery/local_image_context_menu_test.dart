@@ -128,6 +128,38 @@ void main() {
     expect(find.text('Share to Discord'), findsOneWidget);
   });
 
+  testWidgets(
+    'fits the complete menu inside a 320dp safe area at an edge anchor',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const _MenuHarness(
+          isKritaConnected: true,
+          position: Offset(319, 100),
+          safePadding: EdgeInsets.symmetric(horizontal: 24),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      final items = find.byType(PopupMenuItem<LocalImageContextAction>);
+      expect(items, findsNWidgets(15));
+      for (final element in items.evaluate()) {
+        final rect = tester.getRect(
+          find.byElementPredicate((candidate) => candidate == element),
+        );
+        expect(rect.left, greaterThanOrEqualTo(32));
+        expect(rect.right, lessThanOrEqualTo(288));
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('hides image information actions when metadata is unavailable', (
     tester,
   ) async {
@@ -209,6 +241,8 @@ class _MenuHarness extends StatelessWidget {
     required this.isKritaConnected,
     this.sendOnly = false,
     this.watermarkEnabled = false,
+    this.position = const Offset(20, 20),
+    this.safePadding = EdgeInsets.zero,
     this.onSelected,
   });
 
@@ -218,12 +252,18 @@ class _MenuHarness extends StatelessWidget {
   final bool isKritaConnected;
   final bool sendOnly;
   final bool watermarkEnabled;
+  final Offset position;
+  final EdgeInsets safePadding;
   final ValueChanged<LocalImageContextAction?>? onSelected;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       locale: const Locale('en'),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(padding: safePadding),
+        child: child!,
+      ),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
@@ -233,13 +273,13 @@ class _MenuHarness extends StatelessWidget {
               final selected = sendOnly
                   ? await LocalImageContextMenu.showSendActions(
                       context,
-                      position: const Offset(20, 20),
+                      position: position,
                       isKritaConnected: isKritaConnected,
                       watermarkEnabled: watermarkEnabled,
                     )
                   : await LocalImageContextMenu.show(
                       context,
-                      position: const Offset(20, 20),
+                      position: position,
                       hasImportableMetadata: hasImportableMetadata,
                       hasPrompt: hasPrompt,
                       hasSeed: hasSeed,

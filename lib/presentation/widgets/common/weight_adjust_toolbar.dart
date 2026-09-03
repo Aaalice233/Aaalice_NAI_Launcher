@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../core/utils/character_prompt_block_parser.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../themes/core/input_surface_style.dart';
 
 /// 权重调整工具条包装器
@@ -436,15 +437,8 @@ class WeightAdjustScrollPhysics extends ScrollPhysics {
   }
 }
 
-bool supportsPromptWeightScrollPhysics(TargetPlatform platform) {
-  return switch (platform) {
-    TargetPlatform.windows ||
-    TargetPlatform.macOS ||
-    TargetPlatform.linux => true,
-    TargetPlatform.android ||
-    TargetPlatform.iOS ||
-    TargetPlatform.fuchsia => false,
-  };
+bool supportsPromptWeightScrollPhysics(InteractionPolicy interactionPolicy) {
+  return interactionPolicy.precisePointerAvailable;
 }
 
 /// 权重调整工具条
@@ -471,17 +465,42 @@ class _WeightAdjustToolbar extends StatefulWidget {
 
 class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
   final TextEditingController _weightController = TextEditingController();
+  Offset _toolbarOffset = const Offset(0, -52);
+  bool _offsetUpdateScheduled = false;
+
+  double get _toolbarWidth =>
+      (MediaQuery.sizeOf(context).width - 16).clamp(0, 300);
+
+  double get _toolbarHeight =>
+      (MediaQuery.textScalerOf(context).scale(14).clamp(14.0, 48.0) + 34).clamp(
+        60.0,
+        82.0,
+      );
 
   @override
   void initState() {
     super.initState();
     _updateWeightDisplay();
+    _scheduleOffsetUpdate();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scheduleOffsetUpdate();
   }
 
   @override
   void didUpdateWidget(_WeightAdjustToolbar oldWidget) {
     super.didUpdateWidget(oldWidget);
     _updateWeightDisplay();
+    _scheduleOffsetUpdate();
+  }
+
+  @override
+  void dispose() {
+    _weightController.dispose();
+    super.dispose();
   }
 
   void _updateWeightDisplay() {
@@ -520,53 +539,76 @@ class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
     });
   }
 
-  Offset _calculateOffset() {
-    final textFieldContext = widget.textFieldKey.currentContext;
-    if (textFieldContext == null) {
-      return const Offset(0, -52);
-    }
+  void _scheduleOffsetUpdate() {
+    if (_offsetUpdateScheduled) return;
+    _offsetUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _offsetUpdateScheduled = false;
+      if (!mounted) return;
+      final nextOffset = _readOffsetAfterLayout();
+      if (nextOffset != _toolbarOffset) {
+        setState(() => _toolbarOffset = nextOffset);
+      }
+    });
+  }
 
+  Offset _readOffsetAfterLayout() {
+    final textFieldContext = widget.textFieldKey.currentContext;
+    if (textFieldContext == null) return _toolbarOffset;
     final textFieldRenderBox =
         textFieldContext.findRenderObject() as RenderBox?;
-    if (textFieldRenderBox == null) {
-      return const Offset(0, -52);
+    if (textFieldRenderBox == null || !textFieldRenderBox.hasSize) {
+      return _toolbarOffset;
     }
 
-    RenderEditable? findRenderEditable(Element element) {
-      RenderEditable? result;
-      void search(Element e) {
-        if (result != null) return;
-        if (e.renderObject is RenderEditable) {
-          result = e.renderObject as RenderEditable;
-          return;
-        }
-        e.visitChildren(search);
+    RenderEditable? renderEditable;
+    void findEditable(Element element) {
+      if (renderEditable != null) return;
+      if (element.renderObject case final RenderEditable editable) {
+        renderEditable = editable;
+        return;
       }
-
-      search(element);
-      return result;
+      element.visitChildren(findEditable);
     }
 
-    final renderEditable = findRenderEditable(textFieldContext as Element);
-    if (renderEditable == null) {
-      return const Offset(0, -52);
-    }
-
+    findEditable(textFieldContext as Element);
+    final editable = renderEditable;
     final selection = widget.controller.selection;
-    if (!selection.isValid || selection.start < 0) {
-      return const Offset(0, -52);
+    if (editable == null || !selection.isValid || selection.start < 0) {
+      return _toolbarOffset;
     }
 
-    final caretPosition = TextPosition(offset: selection.start);
-    final caretRect = renderEditable.getLocalRectForCaret(caretPosition);
-
-    const toolbarHeight = 48.0;
-    const verticalPadding = 4.0;
-
-    return Offset(
-      caretRect.left,
-      caretRect.top - toolbarHeight - verticalPadding,
+    final caretRect = editable.getLocalRectForCaret(
+      TextPosition(offset: selection.start),
     );
+    final targetOrigin = textFieldRenderBox.localToGlobal(Offset.zero);
+    final caretOrigin = editable.localToGlobal(caretRect.topLeft);
+    final mediaQuery = MediaQuery.of(context);
+    const safeGap = 8.0;
+    final safeLeft = mediaQuery.padding.left + safeGap;
+    final safeRight =
+        mediaQuery.size.width - mediaQuery.padding.right - safeGap;
+    final usableBottom =
+        mediaQuery.size.height -
+        mediaQuery.padding.bottom -
+        mediaQuery.viewInsets.bottom -
+        safeGap;
+    final desiredX = caretOrigin.dx.clamp(
+      safeLeft,
+      (safeRight - _toolbarWidth).clamp(safeLeft, double.infinity),
+    );
+    final aboveY = caretOrigin.dy - _toolbarHeight - 4;
+    final belowY = caretOrigin.dy + caretRect.height + 4;
+    final desiredY =
+        (aboveY >= mediaQuery.padding.top + safeGap ? aboveY : belowY).clamp(
+          mediaQuery.padding.top + safeGap,
+          (usableBottom - _toolbarHeight).clamp(
+            mediaQuery.padding.top + safeGap,
+            double.infinity,
+          ),
+        );
+
+    return Offset(desiredX - targetOrigin.dx, desiredY - targetOrigin.dy);
   }
 
   @override
@@ -574,6 +616,7 @@ class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
+    _scheduleOffsetUpdate();
 
     return Listener(
       onPointerDown: (_) => widget.onInteractingChanged(true),
@@ -582,12 +625,12 @@ class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
       child: CompositedTransformFollower(
         link: widget.layerLink,
         showWhenUnlinked: false,
-        offset: _calculateOffset(),
+        offset: _toolbarOffset,
         child: Align(
           alignment: Alignment.topLeft,
           child: SizedBox(
-            width: 220,
-            height: 48,
+            width: _toolbarWidth,
+            height: _toolbarHeight,
             child: Material(
               elevation: 8,
               borderRadius: BorderRadius.circular(8),
@@ -691,21 +734,16 @@ class _WeightButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Tooltip(
-      message: tooltip ?? '',
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onPressed,
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(4)),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
-          ),
-        ),
+    return IconButton(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      tooltip: tooltip,
+      iconSize: 18,
+      color: colorScheme.onSurfaceVariant,
+      constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+      padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
     );
   }

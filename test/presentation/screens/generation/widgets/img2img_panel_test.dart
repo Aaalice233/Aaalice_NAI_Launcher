@@ -17,6 +17,97 @@ import '../../../../helpers/light_theme_contrast.dart';
 
 void main() {
   group('Img2ImgPanel', () {
+    testWidgets('空面板在 320 到 1600 与 3x 文本下无溢出', (tester) async {
+      for (final width in [320.0, 600.0, 840.0, 1600.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 900));
+        final container = ProviderContainer();
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(3)),
+                child: child!,
+              ),
+              home: const Scaffold(body: Img2ImgPanel()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Img2ImgPanel), findsOneWidget);
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+        container.dispose();
+      }
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    testWidgets('源图像上传与绘制内容在 320 和 600 宽度下整体居中', (tester) async {
+      for (final width in [320.0, 600.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 600));
+        final container = ProviderContainer();
+        container
+            .read(imageWorkflowControllerProvider.notifier)
+            .setPanelExpanded(true);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(3)),
+                child: child!,
+              ),
+              home: const Scaffold(body: Img2ImgPanel()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final target in const [
+          (
+            key: ValueKey('img2img-upload-source'),
+            icon: Icons.upload_file,
+            label: '上传图片',
+          ),
+          (
+            key: ValueKey('img2img-draw-source'),
+            icon: Icons.brush,
+            label: '绘制草图',
+          ),
+        ]) {
+          final card = find.byKey(target.key);
+          final cardRect = tester.getRect(card);
+          final iconRect = tester.getRect(
+            find.descendant(of: card, matching: find.byIcon(target.icon)),
+          );
+          final labelRect = tester.getRect(
+            find.descendant(of: card, matching: find.text(target.label)),
+          );
+          final contentCenter = (iconRect.left + labelRect.right) / 2;
+
+          expect(cardRect.height, greaterThanOrEqualTo(48));
+          expect(
+            contentCenter,
+            closeTo(cardRect.center.dx, 0.5),
+            reason: '${target.label} not centered at width=$width',
+          );
+        }
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+        container.dispose();
+      }
+      await tester.binding.setSurfaceSize(null);
+    });
+
     testWidgets('点击导演工具会导航到独立页面而不抛异常', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);

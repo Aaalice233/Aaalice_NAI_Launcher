@@ -16,6 +16,7 @@ import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -381,113 +382,15 @@ class VibeImportHandler {
       return;
     }
 
-    final result =
-        await showDialog<
-          (
-            bool confirmed,
-            double strength,
-            double infoExtracted,
-            bool overwriteOriginal,
-          )?
-        >(
-          context: context,
-          builder: (context) {
-            var strengthValue = firstVibe.strength;
-            var infoExtractedValue = firstVibe.infoExtracted;
-            var overwriteOriginal = false;
-
-            return StatefulBuilder(
-              builder: (context, setState) {
-                return AlertDialog(
-                  title: Text(l10n.vibe_saveToLibrary_title),
-                  content: SizedBox(
-                    width: 400,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(l10n.vibe_saveToLibrary_savingCount(vibes.length)),
-                        const SizedBox(height: 16),
-                        // 名称输入
-                        TextField(
-                          controller: nameController,
-                          decoration: InputDecoration(
-                            labelText: l10n.vibe_saveToLibrary_nameLabel,
-                            hintText: l10n.vibe_saveToLibrary_nameHint,
-                          ),
-                          autofocus: true,
-                        ),
-                        const SizedBox(height: 24),
-                        // Reference Strength 滑条
-                        _buildDialogSlider(
-                          context,
-                          label: l10n.vibe_saveToLibrary_strength,
-                          value: strengthValue,
-                          min: VibeReference.minSliderStrength,
-                          max: VibeReference.maxSliderStrength,
-                          unboundedInput: true,
-                          onChanged: (value) =>
-                              setState(() => strengthValue = value),
-                        ),
-                        if (showInfoExtractedControl) ...[
-                          const SizedBox(height: 16),
-                          _buildDialogSlider(
-                            context,
-                            label: l10n.vibe_saveToLibrary_infoExtracted,
-                            value: infoExtractedValue,
-                            min: VibeReference.minInfoExtracted,
-                            max: VibeReference.maxInfoExtracted,
-                            onChanged: (value) =>
-                                setState(() => infoExtractedValue = value),
-                          ),
-                        ],
-                        if (overwriteCandidate != null) ...[
-                          const SizedBox(height: 16),
-                          CheckboxListTile(
-                            value: overwriteOriginal,
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              context.l10n.vibe_import_overwriteOriginalParams,
-                            ),
-                            subtitle: Text(
-                              context.l10n
-                                  .vibe_import_overwriteOriginalParamsHint(
-                                    overwriteCandidate.displayName,
-                                  ),
-                            ),
-                            onChanged: (value) => setState(
-                              () => overwriteOriginal = value ?? false,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(null),
-                      child: Text(l10n.common_cancel),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (nameController.text.trim().isNotEmpty) {
-                          Navigator.of(context).pop((
-                            true,
-                            strengthValue,
-                            infoExtractedValue,
-                            overwriteOriginal,
-                          ));
-                        }
-                      },
-                      child: Text(l10n.common_save),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
+    final result = await showVibeLibrarySaveForm(
+      context: context,
+      vibeCount: vibes.length,
+      nameController: nameController,
+      initialStrength: firstVibe.strength,
+      initialInfoExtracted: firstVibe.infoExtracted,
+      showInfoExtractedControl: showInfoExtractedControl,
+      overwriteCandidate: overwriteCandidate,
+    );
 
     if (result != null && result.$1 && context.mounted) {
       final storageService = ref.read(vibeLibraryStorageServiceProvider);
@@ -581,53 +484,189 @@ class VibeImportHandler {
       return l10n.vibe_saveToLibrary_reused(reusedCount);
     }
   }
+}
 
-  /// 构建对话框中的滑条
-  Widget _buildDialogSlider(
-    BuildContext context, {
-    required String label,
-    required double value,
-    required double min,
-    required double max,
-    required ValueChanged<double> onChanged,
-    bool unboundedInput = false,
-  }) {
-    final sliderValue = value.clamp(min, max).toDouble();
+typedef VibeLibrarySaveFormResult = (
+  bool confirmed,
+  double strength,
+  double infoExtracted,
+  bool overwriteOriginal,
+);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(fontWeight: FontWeight.w500),
+/// 显示保存到 Vibe 库的多字段自适应表单。
+Future<VibeLibrarySaveFormResult?> showVibeLibrarySaveForm({
+  required BuildContext context,
+  required int vibeCount,
+  required TextEditingController nameController,
+  required double initialStrength,
+  required double initialInfoExtracted,
+  required bool showInfoExtractedControl,
+  VibeLibraryEntry? overwriteCandidate,
+}) {
+  var strengthValue = initialStrength;
+  var infoExtractedValue = initialInfoExtracted;
+  var overwriteOriginal = false;
+
+  return AdaptivePresenter.showForm<VibeLibrarySaveFormResult>(
+    context: context,
+    title: context.l10n.vibe_saveToLibrary_title,
+    sideSheetWidth: 440,
+    builder: (panelContext, scrollController) => StatefulBuilder(
+      builder: (panelContext, setState) => Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              key: const ValueKey('vibe-library-save-form-scroll'),
+              controller: scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    panelContext.l10n.vibe_saveToLibrary_savingCount(vibeCount),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    key: const ValueKey('vibe-library-save-name'),
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: panelContext.l10n.vibe_saveToLibrary_nameLabel,
+                      hintText: panelContext.l10n.vibe_saveToLibrary_nameHint,
+                    ),
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildVibeLibraryDialogSlider(
+                    panelContext,
+                    label: panelContext.l10n.vibe_saveToLibrary_strength,
+                    value: strengthValue,
+                    min: VibeReference.minSliderStrength,
+                    max: VibeReference.maxSliderStrength,
+                    unboundedInput: true,
+                    onChanged: (value) => setState(() => strengthValue = value),
+                  ),
+                  if (showInfoExtractedControl) ...[
+                    const SizedBox(height: 16),
+                    _buildVibeLibraryDialogSlider(
+                      panelContext,
+                      label: panelContext.l10n.vibe_saveToLibrary_infoExtracted,
+                      value: infoExtractedValue,
+                      min: VibeReference.minInfoExtracted,
+                      max: VibeReference.maxInfoExtracted,
+                      onChanged: (value) =>
+                          setState(() => infoExtractedValue = value),
+                    ),
+                  ],
+                  if (overwriteCandidate != null) ...[
+                    const SizedBox(height: 16),
+                    CheckboxListTile(
+                      key: const ValueKey('vibe-library-save-overwrite'),
+                      value: overwriteOriginal,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        panelContext.l10n.vibe_import_overwriteOriginalParams,
+                      ),
+                      subtitle: Text(
+                        panelContext.l10n
+                            .vibe_import_overwriteOriginalParamsHint(
+                              overwriteCandidate.displayName,
+                            ),
+                      ),
+                      onChanged: (value) =>
+                          setState(() => overwriteOriginal = value ?? false),
+                    ),
+                  ],
+                ],
               ),
             ),
-            EditableDoubleField(
-              value: value,
-              min: unboundedInput ? null : min,
-              max: unboundedInput ? null : max,
-              decimals: 2,
-              width: 64,
-              onChanged: onChanged,
-              textStyle: const TextStyle(
-                fontFeatures: [FontFeature.tabularFigures()],
+          ),
+          Divider(
+            height: 1,
+            color: Theme.of(panelContext).colorScheme.outlineVariant,
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  TextButton(
+                    key: const ValueKey('vibe-library-save-cancel'),
+                    onPressed: () => Navigator.of(panelContext).pop(),
+                    child: Text(panelContext.l10n.common_cancel),
+                  ),
+                  FilledButton(
+                    key: const ValueKey('vibe-library-save-confirm'),
+                    onPressed: () {
+                      if (nameController.text.trim().isEmpty) return;
+                      Navigator.of(panelContext).pop((
+                        true,
+                        strengthValue,
+                        infoExtractedValue,
+                        overwriteOriginal,
+                      ));
+                    },
+                    child: Text(panelContext.l10n.common_save),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        Slider(
-          value: sliderValue,
-          min: min,
-          max: max,
-          divisions: 99,
-          onChanged: onChanged,
-        ),
-      ],
-    );
-  }
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildVibeLibraryDialogSlider(
+  BuildContext context, {
+  required String label,
+  required double value,
+  required double min,
+  required double max,
+  required ValueChanged<double> onChanged,
+  bool unboundedInput = false,
+}) {
+  final sliderValue = value.clamp(min, max).toDouble();
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          EditableDoubleField(
+            value: value,
+            min: unboundedInput ? null : min,
+            max: unboundedInput ? null : max,
+            decimals: 2,
+            width: 64,
+            onChanged: onChanged,
+            textStyle: const TextStyle(
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+      Slider(
+        value: sliderValue,
+        min: min,
+        max: max,
+        divisions: 99,
+        onChanged: onChanged,
+      ),
+    ],
+  );
 }
 
 VibeLibraryEntry? findOriginalLibraryEntryForOverwrite(

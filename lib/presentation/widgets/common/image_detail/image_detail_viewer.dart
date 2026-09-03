@@ -9,6 +9,7 @@ import '../../../../core/shortcuts/shortcuts.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
 import '../../../../core/utils/window_focus_tracker.dart';
+import '../../../../core/windowing/workspace_side_panel_contract.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/share_image_settings_provider.dart';
@@ -16,6 +17,8 @@ import '../../../screens/watermark/watermark_editor_launcher.dart';
 import '../../../utils/clipboard_image.dart';
 import '../../shortcuts/shortcuts.dart';
 import '../app_toast.dart';
+import '../horizontal_resize_handle.dart';
+import '../resizable_pane.dart';
 import '../../metadata/metadata_import_dialog.dart';
 import 'components/detail_image_page.dart';
 import 'components/detail_metadata_panel.dart';
@@ -172,6 +175,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   static const Duration _windowsEscFocusCooldown = Duration(milliseconds: 1200);
   static const Duration _windowsEscBounceCooldown = Duration(seconds: 4);
   static const Duration _closeRequestThrottle = Duration(milliseconds: 700);
+  static const double _initialMetadataPanelWidth = 420;
+  static const double _minimumMetadataPanelWidth = 320;
+  static const double _minimumImagePaneWidth = 480;
 
   late PageController _pageController;
   late ScrollController _thumbnailController;
@@ -182,6 +188,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   final Map<String, TransformationController> _transformationControllers = {};
   bool _isClosing = false;
   DateTime? _lastCloseRequestedAt;
+  late final ResizablePaneController _metadataPanelWidthController;
 
   @override
   void initState() {
@@ -189,6 +196,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
     _thumbnailController = ScrollController();
+    _metadataPanelWidthController = ResizablePaneController(
+      initialWidth: _initialMetadataPanelWidth,
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToThumbnail(_currentIndex, animate: false);
@@ -203,9 +213,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     const thumbnailMargin = 8.0;
     const totalWidth = thumbnailWidth + thumbnailMargin;
 
-    final screenWidth = MediaQuery.of(context).size.width;
+    final viewportWidth = _thumbnailController.position.viewportDimension;
     final targetOffset =
-        (index * totalWidth) - (screenWidth / 2) + (totalWidth / 2);
+        (index * totalWidth) - (viewportWidth / 2) + (totalWidth / 2);
     final maxOffset = _thumbnailController.position.maxScrollExtent;
 
     final offset = targetOffset.clamp(0.0, maxOffset);
@@ -456,9 +466,6 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth > 800;
-
     // 定义快捷键映射
     final shortcuts = <String, VoidCallback>{
       // 上一张
@@ -493,23 +500,52 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         onKeyEvent: _handleKeyEvent,
         child: Scaffold(
           backgroundColor: Colors.black,
-          body: isDesktop && widget.showMetadataPanel
-              ? Row(
-                  children: [
-                    Expanded(child: _buildMainContent()),
-                    DetailMetadataPanel(
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final showSideMetadata = constraints.maxWidth >= 1100;
+              if (!showSideMetadata || !widget.showMetadataPanel) {
+                return _buildMainContent(
+                  showMetadataAction: widget.showMetadataPanel,
+                );
+              }
+
+              final maximumPanelWidth =
+                  WorkspaceSidePanelContract.constrainedWorkspaceWidth(
+                    workspaceWidth: constraints.maxWidth,
+                    preferredWidth: WorkspaceSidePanelContract.maximumWidth,
+                    occupiedWidth: ResizeHandle.defaultWidth,
+                    minimumPrimaryWidth: _minimumImagePaneWidth,
+                    minimumWidth: _minimumMetadataPanelWidth,
+                  );
+              return Row(
+                children: [
+                  Expanded(child: _buildMainContent(showMetadataAction: false)),
+                  ResizeHandle(
+                    key: const ValueKey('image-detail-metadata-resize-handle'),
+                    onDrag: (delta) =>
+                        _metadataPanelWidthController.resizeBy(-delta),
+                  ),
+                  ResizablePane(
+                    controller: _metadataPanelWidthController,
+                    minimumWidth: _minimumMetadataPanelWidth,
+                    maximumWidth: maximumPanelWidth,
+                    child: DetailMetadataPanel(
                       currentImage: _currentImage,
                       initialExpanded: true,
+                      collapsible: false,
+                      fillAvailableWidth: true,
                     ),
-                  ],
-                )
-              : _buildMainContent(),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildMainContent() {
+  Widget _buildMainContent({required bool showMetadataAction}) {
     final showThumbnails = widget.showThumbnails && widget.images.length > 1;
 
     return Stack(
@@ -539,7 +575,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
         // 顶部控制栏
         AnimatedPositioned(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           top: _showControls ? 0 : -100,
           left: 0,
           right: 0,
@@ -548,11 +586,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             totalImages: widget.images.length,
             currentImage: _currentImage,
             onClose: () => _requestClose('top-bar-close'),
-            onShowMetadata:
-                MediaQuery.sizeOf(context).width <= 800 &&
-                    widget.showMetadataPanel
-                ? _showMetadataPanel
-                : null,
+            onShowMetadata: showMetadataAction ? _showMetadataPanel : null,
             onReuseMetadata: widget.callbacks?.onReuseMetadata != null
                 ? () => _handleReuseMetadata(context)
                 : null,
@@ -582,7 +616,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         // 底部缩略图栏
         if (showThumbnails)
           AnimatedPositioned(
-            duration: const Duration(milliseconds: 200),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
             bottom: _showControls ? 0 : -100,
             left: 0,
             right: 0,
@@ -745,6 +781,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   @override
   void dispose() {
+    _metadataPanelWidthController.dispose();
     for (final controller in _transformationControllers.values) {
       controller.dispose();
     }

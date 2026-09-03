@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/themes/modules/color/palettes/grunge_palette.dart';
 import 'package:nai_launcher/presentation/widgets/common/collapsible_image_panel.dart';
 
 void main() {
@@ -9,15 +10,36 @@ void main() {
     required double width,
     required bool expanded,
     required VoidCallback onToggle,
+    ThemeMode themeMode = ThemeMode.light,
+    TextScaler textScaler = TextScaler.noScaling,
     bool disableAnimations = false,
     bool showSummary = true,
     bool hasData = false,
+    ColorScheme? colorScheme,
     WidgetBuilder? childBuilder,
   }) {
     return MaterialApp(
+      theme: ThemeData(
+        colorScheme:
+            colorScheme ??
+            ColorScheme.fromSeed(
+              seedColor: Colors.red,
+              brightness: Brightness.light,
+            ),
+      ),
+      darkTheme: ThemeData(
+        colorScheme:
+            colorScheme ??
+            ColorScheme.fromSeed(
+              seedColor: Colors.red,
+              brightness: Brightness.dark,
+            ),
+      ),
+      themeMode: themeMode,
       home: MediaQuery(
         data: MediaQueryData(
           size: Size(width, 900),
+          textScaler: textScaler,
           disableAnimations: disableAnimations,
         ),
         child: Scaffold(
@@ -90,6 +112,107 @@ void main() {
     );
     expect(find.byKey(const Key('lazy-body')), findsNothing);
   });
+
+  for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets('${themeMode.name} 主题仅展开态使用清晰安静的 section surface', (
+      tester,
+    ) async {
+      var expanded = false;
+
+      await tester.pumpWidget(
+        StatefulBuilder(
+          builder: (context, setState) => buildSubject(
+            width: 320,
+            expanded: expanded,
+            themeMode: themeMode,
+            onToggle: () => setState(() => expanded = !expanded),
+          ),
+        ),
+      );
+
+      final surface = find.byKey(
+        const ValueKey('collapsible-panel-surface-角色'),
+      );
+      expect(tester.widget<Card>(surface).color, Colors.transparent);
+
+      await tester.tap(find.byKey(const Key('collapsible-header-角色')));
+      await tester.pumpAndSettle();
+
+      final context = tester.element(surface);
+      final colorScheme = Theme.of(context).colorScheme;
+      expect(
+        tester.widget<Card>(surface).color,
+        Color.alphaBlend(
+          colorScheme.onSurface.withValues(alpha: 0.05),
+          colorScheme.surfaceContainerLow,
+        ),
+      );
+      expect(tester.widget<Card>(surface).elevation, 0);
+      expect(tester.widget<Card>(surface).margin, EdgeInsets.zero);
+      expect(
+        (tester.widget<Card>(surface).shape! as RoundedRectangleBorder).side,
+        BorderSide.none,
+      );
+    });
+  }
+
+  testWidgets('Grunge 暗色主题的展开面板与侧栏 surface 保持可见色差', (tester) async {
+    final colorScheme = const GrungePalette().darkScheme;
+    expect(colorScheme.surfaceContainerLow, colorScheme.surface);
+
+    await tester.pumpWidget(
+      buildSubject(
+        width: 320,
+        expanded: true,
+        colorScheme: colorScheme,
+        onToggle: () {},
+      ),
+    );
+
+    final surface = find.byKey(const ValueKey('collapsible-panel-surface-角色'));
+    final card = tester.widget<Card>(surface);
+    expect(card.color, isNot(colorScheme.surface));
+    expect(
+      card.color,
+      Color.alphaBlend(
+        colorScheme.onSurface.withValues(alpha: 0.05),
+        colorScheme.surfaceContainerLow,
+      ),
+    );
+    expect(tester.getSize(surface).height, greaterThan(44));
+  });
+
+  for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
+    for (final width in [320.0, 600.0]) {
+      testWidgets('${themeMode.name} 主题 $width 宽 3x 文本展开无溢出', (tester) async {
+        await tester.pumpWidget(
+          buildSubject(
+            width: width,
+            expanded: true,
+            themeMode: themeMode,
+            textScaler: const TextScaler.linear(3),
+            onToggle: () {},
+            childBuilder: (context) => const Padding(
+              padding: EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Text('完整的面板内容可以自然换行，不会越过圆角色面。'),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        final surface = find.byKey(
+          const ValueKey('collapsible-panel-surface-角色'),
+        );
+        final shape = tester.widget<Card>(surface).shape!;
+        expect(
+          (shape as RoundedRectangleBorder).borderRadius,
+          BorderRadius.circular(12),
+        );
+        expect(tester.getSize(surface).width, width);
+      });
+    }
+  }
 
   testWidgets('标题行支持键盘切换并暴露可点击语义', (tester) async {
     var expanded = false;

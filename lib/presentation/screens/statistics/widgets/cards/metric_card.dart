@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Metric card with value, trend indicator and optional sparkline.
 class MetricCard extends StatefulWidget {
@@ -55,8 +56,8 @@ class _MetricCardState extends State<MetricCard> {
           child: AnimatedContainer(
             duration: reducedMotion
                 ? Duration.zero
-                : const Duration(milliseconds: 160),
-            curve: Curves.easeOutCubic,
+                : theme.appTheme.fastDuration,
+            curve: theme.appTheme.standardCurve,
             decoration: BoxDecoration(
               color: interactive && _isHovered
                   ? colorScheme.surfaceContainer
@@ -72,7 +73,9 @@ class _MetricCardState extends State<MetricCard> {
                 highlightColor: effectiveIconColor.withValues(alpha: 0.04),
                 child: Padding(
                   padding: EdgeInsets.all(widget.compact ? 14 : 18),
-                  child: widget.compact
+                  child:
+                      widget.compact &&
+                          MediaQuery.textScalerOf(context).scale(14) <= 21
                       ? _buildCompactLayout(
                           theme,
                           colorScheme,

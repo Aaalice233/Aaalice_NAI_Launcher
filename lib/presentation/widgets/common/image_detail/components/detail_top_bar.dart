@@ -64,65 +64,73 @@ class DetailTopBar extends StatelessWidget {
           colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
         ),
       ),
-      child: Row(
-        children: [
-          // 关闭按钮
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: onClose,
-            tooltip: l10n.common_close,
-          ),
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            // 关闭按钮
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: onClose,
+              tooltip: l10n.common_close,
+            ),
 
-          const SizedBox(width: 16),
+            const SizedBox(width: 16),
 
-          // 图片信息
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${currentIndex + 1} / $totalImages',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (metadata?.model != null)
+            // 图片信息
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    metadata!.model!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 12,
+                    '${currentIndex + 1} / $totalImages',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-              ],
+                  if (metadata?.model != null)
+                    Text(
+                      metadata!.model!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
 
-          _DetailTopBarActions(
-            currentImage: currentImage,
-            hasMetadata: metadata != null,
-            onShowMetadata: onShowMetadata,
-            onReuseMetadata: onReuseMetadata,
-            onFavoriteToggle: onFavoriteToggle,
-            onSave: onSave,
-            onCopyImage: onCopyImage,
-            onShare: onShare,
-            onWatermark: onWatermark,
-            onSendToImg2Img: onSendToImg2Img,
-            onSendToReversePrompt: onSendToReversePrompt,
-          ),
-        ],
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+              child: _DetailTopBarActions(
+                currentImage: currentImage,
+                hasMetadata: metadata != null,
+                onShowMetadata: onShowMetadata,
+                onReuseMetadata: onReuseMetadata,
+                onFavoriteToggle: onFavoriteToggle,
+                onSave: onSave,
+                onCopyImage: onCopyImage,
+                onShare: onShare,
+                onWatermark: onWatermark,
+                onSendToImg2Img: onSendToImg2Img,
+                onSendToReversePrompt: onSendToReversePrompt,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 enum _DetailOverflowAction {
+  save,
+  share,
+  favorite,
   reuse,
   imageToImage,
   reversePrompt,
@@ -159,8 +167,25 @@ class _DetailTopBarActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScaler = MediaQuery.textScalerOf(context);
+        final compact =
+            constraints.maxWidth < 720 || textScaler.scale(1) >= 1.3;
+        final veryCompact =
+            constraints.maxWidth < 420 || textScaler.scale(1) >= 2;
+        return _buildActions(context, ref, compact, veryCompact);
+      },
+    );
+  }
+
+  Widget _buildActions(
+    BuildContext context,
+    WidgetRef ref,
+    bool compact,
+    bool veryCompact,
+  ) {
     final l10n = context.l10n;
-    final compact = MediaQuery.sizeOf(context).width < 600;
     final watermarkEnabled = ref.watch(
       watermarkSettingsProvider.select((state) => state.configuration.enabled),
     );
@@ -178,6 +203,38 @@ class _DetailTopBarActions extends ConsumerWidget {
 
     if (compact) {
       final overflowActions = <PopupMenuEntry<_DetailOverflowAction>>[
+        if (veryCompact && currentImage.showSaveButton && onSave != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.save,
+            child: ListTile(
+              leading: const Icon(Icons.save_alt),
+              title: Text(l10n.common_save),
+            ),
+          ),
+        if (veryCompact && onShare != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.share,
+            child: ListTile(
+              leading: const Icon(Icons.share_rounded),
+              title: Text(l10n.common_share),
+            ),
+          ),
+        if (veryCompact && favorite != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.favorite,
+            child: ListTile(
+              leading: Icon(
+                currentImage.isFavorite
+                    ? Icons.favorite
+                    : Icons.favorite_border,
+              ),
+              title: Text(
+                currentImage.isFavorite
+                    ? l10n.common_unfavorite
+                    : l10n.common_favorite,
+              ),
+            ),
+          ),
         if (hasMetadata && onReuseMetadata != null)
           PopupMenuItem(
             value: _DetailOverflowAction.reuse,
@@ -222,19 +279,19 @@ class _DetailTopBarActions extends ConsumerWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (currentImage.showSaveButton && onSave != null)
+          if (!veryCompact && currentImage.showSaveButton && onSave != null)
             IconButton(
               icon: const Icon(Icons.save_alt, color: Colors.white),
               onPressed: onSave,
               tooltip: l10n.common_save,
             ),
-          if (onShare != null)
+          if (!veryCompact && onShare != null)
             IconButton(
               icon: const Icon(Icons.share_rounded, color: Colors.white),
               onPressed: onShare,
               tooltip: l10n.common_share,
             ),
-          if (favorite != null) favorite,
+          if (!veryCompact && favorite != null) favorite,
           if (onShowMetadata != null)
             IconButton(
               icon: const Icon(Icons.info_outline, color: Colors.white),
@@ -248,6 +305,15 @@ class _DetailTopBarActions extends ConsumerWidget {
               itemBuilder: (_) => overflowActions,
               onSelected: (action) {
                 switch (action) {
+                  case _DetailOverflowAction.save:
+                    onSave?.call();
+                    break;
+                  case _DetailOverflowAction.share:
+                    onShare?.call();
+                    break;
+                  case _DetailOverflowAction.favorite:
+                    onFavoriteToggle?.call();
+                    break;
                   case _DetailOverflowAction.reuse:
                     onReuseMetadata?.call();
                     break;

@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/tag_library_selection_provider.dart';
 import '../../../widgets/autocomplete/autocomplete_config.dart';
 import '../../../widgets/common/input_surface_container.dart';
 import '../../../widgets/autocomplete/autocomplete_wrapper.dart';
 import '../../../widgets/bulk_action_bar.dart';
+import '../../../widgets/gallery/gallery_sidebar.dart';
 
 /// 词库工具栏（搜索、视图切换、批量操作）
 class TagLibraryToolbar extends ConsumerStatefulWidget {
@@ -43,6 +44,9 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
   /// 窄屏分类抽屉入口
   final VoidCallback? onOpenCategories;
 
+  /// Controls whether the shared collection toolbar includes page identity.
+  final bool showPageTitle;
+
   const TagLibraryToolbar({
     super.key,
     this.onShowCategories,
@@ -55,6 +59,7 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
     this.onExport,
     this.onAddEntry,
     this.onOpenCategories,
+    this.showPageTitle = true,
   });
 
   @override
@@ -91,7 +96,6 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
     final state = ref.watch(tagLibraryPageNotifierProvider);
     final selectionState = ref.watch(tagLibrarySelectionNotifierProvider);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     // 获取当前筛选后的所有条目 ID
     final allEntryIds = state.filteredEntries.map((e) => e.id).toList();
@@ -149,29 +153,27 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
     }
 
     // 普通工具栏
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      constraints: const BoxConstraints(minHeight: 62),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.3),
-          ),
-        ),
-      ),
+    return GalleryCollectionToolbarSurface(
+      key: const Key('tag-library-toolbar'),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 900;
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final compact = constraints.maxWidth < 900 || textScale > 1.5;
+          final stackPrimary = textScale > 1.5;
           final addButton = FilledButton.icon(
+            key: const Key('tag-library-add-entry-button'),
             onPressed: widget.onAddEntry,
             icon: const Icon(Icons.add, size: 18),
             label: Text(context.l10n.tagLibrary_addEntry),
             style: FilledButton.styleFrom(
               minimumSize: Size(
-                48,
-                PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+                80,
+                context.interactionPolicy.shouldExposeTouchAlternatives
+                    ? 48
+                    : 40,
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              visualDensity: VisualDensity.standard,
             ),
           );
           final openCategories =
@@ -198,12 +200,6 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
 
                 const SizedBox(width: 8),
 
-                // 分隔线
-                Container(
-                  width: 1,
-                  height: 24,
-                  color: theme.dividerColor.withValues(alpha: 0.3),
-                ),
                 const SizedBox(width: 8),
 
                 // 多选按钮
@@ -233,20 +229,43 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
           }
 
           if (compact) {
+            final primaryControls = stackPrimary
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSearchField(theme, state),
+                      const SizedBox(height: 8),
+                      if (categoriesButton != null) ...[
+                        categoriesButton,
+                        const SizedBox(height: 8),
+                      ],
+                      addButton,
+                    ],
+                  )
+                : Row(
+                    children: [
+                      if (categoriesButton != null) ...[
+                        categoriesButton,
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(child: _buildSearchField(theme, state)),
+                      const SizedBox(width: 8),
+                      addButton,
+                    ],
+                  );
             return Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    if (categoriesButton != null) ...[
-                      categoriesButton,
-                      const SizedBox(width: 8),
-                    ],
-                    Expanded(child: _buildSearchField(theme, state)),
-                    const SizedBox(width: 8),
-                    addButton,
-                  ],
-                ),
+                if (widget.showPageTitle) ...[
+                  GalleryCollectionPageTitle(
+                    icon: Icons.bookmarks_outlined,
+                    title: context.l10n.nav_dictionary,
+                    maxWidth: 180,
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                primaryControls,
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
@@ -261,6 +280,13 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
 
           return Row(
             children: [
+              if (widget.showPageTitle) ...[
+                GalleryCollectionPageTitle(
+                  icon: Icons.bookmarks_outlined,
+                  title: context.l10n.nav_dictionary,
+                ),
+                const SizedBox(width: GalleryCollectionChrome.toolbarGroupGap),
+              ],
               if (categoriesButton != null) ...[
                 categoriesButton,
                 const SizedBox(width: 8),
@@ -318,7 +344,9 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
       ),
       onSuggestionSelected: updateSearch,
       child: InputSurfaceContainer(
-        height: PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+        height: context.interactionPolicy.shouldExposeTouchAlternatives
+            ? 48
+            : 36,
         borderRadius: 18,
         isFocused: _searchFocusNode.hasFocus,
         child: TextField(
@@ -469,7 +497,9 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
             onTap: controller.isOpen ? controller.close : controller.open,
             borderRadius: BorderRadius.circular(8),
             child: Container(
-              height: PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+              height: context.interactionPolicy.shouldExposeTouchAlternatives
+                  ? 48
+                  : 36,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               alignment: Alignment.center,
               child: Row(
@@ -526,8 +556,12 @@ class _ViewModeButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Container(
           constraints: BoxConstraints(
-            minWidth: PlatformCapabilities.current.hasTouchInput ? 48 : 34,
-            minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 34,
+            minWidth: context.interactionPolicy.shouldExposeTouchAlternatives
+                ? 48
+                : 34,
+            minHeight: context.interactionPolicy.shouldExposeTouchAlternatives
+                ? 48
+                : 34,
           ),
           alignment: Alignment.center,
           decoration: BoxDecoration(
@@ -664,7 +698,8 @@ class _CompactIconButtonState extends State<_CompactIconButton>
                       : const Duration(milliseconds: 180),
                   curve: Curves.easeOutCubic,
                   constraints: BoxConstraints(
-                    minHeight: PlatformCapabilities.current.hasTouchInput
+                    minHeight:
+                        context.interactionPolicy.shouldExposeTouchAlternatives
                         ? 48
                         : 34,
                   ),

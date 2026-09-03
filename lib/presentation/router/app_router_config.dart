@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/localization_extension.dart';
+import '../../data/models/gallery/local_image_record.dart';
+import '../adaptive/adaptive_layout.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
@@ -38,6 +40,24 @@ final _vibeLibraryKey = GlobalKey<NavigatorState>(debugLabel: 'vibeLibrary');
 final _preciseRefLibraryKey = GlobalKey<NavigatorState>(
   debugLabel: 'preciseRefLibrary',
 );
+
+/// Runtime payload for gallery routes whose image records cannot be encoded in
+/// a URL. Routes without a usable payload redirect to the local gallery.
+class GallerySlideshowRouteData {
+  const GallerySlideshowRouteData({
+    required this.images,
+    this.initialIndex = 0,
+  });
+
+  final List<LocalImageRecord> images;
+  final int initialIndex;
+}
+
+class GalleryComparisonRouteData {
+  const GalleryComparisonRouteData({required this.images});
+
+  final List<LocalImageRecord> images;
+}
 
 /// 应用路由 Provider。
 ///
@@ -109,16 +129,29 @@ GoRouter appRouter(Ref ref) {
                   GoRoute(
                     path: AppRoutes.slideshow,
                     name: AppRouteNames.slideshow,
+                    redirect: (context, state) {
+                      final payload = state.extra is GallerySlideshowRouteData
+                          ? state.extra! as GallerySlideshowRouteData
+                          : null;
+                      return payload == null || payload.images.isEmpty
+                          ? AppRoutes.localGallery
+                          : null;
+                    },
                     pageBuilder: (context, state) {
-                      final initialIndex =
+                      final payload = state.extra! as GallerySlideshowRouteData;
+                      final requestedIndex =
                           int.tryParse(
-                            state.uri.queryParameters['initialIndex'] ?? '0',
+                            state.uri.queryParameters['initialIndex'] ?? '',
                           ) ??
-                          0;
+                          payload.initialIndex;
+                      final initialIndex = requestedIndex.clamp(
+                        0,
+                        payload.images.length - 1,
+                      );
                       return MaterialPage(
                         key: state.pageKey,
                         child: SlideshowScreen(
-                          images: const [],
+                          images: payload.images,
                           initialIndex: initialIndex,
                         ),
                       );
@@ -127,10 +160,22 @@ GoRouter appRouter(Ref ref) {
                   GoRoute(
                     path: AppRoutes.comparison,
                     name: AppRouteNames.comparison,
-                    pageBuilder: (context, state) => MaterialPage(
-                      key: state.pageKey,
-                      child: const ImageComparisonScreen(images: []),
-                    ),
+                    redirect: (context, state) {
+                      final payload = state.extra is GalleryComparisonRouteData
+                          ? state.extra! as GalleryComparisonRouteData
+                          : null;
+                      return payload == null || payload.images.length < 2
+                          ? AppRoutes.localGallery
+                          : null;
+                    },
+                    pageBuilder: (context, state) {
+                      final payload =
+                          state.extra! as GalleryComparisonRouteData;
+                      return MaterialPage(
+                        key: state.pageKey,
+                        child: ImageComparisonScreen(images: payload.images),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -213,12 +258,88 @@ GoRouter appRouter(Ref ref) {
         ],
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(
-        child: Text(context.l10n.router_pageNotFound('${state.error}')),
-      ),
-    ),
+    errorBuilder: (context, state) => RouterErrorScreen(error: state.error),
   );
+}
+
+/// Responsive fallback shown when no application route can handle a location.
+class RouterErrorScreen extends StatelessWidget {
+  const RouterErrorScreen({super.key, required this.error});
+
+  final Object? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: SafeArea(
+        child: AdaptiveSlotLayout(
+          builder: (context, areas) => SingleChildScrollView(
+            key: const ValueKey('router_error_scroll_view'),
+            padding: EdgeInsets.symmetric(
+              horizontal: areas.horizontalPadding,
+              vertical: 24,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: (areas.constraints.maxHeight - 48)
+                    .clamp(0.0, double.infinity)
+                    .toDouble(),
+              ),
+              child: AdaptiveContentBounds(
+                maxWidth: 640,
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      context.l10n.router_pageNotFound('$error'),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 24),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        TextButton.icon(
+                          key: const ValueKey('router_error_back'),
+                          onPressed: () {
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            } else {
+                              context.go(AppRoutes.home);
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_back),
+                          label: Text(context.l10n.editor_back),
+                        ),
+                        FilledButton.icon(
+                          key: const ValueKey('router_error_home'),
+                          onPressed: () => context.go(AppRoutes.home),
+                          icon: const Icon(Icons.home_outlined),
+                          label: Text(
+                            context.l10n.shortcut_action_send_to_home,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 const _defaultTransitionDuration = Duration(milliseconds: 300);

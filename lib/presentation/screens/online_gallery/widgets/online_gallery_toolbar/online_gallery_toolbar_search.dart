@@ -237,6 +237,7 @@ class OnlineGalleryToolbarSearch {
     bool treatSpacesAsSeparators = false,
     bool showTagCount = false,
   }) {
+    final fieldHeight = gallerySearchFieldHeightFor(context);
     return AutocompleteWrapper(
       controller: controller,
       focusNode: focusNode,
@@ -246,8 +247,8 @@ class OnlineGalleryToolbarSearch {
       ),
       onSuggestionSelected: (_) => onSubmitted(),
       child: InputSurfaceContainer(
-        height: gallerySearchFieldHeight,
-        borderRadius: gallerySearchFieldHeight / 2,
+        height: fieldHeight,
+        borderRadius: fieldHeight / 2,
         child: ValueListenableBuilder<TextEditingValue>(
           valueListenable: controller,
           builder: (context, value, _) => TextField(
@@ -307,10 +308,11 @@ class OnlineGalleryToolbarSearch {
   }
 
   Widget _buildCodexSearchField(ThemeData theme) {
+    final fieldHeight = gallerySearchFieldHeightFor(context);
     return InputSurfaceContainer(
-      height: gallerySearchFieldHeight,
+      height: fieldHeight,
       constraints: const BoxConstraints(maxWidth: 520),
-      borderRadius: gallerySearchFieldHeight / 2,
+      borderRadius: fieldHeight / 2,
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: _controller.searchController,
         builder: (context, value, _) => TextField(
@@ -408,6 +410,7 @@ class OnlineGalleryToolbarSearch {
     required FocusNode focusNode,
     required ValueChanged<String> onSubmitted,
   }) {
+    final fieldHeight = gallerySearchFieldHeightFor(context);
     return AutocompleteWrapper(
       controller: controller,
       focusNode: focusNode,
@@ -421,9 +424,9 @@ class OnlineGalleryToolbarSearch {
         _submitTagSearch(value, onValid: onSubmitted);
       },
       child: InputSurfaceContainer(
-        height: gallerySearchFieldHeight,
+        height: fieldHeight,
         constraints: const BoxConstraints(maxWidth: 400),
-        borderRadius: gallerySearchFieldHeight / 2,
+        borderRadius: fieldHeight / 2,
         child: ValueListenableBuilder<TextEditingValue>(
           valueListenable: controller,
           builder: (context, _, __) => TextField(

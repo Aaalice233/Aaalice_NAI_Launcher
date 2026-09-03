@@ -5,12 +5,12 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/tag_scope.dart';
 import '../../../providers/random_preset_provider.dart';
+import '../../../themes/core/layered_surface_style.dart';
 import 'add_tag_group_dialog.dart';
 import 'random_config_l10n.dart';
 import 'tag_group_card.dart';
 
 export 'add_tag_group_dialog.dart' show AddTagGroupDialog;
-export 'category_card_list.dart' show CategoryCardList, CategoryCardGrid;
 export 'category_card_widgets.dart'
     show
         ScopeTripleSwitch,
@@ -60,10 +60,11 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
             ? Duration.zero
             : const Duration(milliseconds: 140),
         child: Container(
+          key: ValueKey('random-manager-category-${category.id}'),
           decoration: BoxDecoration(
             color: _expanded
-                ? colors.surfaceContainer
-                : colors.surfaceContainerLow,
+                ? colors.primaryContainer.withValues(alpha: 0.26)
+                : sectionSurfaceColor(colors),
             borderRadius: BorderRadius.circular(12),
           ),
           clipBehavior: Clip.antiAlias,
@@ -104,13 +105,11 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
     ref.read(randomPresetNotifierProvider.notifier).updateCategory(category);
   }
 
-  void _addTagGroup(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AddTagGroupDialog(
-        category: widget.category,
-        presetId: widget.presetId,
-      ),
+  Future<void> _addTagGroup(BuildContext context) {
+    return AddTagGroupDialog.show(
+      context,
+      category: widget.category,
+      presetId: widget.presetId,
     );
   }
 }
@@ -235,47 +234,49 @@ class _CategoryEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+      padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Divider(
-            height: 1,
-            color: colors.outlineVariant.withValues(alpha: 0.18),
-          ),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final scope = _ScopeSelector(
-                value: category.scope,
-                enabled: !readOnly && category.enabled,
-                onChanged: (value) =>
-                    onCategoryChanged(category.copyWith(scope: value)),
-              );
-              final probability = _ProbabilityEditor(
-                value: category.probability,
-                enabled: !readOnly && category.enabled,
-                onChanged: (value) =>
-                    onCategoryChanged(category.copyWith(probability: value)),
-              );
-              if (constraints.maxWidth >= 620) {
-                return Row(
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: controlSurfaceColor(colors),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final scope = _ScopeSelector(
+                  value: category.scope,
+                  enabled: !readOnly && category.enabled,
+                  onChanged: (value) =>
+                      onCategoryChanged(category.copyWith(scope: value)),
+                );
+                final probability = _ProbabilityEditor(
+                  value: category.probability,
+                  enabled: !readOnly && category.enabled,
+                  onChanged: (value) =>
+                      onCategoryChanged(category.copyWith(probability: value)),
+                );
+                if (constraints.maxWidth >= 620) {
+                  return Row(
+                    children: [
+                      scope,
+                      const SizedBox(width: 20),
+                      Expanded(child: probability),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    scope,
-                    const SizedBox(width: 20),
-                    Expanded(child: probability),
+                    Align(alignment: Alignment.centerLeft, child: scope),
+                    const SizedBox(height: 10),
+                    probability,
                   ],
                 );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Align(alignment: Alignment.centerLeft, child: scope),
-                  const SizedBox(height: 10),
-                  probability,
-                ],
-              );
-            },
+              },
+            ),
           ),
           const SizedBox(height: 16),
           Row(
@@ -295,26 +296,41 @@ class _CategoryEditor extends StatelessWidget {
                 ),
             ],
           ),
-          if (category.groups.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                context.l10n.randomManager_noCategoriesHint,
-                style: TextStyle(color: colors.onSurfaceVariant),
-              ),
-            )
-          else
-            ...category.groups.map(
-              (group) => Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: TagGroupCard(
-                  tagGroup: group,
-                  categoryId: category.id,
-                  categoryKey: category.key,
-                  presetId: presetId,
-                  isPresetDefault: readOnly,
-                ),
-              ),
+          if (category.groups.isNotEmpty)
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: category.groups.length,
+              onReorderItem: readOnly
+                  ? (_, _) {}
+                  : (oldIndex, newIndex) => onCategoryChanged(
+                      category.reorderGroups(
+                        oldIndex,
+                        newIndex > oldIndex ? newIndex + 1 : newIndex,
+                      ),
+                    ),
+              itemBuilder: (context, index) {
+                final group = category.groups[index];
+                final card = Padding(
+                  key: ValueKey(group.id),
+                  padding: const EdgeInsets.only(top: 6),
+                  child: TagGroupCard(
+                    tagGroup: group,
+                    categoryId: category.id,
+                    categoryKey: category.key,
+                    presetId: presetId,
+                    isPresetDefault: readOnly,
+                    dragHandle: readOnly
+                        ? null
+                        : ReorderableDragStartListener(
+                            index: index,
+                            child: const Icon(Icons.drag_indicator_rounded),
+                          ),
+                  ),
+                );
+                return card;
+              },
             ),
         ],
       ),

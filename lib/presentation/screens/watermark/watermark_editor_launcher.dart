@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import 'watermark_editor_screen.dart';
 
 class WatermarkEditorLauncher {
@@ -123,22 +124,13 @@ class WatermarkEditorLauncher {
       defaultsOnly: defaultsOnly,
       onChooseSource: defaultsOnly ? null : _pickSource,
     );
-    if (MediaQuery.sizeOf(context).width >= 840) {
-      return showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => Dialog(
-          clipBehavior: Clip.antiAlias,
-          insetPadding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1280, maxHeight: 900),
-            child: page,
-          ),
-        ),
-      );
-    }
-    return Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => page, fullscreenDialog: true),
+    return AdaptivePresenter.showForm<String>(
+      context: context,
+      title: context.l10n.watermark_editorTitle,
+      sideSheetWidth: 960,
+      barrierDismissible: false,
+      showHeader: false,
+      builder: (context, scrollController) => page,
     );
   }
 

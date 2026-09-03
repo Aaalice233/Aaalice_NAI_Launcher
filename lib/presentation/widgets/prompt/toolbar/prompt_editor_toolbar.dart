@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../../../adaptive/interaction_policy.dart';
 import 'prompt_editor_toolbar_config.dart';
 
 /// 提示词编辑器工具栏组件
@@ -10,7 +11,7 @@ import 'prompt_editor_toolbar_config.dart';
 ///
 /// 紧凑模式：
 /// 当 [PromptEditorToolbarConfig.compact] 为 true 时，工具栏会：
-/// - 使用更小的按钮尺寸（图标 16px，按钮高度 24px）
+/// - 使用 16px 图标，并按当前输入策略保留安全命中区
 /// - 优先显示必要操作（清空），隐藏次要操作（随机、全屏、设置）
 ///
 /// 使用示例：
@@ -26,6 +27,12 @@ class PromptEditorToolbar extends StatelessWidget {
 
   // 紧凑模式尺寸
   static const double _compactIconSize = 16.0;
+
+  BoxConstraints? _buttonConstraints(BuildContext context, bool isCompact) {
+    if (!isCompact) return null;
+    final extent = context.interactionPolicy.minimumControlExtent;
+    return BoxConstraints(minWidth: extent, minHeight: extent);
+  }
 
   /// 工具栏配置
   final PromptEditorToolbarConfig config;
@@ -138,9 +145,7 @@ class PromptEditorToolbar extends StatelessWidget {
         tooltip: l10n.toolbar_randomPrompt,
         onPressed: onRandomPressed,
         visualDensity: VisualDensity.compact,
-        constraints: isCompact
-            ? const BoxConstraints(minWidth: 32, minHeight: 32)
-            : null,
+        constraints: _buttonConstraints(context, isCompact),
         padding: isCompact ? const EdgeInsets.all(4) : null,
       ),
     );
@@ -166,9 +171,7 @@ class PromptEditorToolbar extends StatelessWidget {
       tooltip: l10n.toolbar_fullscreenEdit,
       onPressed: onFullscreenPressed,
       visualDensity: VisualDensity.compact,
-      constraints: isCompact
-          ? const BoxConstraints(minWidth: 32, minHeight: 32)
-          : null,
+      constraints: _buttonConstraints(context, isCompact),
       padding: isCompact ? const EdgeInsets.all(4) : null,
     );
   }
@@ -197,9 +200,7 @@ class PromptEditorToolbar extends StatelessWidget {
       tooltip: l10n.toolbar_clear,
       onPressed: onClearPressed,
       visualDensity: VisualDensity.compact,
-      constraints: isCompact
-          ? const BoxConstraints(minWidth: 32, minHeight: 32)
-          : null,
+      constraints: _buttonConstraints(context, isCompact),
       padding: isCompact ? const EdgeInsets.all(4) : null,
     );
   }
@@ -214,7 +215,7 @@ class PromptEditorToolbar extends StatelessWidget {
     final menuOffset = isCompact ? 32.0 : 40.0;
     final l10n = AppLocalizations.of(context)!;
 
-    return PopupMenuButton<bool>(
+    final button = PopupMenuButton<bool>(
       icon: Icon(
         Icons.clear,
         size: iconSize,
@@ -226,9 +227,6 @@ class PromptEditorToolbar extends StatelessWidget {
       enabled: onClearPressed != null,
       offset: Offset(0, menuOffset),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      constraints: isCompact
-          ? const BoxConstraints(minWidth: 32, minHeight: 32)
-          : null,
       padding: isCompact ? const EdgeInsets.all(4) : const EdgeInsets.all(8),
       itemBuilder: (context) => [
         PopupMenuItem<bool>(
@@ -255,6 +253,11 @@ class PromptEditorToolbar extends StatelessWidget {
           onClearPressed?.call();
         }
       },
+    );
+    if (!isCompact) return button;
+    return SizedBox.square(
+      dimension: context.interactionPolicy.minimumControlExtent,
+      child: button,
     );
   }
 
@@ -283,9 +286,7 @@ class PromptEditorToolbar extends StatelessWidget {
             ? () => _invokeSettingsWithContext(buttonContext)
             : null,
         visualDensity: VisualDensity.compact,
-        constraints: isCompact
-            ? const BoxConstraints(minWidth: 32, minHeight: 32)
-            : null,
+        constraints: _buttonConstraints(context, isCompact),
         padding: isCompact ? const EdgeInsets.all(4) : null,
       ),
     );

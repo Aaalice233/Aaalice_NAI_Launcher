@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
-import '../../../widgets/common/themed_divider.dart';
+import '../../../widgets/gallery/gallery_album_tree_view.dart';
+import '../../../widgets/gallery/gallery_sidebar.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 分类树视图
@@ -16,6 +17,8 @@ class CategoryTreeView extends StatefulWidget {
   final List<TagLibraryCategory> categories;
   final List<TagLibraryEntry> entries;
   final String? selectedCategoryId;
+  final Set<String> expandedCategoryIds;
+  final ValueChanged<Set<String>> onExpandedCategoryIdsChanged;
   final ValueChanged<String?> onCategorySelected;
   final void Function(String id, String newName) onCategoryRename;
   final ValueChanged<String> onCategoryDelete;
@@ -30,12 +33,15 @@ class CategoryTreeView extends StatefulWidget {
 
   /// 词条拖拽到分类
   final void Function(String entryId, String? categoryId)? onEntryDrop;
+  final bool includeAllEntries;
 
   const CategoryTreeView({
     super.key,
     required this.categories,
     required this.entries,
     this.selectedCategoryId,
+    required this.expandedCategoryIds,
+    required this.onExpandedCategoryIdsChanged,
     required this.onCategorySelected,
     required this.onCategoryRename,
     required this.onCategoryDelete,
@@ -43,6 +49,7 @@ class CategoryTreeView extends StatefulWidget {
     this.onCategoryMove,
     this.onCategoryReorder,
     this.onEntryDrop,
+    this.includeAllEntries = true,
   });
 
   @override
@@ -50,8 +57,6 @@ class CategoryTreeView extends StatefulWidget {
 }
 
 class _CategoryTreeViewState extends State<CategoryTreeView> {
-  final Set<String> _expandedIds = {};
-
   /// 当前正在被拖拽悬停的分类ID
   String? _hoveredCategoryId;
 
@@ -68,11 +73,20 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
     _autoExpandTimer?.cancel();
     _autoExpandTimer = Timer(const Duration(milliseconds: 800), () {
       if (_hoveredCategoryId == categoryId && mounted) {
-        setState(() {
-          _expandedIds.add(categoryId);
-        });
+        _setCategoryExpanded(categoryId, true);
       }
     });
+  }
+
+  void _setCategoryExpanded(String categoryId, bool expanded) {
+    if (widget.expandedCategoryIds.contains(categoryId) == expanded) return;
+    final nextExpandedIds = Set<String>.of(widget.expandedCategoryIds);
+    if (expanded) {
+      nextExpandedIds.add(categoryId);
+    } else {
+      nextExpandedIds.remove(categoryId);
+    }
+    widget.onExpandedCategoryIdsChanged(nextExpandedIds);
   }
 
   void _cancelAutoExpandTimer() {
@@ -91,33 +105,27 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
       child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          // 全部条目 - 可接收词条拖拽（移动到无分类）
-          _buildEntryDropTarget(
-            categoryId: null,
-            child: _CategoryItem(
-              icon: Icons.folder_outlined,
-              label: context.l10n.tagLibrary_allEntries,
-              count: widget.entries.length,
-              isSelected: widget.selectedCategoryId == null,
-              onTap: () => widget.onCategorySelected(null),
+          if (widget.includeAllEntries)
+            _buildEntryDropTarget(
+              categoryId: null,
+              child: GalleryAllImagesItem(
+                icon: Icons.folder_outlined,
+                selectedIcon: Icons.folder,
+                label: context.l10n.tagLibrary_allEntries,
+                count: widget.entries.length,
+                isSelected: widget.selectedCategoryId == null,
+                onTap: () => widget.onCategorySelected(null),
+              ),
             ),
-          ),
 
           // 收藏 - 不接收拖拽
-          _CategoryItem(
-            icon: widget.selectedCategoryId == 'favorites'
-                ? Icons.favorite
-                : Icons.favorite_border,
-            iconColor: Colors.red.shade400,
+          GallerySidebarFavoritesItem(
+            key: const ValueKey('tag-library-favorites'),
             label: context.l10n.tagLibrary_favorites,
             count: widget.entries.where((e) => e.isFavorite).length,
             isSelected: widget.selectedCategoryId == 'favorites',
             onTap: () => widget.onCategorySelected('favorites'),
           ),
-
-          if (widget.categories.isNotEmpty) ...[
-            const ThemedDivider(height: 16, indent: 12, endIndent: 12),
-          ],
 
           // 分类树
           ...widget.categories.rootCategories.sortedByOrder().map(
@@ -155,7 +163,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
   ) {
     final children = widget.categories.getChildren(category.id).sortedByOrder();
     final hasChildren = children.isNotEmpty;
-    final isExpanded = _expandedIds.contains(category.id);
+    final isExpanded = widget.expandedCategoryIds.contains(category.id);
     final entryCount = _getCategoryEntryCount(category.id);
 
     // 构建分类项内容
@@ -171,15 +179,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
       isExpanded: isExpanded,
       onTap: () => widget.onCategorySelected(category.id),
       onExpand: hasChildren
-          ? () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedIds.remove(category.id);
-                } else {
-                  _expandedIds.add(category.id);
-                }
-              });
-            }
+          ? () => _setCategoryExpanded(category.id, !isExpanded)
           : null,
       onRename: (newName) => widget.onCategoryRename(category.id, newName),
       onDelete: () => widget.onCategoryDelete(category.id),
@@ -261,7 +261,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
       setState(() => _hoveredCategoryId = null);
     }
 
-    if (PlatformCapabilities.current.hasTouchInput) {
+    if (context.interactionPolicy.shouldExposeTouchAlternatives) {
       return LongPressDraggable<TagLibraryCategory>(
         data: category,
         feedback: feedback,
@@ -311,10 +311,8 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
         HapticFeedback.heavyImpact();
         widget.onCategoryMove?.call(details.data.id, targetCategory.id);
         // 自动展开目标分类
-        setState(() {
-          _expandedIds.add(targetCategory.id);
-          _hoveredCategoryId = null;
-        });
+        _setCategoryExpanded(targetCategory.id, true);
+        setState(() => _hoveredCategoryId = null);
         _cancelAutoExpandTimer();
       },
       onMove: (details) {
@@ -326,7 +324,8 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
           final hasChildren = widget.categories
               .getChildren(targetCategory.id)
               .isNotEmpty;
-          if (hasChildren && !_expandedIds.contains(targetCategory.id)) {
+          if (hasChildren &&
+              !widget.expandedCategoryIds.contains(targetCategory.id)) {
             _startAutoExpandTimer(targetCategory.id);
           }
         }
@@ -344,7 +343,9 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
         final isRejected = rejectedData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             color: isAccepting
                 ? theme.colorScheme.primary.withValues(alpha: 0.1)
@@ -388,7 +389,9 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
         final isAccepting = candidateData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             gradient: isAccepting
                 ? LinearGradient(
@@ -425,7 +428,6 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
 /// 分类项
 class _CategoryItem extends StatefulWidget {
   final IconData icon;
-  final Color? iconColor;
   final String label;
   final int count;
   final bool isSelected;
@@ -441,7 +443,6 @@ class _CategoryItem extends StatefulWidget {
 
   const _CategoryItem({
     required this.icon,
-    this.iconColor,
     required this.label,
     required this.count,
     required this.isSelected,
@@ -485,7 +486,7 @@ class _CategoryItemState extends State<_CategoryItem> {
     final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
     final showActions =
         widget.onRename != null &&
-        (!PlatformCapabilities.current.hasPrecisePointer || _isHovering);
+        (!context.interactionPolicy.precisePointerAvailable || _isHovering);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -545,11 +546,9 @@ class _CategoryItemState extends State<_CategoryItem> {
                     Icon(
                       widget.icon,
                       size: 18,
-                      color:
-                          widget.iconColor ??
-                          (widget.isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant),
+                      color: widget.isSelected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 8),
 

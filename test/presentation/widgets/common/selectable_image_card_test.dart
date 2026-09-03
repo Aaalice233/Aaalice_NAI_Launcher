@@ -72,6 +72,24 @@ void main() {
     expect(find.byTooltip('放大'), findsOneWidget);
   });
 
+  testWidgets('generating cards settle decorative motion when disabled', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _buildCardApp(isGenerating: true, disableAnimations: true),
+    );
+
+    expect(
+      tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
+      Duration.zero,
+    );
+    for (final indicator in tester.widgetList<CircularProgressIndicator>(
+      find.byType(CircularProgressIndicator),
+    )) {
+      expect(indicator.value, isNotNull);
+    }
+  });
+
   testWidgets('completed image cards use the shared hover scale', (
     tester,
   ) async {
@@ -665,6 +683,8 @@ Future<void> _openImageContextMenu(WidgetTester tester) async {
 Widget _buildCardApp({
   bool hoverEffectsEnabled = true,
   bool isFavorite = false,
+  bool isGenerating = false,
+  bool disableAnimations = false,
   bool enableSaveAction = true,
   bool enableCopyAction = true,
   String? statusBadgeLabel,
@@ -687,26 +707,34 @@ Widget _buildCardApp({
       locale: const Locale('zh'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: 160,
-            height: 160,
-            child: SelectableImageCard(
-              imageBytes: bytes,
-              enableSelection: false,
-              hoverEffectsEnabled: hoverEffectsEnabled,
-              enableSaveAction: enableSaveAction,
-              enableCopyAction: enableCopyAction,
-              statusBadgeLabel: statusBadgeLabel,
-              isFavorite: isFavorite,
-              onFavoriteToggle: onFavoriteToggle,
-              onInpaint: onInpaint,
-              onUpscale: onUpscale,
-              onReversePrompt: onReversePrompt,
-              onImageToImage: onImageToImage,
-              onVibeTransfer: onVibeTransfer,
-              onPreciseReference: onPreciseReference,
+      home: MediaQuery(
+        data: MediaQueryData(disableAnimations: disableAnimations),
+        child: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 160,
+              height: 160,
+              child: SelectableImageCard(
+                imageBytes: bytes,
+                isGenerating: isGenerating,
+                currentImage: isGenerating ? 1 : null,
+                totalImages: isGenerating ? 2 : null,
+                imageWidth: 32,
+                imageHeight: 32,
+                enableSelection: false,
+                hoverEffectsEnabled: hoverEffectsEnabled,
+                enableSaveAction: enableSaveAction,
+                enableCopyAction: enableCopyAction,
+                statusBadgeLabel: statusBadgeLabel,
+                isFavorite: isFavorite,
+                onFavoriteToggle: onFavoriteToggle,
+                onInpaint: onInpaint,
+                onUpscale: onUpscale,
+                onReversePrompt: onReversePrompt,
+                onImageToImage: onImageToImage,
+                onVibeTransfer: onVibeTransfer,
+                onPreciseReference: onPreciseReference,
+              ),
             ),
           ),
         ),

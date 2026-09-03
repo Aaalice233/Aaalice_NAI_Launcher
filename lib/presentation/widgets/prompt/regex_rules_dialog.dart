@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../core/utils/prompt_regex_replacer.dart';
 import '../../../data/models/prompt/prompt_regex_rule.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/prompt_regex_rules_provider.dart';
 
 /// 正则替换规则管理对话框
@@ -11,13 +12,23 @@ import '../../providers/prompt_regex_rules_provider.dart';
 /// 规则列表可拖拽排序（顺序即应用先后），底部提供实时试算区，
 /// 用户可以在保存前直接看到整套规则作用在示例提示词上的结果。
 class RegexRulesDialog extends ConsumerStatefulWidget {
-  const RegexRulesDialog({super.key});
+  const RegexRulesDialog({super.key, this.scrollController});
+
+  final ScrollController? scrollController;
 
   /// 显示对话框
   static Future<void> show(BuildContext context) {
-    return showDialog<void>(
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => const RegexRulesDialog(),
+      titleBuilder: (context) => Text(
+        context.l10n.regexRules_title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      sideSheetWidth: 600,
+      builder: (context, scrollController) =>
+          RegexRulesDialog(scrollController: scrollController),
     );
   }
 
@@ -52,19 +63,39 @@ class _RegexRulesDialogState extends ConsumerState<RegexRulesDialog> {
         ? l10n.regexRules_unnamed
         : rule.displayLabel;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await AdaptivePresenter.showPanel<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.regexRules_deleteConfirmTitle),
-        content: Text(l10n.regexRules_deleteConfirmMessage(label)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.common_cancel),
+      title: l10n.regexRules_deleteConfirmTitle,
+      initialChildSize: 0.46,
+      minChildSize: 0.36,
+      sideSheetWidth: 440,
+      builder: (dialogContext, scrollController) => Column(
+        children: [
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.all(16),
+              children: [Text(l10n.regexRules_deleteConfirmMessage(label))],
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.common_delete),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(l10n.common_cancel),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: Text(l10n.common_delete),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -81,66 +112,33 @@ class _RegexRulesDialogState extends ConsumerState<RegexRulesDialog> {
     final l10n = context.l10n;
     final rules = ref.watch(promptRegexRulesProvider);
 
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildHeader(theme, colorScheme, l10n.regexRules_title),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      l10n.regexRules_hint,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (rules.isEmpty)
-                      _buildEmptyState(
-                        theme,
-                        colorScheme,
-                        l10n.regexRules_empty,
-                      )
-                    else
-                      _buildRuleList(rules),
-                    const SizedBox(height: 16),
-                    _buildTestSection(theme, colorScheme, rules),
-                  ],
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            controller: widget.scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            children: [
+              Text(
+                l10n.regexRules_hint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
-            ),
-            _buildFooter(theme, colorScheme),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme, ColorScheme colorScheme, String title) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.find_replace, color: colorScheme.primary),
-          const SizedBox(width: 8),
-          Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: context.l10n.common_close,
-            onPressed: () => Navigator.of(context).pop(),
+              const SizedBox(height: 12),
+              if (rules.isEmpty)
+                _buildEmptyState(theme, colorScheme, l10n.regexRules_empty)
+              else
+                _buildRuleList(rules),
+              const SizedBox(height: 16),
+              _buildTestSection(theme, colorScheme, rules),
+              const SizedBox(height: 12),
+            ],
           ),
-        ],
-      ),
+        ),
+        _buildFooter(theme, colorScheme),
+      ],
     );
   }
 
@@ -265,19 +263,28 @@ class _RegexRulesDialogState extends ConsumerState<RegexRulesDialog> {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          FilledButton.icon(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked =
+              constraints.maxWidth < 360 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 2;
+          final add = FilledButton.icon(
             onPressed: _createRule,
             icon: const Icon(Icons.add, size: 18),
             label: Text(context.l10n.regexRules_add),
-          ),
-          const Spacer(),
-          TextButton(
+          );
+          final close = TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(context.l10n.common_close),
-          ),
-        ],
+          );
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [add, close],
+            );
+          }
+          return Row(children: [add, const Spacer(), close]);
+        },
       ),
     );
   }
@@ -411,17 +418,28 @@ class _RuleTile extends StatelessWidget {
 
 /// 单条规则编辑对话框
 class _RuleEditDialog extends StatefulWidget {
-  const _RuleEditDialog({this.rule});
+  const _RuleEditDialog({this.rule, this.scrollController});
 
   final PromptRegexRule? rule;
+  final ScrollController? scrollController;
 
   static Future<PromptRegexRule?> show(
     BuildContext context, {
     PromptRegexRule? rule,
   }) {
-    return showDialog<PromptRegexRule>(
+    return AdaptivePresenter.showForm<PromptRegexRule>(
       context: context,
-      builder: (context) => _RuleEditDialog(rule: rule),
+      titleBuilder: (context) => Text(
+        rule == null
+            ? context.l10n.regexRules_newTitle
+            : context.l10n.regexRules_editTitle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      sideSheetWidth: 480,
+      builder: (context, scrollController) =>
+          _RuleEditDialog(rule: rule, scrollController: scrollController),
     );
   }
 
@@ -510,16 +528,13 @@ class _RuleEditDialogState extends State<_RuleEditDialog> {
     final l10n = context.l10n;
     final isEditing = widget.rule != null;
 
-    return AlertDialog(
-      title: Text(
-        isEditing ? l10n.regexRules_editTitle : l10n.regexRules_newTitle,
-      ),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            controller: widget.scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(16),
             children: [
               TextField(
                 controller: _nameController,
@@ -568,15 +583,24 @@ class _RuleEditDialogState extends State<_RuleEditDialog> {
             ],
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: _submit,
-          child: Text(isEditing ? l10n.common_save : l10n.common_create),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(l10n.common_cancel),
+              ),
+              FilledButton(
+                onPressed: _submit,
+                child: Text(isEditing ? l10n.common_save : l10n.common_create),
+              ),
+            ],
+          ),
         ),
       ],
     );

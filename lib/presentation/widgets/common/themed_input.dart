@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import 'input_surface_container.dart';
 import 'themed_confirm_dialog.dart';
 import 'themed_text_selection_toolbar.dart';
@@ -477,12 +478,16 @@ class _ClearButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final interactionPolicy = context.interactionPolicy;
+    final extent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
+        : 32.0;
     return IconButton(
       onPressed: onPressed,
       icon: const Icon(Icons.close, size: 16),
       tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
       visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+      constraints: BoxConstraints.tightFor(width: extent, height: extent),
       padding: EdgeInsets.zero,
     );
   }

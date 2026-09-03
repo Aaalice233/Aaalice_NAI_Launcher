@@ -105,9 +105,11 @@ class OnlineGalleryGrid extends StatelessWidget {
           );
           return const SizedBox.shrink();
         }
-        final columnCount = ((availableWidth + spacing) / (160 + spacing))
-            .floor()
-            .clamp(1, 8);
+        const minimumTileWidth = 140.0;
+        final columnCount =
+            ((availableWidth + spacing) / (minimumTileWidth + spacing))
+                .floor()
+                .clamp(1, 8);
         final itemWidth =
             (availableWidth - (columnCount - 1) * spacing) / columnCount;
         final viewportHeight = controller.scrollController.hasClients

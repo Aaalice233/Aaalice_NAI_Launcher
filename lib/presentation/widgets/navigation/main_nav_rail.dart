@@ -15,6 +15,7 @@ import '../../providers/layout_state_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/update_provider.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../router/app_branch.dart';
 import '../../router/app_routes.dart';
 import '../../themes/theme_extension.dart';
@@ -35,9 +36,22 @@ Duration _boundedMotionDuration(
   );
 }
 
+double _railItemMinHeight(BuildContext context) =>
+    MediaQuery.textScalerOf(
+      context,
+    ).scale(14).clamp(36, double.infinity).toDouble() +
+    12;
+
 class MainNavRail extends ConsumerWidget {
   static const double collapsedWidth = 60;
   static const double expandedWidth = 196;
+
+  static double expandedWidthFor(BuildContext context) {
+    final scaledBodySize = MediaQuery.textScalerOf(context).scale(14);
+    return (expandedWidth + (scaledBodySize - 14).clamp(0, 28) * 3)
+        .clamp(expandedWidth, 280)
+        .toDouble();
+  }
 
   static const List<AppBranch> _railBranches = [
     AppBranch.generation,
@@ -55,6 +69,7 @@ class MainNavRail extends ConsumerWidget {
   final bool isAgentVisible;
   final bool isAgentRunning;
   final bool isQueueVisible;
+  final bool allowExpansion;
   final FocusNode? agentFocusNode;
   final FocusNode? queueFocusNode;
   final ValueChanged<bool> onAgentVisibilityChanged;
@@ -66,6 +81,7 @@ class MainNavRail extends ConsumerWidget {
     this.isAgentVisible = false,
     this.isAgentRunning = false,
     this.isQueueVisible = false,
+    this.allowExpansion = true,
     this.agentFocusNode,
     this.queueFocusNode,
     this.onAgentVisibilityChanged = _ignorePanelVisibilityChange,
@@ -77,9 +93,10 @@ class MainNavRail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final isExpanded = ref.watch(
+    final storedExpansion = ref.watch(
       layoutStateNotifierProvider.select((state) => state.mainNavRailExpanded),
     );
+    final isExpanded = allowExpansion && storedExpansion;
 
     final showUpdateBadge = ref.watch(
       updateStateProvider.select((state) => state.hasNewVersion),
@@ -97,15 +114,17 @@ class MainNavRail extends ConsumerWidget {
     final motion = theme.appTheme;
     final animationDuration = _boundedMotionDuration(
       context,
-      motion.normalDuration,
-      minMilliseconds: 120,
-      maxMilliseconds: 180,
+      motion.slowDuration,
+      minMilliseconds: 180,
+      maxMilliseconds: 240,
     );
 
     return _NavRailWidthTransition(
       isExpanded: isExpanded,
+      expandedWidth: expandedWidthFor(context),
       duration: animationDuration,
-      curve: motion.standardCurve,
+      enterCurve: motion.enterCurve,
+      exitCurve: motion.exitCurve,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
@@ -206,67 +225,86 @@ class MainNavRail extends ConsumerWidget {
             ),
           ),
 
-          // Discord 社群
-          _ExternalLinkIcon(
-            icon: Icons.discord,
-            label: context.l10n.nav_discordCommunity,
-            color: const Color(0xFF5865F2), // Discord 紫色
-            url: CommunityLinks.discord,
-          ),
+          Flexible(
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                key: const Key('main-nav-secondary-scroll'),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // Discord 社群
+                      _ExternalLinkIcon(
+                        icon: Icons.discord,
+                        label: context.l10n.nav_discordCommunity,
+                        color: const Color(0xFF5865F2), // Discord 紫色
+                        url: CommunityLinks.discord,
+                      ),
 
-          // GitHub 仓库
-          _GitHubIcon(
-            url: CommunityLinks.github,
-            label: context.l10n.nav_githubRepo,
-          ),
+                      // GitHub 仓库
+                      _GitHubIcon(
+                        url: CommunityLinks.github,
+                        label: context.l10n.nav_githubRepo,
+                      ),
 
-          _NavIcon(
-            key: const Key('agent-nav-item'),
-            focusNode: agentFocusNode,
-            icon: isAgentRunning
-                ? Icons.smart_toy_rounded
-                : Icons.smart_toy_outlined,
-            label: context.l10n.nav_agent,
-            isSelected: isAgentVisible,
-            showBadge: isAgentRunning,
-            onTap: () => onAgentVisibilityChanged(!isAgentVisible),
-          ),
+                      _NavIcon(
+                        key: const Key('agent-nav-item'),
+                        focusNode: agentFocusNode,
+                        icon: isAgentRunning
+                            ? Icons.smart_toy_rounded
+                            : Icons.smart_toy_outlined,
+                        label: context.l10n.nav_agent,
+                        isSelected: isAgentVisible,
+                        showBadge: isAgentRunning,
+                        onTap: () => onAgentVisibilityChanged(!isAgentVisible),
+                      ),
 
-          _NavIcon(
-            key: const Key('queue-nav-item'),
-            focusNode: queueFocusNode,
-            icon: switch (queueExecutionStatus) {
-              QueueExecutionStatus.running => Icons.play_arrow_rounded,
-              QueueExecutionStatus.paused => Icons.pause_rounded,
-              _ => Icons.playlist_play_rounded,
-            },
-            label: context.l10n.queue_management,
-            isSelected: isQueueVisible,
-            badgeLabel: queueCount > 0
-                ? (queueCount > 99 ? '99+' : queueCount.toString())
-                : null,
-            onTap: () => onQueueVisibilityChanged(!isQueueVisible),
-          ),
+                      _NavIcon(
+                        key: const Key('queue-nav-item'),
+                        focusNode: queueFocusNode,
+                        icon: switch (queueExecutionStatus) {
+                          QueueExecutionStatus.running =>
+                            Icons.play_arrow_rounded,
+                          QueueExecutionStatus.paused => Icons.pause_rounded,
+                          _ => Icons.playlist_play_rounded,
+                        },
+                        label: context.l10n.queue_management,
+                        isSelected: isQueueVisible,
+                        badgeLabel: queueCount > 0
+                            ? (queueCount > 99 ? '99+' : queueCount.toString())
+                            : null,
+                        onTap: () => onQueueVisibilityChanged(!isQueueVisible),
+                      ),
 
-          // Bottom Settings
-          _NavIcon(
-            key: const Key('nav-branch-8'),
-            icon: Icons.settings,
-            label: context.l10n.nav_settings,
-            isSelected: selectedIndex == 8,
-            showBadge: showUpdateBadge,
-            onTap: () => navigationShell.goBranch(AppBranch.settings.index),
+                      // Bottom Settings
+                      _NavIcon(
+                        key: const Key('nav-branch-8'),
+                        icon: Icons.settings,
+                        label: context.l10n.nav_settings,
+                        isSelected: selectedIndex == 8,
+                        showBadge: showUpdateBadge,
+                        onTap: () =>
+                            navigationShell.goBranch(AppBranch.settings.index),
+                      ),
+                      if (allowExpansion) ...[
+                        const SizedBox(height: 2),
+                        _NavRailToggle(
+                          isExpanded: isExpanded,
+                          onTap: () {
+                            ref
+                                .read(layoutStateNotifierProvider.notifier)
+                                .toggleMainNavRail();
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 2),
-          _NavRailToggle(
-            isExpanded: isExpanded,
-            onTap: () {
-              ref
-                  .read(layoutStateNotifierProvider.notifier)
-                  .toggleMainNavRail();
-            },
-          ),
-          const SizedBox(height: 6),
         ],
       ),
     );
@@ -276,15 +314,19 @@ class MainNavRail extends ConsumerWidget {
 class _NavRailWidthTransition extends StatefulWidget {
   const _NavRailWidthTransition({
     required this.isExpanded,
+    required this.expandedWidth,
     required this.duration,
-    required this.curve,
+    required this.enterCurve,
+    required this.exitCurve,
     required this.decoration,
     required this.child,
   });
 
   final bool isExpanded;
+  final double expandedWidth;
   final Duration duration;
-  final Curve curve;
+  final Curve enterCurve;
+  final Curve exitCurve;
   final Decoration decoration;
   final Widget child;
 
@@ -297,7 +339,8 @@ class _NavRailWidthTransition extends StatefulWidget {
 class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late CurvedAnimation _expansion;
+  late CurvedAnimation _widthExpansion;
+  late CurvedAnimation _contentReveal;
 
   @override
   void initState() {
@@ -307,16 +350,18 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
       value: widget.isExpanded ? 1 : 0,
       duration: widget.duration,
     );
-    _updateCurve();
+    _updateAnimations();
   }
 
   @override
   void didUpdateWidget(_NavRailWidthTransition oldWidget) {
     super.didUpdateWidget(oldWidget);
     _controller.duration = widget.duration;
-    if (oldWidget.curve != widget.curve) {
-      _expansion.dispose();
-      _updateCurve();
+    if (oldWidget.enterCurve != widget.enterCurve ||
+        oldWidget.exitCurve != widget.exitCurve) {
+      _widthExpansion.dispose();
+      _contentReveal.dispose();
+      _updateAnimations();
     }
     if (oldWidget.isExpanded != widget.isExpanded ||
         oldWidget.duration != widget.duration) {
@@ -324,12 +369,18 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
     }
   }
 
-  void _updateCurve() {
-    final curve = _ClampedCurve(widget.curve);
-    _expansion = CurvedAnimation(
+  void _updateAnimations() {
+    _widthExpansion = CurvedAnimation(
       parent: _controller,
-      curve: curve,
-      reverseCurve: curve,
+      curve: _ClampedCurve(widget.enterCurve),
+      reverseCurve: _ClampedCurve(widget.exitCurve),
+    );
+    // Labels appear only after the rail has made room and disappear before
+    // contraction can clip them. Icons remain fixed on the leading edge.
+    _contentReveal = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.32, 0.82, curve: Curves.easeOutCubic),
+      reverseCurve: const Interval(0.32, 0.82, curve: Curves.easeInCubic),
     );
   }
 
@@ -347,7 +398,8 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
 
   @override
   void dispose() {
-    _expansion.dispose();
+    _widthExpansion.dispose();
+    _contentReveal.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -355,12 +407,12 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _expansion,
+      animation: _widthExpansion,
       builder: (context, child) {
         final width =
             MainNavRail.collapsedWidth +
-            (MainNavRail.expandedWidth - MainNavRail.collapsedWidth) *
-                _expansion.value;
+            (widget.expandedWidth - MainNavRail.collapsedWidth) *
+                _widthExpansion.value;
         return Container(
           key: const Key('main-nav-rail'),
           width: width,
@@ -369,12 +421,12 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
           decoration: widget.decoration,
           child: OverflowBox(
             alignment: Alignment.centerLeft,
-            minWidth: MainNavRail.expandedWidth,
-            maxWidth: MainNavRail.expandedWidth,
+            minWidth: widget.expandedWidth,
+            maxWidth: widget.expandedWidth,
             child: RepaintBoundary(
               child: SizedBox(
                 key: const Key('main-nav-rail-content'),
-                width: MainNavRail.expandedWidth,
+                width: widget.expandedWidth,
                 height: double.infinity,
                 child: child,
               ),
@@ -384,7 +436,7 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
       },
       child: _NavRailExpansionScope(
         isExpanded: widget.isExpanded,
-        expansion: _expansion,
+        expansion: _contentReveal,
         child: widget.child,
       ),
     );
@@ -449,8 +501,8 @@ class _NavRailToggle extends StatelessWidget {
         ? context.l10n.nav_collapseSidebar
         : context.l10n.nav_expandSidebar;
 
-    return SizedBox(
-      height: 48,
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: _railItemMinHeight(context)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Material(
@@ -876,12 +928,23 @@ class _RailLinkItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isExpanded = _NavRailExpansionScope.isExpandedOf(context);
     final theme = Theme.of(context);
+    final pressDuration = _boundedMotionDuration(
+      context,
+      theme.appTheme.fastDuration,
+      minMilliseconds: 100,
+      maxMilliseconds: 140,
+    );
+    final hoverDuration = _boundedMotionDuration(
+      context,
+      theme.appTheme.normalDuration,
+      minMilliseconds: 120,
+      maxMilliseconds: 180,
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      height: 48,
+      constraints: BoxConstraints(minHeight: _railItemMinHeight(context)),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -893,10 +956,10 @@ class _RailLinkItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: AnimatedScale(
             scale: isPressed ? 0.97 : 1.0,
-            duration: const Duration(milliseconds: 140),
-            curve: Curves.easeOutCubic,
+            duration: pressDuration,
+            curve: theme.appTheme.standardCurve,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration: hoverDuration,
               decoration: BoxDecoration(
                 color: isHovering
                     ? color.withValues(alpha: 0.15)
@@ -906,7 +969,7 @@ class _RailLinkItem extends StatelessWidget {
               child: Row(
                 children: [
                   Tooltip(
-                    message: isExpanded ? '' : label,
+                    message: label,
                     preferBelow: false,
                     verticalOffset: 24,
                     child: SizedBox(
@@ -971,7 +1034,18 @@ class _NavIconState extends State<_NavIcon> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isExpanded = _NavRailExpansionScope.isExpandedOf(context);
+    final pressDuration = _boundedMotionDuration(
+      context,
+      theme.appTheme.fastDuration,
+      minMilliseconds: 100,
+      maxMilliseconds: 140,
+    );
+    final hoverDuration = _boundedMotionDuration(
+      context,
+      theme.appTheme.normalDuration,
+      minMilliseconds: 120,
+      maxMilliseconds: 180,
+    );
     final color = widget.isSelected
         ? theme.colorScheme.primary
         : theme.iconTheme.color?.withValues(alpha: 0.7);
@@ -988,7 +1062,7 @@ class _NavIconState extends State<_NavIcon> {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      height: 48,
+      constraints: BoxConstraints(minHeight: _railItemMinHeight(context)),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -1002,10 +1076,10 @@ class _NavIconState extends State<_NavIcon> {
           borderRadius: BorderRadius.circular(8),
           child: AnimatedScale(
             scale: _isPressed ? 0.97 : 1.0,
-            duration: const Duration(milliseconds: 140),
-            curve: Curves.easeOutCubic,
+            duration: pressDuration,
+            curve: theme.appTheme.standardCurve,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration: hoverDuration,
               decoration: BoxDecoration(
                 color: backgroundColor,
                 borderRadius: BorderRadius.circular(8),
@@ -1013,7 +1087,7 @@ class _NavIconState extends State<_NavIcon> {
               child: Row(
                 children: [
                   Tooltip(
-                    message: isExpanded ? '' : widget.label,
+                    message: widget.label,
                     preferBelow: false,
                     verticalOffset: 24,
                     child: SizedBox(
@@ -1078,6 +1152,18 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pressDuration = _boundedMotionDuration(
+      context,
+      theme.appTheme.fastDuration,
+      minMilliseconds: 100,
+      maxMilliseconds: 140,
+    );
+    final hoverDuration = _boundedMotionDuration(
+      context,
+      theme.appTheme.normalDuration,
+      minMilliseconds: 120,
+      maxMilliseconds: 180,
+    );
     final authState = widget.ref.watch(authNotifierProvider);
     final accounts = widget.ref.watch(accountManagerNotifierProvider).accounts;
 
@@ -1120,7 +1206,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(6, 0, 6, 12),
-      height: 48,
+      constraints: BoxConstraints(minHeight: _railItemMinHeight(context)),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -1133,10 +1219,10 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
           borderRadius: BorderRadius.circular(22),
           child: AnimatedScale(
             scale: _isPressed ? 0.97 : 1.0,
-            duration: const Duration(milliseconds: 140),
-            curve: Curves.easeOutCubic,
+            duration: pressDuration,
+            curve: theme.appTheme.standardCurve,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration: hoverDuration,
               decoration: BoxDecoration(
                 color: _isHovering
                     ? theme.colorScheme.surfaceContainerHighest.withValues(
@@ -1147,7 +1233,15 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
               ),
               child: Row(
                 children: [
-                  SizedBox(width: 48, height: 48, child: Center(child: avatar)),
+                  Tooltip(
+                    message:
+                        currentAccount?.displayName ?? context.l10n.auth_login,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(child: avatar),
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _ExpandedRailContent(
@@ -1199,7 +1293,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
 
     // 使用 Rect 定义菜单弹出的锚点位置
     final railWidth = _NavRailExpansionScope.isExpandedOf(context)
-        ? MainNavRail.expandedWidth
+        ? MainNavRail.expandedWidthFor(context)
         : MainNavRail.collapsedWidth;
     final menuAnchor = Rect.fromLTWH(
       railWidth + 8,
@@ -1397,39 +1491,17 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
     // 立即清除之前的登录错误状态（无延迟）
     widget.ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
 
-    showDialog(
+    AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (dialogContext) => Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 450),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 标题栏
-                Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Text(
-                      context.l10n.auth_addAccount,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(dialogContext),
-                    ),
-                  ],
-                ),
-                // 登录表单容器（支持账号密码和Token两种方式）
-                LoginFormContainer(
-                  onLoginSuccess: () => Navigator.pop(dialogContext),
-                ),
-              ],
-            ),
-          ),
-        ),
+      title: context.l10n.auth_addAccount,
+      sideSheetWidth: 450,
+      builder: (panelContext, scrollController) => ListView(
+        key: const Key('main-nav-add-account-form'),
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(8, 16, 8, 32),
+        children: [
+          LoginFormContainer(onLoginSuccess: () => Navigator.pop(panelContext)),
+        ],
       ),
     );
   }

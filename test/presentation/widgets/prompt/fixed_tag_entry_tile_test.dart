@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_entry_tile.dart';
 
 void main() {
@@ -72,26 +73,74 @@ void main() {
     await tester.tap(find.text('可点击固定词'));
     expect(toggleCount, 1);
   });
+
+  testWidgets('Windows touch uses delayed drag and touch-safe actions', (
+    tester,
+  ) async {
+    final entry = FixedTagEntry.create(name: '触控固定词', content: '1girl');
+    await _pumpTile(
+      tester,
+      entry: entry,
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+    );
+
+    expect(find.byType(ReorderableDelayedDragStartListener), findsOneWidget);
+    expect(find.byType(ReorderableDragStartListener), findsNothing);
+    expect(tester.getSize(find.byTooltip('编辑')), const Size(48, 48));
+  });
+
+  testWidgets('Android mouse uses precise-pointer drag and compact actions', (
+    tester,
+  ) async {
+    final entry = FixedTagEntry.create(name: '鼠标固定词', content: '1girl');
+    await _pumpTile(
+      tester,
+      entry: entry,
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+    );
+
+    expect(find.byType(ReorderableDragStartListener), findsOneWidget);
+    expect(find.byType(ReorderableDelayedDragStartListener), findsNothing);
+    expect(tester.getSize(find.byTooltip('编辑')), const Size(25, 25));
+  });
 }
 
 Future<void> _pumpTile(
   WidgetTester tester, {
   required FixedTagEntry entry,
   VoidCallback? onToggleEnabled,
+  InteractionPolicy? interactionPolicy,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: FixedTagEntryTile(
-          entry: entry,
-          index: 0,
-          isDark: false,
-          onToggleEnabled: onToggleEnabled ?? () {},
-          onEdit: () {},
-          onDelete: () {},
+      home: InteractionPolicyScope(
+        initialPolicy:
+            interactionPolicy ??
+            const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+        child: Scaffold(
+          body: FixedTagEntryTile(
+            entry: entry,
+            index: 0,
+            isDark: false,
+            onToggleEnabled: onToggleEnabled ?? () {},
+            onEdit: () {},
+            onDelete: () {},
+          ),
         ),
       ),
     ),

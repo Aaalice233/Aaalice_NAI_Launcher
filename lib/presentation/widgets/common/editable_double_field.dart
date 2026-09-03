@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../adaptive/interaction_policy.dart';
 import '../../themes/core/input_surface_style.dart';
 
 class EditableDoubleField extends StatefulWidget {
@@ -90,44 +91,60 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final textStyle = widget.textStyle ?? theme.textTheme.bodyLarge;
+    final textPainter = TextPainter(
+      text: TextSpan(text: _format(widget.value), style: textStyle),
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: Directionality.of(context),
+      maxLines: 1,
+    )..layout();
+    final responsiveWidth = (textPainter.width + 16)
+        .clamp(widget.width, double.infinity)
+        .toDouble();
+
     return SizedBox(
-      width: widget.width,
-      child: TextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        enabled: widget.enabled,
-        textAlign: TextAlign.right,
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
+      width: responsiveWidth,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: context.interactionPolicy.minimumControlExtent,
         ),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[-0-9.]')),
-        ],
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 6,
+        child: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          enabled: widget.enabled,
+          textAlign: TextAlign.right,
+          keyboardType: const TextInputType.numberWithOptions(
+            decimal: true,
+            signed: true,
           ),
-          filled: true,
-          fillColor: inputSurfaceFillColor(theme.colorScheme),
-          border: inputSurfaceBorder(
-            theme.colorScheme,
-            BorderRadius.circular(8),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[-0-9.]')),
+          ],
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 6,
+            ),
+            filled: true,
+            fillColor: inputSurfaceFillColor(theme.colorScheme),
+            border: inputSurfaceBorder(
+              theme.colorScheme,
+              BorderRadius.circular(8),
+            ),
+            enabledBorder: inputSurfaceBorder(
+              theme.colorScheme,
+              BorderRadius.circular(8),
+            ),
+            focusedBorder: inputSurfaceBorder(
+              theme.colorScheme,
+              BorderRadius.circular(8),
+              focused: true,
+            ),
           ),
-          enabledBorder: inputSurfaceBorder(
-            theme.colorScheme,
-            BorderRadius.circular(8),
-          ),
-          focusedBorder: inputSurfaceBorder(
-            theme.colorScheme,
-            BorderRadius.circular(8),
-            focused: true,
-          ),
+          style: widget.textStyle,
+          onSubmitted: (_) => _commit(),
         ),
-        style: widget.textStyle,
-        onSubmitted: (_) => _commit(),
       ),
     );
   }

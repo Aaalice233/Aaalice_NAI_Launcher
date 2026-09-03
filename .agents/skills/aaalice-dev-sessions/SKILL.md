@@ -34,7 +34,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-session
 
 - Android 项目会话必须使用基于 `system-images;android-35;google_apis_playstore;x86_64` 的 `-EmulatorId Aaalice_API35`，确保 Google Drive 登录所需的 Google Play Services 可用；Runner 在冷启动前会启用 AVD 的 host hardware keyboard，确保物理键盘输入可用。不要把临时的 `emulator-5554` 写成固定 `-DeviceId`；`-DeviceId` 只用于明确复用外部设备。
 - Runner 默认复用依赖与生成文件，不运行 `pub get` / `build_runner`。依赖变化时使用 `-RunPubGet`；Freezed/Riverpod 等生成输入变化或预检阻塞时才使用 `-RunBuildRunner`。生成步骤不得与另一端 Flutter 构建并发。
-- Windows 与 Android Runner 按 Process → User → Machine 的优先级读取各自平台的 Google Drive / OneDrive OAuth 环境变量并作为 `--dart-define` 注入，因此持久化到当前用户的开发配置无需重启 Codex；Windows OneDrive 本地注册也可通过 `-OneDriveClientId`、`-OneDriveRedirectUri`、`-OneDriveTenantId` 显式覆盖。不要把 access token 或 refresh token 传给 Runner；仅 Windows Google Desktop OAuth 按当前 Google token endpoint 契约读取对应 client secret。
+- Windows 与 Android Runner 按 Process → User → Machine 的优先级读取各自平台的 Google Drive / OneDrive OAuth 环境变量并作为 `--dart-define` 注入，因此持久化到当前用户的开发配置无需重启 Codex；Windows OneDrive 本地注册也可通过 `-OneDriveClientId`、`-OneDriveRedirectUri`、`-OneDriveTenantId` 显式覆盖。不要把 client secret、access token 或 refresh token 传给 Runner；桌面与移动 OAuth client 都按 public client 处理。
 - Android runner 首次启动 emulator 时禁用 Quick Boot 快照、使用 host GPU、移除设备外框并等待系统完成启动；默认保留 emulator 作为暖缓存。只有显式传 `-StopEmulatorOnExit` 才随会话关闭。
 
 ## 状态、日志与关闭

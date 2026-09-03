@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_version.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/adaptive_layout.dart';
 import '../../providers/warmup_provider.dart';
 import '../../utils/warmup_message_localizer.dart';
 
@@ -74,50 +75,54 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       backgroundColor: backgroundColor,
       body: Stack(
         children: [
-          // 背景装饰
           _buildBackground(primaryColor, backgroundColor),
-
-          // 主内容
           SafeArea(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Spacer(flex: 3),
-
-                  // Logo 动画
-                  _buildLogo(primaryColor),
-
-                  const SizedBox(height: 24),
-
-                  // 应用名称
-                  _buildTitle(theme, primaryColor),
-
-                  const Spacer(flex: 2),
-
-                  // 进度区域
-                  _buildProgressSection(
-                    theme,
-                    primaryColor,
-                    progress,
-                    warmupState.subTaskMessage,
-                    warmupState.error,
+            child: AdaptiveSlotLayout(
+              builder: (context, areas) => SingleChildScrollView(
+                key: const ValueKey('splash_scroll_view'),
+                padding: EdgeInsets.fromLTRB(
+                  areas.horizontalPadding,
+                  16,
+                  areas.horizontalPadding,
+                  48,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: (areas.constraints.maxHeight - 64)
+                        .clamp(0.0, double.infinity)
+                        .toDouble(),
                   ),
-
-                  const SizedBox(height: 48),
-                ],
+                  child: AdaptiveContentBounds(
+                    maxWidth: 640,
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildLogo(primaryColor),
+                        const SizedBox(height: 24),
+                        _buildTitle(theme, primaryColor),
+                        const SizedBox(height: 48),
+                        _buildProgressSection(
+                          theme,
+                          primaryColor,
+                          progress,
+                          warmupState.subTaskMessage,
+                          warmupState.error,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-
-          // 版本号显示在右下角
           Positioned(
             right: 16 + MediaQuery.paddingOf(context).right,
             bottom: 16 + MediaQuery.paddingOf(context).bottom,
             child: Text(
               AppVersion.versionName,
-              style: TextStyle(
-                fontSize: 12,
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                 fontWeight: FontWeight.w500,
               ),
@@ -196,6 +201,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           ).createShader(bounds),
           child: const Text(
             'NAI Launcher',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
@@ -207,6 +213,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         const SizedBox(height: 8),
         Text(
           'NovelAI Image Generation',
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
@@ -231,8 +238,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
     final percentage = (progress.progress * 100).toInt();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
+    return AdaptiveContentBounds(
+      maxWidth: 520,
       child: Column(
         children: [
           if (error != null) ...[
@@ -243,8 +250,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               child: Text(
                 WarmupMessageLocalizer.localizeError(l10n, error),
                 textAlign: TextAlign.center,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 13,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
@@ -277,8 +282,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 ),
                 const SizedBox(width: 12),
                 // 百分比文字（使用等宽数字特性）
-                SizedBox(
-                  width: 42,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 42),
                   child: Text(
                     '$percentage%',
                     textAlign: TextAlign.right,
@@ -316,11 +321,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                     const SizedBox(width: 8),
                   ],
-                  Text(
-                    translatedTask,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  Flexible(
+                    child: Text(
+                      translatedTask,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -332,6 +342,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               const SizedBox(height: 8),
               Text(
                 WarmupMessageLocalizer.localizeSubTask(l10n, subTaskMessage),
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.4),

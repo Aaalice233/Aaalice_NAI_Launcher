@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
+import 'adaptive_dialog_frame.dart';
 import 'app_toast.dart';
+import 'translated_tag_text.dart';
 
 /// 保存 Vibe 到库对话框
 ///
@@ -19,12 +22,14 @@ class SaveVibeDialog extends ConsumerStatefulWidget {
 
   /// 默认名称
   final String? defaultName;
+  final ScrollController? scrollController;
 
   const SaveVibeDialog({
     super.key,
     required this.vibe,
     this.vibes,
     this.defaultName,
+    this.scrollController,
   });
 
   /// 显示对话框
@@ -34,10 +39,32 @@ class SaveVibeDialog extends ConsumerStatefulWidget {
     List<VibeReference>? vibes,
     String? defaultName,
   }) async {
-    final result = await showDialog<bool>(
+    final result = await AdaptivePresenter.showForm<bool>(
       context: context,
-      builder: (context) =>
-          SaveVibeDialog(vibe: vibe, vibes: vibes, defaultName: defaultName),
+      sideSheetWidth: 440,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.style_outlined,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              panelContext.l10n.vibe_saveToLibrary_title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(panelContext).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      builder: (_, scrollController) => SaveVibeDialog(
+        vibe: vibe,
+        vibes: vibes,
+        defaultName: defaultName,
+        scrollController: scrollController,
+      ),
     );
     return result ?? false;
   }
@@ -163,17 +190,15 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
 
     final hasMultipleVibes = widget.vibes != null && widget.vibes!.length > 1;
 
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.style_outlined, color: colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(l10n.vibe_saveToLibrary_title),
-        ],
-      ),
-      content: SizedBox(
-        width: 400,
+    return _AdaptiveFormBody(
+      content: AdaptiveDialogFrame(
+        maxWidth: 400,
+        maxHeight: 520,
+        reservedVerticalSpace: 140,
+        scaleReservedVerticalSpace: true,
         child: SingleChildScrollView(
+          controller: widget.scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,6 +212,7 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
                   prefixIcon: const Icon(Icons.label_outline),
                 ),
                 enabled: !_isSaving,
+                autofocus: true,
               ),
               const SizedBox(height: 16),
 
@@ -274,7 +300,7 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
                   runSpacing: 8,
                   children: _tags.map((tag) {
                     return Chip(
-                      label: Text(tag),
+                      label: TranslatedTagText(tag),
                       deleteIcon: const Icon(Icons.close, size: 18),
                       onDeleted: _isSaving ? null : () => _removeTag(tag),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -389,6 +415,35 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AdaptiveFormBody extends StatelessWidget {
+  const _AdaptiveFormBody({required this.content, required this.actions});
+
+  final Widget content;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(child: content),
+        Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: actions,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

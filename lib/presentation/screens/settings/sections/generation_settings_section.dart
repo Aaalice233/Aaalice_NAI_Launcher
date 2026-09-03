@@ -251,6 +251,9 @@ class _GenerationSettingsSectionState
                           .updateStraightAlpha(selection.single);
                     },
                   );
+                  final showInline =
+                      constraints.maxWidth >= 680 &&
+                      MediaQuery.textScalerOf(context).scale(1) <= 1.6;
                   final tile = ListTile(
                     leading: const Icon(Icons.layers_outlined),
                     title: Text(l10n.settings_alphaModeTitle),
@@ -259,10 +262,10 @@ class _GenerationSettingsSectionState
                           ? l10n.settings_alphaModeStraightDescription
                           : l10n.settings_alphaModePremultipliedDescription,
                     ),
-                    trailing: constraints.maxWidth >= 680 ? selector : null,
+                    trailing: showInline ? selector : null,
                   );
 
-                  if (constraints.maxWidth >= 680) {
+                  if (showInline) {
                     return tile;
                   }
                   return Column(
@@ -415,62 +418,92 @@ class _GenerationSettingsSectionState
     required ValueChanged<double> onSliderChanged,
     required ValueChanged<String> onSubmitted,
   }) {
+    final valueEditor = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 64,
+          child: ThemedInput(
+            controller: controller,
+            keyboardType: keyboardType,
+            textAlign: TextAlign.center,
+            decoration: _buildSettingsInputDecoration(theme),
+            onSubmitted: onSubmitted,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(child: Text(unit)),
+      ],
+    );
+    final slider = Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.remove_circle_outline),
+          visualDensity: VisualDensity.compact,
+          onPressed: onDecrease,
+        ),
+        Expanded(
+          child: SliderTheme(
+            data: _buildSettingsSliderTheme(context),
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              onChanged: onSliderChanged,
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.add_circle_outline),
+          visualDensity: VisualDensity.compact,
+          onPressed: onIncrease,
+        ),
+      ],
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 80,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(label),
-                Text(
-                  valueLabel,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final useStackedLayout =
+              constraints.maxWidth < 600 || textScale > 1.6;
+          final labels = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label),
+              Text(
+                valueLabel,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.remove_circle_outline),
-            visualDensity: VisualDensity.compact,
-            onPressed: onDecrease,
-          ),
-          Expanded(
-            child: SliderTheme(
-              data: _buildSettingsSliderTheme(context),
-              child: Slider(
-                value: value,
-                min: min,
-                max: max,
-                onChanged: onSliderChanged,
               ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            visualDensity: VisualDensity.compact,
-            onPressed: onIncrease,
-          ),
-          const SizedBox(width: 4),
-          SizedBox(
-            width: 56,
-            child: ThemedInput(
-              controller: controller,
-              keyboardType: keyboardType,
-              textAlign: TextAlign.center,
-              decoration: _buildSettingsInputDecoration(theme),
-              onSubmitted: onSubmitted,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(unit),
-        ],
+            ],
+          );
+
+          if (useStackedLayout) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                labels,
+                const SizedBox(height: 4),
+                slider,
+                const SizedBox(height: 4),
+                Align(alignment: Alignment.centerRight, child: valueEditor),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              SizedBox(width: 112, child: labels),
+              const SizedBox(width: 8),
+              Expanded(child: slider),
+              const SizedBox(width: 8),
+              valueEditor,
+            ],
+          );
+        },
       ),
     );
   }

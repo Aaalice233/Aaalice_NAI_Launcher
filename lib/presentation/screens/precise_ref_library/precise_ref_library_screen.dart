@@ -15,16 +15,21 @@ import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../data/services/precise_ref_library_storage_service.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
 import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/input_surface_container.dart';
+import '../../widgets/common/pagination_bar.dart';
+import '../../widgets/gallery/gallery_sidebar.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'widgets/precise_ref_card.dart';
 import 'widgets/precise_ref_entry_edit_dialog.dart';
-import 'widgets/precise_ref_type_filter_chips.dart';
+import 'widgets/precise_ref_library_sidebar.dart';
 
 /// 精准参考库页面
 ///
@@ -40,10 +45,14 @@ class PreciseRefLibraryScreen extends ConsumerStatefulWidget {
 
 class _PreciseRefLibraryScreenState
     extends ConsumerState<PreciseRefLibraryScreen> {
+  static const List<int> _pageSizeOptions = [20, 50, 100];
+
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounceTimer;
   bool _isDragging = false;
   bool _isPickingFile = false;
+  int _currentPage = 0;
+  int _pageSize = 50;
 
   @override
   void initState() {
@@ -63,6 +72,7 @@ class _PreciseRefLibraryScreenState
   void _onSearchChanged(String value) {
     _searchDebounceTimer?.cancel();
     _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _currentPage = 0);
       ref
           .read(preciseRefLibraryNotifierProvider.notifier)
           .setSearchQuery(value);
@@ -313,41 +323,48 @@ class _PreciseRefLibraryScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(preciseRefLibraryNotifierProvider);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final columns = (screenWidth / 200).floor().clamp(2, 8);
 
-    final content = Stack(
-      children: [
-        Column(
+    final content = LayoutBuilder(
+      builder: (context, constraints) {
+        final showSidebar = constraints.maxWidth >= 840;
+        final mainWidth = constraints.maxWidth - (showSidebar ? 250 : 0);
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final layout = computePreciseRefGridLayout(mainWidth, textScale);
+        return Stack(
           children: [
-            _buildToolbar(state),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: PreciseRefTypeFilterChips(
-                  value: state.typeFilter,
-                  onChanged: (type) {
-                    ref
-                        .read(preciseRefLibraryNotifierProvider.notifier)
-                        .setTypeFilter(type);
-                  },
-                ),
+            GalleryCollectionWorkspace(
+              toolbar: _buildToolbar(
+                state,
+                showCategoryButton: !showSidebar,
+                showPageTitle: true,
               ),
-            ),
-            Expanded(
-              child: state.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+              sidebar: showSidebar
+                  ? PreciseRefLibrarySidebar(
+                      state: state,
+                      onFilterChanged: _selectSidebarFilter,
+                    )
+                  : null,
+              body: state.isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.72
+                            : null,
+                      ),
+                    )
                   : state.error != null
                   ? _buildErrorView(state.error!)
                   : state.filteredEntries.isEmpty
                   ? _buildEmptyView(state)
-                  : _buildGrid(state, columns),
+                  : _buildGrid(state, layout),
+              footer: !state.isLoading && state.filteredEntries.isNotEmpty
+                  ? _buildPagination(state, mainWidth)
+                  : null,
             ),
+            if (_isDragging) _buildDropOverlay(),
           ],
-        ),
-        if (_isDragging) _buildDropOverlay(),
-      ],
+        );
+      },
     );
 
     if (!PlatformCapabilities.current.supportsExternalFileDrop) {
@@ -378,6 +395,32 @@ class _PreciseRefLibraryScreenState
           unawaited(_handleDrop(event));
         },
         child: content,
+      ),
+    );
+  }
+
+  void _selectSidebarFilter({
+    required bool favoritesOnly,
+    PreciseRefType? type,
+  }) {
+    setState(() => _currentPage = 0);
+    ref
+        .read(preciseRefLibraryNotifierProvider.notifier)
+        .setSidebarFilter(favoritesOnly: favoritesOnly, type: type);
+  }
+
+  Future<void> _showCategoryPanel(PreciseRefLibraryState state) {
+    return AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.tagLibrary_categories,
+      initialChildSize: 0.72,
+      builder: (panelContext, scrollController) => PreciseRefLibrarySidebar(
+        state: state,
+        modal: true,
+        onFilterChanged: ({required bool favoritesOnly, PreciseRefType? type}) {
+          _selectSidebarFilter(favoritesOnly: favoritesOnly, type: type);
+          Navigator.of(panelContext).pop();
+        },
       ),
     );
   }
@@ -413,80 +456,88 @@ class _PreciseRefLibraryScreenState
     );
   }
 
-  Widget _buildToolbar(PreciseRefLibraryState state) {
+  Widget _buildToolbar(
+    PreciseRefLibraryState state, {
+    required bool showCategoryButton,
+    required bool showPageTitle,
+  }) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final touchTarget = PlatformCapabilities.current.hasTouchInput;
+    final touchTarget = context.interactionPolicy.shouldExposeTouchAlternatives;
 
-    final title = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.center_focus_strong,
-          size: 22,
-          color: theme.colorScheme.primary,
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.preciseRefLib_title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                l10n.preciseRefLib_entryCount(state.totalCount),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+    final title = GalleryCollectionPageTitle(
+      key: const Key('precise-ref-library-page-title'),
+      icon: Icons.center_focus_strong,
+      title: l10n.preciseRefLib_title,
+      subtitle: l10n.preciseRefLib_entryCount(state.totalCount),
+      maxWidth: 210,
     );
-    final search = TextField(
-      key: const Key('precise-ref-library-search'),
-      controller: _searchController,
-      textAlignVertical: TextAlignVertical.center,
-      decoration: InputDecoration(
-        hintText: l10n.preciseRefLib_searchHint,
-        prefixIcon: const Icon(Icons.search, size: 18),
-        isDense: !touchTarget,
-        constraints: BoxConstraints(minHeight: touchTarget ? 48 : 40),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: touchTarget ? 12 : 8,
+    final searchHeight = touchTarget ? 48.0 : 40.0;
+    final search = InputSurfaceContainer(
+      key: const Key('precise-ref-library-search-surface'),
+      height: searchHeight,
+      borderRadius: searchHeight / 2,
+      focusedBorderColor: theme.colorScheme.primary.withValues(alpha: 0.38),
+      child: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: _searchController,
+        builder: (context, value, _) => TextField(
+          key: const Key('precise-ref-library-search'),
+          controller: _searchController,
+          textAlignVertical: TextAlignVertical.center,
+          style: theme.textTheme.bodyMedium,
+          decoration: InputDecoration(
+            hintText: l10n.preciseRefLib_searchHint,
+            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55),
+            ),
+            prefixIcon: const Icon(Icons.search_rounded, size: 18),
+            suffixIcon: value.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: l10n.common_clear,
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    onPressed: () {
+                      _searchController.clear();
+                      _onSearchChanged('');
+                    },
+                  ),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          ),
+          onChanged: _onSearchChanged,
         ),
       ),
-      onChanged: _onSearchChanged,
     );
     final favorites = IconButton(
       key: const Key('precise-ref-library-favorites-toggle'),
       tooltip: l10n.preciseRefLib_favoritesOnly,
       icon: Icon(
-        state.favoritesOnly ? Icons.star : Icons.star_border,
-        color: state.favoritesOnly ? Colors.amber : null,
+        state.favoritesOnly
+            ? Icons.favorite_rounded
+            : Icons.favorite_border_rounded,
+        color: state.favoritesOnly ? theme.colorScheme.error : null,
       ),
-      onPressed: () => ref
-          .read(preciseRefLibraryNotifierProvider.notifier)
-          .toggleFavoritesOnly(),
+      onPressed: () {
+        setState(() => _currentPage = 0);
+        ref
+            .read(preciseRefLibraryNotifierProvider.notifier)
+            .toggleFavoritesOnly();
+      },
+      style: _toolbarIconButtonStyle(theme),
     );
     final sort = PopupMenuButton<PreciseRefLibrarySortOrder>(
       key: const Key('precise-ref-library-sort-menu'),
       tooltip: l10n.preciseRefLib_sortBy,
       icon: const Icon(Icons.sort),
-      onSelected: (order) => ref
-          .read(preciseRefLibraryNotifierProvider.notifier)
-          .setSortOrder(order),
+      onSelected: (order) {
+        setState(() => _currentPage = 0);
+        ref
+            .read(preciseRefLibraryNotifierProvider.notifier)
+            .setSortOrder(order);
+      },
       itemBuilder: (context) => [
         _sortMenuItem(
           PreciseRefLibrarySortOrder.createdAt,
@@ -509,79 +560,167 @@ class _PreciseRefLibraryScreenState
           state,
         ),
       ],
+      style: _toolbarIconButtonStyle(theme),
     );
     final importButton = FilledButton.icon(
       key: const Key('precise-ref-library-import-button'),
       onPressed: _isPickingFile ? null : _importImages,
       icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
       label: Text(l10n.preciseRefLib_import),
-      style: FilledButton.styleFrom(
-        minimumSize: Size(64, touchTarget ? 48 : 40),
+      style: _toolbarImportButtonStyle(
+        theme,
+        minimumHeight: touchTarget ? 48 : 40,
       ),
     );
     final showToolbarImport = state.totalCount > 0 || state.hasFilters;
+    final categories = IconButton(
+      key: const Key('precise-ref-library-categories-button'),
+      tooltip: l10n.localGallery_showCategoryPanel,
+      onPressed: () => _showCategoryPanel(state),
+      icon: const Icon(Icons.folder_outlined),
+      style: _toolbarIconButtonStyle(theme),
+    );
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        favorites,
+        const SizedBox(width: 2),
+        sort,
+        if (showToolbarImport) ...[const SizedBox(width: 8), importButton],
+      ],
+    );
+    final utilityActions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [favorites, const SizedBox(width: 2), sort],
+    );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-        ),
-      ),
+    return GalleryCollectionToolbarSurface(
+      key: const Key('precise-ref-library-unified-toolbar'),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth >= 760) {
+          final largeText = MediaQuery.textScalerOf(context).scale(14) > 18;
+          if (constraints.maxWidth >= 700 && !largeText) {
             return Row(
               children: [
-                Expanded(child: title),
-                SizedBox(width: 220, child: search),
-                const SizedBox(width: 8),
-                favorites,
-                sort,
-                if (showToolbarImport) ...[
-                  const SizedBox(width: 4),
-                  importButton,
+                if (showCategoryButton) ...[
+                  categories,
+                  const SizedBox(width: 8),
                 ],
+                if (showPageTitle) ...[
+                  title,
+                  const SizedBox(
+                    width: GalleryCollectionChrome.toolbarGroupGap,
+                  ),
+                ],
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: search,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                actions,
               ],
             );
           }
 
-          final stackImport =
-              constraints.maxWidth < 400 ||
-              MediaQuery.textScalerOf(context).scale(14) > 18;
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
-                  Expanded(child: title),
-                  favorites,
-                  sort,
+                  if (showCategoryButton) ...[
+                    categories,
+                    const SizedBox(width: 4),
+                  ],
+                  if (showPageTitle) Expanded(child: title) else const Spacer(),
+                  utilityActions,
                 ],
               ),
-              const SizedBox(height: 8),
-              if (stackImport) ...[
-                search,
-                if (showToolbarImport) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(width: double.infinity, child: importButton),
-                ],
-              ] else
-                Row(
-                  children: [
-                    Expanded(child: search),
-                    if (showToolbarImport) ...[
-                      const SizedBox(width: 8),
-                      importButton,
-                    ],
-                  ],
-                ),
+              const SizedBox(height: 10),
+              search,
+              if (showToolbarImport) ...[
+                const SizedBox(height: 10),
+                SizedBox(width: double.infinity, child: importButton),
+              ],
             ],
           );
         },
       ),
+    );
+  }
+
+  ButtonStyle _toolbarIconButtonStyle(ThemeData theme) {
+    final colors = theme.colorScheme;
+    return ButtonStyle(
+      minimumSize: WidgetStatePropertyAll(
+        Size.square(context.interactionPolicy.minimumControlExtent),
+      ),
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return colors.onSurface.withValues(alpha: 0.38);
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return colors.primary;
+        }
+        return colors.onSurfaceVariant;
+      }),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) return Colors.transparent;
+        if (states.contains(WidgetState.pressed)) {
+          return colors.primaryContainer.withValues(alpha: 0.72);
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return colors.primaryContainer.withValues(alpha: 0.48);
+        }
+        return Colors.transparent;
+      }),
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      elevation: const WidgetStatePropertyAll(0),
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  ButtonStyle _toolbarImportButtonStyle(
+    ThemeData theme, {
+    required double minimumHeight,
+  }) {
+    final colors = theme.colorScheme;
+    return FilledButton.styleFrom(
+      minimumSize: Size(64, minimumHeight),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ).copyWith(
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        return states.contains(WidgetState.disabled)
+            ? colors.onSurface.withValues(alpha: 0.38)
+            : colors.onPrimary;
+      }),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return colors.onSurface.withValues(alpha: 0.12);
+        }
+        if (states.contains(WidgetState.pressed)) {
+          return Color.alphaBlend(
+            colors.onPrimary.withValues(alpha: 0.14),
+            colors.primary,
+          );
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return Color.alphaBlend(
+            colors.onPrimary.withValues(alpha: 0.08),
+            colors.primary,
+          );
+        }
+        return colors.primary;
+      }),
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      elevation: const WidgetStatePropertyAll(0),
     );
   }
 
@@ -606,19 +745,24 @@ class _PreciseRefLibraryScreenState
     );
   }
 
-  Widget _buildGrid(PreciseRefLibraryState state, int columns) {
+  Widget _buildGrid(PreciseRefLibraryState state, PreciseRefGridLayout layout) {
+    final totalPages = _totalPagesFor(state.filteredEntries.length);
+    final page = _currentPage.clamp(0, totalPages - 1);
+    final start = page * _pageSize;
+    final end = (start + _pageSize).clamp(0, state.filteredEntries.length);
+    final entries = state.filteredEntries.sublist(start, end);
     return GridView.builder(
       key: const PageStorageKey('precise_ref_library_grid'),
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(layout.padding),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
+        crossAxisCount: layout.columns,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.8,
+        mainAxisExtent: layout.mainAxisExtent,
       ),
-      itemCount: state.filteredEntries.length,
+      itemCount: entries.length,
       itemBuilder: (context, index) {
-        final entry = state.filteredEntries[index];
+        final entry = entries[index];
         return AgentResourceDragSource(
           key: Key('precise-ref-card-${entry.id}'),
           reference: AgentChatResourceReference(
@@ -644,6 +788,36 @@ class _PreciseRefLibraryScreenState
     );
   }
 
+  Widget _buildPagination(PreciseRefLibraryState state, double contentWidth) {
+    final totalItems = state.filteredEntries.length;
+    final totalPages = _totalPagesFor(totalItems);
+    final currentPage = _currentPage.clamp(0, totalPages - 1);
+    return PaginationBar(
+      key: const Key('precise-ref-library-pagination'),
+      currentPage: currentPage,
+      totalPages: totalPages,
+      totalItems: totalItems,
+      itemsPerPage: _pageSize,
+      itemsPerPageOptions: _pageSizeOptions,
+      onPageChanged: (page) => setState(() => _currentPage = page),
+      onItemsPerPageChanged: (size) {
+        setState(() {
+          _pageSize = size;
+          _currentPage = 0;
+        });
+      },
+      showItemsPerPage: true,
+      showTotalInfo: true,
+      compact: contentWidth < 680,
+      totalIcon: Icons.center_focus_strong,
+      totalItemsLabel: context.l10n.preciseRefLib_entryCount(totalItems),
+      tonalCard: true,
+    );
+  }
+
+  int _totalPagesFor(int totalItems) =>
+      ((totalItems + _pageSize - 1) ~/ _pageSize).clamp(1, 1 << 30);
+
   Widget _buildEmptyView(PreciseRefLibraryState state) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
@@ -653,78 +827,87 @@ class _PreciseRefLibraryScreenState
     // 过滤后无结果：给出条目总数与一键清除过滤
     if (state.hasFilters) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.filter_alt_off_outlined,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '${l10n.localGallery_noMatchingResults} '
-              '(${l10n.preciseRefLib_entryCount(state.totalCount)})',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.filter_alt_off_outlined,
+                size: 48,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.4,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              key: const Key('precise-ref-library-clear-filters'),
-              onPressed: () {
-                _searchController.clear();
-                ref
-                    .read(preciseRefLibraryNotifierProvider.notifier)
-                    .clearFilters();
-              },
-              icon: const Icon(Icons.filter_alt_off, size: 18),
-              label: Text(l10n.localGallery_clearFilters),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                '${l10n.localGallery_noMatchingResults} '
+                '(${l10n.preciseRefLib_entryCount(state.totalCount)})',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                key: const Key('precise-ref-library-clear-filters'),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() => _currentPage = 0);
+                  ref
+                      .read(preciseRefLibraryNotifierProvider.notifier)
+                      .clearFilters();
+                },
+                icon: const Icon(Icons.filter_alt_off, size: 18),
+                label: Text(l10n.localGallery_clearFilters),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.center_focus_strong,
-            size: 56,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            supportsExternalFileDrop
-                ? l10n.preciseRefLib_empty
-                : l10n.preciseRefLib_emptyTouch,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.center_focus_strong,
+              size: 56,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
             ),
-          ),
-          if (!state.hasFilters) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
             Text(
               supportsExternalFileDrop
-                  ? l10n.preciseRefLib_emptyHint
-                  : l10n.preciseRefLib_emptyHintTouch,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.7,
-                ),
+                  ? l10n.preciseRefLib_empty
+                  : l10n.preciseRefLib_emptyTouch,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              key: const Key('precise-ref-library-empty-import-button'),
-              onPressed: _isPickingFile ? null : _importImages,
-              icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
-              label: Text(l10n.preciseRefLib_import),
-            ),
+            if (!state.hasFilters) ...[
+              const SizedBox(height: 6),
+              Text(
+                supportsExternalFileDrop
+                    ? l10n.preciseRefLib_emptyHint
+                    : l10n.preciseRefLib_emptyHintTouch,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.7,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                key: const Key('precise-ref-library-empty-import-button'),
+                onPressed: _isPickingFile ? null : _importImages,
+                icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                label: Text(l10n.preciseRefLib_import),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -760,4 +943,42 @@ class _PreciseRefLibraryScreenState
       ),
     );
   }
+}
+
+@immutable
+class PreciseRefGridLayout {
+  const PreciseRefGridLayout({
+    required this.columns,
+    required this.mainAxisExtent,
+    required this.padding,
+  });
+
+  final int columns;
+  final double mainAxisExtent;
+  final double padding;
+}
+
+PreciseRefGridLayout computePreciseRefGridLayout(
+  double availableWidth,
+  double textScale,
+) {
+  final padding = availableWidth < 600 ? 12.0 : 16.0;
+  final scale = textScale.clamp(1.0, 3.0);
+  final minCardWidth = 176 + (scale - 1) * 44;
+  final usableWidth = (availableWidth - padding * 2).clamp(
+    0.0,
+    double.infinity,
+  );
+  final columns = ((usableWidth + 12) / (minCardWidth + 12)).floor().clamp(
+    1,
+    8,
+  );
+  final cardWidth = columns == 0
+      ? usableWidth
+      : (usableWidth - (columns - 1) * 12) / columns;
+  return PreciseRefGridLayout(
+    columns: columns,
+    mainAxisExtent: cardWidth * 1.22 + (scale - 1) * 24,
+    padding: padding,
+  );
 }

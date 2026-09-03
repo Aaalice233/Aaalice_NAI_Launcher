@@ -73,15 +73,19 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
             CloudSyncField(
               controller: url,
               label: context.l10n.cloudSync_webDavUrl,
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.next,
             ),
             CloudSyncField(
               controller: username,
               label: context.l10n.cloudSync_username,
+              textInputAction: TextInputAction.next,
             ),
             CloudSyncField(
               controller: secret,
               label: context.l10n.cloudSync_password,
               obscureText: true,
+              textInputAction: TextInputAction.done,
             ),
           ]),
           ExpansionTile(
@@ -91,6 +95,7 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
               CloudSyncField(
                 controller: path,
                 label: context.l10n.cloudSync_remotePath,
+                textInputAction: TextInputAction.done,
               ),
               SwitchListTile(
                 key: const ValueKey('cloud-sync-allow-insecure-http'),
@@ -108,14 +113,17 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
               controller: secret,
               label: context.l10n.cloudSync_githubToken,
               obscureText: true,
+              textInputAction: TextInputAction.next,
             ),
             CloudSyncField(
               controller: owner,
               label: context.l10n.cloudSync_owner,
+              textInputAction: TextInputAction.next,
             ),
             CloudSyncField(
               controller: repository,
               label: context.l10n.cloudSync_repository,
+              textInputAction: TextInputAction.done,
             ),
           ])
         else
@@ -129,10 +137,12 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
                 CloudSyncField(
                   controller: branch,
                   label: context.l10n.cloudSync_branch,
+                  textInputAction: TextInputAction.next,
                 ),
                 CloudSyncField(
                   controller: path,
                   label: context.l10n.cloudSync_remotePath,
+                  textInputAction: TextInputAction.done,
                 ),
               ]),
             ],

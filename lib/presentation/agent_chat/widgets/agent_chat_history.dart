@@ -27,7 +27,7 @@ class AgentChatThreadViewport extends StatefulWidget {
     required this.controller,
     required this.horizontalPadding,
     required this.maxWidth,
-    required this.mobile,
+    required this.compactLayout,
     required this.hasEarlier,
     required this.historyLoading,
     required this.prependAnchorEntryId,
@@ -42,7 +42,7 @@ class AgentChatThreadViewport extends StatefulWidget {
   final AgentChatPanelController controller;
   final double horizontalPadding;
   final double maxWidth;
-  final bool mobile;
+  final bool compactLayout;
   final bool hasEarlier;
   final bool historyLoading;
   final String? prependAnchorEntryId;
@@ -81,7 +81,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
         oldWidget.geometryRevision != widget.geometryRevision ||
         oldWidget.maxWidth != widget.maxWidth ||
         oldWidget.horizontalPadding != widget.horizontalPadding ||
-        oldWidget.mobile != widget.mobile ||
+        oldWidget.compactLayout != widget.compactLayout ||
         oldWidget.prependAnchorEntryId != widget.prependAnchorEntryId;
     final anchors =
         sameSession &&
@@ -209,12 +209,15 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
       widget.controller.followLatest();
       return;
     }
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     widget.controller.pauseFollowingLatest();
-    final context = _keyFor(turn).currentContext;
-    if (context != null) {
+    final targetContext = _keyFor(turn).currentContext;
+    if (targetContext != null) {
       await Scrollable.ensureVisible(
-        context,
-        duration: const Duration(milliseconds: 180),
+        targetContext,
+        duration: disableAnimations
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
         alignment: 0.18,
       );
@@ -228,8 +231,15 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
           _measuredHeights[_identityFor(widget.turns[later])] ??
           _estimatedTurnHeight;
     }
+    final targetOffset = estimatedOffset
+        .clamp(0, scroll.position.maxScrollExtent)
+        .toDouble();
+    if (disableAnimations) {
+      scroll.jumpTo(targetOffset);
+      return;
+    }
     await scroll.animateTo(
-      estimatedOffset.clamp(0, scroll.position.maxScrollExtent),
+      targetOffset,
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
     );
@@ -348,10 +358,16 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
                                     ? null
                                     : _showEarlier,
                                 icon: widget.historyLoading
-                                    ? const SizedBox.square(
+                                    ? SizedBox.square(
                                         dimension: 16,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 1.7,
+                                          value:
+                                              MediaQuery.disableAnimationsOf(
+                                                context,
+                                              )
+                                              ? 0.75
+                                              : null,
                                         ),
                                       )
                                     : const Icon(
@@ -381,7 +397,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
             ),
           ),
         ),
-        if (!widget.mobile &&
+        if (!widget.compactLayout &&
             widget.horizontalPadding >= 24 &&
             visibleTurns.length > 1)
           Positioned(

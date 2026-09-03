@@ -20,6 +20,7 @@ import '../../../../core/utils/keyboard_modifier_utils.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../core/utils/zip_utils.dart';
 import '../../../../data/services/alias_resolver_service.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 
@@ -220,12 +221,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     style: IconButton.styleFrom(
                       foregroundColor: theme.colorScheme.primary,
                     ),
-                    visualDensity: PlatformCapabilities.current.hasTouchInput
+                    visualDensity: context.interactionPolicy.touchAvailable
                         ? VisualDensity.standard
                         : VisualDensity.compact,
-                    constraints: PlatformCapabilities.current.hasTouchInput
-                        ? const BoxConstraints.tightFor(width: 48, height: 48)
-                        : const BoxConstraints(),
+                    constraints: BoxConstraints.tightFor(
+                      width: context.interactionPolicy.minimumControlExtent,
+                      height: context.interactionPolicy.minimumControlExtent,
+                    ),
                     padding: const EdgeInsets.all(8),
                   ),
                 if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
@@ -238,12 +240,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     style: IconButton.styleFrom(
                       foregroundColor: theme.colorScheme.error,
                     ),
-                    visualDensity: PlatformCapabilities.current.hasTouchInput
+                    visualDensity: context.interactionPolicy.touchAvailable
                         ? VisualDensity.standard
                         : VisualDensity.compact,
-                    constraints: PlatformCapabilities.current.hasTouchInput
-                        ? const BoxConstraints.tightFor(width: 48, height: 48)
-                        : const BoxConstraints(),
+                    constraints: BoxConstraints.tightFor(
+                      width: context.interactionPolicy.minimumControlExtent,
+                      height: context.interactionPolicy.minimumControlExtent,
+                    ),
                     padding: const EdgeInsets.all(8),
                   ),
               ],
@@ -321,12 +324,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     style: IconButton.styleFrom(
                       foregroundColor: theme.colorScheme.primary,
                     ),
-                    visualDensity: PlatformCapabilities.current.hasTouchInput
+                    visualDensity: context.interactionPolicy.touchAvailable
                         ? VisualDensity.standard
                         : VisualDensity.compact,
-                    constraints: PlatformCapabilities.current.hasTouchInput
-                        ? const BoxConstraints.tightFor(width: 48, height: 48)
-                        : const BoxConstraints(),
+                    constraints: BoxConstraints.tightFor(
+                      width: context.interactionPolicy.minimumControlExtent,
+                      height: context.interactionPolicy.minimumControlExtent,
+                    ),
                     padding: const EdgeInsets.all(8),
                   ),
                 if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
@@ -339,12 +343,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     style: IconButton.styleFrom(
                       foregroundColor: theme.colorScheme.error,
                     ),
-                    visualDensity: PlatformCapabilities.current.hasTouchInput
+                    visualDensity: context.interactionPolicy.touchAvailable
                         ? VisualDensity.standard
                         : VisualDensity.compact,
-                    constraints: PlatformCapabilities.current.hasTouchInput
-                        ? const BoxConstraints.tightFor(width: 48, height: 48)
-                        : const BoxConstraints(),
+                    constraints: BoxConstraints.tightFor(
+                      width: context.interactionPolicy.minimumControlExtent,
+                      height: context.interactionPolicy.minimumControlExtent,
+                    ),
                     padding: const EdgeInsets.all(8),
                   ),
               ],
@@ -1509,6 +1514,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     ImageGenerationState state,
     ThemeData theme,
   ) {
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final minimumHeight = policyExtent < 44 ? 44.0 : policyExtent;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1527,7 +1534,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               label: Text(
                 '${context.l10n.common_pack} (${_selectedIds.length})',
               ),
-              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size(0, minimumHeight),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -1539,7 +1548,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               label: Text(
                 '${context.l10n.image_save} (${_selectedIds.length})',
               ),
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+              style: FilledButton.styleFrom(
+                minimumSize: Size(0, minimumHeight),
+              ),
             ),
           ),
         ],

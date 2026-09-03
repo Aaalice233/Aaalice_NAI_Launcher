@@ -14,6 +14,7 @@ import '../../../../core/utils/vibe_library_path_helper.dart';
 import '../../../../data/services/local_onnx_model_service.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../widgets/cache_statistics_tile.dart';
 import '../widgets/data_source_cache_settings.dart';
 import '../widgets/gallery_cache_actions.dart';
@@ -119,25 +120,16 @@ class _StorageSettingsSectionState
   }
 
   Future<void> _clearLocalOnnxTaggerFiles() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.delete_outline),
-        title: Text(context.l10n.settings_clearLocalOnnxModelsTitle),
-        content: Text(context.l10n.settings_clearLocalOnnxModelsContent),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(context.l10n.common_delete),
-          ),
-        ],
-      ),
+      title: context.l10n.settings_clearLocalOnnxModelsTitle,
+      content: context.l10n.settings_clearLocalOnnxModelsContent,
+      confirmText: context.l10n.common_delete,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await ref.read(localOnnxModelServiceProvider).clearManagedTaggerFiles();
     if (mounted) setState(() {});
   }
@@ -335,12 +327,25 @@ class _StorageSettingsSectionState
         ),
         SettingsCard(
           title: context.l10n.settings_storageCacheSection,
-          child: const Column(
+          child: Column(
             children: [
               // 缓存统计
-              CacheStatisticsTile(),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final needsScrollableMetrics =
+                      constraints.maxWidth < 480 &&
+                      MediaQuery.textScalerOf(context).scale(1) > 1.6;
+                  if (!needsScrollableMetrics) {
+                    return const CacheStatisticsTile();
+                  }
+                  return const SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(width: 480, child: CacheStatisticsTile()),
+                  );
+                },
+              ),
               // 画廊缓存操作（清除缓存 + 重建索引）
-              GalleryCacheActions(),
+              const GalleryCacheActions(),
             ],
           ),
         ),
@@ -486,26 +491,17 @@ class _HiveStoragePathTileState extends State<HiveStoragePathTile> {
 
       if (result != null && context.mounted) {
         // 显示警告：更改存储路径需要重启应用
-        final confirmed = await showDialog<bool>(
+        final confirmed = await ThemedConfirmDialog.show(
           context: context,
-          builder: (dialogContext) => AlertDialog(
-            icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-            title: Text(context.l10n.settings_restartRequiredTitle),
-            content: Text(context.l10n.settings_changePathConfirm),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(context.l10n.common_cancel),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(context.l10n.common_confirm),
-              ),
-            ],
-          ),
+          title: context.l10n.settings_restartRequiredTitle,
+          content: context.l10n.settings_changePathConfirm,
+          confirmText: context.l10n.common_confirm,
+          cancelText: context.l10n.common_cancel,
+          type: ThemedConfirmDialogType.warning,
+          icon: Icons.warning_amber_rounded,
         );
 
-        if (confirmed == true) {
+        if (confirmed) {
           await _hiveHelper.setCustomPath(result);
           setState(() {});
 
@@ -525,26 +521,17 @@ class _HiveStoragePathTileState extends State<HiveStoragePathTile> {
   }
 
   Future<void> _resetToDefault(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-        title: Text(context.l10n.settings_restartRequiredTitle),
-        content: Text(context.l10n.settings_resetPathConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(context.l10n.common_confirm),
-          ),
-        ],
-      ),
+      title: context.l10n.settings_restartRequiredTitle,
+      content: context.l10n.settings_resetPathConfirm,
+      confirmText: context.l10n.common_confirm,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.warning,
+      icon: Icons.warning_amber_rounded,
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
       await _hiveHelper.resetToDefault();
       setState(() {});
 

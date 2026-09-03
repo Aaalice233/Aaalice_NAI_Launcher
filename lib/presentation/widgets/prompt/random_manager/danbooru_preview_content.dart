@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../providers/danbooru_preview_provider.dart';
 import '../../../widgets/common/hover_preview_card.dart';
+import '../../common/translated_tag_text.dart';
 
 /// Tag Group 预览内容组件
 class TagGroupPreviewContent extends ConsumerWidget {
@@ -185,7 +186,7 @@ class _TagChip extends StatelessWidget {
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
+      child: TranslatedTagText(
         tag,
         style: TextStyle(fontSize: 11, color: colorScheme.onSurface),
       ),

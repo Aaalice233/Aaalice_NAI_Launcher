@@ -47,6 +47,8 @@ class _StackedAreaChartState extends State<StackedAreaChart>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool _entranceStarted = false;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -59,7 +61,24 @@ class _StackedAreaChartState extends State<StackedAreaChart>
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
-    _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 1;
+      _entranceStarted = true;
+    } else if (!_entranceStarted) {
+      _entranceStarted = true;
+      _controller.forward();
+    }
   }
 
   @override

@@ -8,6 +8,8 @@ import '../../../data/models/online_gallery/quick_tag_cloud_catalog.dart';
 import '../../../data/models/online_gallery/quick_tag_cloud_codex.dart';
 import '../../../data/services/online_gallery/quick_tag_cloud_access.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/quick_tag_cloud_gallery_provider.dart';
 
@@ -119,111 +121,99 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
       });
     }
 
-    final filterControls = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        if (!widget.favoritesMode)
-          SegmentedButton<QuickTagCloudBrowseScope>(
-            segments: [
-              ButtonSegment(
-                value: QuickTagCloudBrowseScope.catalog,
-                icon: const Icon(Icons.auto_stories_outlined, size: 16),
-                label: Text(l10n.onlineGallery_codexBrowse),
+    Future<void> selectScope(QuickTagCloudBrowseScope scope) async {
+      ref.read(quickTagCloudFilterProvider.notifier).selectScope(scope);
+      await widget.onFiltersChanged();
+    }
+
+    final scopeControl = widget.favoritesMode
+        ? null
+        : _ScopeControl(
+            selected: query.scope,
+            stacked: widget.wrapControls,
+            onSelected: selectScope,
+          );
+    final sourceControls = <Widget>[
+      _ToolbarButton(
+        icon: Icons.menu_book_outlined,
+        label: selectedMeta?.title ?? l10n.onlineGallery_codexAll,
+        loading: catalogValue.isLoading,
+        expanded: widget.wrapControls,
+        onPressed: catalog == null
+            ? null
+            : () => _showCodexPicker(
+                context,
+                catalog,
+                query,
+                codexValue?.valueOrNull,
+                allowNsfw: allowNsfw,
               ),
-              ButtonSegment(
-                value: QuickTagCloudBrowseScope.latest,
-                icon: const Icon(Icons.new_releases_outlined, size: 16),
-                label: Text(l10n.onlineGallery_codexLatest),
-              ),
-              ButtonSegment(
-                value: QuickTagCloudBrowseScope.recent,
-                icon: const Icon(Icons.history, size: 16),
-                label: Text(l10n.onlineGallery_codexRecent),
-              ),
-            ],
-            selected: {query.scope},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) async {
-              ref
-                  .read(quickTagCloudFilterProvider.notifier)
-                  .selectScope(selection.single);
-              await widget.onFiltersChanged();
-            },
+      ),
+      _ToolbarButton(
+        icon: Icons.account_tree_outlined,
+        label: query.categoryPath.isEmpty
+            ? l10n.onlineGallery_codexAllCategories
+            : query.categoryPath.join(' / '),
+        loading: (codexValue?.isLoading ?? false) || _openingCategoryPicker,
+        expanded: widget.wrapControls,
+        onPressed: query.codexId == 'all' || selectedCodexLocked
+            ? null
+            : () => _openCategoryPicker(query.codexId, query.categoryPath),
+      ),
+      _ToolbarButton(
+        icon: Icons.tune,
+        label: l10n.common_filter,
+        expanded: widget.wrapControls,
+        onPressed: catalog == null
+            ? null
+            : () => _showFilterDialog(context, selectedMeta, query),
+      ),
+      if (catalog?.isOffline == true)
+        Tooltip(
+          message: catalog!.refreshError?.toString() ?? '',
+          child: Chip(
+            avatar: const Icon(Icons.cloud_off_outlined, size: 16),
+            label: Text(l10n.onlineGallery_codexOffline),
+            visualDensity: VisualDensity.compact,
           ),
-        _ToolbarButton(
-          icon: Icons.menu_book_outlined,
-          label: selectedMeta?.title ?? l10n.onlineGallery_codexAll,
-          loading: catalogValue.isLoading,
-          onPressed: catalog == null
-              ? null
-              : () => _showCodexPicker(
-                  context,
-                  catalog,
-                  query,
-                  codexValue?.valueOrNull,
-                  allowNsfw: allowNsfw,
-                ),
         ),
-        _ToolbarButton(
-          icon: Icons.account_tree_outlined,
-          label: query.categoryPath.isEmpty
-              ? l10n.onlineGallery_codexAllCategories
-              : query.categoryPath.join(' / '),
-          loading: (codexValue?.isLoading ?? false) || _openingCategoryPicker,
-          onPressed: query.codexId == 'all' || selectedCodexLocked
-              ? null
-              : () => _openCategoryPicker(query.codexId, query.categoryPath),
-        ),
-        _ToolbarButton(
-          icon: Icons.tune,
-          label: l10n.common_filter,
-          onPressed: catalog == null
-              ? null
-              : () => _showFilterDialog(context, selectedMeta, query),
-        ),
-        if (catalog?.isOffline == true)
-          Tooltip(
-            message: catalog!.refreshError?.toString() ?? '',
-            child: Chip(
-              avatar: const Icon(Icons.cloud_off_outlined, size: 16),
-              label: Text(l10n.onlineGallery_codexOffline),
-              visualDensity: VisualDensity.compact,
-            ),
-          ),
-        if (codexValue?.valueOrNull?.loadSource ==
-                QuickTagCloudCodexLoadSource.fallback ||
-            codexValue?.valueOrNull?.loadSource ==
-                QuickTagCloudCodexLoadSource.previousRelease)
-          Tooltip(
-            message:
+      if (codexValue?.valueOrNull?.loadSource ==
+              QuickTagCloudCodexLoadSource.fallback ||
+          codexValue?.valueOrNull?.loadSource ==
+              QuickTagCloudCodexLoadSource.previousRelease)
+        Tooltip(
+          message:
+              codexValue?.valueOrNull?.loadSource ==
+                  QuickTagCloudCodexLoadSource.previousRelease
+              ? l10n.onlineGallery_codexPreviousRelease
+              : l10n.onlineGallery_codexExternalFallback,
+          child: Semantics(
+            label:
                 codexValue?.valueOrNull?.loadSource ==
                     QuickTagCloudCodexLoadSource.previousRelease
                 ? l10n.onlineGallery_codexPreviousRelease
                 : l10n.onlineGallery_codexExternalFallback,
-            child: Semantics(
-              label:
-                  codexValue?.valueOrNull?.loadSource ==
-                      QuickTagCloudCodexLoadSource.previousRelease
-                  ? l10n.onlineGallery_codexPreviousRelease
-                  : l10n.onlineGallery_codexExternalFallback,
-              child: Icon(
-                Icons.cached_outlined,
-                size: 18,
-                color: Theme.of(context).colorScheme.tertiary,
-              ),
-            ),
-          ),
-        if (catalogValue.hasError)
-          Tooltip(
-            message: catalogValue.error.toString(),
             child: Icon(
-              Icons.error_outline,
-              color: Theme.of(context).colorScheme.error,
+              Icons.cached_outlined,
+              size: 18,
+              color: Theme.of(context).colorScheme.tertiary,
             ),
           ),
-      ],
+        ),
+      if (catalogValue.hasError)
+        Tooltip(
+          message: catalogValue.error.toString(),
+          child: Icon(
+            Icons.error_outline,
+            color: Theme.of(context).colorScheme.error,
+          ),
+        ),
+    ];
+    final filterControls = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [if (scopeControl != null) scopeControl, ...sourceControls],
     );
 
     final contributorsButton = selectedMeta == null
@@ -231,7 +221,13 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
         : IconButton(
             key: const ValueKey('quick-tag-cloud-contributors'),
             tooltip: l10n.onlineGallery_codexContributors,
-            visualDensity: VisualDensity.compact,
+            constraints: BoxConstraints.tightFor(
+              width: context.interactionPolicy.minimumControlExtent,
+              height: context.interactionPolicy.minimumControlExtent,
+            ),
+            visualDensity: context.interactionPolicy.prefersTouchPresentation
+                ? VisualDensity.standard
+                : VisualDensity.compact,
             onPressed: () => _showContributors(
               context,
               codexValue?.valueOrNull?.asMediaMeta() ?? selectedMeta,
@@ -243,10 +239,18 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
         width: double.infinity,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            filterControls,
-            if (contributorsButton != null) contributorsButton,
+            if (scopeControl != null) scopeControl,
+            if (scopeControl != null) const SizedBox(height: 8),
+            for (var index = 0; index < sourceControls.length; index++) ...[
+              sourceControls[index],
+              if (index != sourceControls.length - 1) const SizedBox(height: 8),
+            ],
+            if (contributorsButton != null) ...[
+              const SizedBox(height: 8),
+              Align(alignment: Alignment.centerLeft, child: contributorsButton),
+            ],
           ],
         ),
       );
@@ -281,62 +285,53 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
     required bool allowNsfw,
   }) async {
     final l10n = AppLocalizations.of(context)!;
-    final selected = await showDialog<String>(
+    final selected = await AdaptivePresenter.showPanel<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.onlineGallery_codexSelect),
-        content: SizedBox(
-          width: 620,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 620),
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                ListTile(
-                  selected: query.codexId == 'all',
-                  leading: const Icon(Icons.library_books_outlined),
-                  title: Text(l10n.onlineGallery_codexAll),
-                  onTap: () => Navigator.pop(dialogContext, 'all'),
-                ),
-                const Divider(),
-                for (final meta in catalog.codexes)
-                  Builder(
-                    builder: (context) {
-                      final displayed = selectedCodex?.id == meta.id
-                          ? selectedCodex!.asMediaMeta()
-                          : meta;
-                      return ListTile(
-                        selected: query.codexId == meta.id,
-                        leading: Icon(
-                          meta.nsfw
-                              ? Icons.lock_outline
-                              : Icons.menu_book_outlined,
-                        ),
-                        title: Text(displayed.title),
-                        subtitle: Text(
-                          '${displayed.author.isEmpty ? displayed.id : displayed.author}\n'
-                          '${l10n.onlineGallery_codexEntryCount(displayed.entryCount, displayed.imagedCount)}',
-                        ),
-                        isThreeLine: true,
-                        trailing: Text(displayed.version),
-                        onTap: meta.nsfw && !allowNsfw
-                            ? () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      l10n.onlineGallery_codexBookLocked,
-                                    ),
-                                  ),
-                                );
-                              }
-                            : () => Navigator.pop(dialogContext, meta.id),
-                      );
-                    },
-                  ),
-              ],
-            ),
+      title: l10n.onlineGallery_codexSelect,
+      initialChildSize: 0.82,
+      sideSheetWidth: 680,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          ListTile(
+            selected: query.codexId == 'all',
+            leading: const Icon(Icons.library_books_outlined),
+            title: Text(l10n.onlineGallery_codexAll),
+            onTap: () => Navigator.pop(panelContext, 'all'),
           ),
-        ),
+          const Divider(),
+          for (final meta in catalog.codexes)
+            Builder(
+              builder: (context) {
+                final displayed = selectedCodex?.id == meta.id
+                    ? selectedCodex!.asMediaMeta()
+                    : meta;
+                return ListTile(
+                  selected: query.codexId == meta.id,
+                  leading: Icon(
+                    meta.nsfw ? Icons.lock_outline : Icons.menu_book_outlined,
+                  ),
+                  title: Text(displayed.title),
+                  subtitle: Text(
+                    '${displayed.author.isEmpty ? displayed.id : displayed.author}\n'
+                    '${l10n.onlineGallery_codexEntryCount(displayed.entryCount, displayed.imagedCount)}\n'
+                    '${displayed.version}',
+                  ),
+                  isThreeLine: true,
+                  onTap: meta.nsfw && !allowNsfw
+                      ? () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(l10n.onlineGallery_codexBookLocked),
+                            ),
+                          );
+                        }
+                      : () => Navigator.pop(panelContext, meta.id),
+                );
+              },
+            ),
+        ],
       ),
     );
     if (!mounted || selected == null || selected == query.codexId) return;
@@ -384,33 +379,23 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
     List<String> selectedPath,
   ) async {
     final l10n = AppLocalizations.of(context)!;
-    final selected = await showDialog<List<String>>(
+    final selected = await AdaptivePresenter.showPanel<List<String>>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.onlineGallery_codexCategory),
-        content: SizedBox(
-          width: 520,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 600),
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                ListTile(
-                  selected: selectedPath.isEmpty,
-                  leading: const Icon(Icons.apps),
-                  title: Text(l10n.onlineGallery_codexAllCategories),
-                  onTap: () => Navigator.pop(dialogContext, <String>[]),
-                ),
-                ..._categoryTiles(
-                  dialogContext,
-                  codex.tree,
-                  const [],
-                  selectedPath,
-                ),
-              ],
-            ),
+      title: l10n.onlineGallery_codexCategory,
+      initialChildSize: 0.82,
+      sideSheetWidth: 580,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          ListTile(
+            selected: selectedPath.isEmpty,
+            leading: const Icon(Icons.apps),
+            title: Text(l10n.onlineGallery_codexAllCategories),
+            onTap: () => Navigator.pop(panelContext, <String>[]),
           ),
-        ),
+          ..._categoryTiles(panelContext, codex.tree, const [], selectedPath),
+        ],
       ),
     );
     if (!mounted || selected == null) return;
@@ -526,85 +511,100 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
     final allowNsfw = QuickTagCloudAccess.allowsNsfw(widget.selectedRatings);
     final allowR18g = QuickTagCloudAccess.allowsR18g(widget.selectedRatings);
     var changed = false;
-    final apply = await showDialog<bool>(
+    final apply = await AdaptivePresenter.showPanel<bool>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: Text(l10n.common_filter),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.onlineGallery_codexMediaFilter,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedButton<QuickTagCloudMediaFilter>(
-                    segments: [
-                      ButtonSegment(
-                        value: QuickTagCloudMediaFilter.all,
-                        label: Text(l10n.onlineGallery_codexAllEntries),
+      title: l10n.common_filter,
+      initialChildSize: 0.72,
+      sideSheetWidth: 560,
+      builder: (panelContext, scrollController) => StatefulBuilder(
+        builder: (panelContext, setPanelState) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.onlineGallery_codexMediaFilter,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              RadioGroup<QuickTagCloudMediaFilter>(
+                groupValue: mediaFilter,
+                onChanged: (value) {
+                  if (value == null) return;
+                  changed = true;
+                  setPanelState(() => mediaFilter = value);
+                },
+                child: Column(
+                  children: [
+                    for (final entry in [
+                      (
+                        QuickTagCloudMediaFilter.all,
+                        l10n.onlineGallery_codexAllEntries,
                       ),
-                      ButtonSegment(
-                        value: QuickTagCloudMediaFilter.withImages,
-                        label: Text(l10n.onlineGallery_codexWithImages),
+                      (
+                        QuickTagCloudMediaFilter.withImages,
+                        l10n.onlineGallery_codexWithImages,
                       ),
-                      ButtonSegment(
-                        value: QuickTagCloudMediaFilter.withoutImages,
-                        label: Text(l10n.onlineGallery_codexWithoutImages),
+                      (
+                        QuickTagCloudMediaFilter.withoutImages,
+                        l10n.onlineGallery_codexWithoutImages,
                       ),
-                    ],
-                    selected: {mediaFilter},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (selection) {
-                      changed = true;
-                      setDialogState(() => mediaFilter = selection.single);
-                    },
-                  ),
-                  if (meta != null && meta.updateFilters.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      l10n.onlineGallery_codexUpdateBatch,
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: updateFilterId,
-                      items: [
-                        DropdownMenuItem(
-                          value: '',
-                          child: Text(l10n.onlineGallery_codexAllEntries),
-                        ),
-                        for (final filter in meta.updateFilters)
-                          DropdownMenuItem(
-                            value: filter.id,
-                            child: Text(filter.label),
-                          ),
-                      ],
-                      onChanged: (value) {
-                        changed = true;
-                        setDialogState(() => updateFilterId = value ?? '');
-                      },
-                    ),
+                    ])
+                      RadioListTile<QuickTagCloudMediaFilter>(
+                        value: entry.$1,
+                        title: Text(entry.$2),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                   ],
+                ),
+              ),
+              if (meta != null && meta.updateFilters.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text(
+                  l10n.onlineGallery_codexUpdateBatch,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: updateFilterId,
+                  isExpanded: true,
+                  items: [
+                    DropdownMenuItem(
+                      value: '',
+                      child: Text(l10n.onlineGallery_codexAllEntries),
+                    ),
+                    for (final filter in meta.updateFilters)
+                      DropdownMenuItem(
+                        value: filter.id,
+                        child: Text(filter.label),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    changed = true;
+                    setPanelState(() => updateFilterId = value ?? '');
+                  },
+                ),
+              ],
+              const SizedBox(height: 24),
+              OverflowBar(
+                alignment: MainAxisAlignment.end,
+                overflowAlignment: OverflowBarAlignment.end,
+                spacing: 12,
+                overflowSpacing: 8,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(panelContext, false),
+                    child: Text(l10n.common_cancel),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(panelContext, true),
+                    child: Text(l10n.common_apply),
+                  ),
                 ],
               ),
-            ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(l10n.common_cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(l10n.common_apply),
-            ),
-          ],
         ),
       ),
     );
@@ -653,70 +653,147 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
     QuickTagCloudCodexMeta meta,
   ) async {
     final l10n = AppLocalizations.of(context)!;
-    await showDialog<void>(
+    await AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(meta.title),
-        content: SizedBox(
-          width: 520,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 560),
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(meta.author),
-                  subtitle: Text(
-                    l10n.onlineGallery_codexEntryCount(
-                      meta.entryCount,
-                      meta.imagedCount,
-                    ),
-                  ),
-                  trailing: Text(meta.version),
-                ),
-                if (meta.source.trim().isNotEmpty)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.dataset_outlined),
-                    title: Text(l10n.onlineGallery_codexDeclaredSource),
-                    subtitle: SelectableText(meta.source.trim()),
-                  ),
-                const Divider(),
-                for (final contributor in meta.contributors)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.person_outline),
-                    title: Text(contributor.name),
-                    subtitle: contributor.role.isEmpty
-                        ? null
-                        : Text(contributor.role),
-                  ),
-                for (final link in meta.links)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.open_in_new),
-                    title: Text(link.label.isEmpty ? link.url : link.label),
-                    subtitle: Text(link.url),
-                    onTap: () => launchUrl(Uri.parse(link.url)),
-                  ),
-              ],
+      title: meta.title,
+      initialChildSize: 0.78,
+      sideSheetWidth: 580,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.all(20),
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(meta.author),
+            subtitle: Text(
+              '${l10n.onlineGallery_codexEntryCount(meta.entryCount, meta.imagedCount)}\n${meta.version}',
             ),
           ),
-        ),
-        actions: [
-          TextButton.icon(
-            key: const ValueKey('quick-tag-cloud-open-origin'),
-            onPressed: () => _openCodexOrigin(dialogContext, meta),
-            icon: const Icon(Icons.open_in_new, size: 17),
-            label: Text(l10n.onlineGallery_codexOpenOrigin),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(l10n.common_close),
+          if (meta.source.trim().isNotEmpty)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.dataset_outlined),
+              title: Text(l10n.onlineGallery_codexDeclaredSource),
+              subtitle: SelectableText(meta.source.trim()),
+            ),
+          const Divider(),
+          for (final contributor in meta.contributors)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.person_outline),
+              title: Text(contributor.name),
+              subtitle: contributor.role.isEmpty
+                  ? null
+                  : Text(contributor.role),
+            ),
+          for (final link in meta.links)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.open_in_new),
+              title: Text(link.label.isEmpty ? link.url : link.label),
+              subtitle: Text(link.url),
+              onTap: () => launchUrl(Uri.parse(link.url)),
+            ),
+          const SizedBox(height: 16),
+          OverflowBar(
+            alignment: MainAxisAlignment.end,
+            overflowAlignment: OverflowBarAlignment.end,
+            spacing: 12,
+            overflowSpacing: 8,
+            children: [
+              TextButton.icon(
+                key: const ValueKey('quick-tag-cloud-open-origin'),
+                onPressed: () => _openCodexOrigin(panelContext, meta),
+                icon: const Icon(Icons.open_in_new, size: 17),
+                label: Text(l10n.onlineGallery_codexOpenOrigin),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(panelContext),
+                child: Text(l10n.common_close),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ScopeControl extends StatelessWidget {
+  const _ScopeControl({
+    required this.selected,
+    required this.stacked,
+    required this.onSelected,
+  });
+
+  final QuickTagCloudBrowseScope selected;
+  final bool stacked;
+  final Future<void> Function(QuickTagCloudBrowseScope scope) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final entries = [
+      (
+        QuickTagCloudBrowseScope.catalog,
+        Icons.auto_stories_outlined,
+        l10n.onlineGallery_codexBrowse,
+      ),
+      (
+        QuickTagCloudBrowseScope.latest,
+        Icons.new_releases_outlined,
+        l10n.onlineGallery_codexLatest,
+      ),
+      (
+        QuickTagCloudBrowseScope.recent,
+        Icons.history,
+        l10n.onlineGallery_codexRecent,
+      ),
+    ];
+    if (!stacked) {
+      return SegmentedButton<QuickTagCloudBrowseScope>(
+        segments: [
+          for (final entry in entries)
+            ButtonSegment(
+              value: entry.$1,
+              icon: Icon(entry.$2, size: 16),
+              label: Text(entry.$3),
+            ),
+        ],
+        selected: {selected},
+        showSelectedIcon: false,
+        onSelectionChanged: (selection) => onSelected(selection.single),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < entries.length; index++) ...[
+          TextButton.icon(
+            onPressed: () => onSelected(entries[index].$1),
+            icon: Icon(entries[index].$2, size: 18),
+            label: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(entries[index].$3),
+            ),
+            style: TextButton.styleFrom(
+              minimumSize: Size(
+                double.infinity,
+                context.interactionPolicy.minimumControlExtent,
+              ),
+              foregroundColor: selected == entries[index].$1
+                  ? Theme.of(context).colorScheme.onPrimaryContainer
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+              backgroundColor: selected == entries[index].$1
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : Theme.of(context).colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.4),
+            ),
+          ),
+          if (index != entries.length - 1) const SizedBox(height: 4),
+        ],
+      ],
     );
   }
 }
@@ -727,12 +804,14 @@ class _ToolbarButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.loading = false,
+    this.expanded = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onPressed;
   final bool loading;
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -745,14 +824,30 @@ class _ToolbarButton extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : Icon(icon, size: 17),
-      label: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 220),
-        child: Text(label, overflow: TextOverflow.ellipsis),
+      label: Align(
+        widthFactor: expanded ? null : 1,
+        alignment: AlignmentDirectional.centerStart,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: expanded ? double.infinity : 220,
+          ),
+          child: Text(
+            label,
+            maxLines: expanded ? null : 1,
+            overflow: expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+          ),
+        ),
       ),
       style: TextButton.styleFrom(
         foregroundColor: colors.onSurfaceVariant,
         backgroundColor: colors.surfaceContainerHighest.withValues(alpha: 0.4),
-        visualDensity: VisualDensity.compact,
+        minimumSize: Size(
+          expanded ? double.infinity : 0,
+          context.interactionPolicy.minimumControlExtent,
+        ),
+        visualDensity: context.interactionPolicy.prefersTouchPresentation
+            ? VisualDensity.standard
+            : VisualDensity.compact,
       ),
     );
   }

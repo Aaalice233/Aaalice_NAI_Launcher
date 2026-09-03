@@ -8,12 +8,10 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/uc_preset_provider.dart';
 import '../../../../data/services/alias_resolver_service.dart';
+import '../../../adaptive/interaction_policy.dart';
 import 'prompt_input_controller.dart';
 import 'prompt_input_models.dart';
 import 'prompt_input_tooltips.dart';
-
-bool shouldUseRichPromptTypeTooltip(TargetPlatform platform) =>
-    platform != TargetPlatform.windows;
 
 class PromptTypeSwitch extends ConsumerWidget {
   const PromptTypeSwitch({
@@ -49,52 +47,66 @@ class PromptTypeSwitch extends ConsumerWidget {
     final characters = ref.watch(characterPromptNotifierProvider);
     final aliases = ref.read(aliasResolverServiceProvider.notifier);
 
-    final positive = PromptTypeButton(
-      icon: Icons.auto_awesome,
-      label: context.l10n.prompt_positive,
-      count: controller.promptCount,
-      isSelected: !controller.isNegativeMode,
-      color: theme.colorScheme.primary,
-      compact: compact,
-      onTap: () => commands.setNegativeMode(false),
-      tooltipBuilder: (theme) => PositivePromptTooltip(
-        theme: theme,
-        userPrompt: controller.promptController.text,
-        prefixes: fixedTags.enabledPrefixes,
-        suffixes: fixedTags.enabledSuffixes,
-        qualityContent: qualityContent,
-        characters: characters.characters,
-        globalAiChoice: characters.globalAiChoice,
-        l10n: context.l10n,
-        aliasResolver: aliases,
-      ),
-    );
-    final negative = PromptTypeButton(
-      icon: Icons.block,
-      label: context.l10n.prompt_negative,
-      count: controller.negativePromptCount,
-      isSelected: controller.isNegativeMode,
-      color: theme.colorScheme.error,
-      compact: compact,
-      onTap: () => commands.setNegativeMode(true),
-      tooltipBuilder: (theme) => NegativePromptTooltip(
-        theme: theme,
-        userNegativePrompt: controller.negativeController.text,
-        prefixes: fixedTags.negativeEnabledPrefixes,
-        suffixes: fixedTags.negativeEnabledSuffixes,
-        ucPresetContent: ucContent,
-        l10n: context.l10n,
-        aliasResolver: aliases,
-      ),
-    );
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        controller.promptController,
+        controller.negativeController,
+      ]),
+      builder: (context, _) {
+        final positive = PromptTypeButton(
+          key: const ValueKey('generation_prompt_positive_mode'),
+          icon: Icons.auto_awesome,
+          label: context.l10n.prompt_positive,
+          count: controller.promptCount,
+          isSelected: !controller.isNegativeMode,
+          color: theme.colorScheme.primary,
+          compact: compact,
+          onTap: () => commands.setNegativeMode(false),
+          tooltipBuilder: (theme) => PositivePromptTooltip(
+            theme: theme,
+            userPrompt: controller.promptController.text,
+            prefixes: fixedTags.enabledPrefixes,
+            suffixes: fixedTags.enabledSuffixes,
+            qualityContent: qualityContent,
+            characters: characters.characters,
+            globalAiChoice: characters.globalAiChoice,
+            l10n: context.l10n,
+            aliasResolver: aliases,
+          ),
+        );
+        final negative = PromptTypeButton(
+          key: const ValueKey('generation_prompt_negative_mode'),
+          icon: Icons.block,
+          label: context.l10n.prompt_negative,
+          count: controller.negativePromptCount,
+          isSelected: controller.isNegativeMode,
+          color: theme.colorScheme.error,
+          compact: compact,
+          onTap: () => commands.setNegativeMode(true),
+          tooltipBuilder: (theme) => NegativePromptTooltip(
+            theme: theme,
+            userNegativePrompt: controller.negativeController.text,
+            prefixes: fixedTags.negativeEnabledPrefixes,
+            suffixes: fixedTags.negativeEnabledSuffixes,
+            ucPresetContent: ucContent,
+            l10n: context.l10n,
+            aliasResolver: aliases,
+          ),
+        );
 
-    return Row(
-      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-      children: [
-        if (expand) Expanded(child: positive) else positive,
-        SizedBox(width: compact ? 6 : 8),
-        if (expand) Expanded(child: negative) else negative,
-      ],
+        return SizedBox(
+          key: const ValueKey('generation_prompt_type_switch'),
+          width: expand ? double.infinity : null,
+          child: Row(
+            mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+            children: [
+              if (expand) Expanded(child: positive) else positive,
+              SizedBox(width: compact ? 6 : 8),
+              if (expand) Expanded(child: negative) else negative,
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -146,27 +158,37 @@ class _PromptTypeButtonState extends State<PromptTypeButton>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final transitionDuration = disableAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 200);
     final button = MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTapDown: (_) => _animation.forward(),
+        onTapDown: (_) {
+          if (!disableAnimations) _animation.forward();
+        },
         onTapUp: (_) {
-          _animation.reverse();
+          if (!disableAnimations) _animation.reverse();
           widget.onTap();
         },
-        onTapCancel: _animation.reverse,
+        onTapCancel: () {
+          if (!disableAnimations) _animation.reverse();
+        },
         child: AnimatedBuilder(
           animation: _scale,
-          builder: (context, child) =>
-              Transform.scale(scale: _scale.value, child: child),
+          builder: (context, child) => Transform.scale(
+            scale: disableAnimations ? 1 : _scale.value,
+            child: child,
+          ),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: transitionDuration,
             curve: Curves.easeOutCubic,
             constraints: const BoxConstraints(minHeight: 48),
             padding: EdgeInsets.symmetric(
-              horizontal: widget.compact ? 8 : 14,
+              horizontal: widget.compact ? 6 : 14,
               vertical: 8,
             ),
             decoration: BoxDecoration(
@@ -177,61 +199,48 @@ class _PromptTypeButtonState extends State<PromptTypeButton>
                   : theme.colorScheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Row(
-              mainAxisSize: widget.compact
-                  ? MainAxisSize.max
-                  : MainAxisSize.min,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: widget.isSelected
-                        ? widget.color.withValues(alpha: 0.15)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    widget.icon,
-                    size: 16,
-                    color: widget.isSelected
-                        ? widget.color
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-                SizedBox(width: widget.compact ? 5 : 8),
-                if (widget.compact)
-                  Expanded(child: _label(theme))
-                else
-                  _label(theme),
-                if (widget.count > 0 && !widget.compact) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: widget.isSelected
-                          ? widget.color.withValues(alpha: 0.2)
-                          : theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${widget.count}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final fillsAvailableWidth =
+                    widget.compact && constraints.hasBoundedWidth;
+                final label = _label(theme);
+                return Row(
+                  mainAxisSize: fillsAvailableWidth
+                      ? MainAxisSize.max
+                      : MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedContainer(
+                      duration: transitionDuration,
+                      padding: EdgeInsets.all(widget.compact ? 2 : 4),
+                      decoration: BoxDecoration(
+                        color: widget.isSelected
+                            ? widget.color.withValues(alpha: 0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        widget.icon,
+                        size: 16,
                         color: widget.isSelected
                             ? widget.color
                             : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.6,
+                                alpha: 0.5,
                               ),
                       ),
                     ),
-                  ),
-                ],
-              ],
+                    SizedBox(width: widget.compact ? 4 : 8),
+                    if (fillsAvailableWidth) Flexible(child: label) else label,
+                    SizedBox(width: widget.compact ? 3 : 6),
+                    PromptTagCountBadge(
+                      count: widget.count,
+                      selected: widget.isSelected,
+                      color: widget.color,
+                      compact: widget.compact,
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -239,14 +248,25 @@ class _PromptTypeButtonState extends State<PromptTypeButton>
     );
     final tooltipBuilder = widget.tooltipBuilder;
     if (tooltipBuilder == null) return button;
-    final rich = shouldUseRichPromptTypeTooltip(theme.platform);
+    final rich = context.interactionPolicy.precisePointerAvailable;
     return Tooltip(
       message: rich ? null : widget.label,
       richMessage: rich
           ? WidgetSpan(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: tooltipBuilder(theme),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableHeight = MediaQuery.sizeOf(context).height;
+                  final maxHeight = (availableHeight * 0.72)
+                      .clamp(180.0, 520.0)
+                      .toDouble();
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 420,
+                      maxHeight: maxHeight,
+                    ),
+                    child: SingleChildScrollView(child: tooltipBuilder(theme)),
+                  );
+                },
               ),
             )
           : null,
@@ -282,4 +302,42 @@ class _PromptTypeButtonState extends State<PromptTypeButton>
       letterSpacing: 0.3,
     ),
   );
+}
+
+class PromptTagCountBadge extends StatelessWidget {
+  const PromptTagCountBadge({
+    super.key,
+    required this.count,
+    required this.selected,
+    required this.color,
+    this.compact = false,
+  });
+
+  final int count;
+  final bool selected;
+  final Color color;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: selected
+            ? color.withValues(alpha: 0.2)
+            : colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$count',
+        style: TextStyle(
+          fontSize: compact ? 10 : 11,
+          fontWeight: FontWeight.w600,
+          color: selected ? color : colors.onSurface.withValues(alpha: 0.6),
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+  }
 }

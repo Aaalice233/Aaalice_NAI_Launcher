@@ -21,8 +21,12 @@ CloudDriveOAuthRuntime createCloudDriveOAuthRuntime(
 }) {
   final resolved = config ?? CloudDriveOAuthConfig.fromDartDefines();
   final clients = <CloudDriveOAuthProvider, CloudDriveOAuthClient>{};
+  final diagnostics =
+      <CloudDriveOAuthProvider, CloudDriveOAuthConfigDiagnostic>{};
   for (final provider in CloudDriveOAuthProvider.values) {
-    if (!resolved.diagnose(provider).isConfigured) continue;
+    final diagnostic = resolved.diagnose(provider);
+    diagnostics[provider] = diagnostic;
+    if (!diagnostic.isConfigured) continue;
     final providerConfig = resolved.requireProvider(provider);
     clients[provider] = switch (resolved.platform) {
       CloudDriveOAuthPlatform.windows => LoopbackCloudDriveOAuthClient(
@@ -47,6 +51,7 @@ CloudDriveOAuthRuntime createCloudDriveOAuthRuntime(
     tokens: SecureCloudDriveOAuthTokenProvider(
       store: SecureCloudDriveOAuthSessionStore(secureStorage),
       clients: clients,
+      diagnostics: diagnostics,
     ),
   );
 }

@@ -104,6 +104,47 @@ void main() {
     expect(find.text('LOGIN_ROUTE_OPENED'), findsOneWidget);
   });
 
+  testWidgets('account section supports 320–1600 widths and 3x text', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in const [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 800));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
+            accountManagerNotifierProvider.overrideWith(
+              _EmptyAccountManagerNotifier.new,
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(3)),
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                padding: EdgeInsets.all(12),
+                child: AccountSettingsSection(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AccountSettingsSection), findsOneWidget);
+      expect(find.text('去登录'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+    }
+  });
+
   testWidgets('account profile sheet keeps logout visible in its footer', (
     tester,
   ) async {

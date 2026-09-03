@@ -77,7 +77,7 @@ class PositivePromptTooltip extends StatelessWidget {
           _section(
             Icons.star_rounded,
             l10n.qualityTags_positive,
-            Colors.amber,
+            theme.colorScheme.tertiary,
             qualityContent!,
             isDark,
           ),
