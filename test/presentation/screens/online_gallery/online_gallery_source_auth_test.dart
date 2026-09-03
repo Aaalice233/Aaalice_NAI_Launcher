@@ -26,6 +26,7 @@ import 'package:nai_launcher/presentation/providers/replication_queue_provider.d
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_content.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/app_branch_visibility.dart';
 import 'package:nai_launcher/presentation/widgets/bulk_action_bar.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
@@ -1376,6 +1377,15 @@ void main() {
       find.byKey(const ValueKey('online-gallery-pagination-bar')),
       findsOneWidget,
     );
+    final toolbarSurface = tester.widget<Container>(
+      find.byKey(const ValueKey('online-gallery-toolbar-tonal-surface')),
+    );
+    final toolbarTheme = Theme.of(
+      tester.element(
+        find.byKey(const ValueKey('online-gallery-toolbar-tonal-surface')),
+      ),
+    );
+    expect(toolbarSurface.color, sectionSurfaceColor(toolbarTheme.colorScheme));
     final primaryCenter = tester
         .getCenter(
           find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),

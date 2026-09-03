@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
-import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 /// Enhanced pagination bar with complete navigation features
 /// 增强分页栏，包含完整的导航功能
@@ -177,21 +177,18 @@ class _PaginationBarState extends State<PaginationBar> {
               vertical: narrow ? 0 : 10,
               horizontal: narrow ? 4 : 16,
             ),
-            decoration: BoxDecoration(
-              color: widget.tonalCard
-                  ? controlSurfaceColor(colorScheme)
-                  : isDark
-                  ? colorScheme.surfaceContainerHigh
-                  : colorScheme.surface,
-              border: widget.tonalCard
-                  ? null
-                  : Border(
+            decoration: widget.tonalCard
+                ? null
+                : BoxDecoration(
+                    color: isDark
+                        ? colorScheme.surfaceContainerHigh
+                        : colorScheme.surface,
+                    border: Border(
                       top: BorderSide(
                         color: theme.dividerColor.withValues(alpha: 0.2),
                       ),
                     ),
-              borderRadius: widget.tonalCard ? BorderRadius.circular(10) : null,
-            ),
+                  ),
             child: narrow
                 ? _buildNarrowLayout(
                     theme,
@@ -205,7 +202,7 @@ class _PaginationBarState extends State<PaginationBar> {
                 : _buildFullLayout(theme, colorScheme),
           );
           if (!widget.tonalCard) return bar;
-          return Padding(padding: const EdgeInsets.all(8), child: bar);
+          return GalleryCollectionFooterSurface(child: bar);
         },
       ),
     );

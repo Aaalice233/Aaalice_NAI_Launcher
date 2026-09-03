@@ -17,6 +17,7 @@ import '../../../../providers/quick_tag_cloud_gallery_provider.dart';
 import '../../../../providers/selection_mode_provider.dart';
 import '../../../../services/gallery_prompt_projection_service.dart';
 import '../../../../widgets/bulk_action_bar.dart';
+import '../../../../widgets/gallery/gallery_sidebar.dart';
 import '../../../online_gallery/online_gallery_screen_commands.dart';
 import '../../../online_gallery/online_gallery_screen_controller.dart';
 import 'online_gallery_search_reveal.dart';
@@ -156,18 +157,8 @@ class _OnlineGalleryToolbarPresenter {
       builder: (context, outerConstraints) {
         final sizeClass = WindowSizeClass.fromWidth(outerConstraints.maxWidth);
         final useMobileToolbar = sizeClass.isCompact;
-        return Container(
-          padding: useMobileToolbar
-              ? const EdgeInsets.fromLTRB(8, 8, 8, 7)
-              : const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            border: Border(
-              bottom: BorderSide(
-                color: theme.dividerColor.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
+        return GalleryCollectionToolbarSurface(
+          surfaceKey: const ValueKey('online-gallery-toolbar-tonal-surface'),
           child: LayoutBuilder(
             builder: (context, constraints) {
               if (useMobileToolbar) {

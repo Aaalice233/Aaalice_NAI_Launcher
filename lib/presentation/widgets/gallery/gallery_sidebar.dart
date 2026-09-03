@@ -26,13 +26,19 @@ abstract final class GalleryCollectionChrome {
 
 /// Full-width, borderless toolbar surface shared by collection workspaces.
 class GalleryCollectionToolbarSurface extends StatelessWidget {
-  const GalleryCollectionToolbarSurface({super.key, required this.child});
+  const GalleryCollectionToolbarSurface({
+    super.key,
+    required this.child,
+    this.surfaceKey,
+  });
 
   final Widget child;
+  final Key? surfaceKey;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: surfaceKey,
       width: double.infinity,
       constraints: const BoxConstraints(
         minHeight: GalleryCollectionChrome.toolbarHeight,
@@ -40,6 +46,36 @@ class GalleryCollectionToolbarSurface extends StatelessWidget {
       padding: GalleryCollectionChrome.toolbarPadding(context),
       color: sectionSurfaceColor(Theme.of(context).colorScheme),
       child: child,
+    );
+  }
+}
+
+/// Borderless footer card shared by collection and gallery pagination regions.
+class GalleryCollectionFooterSurface extends StatelessWidget {
+  const GalleryCollectionFooterSurface({
+    super.key,
+    required this.child,
+    this.surfaceKey,
+  });
+
+  final Widget child;
+  final Key? surfaceKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(GalleryCollectionChrome.regionGap),
+      child: Container(
+        key: surfaceKey,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: controlSurfaceColor(Theme.of(context).colorScheme),
+          borderRadius: BorderRadius.circular(
+            GalleryCollectionChrome.regionRadius,
+          ),
+        ),
+        child: child,
+      ),
     );
   }
 }

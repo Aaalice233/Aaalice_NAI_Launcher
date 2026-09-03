@@ -6,6 +6,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_pagination.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen_controller.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
 class _MockOnlineGalleryNotifier extends Mock
     implements OnlineGalleryNotifier {}
@@ -38,6 +39,7 @@ void main() {
               .height,
           greaterThan(48),
         );
+        _expectBorderlessFooterSurface(tester);
 
         final scrollable = find.byType(SingleChildScrollView);
         await tester.drag(scrollable, const Offset(-300, 0));
@@ -84,6 +86,7 @@ void main() {
             .height,
         greaterThan(48),
       );
+      _expectBorderlessFooterSurface(tester);
       await tester.ensureVisible(find.byIcon(Icons.replay));
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.replay).hitTestable(), findsOneWidget);
@@ -93,6 +96,19 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+}
+
+void _expectBorderlessFooterSurface(WidgetTester tester) {
+  final finder = find.byKey(
+    const ValueKey('online-gallery-footer-tonal-surface'),
+  );
+  final container = tester.widget<Container>(finder);
+  final decoration = container.decoration! as BoxDecoration;
+  final colorScheme = Theme.of(tester.element(finder)).colorScheme;
+
+  expect(decoration.color, controlSurfaceColor(colorScheme));
+  expect(decoration.border, isNull);
+  expect(decoration.borderRadius, isNotNull);
 }
 
 OnlineGalleryScreenController _createController() {
