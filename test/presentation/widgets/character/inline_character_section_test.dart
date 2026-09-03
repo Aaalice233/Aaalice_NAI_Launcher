@@ -264,8 +264,8 @@ void main() {
     expect(previewSize.height, lessThan(300));
     expect(find.text('角色预览'), findsOneWidget);
     expect(find.text('2 / 2 启用'), findsOneWidget);
-    expect(find.text('girl · red hair'), findsOneWidget);
-    expect(find.text('boy · blue hair'), findsOneWidget);
+    expect(find.text('girl, red hair'), findsOneWidget);
+    expect(find.text('boy, blue hair'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('collapsible-chevron-角色')));
     await tester.pumpAndSettle();
@@ -357,7 +357,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('+1'), findsOneWidget);
-    expect(find.text('girl · red hair · green eyes'), findsOneWidget);
+    expect(find.text('girl, red hair, green eyes'), findsOneWidget);
     expect(find.textContaining('smile'), findsNothing);
     expect(tester.takeException(), isNull);
 
