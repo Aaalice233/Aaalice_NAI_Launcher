@@ -330,32 +330,33 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                isPositive ? Icons.auto_awesome_rounded : Icons.block_rounded,
-                size: 15,
-                color: color,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  isPositive
-                      ? context.l10n.prompt_positive
-                      : context.l10n.prompt_negative,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
           Wrap(
-            spacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
             runSpacing: 4,
             children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isPositive
+                        ? Icons.auto_awesome_rounded
+                        : Icons.block_rounded,
+                    size: 15,
+                    color: color,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    isPositive
+                        ? context.l10n.prompt_positive
+                        : context.l10n.prompt_negative,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
               _buildPositionStat(
                 theme,
                 color: color,

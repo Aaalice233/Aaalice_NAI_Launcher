@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/gestures.dart';
@@ -935,6 +936,38 @@ void main() {
         find.descendant(of: section, matching: find.text('后缀 1')),
         findsOneWidget,
       );
+    }
+    for (final data in [
+      (section: positiveSection, labels: ('正面', '前缀 4', '后缀 1')),
+      (section: negativeSection, labels: ('负面', '前缀 1', '后缀 1')),
+    ]) {
+      final centers = [
+        tester
+            .getCenter(
+              find.descendant(
+                of: data.section,
+                matching: find.text(data.labels.$1),
+              ),
+            )
+            .dy,
+        tester
+            .getCenter(
+              find.descendant(
+                of: data.section,
+                matching: find.text(data.labels.$2),
+              ),
+            )
+            .dy,
+        tester
+            .getCenter(
+              find.descendant(
+                of: data.section,
+                matching: find.text(data.labels.$3),
+              ),
+            )
+            .dy,
+      ];
+      expect(centers.reduce(math.max) - centers.reduce(math.min), lessThan(2));
     }
     expect(
       find.descendant(of: positiveSection, matching: find.text('正面前缀条目')),
