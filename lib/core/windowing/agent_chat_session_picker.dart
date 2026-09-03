@@ -118,8 +118,13 @@ class _AgentChatSessionPickerState extends State<AgentChatSessionPicker> {
     if (widget.touchOptimized) return trigger;
 
     final viewport = MediaQuery.sizeOf(context);
-    final menuWidth = math.min(420.0, math.max(216.0, viewport.width - 24));
-    final menuHeight = math.min(420.0, math.max(280.0, viewport.height - 96));
+    final menuWidth = math.min(340.0, math.max(240.0, viewport.width - 24));
+    final desiredMenuHeight = 112.0 + math.min(widget.sessions.length, 4) * 56;
+    final availableMenuHeight = math.max(220.0, viewport.height - 96);
+    final menuHeight = math.min(
+      desiredMenuHeight.clamp(220.0, 360.0),
+      availableMenuHeight,
+    );
     return MenuAnchor(
       controller: _menuController,
       alignmentOffset: const Offset(0, 4),
@@ -136,9 +141,10 @@ class _AgentChatSessionPickerState extends State<AgentChatSessionPicker> {
       ),
       menuChildren: [
         SizedBox(
+          key: const ValueKey('agent-chat-session-menu'),
           width: menuWidth,
           height: menuHeight,
-          child: _pickerBody(onClose: _menuController.close),
+          child: _pickerBody(onClose: _menuController.close, dense: true),
         ),
       ],
       builder: (_, _, _) => trigger,
@@ -158,6 +164,7 @@ class _AgentChatSessionPickerState extends State<AgentChatSessionPicker> {
           child: _pickerBody(
             onClose: () => Navigator.of(sheetContext).pop(),
             showClose: true,
+            dense: false,
           ),
         ),
       );
@@ -166,17 +173,21 @@ class _AgentChatSessionPickerState extends State<AgentChatSessionPicker> {
     _menuController.open();
   }
 
-  Widget _pickerBody({required VoidCallback onClose, bool showClose = false}) =>
-      _AgentChatSessionPickerBody(
-        sessions: widget.sessions,
-        activeSessionId: widget.activeSessionId,
-        onSelect: widget.onSelect,
-        onNew: widget.onNew,
-        onRename: widget.onRename,
-        onDelete: widget.onDelete,
-        onClose: onClose,
-        showClose: showClose,
-      );
+  Widget _pickerBody({
+    required VoidCallback onClose,
+    required bool dense,
+    bool showClose = false,
+  }) => _AgentChatSessionPickerBody(
+    sessions: widget.sessions,
+    activeSessionId: widget.activeSessionId,
+    onSelect: widget.onSelect,
+    onNew: widget.onNew,
+    onRename: widget.onRename,
+    onDelete: widget.onDelete,
+    onClose: onClose,
+    showClose: showClose,
+    dense: dense,
+  );
 }
 
 class _AgentChatSessionPickerBody extends StatefulWidget {
@@ -189,6 +200,7 @@ class _AgentChatSessionPickerBody extends StatefulWidget {
     required this.onDelete,
     required this.onClose,
     required this.showClose,
+    required this.dense,
   });
 
   final List<AgentChatSessionOption> sessions;
@@ -199,6 +211,7 @@ class _AgentChatSessionPickerBody extends StatefulWidget {
   final Future<void> Function(String id) onDelete;
   final VoidCallback onClose;
   final bool showClose;
+  final bool dense;
 
   @override
   State<_AgentChatSessionPickerBody> createState() =>
@@ -230,7 +243,9 @@ class _AgentChatSessionPickerBodyState
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(12, widget.showClose ? 0 : 12, 8, 8),
+            padding: widget.dense
+                ? const EdgeInsets.fromLTRB(12, 8, 8, 4)
+                : EdgeInsets.fromLTRB(12, widget.showClose ? 0 : 12, 8, 8),
             child: Row(
               children: [
                 Expanded(
@@ -240,8 +255,15 @@ class _AgentChatSessionPickerBodyState
                     autofocus: true,
                     onChanged: (value) => setState(() => _query = value),
                     decoration: InputDecoration(
+                      isDense: widget.dense,
+                      contentPadding: widget.dense
+                          ? const EdgeInsets.symmetric(vertical: 10)
+                          : null,
                       hintText: l10n.agentChat_searchSessions,
                       prefixIcon: const Icon(Icons.search_rounded),
+                      prefixIconConstraints: widget.dense
+                          ? const BoxConstraints(minWidth: 40, minHeight: 40)
+                          : null,
                       suffixIcon: _query.isEmpty
                           ? null
                           : IconButton(
@@ -290,6 +312,11 @@ class _AgentChatSessionPickerBodyState
                         ),
                         type: MaterialType.transparency,
                         child: ListTile(
+                          dense: widget.dense,
+                          visualDensity: widget.dense
+                              ? const VisualDensity(vertical: -2)
+                              : null,
+                          minVerticalPadding: widget.dense ? 4 : null,
                           selected: active,
                           selectedTileColor: theme.colorScheme.primaryContainer
                               .withValues(alpha: 0.36),
@@ -358,14 +385,17 @@ class _AgentChatSessionPickerBodyState
                   ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(widget.dense ? 12 : 16),
             child: FilledButton.icon(
               onPressed: () async {
                 widget.onClose();
                 await widget.onNew();
               },
               style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+                minimumSize: Size.fromHeight(widget.dense ? 40 : 48),
+                tapTargetSize: widget.dense
+                    ? MaterialTapTargetSize.shrinkWrap
+                    : MaterialTapTargetSize.padded,
               ),
               icon: const Icon(Icons.add_comment_outlined),
               label: Text(l10n.agentChat_newChat),
