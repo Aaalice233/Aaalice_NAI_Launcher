@@ -20,9 +20,11 @@ import 'package:nai_launcher/presentation/providers/generation/generation_params
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_param_sections.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/parameter_panel.dart';
-import 'package:nai_launcher/presentation/screens/generation/widgets/size_selector.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/precise_reference_panel.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/reverse_prompt_panel.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/size_selector.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/vibe_transfer_content.dart';
+import 'package:nai_launcher/presentation/widgets/character/inline_character_section.dart';
 import 'package:nai_launcher/presentation/widgets/common/editable_double_field.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_slider.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -199,7 +201,33 @@ void main() {
       await tester.pumpWidget(buildSubject(showCharacterEditor: true));
       await tester.pumpAndSettle();
 
+      final parameterList = tester.widget<ListView>(
+        find.byType(ListView).first,
+      );
+      final children =
+          (parameterList.childrenDelegate as SliverChildListDelegate).children;
+      final seedIndex = children.indexWhere((child) => child is SeedSection);
+      final characterIndex = children.indexWhere(
+        (child) => child is InlineCharacterSection,
+      );
+      final reversePromptIndex = children.indexWhere(
+        (child) => child is ReversePromptPanel,
+      );
+      expect(seedIndex, lessThan(characterIndex));
+      expect(characterIndex, lessThan(reversePromptIndex));
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('character-secondary-menu')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
       expect(find.byKey(const Key('character-secondary-menu')), findsOneWidget);
+      expect(
+        find.byKey(const Key('character-secondary-menu')).hitTestable(),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('character-add-female')), findsOneWidget);
       expect(
         find.byKey(const Key('character-add-from-library')),

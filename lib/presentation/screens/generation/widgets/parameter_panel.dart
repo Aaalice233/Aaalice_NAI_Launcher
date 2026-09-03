@@ -40,12 +40,6 @@ class ParameterPanel extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // 经典桌面把角色编辑作为左侧栏的一级工作区，空状态也保留入口。
-        if (showCharacterEditor) ...[
-          const InlineCharacterSection(),
-          const SizedBox(height: 16),
-        ],
-
         // 尺寸设置
         const SizeSection(),
 
@@ -77,6 +71,12 @@ class ParameterPanel extends ConsumerWidget {
         const SeedSection(),
 
         const SizedBox(height: 16),
+
+        // 角色编辑承接完整生成参数，并与下方辅助输入面板保持同级。
+        if (showCharacterEditor) ...[
+          const InlineCharacterSection(),
+          const SizedBox(height: 8),
+        ],
 
         // 反推面板
         const ReversePromptPanel(),
