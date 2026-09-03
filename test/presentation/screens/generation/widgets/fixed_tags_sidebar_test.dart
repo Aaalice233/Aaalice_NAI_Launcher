@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -1245,7 +1246,7 @@ void main() {
       final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await gesture.down(start);
       await tester.pump();
-      await gesture.moveBy(end - start + const Offset(0, 64));
+      await gesture.moveBy(end - start + const Offset(0, 128));
       await gesture.up();
       await tester.pumpAndSettle();
 
@@ -1260,6 +1261,62 @@ void main() {
         [second.id, first.id],
       );
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'list mode reserves translated preview height without overflowing',
+    (tester) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.windows,
+      );
+      addTearDown(() => PlatformCapabilities.debugOverride = null);
+      final first = FixedTagEntry.create(name: 'first', content: 'masterpiece');
+      final second = FixedTagEntry.create(
+        name: 'second',
+        content: 'best quality',
+      );
+      final storage = _SidebarTestStorage(
+        fixedEntries: [first, second],
+        categories: const [],
+        libraryEntries: const [],
+      );
+      final lookup = TagTranslationLookup.fromResolver((tags) async {
+        return {
+          for (final tag in tags)
+            if (tag == 'masterpiece') tag: '杰作',
+        };
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+            tagTranslationLookupProvider.overrideWithValue(lookup),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 340,
+                height: 620,
+                child: FixedTagsSidebar(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('杰作'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      final tileHeights = tester
+          .widgetList<SidebarEntryTile>(find.byType(SidebarEntryTile))
+          .map((tile) => tester.getSize(find.byWidget(tile)).height)
+          .toList();
+      expect(tileHeights.toSet(), hasLength(1));
     },
   );
 

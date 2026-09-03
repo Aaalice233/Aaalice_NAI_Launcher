@@ -260,6 +260,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
           entry.content,
           selectable: false,
           maxLines: maxLines,
+          reserveTranslationSpace: widget.isListMode,
           style: theme.textTheme.bodySmall?.copyWith(color: secondaryColor),
         ),
         if (widget.categoryName != null && !widget.isListMode) ...[

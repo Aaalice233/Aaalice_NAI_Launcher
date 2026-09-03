@@ -114,6 +114,7 @@ class TranslatedPromptText extends ConsumerStatefulWidget {
     this.maxLines,
     this.originalText,
     this.includeUntranslated = false,
+    this.reserveTranslationSpace = false,
   });
 
   final String prompt;
@@ -126,6 +127,11 @@ class TranslatedPromptText extends ConsumerStatefulWidget {
   /// Keeps every parsed source tag visible in the translated summary by
   /// falling back to its display form when the dictionary has no translation.
   final bool includeUntranslated;
+
+  /// Keeps the layout height stable while the asynchronous translation loads.
+  /// This is useful for fixed-extent virtualized lists whose prototype and
+  /// visible rows must have identical geometry.
+  final bool reserveTranslationSpace;
 
   @override
   ConsumerState<TranslatedPromptText> createState() =>
@@ -198,7 +204,9 @@ class _TranslatedPromptTextState extends ConsumerState<TranslatedPromptText> {
             maxLines: widget.maxLines,
             overflow: widget.maxLines == null ? null : TextOverflow.ellipsis,
           );
-    if (_translations.isEmpty) return original;
+    if (_translations.isEmpty && !widget.reserveTranslationSpace) {
+      return original;
+    }
     final translationText = _translations.join('，');
     final theme = Theme.of(context);
     final baseTranslationStyle =
@@ -214,13 +222,22 @@ class _TranslatedPromptTextState extends ConsumerState<TranslatedPromptText> {
       children: [
         original,
         const SizedBox(height: 4),
-        Text(
-          translationText,
-          key: const ValueKey('translated-prompt-translation'),
-          style: translationStyle,
-          maxLines: widget.maxLines,
-          overflow: widget.maxLines == null ? null : TextOverflow.ellipsis,
-        ),
+        if (_translations.isEmpty)
+          ExcludeSemantics(
+            child: Text(
+              '\u00a0',
+              style: translationStyle.copyWith(color: Colors.transparent),
+              maxLines: widget.maxLines,
+            ),
+          )
+        else
+          Text(
+            translationText,
+            key: const ValueKey('translated-prompt-translation'),
+            style: translationStyle,
+            maxLines: widget.maxLines,
+            overflow: widget.maxLines == null ? null : TextOverflow.ellipsis,
+          ),
       ],
     );
   }
