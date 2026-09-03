@@ -104,6 +104,12 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(Dialog), findsNothing);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('adaptive-centered-form')))
+          .height,
+      lessThan(360),
+    );
 
     await tester.enterText(find.byType(TextField), 'bad');
     await tester.pump();

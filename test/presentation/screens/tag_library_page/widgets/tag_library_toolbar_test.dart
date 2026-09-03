@@ -52,7 +52,9 @@ void main() {
     await tester.pumpAndSettle();
 
     final sortButton = find.byKey(const Key('tag-library-sort-menu-button'));
+    final addButton = find.byKey(const Key('tag-library-add-entry-button'));
     expect(tester.getSize(sortButton).height, 36);
+    expect(tester.getSize(addButton).height, greaterThanOrEqualTo(40));
     expect(find.text('自定义排序'), findsOneWidget);
 
     await tester.tap(sortButton);

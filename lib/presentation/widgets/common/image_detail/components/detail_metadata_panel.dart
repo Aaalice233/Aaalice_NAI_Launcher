@@ -50,6 +50,9 @@ class DetailMetadataPanel extends ConsumerStatefulWidget {
   /// 嵌入移动端面板时由外层提供标题和关闭入口，不再显示折叠控件。
   final bool collapsible;
 
+  /// 宽度由外层分栏约束直接驱动，不在面板内部执行宽度补间。
+  final bool fillAvailableWidth;
+
   const DetailMetadataPanel({
     super.key,
     this.currentImage,
@@ -57,7 +60,8 @@ class DetailMetadataPanel extends ConsumerStatefulWidget {
     this.expandedWidth = 320,
     this.collapsedWidth = 40,
     this.collapsible = true,
-  });
+    this.fillAvailableWidth = false,
+  }) : assert(!fillAvailableWidth || !collapsible);
 
   @override
   ConsumerState<DetailMetadataPanel> createState() =>
@@ -246,6 +250,19 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    if (widget.fillAvailableWidth) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          bottomLeft: Radius.circular(16),
+        ),
+        child: ColoredBox(
+          color: colorScheme.surface.withValues(alpha: 0.96),
+          child: _buildExpandedPanel(theme),
+        ),
+      );
+    }
+
     return AnimatedContainer(
       duration: MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
@@ -265,9 +282,12 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
         // Windows Flutter 在大图预览 + 窗口焦点切换时对 BackdropFilter
         // 合成层存在原生崩溃风险；这里保留半透明面板，避免实时背景模糊。
         color: colorScheme.surface.withValues(alpha: 0.96),
-        // 使用 OverflowBox 允许子组件按固定宽度布局，避免动画过程中的溢出警告
+        // 宽度拖拽和折叠动画会让父级短暂保留上一帧约束。这里解除横向
+        // 最小约束，再由有限宽度的 SizedBox 决定内容宽度，避免新旧宽度
+        // 交叉时生成 minWidth > maxWidth 的非法约束。
         child: OverflowBox(
-          maxWidth: widget.expandedWidth,
+          minWidth: 0,
+          maxWidth: double.infinity,
           alignment: Alignment.topLeft,
           child: SizedBox(
             width: widget.expandedWidth,
@@ -594,14 +614,38 @@ class _MetadataContent extends StatelessWidget {
     final characterNegativeTags = resolvedMetadata.characterInfos
         .expand((character) => _extractTags(character.negativePrompt ?? ''))
         .toList();
-    final positiveTags = [
-      ..._extractTags(resolvedMetadata.prompt),
-      ...characterTags,
-    ];
-    final negativeTags = [
-      ..._extractTags(resolvedMetadata.displayNegativePrompt),
-      ...characterNegativeTags,
-    ];
+    final mainPositiveTags = _extractTags(resolvedMetadata.prompt);
+    final mainNegativeTags = _extractTags(
+      resolvedMetadata.displayNegativePrompt,
+    );
+    final positiveTags = [...mainPositiveTags, ...characterTags];
+    final negativeTags = [...mainNegativeTags, ...characterNegativeTags];
+    final fixedPositiveIndexes = fixedPromptTagIndexes(
+      promptTags: mainPositiveTags,
+      prefixEntries: resolvedMetadata.fixedPrefixTags,
+      suffixEntries: resolvedMetadata.fixedSuffixTags,
+    );
+    final fixedNegativeIndexes = fixedPromptTagIndexes(
+      promptTags: mainNegativeTags,
+      prefixEntries: resolvedMetadata.fixedNegativePrefixTags,
+      suffixEntries: resolvedMetadata.fixedNegativeSuffixTags,
+    );
+    final characterPositiveIndexes = {
+      for (
+        var index = mainPositiveTags.length;
+        index < positiveTags.length;
+        index++
+      )
+        index,
+    };
+    final characterNegativeIndexes = {
+      for (
+        var index = mainNegativeTags.length;
+        index < negativeTags.length;
+        index++
+      )
+        index,
+    };
     final positivePrompt = positiveTags.join(', ');
     final negativePrompt = negativeTags.join(', ');
 
@@ -620,6 +664,8 @@ class _MetadataContent extends StatelessWidget {
           onCopy: () => _copyPositivePrompt(context, resolvedMetadata),
           fixedTags: fixedTags,
           characterTags: characterTags,
+          fixedTagIndexes: fixedPositiveIndexes,
+          characterTagIndexes: characterPositiveIndexes,
         ),
         if (negativePrompt.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -634,6 +680,8 @@ class _MetadataContent extends StatelessWidget {
                 _showAddToLibraryDialog(context, negativePrompt),
             fixedTags: fixedNegativeTags,
             characterTags: characterNegativeTags,
+            fixedTagIndexes: fixedNegativeIndexes,
+            characterTagIndexes: characterNegativeIndexes,
             isNegative: true,
           ),
         ],
@@ -753,12 +801,14 @@ class _InfoSection extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: validChildren
                 .map(
                   (child) => Padding(
@@ -778,6 +828,8 @@ class _InfoSection extends StatelessWidget {
 
 /// 信息行
 class _InfoRow extends StatelessWidget {
+  static const _minimumSideBySideWidth = 220.0;
+
   final String label;
   final String value;
 
@@ -807,7 +859,7 @@ class _InfoRow extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final stacked =
-            constraints.maxWidth < 280 ||
+            constraints.maxWidth < _minimumSideBySideWidth ||
             MediaQuery.textScalerOf(context).scale(1) >= 1.5;
         if (stacked) {
           return Column(

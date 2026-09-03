@@ -8,7 +8,6 @@ import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
-import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/gallery/gallery_album_tree_view.dart';
 import '../../../widgets/gallery/gallery_sidebar.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -120,20 +119,13 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
             ),
 
           // 收藏 - 不接收拖拽
-          GallerySidebarNavigationItem(
+          GallerySidebarFavoritesItem(
             key: const ValueKey('tag-library-favorites'),
-            icon: Icons.favorite_border,
-            selectedIcon: Icons.favorite,
-            iconColor: Colors.red.shade400,
             label: context.l10n.tagLibrary_favorites,
             count: widget.entries.where((e) => e.isFavorite).length,
             isSelected: widget.selectedCategoryId == 'favorites',
             onTap: () => widget.onCategorySelected('favorites'),
           ),
-
-          if (widget.categories.isNotEmpty) ...[
-            const ThemedDivider(height: 16, indent: 12, endIndent: 12),
-          ],
 
           // 分类树
           ...widget.categories.rootCategories.sortedByOrder().map(

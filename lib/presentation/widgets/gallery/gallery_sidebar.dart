@@ -76,6 +76,38 @@ class GallerySidebarNavigationItem extends StatefulWidget {
       _GallerySidebarNavigationItemState();
 }
 
+/// Built-in favorites category shared by gallery-like sidebars.
+class GallerySidebarFavoritesItem extends StatelessWidget {
+  const GallerySidebarFavoritesItem({
+    super.key,
+    required this.label,
+    required this.count,
+    required this.isSelected,
+    required this.onTap,
+    this.depth = 0,
+  });
+
+  final String label;
+  final int count;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final int depth;
+
+  @override
+  Widget build(BuildContext context) {
+    return GallerySidebarNavigationItem(
+      icon: Icons.favorite_border_rounded,
+      selectedIcon: Icons.favorite_rounded,
+      iconColor: Theme.of(context).colorScheme.error,
+      label: label,
+      count: count,
+      isSelected: isSelected,
+      onTap: onTap,
+      depth: depth,
+    );
+  }
+}
+
 class _GallerySidebarNavigationItemState
     extends State<GallerySidebarNavigationItem> {
   bool _isHovered = false;

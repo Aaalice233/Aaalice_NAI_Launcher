@@ -39,6 +39,10 @@ class AgentChatComposer extends StatefulWidget {
 }
 
 class _AgentChatComposerState extends State<AgentChatComposer> {
+  static const _controlsHorizontalPadding = 16.0;
+  static const _controlGap = 4.0;
+  static const _minimumModelControlWidth = 104.0;
+
   bool _editorExpanded = false;
   int _slashHighlight = 0;
   String? _observedSlashQuery;
@@ -241,7 +245,17 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     int slashQueryEnd,
   ) {
     final target = context.interactionPolicy.minimumControlExtent;
-    final showInlineContext = viewData.width < 600;
+    final composerPadding = AgentChatLayoutContract.composerOuterPadding(
+      viewData.width,
+    );
+    final controlsWidth = math.max(
+      0.0,
+      viewData.width - composerPadding.horizontal - _controlsHorizontalPadding,
+    );
+    final showInlineContext = !_contextFitsInControls(
+      availableWidth: controlsWidth,
+      controlExtent: target,
+    );
     final trailingControls = showInlineContext ? 2 : 1;
     final availableHeight = viewData.height
         .clamp(0, AgentChatComposerLayout.availableViewportHeight(context))
@@ -404,9 +418,12 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       key: const ValueKey('agent-chat-composer-controls'),
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        const gap = 4.0;
         final showAccessLabels = constraints.maxWidth >= 760 && textScale < 2;
-        final showContext = viewData.width >= 600;
+        final controlExtent = context.interactionPolicy.minimumControlExtent;
+        final showContext = _contextFitsInControls(
+          availableWidth: constraints.maxWidth,
+          controlExtent: controlExtent,
+        );
         final showContextLabel = constraints.maxWidth >= 900 && textScale < 2;
         final showModelName = constraints.maxWidth >= 340 && textScale < 2;
         final hasDraft =
@@ -427,7 +444,6 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         final webAccessWidth = showAccessLabels
             ? 124.0
             : context.interactionPolicy.minimumControlExtent;
-        final controlExtent = context.interactionPolicy.minimumControlExtent;
         final contextWidth = showContextLabel ? 116.0 : controlExtent;
         final fixedControlsWidth =
             controlExtent +
@@ -435,7 +451,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             webAccessWidth +
             controlExtent +
             (showContext ? contextWidth : 0) +
-            gap * (showContext ? 5 : 4);
+            _controlGap * (showContext ? 5 : 4);
         final modelControlWidth = math.min(
           showModelName ? 340.0 : 104.0,
           math.max(0.0, constraints.maxWidth - fixedControlsWidth),
@@ -445,7 +461,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           key: const ValueKey('agent-chat-composer-status-row'),
           children: [
             _attachmentSourceButton(theme, l10n),
-            const SizedBox(width: gap),
+            const SizedBox(width: _controlGap),
             SizedBox(
               width: permissionWidth,
               child: _permissionModeButton(
@@ -454,19 +470,19 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                 showLabel: showAccessLabels,
               ),
             ),
-            const SizedBox(width: gap),
+            const SizedBox(width: _controlGap),
             SizedBox(
               width: webAccessWidth,
               child: _webAccessToggle(theme, l10n, showLabel: showAccessLabels),
             ),
-            const SizedBox(width: gap),
+            const SizedBox(width: _controlGap),
             const Spacer(),
             ConstrainedBox(
               constraints: BoxConstraints(maxWidth: modelControlWidth),
               child: _configurationSelector(showModelName: showModelName),
             ),
             if (showContext) ...[
-              const SizedBox(width: gap),
+              const SizedBox(width: _controlGap),
               SizedBox(
                 width: contextWidth,
                 child: _contextIndicator(
@@ -476,7 +492,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                 ),
               ),
             ],
-            const SizedBox(width: gap),
+            const SizedBox(width: _controlGap),
             sendButton,
           ],
         );
@@ -491,6 +507,17 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         );
       },
     );
+  }
+
+  bool _contextFitsInControls({
+    required double availableWidth,
+    required double controlExtent,
+  }) {
+    const compactControlCount = 5;
+    const gapCount = 5;
+    final compactControlsWidth =
+        controlExtent * compactControlCount + _controlGap * gapCount;
+    return availableWidth >= compactControlsWidth + _minimumModelControlWidth;
   }
 
   Widget _contextIndicator(

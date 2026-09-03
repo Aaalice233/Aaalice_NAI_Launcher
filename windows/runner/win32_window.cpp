@@ -331,6 +331,32 @@ void Win32Window::ResizeChildContent() {
              frame.bottom - frame.top, TRUE);
 }
 
+void Win32Window::SynchronizeChildContentMetrics() {
+  if (window_handle_ == nullptr || child_content_ == nullptr ||
+      IsIconic(window_handle_)) {
+    return;
+  }
+
+  ResizeChildContent();
+
+  RECT frame = {};
+  if (!GetClientRect(child_content_, &frame)) {
+    return;
+  }
+  const LONG width = frame.right - frame.left;
+  const LONG height = frame.bottom - frame.top;
+  if (width <= 0 || height <= 0) {
+    return;
+  }
+
+  // MoveWindow may not emit WM_SIZE when the child already has the requested
+  // bounds. Flutter recalculates GetDpiScale while processing WM_SIZE, so an
+  // explicit message also repairs a stale pixel ratio without visible jitter.
+  SendMessage(child_content_, WM_SIZE, SIZE_RESTORED,
+              MAKELPARAM(static_cast<WORD>(width),
+                         static_cast<WORD>(height)));
+}
+
 RECT Win32Window::GetClientArea() {
   RECT frame;
   GetClientRect(window_handle_, &frame);

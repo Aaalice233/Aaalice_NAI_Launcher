@@ -14,11 +14,13 @@ class FixedTagsButton extends ConsumerStatefulWidget {
     super.key,
     this.compact = false,
     this.iconOnly = false,
+    this.maxLabelWidth,
   });
 
   /// 经典桌面提示词工具栏使用紧凑外观；触屏和独立入口保留标准命中高度。
   final bool compact;
   final bool iconOnly;
+  final double? maxLabelWidth;
 
   @override
   ConsumerState<FixedTagsButton> createState() => _FixedTagsButtonState();
@@ -113,18 +115,25 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                   ),
                   if (!widget.iconOnly) ...[
                     const SizedBox(width: 4),
-                    Text(
-                      context.l10n.fixedTags_label,
-                      style: TextStyle(
-                        fontSize: widget.compact ? 11 : 12,
-                        fontWeight: hasEnabled
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: hasEnabled
-                            ? theme.colorScheme.secondary
-                            : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.5,
-                              ),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: widget.maxLabelWidth ?? double.infinity,
+                      ),
+                      child: Text(
+                        context.l10n.fixedTags_label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: widget.compact ? 11 : 12,
+                          fontWeight: hasEnabled
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: hasEnabled
+                              ? theme.colorScheme.secondary
+                              : theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.5,
+                                ),
+                        ),
                       ),
                     ),
                   ],

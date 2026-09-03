@@ -219,10 +219,9 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Align(alignment: Alignment.topCenter, child: content),
-          ),
+          Align(alignment: Alignment.topCenter, child: content),
           const SizedBox(height: 8),
           SafeArea(
             top: false,

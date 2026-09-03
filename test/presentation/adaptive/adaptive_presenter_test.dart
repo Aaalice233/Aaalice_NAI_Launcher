@@ -361,6 +361,48 @@ void main() {
     expect(find.text('Medium form content'), findsOneWidget);
   });
 
+  testWidgets('centered short forms shrink to their content height', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1000, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () {
+                unawaited(
+                  AdaptivePresenter.showForm<void>(
+                    context: context,
+                    title: 'Short form',
+                    builder: (context, _) => const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('Short content'),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Open short form'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open short form'));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    expect(tester.getSize(surface).height, lessThan(160));
+    expect(tester.getRect(surface).center.dy, moreOrLessEquals(400));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('medium short forms fill the safe area with IME and large text', (
     tester,
   ) async {

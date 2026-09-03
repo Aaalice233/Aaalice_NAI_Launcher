@@ -4,6 +4,35 @@ import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/resize_handle.dart';
 
 void main() {
+  testWidgets('horizontal resize handle reports pointer drag deltas', (
+    tester,
+  ) async {
+    var dragDelta = 0.0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.center,
+            child: SizedBox(
+              height: 300,
+              child: ResizeHandle(
+                key: const ValueKey('draggable-horizontal'),
+                onDrag: (delta) => dragDelta += delta,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.drag(
+      find.byKey(const ValueKey('draggable-horizontal')),
+      const Offset(-80, 0),
+    );
+
+    expect(dragDelta, closeTo(-80, 0.01));
+  });
+
   testWidgets('resize handles use touch-safe hit extents without thickening', (
     tester,
   ) async {

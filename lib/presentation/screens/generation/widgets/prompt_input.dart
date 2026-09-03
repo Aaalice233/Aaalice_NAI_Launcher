@@ -19,6 +19,7 @@ import 'prompt_input_editor.dart';
 import 'prompt_input_footer.dart';
 import 'prompt_input_models.dart';
 import 'prompt_input_toolbar.dart';
+import 'prompt_type_switch.dart';
 
 bool _isPromptAssistantVisible(BuildContext context, WidgetRef ref) {
   final config = ref.watch(promptAssistantConfigProvider);
@@ -245,37 +246,44 @@ class _FullPromptInput extends ConsumerWidget {
       commands: commands,
       viewData: viewData,
     );
-    final footer = PromptInputFooter(
-      target: negative
-          ? PromptTokenCountTarget.negative
-          : PromptTokenCountTarget.positive,
-      topPadding: 6,
-      assistant: assistantVisible
-          ? PromptAssistantOverlay(
-              sessionId: assistantSessionId,
-              controller: negative
-                  ? controller.negativeController
-                  : controller.promptController,
-              interactionPolicy: context.interactionPolicy,
-              onChanged: negative
-                  ? commands.updateNegativePrompt
-                  : commands.updatePrompt,
-              onOpenSettings: commands.openAssistantSettings,
-              floatOverEditor: false,
-            )
-          : null,
-      assistantExpanded: assistantExpanded,
-      assistantToolbarHeight: assistantVisible
-          ? PromptAssistantOverlay.effectiveInlineToolbarHeight(
-              context.interactionPolicy,
-            )
-          : 0,
-      assistantExpandedWidth: assistantVisible
-          ? PromptAssistantOverlay.expandedInlineToolbarWidth(
-              context.interactionPolicy,
-            )
-          : 0,
-    );
+    PromptInputFooter buildFooter({bool includeBottomActions = false}) =>
+        PromptInputFooter(
+          target: negative
+              ? PromptTokenCountTarget.negative
+              : PromptTokenCountTarget.positive,
+          topPadding: 6,
+          assistant: assistantVisible
+              ? PromptAssistantOverlay(
+                  sessionId: assistantSessionId,
+                  controller: negative
+                      ? controller.negativeController
+                      : controller.promptController,
+                  interactionPolicy: context.interactionPolicy,
+                  onChanged: negative
+                      ? commands.updateNegativePrompt
+                      : commands.updatePrompt,
+                  onOpenSettings: commands.openAssistantSettings,
+                  floatOverEditor: false,
+                )
+              : null,
+          assistantExpanded: assistantExpanded,
+          assistantToolbarHeight: assistantVisible
+              ? PromptAssistantOverlay.effectiveInlineToolbarHeight(
+                  context.interactionPolicy,
+                )
+              : 0,
+          assistantExpandedWidth: assistantVisible
+              ? PromptAssistantOverlay.expandedInlineToolbarWidth(
+                  context.interactionPolicy,
+                )
+              : 0,
+          leading: includeBottomActions
+              ? PromptInputBottomActions(
+                  controller: controller,
+                  commands: commands,
+                )
+              : null,
+        );
     return LayoutBuilder(
       builder: (context, constraints) {
         if (viewData.isMaximized && constraints.maxWidth < 600) {
@@ -285,7 +293,7 @@ class _FullPromptInput extends ConsumerWidget {
             viewData: viewData,
             mobileFullscreen: true,
             mobileEditor: editor,
-            mobileFooter: footer,
+            mobileFooter: buildFooter(),
           );
         }
         return Column(
@@ -305,7 +313,7 @@ class _FullPromptInput extends ConsumerWidget {
               fit: viewData.autoGrow ? FlexFit.loose : FlexFit.tight,
               child: editor,
             ),
-            footer,
+            buildFooter(includeBottomActions: true),
           ],
         );
       },
@@ -316,10 +324,14 @@ class _FullPromptInput extends ConsumerWidget {
 class _CompactPromptModeSwitch extends StatelessWidget {
   const _CompactPromptModeSwitch({
     required this.negative,
+    required this.positiveCount,
+    required this.negativeCount,
     required this.onChanged,
   });
 
   final bool negative;
+  final int positiveCount;
+  final int negativeCount;
   final ValueChanged<bool> onChanged;
 
   @override
@@ -328,6 +340,7 @@ class _CompactPromptModeSwitch extends StatelessWidget {
     Widget button({
       required Key key,
       required String label,
+      required int count,
       required bool value,
       required Color selectedColor,
     }) {
@@ -346,7 +359,26 @@ class _CompactPromptModeSwitch extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 5),
+              PromptTagCountBadge(
+                count: count,
+                selected: selected,
+                color: selectedColor,
+                compact: true,
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -358,6 +390,7 @@ class _CompactPromptModeSwitch extends StatelessWidget {
           button(
             key: const ValueKey('generation_prompt_compact_positive_mode'),
             label: context.l10n.prompt_positive,
+            count: positiveCount,
             value: false,
             selectedColor: colors.primary,
           ),
@@ -365,6 +398,7 @@ class _CompactPromptModeSwitch extends StatelessWidget {
           button(
             key: const ValueKey('generation_prompt_compact_negative_mode'),
             label: context.l10n.prompt_negative,
+            count: negativeCount,
             value: true,
             selectedColor: colors.error,
           ),
@@ -398,9 +432,17 @@ class _CompactPromptInput extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (showModeSwitch) ...[
-            _CompactPromptModeSwitch(
-              negative: negative,
-              onChanged: commands.setNegativeMode,
+            ListenableBuilder(
+              listenable: Listenable.merge([
+                controller.promptController,
+                controller.negativeController,
+              ]),
+              builder: (context, _) => _CompactPromptModeSwitch(
+                negative: negative,
+                positiveCount: controller.promptCount,
+                negativeCount: controller.negativePromptCount,
+                onChanged: commands.setNegativeMode,
+              ),
             ),
             const SizedBox(height: 6),
           ],

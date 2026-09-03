@@ -313,7 +313,7 @@ class _EntryListItemState extends State<EntryListItem> {
 
         // 内容预览
         Text(
-          entry.contentPreview,
+          entry.content,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

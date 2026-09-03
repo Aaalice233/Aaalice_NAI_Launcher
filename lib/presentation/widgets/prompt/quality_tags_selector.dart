@@ -21,10 +21,12 @@ class QualityTagsSelector extends ConsumerStatefulWidget {
     required this.model,
     this.compact = false,
     this.iconOnly = false,
+    this.maxLabelWidth,
   });
 
   final bool compact;
   final bool iconOnly;
+  final double? maxLabelWidth;
 
   @override
   ConsumerState<QualityTagsSelector> createState() =>
@@ -115,16 +117,23 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
                   ),
                   if (!widget.iconOnly) ...[
                     const SizedBox(width: 4),
-                    Text(
-                      _getDisplayLabel(context, presetState, customEntries),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isEnabled
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: isEnabled
-                            ? qualityColor
-                            : theme.colorScheme.onSurfaceVariant,
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: widget.maxLabelWidth ?? double.infinity,
+                      ),
+                      child: Text(
+                        _getDisplayLabel(context, presetState, customEntries),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isEnabled
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: isEnabled
+                              ? qualityColor
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 2),

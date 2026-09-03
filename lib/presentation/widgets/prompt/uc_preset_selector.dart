@@ -20,10 +20,12 @@ class UcPresetSelector extends ConsumerStatefulWidget {
     required this.model,
     this.compact = false,
     this.iconOnly = false,
+    this.maxLabelWidth,
   });
 
   final bool compact;
   final bool iconOnly;
+  final double? maxLabelWidth;
 
   @override
   ConsumerState<UcPresetSelector> createState() => _UcPresetSelectorState();
@@ -127,14 +129,23 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
                 ),
                 if (!widget.iconOnly) ...[
                   const SizedBox(width: 4),
-                  Text(
-                    _getDisplayLabel(context, presetState, currentEntry),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
-                      color: isEnabled
-                          ? theme.colorScheme.error
-                          : theme.colorScheme.onSurfaceVariant,
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: widget.maxLabelWidth ?? double.infinity,
+                    ),
+                    child: Text(
+                      _getDisplayLabel(context, presetState, currentEntry),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isEnabled
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: isEnabled
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 2),

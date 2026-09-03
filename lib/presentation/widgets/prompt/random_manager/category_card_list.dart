@@ -30,7 +30,10 @@ class CategoryCardList extends ConsumerWidget {
 
     final categories = _filteredCategories(preset, query);
     final list = categories.isEmpty
-        ? _NoCategoryResults(hasQuery: query.isNotEmpty)
+        ? _NoCategoryResults(
+            hasQuery: query.isNotEmpty,
+            canEdit: !preset.isDefault,
+          )
         : ListView.separated(
             shrinkWrap: shrinkWrap,
             physics: shrinkWrap
@@ -128,30 +131,35 @@ class _RecipeSummary extends ConsumerWidget {
     );
     final enabledCount = preset.categories.where((item) => item.enabled).length;
 
-    return Row(
+    final metrics = Wrap(
+      spacing: 12,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text(
-          '$enabledCount/${preset.categoryCount}',
-          style: theme.textTheme.labelLarge?.copyWith(
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$enabledCount/${preset.categoryCount}',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              context.l10n.randomManager_categories,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 6),
-        Text(
-          context.l10n.randomManager_categories,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colors.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(width: 14),
         _InlineMetric(
           icon: Icons.layers_outlined,
           value: groupCount.toString(),
         ),
-        const SizedBox(width: 12),
         _InlineMetric(icon: Icons.sell_outlined, value: tagCount.toString()),
-        if (visibleCount != preset.categoryCount) ...[
-          const SizedBox(width: 12),
+        if (visibleCount != preset.categoryCount)
           Text(
             '$visibleCount/${preset.categoryCount}',
             style: theme.textTheme.labelSmall?.copyWith(
@@ -159,15 +167,30 @@ class _RecipeSummary extends ConsumerWidget {
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-        ],
-        const Spacer(),
-        if (onAddCategory != null && !preset.isDefault)
-          TextButton.icon(
-            onPressed: onAddCategory,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: Text(context.l10n.randomManager_addCategory),
-          ),
       ],
+    );
+    final addButton = !preset.isDefault && preset.categories.isNotEmpty
+        ? AddCategoryButton(onPressed: onAddCategory)
+        : null;
+    if (addButton == null) return metrics;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        if (constraints.maxWidth < 520 || textScale > 1.5) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [metrics, const SizedBox(height: 8), addButton],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: metrics),
+            const SizedBox(width: 12),
+            addButton,
+          ],
+        );
+      },
     );
   }
 }
@@ -200,9 +223,10 @@ class _InlineMetric extends StatelessWidget {
 }
 
 class _NoCategoryResults extends StatelessWidget {
-  const _NoCategoryResults({required this.hasQuery});
+  const _NoCategoryResults({required this.hasQuery, required this.canEdit});
 
   final bool hasQuery;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +236,7 @@ class _NoCategoryResults extends StatelessWidget {
       child: Column(
         children: [
           Icon(
-            Icons.search_off_rounded,
+            hasQuery ? Icons.search_off_rounded : Icons.category_outlined,
             size: 32,
             color: colors.onSurfaceVariant,
           ),
@@ -224,6 +248,18 @@ class _NoCategoryResults extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(color: colors.onSurfaceVariant),
           ),
+          if (!hasQuery && canEdit) ...[
+            const SizedBox(height: 6),
+            Text(
+              context.l10n.randomManager_noCategoriesHint,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+            const AddCategoryButton(),
+          ],
         ],
       ),
     );

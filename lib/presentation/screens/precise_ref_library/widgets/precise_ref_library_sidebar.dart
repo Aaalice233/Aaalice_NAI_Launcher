@@ -45,16 +45,6 @@ class _PreciseRefLibrarySidebarState extends State<PreciseRefLibrarySidebar> {
             isSelected: !state.favoritesOnly && state.typeFilter == null,
             onTap: () => widget.onFilterChanged(favoritesOnly: false),
           ),
-          GallerySidebarNavigationItem(
-            key: const Key('precise-ref-sidebar-favorites'),
-            icon: Icons.star_border_rounded,
-            selectedIcon: Icons.star_rounded,
-            iconColor: Colors.amber.shade700,
-            label: l10n.tagLibrary_favorites,
-            count: state.entries.where((entry) => entry.isFavorite).length,
-            isSelected: state.favoritesOnly,
-            onTap: () => widget.onFilterChanged(favoritesOnly: true),
-          ),
           GallerySidebarSectionHeader(
             toggleKey: const Key('precise-ref-type-section-toggle'),
             icon: Icons.category_outlined,
@@ -67,6 +57,15 @@ class _PreciseRefLibrarySidebarState extends State<PreciseRefLibrarySidebar> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 8),
                 children: [
+                  GallerySidebarFavoritesItem(
+                    key: const Key('precise-ref-sidebar-favorites'),
+                    label: l10n.tagLibrary_favorites,
+                    count: state.entries
+                        .where((entry) => entry.isFavorite)
+                        .length,
+                    isSelected: state.favoritesOnly,
+                    onTap: () => widget.onFilterChanged(favoritesOnly: true),
+                  ),
                   for (final type in PreciseRefType.values)
                     GallerySidebarNavigationItem(
                       key: Key('precise-ref-sidebar-type-${type.name}'),

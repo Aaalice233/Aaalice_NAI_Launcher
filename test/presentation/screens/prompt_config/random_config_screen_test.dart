@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/data/models/prompt/default_categories.dart';
+import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/tag_library.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_provider.dart';
 import 'package:nai_launcher/presentation/screens/prompt_config/prompt_config_screen.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/random_manager/category_card.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/preset_selector_bar.dart';
 
 void main() {
@@ -113,6 +115,97 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('blank preset exposes a complete create and edit path', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomPresetNotifierProvider.overrideWith(
+            _ScreenTestRandomPresetNotifier.new,
+          ),
+          tagLibraryNotifierProvider.overrideWith(
+            _ScreenTestTagLibraryNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: PromptConfigScreen(),
+        ),
+      ),
+    );
+    await _pumpBounded(tester);
+
+    await tester.tap(find.byType(DropdownButton<String>));
+    await _pumpBounded(tester);
+    await tester.tap(find.text('新建预设...').last);
+    await _pumpBounded(tester);
+    await tester.enterText(find.byType(TextField).last, '空白预设');
+    await tester.tap(find.text('完全空白'));
+    await tester.tap(find.text('创建'));
+    await _pumpBounded(tester);
+
+    expect(find.text('空白预设'), findsOneWidget);
+    expect(find.text('暂无类别'), findsOneWidget);
+    expect(find.text('点击“新增类别”开始配置'), findsOneWidget);
+    expect(find.text('新增类别'), findsOneWidget);
+
+    await tester.tap(find.text('新增类别'));
+    await _pumpBounded(tester);
+    final categoryNameField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField && widget.decoration?.hintText == '输入类别名称',
+    );
+    expect(categoryNameField, findsOneWidget);
+    await tester.enterText(categoryNameField, '发色');
+    await tester.pump();
+    final createCategoryButton = find.widgetWithText(FilledButton, '确定').last;
+    expect(
+      tester.widget<FilledButton>(createCategoryButton).onPressed,
+      isNotNull,
+    );
+    await tester.tap(createCategoryButton);
+    await _pumpBounded(tester);
+
+    expect(find.text('创建新类别'), findsNothing);
+    expect(find.byType(CategoryCard), findsOneWidget);
+    expect(find.text('发色'), findsOneWidget);
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(CategoryCard),
+            matching: find.byType(InkWell),
+          )
+          .first,
+    );
+    await _pumpBounded(tester);
+    expect(find.text('添加词组'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('更多操作'));
+    await _pumpBounded(tester);
+    expect(find.text('重命名'), findsOneWidget);
+    await tester.tap(find.text('重命名'));
+    await _pumpBounded(tester);
+    final presetNameField = find.byWidgetPredicate(
+      (widget) => widget is TextField && widget.decoration?.labelText == '预设名称',
+    );
+    expect(presetNameField, findsOneWidget);
+    await tester.enterText(presetNameField, '已命名预设');
+    await tester.pump();
+    await tester.tap(find.text('保存'));
+    await _pumpBounded(tester);
+
+    expect(find.text('已命名预设'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [
     320.0,
     400.0,
@@ -154,6 +247,7 @@ void main() {
       expect(find.text('官网 · Character Prompts'), findsOneWidget);
       expect(find.byTooltip('数据来源详情'), findsOneWidget);
       expect(find.byType(TextField), findsWidgets);
+      expect(find.text('新增类别'), findsOneWidget);
       final searchHints = tester
           .widgetList<TextField>(find.byType(TextField))
           .map((field) => field.decoration?.hintText)
@@ -323,6 +417,55 @@ class _ScreenTestRandomPresetNotifier extends RandomPresetNotifier {
     return RandomPresetState(
       presets: [_defaultPreset, _customPreset],
       selectedPresetId: _customPreset.id,
+    );
+  }
+
+  @override
+  Future<RandomPreset> createPreset({
+    required String name,
+    String? description,
+    bool copyFromCurrent = true,
+  }) async {
+    final current = state.selectedPreset;
+    final preset = copyFromCurrent && current != null
+        ? RandomPreset.copyFrom(current, name: name)
+        : RandomPreset(
+            id: 'created-preset',
+            name: name,
+            description: description,
+          );
+    state = state.copyWith(
+      presets: [...state.presets, preset],
+      selectedPresetId: preset.id,
+    );
+    return preset;
+  }
+
+  @override
+  Future<void> selectPreset(String id) async {
+    state = state.copyWith(selectedPresetId: id);
+  }
+
+  @override
+  Future<void> addCategory(RandomCategory category) async {
+    final selected = state.selectedPreset;
+    if (selected == null) return;
+    _replacePreset(selected.addCategory(category));
+  }
+
+  @override
+  Future<void> renamePreset(String id, String newName) async {
+    final index = state.presets.indexWhere((item) => item.id == id);
+    if (index == -1) return;
+    _replacePreset(state.presets[index].copyWith(name: newName));
+  }
+
+  void _replacePreset(RandomPreset preset) {
+    state = state.copyWith(
+      presets: [
+        for (final item in state.presets)
+          if (item.id == preset.id) preset else item,
+      ],
     );
   }
 }

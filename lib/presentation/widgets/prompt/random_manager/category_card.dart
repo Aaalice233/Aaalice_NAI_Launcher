@@ -293,15 +293,7 @@ class _CategoryEditor extends StatelessWidget {
                 ),
             ],
           ),
-          if (category.groups.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                context.l10n.randomManager_noCategoriesHint,
-                style: TextStyle(color: colors.onSurfaceVariant),
-              ),
-            )
-          else
+          if (category.groups.isNotEmpty)
             ...category.groups.map(
               (group) => Padding(
                 padding: const EdgeInsets.only(top: 6),

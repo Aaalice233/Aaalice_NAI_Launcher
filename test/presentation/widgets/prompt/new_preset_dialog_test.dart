@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/new_preset_dialog.dart';
 
 void main() {
@@ -27,7 +28,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Medium 与 Expanded 窗格保持有界', (tester) async {
+  testWidgets('Medium 与 Expanded 窗格紧凑有界且操作区贴底', (tester) async {
     await _setView(tester, size: const Size(700, 900));
     await _pumpLauncher(tester);
     await tester.tap(find.text('打开'));
@@ -37,9 +38,16 @@ void main() {
       find.byKey(const ValueKey('adaptive-centered-form')),
       findsOneWidget,
     );
+    _expectCompactCenteredDialog(tester);
+    final headerDivider = tester.widget<Divider>(
+      find.byKey(const ValueKey('adaptive-panel-header-divider')),
+    );
+    final dividerContext = tester.element(
+      find.byKey(const ValueKey('adaptive-panel-header-divider')),
+    );
     expect(
-      tester.getSize(find.byKey(const ValueKey('new-preset-dialog-frame'))),
-      const Size(420, 560),
+      headerDivider.color,
+      Theme.of(dividerContext).appTheme.dividerColor,
     );
 
     await tester.tap(find.byTooltip('关闭'));
@@ -53,10 +61,7 @@ void main() {
       find.byKey(const ValueKey('adaptive-centered-form')),
       findsOneWidget,
     );
-    expect(
-      tester.getSize(find.byKey(const ValueKey('new-preset-dialog-frame'))),
-      const Size(420, 560),
-    );
+    _expectCompactCenteredDialog(tester);
     expect(tester.takeException(), isNull);
   });
 
@@ -135,6 +140,23 @@ void main() {
     expect(find.text('创建新预设'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+}
+
+void _expectCompactCenteredDialog(WidgetTester tester) {
+  final surfaceRect = tester.getRect(
+    find.byKey(const ValueKey('adaptive-centered-form')),
+  );
+  final frameRect = tester.getRect(
+    find.byKey(const ValueKey('new-preset-dialog-frame')),
+  );
+  final createRect = tester.getRect(find.text('创建'));
+
+  expect(surfaceRect.size, const Size(420, 460));
+  expect(frameRect.width, 420);
+  expect(frameRect.bottom, closeTo(surfaceRect.bottom, 0.01));
+  expect(createRect.right, lessThanOrEqualTo(surfaceRect.right - 16));
+  expect(createRect.bottom, lessThanOrEqualTo(surfaceRect.bottom - 16));
+  expect(createRect.bottom, greaterThan(surfaceRect.bottom - 64));
 }
 
 Future<void> _setView(

@@ -275,6 +275,8 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 
 动效由 `AppThemeExtension` 驱动。高频状态通常处于 100–200ms，面板和页面变化可延长到 200–300ms。界面禁止使用弹簧、回弹、过冲、弹跳、缩放弹出或会让元素方向反复变化的进出场动画；面板、弹窗、选择器和导航容器优先使用短淡入淡出，确需位移时只允许单向、无过冲的减速过渡。不得在重建时重置 Tween 起点造成横向跳动，Reduce Motion 下必须立即到达终态。
 
+连续拖拽调宽属于高频直接操作。pointer move 不得逐次调用页面级 `setState`、写入 Provider 或重建工作区；宽度变化必须限制在对应分栏的 RenderObject / layout 边界内，由 Flutter 帧调度合并布局，并保持两侧昂贵子树的 Widget identity。拖拽过程中禁止对宽度做补间动画，面板必须一比一跟随指针；需要持久化宽度时只在 drag end 提交最终值。回归测试应同时验证宽度边界、无 overflow，以及拖动期间稳定子树没有 rebuild。
+
 ## Do's and Don'ts
 
 ### Do:

@@ -39,7 +39,6 @@ class VibeCategoryTreeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final sortedCategories = [...categories]
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return GestureDetector(
@@ -60,12 +59,9 @@ class VibeCategoryTreeView extends StatelessWidget {
               isSelected: selectedCategoryId == null,
               onTap: () => onCategorySelected(null),
             ),
-          GallerySidebarNavigationItem(
+          GallerySidebarFavoritesItem(
             key: const ValueKey('vibe-library-favorites'),
             label: context.l10n.vibeLibrary_favorites,
-            icon: Icons.favorite_border,
-            selectedIcon: Icons.favorite,
-            iconColor: theme.colorScheme.error,
             count: favoriteCount,
             isSelected: selectedCategoryId == 'favorites',
             onTap: () => onCategorySelected('favorites'),

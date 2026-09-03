@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/horizontal_resize_handle.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_metadata_panel.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_thumbnail_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
@@ -40,6 +42,61 @@ void main() {
       }
 
       await tester.binding.setSurfaceSize(null);
+    },
+  );
+
+  testWidgets(
+    'wide metadata panel can be resized without squeezing the image',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 700));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await _pumpViewer(
+        tester,
+        images: [
+          GeneratedImageDetailData(
+            imageBytes: _validPngBytes,
+            metadata: const NaiImageMetadata(
+              source: 'NovelAI Diffusion V4.5 Full',
+              prompt: '1girl, detailed background',
+              seed: 123456789,
+              steps: 28,
+              width: 1024,
+              height: 1024,
+            ),
+          ),
+        ],
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final panel = find.byType(DetailMetadataPanel);
+      final handle = find.byKey(
+        const ValueKey('image-detail-metadata-resize-handle'),
+      );
+      final initialPanelWidth = tester.getSize(panel).width;
+
+      expect(handle, findsOneWidget);
+      expect(tester.getSize(handle).width, ResizeHandle.defaultWidth);
+      expect(initialPanelWidth, 420);
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: tester.getCenter(handle));
+      await mouse.down(tester.getCenter(handle));
+      await mouse.moveBy(const Offset(-80, 0));
+      await mouse.up();
+      await tester.pump();
+
+      expect(tester.getSize(panel).width, closeTo(500, 0.01));
+      expect(tester.getTopLeft(panel).dx, greaterThanOrEqualTo(480 + 8));
+
+      await mouse.down(tester.getCenter(handle));
+      await mouse.moveBy(const Offset(240, 0));
+      await mouse.up();
+      await tester.pump();
+
+      expect(tester.getSize(panel).width, 320);
+      expect(tester.takeException(), isNull);
     },
   );
 

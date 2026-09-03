@@ -544,8 +544,10 @@ class _PreciseRefLibraryScreenState
       key: const Key('precise-ref-library-favorites-toggle'),
       tooltip: l10n.preciseRefLib_favoritesOnly,
       icon: Icon(
-        state.favoritesOnly ? Icons.star : Icons.star_border,
-        color: state.favoritesOnly ? Colors.amber : null,
+        state.favoritesOnly
+            ? Icons.favorite_rounded
+            : Icons.favorite_border_rounded,
+        color: state.favoritesOnly ? theme.colorScheme.error : null,
       ),
       onPressed: () {
         setState(() => _currentPage = 0);

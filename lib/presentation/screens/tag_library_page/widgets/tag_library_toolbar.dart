@@ -166,16 +166,19 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
           final compact = constraints.maxWidth < 900 || textScale > 1.5;
           final stackPrimary = textScale > 1.5;
           final addButton = FilledButton.icon(
+            key: const Key('tag-library-add-entry-button'),
             onPressed: widget.onAddEntry,
             icon: const Icon(Icons.add, size: 18),
             label: Text(context.l10n.tagLibrary_addEntry),
             style: FilledButton.styleFrom(
               minimumSize: Size(
-                48,
+                80,
                 context.interactionPolicy.shouldExposeTouchAlternatives
                     ? 48
-                    : 36,
+                    : 40,
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              visualDensity: VisualDensity.standard,
             ),
           );
           final openCategories =

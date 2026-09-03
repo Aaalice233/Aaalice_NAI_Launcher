@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/category_tree_view.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 void main() {
@@ -55,6 +56,7 @@ void main() {
     );
 
     expect(find.byType(GallerySidebarNavigationItem), findsOneWidget);
+    expect(find.byType(ThemedDivider), findsNothing);
 
     double navigationIconX(Finder row) {
       return tester

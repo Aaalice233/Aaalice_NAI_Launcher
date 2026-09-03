@@ -414,25 +414,30 @@ class _CenteredFormPanelState extends State<_CenteredFormPanel> {
           builder: (context, constraints) {
             final useFullScreen =
                 constraints.maxHeight < _minimumCenteredHeight;
+            final maxPanelHeight = math.min(
+              constraints.maxHeight * 0.9,
+              widget.maxHeight ?? double.infinity,
+            );
+            final panel = _PanelSurface(
+              titleBuilder: widget.titleBuilder,
+              scrollController: _scrollController,
+              fullScreen: useFullScreen,
+              centered: !useFullScreen,
+              showHeader: widget.showHeader,
+              child: widget.builder(context, _scrollController),
+            );
             return Center(
               child: SizedBox(
                 width: useFullScreen
                     ? double.infinity
                     : widget.width.clamp(320, size.width * 0.9).toDouble(),
-                height: useFullScreen
-                    ? double.infinity
-                    : math.min(
-                        constraints.maxHeight * 0.9,
-                        widget.maxHeight ?? double.infinity,
+                height: useFullScreen ? double.infinity : null,
+                child: useFullScreen
+                    ? panel
+                    : ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: maxPanelHeight),
+                        child: panel,
                       ),
-                child: _PanelSurface(
-                  titleBuilder: widget.titleBuilder,
-                  scrollController: _scrollController,
-                  fullScreen: useFullScreen,
-                  centered: !useFullScreen,
-                  showHeader: widget.showHeader,
-                  child: widget.builder(context, _scrollController),
-                ),
               ),
             );
           },
@@ -548,6 +553,7 @@ class _PanelSurface extends StatelessWidget {
                 : const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
+            mainAxisSize: centered ? MainAxisSize.min : MainAxisSize.max,
             children: [
               if (!sideSheet && !fullScreen && !centered)
                 Padding(
@@ -591,9 +597,16 @@ class _PanelSurface extends StatelessWidget {
                     ),
                   ),
                 ),
-                Divider(height: 1, color: theme.colorScheme.outlineVariant),
+                if (theme.appTheme.useDivider)
+                  Divider(
+                    key: const ValueKey('adaptive-panel-header-divider'),
+                    height: 1,
+                    thickness: theme.appTheme.dividerThickness,
+                    color: theme.appTheme.dividerColor,
+                  ),
               ],
-              Expanded(
+              Flexible(
+                fit: centered ? FlexFit.loose : FlexFit.tight,
                 child: SafeArea(
                   top: false,
                   left: false,

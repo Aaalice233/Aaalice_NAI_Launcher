@@ -11,6 +11,7 @@ import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../common/app_toast.dart';
 import '../../common/safe_dropdown.dart';
+import '../../common/themed_input_dialog.dart';
 import '../new_preset_dialog.dart';
 import 'random_config_l10n.dart';
 
@@ -235,6 +236,15 @@ class PresetSelectorBar extends ConsumerWidget {
             ),
           ),
         if (selected != null && !selected.isDefault) ...[
+          PopupMenuItem(
+            value: _PresetAction.rename,
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(context.l10n.common_rename),
+            ),
+          ),
           if (selected.isBasedOnDefault)
             PopupMenuItem(
               value: _PresetAction.reset,
@@ -298,6 +308,8 @@ class PresetSelectorBar extends ConsumerWidget {
         onImportExport?.call();
       case _PresetAction.create:
         await _showCreatePresetDialog(context, ref);
+      case _PresetAction.rename:
+        if (preset != null) await _renamePreset(context, ref, preset);
       case _PresetAction.sync:
         await _syncDanbooru(context, ref);
       case _PresetAction.reset:
@@ -305,6 +317,27 @@ class PresetSelectorBar extends ConsumerWidget {
       case _PresetAction.delete:
         if (preset != null) await _deletePreset(context, ref, preset);
     }
+  }
+
+  Future<void> _renamePreset(
+    BuildContext context,
+    WidgetRef ref,
+    RandomPreset preset,
+  ) async {
+    final name = await ThemedInputDialog.show(
+      context: context,
+      title: context.l10n.common_rename,
+      labelText: context.l10n.newPresetDialog_nameLabel,
+      initialValue: preset.name,
+      confirmText: context.l10n.common_save,
+      validator: (value) => value.trim().isEmpty
+          ? context.l10n.newPresetDialog_nameRequired
+          : null,
+    );
+    if (name == null || name == preset.name) return;
+    await ref
+        .read(randomPresetNotifierProvider.notifier)
+        .renamePreset(preset.id, name);
   }
 
   Future<void> _syncDanbooru(BuildContext context, WidgetRef ref) async {
@@ -537,4 +570,4 @@ bool shouldStackWorkspacePresetControls(
   return availableWidth < 360 + scaleAdjustment;
 }
 
-enum _PresetAction { importExport, create, sync, reset, delete }
+enum _PresetAction { importExport, create, rename, sync, reset, delete }

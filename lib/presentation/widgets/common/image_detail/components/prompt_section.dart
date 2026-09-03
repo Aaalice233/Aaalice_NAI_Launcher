@@ -27,6 +27,8 @@ class PromptSection extends StatefulWidget {
   final Widget? customContent;
   final List<String> fixedTags;
   final List<String> characterTags;
+  final Set<int>? fixedTagIndexes;
+  final Set<int>? characterTagIndexes;
   final bool allTagsAreFixed;
   final bool isNegative;
 
@@ -45,6 +47,8 @@ class PromptSection extends StatefulWidget {
     this.customContent,
     this.fixedTags = const [],
     this.characterTags = const [],
+    this.fixedTagIndexes,
+    this.characterTagIndexes,
     this.allTagsAreFixed = false,
     this.isNegative = false,
   });
@@ -258,6 +262,8 @@ class _PromptSectionState extends State<PromptSection> {
                   showTranslation: widget.showTranslation,
                   fixedTags: widget.fixedTags,
                   characterTags: widget.characterTags,
+                  fixedTagIndexes: widget.fixedTagIndexes,
+                  characterTagIndexes: widget.characterTagIndexes,
                   allTagsAreFixed: widget.allTagsAreFixed,
                   isNegative: widget.isNegative,
                 )
@@ -290,6 +296,8 @@ class _TagChipGrid extends StatelessWidget {
   final bool showTranslation;
   final List<String> fixedTags;
   final List<String> characterTags;
+  final Set<int>? fixedTagIndexes;
+  final Set<int>? characterTagIndexes;
   final bool allTagsAreFixed;
   final bool isNegative;
 
@@ -298,6 +306,8 @@ class _TagChipGrid extends StatelessWidget {
     required this.onTagTap,
     required this.fixedTags,
     required this.characterTags,
+    required this.fixedTagIndexes,
+    required this.characterTagIndexes,
     required this.allTagsAreFixed,
     required this.isNegative,
     this.showTranslation = true,
@@ -320,17 +330,24 @@ class _TagChipGrid extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: tags
+          .asMap()
+          .entries
           .map(
-            (tag) => _TranslatedTagChip(
-              tag: tag,
-              onTap: () => onTagTap(tag),
+            (entry) => _TranslatedTagChip(
+              tag: entry.value,
+              onTap: () => onTagTap(entry.value),
               showTranslation: showTranslation,
               isFixed:
                   allTagsAreFixed ||
-                  normalizedFixedTags.contains(_normalizePromptTag(tag)),
-              isCharacter: normalizedCharacterTags.contains(
-                _normalizePromptTag(tag),
-              ),
+                  (fixedTagIndexes?.contains(entry.key) ??
+                      normalizedFixedTags.contains(
+                        _normalizePromptTag(entry.value),
+                      )),
+              isCharacter:
+                  characterTagIndexes?.contains(entry.key) ??
+                  normalizedCharacterTags.contains(
+                    _normalizePromptTag(entry.value),
+                  ),
               isNegative: isNegative,
             ),
           )

@@ -122,13 +122,8 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
             isSelected: widget.selectedAlbumId == null,
             onTap: () => widget.onAlbumSelected(null),
           ),
-        GallerySidebarNavigationItem(
+        GallerySidebarFavoritesItem(
           key: const ValueKey('local-gallery-favorites'),
-          icon: widget.selectedAlbumId == 'favorites'
-              ? Icons.favorite
-              : Icons.favorite_border,
-          selectedIcon: Icons.favorite,
-          iconColor: Colors.red.shade400,
           label: context.l10n.common_favorite,
           count: widget.favoriteCount,
           isSelected: widget.selectedAlbumId == 'favorites',

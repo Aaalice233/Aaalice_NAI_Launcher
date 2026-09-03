@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/autocomplete/autocomplete_settings.dart'
     as completion_settings;
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_regex_rules_provider.dart';
 import '../../../widgets/character/character_prompt_button.dart';
@@ -39,15 +40,11 @@ class PromptInputToolbar extends ConsumerWidget {
     final model = ref.watch(
       generationParamsNotifierProvider.select((params) => params.model),
     );
-    final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
     if (mobileFullscreen) {
       return _MobileFullscreenToolbar(
         controller: controller,
         commands: commands,
-        viewData: viewData,
         model: model,
-        showRandomTools: showRandomTools,
-        settings: () => _showSettingsMenu(context, ref),
         editor: mobileEditor!,
         footer: mobileFooter!,
       );
@@ -57,18 +54,16 @@ class PromptInputToolbar extends ConsumerWidget {
       controller: controller,
       commands: commands,
     );
-    final toolbar = _editorToolbar(
-      context,
-      showRandom: showRandomTools,
-      settings: () => _showSettingsMenu(context, ref),
-    );
+    final toolbar = _fullscreenToolbar();
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final usesLargeText = MediaQuery.textScalerOf(context).scale(14) > 21;
         final usesCompactSingleRow =
-            viewData.autoGrow && constraints.maxWidth >= 440 && !usesLargeText;
+            viewData.autoGrow && constraints.maxWidth >= 360 && !usesLargeText;
         if (usesCompactSingleRow) {
+          final showUtilityLabels =
+              constraints.maxWidth >= (viewData.showMaximizeButton ? 520 : 450);
           return SizedBox(
             key: const ValueKey('generation_prompt_compact_single_row'),
             height: 48,
@@ -83,29 +78,43 @@ class PromptInputToolbar extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const FixedTagsButton(compact: true, iconOnly: true),
-                const SizedBox(width: 4),
-                QualityTagsSelector(
-                  model: model,
-                  compact: true,
-                  iconOnly: true,
+                Row(
+                  key: const ValueKey(
+                    'generation_prompt_compact_single_row_actions',
+                  ),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FixedTagsButton(
+                      compact: true,
+                      iconOnly: !showUtilityLabels,
+                      maxLabelWidth: showUtilityLabels ? 48 : null,
+                    ),
+                    const SizedBox(width: 4),
+                    QualityTagsSelector(
+                      model: model,
+                      compact: true,
+                      iconOnly: !showUtilityLabels,
+                      maxLabelWidth: showUtilityLabels ? 48 : null,
+                    ),
+                    const SizedBox(width: 4),
+                    UcPresetSelector(
+                      model: model,
+                      compact: true,
+                      iconOnly: !showUtilityLabels,
+                      maxLabelWidth: showUtilityLabels ? 48 : null,
+                    ),
+                    const SizedBox(width: 4),
+                    toolbar,
+                  ],
                 ),
-                const SizedBox(width: 4),
-                UcPresetSelector(model: model, compact: true, iconOnly: true),
-                const SizedBox(width: 4),
-                const CharacterPromptButton(compact: true, iconOnly: true),
-                toolbar,
               ],
             ),
           );
         }
         if (constraints.maxWidth < 600) {
-          final primary = _editorToolbar(
-            context,
-            showRandom: false,
-            settings: () => _showSettingsMenu(context, ref),
-          );
-          final random = _randomToolbar(showRandomTools);
+          final primary = _fullscreenToolbar();
+          final showTouchCharacter =
+              context.interactionPolicy.shouldExposeTouchAlternatives;
           final typeSwitch = PromptTypeSwitch(
             controller: controller,
             commands: commands,
@@ -137,13 +146,6 @@ class PromptInputToolbar extends ConsumerWidget {
                 runSpacing: 4,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (showRandomTools)
-                    _MobilePromptToolbarAction(
-                      actionKey: const ValueKey(
-                        'generation_prompt_mobile_random_action',
-                      ),
-                      child: random,
-                    ),
                   const _MobilePromptToolbarAction(
                     actionKey: ValueKey(
                       'generation_prompt_mobile_fixed_tags_action',
@@ -162,12 +164,13 @@ class PromptInputToolbar extends ConsumerWidget {
                     ),
                     child: UcPresetSelector(model: model),
                   ),
-                  const _MobilePromptToolbarAction(
-                    actionKey: ValueKey(
-                      'generation_prompt_mobile_character_action',
+                  if (showTouchCharacter)
+                    const _MobilePromptToolbarAction(
+                      actionKey: ValueKey(
+                        'generation_prompt_mobile_character_action',
+                      ),
+                      child: CharacterPromptButton(),
                     ),
-                    child: CharacterPromptButton(),
-                  ),
                 ],
               ),
             ],
@@ -189,7 +192,6 @@ class PromptInputToolbar extends ConsumerWidget {
                 const FixedTagsButton(compact: true),
                 QualityTagsSelector(model: model),
                 UcPresetSelector(model: model),
-                const CharacterPromptButton(),
                 toolbar,
               ],
             ),
@@ -199,37 +201,21 @@ class PromptInputToolbar extends ConsumerWidget {
     );
   }
 
-  PromptEditorToolbar _editorToolbar(
-    BuildContext context, {
-    required bool showRandom,
-    required VoidCallback settings,
-  }) => PromptEditorToolbar(
+  PromptEditorToolbar _fullscreenToolbar() => PromptEditorToolbar(
     config: PromptEditorToolbarConfig.mainEditor.copyWith(
-      showRandomButton: showRandom,
+      showRandomButton: false,
       showFullscreenButton: viewData.showMaximizeButton,
-    ),
-    onRandomPressed: showRandom ? commands.generateRandomPrompt : null,
-    onRandomLongPressed: showRandom ? commands.showRandomModeSelector : null,
-    onFullscreenPressed: commands.toggleMaximize,
-    isFullscreen: viewData.isMaximized,
-    onClearPressed: controller.isNegativeMode
-        ? commands.clearNegativePrompt
-        : commands.clearPrompt,
-    onSettingsPressed: settings,
-  );
-
-  PromptEditorToolbar _randomToolbar(bool visible) => PromptEditorToolbar(
-    config: PromptEditorToolbarConfig.mainEditor.copyWith(
-      showRandomButton: visible,
-      showFullscreenButton: false,
       showClearButton: false,
       showSettingsButton: false,
     ),
-    onRandomPressed: visible ? commands.generateRandomPrompt : null,
-    onRandomLongPressed: visible ? commands.showRandomModeSelector : null,
+    onFullscreenPressed: commands.toggleMaximize,
+    isFullscreen: viewData.isMaximized,
   );
 
-  Future<void> _showSettingsMenu(BuildContext context, WidgetRef ref) async {
+  static Future<void> _showSettingsMenu(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final position = PromptEditorToolbar.getSettingsButtonPosition(context);
     if (position == null) return;
     final theme = Theme.of(context);
@@ -327,7 +313,7 @@ class PromptInputToolbar extends ConsumerWidget {
     }
   }
 
-  PopupMenuItem<String> _toggleItem(
+  static PopupMenuItem<String> _toggleItem(
     BuildContext context,
     ThemeData theme,
     String value,
@@ -349,7 +335,7 @@ class PromptInputToolbar extends ConsumerWidget {
     ),
   );
 
-  PopupMenuItem<String> _actionItem(
+  static PopupMenuItem<String> _actionItem(
     ThemeData theme,
     String value,
     IconData icon,
@@ -367,65 +353,70 @@ class PromptInputToolbar extends ConsumerWidget {
     ),
   );
 
-  Widget _menuLabels(ThemeData theme, String title, String subtitle) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(title),
-      Text(
-        subtitle,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.outline,
-        ),
+  static Widget _menuLabels(ThemeData theme, String title, String subtitle) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+        ],
+      );
+}
+
+class PromptInputBottomActions extends ConsumerWidget {
+  const PromptInputBottomActions({
+    super.key,
+    required this.controller,
+    required this.commands,
+  });
+
+  final PromptInputController controller;
+  final PromptInputCommands commands;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    return PromptEditorToolbar(
+      key: const ValueKey('generation_prompt_bottom_actions'),
+      config: PromptEditorToolbarConfig.mainEditor.copyWith(
+        showRandomButton: showRandomTools,
+        showFullscreenButton: false,
       ),
-    ],
-  );
+      onRandomPressed: showRandomTools ? commands.generateRandomPrompt : null,
+      onRandomLongPressed: showRandomTools
+          ? commands.showRandomModeSelector
+          : null,
+      onClearPressed: controller.isNegativeMode
+          ? commands.clearNegativePrompt
+          : commands.clearPrompt,
+      onSettingsPressed: () =>
+          PromptInputToolbar._showSettingsMenu(context, ref),
+    );
+  }
 }
 
 class _MobileFullscreenToolbar extends StatelessWidget {
   const _MobileFullscreenToolbar({
     required this.controller,
     required this.commands,
-    required this.viewData,
     required this.model,
-    required this.showRandomTools,
-    required this.settings,
     required this.editor,
     required this.footer,
   });
 
   final PromptInputController controller;
   final PromptInputCommands commands;
-  final PromptInputViewData viewData;
   final String model;
-  final bool showRandomTools;
-  final VoidCallback settings;
   final Widget editor;
   final Widget footer;
 
   @override
   Widget build(BuildContext context) {
-    final primary = PromptEditorToolbar(
-      config: PromptEditorToolbarConfig.mainEditor.copyWith(
-        showRandomButton: false,
-        showFullscreenButton: false,
-      ),
-      onClearPressed: controller.isNegativeMode
-          ? commands.clearNegativePrompt
-          : commands.clearPrompt,
-      onSettingsPressed: settings,
-    );
-    final random = PromptEditorToolbar(
-      config: PromptEditorToolbarConfig.mainEditor.copyWith(
-        showRandomButton: showRandomTools,
-        showFullscreenButton: false,
-        showClearButton: false,
-        showSettingsButton: false,
-      ),
-      onRandomPressed: showRandomTools ? commands.generateRandomPrompt : null,
-      onRandomLongPressed: showRandomTools
-          ? commands.showRandomModeSelector
-          : null,
-    );
     return LayoutBuilder(
       key: const ValueKey('generation_prompt_mobile_workbench'),
       builder: (context, constraints) {
@@ -435,25 +426,10 @@ class _MobileFullscreenToolbar extends StatelessWidget {
           expand: true,
           compact: true,
         );
-        final stackPrimary =
-            constraints.maxWidth < 360 ||
-            MediaQuery.textScalerOf(context).scale(14) > 21;
         Widget buildWorkbench() => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (stackPrimary) ...[
-              typeSwitch,
-              const SizedBox(height: 4),
-              Align(alignment: Alignment.centerRight, child: primary),
-            ] else
-              Row(
-                key: const ValueKey('generation_prompt_mobile_primary_row'),
-                children: [
-                  Expanded(child: typeSwitch),
-                  const SizedBox(width: 4),
-                  primary,
-                ],
-              ),
+            typeSwitch,
             const SizedBox(height: 8),
             Expanded(child: editor),
             footer,
@@ -498,15 +474,16 @@ class _MobileFullscreenToolbar extends StatelessWidget {
                       ),
                       child: UcPresetSelector(model: model),
                     ),
-                    if (showRandomTools) ...[
-                      const SizedBox(width: 4),
-                      _MobilePromptToolbarAction(
-                        actionKey: const ValueKey(
-                          'generation_prompt_mobile_random_action',
-                        ),
-                        child: random,
+                    const SizedBox(width: 6),
+                    _MobilePromptToolbarAction(
+                      actionKey: const ValueKey(
+                        'generation_prompt_mobile_bottom_actions',
                       ),
-                    ],
+                      child: PromptInputBottomActions(
+                        controller: controller,
+                        commands: commands,
+                      ),
+                    ),
                   ],
                 ),
               ),

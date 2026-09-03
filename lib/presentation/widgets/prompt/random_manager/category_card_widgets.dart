@@ -431,8 +431,7 @@ class AddCategoryButton extends ConsumerStatefulWidget {
 class _AddCategoryButtonState extends ConsumerState<AddCategoryButton> {
   bool _isHovered = false;
 
-  /// 未传入回调时使用默认行为：输入名称后直接创建新类别。
-  /// 历史上该回调从未被接线，导致按钮点击无任何反应。
+  /// 未传入上层流程时，按钮仍能完成标准的类别创建。
   Future<void> _handlePressed() async {
     final customHandler = widget.onPressed;
     if (customHandler != null) {

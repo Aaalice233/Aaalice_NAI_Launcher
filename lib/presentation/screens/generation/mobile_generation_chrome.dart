@@ -16,6 +16,7 @@ import 'mobile_generation_gestures.dart';
 import 'mobile_generation_view_data.dart';
 import 'widgets/history_panel.dart';
 import 'widgets/parameter_panel.dart';
+import 'widgets/generation_controls/random_mode_toggle.dart';
 
 class MobileGenerationChrome extends ConsumerWidget {
   const MobileGenerationChrome({
@@ -167,7 +168,7 @@ class MobileGenerationChrome extends ConsumerWidget {
                 const OpusUsageChip(compact: true),
                 const AnlasBalanceChip(compact: true),
                 if (data.showRandomTools)
-                  _MobileRandomModeToggle(
+                  RandomModeToggle(
                     enabled: data.randomModeEnabled,
                     showLabel: true,
                   ),
@@ -234,89 +235,6 @@ class _FullscreenHeaderTitle extends StatelessWidget {
         const SizedBox(height: DesignTokens.spacingXxs),
         Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
-    );
-  }
-}
-
-class _MobileRandomModeToggle extends ConsumerWidget {
-  const _MobileRandomModeToggle({
-    required this.enabled,
-    this.showLabel = false,
-  });
-
-  final bool enabled;
-  final bool showLabel;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final semanticLabel = enabled
-        ? context.l10n.randomMode_enabledTip
-        : context.l10n.randomMode_disabledTip;
-    return Semantics(
-      button: true,
-      toggled: enabled,
-      label: semanticLabel,
-      child: Tooltip(
-        message: semanticLabel,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => ref.read(randomPromptModeProvider.notifier).toggle(),
-            borderRadius: BorderRadius.circular(12),
-            child: AnimatedContainer(
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 140),
-              curve: Curves.easeOutCubic,
-              constraints: BoxConstraints(
-                minWidth: showLabel ? 0 : 48,
-                minHeight: 48,
-              ),
-              padding: showLabel
-                  ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
-                  : EdgeInsets.zero,
-              decoration: BoxDecoration(
-                color: enabled
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.casino_outlined,
-                    size: 20,
-                    color: enabled
-                        ? theme.colorScheme.onPrimaryContainer
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
-                  if (showLabel) ...[
-                    const SizedBox(width: 7),
-                    Flexible(
-                      child: Text(
-                        context.l10n.toolbar_randomPrompt,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: enabled
-                              ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

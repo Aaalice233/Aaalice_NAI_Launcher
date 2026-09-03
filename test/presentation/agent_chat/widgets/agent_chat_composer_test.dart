@@ -224,6 +224,9 @@ void main() {
       find.byKey(const ValueKey('agent-chat-context-target')),
     );
     expect(contextTarget.width, 40);
+    final context = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-context-target')),
+    );
     final model = tester.getRect(
       find.byKey(const ValueKey('agent-chat-model-selector')),
     );
@@ -231,6 +234,8 @@ void main() {
       find.byKey(const ValueKey('agent-chat-thinking-selector')),
     );
     expect(model.contains(thinking.center), isTrue);
+    expect(toolbar.contains(context.center), isTrue);
+    expect(context.center.dy, closeTo(model.center.dy, 0.01));
     expect(toolbar.height, lessThanOrEqualTo(48));
     expect(tester.takeException(), isNull);
   });

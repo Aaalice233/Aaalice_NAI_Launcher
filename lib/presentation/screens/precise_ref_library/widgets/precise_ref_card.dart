@@ -281,10 +281,14 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
       constraints: const BoxConstraints.tightFor(width: 48, height: 48),
       style: ImageOverlayControlStyle.iconButton(
         extent: 48,
-        foregroundColor: entry.isFavorite ? Colors.amber : null,
+        foregroundColor: entry.isFavorite ? theme.colorScheme.error : null,
       ),
       iconSize: 18,
-      icon: Icon(entry.isFavorite ? Icons.star : Icons.star_border),
+      icon: Icon(
+        entry.isFavorite
+            ? Icons.favorite_rounded
+            : Icons.favorite_border_rounded,
+      ),
       onPressed: widget.onToggleFavorite,
     );
   }
@@ -298,8 +302,10 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
       buttons: [
         CardActionButtonConfig(
           key: Key('precise-ref-card-favorite-${entry.id}'),
-          icon: entry.isFavorite ? Icons.star : Icons.star_border,
-          iconColor: entry.isFavorite ? Colors.amber : null,
+          icon: entry.isFavorite
+              ? Icons.favorite_rounded
+              : Icons.favorite_border_rounded,
+          iconColor: entry.isFavorite ? theme.colorScheme.error : null,
           tooltip: entry.isFavorite
               ? l10n.common_unfavorite
               : l10n.common_favorite,

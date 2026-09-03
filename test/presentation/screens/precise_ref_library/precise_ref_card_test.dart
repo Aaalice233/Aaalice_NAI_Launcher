@@ -90,14 +90,14 @@ void main() {
       findsOneWidget,
     );
     // 精确指针下操作只在悬浮时出现，避免常驻按钮遮挡图像。
-    expect(find.byIcon(Icons.star), findsNothing);
+    expect(find.byIcon(Icons.favorite_rounded), findsNothing);
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(
       location: tester.getCenter(find.byType(PreciseRefCard)),
     );
     await tester.pump();
-    expect(find.byIcon(Icons.star), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
     expect(
       tester
           .widget<ImageCardHoverMotion>(find.byType(ImageCardHoverMotion))
@@ -106,7 +106,7 @@ void main() {
     );
   });
 
-  testWidgets('点击卡片触发发送回调，点击星标触发收藏回调', (tester) async {
+  testWidgets('点击卡片触发发送回调，点击爱心触发收藏回调', (tester) async {
     var sendCount = 0;
     var favoriteCount = 0;
     await pumpCard(
