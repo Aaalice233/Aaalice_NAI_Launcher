@@ -273,6 +273,40 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('bounded horizontal groups fill rows from left to right', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: CardActionButtons(
+            visible: true,
+            maxButtonsPerRow: 4,
+            buttons: [
+              for (var index = 0; index < 7; index++)
+                CardActionButtonConfig(
+                  key: ValueKey('bounded-action-$index'),
+                  icon: Icons.circle_outlined,
+                  tooltip: 'action $index',
+                  onPressed: () {},
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final actionRects = [
+      for (var index = 0; index < 7; index++)
+        tester.getRect(find.byKey(ValueKey('bounded-action-$index'))),
+    ];
+
+    expect(actionRects.take(4).map((rect) => rect.top).toSet(), hasLength(1));
+    expect(actionRects.skip(4).map((rect) => rect.top).toSet(), hasLength(1));
+    expect(actionRects[4].left, closeTo(actionRects[1].left, 0.01));
+  });
+
   testWidgets('hiding actions dismisses an active tooltip', (tester) async {
     var visible = true;
     late StateSetter setHostState;

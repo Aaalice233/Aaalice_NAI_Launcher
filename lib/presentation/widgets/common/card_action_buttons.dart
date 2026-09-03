@@ -79,13 +79,16 @@ class CardActionButtons extends StatelessWidget {
   final List<CardActionButtonConfig> buttons;
   final bool visible;
   final Axis direction;
+  final int? maxButtonsPerRow;
 
   const CardActionButtons({
     super.key,
     required this.buttons,
     required this.visible,
     this.direction = Axis.horizontal,
-  });
+    this.maxButtonsPerRow,
+  }) : assert(maxButtonsPerRow == null || maxButtonsPerRow > 0),
+       assert(maxButtonsPerRow == null || direction == Axis.horizontal);
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +142,20 @@ class CardActionButtons extends StatelessWidget {
     // Landscape cards can be narrower than the combined pointer shortcuts.
     // Wrap within the card's bounded width instead of clipping trailing actions.
     if (direction == Axis.horizontal) {
-      return Wrap(spacing: 4, runSpacing: 4, children: actionWidgets);
+      final actions = Wrap(
+        alignment: maxButtonsPerRow == null
+            ? WrapAlignment.start
+            : WrapAlignment.end,
+        spacing: 4,
+        runSpacing: 4,
+        children: actionWidgets,
+      );
+      final buttonsPerRow = maxButtonsPerRow;
+      if (buttonsPerRow == null) return actions;
+      return SizedBox(
+        width: extent * buttonsPerRow + 4 * (buttonsPerRow - 1),
+        child: actions,
+      );
     }
 
     return Flex(

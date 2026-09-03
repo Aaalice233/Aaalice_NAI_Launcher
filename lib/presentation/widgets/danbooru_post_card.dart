@@ -374,10 +374,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       ),
     );
 
-    // 根据图片宽高比决定按钮布局方向
-    // 横图（宽高比大）：水平布局，因为高度小放不下垂直按钮
-    // 竖图（宽高比小）：垂直布局
-    final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
+    final isLandscapeCard = aspectRatio > 1.3;
+    final portraitActionColumns = ((widget.itemWidth - 4) ~/ 44).clamp(1, 4);
     final usesTouchActionMenu = interactionPolicy.touchAvailable;
     final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     final showStatusOverlays =
@@ -660,15 +658,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                   ),
                   if (!widget.selectionMode)
                     Positioned(
-                      // 垂直布局：右上角向下展开
-                      // 水平布局：左上角向右展开
                       top: 4,
                       right: 4,
-                      left:
-                          !usesTouchActionMenu &&
-                              buttonDirection == Axis.horizontal
-                          ? 4
-                          : null,
+                      left: !usesTouchActionMenu && isLandscapeCard ? 4 : null,
                       child: Consumer(
                         builder: (context, ref, _) {
                           return CardActionButtons(
@@ -676,7 +668,10 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               'online-gallery-card-action-buttons',
                             ),
                             visible: _isHovering || _isFocused,
-                            direction: buttonDirection,
+                            direction: Axis.horizontal,
+                            maxButtonsPerRow: isLandscapeCard
+                                ? null
+                                : portraitActionColumns,
                             buttons: [
                               if (widget.showFavoriteAction &&
                                   !widget.favoriteReadOnly &&

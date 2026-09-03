@@ -74,6 +74,68 @@ void main() {
     expect(addCount, 1);
   });
 
+  testWidgets('portrait hover actions form a compact row-major grid', (
+    tester,
+  ) async {
+    const post = DanbooruPost(
+      id: 134,
+      width: 600,
+      height: 900,
+      previewFileUrl: 'https://example.com/portrait.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: _pointerPolicy(
+          MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: ImageCardActionScope(
+                  onAddToAgent: () {},
+                  child: DanbooruPostCard(
+                    post: post,
+                    itemWidth: 220,
+                    isFavorited: false,
+                    onFavoriteToggle: () {},
+                    onTap: () {},
+                    onTagTap: (_) {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cardFinder = find.byKey(const ValueKey('online-gallery-card-layout'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(cardFinder));
+    await tester.pump();
+
+    final actionsFinder = find.descendant(
+      of: find.byKey(const ValueKey('online-gallery-card-action-buttons')),
+      matching: find.byType(IconButton),
+    );
+    final actionRects = [
+      for (var index = 0; index < actionsFinder.evaluate().length; index++)
+        tester.getRect(actionsFinder.at(index)),
+    ];
+
+    expect(actionRects, hasLength(7));
+    expect(actionRects.take(4).map((rect) => rect.top).toSet(), hasLength(1));
+    expect(actionRects.skip(4).map((rect) => rect.top).toSet(), hasLength(1));
+    expect(actionRects[4].top, greaterThan(actionRects[0].top));
+    expect(actionRects[4].left, closeTo(actionRects[1].left, 0.01));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('mixed input keeps touch action menu clear of rating badge', (
     tester,
   ) async {
