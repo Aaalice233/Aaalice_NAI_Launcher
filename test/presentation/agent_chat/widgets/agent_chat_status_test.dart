@@ -38,7 +38,6 @@ void main() {
           child: const AgentChatWorkStatus(
             phase: AgentChatWorkPhase.usingTools,
             routeLabel: 'provider/very-long-production-model-route-name',
-            touchOptimized: true,
           ),
         ),
       );
@@ -46,9 +45,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      final status = find.byKey(const ValueKey('agent-chat-work-status'));
+      expect(status, findsOneWidget);
+      final container = tester.widget<Container>(status);
       expect(
-        find.byKey(const ValueKey('agent-chat-work-status')),
-        findsOneWidget,
+        (container.margin! as EdgeInsets).left,
+        width < 600 ? 12 : 10,
+        reason: 'width $width',
       );
       expect(tester.takeException(), isNull, reason: 'width $width');
     }
@@ -68,7 +71,6 @@ void main() {
             'model': 'nai-diffusion-4-full',
           },
           estimatedAnlas: 12,
-          touchOptimized: true,
           onResolve: decisions.add,
         ),
       ),

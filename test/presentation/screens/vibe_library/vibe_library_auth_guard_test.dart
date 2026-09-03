@@ -33,12 +33,7 @@ void main() {
       await _startRawImageImport(tester);
 
       expect(find.byType(VibeImageEncodeDialog), findsOneWidget);
-      await tester.tap(
-        find.descendant(
-          of: find.byType(VibeImageEncodeDialog),
-          matching: find.byType(FilledButton),
-        ),
-      );
+      await _tapEncodeConfirm(tester);
       await tester.pumpAndSettle();
 
       expect(paramsNotifier.encodeCalls, 0);
@@ -66,12 +61,7 @@ void main() {
 
     await _pumpLibrary(tester, container);
     await _startRawImageImport(tester);
-    await tester.tap(
-      find.descendant(
-        of: find.byType(VibeImageEncodeDialog),
-        matching: find.byType(FilledButton),
-      ),
-    );
+    await _tapEncodeConfirm(tester);
     await tester.pumpAndSettle();
 
     expect(paramsNotifier.encodeCalls, 0);
@@ -92,12 +82,7 @@ void main() {
 
     await _pumpLibrary(tester, container);
     await _startRawImageImport(tester);
-    await tester.tap(
-      find.descendant(
-        of: find.byType(VibeImageEncodeDialog),
-        matching: find.byType(FilledButton),
-      ),
-    );
+    await _tapEncodeConfirm(tester);
     await tester.pumpAndSettle();
 
     expect(paramsNotifier.encodeCalls, 1);
@@ -155,6 +140,16 @@ Future<void> _pumpLibrary(
     ),
   );
   await tester.pump();
+}
+
+Future<void> _tapEncodeConfirm(WidgetTester tester) async {
+  final confirm = find.descendant(
+    of: find.byType(VibeImageEncodeDialog),
+    matching: find.byType(FilledButton),
+  );
+  await tester.ensureVisible(confirm);
+  await tester.pump();
+  await tester.tap(confirm);
 }
 
 Future<void> _startRawImageImport(WidgetTester tester) async {

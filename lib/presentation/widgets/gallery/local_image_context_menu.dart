@@ -27,6 +27,9 @@ enum LocalImageContextAction {
 class LocalImageContextMenu {
   const LocalImageContextMenu._();
 
+  static const double _maxWidth = 420;
+  static const double _screenPadding = 8;
+
   static Future<LocalImageContextAction?> show(
     BuildContext context, {
     required Offset position,
@@ -39,7 +42,7 @@ class LocalImageContextMenu {
   }) {
     return showMenu<LocalImageContextAction>(
       context: context,
-      constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
+      constraints: _constraints(context),
       position: contextMenuAnchorAt(context, position),
       popUpAnimationStyle: AnimationStyle.noAnimation,
       items: buildEntries(
@@ -63,7 +66,7 @@ class LocalImageContextMenu {
   }) {
     return showMenu<LocalImageContextAction>(
       context: context,
-      constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
+      constraints: _constraints(context),
       position: contextMenuAnchorAt(context, position),
       popUpAnimationStyle: AnimationStyle.noAnimation,
       items: buildSendEntries(
@@ -72,6 +75,17 @@ class LocalImageContextMenu {
         watermarkEnabled: watermarkEnabled,
         isWatermarkDerivative: isWatermarkDerivative,
       ),
+    );
+  }
+
+  static BoxConstraints _constraints(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final availableWidth =
+        mediaQuery.size.width -
+        mediaQuery.padding.horizontal -
+        (_screenPadding * 2);
+    return BoxConstraints(
+      maxWidth: availableWidth.clamp(0.0, _maxWidth).toDouble(),
     );
   }
 

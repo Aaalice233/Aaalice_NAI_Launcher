@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../core/autocomplete/tag_translation_lookup.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../widgets/common/app_toast.dart';
 
 import '../../../../../data/models/prompt/prompt_tag.dart';
@@ -87,8 +87,6 @@ class TagChip extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<TagChip> createState() => _TagChipState();
-
-  static bool get isMobile => PlatformCapabilities.current.hasTouchInput;
 }
 
 class _TagChipState extends ConsumerState<TagChip>
@@ -98,6 +96,10 @@ class _TagChipState extends ConsumerState<TagChip>
   String? _translation;
   Timer? _menuShowTimer;
   Timer? _menuHideTimer;
+
+  bool get _touchAvailable => context.interactionPolicy.touchAvailable;
+  bool get _precisePointerAvailable =>
+      context.interactionPolicy.precisePointerAvailable;
 
   late AnimationController _scaleController;
   late Animation<double> _scaleAnimation;
@@ -215,6 +217,7 @@ class _TagChipState extends ConsumerState<TagChip>
   }
 
   void _onMouseEnter() {
+    if (!_precisePointerAvailable) return;
     setState(() => _isHovering = true);
     // Check reduced motion here - can't use MediaQuery in initState
     final reducedMotion = MediaQuery.of(context).disableAnimations;
@@ -222,7 +225,7 @@ class _TagChipState extends ConsumerState<TagChip>
       _scaleController.forward();
     }
 
-    if (!TagChip.isMobile && widget.showControls) {
+    if (_precisePointerAvailable && widget.showControls) {
       _menuHideTimer?.cancel();
       _menuShowTimer = Timer(const Duration(milliseconds: 100), () {
         if (mounted && _isHovering) {
@@ -233,6 +236,7 @@ class _TagChipState extends ConsumerState<TagChip>
   }
 
   void _onMouseExit() {
+    if (!_precisePointerAvailable) return;
     setState(() => _isHovering = false);
     // Check reduced motion here - can't use MediaQuery in initState
     final reducedMotion = MediaQuery.of(context).disableAnimations;
@@ -250,7 +254,7 @@ class _TagChipState extends ConsumerState<TagChip>
   }
 
   void _onLongPress() {
-    if (TagChip.isMobile) {
+    if (_touchAvailable) {
       _showMobileActionSheet();
     }
   }
@@ -658,7 +662,7 @@ class _TagChipState extends ConsumerState<TagChip>
             ? TagChipSizes.compactHorizontalPadding
             : TagChipSizes.normalHorizontalPadding,
         right:
-            (TagChip.isMobile && widget.showControls) ||
+            (_touchAvailable && widget.showControls) ||
                 (widget.onDelete != null && !widget.compact)
             ? 4
             : (widget.compact
@@ -705,7 +709,7 @@ class _TagChipState extends ConsumerState<TagChip>
               theme: theme,
             ),
           _buildSyntaxHighlightedText(theme, effectiveColor, isEnabled),
-          if (TagChip.isMobile && widget.showControls)
+          if (_touchAvailable && widget.showControls)
             IconButton(
               onPressed: _showMobileActionSheet,
               tooltip: context.l10n.common_moreActions,
@@ -747,7 +751,7 @@ class _TagChipState extends ConsumerState<TagChip>
           : const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       foregroundDecoration: BoxDecoration(
-        color: _isHovering && !TagChip.isMobile && !reducedMotion
+        color: _isHovering && _precisePointerAvailable && !reducedMotion
             ? Colors.white.withValues(alpha: 0.08)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(
@@ -817,7 +821,7 @@ class _TagChipState extends ConsumerState<TagChip>
     );
 
     // 桌面端添加悬浮菜单
-    if (!TagChip.isMobile && widget.showControls) {
+    if (_precisePointerAvailable && widget.showControls) {
       chipContent = FloatingMenuPortal(
         showMenu: _showMenu,
         menuBuilder: (context) => MouseRegion(
@@ -913,7 +917,9 @@ class DraggableTagChip extends StatelessWidget {
 
     return LongPressDraggable<int>(
       data: index,
-      delay: Duration(milliseconds: TagChip.isMobile ? 300 : 200),
+      delay: Duration(
+        milliseconds: context.interactionPolicy.touchAvailable ? 300 : 200,
+      ),
       feedback: Material(
         color: Colors.transparent,
         child: RepaintBoundary(
@@ -1097,7 +1103,7 @@ class _FavoriteButtonState extends State<_FavoriteButton>
       vsync: this,
     );
     _jumpAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(parent: _jumpController, curve: Curves.elasticOut),
+      CurvedAnimation(parent: _jumpController, curve: Curves.easeOutCubic),
     );
   }
 

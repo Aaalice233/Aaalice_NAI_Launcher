@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/interaction_policy.dart';
 
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../common/thumbnail_display.dart';
+import '../../common/translated_tag_text.dart';
 
 /// 词库条目菜单项组件
 ///
@@ -37,10 +38,16 @@ class _LibraryEntryMenuItemState extends State<LibraryEntryMenuItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final precisePointerAvailable =
+        context.interactionPolicy.precisePointerAvailable;
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onEnter: precisePointerAvailable
+          ? (_) => setState(() => _isHovering = true)
+          : null,
+      onExit: precisePointerAvailable
+          ? (_) => setState(() => _isHovering = false)
+          : null,
       child: InkWell(
         onTap: () => Navigator.of(context).pop('custom_${widget.entry.id}'),
         child: Container(
@@ -90,14 +97,14 @@ class _LibraryEntryMenuItemState extends State<LibraryEntryMenuItem> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
+                    TranslatedPromptText(
                       widget.entry.contentPreview,
+                      selectable: false,
                       style: TextStyle(
                         fontSize: 11,
                         color: theme.colorScheme.outline,
                       ),
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -105,11 +112,10 @@ class _LibraryEntryMenuItemState extends State<LibraryEntryMenuItem> {
 
               // 删除按钮（悬浮时显示）
               AnimatedOpacity(
-                opacity:
-                    PlatformCapabilities.current.hasTouchInput || _isHovering
-                    ? 1.0
-                    : 0.0,
-                duration: const Duration(milliseconds: 150),
+                opacity: !precisePointerAvailable || _isHovering ? 1.0 : 0.0,
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 150),
                 child: IconButton(
                   onPressed: widget.onDelete,
                   icon: Icon(

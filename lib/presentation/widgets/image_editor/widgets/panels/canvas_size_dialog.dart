@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/window_size_class.dart';
 
 /// 内容处理模式
 enum ContentHandlingMode {
@@ -64,6 +66,7 @@ class CanvasSizeDialog extends StatefulWidget {
   final ContentHandlingMode? initialMode;
   final String title;
   final String confirmText;
+  final ScrollController? scrollController;
 
   const CanvasSizeDialog({
     super.key,
@@ -71,6 +74,7 @@ class CanvasSizeDialog extends StatefulWidget {
     this.initialMode,
     this.title = 'Canvas Size',
     this.confirmText = 'Confirm',
+    this.scrollController,
   });
 
   /// 显示对话框
@@ -81,13 +85,23 @@ class CanvasSizeDialog extends StatefulWidget {
     String? title,
     String? confirmText,
   }) {
-    return showDialog<CanvasSizeResult>(
+    final resolvedTitle = title ?? context.l10n.editor_canvasSizeTitle;
+    final resolvedConfirmText = confirmText ?? context.l10n.common_confirm;
+    return AdaptivePresenter.showForm<CanvasSizeResult>(
       context: context,
-      builder: (context) => CanvasSizeDialog(
+      sideSheetWidth: 480,
+      titleBuilder: (context) => Text(
+        resolvedTitle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      builder: (context, scrollController) => CanvasSizeDialog(
         initialSize: initialSize,
         initialMode: initialMode,
-        title: title ?? context.l10n.editor_canvasSizeTitle,
-        confirmText: confirmText ?? context.l10n.common_confirm,
+        title: resolvedTitle,
+        confirmText: resolvedConfirmText,
+        scrollController: scrollController,
       ),
     );
   }
@@ -132,195 +146,230 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final compact = context.adaptiveWindow.isCompact;
 
-    return AlertDialog(
-      title: Text(widget.title),
-      content: SizedBox(
-        width: 320,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 预设选择
-            DropdownButtonFormField<CanvasSizePreset>(
-              initialValue: _selectedPreset,
-              decoration: InputDecoration(
-                labelText: context.l10n.editor_presetSize,
-                isDense: true,
-              ),
-              items: [
-                DropdownMenuItem(
-                  value: null,
-                  child: Text(context.l10n.editor_customSize),
+    return Column(
+      key: const ValueKey('canvas-size-dialog'),
+      children: [
+        Expanded(
+          child: ListView(
+            key: const ValueKey('canvas-size-scroll'),
+            controller: widget.scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.all(compact ? 12 : 16),
+            children: [
+              DropdownButtonFormField<CanvasSizePreset>(
+                key: const ValueKey('canvas-size-preset'),
+                initialValue: _selectedPreset,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: context.l10n.editor_presetSize,
+                  isDense: true,
                 ),
-                ...canvasPresets.map(
-                  (preset) => DropdownMenuItem(
-                    value: preset,
-                    child: Text(_presetLabel(context, preset)),
-                  ),
-                ),
-              ],
-              onChanged: (preset) {
-                setState(() {
-                  _selectedPreset = preset;
-                  if (preset != null) {
-                    _widthController.text = preset.width.toString();
-                    _heightController.text = preset.height.toString();
-                    _aspectRatio = preset.width / preset.height;
-                  }
-                });
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // 内容处理模式选择
-            DropdownButtonFormField<ContentHandlingMode>(
-              initialValue: _selectedMode,
-              decoration: InputDecoration(
-                labelText: context.l10n.editor_contentHandling,
-                isDense: true,
-              ),
-              items: ContentHandlingMode.values
-                  .map(
-                    (mode) => DropdownMenuItem(
-                      value: mode,
-                      child: Text(_modeLabel(context, mode)),
+                items: [
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text(
+                      context.l10n.editor_customSize,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  )
-                  .toList(),
-              onChanged: (mode) {
-                if (mode != null) {
+                  ),
+                  ...canvasPresets.map(
+                    (preset) => DropdownMenuItem(
+                      value: preset,
+                      child: Text(
+                        _presetLabel(context, preset),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (preset) {
                   setState(() {
-                    _selectedMode = mode;
+                    _selectedPreset = preset;
+                    if (preset != null) {
+                      _widthController.text = preset.width.toString();
+                      _heightController.text = preset.height.toString();
+                      _aspectRatio = preset.width / preset.height;
+                    }
                   });
-                }
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // 宽高输入
-            Row(
-              children: [
-                // 宽度
-                Expanded(
-                  child: ThemedInput(
-                    controller: _widthController,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.editor_width,
-                      suffixText: 'px',
-                      isDense: true,
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (value) {
-                      _selectedPreset = null;
-                      if (_linkDimensions) {
-                        final width = int.tryParse(value) ?? 0;
-                        if (width > 0) {
-                          final height = (width / _aspectRatio).round();
-                          _heightController.text = height.toString();
-                        }
-                      }
-                      setState(() {});
-                    },
-                  ),
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<ContentHandlingMode>(
+                key: const ValueKey('canvas-size-mode'),
+                initialValue: _selectedMode,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: context.l10n.editor_contentHandling,
+                  isDense: true,
                 ),
-
-                // 链接按钮
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: IconButton(
-                    icon: Icon(
-                      _linkDimensions ? Icons.link : Icons.link_off,
-                      color: _linkDimensions
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                    tooltip: _linkDimensions
-                        ? context.l10n.editor_unlockAspectRatio
-                        : context.l10n.editor_lockAspectRatio,
-                    onPressed: () {
-                      setState(() {
-                        _linkDimensions = !_linkDimensions;
-                        if (_linkDimensions) {
-                          final width =
-                              int.tryParse(_widthController.text) ?? 1;
-                          final height =
-                              int.tryParse(_heightController.text) ?? 1;
-                          _aspectRatio = width / height;
-                        }
-                      });
-                    },
-                  ),
-                ),
-
-                // 高度
-                Expanded(
-                  child: ThemedInput(
-                    controller: _heightController,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.editor_height,
-                      suffixText: 'px',
-                      isDense: true,
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (value) {
-                      _selectedPreset = null;
-                      if (_linkDimensions) {
-                        final height = int.tryParse(value) ?? 0;
-                        if (height > 0) {
-                          final width = (height * _aspectRatio).round();
-                          _widthController.text = width.toString();
-                        }
-                      }
-                      setState(() {});
-                    },
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // 快捷比例按钮
-            Wrap(
+                items: ContentHandlingMode.values
+                    .map(
+                      (mode) => DropdownMenuItem(
+                        value: mode,
+                        child: Text(
+                          _modeLabel(context, mode),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (mode) {
+                  if (mode != null) {
+                    setState(() => _selectedMode = mode);
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stackInputs =
+                      constraints.maxWidth < 400 ||
+                      MediaQuery.textScalerOf(context).scale(1) >= 2;
+                  if (stackInputs) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildWidthInput(),
+                        Align(child: _buildLinkButton()),
+                        _buildHeightInput(),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: _buildWidthInput()),
+                      _buildLinkButton(),
+                      Expanded(child: _buildHeightInput()),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _RatioChip(label: '1:1', onTap: () => _setRatio(1, 1)),
+                  _RatioChip(label: '4:3', onTap: () => _setRatio(4, 3)),
+                  _RatioChip(label: '3:4', onTap: () => _setRatio(3, 4)),
+                  _RatioChip(label: '16:9', onTap: () => _setRatio(16, 9)),
+                  _RatioChip(label: '9:16', onTap: () => _setRatio(9, 16)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _CanvasSizePreview(
+                originalSize: widget.initialSize ?? const Size(1024, 1024),
+                newWidth: int.tryParse(_widthController.text) ?? 1024,
+                newHeight: int.tryParse(_heightController.text) ?? 1024,
+                mode: _selectedMode,
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.all(compact ? 12 : 16),
+            child: Wrap(
+              alignment: WrapAlignment.end,
               spacing: 8,
               runSpacing: 8,
               children: [
-                _RatioChip(label: '1:1', onTap: () => _setRatio(1, 1)),
-                _RatioChip(label: '4:3', onTap: () => _setRatio(4, 3)),
-                _RatioChip(label: '3:4', onTap: () => _setRatio(3, 4)),
-                _RatioChip(label: '16:9', onTap: () => _setRatio(16, 9)),
-                _RatioChip(label: '9:16', onTap: () => _setRatio(9, 16)),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.l10n.common_cancel),
+                ),
+                FilledButton(
+                  onPressed: _isValid() ? _confirm : null,
+                  child: Text(widget.confirmText),
+                ),
               ],
             ),
-
-            const SizedBox(height: 16),
-
-            // 视觉预览
-            _CanvasSizePreview(
-              originalSize: widget.initialSize ?? const Size(1024, 1024),
-              newWidth: int.tryParse(_widthController.text) ?? 1024,
-              newHeight: int.tryParse(_heightController.text) ?? 1024,
-              mode: _selectedMode,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(context.l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: _isValid() ? _confirm : null,
-          child: Text(widget.confirmText),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildWidthInput() {
+    return ThemedInput(
+      key: const ValueKey('canvas-size-width'),
+      controller: _widthController,
+      decoration: InputDecoration(
+        labelText: context.l10n.editor_width,
+        suffixText: 'px',
+        isDense: true,
+      ),
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      onChanged: (value) {
+        _selectedPreset = null;
+        if (_linkDimensions) {
+          final width = int.tryParse(value) ?? 0;
+          if (width > 0) {
+            _heightController.text = (width / _aspectRatio).round().toString();
+          }
+        }
+        setState(() {});
+      },
+    );
+  }
+
+  Widget _buildHeightInput() {
+    return ThemedInput(
+      key: const ValueKey('canvas-size-height'),
+      controller: _heightController,
+      decoration: InputDecoration(
+        labelText: context.l10n.editor_height,
+        suffixText: 'px',
+        isDense: true,
+      ),
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      onChanged: (value) {
+        _selectedPreset = null;
+        if (_linkDimensions) {
+          final height = int.tryParse(value) ?? 0;
+          if (height > 0) {
+            _widthController.text = (height * _aspectRatio).round().toString();
+          }
+        }
+        setState(() {});
+      },
+    );
+  }
+
+  Widget _buildLinkButton() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: IconButton(
+        icon: Icon(
+          _linkDimensions ? Icons.link : Icons.link_off,
+          color: _linkDimensions
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant,
+        ),
+        tooltip: _linkDimensions
+            ? context.l10n.editor_unlockAspectRatio
+            : context.l10n.editor_lockAspectRatio,
+        onPressed: () {
+          setState(() {
+            _linkDimensions = !_linkDimensions;
+            if (_linkDimensions) {
+              final width = int.tryParse(_widthController.text) ?? 1;
+              final height = int.tryParse(_heightController.text) ?? 1;
+              _aspectRatio = width / height;
+            }
+          });
+        },
+      ),
     );
   }
 
@@ -511,38 +560,33 @@ class _SizeComparison extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // 计算显示比例，使预览适应容器
-    const maxPreviewWidth = 280.0;
-    const maxPreviewHeight = 120.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final previewWidth = constraints.maxWidth.clamp(0, 280).toDouble();
+        const previewHeight = 120.0;
+        final maxWidth = originalSize.width > newSize.width
+            ? originalSize.width
+            : newSize.width;
+        final maxHeight = originalSize.height > newSize.height
+            ? originalSize.height
+            : newSize.height;
+        final scaleX = previewWidth / maxWidth;
+        final scaleY = previewHeight / maxHeight;
+        final scale = scaleX < scaleY ? scaleX : scaleY;
 
-    // 找出两个尺寸中最大的宽高
-    final maxWidth = originalSize.width > newSize.width
-        ? originalSize.width
-        : newSize.width;
-    final maxHeight = originalSize.height > newSize.height
-        ? originalSize.height
-        : newSize.height;
-
-    // 计算缩放比例
-    final scaleX = maxPreviewWidth / maxWidth;
-    final scaleY = maxPreviewHeight / maxHeight;
-    final scale = scaleX < scaleY ? scaleX : scaleY;
-
-    // 计算显示尺寸
-    final originalDisplaySize = Size(
-      originalSize.width * scale,
-      originalSize.height * scale,
-    );
-    final newDisplaySize = Size(newSize.width * scale, newSize.height * scale);
-
-    return CustomPaint(
-      size: const Size(maxPreviewWidth, maxPreviewHeight),
-      painter: _SizeComparisonPainter(
-        originalSize: originalDisplaySize,
-        newSize: newDisplaySize,
-        mode: mode,
-        theme: theme,
-      ),
+        return CustomPaint(
+          size: Size(previewWidth, previewHeight),
+          painter: _SizeComparisonPainter(
+            originalSize: Size(
+              originalSize.width * scale,
+              originalSize.height * scale,
+            ),
+            newSize: Size(newSize.width * scale, newSize.height * scale),
+            mode: mode,
+            theme: theme,
+          ),
+        );
+      },
     );
   }
 }
@@ -795,116 +839,120 @@ class _SizeInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final widthDiff = newSize.width.toInt() - originalSize.width.toInt();
     final heightDiff = newSize.height.toInt() - originalSize.height.toInt();
+    final labelStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
 
-    return Column(
-      children: [
-        // 原始尺寸
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackInfo =
+            constraints.maxWidth < 360 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 2;
+
+        Widget infoLine({
+          required IconData icon,
+          required Color iconColor,
+          required Widget value,
+          required String label,
+        }) {
+          final labelWidget = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: iconColor),
+              const SizedBox(width: 4),
+              Flexible(child: Text(label, style: labelStyle)),
+            ],
+          );
+          if (stackInfo) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [labelWidget, const SizedBox(height: 4), value],
+            );
+          }
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(child: labelWidget),
+              const SizedBox(width: 8),
+              value,
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.crop_square,
-                  size: 14,
+            infoLine(
+              icon: Icons.crop_square,
+              iconColor: theme.colorScheme.outline,
+              label: context.l10n.editor_originalSize,
+              value: Text(
+                '${originalSize.width.toInt()} x ${originalSize.height.toInt()}',
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.outline,
+                  fontFamily: 'monospace',
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  context.l10n.editor_originalSize,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              '${originalSize.width.toInt()} x ${originalSize.height.toInt()}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-                fontFamily: 'monospace',
               ),
             ),
-          ],
-        ),
-
-        const SizedBox(height: 4),
-
-        // 新尺寸
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.check_box,
-                  size: 14,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  context.l10n.editor_newSize,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Text(
-                  '${newSize.width.toInt()} x ${newSize.height.toInt()}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                if (widthDiff != 0 || heightDiff != 0) ...[
-                  const SizedBox(width: 8),
+            const SizedBox(height: 8),
+            infoLine(
+              icon: Icons.check_box,
+              iconColor: theme.colorScheme.primary,
+              label: context.l10n.editor_newSize,
+              value: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
                   Text(
-                    '(${widthDiff >= 0 ? '+' : ''}$widthDiff, ${heightDiff >= 0 ? '+' : ''}$heightDiff)',
+                    '${newSize.width.toInt()} x ${newSize.height.toInt()}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: widthDiff >= 0 && heightDiff >= 0
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error,
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
                       fontFamily: 'monospace',
                     ),
                   ),
+                  if (widthDiff != 0 || heightDiff != 0)
+                    Text(
+                      '(${widthDiff >= 0 ? '+' : ''}$widthDiff, ${heightDiff >= 0 ? '+' : ''}$heightDiff)',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: widthDiff >= 0 && heightDiff >= 0
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.error,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
                 ],
-              ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _getModeIcon(mode),
+                    size: 12,
+                    color: theme.colorScheme.onSecondaryContainer,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      _getModeDescription(context, mode),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
-        ),
-
-        const SizedBox(height: 4),
-
-        // 处理模式说明
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.secondaryContainer,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _getModeIcon(mode),
-                size: 12,
-                color: theme.colorScheme.onSecondaryContainer,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _getModeDescription(context, mode),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 

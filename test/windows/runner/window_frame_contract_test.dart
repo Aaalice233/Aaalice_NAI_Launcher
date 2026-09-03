@@ -42,6 +42,35 @@ void main() {
     expect(source, contains('ResizeChildContent();'));
   });
 
+  test('hot reload explicitly resynchronizes child size and DPI metrics', () {
+    final bootstrapSource = File(
+      'lib/presentation/screens/splash/app_bootstrap.dart',
+    ).readAsStringSync();
+    final platformSource = File(
+      'lib/core/windowing/windows_native_window_state.dart',
+    ).readAsStringSync();
+    final nativeSource = File(
+      'windows/runner/flutter_window.cpp',
+    ).readAsStringSync();
+    final windowSource = File(
+      'windows/runner/win32_window.cpp',
+    ).readAsStringSync();
+
+    expect(bootstrapSource, contains('void reassemble()'));
+    expect(bootstrapSource, contains('synchronizeViewMetrics()'));
+    expect(
+      platformSource,
+      contains("invokeMethod<void>('synchronizeViewMetrics')"),
+    );
+    expect(
+      nativeSource,
+      contains('call.method_name() == "synchronizeViewMetrics"'),
+    );
+    expect(nativeSource, contains('SynchronizeChildContentMetrics();'));
+    expect(windowSource, contains('SendMessage(child_content_, WM_SIZE'));
+    expect(windowSource, contains('IsIconic(window_handle_)'));
+  });
+
   test(
     'runner never forwards minimized or empty client geometry to Flutter',
     () {

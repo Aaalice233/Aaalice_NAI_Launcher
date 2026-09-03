@@ -14,6 +14,7 @@ import 'core/platform/platform_capabilities.dart';
 import 'core/services/desktop_app_shutdown_service.dart';
 import 'core/services/interactive_work_gate.dart';
 import 'core/shortcuts/default_shortcuts.dart';
+import 'presentation/adaptive/interaction_policy.dart';
 import 'presentation/adaptive/window_size_class.dart';
 import 'presentation/router/app_router_config.dart';
 import 'presentation/router/app_routes.dart';
@@ -398,8 +399,13 @@ class NAILauncherApp extends ConsumerWidget {
                 data: mediaQuery.copyWith(
                   textScaler: TextScaler.linear(effectiveScale),
                 ),
-                child: DesktopWindowFrame(
-                  child: LargestDisplayFeatureSubScreen(child: child!),
+                child: InteractionPolicyScope(
+                  initialPolicy: PlatformCapabilities.current.isMobile
+                      ? InteractionPolicy.touchFirst
+                      : InteractionPolicy.neutral,
+                  child: DesktopWindowFrame(
+                    child: LargestDisplayFeatureSubScreen(child: child!),
+                  ),
                 ),
               ),
             );

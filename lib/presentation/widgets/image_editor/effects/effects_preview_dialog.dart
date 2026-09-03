@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../common/adaptive_dialog_frame.dart';
 import '../image_editor_processing_service.dart';
 import 'editor_effects.dart';
 import 'image_editor_effects_controller.dart';
@@ -21,23 +23,33 @@ class EffectsPreviewDialog extends StatefulWidget {
     required this.sourceBytes,
     required this.cropRect,
     required this.processingService,
+    this.scrollController,
   });
 
   final Uint8List sourceBytes;
   final EditorEffectCropRect? cropRect;
   final ImageEditorProcessingService processingService;
+  final ScrollController? scrollController;
 
   static Future<EditorEffectSelection?> show(
     BuildContext context, {
     required Uint8List sourceBytes,
     required EditorEffectCropRect? cropRect,
     required ImageEditorProcessingService processingService,
-  }) => showDialog<EditorEffectSelection>(
+  }) => AdaptivePresenter.showForm<EditorEffectSelection>(
     context: context,
-    builder: (_) => EffectsPreviewDialog(
+    sideSheetWidth: 960,
+    titleBuilder: (context) => Text(
+      context.l10n.editor_localEffects,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.titleLarge,
+    ),
+    builder: (context, scrollController) => EffectsPreviewDialog(
       sourceBytes: sourceBytes,
       cropRect: cropRect,
       processingService: processingService,
+      scrollController: scrollController,
     ),
   );
 
@@ -105,104 +117,82 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final horizontalInset = media.size.width < 820 ? 12.0 : 32.0;
-    final dialogWidth = (media.size.width - horizontalInset * 2)
-        .clamp(360.0, 1120.0)
-        .toDouble();
-    final previewHeight = (media.size.height * .48)
-        .clamp(320.0, 520.0)
-        .toDouble();
-    return Dialog(
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: horizontalInset,
-        vertical: 20,
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: dialogWidth,
-          maxHeight: media.size.height * .9,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      context.l10n.editor_localEffects,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: context.l10n.common_close,
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _section(context.l10n.editor_basicAdjustments, const [
-                        EditorEffectType.brightness,
-                        EditorEffectType.contrast,
-                        EditorEffectType.saturation,
-                        EditorEffectType.temperature,
-                        EditorEffectType.gamma,
-                      ]),
-                      const SizedBox(height: 14),
-                      _section(context.l10n.editor_styleAndRepair, const [
-                        EditorEffectType.grayscale,
-                        EditorEffectType.invert,
-                        EditorEffectType.sepia,
-                        EditorEffectType.denoise,
-                        EditorEffectType.blur,
-                        EditorEffectType.sharpen,
-                      ]),
-                      const SizedBox(height: 14),
-                      _section(
-                        context.l10n.editor_transformCrop,
-                        const [
-                          EditorEffectType.rotateLeft,
-                          EditorEffectType.rotateRight,
-                          EditorEffectType.flipHorizontal,
-                          EditorEffectType.flipVertical,
-                          EditorEffectType.cropToSelection,
-                        ],
-                        description:
-                            context.l10n.editor_transformCropDescription,
-                        prominent: true,
-                      ),
-                      const SizedBox(height: 16),
-                      _effectControl(),
-                      const SizedBox(height: 16),
-                      _previewComparison(previewHeight),
-                      const SizedBox(height: 12),
-                      Text(
-                        context.l10n.editor_effectPreviewHint,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
+    return AdaptiveDialogFrame(
+      key: const ValueKey('effects-preview-frame'),
+      maxWidth: 960,
+      maxHeight: 900,
+      reservedVerticalSpace: 0,
+      horizontalMargin: 0,
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              key: const ValueKey('effects-preview-scroll'),
+              controller: widget.scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              children: [
+                _section(context.l10n.editor_basicAdjustments, const [
+                  EditorEffectType.brightness,
+                  EditorEffectType.contrast,
+                  EditorEffectType.saturation,
+                  EditorEffectType.temperature,
+                  EditorEffectType.gamma,
+                ]),
+                const SizedBox(height: 14),
+                _section(context.l10n.editor_styleAndRepair, const [
+                  EditorEffectType.grayscale,
+                  EditorEffectType.invert,
+                  EditorEffectType.sepia,
+                  EditorEffectType.denoise,
+                  EditorEffectType.blur,
+                  EditorEffectType.sharpen,
+                ]),
+                const SizedBox(height: 14),
+                _section(
+                  context.l10n.editor_transformCrop,
+                  const [
+                    EditorEffectType.rotateLeft,
+                    EditorEffectType.rotateRight,
+                    EditorEffectType.flipHorizontal,
+                    EditorEffectType.flipVertical,
+                    EditorEffectType.cropToSelection,
+                  ],
+                  description: context.l10n.editor_transformCropDescription,
+                  prominent: true,
                 ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
+                const SizedBox(height: 16),
+                _effectControl(),
+                const SizedBox(height: 16),
+                _previewComparison(),
+                const SizedBox(height: 12),
+                Text(
+                  context.l10n.editor_effectPreviewHint,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final stackActions =
+                      constraints.maxWidth < 520 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.5;
+                  final cancel = TextButton(
+                    key: const ValueKey('effects-preview-cancel'),
                     onPressed: () => Navigator.pop(context),
                     child: Text(context.l10n.common_cancel),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
+                  );
+                  final apply = FilledButton.icon(
+                    key: const ValueKey('effects-preview-apply'),
                     onPressed: loading || error.isNotEmpty
                         ? null
                         : () => Navigator.pop(
@@ -210,13 +200,26 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
                             EditorEffectSelection(type, intensity),
                           ),
                     icon: const Icon(Icons.check),
-                    label: Text(context.l10n.editor_applyToCurrentLayer),
-                  ),
-                ],
+                    label: Text(
+                      context.l10n.editor_applyToCurrentLayer,
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                  if (stackActions) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [cancel, const SizedBox(height: 8), apply],
+                    );
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [cancel, const SizedBox(width: 12), apply],
+                  );
+                },
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -238,27 +241,21 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (description != null) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+            Text(
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
+            if (description != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -298,9 +295,13 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
         children: [
           Icon(_effectIcon(value), size: prominent ? 20 : 18),
           const SizedBox(width: 6),
-          Text(
-            effectLabel(context, value),
-            style: theme.textTheme.labelLarge?.copyWith(color: foreground),
+          Flexible(
+            child: Text(
+              effectLabel(context, value),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(color: foreground),
+            ),
           ),
         ],
       ),
@@ -354,8 +355,12 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(_effectIcon(type), color: colorScheme.primary),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Icon(_effectIcon(type), color: colorScheme.primary),
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -367,21 +372,29 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
                     ),
                   ),
                 ),
-                Text(
-                  intensity.toStringAsFixed(2),
-                  style: theme.textTheme.titleSmall,
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () {
-                    setState(
-                      () => intensity = editorEffectDefaultIntensity(type),
-                    );
-                    _refresh();
-                  },
-                  child: Text(context.l10n.common_reset),
-                ),
               ],
+            ),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                children: [
+                  Text(
+                    intensity.toStringAsFixed(2),
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(
+                        () => intensity = editorEffectDefaultIntensity(type),
+                      );
+                      _refresh();
+                    },
+                    child: Text(context.l10n.common_reset),
+                  ),
+                ],
+              ),
             ),
             Slider(
               value: intensity,
@@ -399,8 +412,9 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
     );
   }
 
-  Widget _previewComparison(double previewHeight) {
+  Widget _previewComparison() {
     return LayoutBuilder(
+      key: const ValueKey('effects-preview-comparison'),
       builder: (context, constraints) {
         final panes = [
           _preview(context.l10n.editor_original, widget.sourceBytes, false, ''),
@@ -412,19 +426,16 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
           ),
         ];
         if (constraints.maxWidth < 720) {
-          return SizedBox(
-            height: previewHeight * 1.7,
-            child: Column(
-              children: [
-                Expanded(child: panes[0]),
-                const SizedBox(height: 12),
-                Expanded(child: panes[1]),
-              ],
-            ),
+          return Column(
+            children: [
+              SizedBox(height: 240, child: panes[0]),
+              const SizedBox(height: 12),
+              SizedBox(height: 240, child: panes[1]),
+            ],
           );
         }
         return SizedBox(
-          height: previewHeight,
+          height: 420,
           child: Row(
             children: [
               Expanded(child: panes[0]),
@@ -475,12 +486,15 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
             child: Text(title, style: theme.textTheme.labelMedium),
           ),
           if (busy)
-            const Positioned(
+            Positioned(
               right: 8,
               top: 8,
               child: SizedBox.square(
                 dimension: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+                ),
               ),
             ),
         ],

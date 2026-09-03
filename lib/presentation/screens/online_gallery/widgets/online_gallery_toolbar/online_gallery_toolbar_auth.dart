@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/services/date_formatting_service.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../../../data/services/danbooru_auth_service.dart';
 import '../../../../../data/services/gelbooru_auth_service.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../providers/online_gallery_provider.dart';
 import 'online_gallery_auth_dialogs.dart';
 import 'online_gallery_toolbar.dart';
@@ -61,8 +61,8 @@ class OnlineGalleryToolbarAuthControls {
     }) {
       final content = SizedBox(
         key: const ValueKey('online-gallery-account-avatar'),
-        width: galleryToolbarControlHeight,
-        height: galleryToolbarControlHeight,
+        width: galleryToolbarControlHeightFor(context),
+        height: galleryToolbarControlHeightFor(context),
         child: Center(
           child: Container(
             width: 34,
@@ -334,10 +334,11 @@ class OnlineGalleryToolbarAuthControls {
             _galleryNotifier.setPopularScale(selected.first);
           },
           style: ButtonStyle(
-            visualDensity: PlatformCapabilities.current.isMobile
+            visualDensity: context.interactionPolicy.prefersTouchPresentation
                 ? VisualDensity.standard
                 : VisualDensity.compact,
-            tapTargetSize: PlatformCapabilities.current.isMobile
+            tapTargetSize:
+                context.interactionPolicy.shouldExposeTouchAlternatives
                 ? MaterialTapTargetSize.padded
                 : MaterialTapTargetSize.shrinkWrap,
           ),
@@ -358,7 +359,7 @@ class OnlineGalleryToolbarAuthControls {
             backgroundColor: theme.colorScheme.surfaceContainerHighest
                 .withValues(alpha: 0.4),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            visualDensity: PlatformCapabilities.current.isMobile
+            visualDensity: context.interactionPolicy.prefersTouchPresentation
                 ? VisualDensity.standard
                 : VisualDensity.compact,
           ),

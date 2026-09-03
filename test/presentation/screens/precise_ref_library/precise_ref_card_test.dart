@@ -5,12 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
-import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/precise_ref/precise_ref_library_entry.dart';
 import 'package:nai_launcher/data/services/precise_ref_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 
 class _FakeStorage extends PreciseRefLibraryStorageService {
   @override
@@ -34,18 +35,22 @@ void main() {
 
   Future<void> pumpCard(
     WidgetTester tester, {
+    InteractionPolicy initialPolicy = InteractionPolicy.neutral,
     VoidCallback? onSendToPreciseRef,
+    VoidCallback? onSendToImg2Img,
+    VoidCallback? onEdit,
+    VoidCallback? onDelete,
     VoidCallback? onToggleFavorite,
     VoidCallback? onAddToAgent,
   }) async {
-    Widget card = PreciseRefCard(
+    final card = PreciseRefCard(
       entry: entry,
       onSendToPreciseRef: onSendToPreciseRef,
+      onSendToImg2Img: onSendToImg2Img,
+      onEdit: onEdit,
+      onDelete: onDelete,
       onToggleFavorite: onToggleFavorite,
     );
-    if (onAddToAgent != null) {
-      card = ImageCardActionScope(onAddToAgent: onAddToAgent, child: card);
-    }
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -57,8 +62,22 @@ void main() {
           locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Center(child: SizedBox(width: 200, height: 250, child: card)),
+          home: InteractionPolicyScope(
+            initialPolicy: initialPolicy,
+            child: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 200,
+                  height: 250,
+                  child: onAddToAgent == null
+                      ? card
+                      : ImageCardActionScope(
+                          onAddToAgent: onAddToAgent,
+                          child: card,
+                        ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -78,11 +97,24 @@ void main() {
       ),
       findsOneWidget,
     );
-    // 收藏态显示实心星标
-    expect(find.byIcon(Icons.star), findsOneWidget);
+    // 精确指针下操作只在悬浮时出现，避免常驻按钮遮挡图像。
+    expect(find.byIcon(Icons.favorite_rounded), findsNothing);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(find.byType(PreciseRefCard)),
+    );
+    await tester.pump();
+    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+    expect(
+      tester
+          .widget<ImageCardHoverMotion>(find.byType(ImageCardHoverMotion))
+          .hovered,
+      isTrue,
+    );
   });
 
-  testWidgets('点击卡片触发发送回调，点击星标触发收藏回调', (tester) async {
+  testWidgets('点击卡片触发发送回调，点击爱心触发收藏回调', (tester) async {
     var sendCount = 0;
     var favoriteCount = 0;
     await pumpCard(
@@ -91,6 +123,12 @@ void main() {
       onToggleFavorite: () => favoriteCount++,
     );
 
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(find.byType(PreciseRefCard)),
+    );
+    await tester.pump();
     await tester.tap(
       find.byKey(const Key('precise-ref-card-favorite-entry-1')),
     );
@@ -100,39 +138,160 @@ void main() {
     expect(sendCount, 1);
   });
 
-  testWidgets('悬浮操作可发送到智能体', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
+  testWidgets('Android touch 无需 hover 可从更多菜单触发全部卡片命令', (tester) async {
+    var sendCount = 0;
+    var img2imgCount = 0;
+    var editCount = 0;
+    var deleteCount = 0;
+    var favoriteCount = 0;
+    await pumpCard(
+      tester,
+      initialPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+      onSendToPreciseRef: () => sendCount++,
+      onSendToImg2Img: () => img2imgCount++,
+      onEdit: () => editCount++,
+      onDelete: () => deleteCount++,
+      onToggleFavorite: () => favoriteCount++,
     );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
+
+    await tester.tap(
+      find.byKey(const Key('precise-ref-card-favorite-entry-1')),
+      kind: PointerDeviceKind.touch,
+    );
+    expect(favoriteCount, 1);
+    expect(
+      find.byKey(const Key('precise-ref-card-more-entry-1')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('precise-ref-card-img2img-entry-1')),
+      findsNothing,
+    );
+
+    Future<void> selectAction(String label) async {
+      await tester.tap(
+        find.byKey(const Key('precise-ref-card-more-entry-1')),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label).last, kind: PointerDeviceKind.touch);
+      await tester.pumpAndSettle();
+    }
+
+    await selectAction('发送到精准参考');
+    await selectAction('发送到图生图');
+    await selectAction('编辑参数');
+    await selectAction('删除');
+
+    expect(sendCount, 1);
+    expect(img2imgCount, 1);
+    expect(editCount, 1);
+    expect(deleteCount, 1);
+  });
+
+  testWidgets('Windows mouse 保留 hover 快捷操作且全部回调可达', (tester) async {
+    var sendCount = 0;
+    var img2imgCount = 0;
+    var editCount = 0;
+    var deleteCount = 0;
+    var favoriteCount = 0;
+    await pumpCard(
+      tester,
+      initialPolicy: const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+      onSendToPreciseRef: () => sendCount++,
+      onSendToImg2Img: () => img2imgCount++,
+      onEdit: () => editCount++,
+      onDelete: () => deleteCount++,
+      onToggleFavorite: () => favoriteCount++,
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(find.byType(PreciseRefCard)),
+    );
+    await tester.pump();
+    await mouse.down(
+      tester.getCenter(
+        find.byKey(const Key('precise-ref-card-favorite-entry-1')),
+      ),
+    );
+    await mouse.up();
+    expect(favoriteCount, 1);
+    expect(
+      find.byKey(const Key('precise-ref-card-more-entry-1')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('precise-ref-card-img2img-entry-1')),
+      findsOneWidget,
+    );
+
+    await mouse.moveTo(tester.getCenter(find.byType(PreciseRefCard)));
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const Key('precise-ref-card-send-entry-1')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.tap(
+      find.byKey(const Key('precise-ref-card-img2img-entry-1')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.tap(
+      find.byKey(const Key('precise-ref-card-edit-entry-1')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.tap(
+      find.byKey(const Key('precise-ref-card-delete-entry-1')),
+      kind: PointerDeviceKind.mouse,
+    );
+
+    expect(sendCount, 1);
+    expect(img2imgCount, 1);
+    expect(editCount, 1);
+    expect(deleteCount, 1);
+  });
+
+  testWidgets('桌面与触屏操作均可发送到智能体', (tester) async {
     var addCount = 0;
     await pumpCard(tester, onAddToAgent: () => addCount++);
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
-    await mouse.moveTo(tester.getCenter(find.byType(PreciseRefCard)));
-    await tester.pump();
-
-    final action = find.byTooltip('发送到智能体');
-    expect(action, findsOneWidget);
-    await tester.tap(action);
-    expect(addCount, 1);
-  });
-
-  testWidgets('触屏更多操作可发送到智能体', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.android,
+    await mouse.addPointer(
+      location: tester.getCenter(find.byType(PreciseRefCard)),
     );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
-    var addCount = 0;
-    await pumpCard(tester, onAddToAgent: () => addCount++);
-
-    await tester.tap(find.byKey(const Key('precise-ref-card-more-entry-1')));
-    await tester.pumpAndSettle();
-    final action = find.text('发送到智能体');
-    expect(action, findsOneWidget);
-    await tester.tap(action);
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('precise-ref-card-agent-entry-1')),
+      kind: PointerDeviceKind.mouse,
+    );
     expect(addCount, 1);
+
+    await pumpCard(
+      tester,
+      initialPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+      onAddToAgent: () => addCount++,
+    );
+    await tester.tap(
+      find.byKey(const Key('precise-ref-card-more-entry-1')),
+      kind: PointerDeviceKind.touch,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发送到智能体'), kind: PointerDeviceKind.touch);
+    expect(addCount, 2);
   });
 }

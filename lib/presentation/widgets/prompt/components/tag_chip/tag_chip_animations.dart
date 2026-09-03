@@ -35,7 +35,7 @@ class TagChipAnimationConfig {
   static const Curve selectionCurve = Curves.easeInOut;
   static const Curve dragCurve = Curves.easeOut;
   static const Curve weightChangeCurve = Curves.easeOutCubic;
-  static const Curve heartJumpCurve = Curves.elasticOut;
+  static const Curve heartJumpCurve = Curves.easeOutCubic;
   static const Curve deleteCurve = Curves.easeIn;
 
   // Shadow blur ranges
@@ -70,10 +70,7 @@ Animation<double> createHoverScaleAnimation(AnimationController controller) {
 /// Returns an Animation<double> that controls shadow blur and opacity
 /// Used with AnimatedBuilder to animate boxShadow
 Animation<double> createHoverShadowAnimation(AnimationController controller) {
-  return Tween<double>(
-    begin: 0.0,
-    end: 1.0,
-  ).animate(
+  return Tween<double>(begin: 0.0, end: 1.0).animate(
     CurvedAnimation(
       parent: controller,
       curve: TagChipAnimationConfig.hoverCurve,
@@ -88,10 +85,7 @@ Animation<double> createHoverShadowAnimation(AnimationController controller) {
 Animation<double> createHoverBrightnessAnimation(
   AnimationController controller,
 ) {
-  return Tween<double>(
-    begin: 0.0,
-    end: 0.1,
-  ).animate(
+  return Tween<double>(begin: 0.0, end: 0.1).animate(
     CurvedAnimation(
       parent: controller,
       curve: TagChipAnimationConfig.hoverCurve,
@@ -152,12 +146,7 @@ Animation<double> createStaggeredEntranceAnimation({
   return Tween<double>(
     begin: TagChipAnimationConfig.entranceOpacityStart,
     end: TagChipAnimationConfig.entranceOpacityEnd,
-  ).animate(
-    CurvedAnimation(
-      parent: controller,
-      curve: staggeredCurve,
-    ),
-  );
+  ).animate(CurvedAnimation(parent: controller, curve: staggeredCurve));
 }
 
 /// Creates a weight change animation (number rolling effect)
@@ -172,10 +161,7 @@ Animation<double> createWeightChangeAnimation({
   required double endValue,
   required AnimationController controller,
 }) {
-  return Tween<double>(
-    begin: beginValue,
-    end: endValue,
-  ).animate(
+  return Tween<double>(begin: beginValue, end: endValue).animate(
     CurvedAnimation(
       parent: controller,
       curve: TagChipAnimationConfig.weightChangeCurve,
@@ -202,10 +188,7 @@ Animation<double> createHeartJumpAnimation(AnimationController controller) {
 ///
 /// Returns an Animation<double> that controls both scale and opacity
 Animation<double> createDeleteShrinkAnimation(AnimationController controller) {
-  return Tween<double>(
-    begin: 1.0,
-    end: 0.0,
-  ).animate(
+  return Tween<double>(begin: 1.0, end: 0.0).animate(
     CurvedAnimation(
       parent: controller,
       curve: TagChipAnimationConfig.deleteCurve,
@@ -251,12 +234,14 @@ class TagChipHoverBuilder extends StatelessWidget {
     return AnimatedBuilder(
       animation: Listenable.merge([scaleAnimation, shadowAnimation]),
       builder: (context, child) {
-        final shadowBlur = TagChipAnimationConfig.normalShadowBlur +
+        final shadowBlur =
+            TagChipAnimationConfig.normalShadowBlur +
             (TagChipAnimationConfig.hoverShadowBlur -
                     TagChipAnimationConfig.normalShadowBlur) *
                 shadowAnimation.value;
 
-        final shadowOpacity = TagChipAnimationConfig.normalShadowOpacity +
+        final shadowOpacity =
+            TagChipAnimationConfig.normalShadowOpacity +
             (TagChipAnimationConfig.hoverShadowOpacity -
                     TagChipAnimationConfig.normalShadowOpacity) *
                 shadowAnimation.value;
@@ -319,10 +304,7 @@ class TagChipEntranceBuilder extends StatelessWidget {
     return AnimatedBuilder(
       animation: opacityAnimation,
       builder: (context, child) {
-        return Opacity(
-          opacity: opacityAnimation.value,
-          child: child,
-        );
+        return Opacity(opacity: opacityAnimation.value, child: child);
       },
       child: child,
     );
@@ -372,10 +354,7 @@ class TagChipHeartJumpBuilder extends StatelessWidget {
     return AnimatedBuilder(
       animation: jumpAnimation,
       builder: (context, child) {
-        return Transform.scale(
-          scale: jumpAnimation.value,
-          child: child,
-        );
+        return Transform.scale(scale: jumpAnimation.value, child: child);
       },
       child: child,
     );
@@ -402,10 +381,7 @@ class TagChipDeleteAnimationBuilder extends StatelessWidget {
       builder: (context, child) {
         return Transform.scale(
           scale: shrinkAnimation.value,
-          child: Opacity(
-            opacity: shrinkAnimation.value,
-            child: child,
-          ),
+          child: Opacity(opacity: shrinkAnimation.value, child: child),
         );
       },
       child: child,
@@ -502,7 +478,8 @@ class TagChipShimmerBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final defaultBaseColor = baseColor ??
+    final defaultBaseColor =
+        baseColor ??
         theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3);
     final defaultHighlightColor =
         highlightColor ?? theme.colorScheme.onSurface.withValues(alpha: 0.1);

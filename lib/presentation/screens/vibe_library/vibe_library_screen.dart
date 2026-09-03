@@ -14,6 +14,7 @@ import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/novelai_vibe_codec.dart';
 import '../../../core/utils/vibe_library_path_helper.dart';
+import '../../../data/models/vibe/vibe_library_category.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/generation/generation_params_notifier.dart';
@@ -165,14 +166,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         unawaited(_showCategoryPanel());
       case SelectCategoryCommand(:final categoryId):
         _selectCategory(categoryId);
-      case CreateCategoryCommand(:final parentId):
-        unawaited(_createCategory(parentId));
+      case CreateCategoryCommand():
+        unawaited(_createCategory());
       case RenameCategoryCommand(:final categoryId, :final name):
         unawaited(categories.renameCategory(categoryId, name));
       case DeleteCategoryCommand(:final categoryId):
         unawaited(_deleteCategory(categoryId));
-      case MoveCategoryCommand(:final categoryId, :final parentId):
-        unawaited(categories.moveCategory(categoryId, parentId));
       case EnterSelectionModeCommand():
         selection.enter();
       case ExitSelectionModeCommand():
@@ -188,10 +187,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         unawaited(library.setSortOrder(order));
       case ChangePageSizeCommand(:final size):
         unawaited(library.setPageSize(size));
-      case PreviousPageCommand():
-        unawaited(library.loadPreviousPage());
-      case NextPageCommand():
-        unawaited(library.loadNextPage());
+      case ChangePageCommand(:final page):
+        unawaited(library.loadPage(page));
       case SendSelectionToGenerationCommand():
         unawaited(_sendSelection());
       case MoveSelectionCommand():
@@ -228,6 +225,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           categories: categories.categories,
           totalEntryCount: library.entries.length,
           favoriteCount: library.favoriteCount,
+          categoryEntryCounts: library.categoryEntryCounts,
           selectedCategoryId: categories.selectedCategoryId,
           onCategorySelected: (id) {
             _selectCategory(id);
@@ -237,22 +235,17 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
               .read(vibeLibraryCategoryNotifierProvider.notifier)
               .renameCategory(id, name),
           onCategoryDelete: _deleteCategory,
-          onAddSubCategory: (id) => _createCategory(id),
-          onCategoryMove: (id, parent) => panelRef
-              .read(vibeLibraryCategoryNotifierProvider.notifier)
-              .moveCategory(id, parent),
+          onCreateCategory: _createCategory,
         );
       },
     ),
   );
 
-  Future<void> _createCategory(String? parentId) async {
+  Future<void> _createCategory() async {
     final name = await _controller.runDialogLocked(
       () => ThemedInputDialog.show(
         context: context,
-        title: parentId == null
-            ? context.l10n.vibeLibrary_createCategoryTitle
-            : context.l10n.vibeLibrary_createSubCategoryTitle,
+        title: context.l10n.vibeLibrary_createCategoryTitle,
         hintText: context.l10n.vibeLibrary_categoryNameHint,
         confirmText: context.l10n.vibeLibrary_createCategoryConfirm,
         cancelText: context.l10n.common_cancel,
@@ -261,7 +254,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     if (name?.isNotEmpty == true && mounted) {
       await ref
           .read(vibeLibraryCategoryNotifierProvider.notifier)
-          .createCategory(name!, parentId: parentId);
+          .createCategory(name!);
     }
   }
 
@@ -300,23 +293,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       return;
     }
     final destination = await _controller.runDialogLocked(
-      () => showDialog<String?>(
-        context: context,
-        builder: (context) => SimpleDialog(
-          title: Text(context.l10n.vibeLibrary_moveToCategory),
-          children: [
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, ''),
-              child: Text(context.l10n.vibeLibrary_uncategorized),
-            ),
-            for (final category in categories)
-              SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, category.id),
-                child: Text(category.name),
-              ),
-          ],
-        ),
-      ),
+      () => VibeCategoryDestinationPanel.show(context, categories: categories),
     );
     if (destination == null || !mounted) return;
     final count = await ref
@@ -423,18 +400,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
   Future<void> _showVibeLimitDialog(String message) {
     return _controller.runDialogLocked(
-      () => showDialog<void>(
+      () => ThemedConfirmDialog.showInfo(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text(context.l10n.vibeLibrary_tooManyTitle),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.l10n.common_ok),
-            ),
-          ],
-        ),
+        title: context.l10n.vibeLibrary_tooManyTitle,
+        content: message,
+        confirmText: context.l10n.common_ok,
+        icon: Icons.info_outline,
       ),
     );
   }
@@ -482,8 +453,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }
 
   void _showImportMenu(Offset position) {
-    Navigator.of(context).push(
-      ImportMenu(
+    unawaited(
+      context.showImportMenu(
         position: position,
         items: [
           ProMenuItem(
@@ -505,7 +476,6 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             onTap: _imports.importClipboard,
           ),
         ],
-        onSelect: (_) {},
       ),
     );
   }
@@ -535,10 +505,59 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         : source;
     if (selected.isEmpty || !mounted) return;
     await _controller.runDialogLocked(
-      () => showDialog<void>(
-        context: context,
-        builder: (_) => VibeExportDialogAdvanced(entries: selected),
+      () => VibeExportDialogAdvanced.show(context, entries: selected),
+    );
+  }
+}
+
+/// 自适应的 Vibe 批量移动目标分类列表。
+///
+/// 空字符串表示“未分类”，null 仅表示用户取消，以保留既有返回值契约。
+class VibeCategoryDestinationPanel extends StatelessWidget {
+  const VibeCategoryDestinationPanel({
+    super.key,
+    required this.categories,
+    this.scrollController,
+  });
+
+  final List<VibeLibraryCategory> categories;
+  final ScrollController? scrollController;
+
+  static Future<String?> show(
+    BuildContext context, {
+    required List<VibeLibraryCategory> categories,
+  }) {
+    return AdaptivePresenter.showForm<String>(
+      context: context,
+      title: context.l10n.vibeLibrary_moveToCategory,
+      sideSheetWidth: 440,
+      builder: (panelContext, scrollController) => VibeCategoryDestinationPanel(
+        categories: categories,
+        scrollController: scrollController,
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      key: const ValueKey('vibe-category-destination-list'),
+      controller: scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      children: [
+        ListTile(
+          leading: const Icon(Icons.folder_off_outlined),
+          title: Text(context.l10n.vibeLibrary_uncategorized),
+          onTap: () => Navigator.of(context).pop(''),
+        ),
+        for (final category in categories)
+          ListTile(
+            leading: const Icon(Icons.folder_outlined),
+            title: Text(category.name),
+            onTap: () => Navigator.of(context).pop(category.id),
+          ),
+      ],
     );
   }
 }

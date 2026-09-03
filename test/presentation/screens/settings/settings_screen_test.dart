@@ -23,6 +23,7 @@ import 'package:nai_launcher/presentation/screens/settings/sections/integrations
 import 'package:nai_launcher/presentation/screens/settings/sections/prompt_assistant_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -154,6 +155,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    _expectSettingsLayeredChrome(tester, hasNavigation: true);
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
     expect(rail.destinations.length, 11);
 
@@ -277,8 +279,9 @@ void main() {
 
   testWidgets('新增服务商弹窗在移动端完整适配窄屏', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    await tester.binding.setSurfaceSize(const Size(390, 700));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 700);
+    addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -304,11 +307,17 @@ void main() {
             _FakeSubscriptionNotifier.new,
           ),
         ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
+        child: MaterialApp(
+          locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: SettingsScreen(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.6)),
+            child: child!,
+          ),
+          home: const SettingsScreen(),
         ),
       ),
     );
@@ -339,16 +348,44 @@ void main() {
       const ValueKey('prompt-assistant-provider-dialog'),
     );
     expect(dialog, findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget.key == const ValueKey('adaptive-full-screen-form') ||
+            widget.key == const ValueKey('adaptive-centered-form') ||
+            widget.key == const ValueKey('adaptive-side-sheet'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(AlertDialog), findsNothing);
     expect(find.text('OpenAI Chat Completions'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     final selectedProtocolRect = tester.getRect(
       find.text('OpenAI Chat Completions'),
     );
-    expect(selectedProtocolRect.left, greaterThanOrEqualTo(36));
-    expect(selectedProtocolRect.right, lessThanOrEqualTo(330));
+    expect(selectedProtocolRect.left, greaterThanOrEqualTo(16));
+    expect(selectedProtocolRect.right, lessThanOrEqualTo(374));
 
+    tester.view.viewInsets = const FakeViewPadding(bottom: 240);
+    await tester.pumpAndSettle();
+    expect(find.text('保存'), findsOneWidget);
+    final dialogContext = tester.element(dialog);
+    final visibleBottom =
+        MediaQuery.sizeOf(dialogContext).height -
+        MediaQuery.viewInsetsOf(dialogContext).bottom;
+    expect(
+      tester.getBottomRight(find.text('保存')).dy,
+      lessThanOrEqualTo(visibleBottom),
+    );
+    expect(tester.takeException(), isNull);
+
+    tester.view.viewInsets = const FakeViewPadding();
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'test-key');
     await tester.tap(find.text('保存'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
     await tester.pumpAndSettle();
 
     expect(
@@ -398,6 +435,7 @@ void main() {
     );
     await pumpTransition();
 
+    _expectSettingsLayeredChrome(tester);
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('账户'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
@@ -816,4 +854,46 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
     await tester.binding.setSurfaceSize(null);
   });
+}
+
+void _expectSettingsLayeredChrome(
+  WidgetTester tester, {
+  bool hasNavigation = false,
+}) {
+  final appBarFinder = find.byType(AppBar);
+  final appBar = tester.widget<AppBar>(appBarFinder);
+  final theme = Theme.of(tester.element(appBarFinder));
+
+  expect(appBar.shape, isNull);
+  expect(appBar.backgroundColor, sectionSurfaceColor(theme.colorScheme));
+  expect(
+    find.descendant(
+      of: appBarFinder,
+      matching: find.byIcon(Icons.settings_outlined),
+    ),
+    findsOneWidget,
+  );
+  expect(find.byType(VerticalDivider), findsNothing);
+
+  final navigationSurface = find.byKey(
+    const ValueKey('settings-navigation-tonal-surface'),
+  );
+  if (!hasNavigation) {
+    expect(navigationSurface, findsNothing);
+    for (final element in find.byType(ListTile).evaluate()) {
+      final tile = element.widget as ListTile;
+      expect(tile.tileColor, sectionSurfaceColor(theme.colorScheme));
+      expect(
+        element.findAncestorWidgetOfExactType<Material>()?.type,
+        MaterialType.transparency,
+      );
+    }
+    return;
+  }
+
+  final decoration =
+      tester.widget<Container>(navigationSurface).decoration! as BoxDecoration;
+  expect(decoration.color, sectionSurfaceColor(theme.colorScheme));
+  expect(decoration.border, isNull);
+  expect(decoration.borderRadius, isNotNull);
 }

@@ -15,8 +15,15 @@ import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
+
+@visibleForTesting
+Size vibeExportChangeImageMinimumSize(InteractionPolicy policy) {
+  return policy.touchAvailable ? const Size(48, 48) : Size.zero;
+}
 
 /// Vibe 导出对话框（高级版）
 /// 支持导出单个 vibe、批量导出，以及从 bundle 中导出单个 vibe
@@ -24,6 +31,40 @@ class VibeExportDialogAdvanced extends ConsumerStatefulWidget {
   final List<VibeLibraryEntry> entries;
 
   const VibeExportDialogAdvanced({super.key, required this.entries});
+
+  static Future<void> show(
+    BuildContext context, {
+    required List<VibeLibraryEntry> entries,
+  }) {
+    return AdaptivePresenter.showForm<void>(
+      context: context,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.file_upload_outlined,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              entries.length == 1 && entries.first.isBundle
+                  ? panelContext.l10n.vibe_export_bundleTitle(
+                      entries.first.displayName,
+                    )
+                  : panelContext.l10n.vibe_export_vibesTitle(entries.length),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                panelContext,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      sideSheetWidth: 520,
+      builder: (_, __) => VibeExportDialogAdvanced(entries: entries),
+    );
+  }
 
   @override
   ConsumerState<VibeExportDialogAdvanced> createState() =>
@@ -86,15 +127,6 @@ class _VibeExportDialogAdvancedState
         !_exportWholeBundle &&
         _exportBundle &&
         !_selectedInternalVibes.any((v) => v);
-  }
-
-  /// 获取对话框标题
-  String _getDialogTitle() {
-    if (_isSingleBundle) {
-      final entry = widget.entries.first;
-      return context.l10n.vibe_export_bundleTitle(entry.displayName);
-    }
-    return context.l10n.vibe_export_vibesTitle(widget.entries.length);
   }
 
   @override
@@ -195,137 +227,116 @@ class _VibeExportDialogAdvancedState
     final theme = Theme.of(context);
     final isSingleBundle = _isSingleBundle;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 750),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 标题
-              Row(
-                children: [
-                  Icon(
-                    Icons.file_upload_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _getDialogTitle(),
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  if (!_isExporting)
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              if (_isExporting) ...[
-                // 导出进度
-                _buildProgressView(theme),
-              ] else ...[
-                // 导出选项
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Bundle 导出选项（如果不是单选 bundle，或选择了导出整个 bundle）
-                        if (!isSingleBundle || _exportWholeBundle) ...[
-                          _buildExportBundleOption(theme),
-                          const SizedBox(height: 16),
-                          _buildExportZipOption(theme),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // 单选 bundle 时的导出模式选择
-                        if (isSingleBundle) ...[
-                          _buildBundleExportModeOption(theme),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // 内部 vibe 选择列表（仅当单选 bundle 且选择导出单个 vibe 时显示）
-                        if (isSingleBundle && !_exportWholeBundle) ...[
-                          _buildInternalVibeSelection(theme),
-                          const SizedBox(height: 16),
-                        ],
-
-                        if (widget.entries.length == 1) ...[
-                          _buildEmbedIntoImageOption(theme),
-                          const SizedBox(height: 16),
-                        ],
-                        _buildExportEncodingOption(theme),
+    return LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        key: const Key('vibe-export-advanced-dialog-frame'),
+        padding: EdgeInsets.all(constraints.maxWidth < 380 ? 16 : 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isExporting) ...[
+              // 导出进度
+              _buildProgressView(theme),
+            ] else ...[
+              // 导出选项
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Bundle 导出选项（如果不是单选 bundle，或选择了导出整个 bundle）
+                      if (!isSingleBundle || _exportWholeBundle) ...[
+                        _buildExportBundleOption(theme),
+                        const SizedBox(height: 16),
+                        _buildExportZipOption(theme),
+                        const SizedBox(height: 16),
                       ],
-                    ),
-                  ),
-                ),
 
-                const SizedBox(height: 16),
+                      // 单选 bundle 时的导出模式选择
+                      if (isSingleBundle) ...[
+                        _buildBundleExportModeOption(theme),
+                        const SizedBox(height: 16),
+                      ],
 
-                // 错误提示
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: theme.colorScheme.error,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.error,
-                            ),
+                      // 内部 vibe 选择列表（仅当单选 bundle 且选择导出单个 vibe 时显示）
+                      if (isSingleBundle && !_exportWholeBundle) ...[
+                        _buildInternalVibeSelection(theme),
+                        const SizedBox(height: 16),
+                      ],
+
+                      if (widget.entries.length == 1) ...[
+                        _buildEmbedIntoImageOption(theme),
+                        const SizedBox(height: 16),
+                      ],
+                      _buildExportEncodingOption(theme),
+                      const SizedBox(height: 16),
+                      if (_errorMessage != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: theme.colorScheme.error,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.error,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(height: 16),
                       ],
-                    ),
+                      _buildDialogActions(),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-
-                // 操作按钮
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(context.l10n.common_cancel),
-                    ),
-                    const SizedBox(width: 12),
-                    FilledButton.icon(
-                      onPressed: _validateExportOptions().isValid
-                          ? _export
-                          : null,
-                      icon: const Icon(Icons.file_upload),
-                      label: Text(context.l10n.common_export),
-                    ),
-                  ],
                 ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDialogActions() {
+    final cancel = TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: Text(context.l10n.common_cancel),
+    );
+    final export = FilledButton.icon(
+      onPressed: _validateExportOptions().isValid ? _export : null,
+      icon: const Icon(Icons.file_upload),
+      label: Text(context.l10n.common_export),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 360) {
+          return Column(
+            key: const Key('vibe-export-advanced-compact-actions'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [cancel, const SizedBox(height: 8), export],
+          );
+        }
+        return Row(
+          key: const Key('vibe-export-advanced-actions'),
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [cancel, const SizedBox(width: 12), export],
+        );
+      },
     );
   }
 
@@ -753,12 +764,20 @@ class _VibeExportDialogAdvancedState
                             ),
                             const SizedBox(height: 4),
                             TextButton.icon(
+                              key: const ValueKey(
+                                'vibe-export-change-carrier-image',
+                              ),
                               onPressed: _isValidatingImage ? null : _pickImage,
                               icon: const Icon(Icons.refresh, size: 16),
                               label: Text(context.l10n.common_change),
                               style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
+                                padding:
+                                    context.interactionPolicy.touchAvailable
+                                    ? const EdgeInsets.symmetric(horizontal: 8)
+                                    : EdgeInsets.zero,
+                                minimumSize: vibeExportChangeImageMinimumSize(
+                                  context.interactionPolicy,
+                                ),
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                             ),

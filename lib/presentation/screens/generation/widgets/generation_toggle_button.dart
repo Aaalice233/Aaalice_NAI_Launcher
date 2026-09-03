@@ -48,7 +48,9 @@ class _GenerationToggleButtonState extends State<GenerationToggleButton> {
       child: GestureDetector(
         onTap: () => widget.onChanged(!widget.isEnabled),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           curve: Curves.easeInOut,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
@@ -66,16 +68,20 @@ class _GenerationToggleButtonState extends State<GenerationToggleButton> {
                 ),
                 const SizedBox(width: 4),
               ],
-              Text(
-                widget.label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: widget.isEnabled
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurface.withValues(
-                          alpha: _isHovered ? 0.8 : 0.6,
-                        ),
+              Flexible(
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: widget.isEnabled
+                        ? theme.colorScheme.onPrimary
+                        : theme.colorScheme.onSurface.withValues(
+                            alpha: _isHovered ? 0.8 : 0.6,
+                          ),
+                  ),
                 ),
               ),
             ],

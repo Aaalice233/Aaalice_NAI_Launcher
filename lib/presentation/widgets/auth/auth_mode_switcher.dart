@@ -106,7 +106,9 @@ class AuthModeSwitcher extends ConsumerWidget {
       child: Opacity(
         opacity: enabled ? 1 : 0.55,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           width: double.infinity,
           height: 76,

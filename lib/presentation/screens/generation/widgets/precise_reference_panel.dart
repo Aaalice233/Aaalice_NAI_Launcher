@@ -333,7 +333,9 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         unawaited(_handleDroppedReferences(event));
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           border: _isFileDraggingOver
@@ -652,7 +654,9 @@ class _PreciseReferenceCard extends StatelessWidget {
       child: AnimatedOpacity(
         key: ValueKey('precise-reference-enabled-opacity-$index'),
         opacity: reference.enabled ? 1.0 : _disabledPreciseReferenceCardOpacity,
-        duration: const Duration(milliseconds: 160),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 160),
         curve: Curves.easeOut,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

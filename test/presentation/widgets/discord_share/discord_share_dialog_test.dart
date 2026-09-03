@@ -154,6 +154,117 @@ void main() {
     expect(find.textContaining('DioException'), findsNothing);
     expect(find.textContaining('private-relay.test'), findsNothing);
   });
+
+  for (final scenario in [
+    (
+      name: 'Compact 320px、3x、IME 与 SafeArea',
+      size: const Size(320, 900),
+      scale: 3.0,
+      keyboard: 300.0,
+      padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+      surfaceKey: const ValueKey('adaptive-full-screen-form'),
+    ),
+    (
+      name: 'Expanded',
+      size: const Size(1000, 800),
+      scale: 1.0,
+      keyboard: 0.0,
+      padding: EdgeInsets.zero,
+      surfaceKey: const ValueKey('adaptive-centered-form'),
+    ),
+  ]) {
+    testWidgets('${scenario.name} 可验证并进入分享编辑器', (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = scenario.size;
+      addTearDown(tester.view.reset);
+      final service = _MockDiscordShareService();
+      when(() => service.loadPromptCategoryIds()).thenReturn(null);
+      when(() => service.loadIncludeMetadataPreference()).thenReturn(false);
+      when(() => service.loadLongPromptAsFilePreference()).thenReturn(true);
+      when(() => service.loadSession()).thenAnswer((_) async => null);
+      when(
+        () => service.authenticate(cancelToken: any(named: 'cancelToken')),
+      ).thenAnswer((_) async => _session);
+      when(() => service.loadTargets(_session)).thenAnswer(
+        (_) async => const [
+          DiscordShareTarget(
+            id: 'showcase',
+            label: 'Showcase',
+            selectedByDefault: true,
+            preferPromptFile: false,
+          ),
+        ],
+      );
+      when(() => service.loadSelectedTargetIds(any())).thenReturn({'showcase'});
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [discordShareServiceProvider.overrideWithValue(service)],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                size: scenario.size,
+                textScaler: TextScaler.linear(scenario.scale),
+                padding: scenario.padding,
+                viewPadding: scenario.padding,
+                viewInsets: EdgeInsets.only(bottom: scenario.keyboard),
+                disableAnimations: true,
+              ),
+              child: child!,
+            ),
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: FilledButton(
+                    key: const ValueKey('open-discord-share'),
+                    onPressed: () => DiscordShareDialog.show(
+                      context,
+                      imageBytes: _onePixelPng,
+                      fileName: 'result.png',
+                    ),
+                    child: const Text('Open'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('open-discord-share')));
+      await tester.pumpAndSettle();
+
+      final surface = find.byKey(scenario.surfaceKey);
+      expect(surface, findsOneWidget);
+      expect(find.byType(Dialog), findsNothing);
+      final verify = find.widgetWithText(FilledButton, 'Verify with Discord');
+      await tester.ensureVisible(verify);
+      await tester.tap(verify);
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(FilterChip, 'Showcase'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('discord-share-scroll')),
+        findsOneWidget,
+      );
+      if (scenario.keyboard > 0) {
+        expect(tester.getTopLeft(surface).dy, greaterThanOrEqualTo(24));
+        expect(tester.getBottomRight(surface).dy, lessThanOrEqualTo(600));
+      }
+      expect(tester.takeException(), isNull);
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+      expect(surface, findsNothing);
+    });
+  }
 }
 
 const _session = DiscordShareSession(

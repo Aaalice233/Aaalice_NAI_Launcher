@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/thumbnail_display.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 enum _EntryListAction { select, edit, favorite, copy, delete }
 
@@ -59,7 +60,7 @@ class _EntryListItemState extends State<EntryListItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entry = widget.entry;
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
 
     final backgroundColor = widget.isSelected
         ? theme.colorScheme.primary.withValues(alpha: 0.12)
@@ -86,7 +87,9 @@ class _EntryListItemState extends State<EntryListItem> {
                 widget.onToggleSelection?.call();
               },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           padding: const EdgeInsets.all(12),
@@ -310,13 +313,13 @@ class _EntryListItemState extends State<EntryListItem> {
         const SizedBox(height: 4),
 
         // 内容预览
-        Text(
-          entry.contentPreview,
+        TranslatedPromptText(
+          entry.content,
+          selectable: false,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
           maxLines: 2,
-          overflow: TextOverflow.ellipsis,
         ),
 
         const SizedBox(height: 6),
@@ -397,7 +400,7 @@ class _EntryListItemState extends State<EntryListItem> {
   }
 
   Widget _buildActions(ThemeData theme) {
-    if (PlatformCapabilities.current.hasTouchInput) {
+    if (context.interactionPolicy.shouldExposeTouchAlternatives) {
       final l10n = context.l10n;
       return PopupMenuButton<_EntryListAction>(
         tooltip: l10n.common_moreActions,
@@ -587,7 +590,7 @@ class _TagChip extends StatelessWidget {
         color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(
+      child: TranslatedTagText(
         tag,
         style: TextStyle(
           fontSize: 10,
@@ -612,7 +615,9 @@ class _SelectionCheckbox extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         width: 24,
         height: 24,
         decoration: BoxDecoration(

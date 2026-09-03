@@ -162,7 +162,9 @@ class _ThumbnailItemState extends State<_ThumbnailItem> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           curve: Curves.easeOutCubic,
           width: size,
           height: size,
@@ -179,7 +181,9 @@ class _ThumbnailItemState extends State<_ThumbnailItem> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 150),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 150),
               opacity: opacity,
               child: Image(image: _buildThumbnailProvider(), fit: BoxFit.cover),
             ),

@@ -176,6 +176,10 @@ class _SVPanel extends StatelessWidget {
         label: semanticLabel,
         value:
             '${(hsvColor.saturation * 100).round()}%, ${(hsvColor.value * 100).round()}%',
+        increasedValue:
+            '${(hsvColor.saturation * 100).round()}%, ${((hsvColor.value + 0.05).clamp(0, 1) * 100).round()}%',
+        decreasedValue:
+            '${(hsvColor.saturation * 100).round()}%, ${((hsvColor.value - 0.05).clamp(0, 1) * 100).round()}%',
         onIncrease: () =>
             onChanged(hsvColor.withValue((hsvColor.value + 0.05).clamp(0, 1))),
         onDecrease: () =>
@@ -261,6 +265,8 @@ class _HueSlider extends StatelessWidget {
       builder: (context, constraints) => Semantics(
         label: semanticLabel,
         value: '${hue.round()}°',
+        increasedValue: '${(hue + 5).clamp(0, 360).round()}°',
+        decreasedValue: '${(hue - 5).clamp(0, 360).round()}°',
         onIncrease: () => onChanged((hue + 5).clamp(0, 360)),
         onDecrease: () => onChanged((hue - 5).clamp(0, 360)),
         child: GestureDetector(

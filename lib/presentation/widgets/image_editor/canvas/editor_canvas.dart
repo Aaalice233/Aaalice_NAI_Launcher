@@ -34,6 +34,7 @@ class _EditorCanvasState extends State<EditorCanvas>
 
   /// 选区动画控制器
   late AnimationController _selectionAnimationController;
+  bool _disableSelectionAnimations = true;
 
   /// 焦点节点
   final FocusNode _focusNode = FocusNode();
@@ -56,18 +57,28 @@ class _EditorCanvasState extends State<EditorCanvas>
       duration: const Duration(milliseconds: 500),
     );
     widget.state.renderNotifier.addListener(_syncSelectionAnimation);
-    _syncSelectionAnimation();
 
     // 添加硬件键盘监听（优先级高于 IME，解决中文输入法下快捷键失效问题）
     HardwareKeyboard.instance.addHandler(_inputHandler.handleHardwareKey);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableSelectionAnimations == disableAnimations) return;
+    _disableSelectionAnimations = disableAnimations;
+    _syncSelectionAnimation();
+  }
+
   void _syncSelectionAnimation() {
     final hasSelection =
         widget.state.previewPath != null || widget.state.selectionPath != null;
-    if (hasSelection && !_selectionAnimationController.isAnimating) {
-      _selectionAnimationController.repeat();
-    } else if (!hasSelection && _selectionAnimationController.isAnimating) {
+    if (hasSelection && !_disableSelectionAnimations) {
+      if (!_selectionAnimationController.isAnimating) {
+        _selectionAnimationController.repeat();
+      }
+    } else if (_selectionAnimationController.isAnimating) {
       _selectionAnimationController.stop();
     }
   }

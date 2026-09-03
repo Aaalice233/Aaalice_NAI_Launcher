@@ -2,26 +2,35 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../common/prompt_selection_tile.dart';
 
 class GalleryPromptCopyDialog extends StatefulWidget {
   const GalleryPromptCopyDialog._({
     required this.projection,
     required this.initialSelection,
+    required this.scrollController,
   });
 
   final GalleryPromptCopyProjection projection;
   final GalleryPromptCopySelection initialSelection;
+  final ScrollController scrollController;
 
   static Future<GalleryPromptCopySelection?> show(
     BuildContext context, {
     required GalleryPromptCopyProjection projection,
     required GalleryPromptCopySelection initialSelection,
-  }) => showDialog<GalleryPromptCopySelection>(
+  }) => AdaptivePresenter.showForm<GalleryPromptCopySelection>(
     context: context,
-    builder: (_) => GalleryPromptCopyDialog._(
+    titleBuilder: (panelContext) => Text(
+      panelContext.l10n.onlineGallery_copyPrompt,
+      style: Theme.of(panelContext).textTheme.titleMedium,
+    ),
+    sideSheetWidth: 500,
+    builder: (_, scrollController) => GalleryPromptCopyDialog._(
       projection: projection,
       initialSelection: initialSelection,
+      scrollController: scrollController,
     ),
   );
 
@@ -46,57 +55,60 @@ class _GalleryPromptCopyDialogState extends State<GalleryPromptCopyDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final options = _options(context);
-    return AlertDialog(
-      icon: Icon(Icons.copy_all_outlined, color: theme.colorScheme.primary),
-      title: Text(context.l10n.onlineGallery_copyPrompt),
-      content: SizedBox(
-        width: 460,
-        child: SingleChildScrollView(
+    return ListView(
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      children: [
+        Text(
+          context.l10n.onlineGallery_promptCopyDescription,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Material(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.45,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                context.l10n.onlineGallery_promptCopyDescription,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Material(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.45,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var index = 0; index < options.length; index++) ...[
-                      options[index],
-                      if (index + 1 < options.length) const Divider(height: 1),
-                    ],
-                  ],
-                ),
-              ),
+              for (var index = 0; index < options.length; index++) ...[
+                options[index],
+                if (index + 1 < options.length) const Divider(height: 1),
+              ],
             ],
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(context.l10n.common_cancel),
-        ),
-        FilledButton.icon(
-          onPressed: _canCopy
-              ? () => Navigator.of(context).pop(_selection)
-              : null,
-          icon: const Icon(Icons.copy, size: 17),
-          label: Text(context.l10n.common_copy),
+        const SizedBox(height: 12),
+        SafeArea(
+          top: false,
+          minimum: const EdgeInsets.only(top: 8, bottom: 4),
+          child: OverflowBar(
+            alignment: MainAxisAlignment.end,
+            overflowAlignment: OverflowBarAlignment.end,
+            spacing: 8,
+            overflowSpacing: 8,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(context.l10n.common_cancel),
+              ),
+              FilledButton.icon(
+                onPressed: _canCopy
+                    ? () => Navigator.of(context).pop(_selection)
+                    : null,
+                icon: const Icon(Icons.copy, size: 17),
+                label: Text(context.l10n.common_copy),
+              ),
+            ],
+          ),
         ),
       ],
     );

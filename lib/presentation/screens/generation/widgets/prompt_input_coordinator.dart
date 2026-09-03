@@ -6,6 +6,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -258,29 +259,32 @@ class PromptInputCoordinator {
 
   void openAssistantSettings() {
     if (!_mounted()) return;
-    showModalBottomSheet<void>(
-      context: _context(),
-      showDragHandle: true,
-      builder: (context) => Consumer(
+    final context = _context();
+    AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.promptAssistant_assistantSettings,
+      initialChildSize: 0.42,
+      minChildSize: 0.32,
+      sideSheetWidth: 440,
+      builder: (context, scrollController) => Consumer(
         builder: (context, ref, _) {
           final config = ref.watch(promptAssistantConfigProvider);
           final notifier = ref.read(promptAssistantConfigProvider.notifier);
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SwitchListTile(
-                  title: Text(context.l10n.promptAssistant_enableAssistant),
-                  value: config.enabled,
-                  onChanged: notifier.setEnabled,
-                ),
-                SwitchListTile(
-                  title: Text(context.l10n.promptAssistant_desktopOverlay),
-                  value: config.desktopOverlayEnabled,
-                  onChanged: notifier.setDesktopOverlayEnabled,
-                ),
-              ],
-            ),
+          return ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: [
+              SwitchListTile(
+                title: Text(context.l10n.promptAssistant_enableAssistant),
+                value: config.enabled,
+                onChanged: notifier.setEnabled,
+              ),
+              SwitchListTile(
+                title: Text(context.l10n.promptAssistant_desktopOverlay),
+                value: config.desktopOverlayEnabled,
+                onChanged: notifier.setDesktopOverlayEnabled,
+              ),
+            ],
           );
         },
       ),
@@ -291,13 +295,13 @@ class PromptInputCoordinator {
     if (!_mounted()) return;
     FocusManager.instance.primaryFocus?.unfocus();
     _ref.read(selectedCharacterIdProvider.notifier).clear();
-    await showModalBottomSheet<void>(
-      context: _context(),
-      useRootNavigator: true,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const MobileCharacterManagerSheet(),
+    final context = _context();
+    await AdaptivePresenter.showForm<void>(
+      context: context,
+      title: context.l10n.prompt_characterPrompts,
+      sideSheetWidth: 560,
+      builder: (context, scrollController) =>
+          MobileCharacterManagerSheet(scrollController: scrollController),
     );
     if (_mounted()) _ref.read(selectedCharacterIdProvider.notifier).clear();
   }

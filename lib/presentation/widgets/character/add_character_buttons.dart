@@ -63,10 +63,7 @@ class AddCharacterButtons extends ConsumerWidget {
   }
 
   Future<void> _addFromLibrary(BuildContext context, WidgetRef ref) async {
-    final entry = await showDialog(
-      context: context,
-      builder: (context) => const TagLibraryPickerDialog(),
-    );
+    final entry = await TagLibraryPickerDialog.show(context);
 
     if (entry != null) {
       final parsed = CharacterPromptBlockParser.parse(entry.content);
@@ -125,7 +122,9 @@ class _GenderButtonState extends State<_GenderButton> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           padding: EdgeInsets.symmetric(
             horizontal: widget.compact ? 6 : 12,
             vertical: widget.compact ? 5 : 7,
@@ -197,7 +196,9 @@ class _LibraryButtonState extends State<_LibraryButton> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           padding: EdgeInsets.symmetric(
             horizontal: widget.compact ? 6 : 12,
             vertical: widget.compact ? 5 : 7,

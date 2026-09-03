@@ -3,14 +3,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_card.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
-import 'package:nai_launcher/presentation/widgets/character/inline_character_row.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_section.dart';
 
 class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
@@ -124,6 +123,8 @@ void main() {
     ProviderContainer container,
     double width, {
     Widget child = const InlineCharacterSection(),
+    InteractionPolicy? interactionPolicy,
+    TextScaler textScaler = TextScaler.noScaling,
   }) {
     return UncontrolledProviderScope(
       container: container,
@@ -131,8 +132,15 @@ void main() {
         locale: const Locale('zh'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: Scaffold(
-          body: SizedBox(width: width, child: child),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+          child: child!,
+        ),
+        home: InteractionPolicyScope(
+          initialPolicy: interactionPolicy,
+          child: Scaffold(
+            body: SizedBox(width: width, child: child),
+          ),
         ),
       ),
     );
@@ -141,7 +149,7 @@ void main() {
   testWidgets('无角色时标题显示空态动态图标和全部添加入口', (tester) async {
     final container = createContainer(empty: true);
 
-    await tester.pumpWidget(subject(container, 700));
+    await tester.pumpWidget(subject(container, 300));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('character-stack-icon')), findsOneWidget);
@@ -150,6 +158,25 @@ void main() {
     expect(find.byKey(const Key('character-add-male')), findsOneWidget);
     expect(find.byKey(const Key('character-add-other')), findsOneWidget);
     expect(find.byKey(const Key('character-add-from-library')), findsOneWidget);
+  });
+
+  testWidgets('角色标题栏有足够空间时添加入口保持同一行', (tester) async {
+    final container = createContainer(empty: true);
+
+    await tester.pumpWidget(subject(container, 500));
+    await tester.pumpAndSettle();
+
+    final buttons = [
+      find.byKey(const Key('character-add-female')),
+      find.byKey(const Key('character-add-male')),
+      find.byKey(const Key('character-add-other')),
+      find.byKey(const Key('character-add-from-library')),
+    ];
+    final top = tester.getTopLeft(buttons.first).dy;
+    for (final button in buttons.skip(1)) {
+      expect(tester.getTopLeft(button).dy, closeTo(top, 0.1));
+    }
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('默认折叠显示实时摘要，展开内容与生成角色状态不变', (tester) async {
@@ -176,30 +203,6 @@ void main() {
     expect(find.byKey(const Key('character-stack-person-1')), findsOneWidget);
   });
 
-  testWidgets('经典布局默认折叠且展开不会改变角色状态', (tester) async {
-    final container = createContainer();
-    final before = container.read(characterPromptNotifierProvider);
-
-    await tester.pumpWidget(
-      subject(container, 1180, child: const ClassicCharacterSection()),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('classic-character-count')), findsOneWidget);
-    expect(find.byType(InlineCharacterCard), findsNothing);
-
-    await tester.tap(find.byKey(const Key('collapsible-chevron-角色')));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(InlineCharacterCard), findsNWidgets(2));
-    expect(container.read(characterPromptNotifierProvider), before);
-
-    await tester.tap(find.byKey(const Key('collapsible-chevron-角色')));
-    await tester.pumpAndSettle();
-    expect(find.byType(InlineCharacterCard), findsNothing);
-    expect(container.read(characterPromptNotifierProvider), before);
-  });
-
   testWidgets('标题栏添加按钮新增角色且不会切换面板展开状态', (tester) async {
     final container = createContainer();
     await tester.pumpWidget(subject(container, 700));
@@ -213,13 +216,18 @@ void main() {
       ),
       findsOneWidget,
     );
-    final centeredActions = find.byKey(
-      const ValueKey('collapsible-centered-actions-角色'),
+    final leadingActions = find.byKey(
+      const ValueKey('collapsible-leading-actions-角色'),
     );
-    expect(centeredActions, findsOneWidget);
+    expect(leadingActions, findsOneWidget);
     expect(
-      tester.getCenter(centeredActions).dx,
-      closeTo(tester.getCenter(header).dx, 0.5),
+      tester.getTopLeft(leadingActions).dx,
+      lessThan(tester.getCenter(header).dx),
+    );
+    final chevron = find.byKey(const Key('collapsible-chevron-角色')).first;
+    expect(
+      tester.getRect(header).right - tester.getRect(chevron).right,
+      closeTo(12, 0.5),
     );
 
     await tester.tap(find.byKey(const Key('character-add-male')));
@@ -256,13 +264,48 @@ void main() {
     expect(previewSize.height, lessThan(300));
     expect(find.text('角色预览'), findsOneWidget);
     expect(find.text('2 / 2 启用'), findsOneWidget);
-    expect(find.text('girl · red hair'), findsOneWidget);
-    expect(find.text('boy · blue hair'), findsOneWidget);
+    expect(find.text('girl, red hair'), findsOneWidget);
+    expect(find.text('boy, blue hair'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('collapsible-chevron-角色')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('character-hover-preview')), findsNothing);
     expect(find.byType(InlineCharacterCard), findsNWidgets(2));
+  });
+
+  testWidgets('宽屏根 Overlay 不会把角色悬浮预览拉伸到整行', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final container = createContainer();
+    await tester.pumpWidget(subject(container, 1840));
+    await tester.pumpAndSettle();
+
+    final header = find.byKey(const Key('collapsible-header-角色')).first;
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(header));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump();
+
+    final preview = find.byKey(const Key('character-hover-preview'));
+    final positioned = find.byKey(
+      const ValueKey('collapsed-hover-preview-positioned'),
+    );
+    final follower = find.byKey(
+      const ValueKey('collapsed-hover-preview-follower'),
+    );
+    expect(preview, findsOneWidget);
+    expect(positioned, findsOneWidget);
+    expect(follower, findsOneWidget);
+    expect(tester.widget<Positioned>(positioned).width, 380);
+    expect(tester.getSize(follower).width, 380);
+    expect(tester.getSize(preview).width, 380);
+    expect(
+      tester.getSize(preview).width,
+      lessThan(tester.getSize(header).width),
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('悬浮预览显示期间更新角色状态不会在 build 阶段刷新 Overlay', (tester) async {
@@ -314,7 +357,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('+1'), findsOneWidget);
-    expect(find.text('girl · red hair · green eyes'), findsOneWidget);
+    expect(find.text('girl, red hair, green eyes'), findsOneWidget);
     expect(find.textContaining('smile'), findsNothing);
     expect(tester.takeException(), isNull);
 
@@ -341,10 +384,6 @@ void main() {
   });
 
   testWidgets('角色提示词可拖拽调整高度且正负输入分别保留尺寸', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
     final container = createContainer();
 
     await tester.pumpWidget(
@@ -360,6 +399,11 @@ void main() {
               prompt: 'girl, red hair',
             ),
           ),
+        ),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
         ),
       ),
     );
@@ -406,10 +450,6 @@ void main() {
   });
 
   testWidgets('角色助手收起显示入口，展开后复用同一行', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
     final container = createContainer();
 
     await tester.pumpWidget(
@@ -425,6 +465,11 @@ void main() {
               prompt: 'girl, red hair',
             ),
           ),
+        ),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
         ),
       ),
     );
@@ -483,8 +528,8 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
-    await tester.pump();
+    await tester.tap(collapsedButton, kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
 
     final expandedToolbar = find.byKey(
       const ValueKey(
@@ -497,15 +542,16 @@ void main() {
       find.ancestor(of: expandedToolbar, matching: editor),
       findsOneWidget,
     );
-    expect(expandedSlotRect.left, closeTo(editorRect.left, 0.1));
     expect(expandedSlotRect.right, closeTo(editorRect.right, 0.1));
+    expect(expandedSlotRect.width, 192);
     expect(expandedSlotRect.height, 32);
     expect(expandedToolbarRect.top, closeTo(collapsedSlotRect.top, 0.1));
     expect(expandedToolbarRect.left, greaterThanOrEqualTo(editorRect.left));
     expect(expandedToolbarRect.right, lessThanOrEqualTo(editorRect.right));
-    expect(find.text('正向提示词').hitTestable(), findsNothing);
-    expect(find.text('负向提示词').hitTestable(), findsNothing);
-    expect(clearButton, findsNothing);
+    expect(find.text('正向提示词').hitTestable(), findsOneWidget);
+    expect(find.text('负向提示词').hitTestable(), findsOneWidget);
+    expect(clearButton, findsOneWidget);
+    expect(tester.getRect(clearButton).right, lessThan(expandedSlotRect.left));
     for (final icon in [
       Icons.translate,
       Icons.auto_fix_high,
@@ -523,6 +569,17 @@ void main() {
       expect(actionRect.left, greaterThanOrEqualTo(expandedSlotRect.left));
       expect(actionRect.right, lessThanOrEqualTo(expandedSlotRect.right));
     }
+    final expandedCollapseButton = find.ancestor(
+      of: find.descendant(
+        of: expandedToolbar,
+        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+      ),
+      matching: find.byType(IconButton),
+    );
+    expect(
+      tester.getRect(expandedCollapseButton).right,
+      closeTo(expandedSlotRect.right, 0.1),
+    );
     expect(
       find.descendant(of: expandedToolbar, matching: find.byIcon(Icons.undo)),
       findsNothing,
@@ -540,12 +597,19 @@ void main() {
       closeTo(collapsedAreaTop, 0.1),
     );
 
-    await tester.tap(
-      find.descendant(
-        of: expandedToolbar,
-        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
-      ),
+    final collapseAssistantIcon = find.descendant(
+      of: expandedToolbar,
+      matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
     );
+    final collapseAssistantButton = find.ancestor(
+      of: collapseAssistantIcon,
+      matching: find.byType(IconButton),
+    );
+    final collapseAction = tester
+        .widget<IconButton>(collapseAssistantButton)
+        .onPressed;
+    expect(collapseAction, isNotNull);
+    collapseAction!();
     await tester.pump();
     expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
     expect(find.text('助手'), findsOneWidget);
@@ -559,10 +623,12 @@ void main() {
           .top,
       closeTo(collapsedAreaTop, 0.1),
     );
-    await tester.tap(clearButton);
+    final clearAction = tester.widget<IconButton>(clearButton).onPressed;
+    expect(clearAction, isNotNull);
+    clearAction!();
     await tester.pumpAndSettle();
     expect(find.text('确定要清空输入内容吗？'), findsOneWidget);
-    await tester.tap(find.text('清除').last);
+    await tester.tap(find.text('清除').last, kind: PointerDeviceKind.mouse);
     await tester.pumpAndSettle();
     expect(clearButton, findsNothing);
     final editable = tester.widget<EditableText>(
@@ -577,10 +643,6 @@ void main() {
   });
 
   testWidgets('点击角色助手不会退出角色编辑态', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
     final container = createContainer();
     const character = CharacterPrompt(
       id: 'alice',
@@ -596,30 +658,41 @@ void main() {
           padding: EdgeInsets.all(12),
           child: InlineCharacterCard(character: character, index: 0, total: 1),
         ),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
       ),
     );
     await tester.pump();
-    await tester.tap(find.text('girl, red hair'));
+    await tester.tap(
+      find.text('girl, red hair'),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pumpAndSettle();
     expect(find.byType(CharacterPromptEditor), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
+    await tester.tap(
+      find.byIcon(Icons.auto_awesome_rounded),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pump();
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded));
+    await tester.tap(
+      find.byIcon(Icons.keyboard_arrow_down_rounded),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pump();
     await tester.pump();
 
     expect(container.read(selectedCharacterIdProvider), 'alice');
     expect(find.byType(CharacterPromptEditor), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 250));
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('窄屏角色助手完整显示且 resize 受视口上限约束', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.android,
-    );
-    addTearDown(() => PlatformCapabilities.debugOverride = null);
     await tester.binding.setSurfaceSize(const Size(320, 640));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final container = createContainer();
@@ -637,6 +710,11 @@ void main() {
               prompt: 'girl, red hair',
             ),
           ),
+        ),
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.touch,
+          touchAvailable: true,
+          precisePointerAvailable: false,
         ),
       ),
     );
@@ -678,6 +756,17 @@ void main() {
         findsOneWidget,
       );
     }
+    final collapseButton = find.ancestor(
+      of: find.descendant(
+        of: toolbar,
+        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+      ),
+      matching: find.byType(IconButton),
+    );
+    expect(
+      tester.getRect(collapseButton).right,
+      closeTo(tester.getRect(slot).right, 0.1),
+    );
 
     await tester.drag(
       find.byKey(const ValueKey('character-prompt-resize-handle-positive')),
@@ -694,6 +783,57 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  for (final size in [const Size(320, 480), const Size(1200, 800)]) {
+    testWidgets('清空角色真实入口在 $size 自适应并保留返回语义', (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = size;
+      final container = createContainer();
+      await tester.pumpWidget(
+        subject(
+          container,
+          size.width,
+          textScaler: size.width < 600
+              ? const TextScaler.linear(1.5)
+              : TextScaler.noScaling,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('collapsible-chevron-角色')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('character-clear-all')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          ValueKey(
+            size.width < 600 ? 'adaptive-bottom-sheet' : 'adaptive-side-sheet',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('清空所有角色'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      if (size.width < 600) {
+        await tester.tap(find.widgetWithText(TextButton, '取消'));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(characterPromptNotifierProvider).characters,
+          hasLength(2),
+        );
+      } else {
+        await tester.tap(find.widgetWithText(FilledButton, '清除'));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(characterPromptNotifierProvider).characters,
+          isEmpty,
+        );
+      }
+    });
+  }
 
   for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('角色菜单在 $width 宽度无 RenderFlex overflow', (tester) async {

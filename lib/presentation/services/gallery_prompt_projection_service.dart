@@ -51,6 +51,26 @@ class GalleryPromptProjectionService {
     };
   }
 
+  List<String> selectableStableKeys({
+    required Iterable<GalleryItem> items,
+    required OnlineGalleryPromptTagSettings promptTagSettings,
+    required OnlineGalleryOutputFilterSettings outputFilter,
+    GalleryDetail? Function(GalleryItem item)? detailForItem,
+  }) {
+    final keys = <String>[];
+    for (final item in items) {
+      final detail = detailForItem?.call(item);
+      final projection = project(
+        item: detail?.item ?? item,
+        detail: detail,
+        promptTagSettings: promptTagSettings,
+        outputFilter: outputFilter,
+      );
+      if (projection.hasUsableOutput) keys.add(item.stableKey);
+    }
+    return keys;
+  }
+
   String projectPositivePrompt(
     String prompt, {
     required OnlineGalleryOutputFilterSettings outputFilter,

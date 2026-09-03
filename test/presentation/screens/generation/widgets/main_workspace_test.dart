@@ -1,7 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/main_workspace.dart';
 
 void main() {
+  test('preview grid uses one column on phones and expands by width', () {
+    expect(ImagePreviewWidget.resolveGridColumnCount(4, 320), 1);
+    expect(ImagePreviewWidget.resolveGridColumnCount(4, 600), 2);
+    expect(ImagePreviewWidget.resolveGridColumnCount(6, 1000), 3);
+  });
+
   group('MainWorkspace classic prompt height', () {
     test('keeps the saved default height when prompt content is short', () {
       expect(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show PointerDeviceKind;
 
@@ -28,6 +29,37 @@ void main() {
     if (temporaryDirectory.existsSync()) {
       temporaryDirectory.deleteSync(recursive: true);
     }
+  });
+
+  testWidgets('320dp、3x 字号、SafeArea 与 IME 下全屏选择器可返回', (tester) async {
+    _setViewport(tester, const Size(320, 900));
+
+    await _openPicker(
+      tester,
+      entries: [
+        for (var index = 0; index < 20; index++)
+          _entry(id: 'compact-$index', name: '紧凑预设 $index'),
+      ],
+      textScaler: const TextScaler.linear(3),
+      padding: const EdgeInsets.only(top: 24, bottom: 16),
+      viewInsets: const EdgeInsets.only(bottom: 180),
+    );
+
+    expect(find.byType(FixedTagLibraryPickerDialog), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      findsOneWidget,
+    );
+    final dialogRect = tester.getRect(
+      find.byKey(const ValueKey('adaptive-full-screen-form')),
+    );
+    expect(dialogRect.top, greaterThanOrEqualTo(24));
+    expect(dialogRect.bottom, lessThanOrEqualTo(720));
+    expect(tester.takeException(), isNull);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(FixedTagLibraryPickerDialog), findsNothing);
   });
 
   testWidgets('有图条目悬浮显示共享预览且窄窗口内不越界', (tester) async {
@@ -228,22 +260,35 @@ Future<void> _openPicker(
   WidgetTester tester, {
   required List<TagLibraryEntry> entries,
   ValueChanged<TagLibraryEntry>? onSelect,
+  TextScaler textScaler = TextScaler.noScaling,
+  EdgeInsets padding = EdgeInsets.zero,
+  EdgeInsets viewInsets = EdgeInsets.zero,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: textScaler,
+          padding: padding,
+          viewPadding: padding,
+          viewInsets: viewInsets,
+        ),
+        child: child!,
+      ),
       home: Scaffold(
         body: Builder(
           builder: (context) => FilledButton(
             onPressed: () {
-              showDialog<void>(
-                context: context,
-                builder: (_) => FixedTagLibraryPickerDialog(
+              unawaited(
+                FixedTagLibraryPickerDialog.show(
+                  context: context,
                   entries: entries,
-                  onSelect: onSelect ?? (_) {},
-                ),
+                ).then((entry) {
+                  if (entry != null) onSelect?.call(entry);
+                }),
               );
             },
             child: const Text('打开'),

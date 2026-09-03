@@ -17,13 +17,21 @@ import '../../widgets/common/owned_scroll_controller.dart';
 import 'mobile_generation_controller.dart';
 import 'mobile_generation_shell.dart';
 import 'mobile_generation_view_data.dart';
+import 'widgets/prompt_input_controller.dart';
 
 /// Stable mobile generation entry point. Stateful interaction and rendering
 /// responsibilities live in dedicated controller and component classes.
 class MobileGenerationLayout extends ConsumerStatefulWidget {
-  const MobileGenerationLayout({super.key, this.historyViewport});
+  const MobileGenerationLayout({
+    super.key,
+    this.historyViewport,
+    this.promptInputController,
+    this.promptInputKey,
+  });
 
   final OwnedViewportOffset? historyViewport;
+  final PromptInputController? promptInputController;
+  final GlobalKey? promptInputKey;
 
   @override
   ConsumerState<MobileGenerationLayout> createState() =>
@@ -34,17 +42,32 @@ class _MobileGenerationLayoutState
     extends ConsumerState<MobileGenerationLayout> {
   late final MobileGenerationController _controller;
   late final OwnedViewportOffset _historyViewport;
+  late final PromptInputController _promptInputController;
+  late final GlobalKey _promptInputKey;
+  late final bool _ownsPromptInputController;
 
   @override
   void initState() {
     super.initState();
     _controller = MobileGenerationController(ref);
     _historyViewport = widget.historyViewport ?? OwnedViewportOffset();
+    _ownsPromptInputController = widget.promptInputController == null;
+    _promptInputKey =
+        widget.promptInputKey ??
+        GlobalKey(debugLabel: 'mobile-generation-prompt');
+    final params = ref.read(generationParamsNotifierProvider);
+    _promptInputController =
+        widget.promptInputController ??
+        PromptInputController(
+          prompt: params.prompt,
+          negativePrompt: params.negativePrompt,
+        );
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    if (_ownsPromptInputController) _promptInputController.dispose();
     super.dispose();
   }
 
@@ -125,6 +148,8 @@ class _MobileGenerationLayoutState
           controller: _controller,
           data: data,
           historyViewport: _historyViewport,
+          promptInputController: _promptInputController,
+          promptInputKey: _promptInputKey,
         );
       },
     );

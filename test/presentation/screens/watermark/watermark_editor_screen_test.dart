@@ -12,6 +12,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_controls.dart';
+import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_launcher.dart';
 import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_screen.dart';
 
 void main() {
@@ -135,6 +136,205 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets(
+    'launcher uses shared adaptive form surfaces and preserves back',
+    (tester) async {
+      for (final scenario in <({double width, String surfaceKey})>[
+        (width: 320, surfaceKey: 'adaptive-full-screen-form'),
+        (width: 700, surfaceKey: 'adaptive-centered-form'),
+        (width: 1200, surfaceKey: 'adaptive-centered-form'),
+      ]) {
+        await tester.binding.setSurfaceSize(Size(scenario.width, 760));
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+            child: MaterialApp(
+              key: ValueKey(scenario.width),
+              locale: const Locale('en'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(size: Size(scenario.width, 760)),
+                child: child!,
+              ),
+              home: Builder(
+                builder: (context) => Scaffold(
+                  body: FilledButton(
+                    onPressed: () => WatermarkEditorLauncher.open(
+                      context: context,
+                      sourceBytes: _pngBytes(480, 320),
+                      sourceFileName: 'source.png',
+                    ),
+                    child: const Text('Open'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Open'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        final surface = find.byKey(ValueKey(scenario.surfaceKey));
+        expect(surface, findsOneWidget);
+        expect(find.byType(WatermarkEditorScreen), findsOneWidget);
+        expect(find.byType(Dialog), findsNothing);
+        if (scenario.width >= 840) {
+          expect(tester.getSize(surface).width, lessThanOrEqualTo(960));
+          expect(tester.getSize(surface).width, lessThan(scenario.width));
+        }
+        expect(tester.takeException(), isNull);
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(surface, findsNothing);
+      }
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+    },
+  );
+
+  testWidgets('compact launcher respects large text, IME, and SafeArea', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(
+      top: 24,
+      bottom: 16,
+      left: 8,
+      right: 8,
+    );
+    tester.view.viewInsets = const FakeViewPadding(bottom: 240);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewInsets);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: FilledButton(
+                onPressed: () => WatermarkEditorLauncher.open(
+                  context: context,
+                  sourceBytes: _pngBytes(480, 320),
+                  sourceFileName: 'source.png',
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final rect = tester.getRect(surface);
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(rect.left, greaterThanOrEqualTo(8));
+    expect(rect.top, greaterThanOrEqualTo(24));
+    expect(rect.right, lessThanOrEqualTo(352));
+    expect(rect.bottom, lessThanOrEqualTo(400));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('HSV picker uses adaptive form in worst compact viewport', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewInsets);
+    var changes = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(3)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: WatermarkEditorControls(
+            settings: const WatermarkSettings(),
+            layout: const WatermarkSettings().universalLayout,
+            selectedLayer: WatermarkEditableLayer.text,
+            logoAvailable: false,
+            preserveMetadata: false,
+            onOpenMetadataSettings: () {},
+            onSettingsChanged: (_) => changes++,
+            onLayoutChanged: (_) {},
+            onSelectedLayerChanged: (_) {},
+            onChooseLogo: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Color Picker'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Color Picker'));
+    await tester.pumpAndSettle();
+    tester.view.viewInsets = const FakeViewPadding(bottom: 160);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      findsOneWidget,
+    );
+    final form = find.byKey(const ValueKey('watermark-color-form'));
+    expect(form, findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Confirm'),
+      200,
+      scrollable: find.descendant(
+        of: form,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        ),
+      ),
+    );
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.text('Confirm'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(changes, 0);
+  });
 
   testWidgets('font picker identifies every preview by family name', (
     tester,

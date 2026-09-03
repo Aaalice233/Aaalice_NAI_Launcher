@@ -958,6 +958,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_disableWebAccess => 'ウェブアクセスを無効にする';
 
   @override
+  String get agentChat_webAccessLabel => 'ウェブ';
+
+  @override
+  String get agentChat_contextUsageLabel => 'コンテキスト';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return 'サポートされていない画像形式です: $fileName';
   }
@@ -970,6 +976,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_send => '送信';
+
+  @override
+  String get agentChat_sendEmptyHint => 'メッセージを入力するか画像を追加してください';
+
+  @override
+  String get agentChat_sendUnavailableHint => 'AI アシスタントはまだ送信できません';
 
   @override
   String get agentChat_stop => '停止';
@@ -1881,6 +1893,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get img2img_directorRunning => '処理中...';
+
+  @override
+  String get img2img_directorConfirmTitle => 'Anlas 消費の確認';
+
+  @override
+  String img2img_directorConfirmContent(Object tool, int cost) {
+    return '$tool の実行には推定 $cost Anlas が必要です。続行しますか？';
+  }
 
   @override
   String get img2img_directorResult => '結果';
@@ -5211,22 +5231,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_selectionMode => '選択モード';
 
   @override
-  String get randomManager_previewGeneration => 'プレビューの生成';
+  String get randomManager_previewGeneration => '出力プレビュー';
 
   @override
   String get randomManager_generating => '生成中';
 
   @override
-  String get randomManager_generate => '生成';
+  String get randomManager_generate => 'サンプルを生成';
 
   @override
   String get randomManager_generationFailed => '生成に失敗しました';
 
   @override
-  String get randomManager_copy => 'コピー';
+  String get randomManager_copy => 'すべてコピー';
 
   @override
-  String get randomManager_regenerate => '再生成';
+  String get randomManager_regenerate => '別のサンプルを生成';
 
   @override
   String get randomManager_copiedToClipboard => 'クリップボードにコピーされました';
@@ -5245,7 +5265,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get randomManager_previewHint => '[生成] をクリックしてランダムなタグをプレビューします';
+  String get randomManager_previewHint => 'サンプルはまだ生成されていません';
 
   @override
   String get randomManager_generateNow => '今すぐ生成';
@@ -12684,7 +12704,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_previewEmptyDescription =>
-      'サンプルを生成して、現在のレシピの出力を確認します。';
+      'プロンプトのサンプルを生成して、現在のレシピの出力を確認します。';
 
   @override
   String get randomManager_category_composition => '構図';

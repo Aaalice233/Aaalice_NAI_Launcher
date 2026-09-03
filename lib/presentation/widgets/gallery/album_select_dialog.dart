@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_album.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/gallery_album_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input_dialog.dart';
@@ -19,13 +20,18 @@ class AlbumSelectResult {
 ///
 /// 选择一个相簿以加入图片；支持在对话框内直接新建相簿。
 class AlbumSelectDialog extends ConsumerStatefulWidget {
-  const AlbumSelectDialog({super.key});
+  final ScrollController? scrollController;
 
-  /// 显示相簿选择对话框，取消时返回 null
+  const AlbumSelectDialog({super.key, this.scrollController});
+
+  /// 显示相簿选择面板，取消时返回 null。
   static Future<AlbumSelectResult?> show(BuildContext context) {
-    return showDialog<AlbumSelectResult>(
+    return AdaptivePresenter.showForm<AlbumSelectResult>(
       context: context,
-      builder: (context) => const AlbumSelectDialog(),
+      title: context.l10n.localGallery_albumSelectTitle,
+      sideSheetWidth: 450,
+      builder: (panelContext, scrollController) =>
+          AlbumSelectDialog(scrollController: scrollController),
     );
   }
 
@@ -90,14 +96,15 @@ class _AlbumSelectDialogState extends ConsumerState<AlbumSelectDialog> {
     final l10n = context.l10n;
     final albumState = ref.watch(galleryAlbumNotifierProvider);
 
-    return AlertDialog(
-      title: Text(l10n.localGallery_albumSelectTitle),
-      content: SizedBox(
-        width: 450,
-        height: 500,
-        child: Column(
-          children: [
-            ThemedInput(
+    return CustomScrollView(
+      key: const Key('album-select-scroll'),
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          sliver: SliverToBoxAdapter(
+            child: ThemedInput(
               controller: _filterController,
               decoration: InputDecoration(
                 hintText: l10n.collectionSelect_filterHint,
@@ -105,7 +112,7 @@ class _AlbumSelectDialogState extends ConsumerState<AlbumSelectDialog> {
                 suffixIcon: _filterQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
-                        onPressed: () => _filterController.clear(),
+                        onPressed: _filterController.clear,
                       )
                     : null,
                 contentPadding: const EdgeInsets.symmetric(
@@ -114,20 +121,32 @@ class _AlbumSelectDialogState extends ConsumerState<AlbumSelectDialog> {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Expanded(child: _buildList(theme, albumState)),
-          ],
+          ),
         ),
-      ),
-      actions: [
-        TextButton.icon(
-          onPressed: _createAlbum,
-          icon: const Icon(Icons.add, size: 18),
-          label: Text(l10n.localGallery_createAlbum),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
+        _buildList(theme, albumState),
+        SliverSafeArea(
+          top: false,
+          sliver: SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            sliver: SliverToBoxAdapter(
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  TextButton.icon(
+                    onPressed: _createAlbum,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: Text(l10n.localGallery_createAlbum),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(l10n.common_cancel),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -135,45 +154,61 @@ class _AlbumSelectDialogState extends ConsumerState<AlbumSelectDialog> {
 
   Widget _buildList(ThemeData theme, GalleryAlbumState albumState) {
     if (albumState.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return SliverToBoxAdapter(
+        child: SizedBox(
+          height: 96,
+          child: Center(
+            child: CircularProgressIndicator(
+              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+            ),
+          ),
+        ),
+      );
     }
 
     final albums = albumState.albums;
     if (albums.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.photo_album_outlined,
-              size: 48,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              context.l10n.localGallery_albumEmptyHint,
-              style: theme.textTheme.bodyMedium?.copyWith(
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+          child: Column(
+            children: [
+              Icon(
+                Icons.photo_album_outlined,
+                size: 48,
                 color: theme.colorScheme.outline,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                context.l10n.localGallery_albumEmptyHint,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
 
     final filtered = _filtered(albums);
     if (filtered.isEmpty) {
-      return Center(
-        child: Icon(
-          Icons.search_off_outlined,
-          size: 48,
-          color: theme.colorScheme.outline,
+      return SliverToBoxAdapter(
+        child: SizedBox(
+          height: 96,
+          child: Center(
+            child: Icon(
+              Icons.search_off_outlined,
+              size: 48,
+              color: theme.colorScheme.outline,
+            ),
+          ),
         ),
       );
     }
 
-    return ListView.builder(
+    return SliverList.builder(
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final album = filtered[index];

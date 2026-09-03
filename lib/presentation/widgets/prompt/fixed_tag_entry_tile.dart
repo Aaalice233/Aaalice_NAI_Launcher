@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../common/translated_tag_text.dart';
 import '../common/themed_switch.dart';
 
 enum FixedTagEntryAction { edit, delete }
@@ -41,14 +42,21 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entry = widget.entry;
+    final interactionPolicy = context.interactionPolicy;
     final positionColor = entry.isPrefix
         ? theme.colorScheme.primary
         : theme.colorScheme.tertiary;
     final tile = MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
+      onEnter: interactionPolicy.precisePointerAvailable
+          ? (_) => setState(() => _hovering = true)
+          : null,
+      onExit: interactionPolicy.precisePointerAvailable
+          ? (_) => setState(() => _hovering = false)
+          : null,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         curve: Curves.easeOut,
         margin: EdgeInsets.symmetric(
           horizontal: widget.compact ? 6 : 10,
@@ -75,7 +83,7 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
                     offset: const Offset(0, 2),
                     spreadRadius: -2,
                   ),
-                  if (_hovering)
+                  if (interactionPolicy.precisePointerAvailable && _hovering)
                     BoxShadow(
                       color: theme.colorScheme.primary.withValues(alpha: 0.15),
                       blurRadius: 12,
@@ -98,7 +106,7 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
         ),
       ),
     );
-    if (PlatformCapabilities.current.hasTouchInput) {
+    if (interactionPolicy.touchAvailable) {
       return ReorderableDelayedDragStartListener(
         index: widget.index,
         child: tile,
@@ -144,10 +152,13 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
           ),
         ),
         AnimatedOpacity(
-          opacity: PlatformCapabilities.current.hasTouchInput || _hovering
+          opacity:
+              !context.interactionPolicy.precisePointerAvailable || _hovering
               ? 1
               : 0.4,
-          duration: const Duration(milliseconds: 120),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 120),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -207,16 +218,17 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        entry.content.isEmpty
-                            ? context.l10n.fixedTags_empty
-                            : entry.content.replaceAll('\n', ' '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      child: entry.content.isEmpty
+                          ? Text(context.l10n.fixedTags_empty)
+                          : TranslatedPromptText(
+                              entry.content,
+                              originalText: entry.content.replaceAll('\n', ' '),
+                              selectable: false,
+                              maxLines: 1,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
                     ),
                     const SizedBox(width: 6),
                     Icon(
@@ -323,8 +335,10 @@ class _EntryLabels extends StatelessWidget {
         if (entry.content.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text(
-              entry.content.replaceAll('\n', ' '),
+            child: TranslatedPromptText(
+              entry.content,
+              originalText: entry.content.replaceAll('\n', ' '),
+              selectable: false,
               style: TextStyle(
                 fontSize: 11,
                 color: entry.enabled
@@ -337,7 +351,6 @@ class _EntryLabels extends StatelessWidget {
                 ),
               ),
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
       ],
@@ -411,27 +424,37 @@ class _CompactIconButtonState extends State<_CompactIconButton> {
   bool _hovering = false;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: widget.tooltip,
-    child: MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: PlatformCapabilities.current.hasTouchInput ? 48 : 25,
-          height: PlatformCapabilities.current.hasTouchInput ? 48 : 25,
-          child: Center(
-            child: Icon(
-              widget.icon,
-              size: 15,
-              color: _hovering ? widget.hoverColor : widget.color,
+  Widget build(BuildContext context) {
+    final interactionPolicy = context.interactionPolicy;
+    final extent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
+        : 25.0;
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        onEnter: interactionPolicy.precisePointerAvailable
+            ? (_) => setState(() => _hovering = true)
+            : null,
+        onExit: interactionPolicy.precisePointerAvailable
+            ? (_) => setState(() => _hovering = false)
+            : null,
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onPressed,
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox(
+            width: extent,
+            height: extent,
+            child: Center(
+              child: Icon(
+                widget.icon,
+                size: 15,
+                color: _hovering ? widget.hoverColor : widget.color,
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

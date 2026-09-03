@@ -6,6 +6,8 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 
+import '../../helpers/image_pixel_matchers.dart';
+
 void main() {
   group('FocusedInpaintUtils', () {
     group('geometry', () {
@@ -311,7 +313,11 @@ void main() {
         expect((patch.width, patch.height), equals((400, 300)));
         expect(patch.getPixel(0, 0).a.toInt(), equals(0));
         expect(patch.getPixel(170, 140).a.toInt(), greaterThan(245));
-        _expectImagesMatch(reconstructed, display);
+        expectPixelsWithin(
+          reconstructed,
+          display,
+          tolerance: focusedInpaintResampleTolerance,
+        );
       },
     );
 
@@ -628,39 +634,4 @@ img.Image _buildIrregularMask({required int width, required int height}) {
   }
 
   return mask;
-}
-
-void _expectImagesMatch(img.Image actual, img.Image expected) {
-  expect((actual.width, actual.height), (expected.width, expected.height));
-  // image's integer source-over path can differ from rounded replacement
-  // compositing by up to two RGB levels; alpha remains an exact contract.
-  const maxRgbQuantizationDelta = 2;
-  for (var y = 0; y < actual.height; y++) {
-    for (var x = 0; x < actual.width; x++) {
-      final actualPixel = actual.getPixel(x, y);
-      final expectedPixel = expected.getPixel(x, y);
-      final reason =
-          'Pixel mismatch at $x,$y: '
-          '${actualPixel.r.toInt()},${actualPixel.g.toInt()},'
-          '${actualPixel.b.toInt()},${actualPixel.a.toInt()} vs '
-          '${expectedPixel.r.toInt()},${expectedPixel.g.toInt()},'
-          '${expectedPixel.b.toInt()},${expectedPixel.a.toInt()}';
-      expect(
-        (actualPixel.r.toInt() - expectedPixel.r.toInt()).abs(),
-        lessThanOrEqualTo(maxRgbQuantizationDelta),
-        reason: reason,
-      );
-      expect(
-        (actualPixel.g.toInt() - expectedPixel.g.toInt()).abs(),
-        lessThanOrEqualTo(maxRgbQuantizationDelta),
-        reason: reason,
-      );
-      expect(
-        (actualPixel.b.toInt() - expectedPixel.b.toInt()).abs(),
-        lessThanOrEqualTo(maxRgbQuantizationDelta),
-        reason: reason,
-      );
-      expect(actualPixel.a.toInt(), expectedPixel.a.toInt(), reason: reason);
-    }
-  }
 }

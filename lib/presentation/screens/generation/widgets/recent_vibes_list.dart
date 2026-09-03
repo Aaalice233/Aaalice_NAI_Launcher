@@ -23,6 +23,9 @@ class RecentVibesList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final transitionDuration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 200);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,7 +54,7 @@ class RecentVibesList extends ConsumerWidget {
                 // 折叠/展开图标
                 AnimatedRotation(
                   turns: isCollapsed ? 0.75 : 1.0,
-                  duration: const Duration(milliseconds: 200),
+                  duration: transitionDuration,
                   child: Icon(
                     Icons.chevron_left,
                     size: 16,
@@ -86,7 +89,7 @@ class RecentVibesList extends ConsumerWidget {
           crossFadeState: isCollapsed
               ? CrossFadeState.showFirst
               : CrossFadeState.showSecond,
-          duration: const Duration(milliseconds: 200),
+          duration: transitionDuration,
         ),
       ],
     );

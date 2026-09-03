@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import 'image_card_actions.dart';
@@ -37,7 +37,7 @@ class ImageCardContextMenu {
     }
 
     final ProMenuItem? selectedItem;
-    if (PlatformCapabilities.current.hasTouchInput) {
+    if (context.interactionPolicy.prefersTouchPresentation) {
       selectedItem = await AdaptivePresenter.showPanel<ProMenuItem>(
         context: context,
         title: context.l10n.common_moreActions,
@@ -115,29 +115,37 @@ class ImageCardContextMenuRoute extends PopupRoute<ProMenuItem> {
       removeBottom: true,
       child: Builder(
         builder: (context) {
-          // position 是窗口全局坐标；路由页面铺在最近 Overlay 上，
-          // 需换算到 overlay 局部坐标并按 overlay 尺寸收拢
+          final mediaQuery = MediaQuery.of(context);
           final screenSize = contextMenuOverlaySize(context);
           final local = contextMenuLocalPosition(context, position);
-          const menuWidth = 180.0;
+          final safeLeft = mediaQuery.padding.left + 16;
+          final safeTop = mediaQuery.padding.top + 16;
+          final safeRight = screenSize.width - mediaQuery.padding.right - 16;
+          final safeBottom =
+              screenSize.height -
+              math.max(
+                mediaQuery.padding.bottom,
+                mediaQuery.viewInsets.bottom,
+              ) -
+              16;
+          final menuWidth = ProContextMenu.widthFor(context);
+          final minimumItemExtent =
+              context.interactionPolicy.minimumControlExtent;
           final estimatedMenuHeight =
-              items.where((item) => !item.isDivider).length * 36.0 +
+              items.where((item) => !item.isDivider).length *
+                  minimumItemExtent +
               items.where((item) => item.isDivider).length;
-          const viewportMargin = 16.0;
-          final maxMenuHeight = math.max(
-            0.0,
-            screenSize.height - viewportMargin * 2,
-          );
+          final maxMenuHeight = math.max(0.0, safeBottom - safeTop);
           final menuHeight = math.min(estimatedMenuHeight, maxMenuHeight);
-          var left = local.dx;
-          var top = local.dy;
-          if (left + menuWidth > screenSize.width) {
-            left = screenSize.width - menuWidth - viewportMargin;
-          }
-          if (top + menuHeight > screenSize.height - viewportMargin) {
-            top = screenSize.height - menuHeight - viewportMargin;
-          }
-          top = math.max(viewportMargin, top);
+          final maxLeft = math.max(safeLeft, safeRight - menuWidth);
+          final maxTop = math.max(safeTop, safeBottom - menuHeight);
+          final left = local.dx.clamp(safeLeft, maxLeft);
+          // Text scaling and localization can make rows much taller than their
+          // minimum extent. Near the bottom edge, reserve the full scrollable
+          // viewport instead of positioning from an unreliable height guess.
+          final top = local.dy + estimatedMenuHeight > safeBottom
+              ? safeTop
+              : local.dy.clamp(safeTop, maxTop);
           return GestureDetector(
             behavior: HitTestBehavior.translucent,
             onTap: () => Navigator.of(context).pop(),
@@ -164,6 +172,7 @@ class ImageCardContextMenuRoute extends PopupRoute<ProMenuItem> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
     return FadeTransition(
       opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
       child: ScaleTransition(

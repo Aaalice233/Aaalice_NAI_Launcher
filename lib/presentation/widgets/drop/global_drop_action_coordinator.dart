@@ -18,6 +18,7 @@ import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
@@ -45,6 +46,113 @@ Future<T> runWithVibeNameController<T>(
     return await action(controller);
   } finally {
     controller.dispose();
+  }
+}
+
+@visibleForTesting
+Future<String?> showVibeLibraryNamingForm({
+  required BuildContext context,
+  required List<VibeReference> vibes,
+  required String initialName,
+}) {
+  final l10n = context.l10n;
+  final isBundle = vibes.length > 1;
+  return AdaptivePresenter.showForm<String>(
+    context: context,
+    title: isBundle
+        ? '${l10n.vibe_saveToLibrary_saveAsBundle} (${vibes.length})'
+        : l10n.vibe_saveToLibrary_title,
+    sideSheetWidth: 520,
+    builder: (dialogContext, scrollController) => _VibeLibraryNamingForm(
+      vibes: vibes,
+      initialName: initialName,
+      scrollController: scrollController,
+    ),
+  );
+}
+
+class _VibeLibraryNamingForm extends StatefulWidget {
+  const _VibeLibraryNamingForm({
+    required this.vibes,
+    required this.initialName,
+    required this.scrollController,
+  });
+
+  final List<VibeReference> vibes;
+  final String initialName;
+  final ScrollController scrollController;
+
+  @override
+  State<_VibeLibraryNamingForm> createState() => _VibeLibraryNamingFormState();
+}
+
+class _VibeLibraryNamingFormState extends State<_VibeLibraryNamingForm> {
+  late final TextEditingController _nameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _nameController.text.trim();
+    if (name.isNotEmpty) Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final isBundle = widget.vibes.length > 1;
+    return ListView(
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(20),
+      children: [
+        if (isBundle) ...[
+          Text(
+            '${l10n.vibe_saveToLibrary_saveAsBundleDescription(widget.vibes.length)}:\n'
+            '${widget.vibes.map((vibe) => '• ${vibe.displayName}').join('\n')}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+        ],
+        TextField(
+          key: const ValueKey('drop-vibe-library-name-field'),
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: l10n.vibe_saveToLibrary_nameLabel,
+            hintText: l10n.vibe_saveToLibrary_nameHint,
+            border: const OutlineInputBorder(),
+          ),
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _submit(),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.common_cancel),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              key: const ValueKey('drop-vibe-library-save'),
+              onPressed: _submit,
+              child: Text(l10n.common_save),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 
@@ -399,61 +507,12 @@ class GlobalDropActionCoordinator {
     }
 
     final isBundle = vibes.length > 1;
-    final dialogResult = await runWithVibeNameController(vibes.first.displayName, (
-      nameController,
-    ) async {
-      final result = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(
-            isBundle
-                ? '${l10n.vibe_saveToLibrary_saveAsBundle} (${vibes.length})'
-                : l10n.vibe_saveToLibrary_title,
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (isBundle)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    '${l10n.vibe_saveToLibrary_saveAsBundleDescription(vibes.length)}:\n'
-                    '${vibes.map((vibe) => '• ${vibe.displayName}').join('\n')}',
-                    style: Theme.of(dialogContext).textTheme.bodySmall,
-                  ),
-                ),
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: l10n.vibe_saveToLibrary_nameLabel,
-                  hintText: l10n.vibe_saveToLibrary_nameHint,
-                  border: const OutlineInputBorder(),
-                ),
-                autofocus: true,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(l10n.common_cancel),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameController.text.trim().isNotEmpty) {
-                  Navigator.of(dialogContext).pop(true);
-                }
-              },
-              child: Text(l10n.common_save),
-            ),
-          ],
-        ),
-      );
-      return (confirmed: result == true, name: nameController.text.trim());
-    });
-    if (!dialogResult.confirmed || !context.mounted) return;
-    final name = dialogResult.name;
+    final name = await showVibeLibraryNamingForm(
+      context: context,
+      vibes: vibes,
+      initialName: vibes.first.displayName,
+    );
+    if (name == null || !context.mounted) return;
 
     try {
       final storageService = ref.read(vibeLibraryStorageServiceProvider);

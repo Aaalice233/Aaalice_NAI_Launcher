@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../data/services/anlas_statistics_service.dart';
+import '../../../../adaptive/adaptive_presenter.dart';
 import '../cards/chart_card.dart';
 
 enum AnlasStatisticsPeriod { week, month, threeMonths, year, all, custom }
@@ -65,11 +66,14 @@ class _AnlasCostCardState extends ConsumerState<AnlasCostCard> {
   Future<void> _selectPeriod(AnlasStatisticsPeriod period) async {
     var nextCustomDays = _customDays;
     if (period == AnlasStatisticsPeriod.custom) {
-      final selectedDays = await showDialog<int>(
+      final selectedDays = await AdaptivePresenter.showForm<int>(
         context: context,
-        builder: (context) => _CustomDaysDialog(
+        title: AppLocalizations.of(context)!.statistics_customPeriodTitle,
+        sideSheetWidth: 420,
+        builder: (context, scrollController) => _CustomDaysForm(
           initialDays: _customDays,
           maxDays: _maxCustomDays,
+          scrollController: scrollController,
         ),
       );
       if (selectedDays == null || !mounted) return;
@@ -530,17 +534,22 @@ class _StatBox extends StatelessWidget {
   }
 }
 
-class _CustomDaysDialog extends StatefulWidget {
+class _CustomDaysForm extends StatefulWidget {
   final int initialDays;
   final int maxDays;
+  final ScrollController scrollController;
 
-  const _CustomDaysDialog({required this.initialDays, required this.maxDays});
+  const _CustomDaysForm({
+    required this.initialDays,
+    required this.maxDays,
+    required this.scrollController,
+  });
 
   @override
-  State<_CustomDaysDialog> createState() => _CustomDaysDialogState();
+  State<_CustomDaysForm> createState() => _CustomDaysFormState();
 }
 
-class _CustomDaysDialogState extends State<_CustomDaysDialog> {
+class _CustomDaysFormState extends State<_CustomDaysForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _controller;
 
@@ -565,40 +574,49 @@ class _CustomDaysDialogState extends State<_CustomDaysDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
-    return AlertDialog(
-      title: Text(l10n.statistics_customPeriodTitle),
-      content: Form(
-        key: _formKey,
-        child: TextFormField(
-          key: const ValueKey('anlas-custom-days-field'),
-          controller: _controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          textInputAction: TextInputAction.done,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(
-            labelText: l10n.statistics_customDaysHint,
-            suffixText: l10n.statistics_daysUnit,
+    return ListView(
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(20),
+      children: [
+        Form(
+          key: _formKey,
+          child: TextFormField(
+            key: const ValueKey('anlas-custom-days-field'),
+            controller: _controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              labelText: l10n.statistics_customDaysHint,
+              suffixText: l10n.statistics_daysUnit,
+            ),
+            validator: (value) {
+              final days = int.tryParse(value ?? '');
+              if (days == null || days <= 0 || days > widget.maxDays) {
+                return l10n.statistics_customDaysError(widget.maxDays);
+              }
+              return null;
+            },
+            onFieldSubmitted: (_) => _submit(),
           ),
-          validator: (value) {
-            final days = int.tryParse(value ?? '');
-            if (days == null || days <= 0 || days > widget.maxDays) {
-              return l10n.statistics_customDaysError(widget.maxDays);
-            }
-            return null;
-          },
-          onFieldSubmitted: (_) => _submit(),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(materialL10n.cancelButtonLabel),
-        ),
-        FilledButton(
-          key: const ValueKey('anlas-custom-days-apply'),
-          onPressed: _submit,
-          child: Text(materialL10n.okButtonLabel),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(materialL10n.cancelButtonLabel),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              key: const ValueKey('anlas-custom-days-apply'),
+              onPressed: _submit,
+              child: Text(materialL10n.okButtonLabel),
+            ),
+          ],
         ),
       ],
     );

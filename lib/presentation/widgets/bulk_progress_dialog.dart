@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../adaptive/adaptive_presenter.dart';
 import '../providers/bulk_operation_provider.dart';
+import 'common/adaptive_dialog_frame.dart';
 
 /// Bulk operation progress dialog
 ///
@@ -22,17 +24,33 @@ import '../providers/bulk_operation_provider.dart';
 /// - 取消按钮（当操作可取消时）
 class BulkProgressDialog extends ConsumerStatefulWidget {
   /// Create bulk progress dialog
-  const BulkProgressDialog({super.key});
+  const BulkProgressDialog({
+    super.key,
+    this.presentationManaged = false,
+    this.scrollController,
+  });
+
+  final bool presentationManaged;
+  final ScrollController? scrollController;
 
   /// Show bulk progress dialog
   ///
   /// Returns true if operation completed successfully,
   /// false if cancelled or failed
   static Future<bool?> show(BuildContext context) {
-    return showDialog<bool>(
+    return AdaptivePresenter.showPanel<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const BulkProgressDialog(),
+      allowDragDismissal: false,
+      showHeader: false,
+      sideSheetWidth: 480,
+      initialChildSize: 0.5,
+      minChildSize: 0.38,
+      maxChildSize: 0.72,
+      builder: (context, scrollController) => BulkProgressDialog(
+        presentationManaged: true,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -71,25 +89,30 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
     // Get operation icon
     final operationIcon = _getOperationIcon(state.currentOperation);
 
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(operationIcon, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(operationTitle, overflow: TextOverflow.ellipsis),
+    final title = Row(
+      children: [
+        Icon(operationIcon, color: theme.colorScheme.primary),
+        const SizedBox(width: 8),
+        Expanded(child: Text(operationTitle, overflow: TextOverflow.ellipsis)),
+        // Close button (only when not in progress)
+        if (!state.isOperationInProgress)
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.of(context).pop(false),
+            tooltip: l10n.common_close,
           ),
-          // Close button (only when not in progress)
-          if (!state.isOperationInProgress)
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).pop(false),
-              tooltip: l10n.common_close,
-            ),
-        ],
-      ),
-      content: SizedBox(
-        width: 450,
+      ],
+    );
+    final content = AdaptiveDialogFrame(
+      maxWidth: 450,
+      maxHeight: 520,
+      reservedVerticalSpace: 220,
+      scaleReservedVerticalSpace: true,
+      child: SingleChildScrollView(
+        controller: widget.scrollController,
+        padding: widget.presentationManaged
+            ? const EdgeInsets.fromLTRB(20, 16, 20, 12)
+            : EdgeInsets.zero,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,17 +233,51 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
           ],
         ),
       ),
-      actions: [
-        if (state.isOperationInProgress)
-          TextButton.icon(
-            onPressed: () => _hideWhileRunning(context),
-            icon: const Icon(Icons.keyboard_arrow_down),
-            label: Text(l10n.bulkProgress_continueInBackground),
-          )
-        else if (state.hasError || state.isCompleted)
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(state.isCompleted),
-            child: Text(l10n.common_close),
+    );
+    final actions = <Widget>[
+      if (state.isOperationInProgress)
+        TextButton.icon(
+          onPressed: () => _hideWhileRunning(context),
+          icon: const Icon(Icons.keyboard_arrow_down),
+          label: Text(l10n.bulkProgress_continueInBackground),
+        )
+      else if (state.hasError || state.isCompleted)
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(state.isCompleted),
+          child: Text(l10n.common_close),
+        ),
+    ];
+
+    if (!widget.presentationManaged) {
+      return AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        title: title,
+        content: content,
+        actions: actions,
+      );
+    }
+
+    return Column(
+      children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(start: 20, end: 8),
+            child: title,
+          ),
+        ),
+        Divider(height: 1, color: theme.colorScheme.outlineVariant),
+        Expanded(child: content),
+        if (actions.isNotEmpty)
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Wrap(spacing: 8, runSpacing: 8, children: actions),
+              ),
+            ),
           ),
       ],
     );
@@ -240,31 +297,20 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Success count
-              Icon(
-                Icons.check_circle,
+              _ResultCount(
+                icon: Icons.check_circle,
+                label: l10n.bulkProgress_success(result.success),
                 color: theme.colorScheme.primary,
-                size: 16,
               ),
-              const SizedBox(width: 6),
-              Text(
-                l10n.bulkProgress_success(result.success),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Failed count
               if (result.failed > 0) ...[
-                Icon(Icons.error, color: theme.colorScheme.error, size: 16),
-                const SizedBox(width: 6),
-                Text(
-                  l10n.bulkProgress_failed(result.failed),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
+                const SizedBox(height: 8),
+                _ResultCount(
+                  icon: Icons.error,
+                  label: l10n.bulkProgress_failed(result.failed),
+                  color: theme.colorScheme.error,
                 ),
               ],
             ],
@@ -374,5 +420,35 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
 
   void _hideWhileRunning(BuildContext context) {
     Navigator.of(context).pop(false);
+  }
+}
+
+class _ResultCount extends StatelessWidget {
+  const _ResultCount({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: color),
+          ),
+        ),
+      ],
+    );
   }
 }

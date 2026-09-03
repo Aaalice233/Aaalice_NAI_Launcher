@@ -41,9 +41,11 @@ class Img2ImgSourceSection extends ConsumerWidget {
             children: [
               Expanded(
                 child: ImagePickerCard(
+                  key: const ValueKey('img2img-upload-source'),
                   icon: Icons.upload_file,
                   label: context.l10n.img2img_uploadImage,
                   height: 80,
+                  centerHorizontalContent: true,
                   onImageSelected: (bytes, _, _) =>
                       unawaited(coordinator.replaceSource(bytes)),
                   onError: (error) => AppToast.error(
@@ -55,10 +57,12 @@ class Img2ImgSourceSection extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: ImagePickerCard(
+                  key: const ValueKey('img2img-draw-source'),
                   icon: Icons.brush,
                   label: context.l10n.img2img_drawSketch,
                   height: 80,
                   enableDragDrop: false,
+                  centerHorizontalContent: true,
                   onTap: () => coordinator.openBlankCanvas(context),
                 ),
               ),

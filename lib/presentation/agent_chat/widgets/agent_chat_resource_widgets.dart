@@ -10,11 +10,15 @@ import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/services/gallery/local_gallery_service.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/vibe_library_provider.dart';
+import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/translated_tag_text.dart';
 import '../services/agent_resource_resolver.dart';
 import 'agent_chat_panel_controller.dart';
 
@@ -62,19 +66,20 @@ class AgentChatPendingImageCard extends StatelessWidget {
     super.key,
     required this.image,
     required this.onRemove,
-    required this.touchOptimized,
+    required this.compactLayout,
   });
 
   final PendingAgentChatImage image;
   final VoidCallback onRemove;
-  final bool touchOptimized;
+  final bool compactLayout;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final policy = context.interactionPolicy;
     return Container(
       key: const ValueKey('agent-chat-pending-image-card'),
-      width: touchOptimized ? 190 : 220,
+      width: compactLayout ? 190 : 220,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
@@ -87,11 +92,11 @@ class AgentChatPendingImageCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(7),
             child: Image.memory(
               image.bytes,
-              width: touchOptimized ? 42 : 34,
-              height: touchOptimized ? 42 : 34,
+              width: compactLayout ? 42 : 34,
+              height: compactLayout ? 42 : 34,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => SizedBox.square(
-                dimension: touchOptimized ? 42 : 34,
+                dimension: compactLayout ? 42 : 34,
                 child: const Icon(Icons.broken_image_outlined, size: 18),
               ),
             ),
@@ -122,8 +127,8 @@ class AgentChatPendingImageCard extends StatelessWidget {
             onPressed: onRemove,
             icon: const Icon(Icons.close, size: 16),
             constraints: BoxConstraints.tightFor(
-              width: touchOptimized ? 40 : 30,
-              height: touchOptimized ? 40 : 30,
+              width: policy.minimumControlExtent,
+              height: policy.minimumControlExtent,
             ),
           ),
         ],
@@ -139,14 +144,14 @@ class AgentChatPendingResourceCard extends StatefulWidget {
     required this.loadPreview,
     required this.unavailable,
     required this.onRemove,
-    required this.touchOptimized,
+    required this.compactLayout,
   });
 
   final AgentChatResourceReference reference;
   final Future<ResolvedAgentResource?> Function() loadPreview;
   final bool unavailable;
   final VoidCallback onRemove;
-  final bool touchOptimized;
+  final bool compactLayout;
 
   @override
   State<AgentChatPendingResourceCard> createState() =>
@@ -174,13 +179,14 @@ class _AgentChatPendingResourceCardState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final policy = context.interactionPolicy;
     final label =
         widget.reference.display['name'] ??
         widget.reference.display['title'] ??
         context.l10n.agentChat_reference;
     return Container(
       key: const ValueKey('agent-chat-pending-resource-card'),
-      width: widget.touchOptimized ? 210 : 240,
+      width: widget.compactLayout ? 210 : 240,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: widget.unavailable
@@ -200,18 +206,18 @@ class _AgentChatPendingResourceCardState
                   borderRadius: BorderRadius.circular(7),
                   child: Image.memory(
                     bytes,
-                    width: widget.touchOptimized ? 42 : 34,
-                    height: widget.touchOptimized ? 42 : 34,
+                    width: widget.compactLayout ? 42 : 34,
+                    height: widget.compactLayout ? 42 : 34,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => SizedBox.square(
-                      dimension: widget.touchOptimized ? 42 : 34,
+                      dimension: widget.compactLayout ? 42 : 34,
                       child: const Icon(Icons.broken_image_outlined, size: 18),
                     ),
                   ),
                 );
               }
               return SizedBox.square(
-                dimension: widget.touchOptimized ? 42 : 34,
+                dimension: widget.compactLayout ? 42 : 34,
                 child: Icon(
                   widget.unavailable
                       ? Icons.link_off_outlined
@@ -240,8 +246,8 @@ class _AgentChatPendingResourceCardState
             onPressed: widget.onRemove,
             icon: const Icon(Icons.close, size: 16),
             constraints: BoxConstraints.tightFor(
-              width: widget.touchOptimized ? 40 : 30,
-              height: widget.touchOptimized ? 40 : 30,
+              width: policy.minimumControlExtent,
+              height: policy.minimumControlExtent,
             ),
           ),
         ],
@@ -255,12 +261,10 @@ class AgentChatSentResourceCard extends StatefulWidget {
     super.key,
     required this.reference,
     required this.loadPreview,
-    required this.touchOptimized,
   });
 
   final AgentChatResourceReference reference;
   final Future<ResolvedAgentResource?> Function() loadPreview;
-  final bool touchOptimized;
 
   @override
   State<AgentChatSentResourceCard> createState() =>
@@ -291,7 +295,9 @@ class _AgentChatSentResourceCardState extends State<AgentChatSentResourceCard> {
         widget.reference.display['name'] ??
         widget.reference.display['title'] ??
         context.l10n.agentChat_reference;
-    final dimension = widget.touchOptimized ? 24.0 : 21.0;
+    final touchOptimized =
+        context.interactionPolicy.shouldExposeTouchAlternatives;
+    final dimension = touchOptimized ? 24.0 : 21.0;
     return FutureBuilder<ResolvedAgentResource?>(
       future: _preview,
       builder: (context, snapshot) {
@@ -311,7 +317,7 @@ class _AgentChatSentResourceCardState extends State<AgentChatSentResourceCard> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 100),
             child: Container(
-              height: widget.touchOptimized ? 30 : 27,
+              height: touchOptimized ? 30 : 27,
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -382,13 +388,20 @@ abstract final class AgentChatResourcePicker {
     required BuildContext context,
     required WidgetRef ref,
     required Future<void> Function(AgentChatResourceReference) onSelected,
-  }) => _show(
-    context,
-    _AgentChatResourcePickerBody(
-      mode: _PickerMode.gallery,
-      onSelected: onSelected,
-    ),
-  );
+  }) async {
+    await AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.agentChat_referenceGallery,
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.96,
+      sideSheetWidth: 720,
+      builder: (_, __) => _AgentChatResourcePickerBody(
+        mode: _PickerMode.gallery,
+        onSelected: onSelected,
+      ),
+    );
+  }
 
   static Future<void> showResourceLibrary({
     required BuildContext context,
@@ -400,42 +413,16 @@ abstract final class AgentChatResourcePicker {
       ref.read(preciseRefLibraryNotifierProvider.notifier).initialize(),
     ]);
     if (!context.mounted) return;
-    await _show(
-      context,
-      _AgentChatResourcePickerBody(
+    await AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.agentChat_resourceLibrary,
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.96,
+      sideSheetWidth: 720,
+      builder: (_, __) => _AgentChatResourcePickerBody(
         mode: _PickerMode.library,
         onSelected: onSelected,
-      ),
-    );
-  }
-
-  static Future<void> _show(BuildContext context, Widget child) {
-    final compact = MediaQuery.sizeOf(context).width < 600;
-    if (compact) {
-      return showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        showDragHandle: true,
-        builder: (sheetContext) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-          ),
-          child: SizedBox(
-            height: MediaQuery.sizeOf(sheetContext).height * 0.72,
-            child: child,
-          ),
-        ),
-      );
-    }
-    return showDialog<void>(
-      context: context,
-      builder: (_) => Dialog(
-        clipBehavior: Clip.antiAlias,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720, maxHeight: 620),
-          child: child,
-        ),
       ),
     );
   }
@@ -505,69 +492,82 @@ class _AgentChatResourcePickerBodyState
             l10n.agentChat_vibeLibrary,
             l10n.agentChat_preciseRefLibrary,
           ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
-          child: Row(
+    final controls = <Widget>[
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: SegmentedButton<int>(
+          segments: [
+            for (var index = 0; index < tabs.length; index++)
+              ButtonSegment(value: index, label: Text(tabs[index])),
+          ],
+          selected: {_tab},
+          onSelectionChanged: (value) => _setTab(value.first),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+        child: TextField(
+          key: const ValueKey('agent-chat-resource-search'),
+          controller: _searchController,
+          textInputAction: TextInputAction.search,
+          onChanged: _setQuery,
+          decoration: InputDecoration(
+            hintText: l10n.common_search,
+            prefixIcon: const Icon(Icons.search_rounded, size: 20),
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).deleteButtonTooltip,
+                    onPressed: () {
+                      _searchController.clear();
+                      _setQuery('');
+                    },
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                  ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 4),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final scrollControls = constraints.maxHeight < 420 || textScale > 1.5;
+        if (!scrollControls) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Text(
-                  widget.mode == _PickerMode.gallery
-                      ? l10n.agentChat_referenceGallery
-                      : l10n.agentChat_resourceLibrary,
-                  style: Theme.of(context).textTheme.titleMedium,
+              ...controls,
+              Expanded(child: _buildItems()),
+            ],
+          );
+        }
+        final itemsHeight = constraints.maxHeight
+            .clamp(180.0, 360.0)
+            .toDouble();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                key: const ValueKey(
+                  'agent-chat-resource-picker-scrollable-controls',
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ...controls,
+                    SizedBox(height: itemsHeight, child: _buildItems()),
+                  ],
                 ),
               ),
-              IconButton(
-                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-              ),
-            ],
-          ),
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: SegmentedButton<int>(
-            segments: [
-              for (var index = 0; index < tabs.length; index++)
-                ButtonSegment(value: index, label: Text(tabs[index])),
-            ],
-            selected: {_tab},
-            onSelectionChanged: (value) => _setTab(value.first),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-          child: TextField(
-            key: const ValueKey('agent-chat-resource-search'),
-            controller: _searchController,
-            textInputAction: TextInputAction.search,
-            onChanged: _setQuery,
-            decoration: InputDecoration(
-              hintText: l10n.common_search,
-              prefixIcon: const Icon(Icons.search_rounded, size: 20),
-              suffixIcon: _query.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: MaterialLocalizations.of(
-                        context,
-                      ).deleteButtonTooltip,
-                      onPressed: () {
-                        _searchController.clear();
-                        _setQuery('');
-                      },
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                    ),
             ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Expanded(child: _buildItems()),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -624,6 +624,7 @@ class _AgentChatResourcePickerBodyState
             imageFile: entry.hasThumbnail ? File(entry.thumbnail!) : null,
             title: entry.displayName,
             subtitle: entry.contentPreview,
+            translateSubtitle: true,
             onTap: () => _select(
               AgentChatResourceReference(
                 kind: AgentChatResourceKind.tagLibraryEntry,
@@ -728,7 +729,11 @@ class _AgentChatResourcePickerBodyState
     }
 
     if (_localLoading && _localRecords.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(
+          value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
+        ),
+      );
     }
     if (_localError != null && _localRecords.isEmpty) {
       return Center(
@@ -787,9 +792,13 @@ class _AgentChatResourcePickerBodyState
               ),
             );
           }
-          return const Padding(
-            padding: EdgeInsets.all(12),
-            child: Center(child: CircularProgressIndicator()),
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Center(
+              child: CircularProgressIndicator(
+                value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
+              ),
+            ),
           );
         }
         final record = _localRecords[index];
@@ -886,13 +895,10 @@ class _AgentChatResourcePickerBodyState
       if (mounted) Navigator.pop(context);
     } on Object catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.agentChat_addResourceFailed('$error')),
-            ),
-          );
+        AppToast.error(
+          context,
+          context.l10n.agentChat_addResourceFailed('$error'),
+        );
       }
     } finally {
       if (mounted) setState(() => _adding = false);
@@ -926,13 +932,10 @@ class _AgentChatResourcePickerBodyState
       if (mounted) Navigator.pop(context);
     } on Object catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.agentChat_addResourceFailed('$error')),
-            ),
-          );
+        AppToast.error(
+          context,
+          context.l10n.agentChat_addResourceFailed('$error'),
+        );
       }
     } finally {
       if (mounted) setState(() => _adding = false);
@@ -948,6 +951,7 @@ class _PickerItem extends StatelessWidget {
     required this.onTap,
     this.imageBytes,
     this.imageFile,
+    this.translateSubtitle = false,
   });
 
   final String title;
@@ -955,6 +959,7 @@ class _PickerItem extends StatelessWidget {
   final Future<void> Function() onTap;
   final Uint8List? imageBytes;
   final File? imageFile;
+  final bool translateSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -985,14 +990,30 @@ class _PickerItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      if (translateSubtitle)
+                        TranslatedPromptText(
+                          subtitle,
+                          selectable: false,
+                          maxLines: 1,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        )
+                      else
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
-                      ),
                     ],
                   ),
                 ),

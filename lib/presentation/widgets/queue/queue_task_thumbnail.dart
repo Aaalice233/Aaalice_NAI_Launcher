@@ -65,7 +65,10 @@ class QueueTaskThumbnail extends StatelessWidget {
       color: theme.colorScheme.surfaceContainerHighest,
       alignment: Alignment.center,
       child: loading && !compact
-          ? const CircularProgressIndicator(strokeWidth: 2)
+          ? CircularProgressIndicator(
+              strokeWidth: 2,
+              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+            )
           : Icon(
               loading ? Icons.image_rounded : Icons.broken_image_rounded,
               size: compact ? 20 : 48,

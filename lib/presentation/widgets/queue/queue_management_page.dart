@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../common/app_toast.dart';
+import '../common/themed_confirm_dialog.dart';
 import 'execution_stats_panel.dart';
 import 'task_list_item.dart';
 import 'task_edit_dialog.dart';
@@ -97,37 +99,52 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
           child: _buildTabBar(theme, l10n, queueState),
         ),
       ),
-      body: Column(
-        children: [
-          // 紧凑统计面板
-          ExecutionStatsPanel(
-            onQueueStarted: widget.onQueueStarted,
-            onAddCurrentTask: currentPrompt.trim().isEmpty || queueState.isFull
-                ? null
-                : _addCurrentTask,
-          ),
-
-          // 批量操作栏
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            child: queueState.isSelectionMode
-                ? _buildBatchOperationBar(theme, l10n, queueState)
-                : const SizedBox.shrink(),
-          ),
-
-          // Tab内容
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildPendingTab(theme, l10n, queueState),
-                _buildCompletedTab(theme, l10n, queueState),
-                _buildFailedTab(theme, l10n, queueState),
-              ],
-            ),
-          ),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final statsRatio = textScale > 1.3 ? 0.58 : 0.45;
+          final proposedStatsHeight = constraints.maxHeight * statsRatio;
+          final maxStatsHeight = constraints.maxHeight < 160
+              ? constraints.maxHeight
+              : proposedStatsHeight
+                    .clamp(160.0, constraints.maxHeight)
+                    .toDouble();
+          return Column(
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxStatsHeight),
+                child: SingleChildScrollView(
+                  child: ExecutionStatsPanel(
+                    onQueueStarted: widget.onQueueStarted,
+                    onAddCurrentTask:
+                        currentPrompt.trim().isEmpty || queueState.isFull
+                        ? null
+                        : _addCurrentTask,
+                  ),
+                ),
+              ),
+              AnimatedSize(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                child: queueState.isSelectionMode
+                    ? _buildBatchOperationBar(theme, l10n, queueState)
+                    : const SizedBox.shrink(),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildPendingTab(theme, l10n, queueState),
+                    _buildCompletedTab(theme, l10n, queueState),
+                    _buildFailedTab(theme, l10n, queueState),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -168,10 +185,13 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
+    final largeText = MediaQuery.textScalerOf(context).scale(14) > 18.2;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
       child: TabBar(
         controller: _tabController,
+        isScrollable: largeText,
+        tabAlignment: largeText ? TabAlignment.start : null,
         labelPadding: const EdgeInsets.symmetric(horizontal: 8),
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
@@ -248,9 +268,11 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final interactionPolicy = context.interactionPolicy;
     final selectedChip = Container(
-      constraints: BoxConstraints(minHeight: isTouch ? 48 : 0),
+      constraints: BoxConstraints(
+        minHeight: interactionPolicy.minimumControlExtent,
+      ),
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -294,7 +316,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
         label: Text(l10n.queue_pinToTop),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          minimumSize: Size(0, isTouch ? 48 : 32),
+          minimumSize: Size(0, interactionPolicy.minimumControlExtent),
         ),
       ),
       FilledButton.tonalIcon(
@@ -305,7 +327,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
         label: Text(l10n.queue_delete),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          minimumSize: Size(0, isTouch ? 48 : 32),
+          minimumSize: Size(0, interactionPolicy.minimumControlExtent),
           backgroundColor: Colors.red.withValues(alpha: 0.12),
           foregroundColor: Colors.red,
         ),
@@ -323,14 +345,22 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
           ),
         ),
       ),
-      child: isTouch
-          ? Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [selectedChip, ...actions],
-            )
-          : Row(children: [selectedChip, const Spacer(), ...actions]),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final canUseSingleRow = WindowSizeClass.fromWidth(
+            constraints.maxWidth,
+          ).isExpandedOrWider;
+          if (canUseSingleRow) {
+            return Row(children: [selectedChip, const Spacer(), ...actions]);
+          }
+          return Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [selectedChip, ...actions],
+          );
+        },
+      ),
     );
   }
 
@@ -339,12 +369,12 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     required String label,
     required VoidCallback onPressed,
   }) {
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final interactionPolicy = context.interactionPolicy;
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        minimumSize: Size(0, isTouch ? 48 : 28),
+        minimumSize: Size(0, interactionPolicy.minimumControlExtent),
       ),
       child: Text(label),
     );
@@ -611,34 +641,22 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   }
 
   void _editTask(ReplicationTask task) {
-    showDialog(
-      context: context,
-      builder: (context) => TaskEditDialog(task: task),
-    );
+    TaskEditDialog.show(context: context, task: task);
   }
 
   Future<void> _confirmClearQueue(BuildContext context) async {
     final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.queue_confirmClear),
-        content: Text(l10n.queue_clearQueueConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(l10n.common_confirm),
-          ),
-        ],
-      ),
+      title: l10n.queue_confirmClear,
+      content: l10n.queue_clearQueueConfirm,
+      confirmText: l10n.common_confirm,
+      cancelText: l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_sweep_outlined,
     );
 
-    if (confirmed == true) {
+    if (confirmed && mounted) {
       await ref.read(queueExecutionNotifierProvider.notifier).clearQueue();
     }
   }
@@ -648,33 +666,20 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     if (queueState.completedTasks.isEmpty) return;
 
     final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.common_confirmClear),
-        content: Text(
-          l10n.common_clearAllItemsConfirm(
-            queueState.completedTasks.length,
-            l10n.queue_completedTasks,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l10n.common_confirm),
-          ),
-        ],
+      title: l10n.common_confirmClear,
+      content: l10n.common_clearAllItemsConfirm(
+        queueState.completedTasks.length,
+        l10n.queue_completedTasks,
       ),
+      confirmText: l10n.common_confirm,
+      cancelText: l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_sweep_outlined,
     );
 
-    if (confirmed == true) {
+    if (confirmed && mounted) {
       ref.read(replicationQueueNotifierProvider.notifier).clearCompletedTasks();
     }
   }
@@ -684,26 +689,17 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     final selectedCount = ref
         .read(replicationQueueNotifierProvider)
         .selectedCount;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.common_confirmDelete),
-        content: Text(l10n.queue_confirmDeleteSelected(selectedCount)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(l10n.common_confirm),
-          ),
-        ],
-      ),
+      title: l10n.common_confirmDelete,
+      content: l10n.queue_confirmDeleteSelected(selectedCount),
+      confirmText: l10n.common_confirm,
+      cancelText: l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
     );
 
-    if (confirmed == true) {
+    if (confirmed && mounted) {
       await ref
           .read(replicationQueueNotifierProvider.notifier)
           .deleteSelected();

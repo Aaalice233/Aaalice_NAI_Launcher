@@ -53,39 +53,45 @@ class VibeLibraryEmptyView extends StatelessWidget {
         subtitle ?? l10n.vibeLibrary_emptySaveFromGenerationHint;
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _getIconData(iconName),
-            size: 64,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            resolvedTitle,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _getIconData(iconName),
+              size: 64,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            resolvedSubtitle,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+            const SizedBox(height: 16),
+            Text(
+              resolvedTitle,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          if (onImport != null) ...[
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              key: const ValueKey('vibe-library-empty-import'),
-              onPressed: onImport,
-              icon: const Icon(Icons.file_download_outlined),
-              label: Text(l10n.common_import),
+            const SizedBox(height: 8),
+            Text(
+              resolvedSubtitle,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.75,
+                ),
+              ),
             ),
+            if (onImport != null) ...[
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                key: const ValueKey('vibe-library-empty-import'),
+                onPressed: onImport,
+                icon: const Icon(Icons.file_download_outlined),
+                label: Text(l10n.common_import),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

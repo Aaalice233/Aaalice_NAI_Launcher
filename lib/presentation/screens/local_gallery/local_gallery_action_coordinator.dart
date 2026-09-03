@@ -43,6 +43,7 @@ import '../../utils/local_gallery_metadata_resolver.dart';
 import '../../utils/local_gallery_reference_factory.dart';
 import '../../utils/metadata_import_coordinator.dart';
 import '../../utils/precise_ref_library_import_helper.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/gallery/album_select_dialog.dart';
 import '../../widgets/common/app_toast.dart';
@@ -53,6 +54,79 @@ import '../../widgets/discord_share/discord_share_dialog.dart';
 import '../../widgets/gallery/local_image_context_menu.dart';
 import '../../widgets/gallery/zip_export_metadata_dialog.dart';
 import '../../widgets/metadata/metadata_import_dialog.dart';
+
+Future<void> showLocalGalleryZipFailureDetails(
+  BuildContext context,
+  ZipCreationResult result,
+) {
+  final l10n = context.l10n;
+  return AdaptivePresenter.showPanel<void>(
+    context: context,
+    titleBuilder: (context) => Row(
+      children: [
+        Icon(
+          Icons.warning_amber_rounded,
+          color: Theme.of(context).colorScheme.tertiary,
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Text(l10n.localGallery_packPartialTitle)),
+      ],
+    ),
+    initialChildSize: 0.78,
+    minChildSize: 0.5,
+    sideSheetWidth: 600,
+    builder: (panelContext, scrollController) => ListView.builder(
+      key: const ValueKey('local-gallery-zip-failure-list'),
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      itemCount: result.failures.length + 2,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              l10n.localGallery_packedImagesWithFailures(
+                result.exportedCount,
+                result.failures.length,
+              ),
+            ),
+          );
+        }
+        if (index == result.failures.length + 1) {
+          return SafeArea(
+            top: false,
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                onPressed: () => Navigator.of(panelContext).pop(),
+                child: Text(l10n.common_close),
+              ),
+            ),
+          );
+        }
+        final failure = result.failures[index - 1];
+        return Padding(
+          padding: EdgeInsets.only(top: index == 1 ? 0 : 8, bottom: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (index > 1) const Divider(height: 8),
+              Text(
+                path.basename(failure.path),
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 4),
+              SelectableText(
+                failure.error,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
 
 @immutable
 class LocalGalleryImageAction {
@@ -274,66 +348,7 @@ class LocalGalleryActionCoordinator {
 
   Future<void> _showZipPartialFailureDialog(ZipCreationResult result) async {
     if (!_mounted()) return;
-    final l10n = _context().l10n;
-    await showDialog<void>(
-      context: _context(),
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.warning_amber_rounded,
-          color: Theme.of(dialogContext).colorScheme.tertiary,
-        ),
-        title: Text(l10n.localGallery_packPartialTitle),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.localGallery_packedImagesWithFailures(
-                  result.exportedCount,
-                  result.failures.length,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 320),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: result.failures.length,
-                    separatorBuilder: (_, _) => const Divider(height: 16),
-                    itemBuilder: (context, index) {
-                      final failure = result.failures[index];
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            path.basename(failure.path),
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                          const SizedBox(height: 4),
-                          SelectableText(
-                            failure.error,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.common_close),
-          ),
-        ],
-      ),
-    );
+    await showLocalGalleryZipFailureDetails(_context(), result);
   }
 
   void editSelectedMetadata() {

@@ -8,6 +8,7 @@ import '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../widgets/common/app_toast.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../../widgets/common/context_menu_anchor.dart';
 import '../../widgets/common/image_card_actions.dart';
@@ -25,16 +26,13 @@ Future<void> addAgentResourceToComposer({
         .read(agentChatNotifierProvider.notifier)
         .addPendingResource(reference);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.agentChat_resourceAdded)),
-      );
+      AppToast.success(context, context.l10n.agentChat_resourceAdded);
     }
   } on Object catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.agentChat_addResourceFailed('$error')),
-        ),
+      AppToast.error(
+        context,
+        context.l10n.agentChat_addResourceFailed('$error'),
       );
     }
   }

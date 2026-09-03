@@ -37,11 +37,12 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
     final response = await dio.post<dynamic>(
       _resolveGenerateEndpoint(request.provider, request.model),
       data: {
-        'system_instruction': {
-          'parts': [
-            {'text': request.systemPrompt},
-          ],
-        },
+        if (request.systemPrompt.isNotEmpty)
+          'systemInstruction': {
+            'parts': [
+              {'text': _sanitizeSurrogates(request.systemPrompt)},
+            ],
+          },
         'contents': [
           {'role': 'user', 'parts': _parts(request.userParts)},
         ],
@@ -49,7 +50,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       options: Options(
         headers: _headers(request.apiKey),
         sendTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(minutes: 2),
+        receiveTimeout: Duration.zero,
       ),
       cancelToken: cancelToken,
     );
@@ -71,6 +72,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
     Usage? usage;
     var sawError = false;
     var sawFinishReason = false;
+    var hasToolCalls = false;
     var generatedToolCallCounter = 0;
     final seenToolCallIds = <String>{};
 
@@ -94,7 +96,8 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       onEvent: (_, data) {
         final json = parseSseJson(data);
         if (json == null) {
-          return;
+          if (data.trim() == '[DONE]') return;
+          throw const FormatException('Google stream returned invalid JSON');
         }
         final error = extractErrorMessage(json);
         if (error != null) {
@@ -104,9 +107,18 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
         }
         final usageRaw = json['usageMetadata'];
         if (usageRaw is Map<String, dynamic>) {
+          final promptTokens =
+              (usageRaw['promptTokenCount'] as num?)?.toInt() ?? 0;
+          final cachedTokens =
+              (usageRaw['cachedContentTokenCount'] as num?)?.toInt() ?? 0;
+          final candidateTokens =
+              (usageRaw['candidatesTokenCount'] as num?)?.toInt() ?? 0;
+          final thoughtTokens =
+              (usageRaw['thoughtsTokenCount'] as num?)?.toInt() ?? 0;
           usage = Usage(
-            input: (usageRaw['promptTokenCount'] as num?)?.toInt() ?? 0,
-            output: (usageRaw['candidatesTokenCount'] as num?)?.toInt() ?? 0,
+            input: promptTokens - cachedTokens,
+            output: candidateTokens + thoughtTokens,
+            cacheRead: cachedTokens,
             totalTokens: (usageRaw['totalTokenCount'] as num?)?.toInt() ?? 0,
           );
         }
@@ -173,6 +185,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                     );
                   }
                   if (functionCall is Map<String, dynamic>) {
+                    hasToolCalls = true;
                     stopReason = StopReason.toolUse;
                     final args = functionCall['args'];
                     pending.add(
@@ -203,6 +216,9 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
         payload: _buildAgentPayload(request),
         headers: _headers(request.apiKey),
         cancelToken: cancelToken,
+        // Duration.zero overrides Dio's BaseOptions deadline instead of
+        // inheriting it. Reasoning models can take minutes before first bytes.
+        receiveTimeout: Duration.zero,
       );
       await for (final chunk in stream) {
         parser.push(chunk);
@@ -229,7 +245,10 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       yield const AgentWireError('Google stream ended without a finish reason');
       return;
     }
-    yield AgentWireFinish(stopReason: stopReason, usage: usage);
+    final effectiveStopReason = stopReason == StopReason.stop && hasToolCalls
+        ? StopReason.toolUse
+        : stopReason;
+    yield AgentWireFinish(stopReason: effectiveStopReason, usage: usage);
   }
 
   Map<String, dynamic> _buildAgentPayload(AgentChatRequest request) {
@@ -251,11 +270,11 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
 
     for (final message in request.messages) {
       if (message is UserMessage) {
-        appendTurn('user', {'text': message.text});
+        appendTurn('user', {'text': _sanitizeSurrogates(message.text)});
         for (final image in inlineImagesOf(message)) {
           appendTurn('user', {
-            'inline_data': {
-              'mime_type': image.mimeType,
+            'inlineData': {
+              'mimeType': image.mimeType,
               'data': base64Encode(image.bytes),
             },
           });
@@ -271,7 +290,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                     (sameProviderAndModel &&
                         block.signature?.isNotEmpty == true):
               appendTurn('model', {
-                'text': block.text,
+                'text': _sanitizeSurrogates(block.text),
                 if (sameProviderAndModel && block.signature?.isNotEmpty == true)
                   'thoughtSignature': block.signature,
               });
@@ -281,7 +300,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                         block.signature?.isNotEmpty == true):
               appendTurn('model', {
                 if (sameProviderAndModel) 'thought': true,
-                'text': block.thinking,
+                'text': _sanitizeSurrogates(block.thinking),
                 if (sameProviderAndModel && block.signature?.isNotEmpty == true)
                   'thoughtSignature': block.signature,
               });
@@ -312,8 +331,8 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
           'functionResponse': {
             'name': message.toolName,
             'response': message.isError
-                ? {'error': message.text}
-                : {'output': message.text},
+                ? {'error': _sanitizeSurrogates(message.text)}
+                : {'output': _sanitizeSurrogates(message.text)},
             if (requiresToolCallId)
               'id': _normalizeToolCallId(message.toolCallId),
             if (supportsMultimodalFunctionResponse && imageParts.isNotEmpty)
@@ -347,11 +366,12 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       _ => null,
     };
     return {
-      'system_instruction': {
-        'parts': [
-          {'text': request.systemPrompt},
-        ],
-      },
+      if (request.systemPrompt.isNotEmpty)
+        'systemInstruction': {
+          'parts': [
+            {'text': _sanitizeSurrogates(request.systemPrompt)},
+          ],
+        },
       'contents': turns,
       if (thinkingConfig != null || request.effectiveMaxOutputTokens != null)
         'generationConfig': {
@@ -389,11 +409,11 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
     return [
       for (final part in parts)
         if (part is PromptAssistantTextPart)
-          {'text': part.text}
+          {'text': _sanitizeSurrogates(part.text)}
         else if (part is PromptAssistantImagePart)
           {
-            'inline_data': {
-              'mime_type': part.mimeType,
+            'inlineData': {
+              'mimeType': part.mimeType,
               'data': base64Encode(part.bytes),
             },
           },
@@ -485,3 +505,29 @@ int? _geminiMajorVersion(String modelId) {
 String _normalizeToolCallId(String id) => id
     .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')
     .substring(0, id.length > 64 ? 64 : id.length);
+
+String _sanitizeSurrogates(String value) {
+  final units = value.codeUnits;
+  final sanitized = <int>[];
+  for (var index = 0; index < units.length; index++) {
+    final unit = units[index];
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+      if (index + 1 < units.length) {
+        final next = units[index + 1];
+        if (next >= 0xDC00 && next <= 0xDFFF) {
+          sanitized
+            ..add(unit)
+            ..add(next);
+          index++;
+          continue;
+        }
+      }
+      sanitized.add(0xFFFD);
+    } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+      sanitized.add(0xFFFD);
+    } else {
+      sanitized.add(unit);
+    }
+  }
+  return String.fromCharCodes(sanitized);
+}

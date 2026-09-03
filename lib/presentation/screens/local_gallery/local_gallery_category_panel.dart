@@ -11,6 +11,7 @@ import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../widgets/gallery/gallery_album_tree_view.dart';
 import '../../widgets/gallery/gallery_category_tree_view.dart';
 import '../../widgets/gallery/gallery_scan_progress_panel.dart';
+import '../../widgets/gallery/gallery_sidebar.dart';
 
 /// 本地图库左栏：全部图像 + 相簿（逻辑引用）+ 文件夹（物理分类）。
 class LocalGalleryCategoryPanel extends StatefulWidget {
@@ -95,28 +96,17 @@ class _LocalGalleryCategoryPanelState extends State<LocalGalleryCategoryPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: widget.modal ? double.infinity : 250,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: widget.modal
-            ? null
-            : Border(
-                right: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.3,
-                  ),
-                  width: 1,
-                ),
-              ),
-      ),
+    return GallerySidebarSurface(
+      modal: widget.modal,
+      footer: const GalleryScanProgressPanel(),
       child: Column(
         children: [
           Expanded(
             child: ListView(
               controller: widget.scrollController,
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(
+                top: GalleryCollectionChrome.navigationTopPadding,
+              ),
               children: [
                 GalleryAllImagesItem(
                   key: const ValueKey('local-gallery-all-images'),
@@ -125,7 +115,7 @@ class _LocalGalleryCategoryPanelState extends State<LocalGalleryCategoryPanel> {
                   onTap: _selectAllImages,
                 ),
                 _wrapRootDropTarget<GalleryAlbum>(
-                  _PanelSectionHeader(
+                  GallerySidebarSectionHeader(
                     toggleKey: const ValueKey('local-gallery-albums-toggle'),
                     icon: Icons.photo_album_outlined,
                     title: context.l10n.localGallery_albumSectionTitle,
@@ -161,7 +151,7 @@ class _LocalGalleryCategoryPanelState extends State<LocalGalleryCategoryPanel> {
                     ),
                   ),
                 _wrapRootDropTarget<GalleryCategory>(
-                  _PanelSectionHeader(
+                  GallerySidebarSectionHeader(
                     toggleKey: const ValueKey('local-gallery-folders-toggle'),
                     icon: Icons.folder_outlined,
                     title: context.l10n.localGallery_folderSectionTitle,
@@ -196,7 +186,6 @@ class _LocalGalleryCategoryPanelState extends State<LocalGalleryCategoryPanel> {
               ],
             ),
           ),
-          const GalleryScanProgressPanel(),
         ],
       ),
     );
@@ -239,120 +228,4 @@ Widget _wrapRootDropTarget<T extends Object>(
       );
     },
   );
-}
-
-class _PanelSectionHeader extends StatefulWidget {
-  const _PanelSectionHeader({
-    required this.toggleKey,
-    required this.icon,
-    required this.title,
-    required this.isExpanded,
-    required this.onToggle,
-    required this.onCreate,
-  });
-
-  final Key toggleKey;
-  final IconData icon;
-  final String title;
-  final bool isExpanded;
-  final VoidCallback onToggle;
-  final VoidCallback onCreate;
-
-  @override
-  State<_PanelSectionHeader> createState() => _PanelSectionHeaderState();
-}
-
-class _PanelSectionHeaderState extends State<_PanelSectionHeader> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final toggleLabel = widget.isExpanded
-        ? context.l10n.common_collapse
-        : context.l10n.common_expand;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        key: widget.toggleKey,
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.onSurface.withValues(
-            alpha: _isHovered ? 0.11 : 0.06,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: Semantics(
-                  button: true,
-                  expanded: widget.isExpanded,
-                  label: '${widget.title}，$toggleLabel',
-                  child: Tooltip(
-                    message: toggleLabel,
-                    child: InkWell(
-                      onTap: widget.onToggle,
-                      borderRadius: BorderRadius.circular(8),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(minHeight: 48),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 4),
-                            Icon(
-                              widget.isExpanded
-                                  ? Icons.expand_more
-                                  : Icons.chevron_right,
-                              size: 18,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              widget.icon,
-                              size: 20,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                widget.title,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.tonalIcon(
-                onPressed: widget.onCreate,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(context.l10n.common_new),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 40),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  textStyle: theme.textTheme.labelMedium,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

@@ -16,6 +16,7 @@ class MobileGenerationGestures extends StatelessWidget {
     required this.onPointerUp,
     required this.onPointerCancel,
     required this.onScrollNotification,
+    this.pointerExclusionKeys = const [],
     required this.pointerActive,
     required this.dragOffset,
     required this.showHint,
@@ -27,10 +28,22 @@ class MobileGenerationGestures extends StatelessWidget {
   final PointerUpEventListener onPointerUp;
   final PointerCancelEventListener onPointerCancel;
   final NotificationListenerCallback<ScrollNotification> onScrollNotification;
+  final List<GlobalKey> pointerExclusionKeys;
   final bool pointerActive;
   final double dragOffset;
   final bool showHint;
   final Widget child;
+
+  bool _isInsidePointerExclusion(Offset globalPosition) {
+    for (final key in pointerExclusionKeys) {
+      final renderObject = key.currentContext?.findRenderObject();
+      if (renderObject is! RenderBox || !renderObject.hasSize) continue;
+      final bounds =
+          renderObject.localToGlobal(Offset.zero) & renderObject.size;
+      if (bounds.contains(globalPosition)) return true;
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +52,9 @@ class MobileGenerationGestures extends StatelessWidget {
     return Listener(
       key: const ValueKey('generation-vertical-shortcuts'),
       behavior: HitTestBehavior.translucent,
-      onPointerDown: onPointerDown,
+      onPointerDown: (event) {
+        if (!_isInsidePointerExclusion(event.position)) onPointerDown(event);
+      },
       onPointerMove: onPointerMove,
       onPointerUp: onPointerUp,
       onPointerCancel: onPointerCancel,

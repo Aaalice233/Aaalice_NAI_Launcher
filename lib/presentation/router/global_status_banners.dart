@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/services/auth_error_service.dart';
 import '../../core/utils/localization_extension.dart';
+import '../adaptive/interaction_policy.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common/update_notice_banner.dart';
 import 'app_routes.dart';
@@ -38,6 +39,7 @@ class _AuthRecoveryBanner extends ConsumerWidget {
     );
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final dismissButtonExtent = context.interactionPolicy.minimumControlExtent;
     final authNotifier = ref.read(authNotifierProvider.notifier);
 
     return SafeArea(
@@ -47,7 +49,7 @@ class _AuthRecoveryBanner extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
+            constraints: const BoxConstraints(maxWidth: 760),
             child: Material(
               key: const ValueKey('auth-recovery-banner'),
               color: colorScheme.surfaceContainerHigh,
@@ -57,7 +59,9 @@ class _AuthRecoveryBanner extends ConsumerWidget {
               clipBehavior: Clip.antiAlias,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final compact = MediaQuery.sizeOf(context).width < 520;
+                  final textScale =
+                      MediaQuery.textScalerOf(context).scale(14) / 14;
+                  final compact = constraints.maxWidth < 600 || textScale > 1.3;
                   final messageRow = Row(
                     children: [
                       Icon(
@@ -69,8 +73,10 @@ class _AuthRecoveryBanner extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           message,
-                          maxLines: compact ? 2 : 1,
-                          overflow: TextOverflow.ellipsis,
+                          maxLines: compact ? null : 2,
+                          overflow: compact
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -85,6 +91,10 @@ class _AuthRecoveryBanner extends ConsumerWidget {
                             context,
                           ).closeButtonTooltip,
                           visualDensity: VisualDensity.compact,
+                          constraints: BoxConstraints.tightFor(
+                            width: dismissButtonExtent,
+                            height: dismissButtonExtent,
+                          ),
                         ),
                     ],
                   );
@@ -112,7 +122,12 @@ class _AuthRecoveryBanner extends ConsumerWidget {
                           messageRow,
                           Align(
                             alignment: Alignment.centerRight,
-                            child: Wrap(spacing: 8, children: actions),
+                            child: Wrap(
+                              alignment: WrapAlignment.end,
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: actions,
+                            ),
                           ),
                         ],
                       ),
@@ -134,6 +149,10 @@ class _AuthRecoveryBanner extends ConsumerWidget {
                             context,
                           ).closeButtonTooltip,
                           visualDensity: VisualDensity.compact,
+                          constraints: BoxConstraints.tightFor(
+                            width: dismissButtonExtent,
+                            height: dismissButtonExtent,
+                          ),
                         ),
                       ],
                     ),

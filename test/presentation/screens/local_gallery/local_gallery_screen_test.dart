@@ -48,6 +48,13 @@ void main() {
           })
         >[
           (
+            width: 320,
+            openedColumns: 2,
+            openedItemWidth: 142,
+            closedColumns: 2,
+            closedItemWidth: 142,
+          ),
+          (
             width: 360,
             openedColumns: 2,
             openedItemWidth: 162,

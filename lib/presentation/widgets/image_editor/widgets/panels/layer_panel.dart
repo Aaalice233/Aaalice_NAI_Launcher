@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart'
 
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
@@ -428,7 +429,7 @@ class _LayerTileState extends State<_LayerTile>
 
     return ReorderableDragStartListener(
       index: widget.index,
-      enabled: !PlatformCapabilities.current.hasTouchInput,
+      enabled: context.interactionPolicy.precisePointerAvailable,
       child: Material(
         color: widget.isActive
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)

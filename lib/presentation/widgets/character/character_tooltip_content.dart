@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../common/translated_tag_text.dart';
 
 /// 折叠角色栏的只读悬浮预览。
 ///
@@ -194,19 +195,26 @@ class _CharacterPreviewRow extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 5),
-            Text(
-              promptPreview.isEmpty
-                  ? l10n.characterTooltip_notSet
-                  : promptPreview,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: promptPreview.isEmpty
-                    ? colorScheme.onSurfaceVariant.withValues(alpha: 0.65)
-                    : colorScheme.onSurfaceVariant,
-                height: 1.2,
+            if (promptPreview.isEmpty)
+              Text(
+                l10n.characterTooltip_notSet,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
+                  height: 1.2,
+                ),
+              )
+            else
+              TranslatedPromptText(
+                promptPreview.replaceAll(' · ', ', '),
+                selectable: false,
+                maxLines: 1,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  height: 1.2,
+                ),
               ),
-            ),
           ],
         ),
       ),

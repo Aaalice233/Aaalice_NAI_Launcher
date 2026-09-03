@@ -265,10 +265,11 @@ void main() {
     },
   );
 
-  testWidgets('AI TAG resolved media is revealed using its real dimensions', (
+  testWidgets('AI TAG resolved media keeps the masonry snapshot aspect ratio', (
     tester,
   ) async {
-    final resolved = _item.copyWith(
+    final initial = _item.copyWith(imageWidth: 400, imageHeight: 800);
+    final resolved = initial.copyWith(
       imageWidth: 1200,
       imageHeight: 800,
       previewFileUrl: 'https://example.test/ai-tag-resolved.jpg',
@@ -278,6 +279,8 @@ void main() {
     final layoutAspectRatios = <double>[];
     await tester.pumpWidget(
       _app(
+        post: initial,
+        containerHeight: 600,
         detailRequestScope: 1,
         loadDetail: (_, {required priority, forceRefresh = false}) =>
             Future.value(GalleryDetail(item: resolved, media: const [])),
@@ -302,8 +305,7 @@ void main() {
 
     expect(loadMediaValues.last, isTrue);
     expect(mediaRequestActiveValues.last, isTrue);
-    expect(layoutAspectRatios.last, 1.5);
-
+    expect(layoutAspectRatios.last, 0.5);
     final buildsAfterResolve = mediaRequestActiveValues.length;
     detector.onVisibilityChanged?.call(
       VisibilityInfo(
@@ -440,6 +442,7 @@ Widget _app({
   ValueChanged<bool>? onBuildCard,
   ValueChanged<bool>? onMediaRequestActive,
   ValueChanged<double>? onLayoutAspectRatio,
+  double containerHeight = 200,
 }) {
   return MaterialApp(
     locale: const Locale('en'),
@@ -448,7 +451,7 @@ Widget _app({
     home: Scaffold(
       body: SizedBox(
         width: 200,
-        height: 200,
+        height: containerHeight,
         child: GalleryGridItem(
           post: post,
           index: 0,

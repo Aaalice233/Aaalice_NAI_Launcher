@@ -41,18 +41,24 @@ void main() {
     isNewer: true,
   );
 
-  Widget app(UpdateState state) {
+  Widget app(UpdateState state, {double textScale = 1}) {
     return ProviderScope(
       overrides: [
         updateStateNotifierProvider.overrideWith(
           () => _FakeUpdateNotifier(state),
         ),
       ],
-      child: const MaterialApp(
-        locale: Locale('zh'),
+      child: MaterialApp(
+        locale: const Locale('zh'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: Scaffold(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+        home: const Scaffold(
           body: Stack(
             children: [
               Positioned(
@@ -114,6 +120,30 @@ void main() {
       find.widgetWithText(FilledButton, '查看更新'),
     );
     expect(actionSize.width, greaterThan(280));
+  });
+
+  testWidgets('uses the stacked layout at 3x text scale', (tester) async {
+    tester.view.physicalSize = const Size(640, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      app(
+        const UpdateState(
+          status: UpdateStatus.available,
+          versionInfo: info,
+          notificationVisible: true,
+        ),
+        textScale: 3,
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final action = find.widgetWithText(FilledButton, '查看更新');
+    expect(action, findsOneWidget);
+    expect(tester.getSize(action).width, greaterThan(500));
+    expect(find.text('新版本 v2.0.0 可用'), findsOneWidget);
   });
 
   testWidgets('distinguishes a verified package ready to install', (

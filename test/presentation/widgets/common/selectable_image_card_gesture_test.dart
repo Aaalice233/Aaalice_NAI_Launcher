@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
 void main() {
@@ -150,6 +151,8 @@ void main() {
         ),
       );
 
+      await _observeTouch(tester);
+
       final actionButton = find.byTooltip('More actions');
       expect(actionButton, findsOneWidget);
       expect(tester.getSize(actionButton), const Size(48, 48));
@@ -201,6 +204,7 @@ void main() {
         ),
       );
 
+      await _observeTouch(tester);
       await tester.tap(find.byTooltip('More actions'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save to Library'));
@@ -262,13 +266,26 @@ Border _activeBorder(WidgetTester tester) {
 
 Widget _testApp(Widget child) {
   return ProviderScope(
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      locale: const Locale('en'),
-      home: Scaffold(body: Center(child: child)),
+    child: InteractionPolicyScope(
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: Scaffold(body: Center(child: child)),
+      ),
     ),
   );
+}
+
+Future<void> _observeTouch(WidgetTester tester) async {
+  final position =
+      tester.getBottomRight(find.byType(Scaffold)) - const Offset(1, 1);
+  final touch = await tester.createGesture(kind: PointerDeviceKind.touch);
+  await touch.addPointer(location: position);
+  await touch.down(position);
+  await tester.pump();
+  await touch.up();
+  await tester.pump();
 }
 
 const _oneByOnePngBase64 =

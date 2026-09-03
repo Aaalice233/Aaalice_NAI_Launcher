@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../services/provider_adapters/prompt_assistant_adapter.dart';
 
 class PromptAssistantCustomDialogResult {
@@ -22,10 +23,34 @@ class PromptAssistantCustomDialog extends StatefulWidget {
     super.key,
     required this.currentPrompt,
     required this.allowImages,
+    this.scrollController,
   });
 
   final String currentPrompt;
   final bool allowImages;
+  final ScrollController? scrollController;
+
+  static Future<PromptAssistantCustomDialogResult?> show({
+    required BuildContext context,
+    required String currentPrompt,
+    required bool allowImages,
+  }) {
+    return AdaptivePresenter.showForm<PromptAssistantCustomDialogResult>(
+      context: context,
+      titleBuilder: (context) => Text(
+        context.l10n.promptAssistant_customDialogTitle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      sideSheetWidth: 600,
+      builder: (context, scrollController) => PromptAssistantCustomDialog(
+        currentPrompt: currentPrompt,
+        allowImages: allowImages,
+        scrollController: scrollController,
+      ),
+    );
+  }
 
   @override
   State<PromptAssistantCustomDialog> createState() =>
@@ -124,104 +149,120 @@ class _PromptAssistantCustomDialogState
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(context.l10n.promptAssistant_customDialogTitle),
-      content: SizedBox(
-        width: 560,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return SingleChildScrollView(
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.l10n.promptAssistant_currentPrompt,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxHeight: 100),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: SingleChildScrollView(
+              child: Text(
+                widget.currentPrompt.trim().isEmpty
+                    ? context.l10n.promptAssistant_currentPromptEmpty
+                    : widget.currentPrompt.trim(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _requestController,
+            maxLines: MediaQuery.textScalerOf(context).scale(1) >= 2 ? 3 : 6,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: context.l10n.promptAssistant_customRequestLabel,
+              hintText: context.l10n.promptAssistant_customRequestHint,
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
-                context.l10n.promptAssistant_currentPrompt,
-                style: Theme.of(context).textTheme.titleSmall,
+              FilledButton.icon(
+                onPressed: widget.allowImages ? _pickImages : null,
+                icon: const Icon(Icons.image_outlined),
+                label: Text(context.l10n.promptAssistant_addReferenceImage),
               ),
-              const SizedBox(height: 6),
-              Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(maxHeight: 100),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: SingleChildScrollView(
-                  child: Text(
-                    widget.currentPrompt.trim().isEmpty
-                        ? context.l10n.promptAssistant_currentPromptEmpty
-                        : widget.currentPrompt.trim(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _requestController,
-                maxLines: 6,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: context.l10n.promptAssistant_customRequestLabel,
-                  hintText: context.l10n.promptAssistant_customRequestHint,
-                  alignLabelWithHint: true,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  FilledButton.icon(
-                    onPressed: widget.allowImages ? _pickImages : null,
-                    icon: const Icon(Icons.image_outlined),
-                    label: Text(context.l10n.promptAssistant_addReferenceImage),
-                  ),
-                  const SizedBox(width: 8),
-                  Text('${_images.length}/$_maxImages'),
-                  if (!widget.allowImages) ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        context.l10n.promptAssistant_imageInputDisabled,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              if (_images.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (var i = 0; i < _images.length; i++)
-                      _ImageChip(
-                        image: _images[i],
-                        onRemove: () {
-                          setState(() => _images.removeAt(i));
-                        },
-                      ),
-                  ],
-                ),
-              ],
-              if (_error != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
+              Text('${_images.length}/$_maxImages'),
+              if (!widget.allowImages)
+                Text(context.l10n.promptAssistant_imageInputDisabled),
             ],
           ),
-        ),
+          if (_images.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 0; i < _images.length; i++)
+                  _ImageChip(
+                    image: _images[i],
+                    onRemove: () {
+                      setState(() => _images.removeAt(i));
+                    },
+                  ),
+              ],
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+          const Divider(height: 1),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked =
+                      constraints.maxWidth < 400 ||
+                      MediaQuery.textScalerOf(context).scale(1) >= 2;
+                  final cancel = TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(context.l10n.common_cancel),
+                  );
+                  final submit = FilledButton(
+                    onPressed: _submit,
+                    child: Text(context.l10n.promptAssistant_execute),
+                  );
+                  if (stacked) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [submit, cancel],
+                    );
+                  }
+                  return Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [cancel, submit],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(context.l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: _submit,
-          child: Text(context.l10n.promptAssistant_execute),
-        ),
-      ],
     );
   }
 }

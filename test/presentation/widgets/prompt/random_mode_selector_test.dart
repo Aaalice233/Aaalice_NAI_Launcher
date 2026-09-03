@@ -5,6 +5,8 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_mode_selector.dart';
 
+import '../../../helpers/flutter_error_collector.dart';
+
 void main() {
   testWidgets(
     'RandomModeSelector exposes one default, custom, and hybrid mode',
@@ -45,6 +47,67 @@ void main() {
     expect(find.text('Hybrid Mode'), findsOneWidget);
   });
 
+  testWidgets(
+    'RandomModeBottomSheet real entry adapts at compact worst-case and wide widths',
+    (tester) async {
+      final flutterErrors = FlutterErrorCollector.install(tester);
+      addTearDown(flutterErrors.restoreAndAssertNoErrors);
+      final storage = _FakeRandomModeStorage();
+      var changedCount = 0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.devicePixelRatio = 1;
+
+      for (final size in [const Size(320, 480), const Size(1200, 800)]) {
+        tester.view.physicalSize = size;
+        await tester.pumpWidget(
+          _buildTestApp(
+            storage: storage,
+            textScaler: size.width < 600
+                ? const TextScaler.linear(2)
+                : TextScaler.noScaling,
+            child: Builder(
+              builder: (context) => FilledButton(
+                onPressed: () => RandomModeBottomSheet.show(
+                  context,
+                  onModeChanged: () => changedCount++,
+                ),
+                child: const Text('open random mode'),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('open random mode'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(
+            ValueKey(
+              size.width < 600
+                  ? 'adaptive-bottom-sheet'
+                  : 'adaptive-side-sheet',
+            ),
+          ),
+          findsOneWidget,
+          reason: 'size=$size',
+        );
+        expect(find.text('Hybrid Mode'), findsOneWidget);
+        flutterErrors.expectNoErrors(reason: 'size=$size');
+
+        if (size.width < 600) {
+          await tester.tap(find.text('Default'));
+          await tester.pumpAndSettle();
+          expect(storage.mode, 'nai_official');
+          expect(changedCount, 1);
+        } else {
+          await tester.tap(find.byTooltip('Close'));
+          await tester.pumpAndSettle();
+        }
+      }
+    },
+  );
+
   testWidgets('RandomModeIndicator displays a distinct hybrid label', (
     tester,
   ) async {
@@ -62,6 +125,7 @@ void main() {
 Widget _buildTestApp({
   required LocalStorageService storage,
   required Widget child,
+  TextScaler textScaler = TextScaler.noScaling,
 }) {
   return ProviderScope(
     overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
@@ -69,6 +133,10 @@ Widget _buildTestApp({
       locale: const Locale('en'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+        child: child!,
+      ),
       home: Scaffold(body: Center(child: child)),
     ),
   );

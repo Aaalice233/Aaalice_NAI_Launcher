@@ -44,12 +44,15 @@ class _EmptyStateCardState extends State<EmptyStateCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final animationDuration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 150);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: animationDuration,
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: _isHovered
@@ -65,7 +68,7 @@ class _EmptyStateCardState extends State<EmptyStateCard> {
             child: Column(
               children: [
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 150),
+                  duration: animationDuration,
                   child: _isLoading
                       ? SizedBox(
                           key: const ValueKey('loading'),

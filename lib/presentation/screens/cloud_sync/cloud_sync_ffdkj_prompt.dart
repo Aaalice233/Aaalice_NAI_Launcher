@@ -35,6 +35,7 @@ class CloudSyncFfdkjPrompt extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(context.l10n.autocomplete_zhDictionary),
         content: Text(context.l10n.cloudSync_ffdkjInstallWarning),
         actions: [

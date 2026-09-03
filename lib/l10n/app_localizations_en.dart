@@ -974,6 +974,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_disableWebAccess => 'Disable web access';
 
   @override
+  String get agentChat_webAccessLabel => 'Web access';
+
+  @override
+  String get agentChat_contextUsageLabel => 'Context';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return 'Unsupported image format: $fileName';
   }
@@ -986,6 +992,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_send => 'Send';
+
+  @override
+  String get agentChat_sendEmptyHint =>
+      'Enter a message or add an image to send';
+
+  @override
+  String get agentChat_sendUnavailableHint =>
+      'The AI assistant is not ready to send yet';
 
   @override
   String get agentChat_stop => 'Stop';
@@ -1926,6 +1940,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_directorRunning => 'Processing...';
+
+  @override
+  String get img2img_directorConfirmTitle => 'Confirm Anlas usage';
+
+  @override
+  String img2img_directorConfirmContent(Object tool, int cost) {
+    return 'Running $tool is estimated to cost $cost Anlas. Do you want to continue?';
+  }
 
   @override
   String get img2img_directorResult => 'Result';
@@ -5347,22 +5369,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_selectionMode => 'Selection Mode';
 
   @override
-  String get randomManager_previewGeneration => 'Preview Generation';
+  String get randomManager_previewGeneration => 'Output Preview';
 
   @override
   String get randomManager_generating => 'Generating';
 
   @override
-  String get randomManager_generate => 'Generate';
+  String get randomManager_generate => 'Generate Sample';
 
   @override
   String get randomManager_generationFailed => 'Generation Failed';
 
   @override
-  String get randomManager_copy => 'Copy';
+  String get randomManager_copy => 'Copy All';
 
   @override
-  String get randomManager_regenerate => 'Regenerate';
+  String get randomManager_regenerate => 'Generate Another';
 
   @override
   String get randomManager_copiedToClipboard => 'Copied to clipboard';
@@ -5381,8 +5403,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomManager_previewHint =>
-      'Click \"Generate\" to preview random tags';
+  String get randomManager_previewHint => 'No sample generated yet';
 
   @override
   String get randomManager_generateNow => 'Generate Now';
@@ -13020,7 +13041,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomManager_previewEmptyDescription =>
-      'Generate a sample to inspect the actual output of this recipe.';
+      'Generate a prompt sample to inspect the actual output of this recipe.';
 
   @override
   String get randomManager_category_composition => 'Composition';

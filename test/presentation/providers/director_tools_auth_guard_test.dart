@@ -3,13 +3,49 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
+import 'package:nai_launcher/data/models/director/director_tool_type.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/director_tools_notifier.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
 void main() {
+  test('Director Tools 成本估算统一复用 AnlasCalculator', () {
+    const width = 1280;
+    const height = 960;
+
+    for (final tool in DirectorToolType.values) {
+      final state = DirectorToolsState(
+        selectedTool: tool,
+        imageWidth: width,
+        imageHeight: height,
+      );
+      final isBackgroundRemoval = tool == DirectorToolType.removeBackground;
+
+      expect(
+        state.estimatedAnlasCost(),
+        AnlasCalculator.calculateAugmentCost(
+          width: width,
+          height: height,
+          isBgRemoval: isBackgroundRemoval,
+        ),
+        reason: tool.name,
+      );
+      expect(
+        state.estimatedAnlasCost(isOpus: true),
+        AnlasCalculator.calculateAugmentCost(
+          width: width,
+          height: height,
+          isBgRemoval: isBackgroundRemoval,
+          isOpus: true,
+        ),
+        reason: '${tool.name} Opus',
+      );
+    }
+  });
+
   for (final status in [AuthStatus.unauthenticated, AuthStatus.loading]) {
     test('Director Tools 在 $status 时不上传且保持业务状态', () async {
       final apiService = _RecordingEnhancementApiService();

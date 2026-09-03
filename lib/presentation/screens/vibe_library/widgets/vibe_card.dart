@@ -6,14 +6,20 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/animated_favorite_button.dart';
 import '../../../widgets/common/card_hover_preview_controller.dart';
 import '../../../widgets/common/image_card_actions.dart';
+import '../../../widgets/common/translated_tag_text.dart';
+
+/// Vibe 图像卡片统一采用 4:5 纵向比例，为缩略图和底部参数保留稳定空间。
+const double vibeCardAspectRatio = 4 / 5;
+
+double computeVibeCardHeight(double width) => width / vibeCardAspectRatio;
 
 enum _VibeCardAction {
   select,
@@ -80,6 +86,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
   final LayerLink _layerLink = LayerLink();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  bool _disableAnimations = false;
 
   @override
   void initState() {
@@ -106,6 +113,18 @@ class _VibeCardState extends ConsumerState<VibeCard>
           .read(vibeLibraryStorageServiceProvider)
           .cancelPendingDisplayThumbnailLoads();
     }
+
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (disableAnimations == _disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    _animationController.duration = disableAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 300);
+    if (disableAnimations) {
+      _animationController.stop();
+      _animationController.value = _isHovered && widget.entry.isBundle ? 1 : 0;
+    }
   }
 
   @override
@@ -117,6 +136,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
       _thumbnailLoadFuture = null;
       _hoverDetailFuture = null;
       _isHovered = false;
+      _animationController.value = 0;
       _loadThumbnailIfNeeded();
       return;
     }
@@ -169,7 +189,11 @@ class _VibeCardState extends ConsumerState<VibeCard>
   void _onHoverEnter(PointerEvent event) {
     setState(() => _isHovered = true);
     if (widget.entry.isBundle) {
-      _animationController.forward();
+      if (_disableAnimations) {
+        _animationController.value = 1;
+      } else {
+        _animationController.forward();
+      }
     }
     _scheduleHoverPreview();
   }
@@ -177,7 +201,11 @@ class _VibeCardState extends ConsumerState<VibeCard>
   void _onHoverExit(PointerEvent event) {
     setState(() => _isHovered = false);
     if (widget.entry.isBundle) {
-      _animationController.reverse();
+      if (_disableAnimations) {
+        _animationController.value = 0;
+      } else {
+        _animationController.reverse();
+      }
     }
     _hoverController.dismissFor(widget.entry.id);
   }
@@ -224,7 +252,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
   Widget build(BuildContext context) {
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = Theme.of(context).colorScheme;
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
     final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
 
     return CompositedTransformTarget(
@@ -240,7 +268,9 @@ class _VibeCardState extends ConsumerState<VibeCard>
           // 必须抬起后弹菜单：按住时 push 会合成 touch 取消事件，令 DraggableWidget 整批重建闪烁
           onSecondaryTapUp: widget.onSecondaryTapUp,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: _disableAnimations
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
             curve: Curves.easeOut,
             width: widget.width,
             height: cardHeight,
@@ -821,7 +851,8 @@ class _VibeCardState extends ConsumerState<VibeCard>
   Widget _buildActionButtons() {
     final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     return Positioned(
-      top: 8,
+      // 收藏按钮位于 top 8 且保留 48dp 命中区，操作组再留 4dp 间距。
+      top: widget.showFavoriteIndicator ? 60 : 8,
       right: 8,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -996,7 +1027,7 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
     final theme = Theme.of(context);
     final entry = widget.entry;
     final hasTags = entry.tags.isNotEmpty;
-    final metadataHeight = hasTags ? 124.0 : 92.0;
+    final metadataHeight = hasTags ? 160.0 : 92.0;
     final imageSize = computeVibeHoverImageSize(
       aspectRatio: aspectRatio,
       maxWidth: widget.maxWidth,
@@ -1055,6 +1086,9 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.white.withValues(alpha: 0.9),
+                            value: MediaQuery.disableAnimationsOf(context)
+                                ? 0.5
+                                : null,
                           ),
                         ),
                       ),
@@ -1125,10 +1159,14 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
                     ),
                     if (hasTags) ...[
                       const SizedBox(height: 10),
-                      Text(
-                        entry.tags.take(6).map((tag) => '#$tag').join('  '),
+                      TranslatedPromptText(
+                        entry.tags.take(6).join(', '),
+                        originalText: entry.tags
+                            .take(6)
+                            .map((tag) => '#$tag')
+                            .join('  '),
+                        selectable: false,
                         maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                           height: 1.35,
@@ -1317,6 +1355,7 @@ class _ActionButtonState extends State<_ActionButton> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final backgroundColor = widget.isDanger
         ? (_isHovered
               ? colorScheme.error
@@ -1337,7 +1376,9 @@ class _ActionButtonState extends State<_ActionButton> {
           children: [
             // 按钮主体
             AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
+              duration: disableAnimations
+                  ? Duration.zero
+                  : const Duration(milliseconds: 120),
               curve: Curves.easeOut,
               width: 32,
               height: 32,
@@ -1364,7 +1405,9 @@ class _ActionButtonState extends State<_ActionButton> {
                 top: 4,
                 child: AnimatedOpacity(
                   opacity: _showTooltip ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 100),
+                  duration: disableAnimations
+                      ? Duration.zero
+                      : const Duration(milliseconds: 100),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,

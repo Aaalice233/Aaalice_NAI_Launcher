@@ -74,6 +74,10 @@ class WindowsNativeWindowStatePlatform implements DesktopWindowStatePlatform {
     });
   }
 
+  Future<void> synchronizeViewMetrics() {
+    return _channel.invokeMethod<void>('synchronizeViewMetrics');
+  }
+
   @override
   Future<DesktopWindowStateReading> readState() async {
     final result = await _channel.invokeMapMethod<Object?, Object?>(

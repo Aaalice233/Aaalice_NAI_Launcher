@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:nai_launcher/core/platform/platform_capabilities.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 /// Enhanced pagination bar with complete navigation features
 /// 增强分页栏，包含完整的导航功能
@@ -24,6 +25,11 @@ class PaginationBar extends StatefulWidget {
   final bool showItemsPerPage;
   final bool showTotalInfo;
   final bool compact;
+  final bool enabled;
+  final bool loading;
+  final IconData? totalIcon;
+  final String? totalItemsLabel;
+  final bool tonalCard;
 
   const PaginationBar({
     super.key,
@@ -37,6 +43,11 @@ class PaginationBar extends StatefulWidget {
     this.showItemsPerPage = true,
     this.showTotalInfo = true,
     this.compact = false,
+    this.enabled = true,
+    this.loading = false,
+    this.totalIcon,
+    this.totalItemsLabel,
+    this.tonalCard = false,
   });
 
   @override
@@ -57,6 +68,15 @@ class _PaginationBarState extends State<PaginationBar> {
   }
 
   @override
+  void didUpdateWidget(PaginationBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_canInteract && _isEditing) {
+      _isEditing = false;
+      _focusNode.unfocus();
+    }
+  }
+
+  @override
   void dispose() {
     _focusNode.removeListener(_onFocusChange);
     _focusNode.dispose();
@@ -72,7 +92,18 @@ class _PaginationBarState extends State<PaginationBar> {
     }
   }
 
+  bool get _canInteract => widget.enabled && !widget.loading;
+
+  List<int> get _effectiveItemsPerPageOptions {
+    final options = {
+      ...widget.itemsPerPageOptions,
+      widget.itemsPerPage,
+    }.toList()..sort();
+    return options;
+  }
+
   void _startEditing() {
+    if (!_canInteract) return;
     setState(() {
       _isEditing = true;
       _controller.text = (widget.currentPage + 1).toString();
@@ -87,6 +118,10 @@ class _PaginationBarState extends State<PaginationBar> {
   }
 
   void _submitPage() {
+    if (!_canInteract || widget.totalPages <= 0) {
+      _cancelEditing();
+      return;
+    }
     final input = _controller.text.trim();
     if (input.isEmpty) {
       _cancelEditing();
@@ -124,34 +159,52 @@ class _PaginationBarState extends State<PaginationBar> {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 520;
-        return Container(
-          height: narrow ? 48 : null,
-          padding: EdgeInsets.symmetric(
-            vertical: narrow ? 0 : 10,
-            horizontal: narrow ? 4 : 16,
-          ),
-          decoration: BoxDecoration(
-            color: isDark
-                ? colorScheme.surfaceContainerHigh
-                : colorScheme.surface,
-            border: Border(
-              top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
+    return Semantics(
+      container: true,
+      enabled: _canInteract,
+      liveRegion: widget.loading,
+      label: widget.loading ? context.l10n.common_loading : null,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 520;
+          final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+          final bar = Container(
+            height: narrow && !largeText ? 48 : null,
+            constraints: narrow
+                ? const BoxConstraints(minHeight: 48)
+                : const BoxConstraints(),
+            padding: EdgeInsets.symmetric(
+              vertical: narrow ? 0 : 10,
+              horizontal: narrow ? 4 : 16,
             ),
-          ),
-          child: narrow
-              ? _buildNarrowLayout(
-                  theme,
-                  colorScheme,
-                  veryNarrow: constraints.maxWidth < 400,
-                )
-              : widget.compact
-              ? _buildCompactLayout(theme, colorScheme)
-              : _buildFullLayout(theme, colorScheme),
-        );
-      },
+            decoration: widget.tonalCard
+                ? null
+                : BoxDecoration(
+                    color: isDark
+                        ? colorScheme.surfaceContainerHigh
+                        : colorScheme.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.2),
+                      ),
+                    ),
+                  ),
+            child: narrow
+                ? _buildNarrowLayout(
+                    theme,
+                    colorScheme,
+                    veryNarrow: constraints.maxWidth < 400,
+                  )
+                : widget.compact
+                ? _buildCompactLayout(theme, colorScheme)
+                : constraints.maxWidth < 1600 || largeText
+                ? _buildMediumLayout(theme, colorScheme)
+                : _buildFullLayout(theme, colorScheme),
+          );
+          if (!widget.tonalCard) return bar;
+          return GalleryCollectionFooterSurface(child: bar);
+        },
+      ),
     );
   }
 
@@ -183,79 +236,151 @@ class _PaginationBarState extends State<PaginationBar> {
     );
   }
 
+  Widget _buildMediumLayout(ThemeData theme, ColorScheme colorScheme) {
+    final showLeadingInfo = widget.showTotalInfo && widget.totalItems > 0;
+    final showTrailingSelector =
+        widget.showItemsPerPage && widget.onItemsPerPageChanged != null;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showLeadingInfo || showTrailingSelector) ...[
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (showLeadingInfo) _buildTotalInfo(theme, colorScheme),
+              if (showTrailingSelector)
+                _buildItemsPerPageSelector(theme, colorScheme),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: _buildPageNavigation(theme, colorScheme),
+        ),
+      ],
+    );
+  }
+
   Widget _buildNarrowLayout(
     ThemeData theme,
     ColorScheme colorScheme, {
     required bool veryNarrow,
   }) {
-    final itemCountLabel = context.l10n.onlineGallery_imageCount(
-      widget.totalItems.toString(),
-    );
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildNavButton(
-          icon: Icons.chevron_left,
-          tooltip: context.l10n.pagination_previousPage,
-          onPressed: widget.currentPage > 0
-              ? () => widget.onPageChanged(widget.currentPage - 1)
-              : null,
-        ),
-        const SizedBox(width: 4),
-        _buildCurrentPageJump(theme, colorScheme),
-        const SizedBox(width: 4),
-        _buildNavButton(
-          icon: Icons.chevron_right,
-          tooltip: context.l10n.pagination_nextPage,
-          onPressed: widget.currentPage < widget.totalPages - 1
-              ? () => widget.onPageChanged(widget.currentPage + 1)
-              : null,
-        ),
-        SizedBox(width: veryNarrow ? 12 : 24),
-        if (veryNarrow)
-          Tooltip(
-            message: itemCountLabel,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.photo_library_outlined,
-                  size: 16,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  widget.totalItems.toString(),
-                  style: theme.textTheme.bodySmall?.copyWith(
+    final itemCountLabel =
+        widget.totalItemsLabel ??
+        context.l10n.onlineGallery_imageCount(widget.totalItems.toString());
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildNavButton(
+            icon: Icons.chevron_left,
+            tooltip: context.l10n.pagination_previousPage,
+            onPressed: widget.currentPage > 0
+                ? () => widget.onPageChanged(widget.currentPage - 1)
+                : null,
+          ),
+          const SizedBox(width: 4),
+          _buildCurrentPageJump(theme, colorScheme),
+          const SizedBox(width: 4),
+          _buildNavButton(
+            icon: Icons.chevron_right,
+            tooltip: context.l10n.pagination_nextPage,
+            onPressed: widget.currentPage < widget.totalPages - 1
+                ? () => widget.onPageChanged(widget.currentPage + 1)
+                : null,
+          ),
+          SizedBox(width: veryNarrow ? 12 : 24),
+          if (veryNarrow)
+            Tooltip(
+              message: itemCountLabel,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    widget.totalIcon ?? Icons.photo_library_outlined,
+                    size: 16,
                     color: colorScheme.onSurfaceVariant,
                   ),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.totalItems.toString(),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Text(
+              itemCountLabel,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          if (widget.showItemsPerPage &&
+              widget.onItemsPerPageChanged != null) ...[
+            const SizedBox(width: 4),
+            SizedBox.square(
+              dimension: context.interactionPolicy.minimumControlExtent,
+              child: PopupMenuButton<int>(
+                key: const ValueKey('pagination-narrow-items-per-page'),
+                enabled: _canInteract,
+                style: ButtonStyle(
+                  minimumSize: WidgetStatePropertyAll(
+                    Size.square(context.interactionPolicy.minimumControlExtent),
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-              ],
+                tooltip: context.l10n.pagination_itemsPerPage,
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                onSelected: widget.onItemsPerPageChanged,
+                itemBuilder: (context) => [
+                  for (final count in _effectiveItemsPerPageOptions)
+                    CheckedPopupMenuItem<int>(
+                      value: count,
+                      checked: count == widget.itemsPerPage,
+                      child: Text('$count ${context.l10n.pagination_itemUnit}'),
+                    ),
+                ],
+              ),
             ),
-          )
-        else
-          Text(
-            itemCountLabel,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-      ],
+          ],
+        ],
+      ),
     );
   }
 
   Widget _buildCurrentPageJump(ThemeData theme, ColorScheme colorScheme) {
     if (_isEditing) {
-      return SizedBox(width: 80, height: 36, child: _buildJumpInput(theme));
+      return SizedBox(
+        width:
+            80 +
+            (MediaQuery.textScalerOf(context).scale(1) - 1).clamp(0, 2) * 20,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: context.interactionPolicy.minimumControlExtent,
+          ),
+          child: _buildJumpInput(theme),
+        ),
+      );
     }
 
     return Tooltip(
       message: context.l10n.pagination_jumpToPage,
       child: InkWell(
-        onTap: widget.totalPages > 1 ? _startEditing : null,
+        onTap: widget.totalPages > 1 && _canInteract ? _startEditing : null,
         borderRadius: BorderRadius.circular(16),
-        child: SizedBox(
-          height: 48,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: context.interactionPolicy.minimumControlExtent,
+          ),
           child: Center(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -275,7 +400,18 @@ class _PaginationBarState extends State<PaginationBar> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  if (widget.totalPages > 1) ...[
+                  if (widget.loading) ...[
+                    const SizedBox(width: 6),
+                    SizedBox.square(
+                      dimension: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.72
+                            : null,
+                      ),
+                    ),
+                  ] else if (widget.totalPages > 1) ...[
                     const SizedBox(width: 4),
                     Icon(
                       Icons.edit,
@@ -303,7 +439,7 @@ class _PaginationBarState extends State<PaginationBar> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          Icons.image_outlined,
+          widget.totalIcon ?? Icons.image_outlined,
           size: 16,
           color: colorScheme.onSurfaceVariant,
         ),
@@ -386,12 +522,17 @@ class _PaginationBarState extends State<PaginationBar> {
     required String tooltip,
     VoidCallback? onPressed,
   }) {
-    final extent = PlatformCapabilities.current.hasTouchInput ? 48.0 : 32.0;
+    final interactionPolicy = context.interactionPolicy;
+    final extent = interactionPolicy.minimumControlExtent;
     return IconButton(
       icon: Icon(icon, size: 20),
+      style: ButtonStyle(
+        minimumSize: WidgetStatePropertyAll(Size.square(extent)),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
       tooltip: tooltip,
-      onPressed: onPressed,
-      visualDensity: PlatformCapabilities.current.hasTouchInput
+      onPressed: _canInteract ? onPressed : null,
+      visualDensity: interactionPolicy.prefersTouchPresentation
           ? VisualDensity.standard
           : VisualDensity.compact,
       padding: const EdgeInsets.all(6),
@@ -449,26 +590,34 @@ class _PaginationBarState extends State<PaginationBar> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Material(
-        color: isSelected ? colorScheme.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
-        child: InkWell(
-          onTap: isSelected ? null : () => widget.onPageChanged(page),
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        enabled: _canInteract && !isSelected,
+        label: context.l10n.onlineGallery_pageN('${page + 1}'),
+        child: Material(
+          color: isSelected ? colorScheme.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          child: Container(
-            constraints: BoxConstraints(
-              minWidth: PlatformCapabilities.current.hasTouchInput ? 48 : 32,
-              minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 32,
-            ),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Text(
-              '${page + 1}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected
-                    ? colorScheme.onPrimary
-                    : colorScheme.onSurface,
+          child: InkWell(
+            onTap: isSelected || !_canInteract
+                ? null
+                : () => widget.onPageChanged(page),
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              constraints: BoxConstraints(
+                minWidth: context.interactionPolicy.minimumControlExtent,
+                minHeight: context.interactionPolicy.minimumControlExtent,
+              ),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Text(
+                '${page + 1}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected
+                      ? colorScheme.onPrimary
+                      : colorScheme.onSurface,
+                ),
               ),
             ),
           ),
@@ -490,24 +639,40 @@ class _PaginationBarState extends State<PaginationBar> {
   }
 
   Widget _buildJumpToPage(ThemeData theme, ColorScheme colorScheme) {
-    final touchInput = PlatformCapabilities.current.hasTouchInput;
-    final extent = touchInput ? 48.0 : 32.0;
+    final interactionPolicy = context.interactionPolicy;
+    final extent = interactionPolicy.minimumControlExtent;
     if (_isEditing) {
-      return SizedBox(width: 60, height: extent, child: _buildJumpInput(theme));
+      return SizedBox(
+        width:
+            60 +
+            (MediaQuery.textScalerOf(context).scale(1) - 1).clamp(0, 2) * 20,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: extent),
+          child: _buildJumpInput(theme),
+        ),
+      );
     }
 
     return Tooltip(
       message: context.l10n.pagination_jumpToPage,
       child: TextButton.icon(
-        onPressed: widget.totalPages > 1 ? _startEditing : null,
-        icon: const Icon(Icons.arrow_forward, size: 14),
+        onPressed: widget.totalPages > 1 && _canInteract ? _startEditing : null,
+        icon: widget.loading
+            ? SizedBox.square(
+                dimension: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+                ),
+              )
+            : const Icon(Icons.arrow_forward, size: 14),
         label: Text(context.l10n.pagination_jump),
         style: TextButton.styleFrom(
           foregroundColor: colorScheme.onSurfaceVariant,
           textStyle: theme.textTheme.bodySmall,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           minimumSize: Size(0, extent),
-          tapTargetSize: touchInput
+          tapTargetSize: interactionPolicy.shouldExposeTouchAlternatives
               ? MaterialTapTargetSize.padded
               : MaterialTapTargetSize.shrinkWrap,
         ),
@@ -519,6 +684,7 @@ class _PaginationBarState extends State<PaginationBar> {
     return ThemedInput(
       controller: _controller,
       focusNode: _focusNode,
+      enabled: _canInteract,
       keyboardType: TextInputType.number,
       textAlign: TextAlign.center,
       style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
@@ -555,17 +721,20 @@ class _PaginationBarState extends State<PaginationBar> {
             child: DropdownButton<int>(
               value: widget.itemsPerPage,
               isDense: true,
-              items: widget.itemsPerPageOptions.map((count) {
+              items: _effectiveItemsPerPageOptions.map((count) {
                 return DropdownMenuItem(
                   value: count,
                   child: Text('$count', style: theme.textTheme.bodyMedium),
                 );
               }).toList(),
-              onChanged: (value) {
-                if (value != null && widget.onItemsPerPageChanged != null) {
-                  widget.onItemsPerPageChanged!(value);
-                }
-              },
+              onChanged: !_canInteract
+                  ? null
+                  : (value) {
+                      if (value != null &&
+                          widget.onItemsPerPageChanged != null) {
+                        widget.onItemsPerPageChanged!(value);
+                      }
+                    },
             ),
           ),
         ),

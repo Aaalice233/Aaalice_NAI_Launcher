@@ -11,12 +11,14 @@ import '../../../widgets/common/app_toast.dart';
 ///
 /// 使用 autoDispose 确保组件销毁时释放资源
 /// 通过统计信息失效回调机制实现实时刷新
-final cacheStatisticsProvider =
-    FutureProvider.autoDispose<CacheStatistics>((ref) async {
+final cacheStatisticsProvider = FutureProvider.autoDispose<CacheStatistics>((
+  ref,
+) async {
   GalleryCacheManager().registerOnStatisticsInvalidated(ref.invalidateSelf);
   ref.onDispose(
-    () => GalleryCacheManager()
-        .unregisterOnStatisticsInvalidated(ref.invalidateSelf),
+    () => GalleryCacheManager().unregisterOnStatisticsInvalidated(
+      ref.invalidateSelf,
+    ),
   );
   return await GalleryCacheManager().getStatistics();
 });
@@ -194,6 +196,7 @@ class _AutoRefreshIndicator extends StatefulWidget {
 class _AutoRefreshIndicatorState extends State<_AutoRefreshIndicator>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -201,7 +204,22 @@ class _AutoRefreshIndicatorState extends State<_AutoRefreshIndicator>
     _controller = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 0.5;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -269,10 +287,7 @@ class _DatabaseIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return _CacheIndicator(
       label: context.l10n.cacheStats_l3Sqlite,
-      value: context.l10n.cacheStats_databaseValue(
-        imageCount,
-        metadataCount,
-      ),
+      value: context.l10n.cacheStats_databaseValue(imageCount, metadataCount),
       icon: Icons.table_chart,
       color: Colors.purple,
     );

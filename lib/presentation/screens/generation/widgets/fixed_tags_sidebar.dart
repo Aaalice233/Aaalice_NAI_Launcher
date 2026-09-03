@@ -10,6 +10,7 @@ import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/prompt/fixed_tag_edit_dialog.dart';
@@ -446,26 +447,48 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
             },
           )
         else
-          SliverGrid.builder(
-            key: ValueKey('positive-grid-${section.id}'),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 7,
-              crossAxisSpacing: 7,
-              mainAxisExtent: 150,
-            ),
-            itemCount: entries.length,
-            itemBuilder: (context, index) {
-              final entry = entries[index];
-              return KeyedSubtree(
-                key: ValueKey('grid-${entry.id}'),
-                child: _buildEntryTile(
-                  entry: entry,
-                  categoryName: section.name,
-                  categoryColor: section.color,
-                  libraryEntries: libraryEntries,
-                  isListMode: false,
+          SliverLayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 7.0;
+              final largeText =
+                  MediaQuery.textScalerOf(context).scale(14) >= 20;
+              final minimumCardWidth = largeText ? 220.0 : 140.0;
+              final crossAxisCount =
+                  ((constraints.crossAxisExtent + spacing) /
+                          (minimumCardWidth + spacing))
+                      .floor()
+                      .clamp(1, 3);
+              final cardWidth =
+                  (constraints.crossAxisExtent -
+                      spacing * (crossAxisCount - 1)) /
+                  crossAxisCount;
+              final mainAxisExtent = largeText
+                  ? 230.0
+                  : cardWidth < 180
+                  ? 180.0
+                  : 150.0;
+              return SliverGrid.builder(
+                key: ValueKey('positive-grid-${section.id}'),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  mainAxisSpacing: spacing,
+                  crossAxisSpacing: spacing,
+                  mainAxisExtent: mainAxisExtent,
                 ),
+                itemCount: entries.length,
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  return KeyedSubtree(
+                    key: ValueKey('grid-${entry.id}'),
+                    child: _buildEntryTile(
+                      entry: entry,
+                      categoryName: section.name,
+                      categoryColor: section.color,
+                      libraryEntries: libraryEntries,
+                      isListMode: false,
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -475,6 +498,10 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   }
 
   Widget _buildNegativeResizeDivider(ThemeData theme, LayoutState layoutState) {
+    final interactionPolicy = context.interactionPolicy;
+    final hitHeight = interactionPolicy.prefersTouchPresentation
+        ? interactionPolicy.minimumControlExtent
+        : 8.0;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onVerticalDragUpdate: (details) {
@@ -485,18 +512,24 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
             .read(layoutStateNotifierProvider.notifier)
             .setFixedTagsNegativeHeight(currentHeight - details.delta.dy);
       },
-      child: Container(
-        height: 8,
-        alignment: Alignment.center,
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: widget.isResizing ? 0.8 : 0.35,
-        ),
-        child: Container(
-          width: 48,
-          height: 2,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.outlineVariant,
-            borderRadius: BorderRadius.circular(99),
+      child: SizedBox(
+        height: hitHeight,
+        child: Center(
+          child: Container(
+            width: double.infinity,
+            height: 8,
+            alignment: Alignment.center,
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: widget.isResizing ? 0.8 : 0.35,
+            ),
+            child: Container(
+              width: 48,
+              height: 2,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
           ),
         ),
       ),
@@ -619,10 +652,15 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         final availableWidth = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : 320.0;
-        final itemWidth = ((availableWidth - spacing * 2) / 3).clamp(
-          0.0,
-          availableWidth,
-        );
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final minItemWidth = textScale >= 2 ? 220.0 : 140.0;
+        final columnCount =
+            ((availableWidth + spacing) / (minItemWidth + spacing))
+                .floor()
+                .clamp(1, 3);
+        final itemWidth =
+            (availableWidth - spacing * (columnCount - 1)) / columnCount;
+        final itemHeight = textScale >= 2 ? 220.0 : 150.0;
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
@@ -630,8 +668,8 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
             for (final entry in entries)
               SizedBox(
                 key: ValueKey('grid-${entry.id}'),
-                width: itemWidth.toDouble(),
-                height: 150,
+                width: itemWidth,
+                height: itemHeight,
                 child: _buildEntryTile(
                   entry: entry,
                   categoryColor: categoryColor,
@@ -923,9 +961,9 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   }
 
   Future<void> _editEntry(FixedTagEntry entry) async {
-    final result = await showDialog<FixedTagEntry>(
+    final result = await FixedTagEditDialog.show(
       context: context,
-      builder: (context) => FixedTagEditDialog(entry: entry),
+      entry: entry,
     );
     if (result == null || !mounted) return;
     await ref.read(fixedTagsNotifierProvider.notifier).updateEntry(result);
@@ -934,9 +972,9 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   Future<void> _addEntry({
     FixedTagPromptType promptType = FixedTagPromptType.positive,
   }) async {
-    final result = await showDialog<FixedTagEntry>(
+    final result = await FixedTagEditDialog.show(
       context: context,
-      builder: (context) => FixedTagEditDialog(initialPromptType: promptType),
+      initialPromptType: promptType,
     );
     if (result == null || !mounted) return;
     await ref
@@ -952,10 +990,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   }
 
   Future<void> _addFromLibrary(FixedTagPromptType promptType) async {
-    final entry = await showDialog<TagLibraryEntry>(
-      context: context,
-      builder: (context) => const TagLibraryPickerDialog(),
-    );
+    final entry = await TagLibraryPickerDialog.show(context);
     if (entry == null || !mounted) return;
     await ref
         .read(fixedTagsNotifierProvider.notifier)

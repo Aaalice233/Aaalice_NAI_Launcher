@@ -148,6 +148,176 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'picker stays scrollable and selectable at 320 with 3x text safe area and IME',
+    (tester) async {
+      String? selectedModel;
+      await _pumpControls(
+        tester,
+        width: 320,
+        height: 900,
+        textScaler: const TextScaler.linear(3),
+        padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+        viewInsets: const EdgeInsets.only(bottom: 320),
+        onModelSelected: (_, model) async => selectedModel = model,
+      );
+      expect(tester.takeException(), isNull, reason: 'closed controls');
+
+      await tester.tap(find.byKey(const ValueKey('agent-chat-model-selector')));
+      await tester.pumpAndSettle();
+
+      final sheet = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+      final search = find.byKey(const ValueKey('agent-chat-model-search'));
+      expect(sheet, findsOneWidget);
+      expect(search, findsOneWidget);
+      expect(find.byTooltip('Close'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.enterText(search, 'nebula');
+      await tester.pump();
+      final option = find.byKey(
+        const ValueKey(
+          'agent-chat-model-option-second-cloud-nebula-reasoner-2026',
+        ),
+      );
+      await tester.ensureVisible(option);
+      await tester.tap(option);
+      await tester.pumpAndSettle();
+
+      expect(selectedModel, 'nebula-reasoner-2026');
+      expect(sheet, findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('picker uses a bottom sheet then stable centered surfaces', (
+    tester,
+  ) async {
+    for (final (width, surfaceKey) in const [
+      (320.0, 'adaptive-bottom-sheet'),
+      (700.0, 'adaptive-centered-form'),
+      (840.0, 'adaptive-centered-form'),
+      (1200.0, 'adaptive-centered-form'),
+    ]) {
+      await _pumpControls(tester, width: width);
+      await tester.tap(find.byKey(const ValueKey('agent-chat-model-selector')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(ValueKey(surfaceKey)),
+        findsOneWidget,
+        reason: 'wrong picker surface at width=$width',
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey('agent-chat-model-picker-close')),
+      );
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('picker top geometry is quiet and precisely aligned', (
+    tester,
+  ) async {
+    await _pumpControls(tester, width: 840);
+    await tester.tap(find.byKey(const ValueKey('agent-chat-model-selector')));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    final title = find.byKey(const ValueKey('agent-chat-model-picker-title'));
+    final close = find.byKey(const ValueKey('agent-chat-model-picker-close'));
+    final search = find.byKey(const ValueKey('agent-chat-model-search'));
+    final surfaceRect = tester.getRect(surface);
+    final titleRect = tester.getRect(title);
+    final closeRect = tester.getRect(close);
+    final searchRect = tester.getRect(search);
+
+    expect(titleRect.left, closeTo(surfaceRect.left + 20, 0.01));
+    expect(searchRect.left, closeTo(surfaceRect.left + 16, 0.01));
+    expect(closeRect.right, closeTo(surfaceRect.right - 8, 0.01));
+    expect(closeRect.size.width, greaterThanOrEqualTo(40));
+    expect(closeRect.size.height, greaterThanOrEqualTo(40));
+    expect(titleRect.center.dy, closeTo(closeRect.center.dy, 0.01));
+    expect(searchRect.top, greaterThan(titleRect.bottom));
+    expect(
+      find.descendant(of: surface, matching: find.byType(Divider)),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('picker entrance fades without scale', (tester) async {
+    await _pumpControls(tester, width: 840);
+    await tester.tap(find.byKey(const ValueKey('agent-chat-model-selector')));
+    await tester.pump();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    expect(
+      find.ancestor(of: surface, matching: find.byType(ScaleTransition)),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(of: surface, matching: find.byType(FadeTransition)),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wide picker closes by fading without horizontal movement', (
+    tester,
+  ) async {
+    await _pumpControls(tester, width: 1200);
+    await tester.tap(find.byKey(const ValueKey('agent-chat-model-selector')));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    final centerBeforeClose = tester.getCenter(surface);
+    expect(
+      find.ancestor(of: surface, matching: find.byType(SlideTransition)),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(of: surface, matching: find.byType(ScaleTransition)),
+      findsNothing,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('agent-chat-model-picker-close')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+
+    expect(surface, findsOneWidget);
+    expect(tester.getCenter(surface), centerBeforeClose);
+    expect(
+      find.ancestor(of: surface, matching: find.byType(FadeTransition)),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('picker honors Reduce Motion with an immediate entrance', (
+    tester,
+  ) async {
+    await _pumpControls(tester, width: 840, disableAnimations: true);
+    await tester.tap(find.byKey(const ValueKey('agent-chat-model-selector')));
+    await tester.pump();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    expect(
+      find.ancestor(of: surface, matching: find.byType(ScaleTransition)),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(of: surface, matching: find.byType(FadeTransition)),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('reasoning picker exposes only supported levels', (tester) async {
     ThinkingLevel? selected;
     await _pumpControls(
@@ -194,7 +364,12 @@ void main() {
 Future<void> _pumpControls(
   WidgetTester tester, {
   required double width,
+  double height = 720,
+  double devicePixelRatio = 1,
+  EdgeInsets padding = EdgeInsets.zero,
+  EdgeInsets viewInsets = EdgeInsets.zero,
   TextScaler textScaler = TextScaler.noScaling,
+  bool disableAnimations = false,
   List<ThinkingLevel> levels = const [
     ThinkingLevel.off,
     ThinkingLevel.low,
@@ -204,64 +379,69 @@ Future<void> _pumpControls(
   Future<void> Function(String provider, String model)? onModelSelected,
   Future<void> Function(ThinkingLevel level)? onThinkingSelected,
 }) async {
-  await tester.binding.setSurfaceSize(Size(width, 720));
+  await tester.binding.setSurfaceSize(Size(width, height));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: MediaQuery(
-        data: MediaQueryData(size: Size(width, 720), textScaler: textScaler),
-        child: Scaffold(
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Builder(
-                builder: (context) {
-                  final model = AgentChatModelControl(
-                    config: config ?? _config,
-                    agentSettings: _settings,
-                    routeLabel: 'First Cloud / aurora-chat-v2',
-                    routeError: '',
+      builder: (context, child) => MediaQuery(
+        data: MediaQueryData(
+          size: Size(width, height),
+          devicePixelRatio: devicePixelRatio,
+          padding: padding,
+          viewPadding: padding,
+          viewInsets: viewInsets,
+          textScaler: textScaler,
+          disableAnimations: disableAnimations,
+        ),
+        child: child!,
+      ),
+      home: Scaffold(
+        resizeToAvoidBottomInset: false,
+        body: Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Builder(
+              builder: (context) {
+                final model = AgentChatModelControl(
+                  config: config ?? _config,
+                  agentSettings: _settings,
+                  routeLabel: 'First Cloud / aurora-chat-v2',
+                  routeError: '',
+                  enabled: true,
+                  onSelected: onModelSelected ?? (_, _) async {},
+                );
+                final thinking = SizedBox(
+                  width: 180,
+                  child: AgentChatThinkingControl(
+                    level: ThinkingLevel.high,
+                    availableLevels: levels,
                     enabled: true,
-                    touchOptimized: width < 600,
-                    onSelected: onModelSelected ?? (_, _) async {},
-                  );
-                  final thinking = SizedBox(
-                    width: 180,
-                    child: AgentChatThinkingControl(
-                      level: ThinkingLevel.high,
-                      availableLevels: levels,
-                      enabled: true,
-                      touchOptimized: width < 600,
-                      onSelected: onThinkingSelected ?? (_) async {},
-                    ),
-                  );
-                  if (width < 520) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        model,
-                        const SizedBox(height: 4),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: thinking,
-                        ),
-                      ],
-                    );
-                  }
-                  return Row(
+                    onSelected: onThinkingSelected ?? (_) async {},
+                  ),
+                );
+                if (width < 520) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(child: model),
-                      const SizedBox(width: 4),
-                      thinking,
+                      model,
+                      const SizedBox(height: 4),
+                      Align(alignment: Alignment.centerRight, child: thinking),
                     ],
                   );
-                },
-              ),
+                }
+                return Row(
+                  children: [
+                    Expanded(child: model),
+                    const SizedBox(width: 4),
+                    thinking,
+                  ],
+                );
+              },
             ),
           ),
         ),

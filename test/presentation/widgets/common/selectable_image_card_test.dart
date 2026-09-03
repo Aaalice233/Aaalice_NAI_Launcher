@@ -94,6 +94,24 @@ void main() {
     expect(find.byTooltip('发送到智能体'), findsNothing);
   });
 
+  testWidgets('generating cards settle decorative motion when disabled', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _buildCardApp(isGenerating: true, disableAnimations: true),
+    );
+
+    expect(
+      tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
+      Duration.zero,
+    );
+    for (final indicator in tester.widgetList<CircularProgressIndicator>(
+      find.byType(CircularProgressIndicator),
+    )) {
+      expect(indicator.value, isNotNull);
+    }
+  });
+
   testWidgets('completed image cards use the shared hover scale', (
     tester,
   ) async {
@@ -687,6 +705,8 @@ Future<void> _openImageContextMenu(WidgetTester tester) async {
 Widget _buildCardApp({
   bool hoverEffectsEnabled = true,
   bool isFavorite = false,
+  bool isGenerating = false,
+  bool disableAnimations = false,
   bool enableSaveAction = true,
   bool enableCopyAction = true,
   String? statusBadgeLabel,
@@ -706,6 +726,11 @@ Widget _buildCardApp({
 
   final card = SelectableImageCard(
     imageBytes: bytes,
+    isGenerating: isGenerating,
+    currentImage: isGenerating ? 1 : null,
+    totalImages: isGenerating ? 2 : null,
+    imageWidth: 32,
+    imageHeight: 32,
     enableSelection: false,
     hoverEffectsEnabled: hoverEffectsEnabled,
     enableSaveAction: enableSaveAction,
@@ -727,14 +752,20 @@ Widget _buildCardApp({
       locale: const Locale('zh'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: 160,
-            height: 160,
-            child: onAddToAgent == null
-                ? card
-                : ImageCardActionScope(onAddToAgent: onAddToAgent, child: card),
+      home: MediaQuery(
+        data: MediaQueryData(disableAnimations: disableAnimations),
+        child: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 160,
+              height: 160,
+              child: onAddToAgent == null
+                  ? card
+                  : ImageCardActionScope(
+                      onAddToAgent: onAddToAgent,
+                      child: card,
+                    ),
+            ),
           ),
         ),
       ),

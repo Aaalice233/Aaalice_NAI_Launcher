@@ -6,6 +6,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -13,6 +14,7 @@ import '../common/context_menu_anchor.dart';
 import '../common/themed_input.dart';
 import 'gallery_category_tree_view.dart'
     show galleryFilePathFromDataReader, galleryInternalDragPathFromLocalData;
+import 'gallery_sidebar.dart';
 
 enum _AlbumAction { rename, addSubAlbum, moveUp, moveToRoot, delete }
 
@@ -120,11 +122,8 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
             isSelected: widget.selectedAlbumId == null,
             onTap: () => widget.onAlbumSelected(null),
           ),
-        _AlbumItem(
-          icon: widget.selectedAlbumId == 'favorites'
-              ? Icons.favorite
-              : Icons.favorite_border,
-          iconColor: Colors.red.shade400,
+        GallerySidebarFavoritesItem(
+          key: const ValueKey('local-gallery-favorites'),
           label: context.l10n.common_favorite,
           count: widget.favoriteCount,
           isSelected: widget.selectedAlbumId == 'favorites',
@@ -380,7 +379,9 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
         final dragging =
             candidate.isNotEmpty || _superDraggingAlbumIds.contains(album.id);
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: dragging
               ? BoxDecoration(
                   color: Theme.of(
@@ -455,11 +456,19 @@ class GalleryAllImagesItem extends StatefulWidget {
     required this.count,
     required this.isSelected,
     required this.onTap,
+    this.label,
+    this.icon = Icons.photo_library_outlined,
+    this.selectedIcon = Icons.photo_library_rounded,
+    this.iconColor,
   });
 
   final int count;
   final bool isSelected;
   final VoidCallback onTap;
+  final String? label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final Color? iconColor;
 
   @override
   State<GalleryAllImagesItem> createState() => _GalleryAllImagesItemState();
@@ -484,7 +493,9 @@ class _GalleryAllImagesItemState extends State<GalleryAllImagesItem> {
         onEnter: (_) => setState(() => _isHovering = true),
         onExit: (_) => setState(() => _isHovering = false),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             gradient: widget.isSelected
@@ -515,7 +526,9 @@ class _GalleryAllImagesItemState extends State<GalleryAllImagesItem> {
                 child: Row(
                   children: [
                     AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 150),
                       width: 30,
                       height: 30,
                       decoration: BoxDecoration(
@@ -526,19 +539,19 @@ class _GalleryAllImagesItemState extends State<GalleryAllImagesItem> {
                       ),
                       alignment: Alignment.center,
                       child: Icon(
-                        widget.isSelected
-                            ? Icons.photo_library_rounded
-                            : Icons.photo_library_outlined,
+                        widget.isSelected ? widget.selectedIcon : widget.icon,
                         size: 18,
-                        color: widget.isSelected
-                            ? colors.primary
-                            : colors.onSurfaceVariant,
+                        color:
+                            widget.iconColor ??
+                            (widget.isSelected
+                                ? colors.primary
+                                : colors.onSurfaceVariant),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        context.l10n.localGallery_allImages,
+                        widget.label ?? context.l10n.localGallery_allImages,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: foreground,
@@ -617,7 +630,6 @@ class _AlbumItem extends StatefulWidget {
     required this.count,
     required this.isSelected,
     required this.onTap,
-    this.iconColor,
     this.depth = 0,
     this.hasChildren = false,
     this.isExpanded = false,
@@ -630,7 +642,6 @@ class _AlbumItem extends StatefulWidget {
   });
 
   final IconData icon;
-  final Color? iconColor;
   final String label;
   final int count;
   final bool isSelected;
@@ -678,10 +689,10 @@ class _AlbumItemState extends State<_AlbumItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
-    final backgroundInset = (24.0 + widget.depth * 12.0)
-        .clamp(24.0, 48.0)
-        .toDouble();
+    final interactionPolicy = context.interactionPolicy;
+    final isTouch = interactionPolicy.touchAvailable;
+    const controlExtent = 48.0;
+    final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
 
     final row = Row(
       children: [
@@ -697,21 +708,19 @@ class _AlbumItemState extends State<_AlbumItem> {
               color: theme.colorScheme.outline,
             ),
             padding: EdgeInsets.zero,
-            constraints: BoxConstraints.tightFor(
-              width: isTouch ? 48 : 20,
-              height: isTouch ? 48 : 20,
+            constraints: const BoxConstraints.tightFor(
+              width: controlExtent,
+              height: controlExtent,
             ),
           )
         else
-          SizedBox(width: isTouch ? 48 : 20, height: isTouch ? 48 : 0),
+          const SizedBox.square(dimension: controlExtent),
         Icon(
           widget.icon,
           size: 18,
-          color:
-              widget.iconColor ??
-              (widget.isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant),
+          color: widget.isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant,
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -834,13 +843,10 @@ class _AlbumItemState extends State<_AlbumItem> {
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          margin: EdgeInsets.only(
-            left: backgroundInset,
-            right: 8,
-            top: 1,
-            bottom: 1,
-          ),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
@@ -854,13 +860,11 @@ class _AlbumItemState extends State<_AlbumItem> {
               hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(8),
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: isTouch ? 48 : 36),
+                constraints: const BoxConstraints(minHeight: controlExtent),
                 child: Padding(
                   padding: EdgeInsets.only(
-                    left: 4,
+                    left: indent,
                     right: isTouch ? 0 : 8,
-                    top: isTouch ? 0 : 8,
-                    bottom: isTouch ? 0 : 8,
                   ),
                   child: row,
                 ),

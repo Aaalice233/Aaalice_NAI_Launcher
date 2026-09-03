@@ -89,4 +89,46 @@ void main() {
       expect(stableCategory.groups.single.tags.single.tag, 'keep me');
     },
   );
+
+  test('invalid stored selection falls back to an existing preset', () async {
+    final box = await Hive.openBox<String>('random_presets');
+    await box.put('selected_preset_id', 'missing-preset');
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(randomPresetNotifierProvider.notifier);
+    await notifier.whenLoaded;
+    final state = container.read(randomPresetNotifierProvider);
+
+    expect(state.selectedPresetId, isNot('missing-preset'));
+    expect(
+      state.presets.any((preset) => preset.id == state.selectedPresetId),
+      isTrue,
+    );
+    expect(box.get('selected_preset_id'), state.selectedPresetId);
+  });
+
+  test('deleting selected preset persists the fallback selection', () async {
+    final box = await Hive.openBox<String>('random_presets');
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(randomPresetNotifierProvider.notifier);
+    await notifier.whenLoaded;
+
+    final created = await notifier.createPreset(
+      name: '待删除预设',
+      copyFromCurrent: false,
+    );
+    expect(box.get('selected_preset_id'), created.id);
+
+    await notifier.deletePreset(created.id);
+    final state = container.read(randomPresetNotifierProvider);
+
+    expect(state.selectedPresetId, isNot(created.id));
+    expect(
+      state.presets.any((preset) => preset.id == state.selectedPresetId),
+      isTrue,
+    );
+    expect(box.get('selected_preset_id'), state.selectedPresetId);
+  });
 }
