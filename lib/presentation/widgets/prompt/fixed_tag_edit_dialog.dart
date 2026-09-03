@@ -416,15 +416,17 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
 
   Widget _buildWeightControl(ThemeData theme) {
     return Column(
+      key: const ValueKey('fixed-tag-weight-control'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         LayoutBuilder(
-          builder: (context, constraints) {
+          builder: (context, _) {
             final label = Text(
               context.l10n.fixedTags_weight,
               style: theme.textTheme.labelLarge,
             );
             final value = Container(
+              key: const ValueKey('fixed-tag-weight-value'),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: theme.colorScheme.secondary.withValues(alpha: 0.1),
@@ -440,24 +442,24 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                 ),
               ),
             );
-            final stackLabel =
-                MediaQuery.textScalerOf(context).scale(1) >= 2 ||
-                constraints.maxWidth < 280;
+            final stackLabel = MediaQuery.textScalerOf(context).scale(1) >= 2;
             if (stackLabel) {
               return Column(
+                key: const ValueKey('fixed-tag-weight-header'),
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [label, const SizedBox(height: 6), value],
               );
             }
-            return Row(children: [label, const Spacer(), value]);
+            return Row(
+              key: const ValueKey('fixed-tag-weight-header'),
+              children: [label, const Spacer(), value],
+            );
           },
         ),
         const SizedBox(height: 4),
         LayoutBuilder(
-          builder: (context, constraints) {
-            final stackSlider =
-                MediaQuery.textScalerOf(context).scale(1) >= 2 ||
-                constraints.maxWidth < 280;
+          builder: (context, _) {
+            final stackSlider = MediaQuery.textScalerOf(context).scale(1) >= 2;
             final slider = ThemedSlider(
               value: _weight,
               min: 0.5,
@@ -488,6 +490,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
               );
             }
             return Row(
+              key: const ValueKey('fixed-tag-weight-slider-row'),
               children: [
                 Text('0.5', style: theme.textTheme.bodySmall),
                 const SizedBox(width: 8),

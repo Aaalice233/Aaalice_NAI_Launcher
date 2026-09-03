@@ -346,6 +346,21 @@ void main() {
           .direction,
       Axis.horizontal,
     );
+    final weightControl = find.byKey(
+      const ValueKey('fixed-tag-weight-control'),
+    );
+    final weightHeader = find.byKey(const ValueKey('fixed-tag-weight-header'));
+    final weightValue = find.byKey(const ValueKey('fixed-tag-weight-value'));
+    final weightSliderRow = find.byKey(
+      const ValueKey('fixed-tag-weight-slider-row'),
+    );
+    expect(weightSliderRow, findsOneWidget);
+    expect(tester.getSize(weightControl).height, lessThan(100));
+    expect(
+      tester.getCenter(find.text('权重')).dy,
+      closeTo(tester.getCenter(weightValue).dy, 1),
+    );
+    expect(tester.getSize(weightHeader).width, 250);
     expect(tester.takeException(), isNull);
   });
 
