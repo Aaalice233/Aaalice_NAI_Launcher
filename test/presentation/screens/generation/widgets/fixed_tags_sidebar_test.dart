@@ -2333,6 +2333,39 @@ void main() {
 
     expect(edited, isTrue);
   });
+
+  testWidgets(
+    'SidebarEntryTile tolerates rapid hover reversal during action animation',
+    (tester) async {
+      final entry = FixedTagEntry.create(name: 'tile', content: 'tag');
+      await _pumpEntryTile(
+        tester,
+        entry: entry,
+        width: 320,
+        policy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+        onEdit: () {},
+        onDelete: () {},
+      );
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      final tileCenter = tester.getCenter(find.byType(SidebarEntryTile));
+      for (var index = 0; index < 3; index++) {
+        await mouse.moveTo(tileCenter);
+        await tester.pump(const Duration(milliseconds: 30));
+        await mouse.moveTo(Offset.zero);
+        await tester.pump(const Duration(milliseconds: 30));
+      }
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 Future<void> _jumpToEndUntilVisible(

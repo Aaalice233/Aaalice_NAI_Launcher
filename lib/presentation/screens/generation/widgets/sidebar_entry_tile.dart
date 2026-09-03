@@ -190,7 +190,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
                       _isFocused ||
                       _usesPersistentActionMenu(context)
                   ? _buildActionAffordance(theme)
-                  : _buildWeightBadge(theme, key: const ValueKey('weight')),
+                  : _buildWeightBadge(theme),
             ),
           ),
         ),
@@ -224,7 +224,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
           alignment: Alignment.centerRight,
           child: _isHovering || _isFocused || _usesPersistentActionMenu(context)
               ? _buildActionAffordance(theme)
-              : _buildWeightBadge(theme, key: const ValueKey('grid-weight')),
+              : _buildWeightBadge(theme),
         ),
       ],
     );
@@ -294,9 +294,8 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
     );
   }
 
-  Widget _buildWeightBadge(ThemeData theme, {Key? key}) {
+  Widget _buildWeightBadge(ThemeData theme) {
     return Container(
-      key: key,
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface.withValues(alpha: 0.75),
