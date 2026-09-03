@@ -18,11 +18,12 @@ import 'package:nai_launcher/presentation/widgets/common/image_detail/components
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/workspace_panel_header.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('历史记录标题栏操作按钮贴齐面板右侧', (tester) async {
+  testWidgets('历史记录使用统一面板顶栏且收起按钮贴齐右侧', (tester) async {
     final container = _createContainer([_image('header-alignment')]);
     addTearDown(container.dispose);
 
@@ -30,13 +31,12 @@ void main() {
     await tester.pump();
 
     final panelRect = tester.getRect(find.byType(HistoryPanel));
-    final clearButtonRect = tester.getRect(
-      find.ancestor(
-        of: find.byTooltip('清除'),
-        matching: find.byType(IconButton),
-      ),
+    final collapseRect = tester.getRect(
+      find.byKey(const ValueKey('generation-history-collapse')),
     );
-    expect(clearButtonRect.right, closeTo(panelRect.right - 4, 0.01));
+    expect(find.byType(WorkspacePanelHeader), findsOneWidget);
+    expect(tester.getSize(find.byType(WorkspacePanelHeader)).height, 56);
+    expect(collapseRect.right, closeTo(panelRect.right - 4, 0.01));
   });
 
   testWidgets('classic single click opens one image detail', (tester) async {

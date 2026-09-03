@@ -46,6 +46,7 @@ import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../widgets/common/workspace_panel_header.dart';
 import '../services/generation_save_service.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
@@ -253,114 +254,92 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             ),
           )
         else
-          Padding(
-            padding: const EdgeInsets.only(
-              left: 8,
-              right: 4,
-              top: 12,
-              bottom: 12,
-            ),
-            child: Row(
+          WorkspacePanelHeader(
+            icon: Icons.history_rounded,
+            title: Row(
               children: [
-                // 折叠按钮
-                _buildCollapseButton(theme),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          context.l10n.generation_historyRecord,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (state.history.isNotEmpty ||
-                          state.currentImages.isNotEmpty) ...[
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${_getAllSelectableImages(state).length}',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                Flexible(
+                  child: Text(
+                    context.l10n.generation_historyRecord,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                // 全选按钮
-                if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        final allImages = _getAllSelectableImages(state);
-                        if (_selectedIds.length == allImages.length) {
-                          _selectedIds.clear();
-                        } else {
-                          _selectedIds.clear();
-                          _selectedIds.addAll(allImages.map((img) => img.id));
-                        }
-                      });
-                    },
-                    icon: Icon(
-                      _selectedIds.length ==
-                              _getAllSelectableImages(state).length
-                          ? Icons.deselect
-                          : Icons.select_all,
-                      size: 20,
+                if (state.history.isNotEmpty ||
+                    state.currentImages.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
                     ),
-                    tooltip:
-                        _selectedIds.length ==
-                            _getAllSelectableImages(state).length
-                        ? context.l10n.common_deselectAll
-                        : context.l10n.common_selectAll,
-                    style: IconButton.styleFrom(
-                      foregroundColor: theme.colorScheme.primary,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    visualDensity: context.interactionPolicy.touchAvailable
-                        ? VisualDensity.standard
-                        : VisualDensity.compact,
-                    constraints: BoxConstraints.tightFor(
-                      width: context.interactionPolicy.minimumControlExtent,
-                      height: context.interactionPolicy.minimumControlExtent,
+                    child: Text(
+                      '${_getAllSelectableImages(state).length}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
                     ),
-                    padding: const EdgeInsets.all(8),
                   ),
-                if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
-                  IconButton(
-                    onPressed: () {
-                      _showClearDialog(context, ref);
-                    },
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    tooltip: context.l10n.common_clear,
-                    style: IconButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                    ),
-                    visualDensity: context.interactionPolicy.touchAvailable
-                        ? VisualDensity.standard
-                        : VisualDensity.compact,
-                    constraints: BoxConstraints.tightFor(
-                      width: context.interactionPolicy.minimumControlExtent,
-                      height: context.interactionPolicy.minimumControlExtent,
-                    ),
-                    padding: const EdgeInsets.all(8),
-                  ),
+                ],
               ],
             ),
+            actions: [
+              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      final allImages = _getAllSelectableImages(state);
+                      if (_selectedIds.length == allImages.length) {
+                        _selectedIds.clear();
+                      } else {
+                        _selectedIds.clear();
+                        _selectedIds.addAll(allImages.map((img) => img.id));
+                      }
+                    });
+                  },
+                  icon: Icon(
+                    _selectedIds.length == _getAllSelectableImages(state).length
+                        ? Icons.deselect
+                        : Icons.select_all,
+                    size: 20,
+                  ),
+                  tooltip:
+                      _selectedIds.length ==
+                          _getAllSelectableImages(state).length
+                      ? context.l10n.common_deselectAll
+                      : context.l10n.common_selectAll,
+                  style: IconButton.styleFrom(
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                  constraints: BoxConstraints.tightFor(
+                    width: context.interactionPolicy.minimumControlExtent,
+                    height: context.interactionPolicy.minimumControlExtent,
+                  ),
+                ),
+              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
+                IconButton(
+                  onPressed: () => _showClearDialog(context, ref),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  tooltip: context.l10n.common_clear,
+                  style: IconButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                  ),
+                  constraints: BoxConstraints.tightFor(
+                    width: context.interactionPolicy.minimumControlExtent,
+                    height: context.interactionPolicy.minimumControlExtent,
+                  ),
+                ),
+            ],
+            trailing: _buildCollapseButton(),
           ),
-        const ThemedDivider(height: 1),
+        if (widget.embedded) const ThemedDivider(height: 1),
 
         // 历史列表
         Expanded(
@@ -382,38 +361,22 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     );
   }
 
-  Widget _buildCollapseButton(ThemeData theme) {
+  Widget _buildCollapseButton() {
     final onClose = widget.onClose;
-    if (onClose != null) {
-      return IconButton(
-        onPressed: onClose,
-        icon: const Icon(Icons.chevron_right_rounded),
-        tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-      );
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => ref
-            .read(layoutStateNotifierProvider.notifier)
-            .setRightPanelExpanded(false),
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(
-              alpha: 0.5,
-            ),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(
-            Icons.chevron_right,
-            size: 16,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
-        ),
+    return IconButton(
+      key: const ValueKey('generation-history-collapse'),
+      onPressed:
+          onClose ??
+          () => ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setRightPanelExpanded(false),
+      icon: const Icon(Icons.chevron_right),
+      tooltip: onClose != null
+          ? MaterialLocalizations.of(context).closeButtonTooltip
+          : context.l10n.common_collapse,
+      constraints: BoxConstraints.tightFor(
+        width: context.interactionPolicy.minimumControlExtent,
+        height: context.interactionPolicy.minimumControlExtent,
       ),
     );
   }

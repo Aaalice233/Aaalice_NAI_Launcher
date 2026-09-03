@@ -7,7 +7,7 @@ import '../../../core/windowing/agent_chat_session_picker.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
-import '../../themes/theme_extension.dart';
+import '../../widgets/common/workspace_panel_header.dart';
 import 'agent_chat_panel_view_data.dart';
 
 class AgentChatHeader extends StatelessWidget {
@@ -22,13 +22,22 @@ class AgentChatHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = context.l10n;
     final fullScreenLayout = viewData.fullScreen;
     final leadingTooltip = viewData.fullScreen
         ? MaterialLocalizations.of(context).backButtonTooltip
         : MaterialLocalizations.of(context).closeButtonTooltip;
-    final header = Container(
+    final collapseButton = _HeaderIconButton(
+      key: ValueKey(
+        fullScreenLayout ? 'agent-chat-mobile-close' : 'agent-chat-collapse',
+      ),
+      icon: fullScreenLayout
+          ? Icons.arrow_back_rounded
+          : Icons.chevron_right_rounded,
+      tooltip: leadingTooltip,
+      onPressed: viewData.onClose ?? commands.collapse,
+    );
+    final header = WorkspacePanelHeader(
       key: ValueKey(
         fullScreenLayout
             ? 'agent-chat-mobile-header'
@@ -36,75 +45,25 @@ class AgentChatHeader extends StatelessWidget {
             ? 'agent-chat-compact-header'
             : 'agent-chat-desktop-header',
       ),
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.appTheme.dividerColor,
-            width: theme.appTheme.dividerThickness,
+      leading: fullScreenLayout ? collapseButton : null,
+      icon: Icons.auto_awesome_rounded,
+      title: SizedBox(height: 48, child: _sessionSelector(context)),
+      actions: [
+        _HeaderIconButton(
+          key: ValueKey(
+            fullScreenLayout
+                ? 'agent-chat-mobile-new-session'
+                : 'agent-chat-new-session',
           ),
+          icon: Icons.add_comment_outlined,
+          tooltip: l10n.agentChat_newChat,
+          onPressed: viewData.sessionActionsEnabled
+              ? commands.newSession
+              : null,
         ),
-      ),
-      child: Row(
-        children: [
-          _HeaderIconButton(
-            key: ValueKey(
-              fullScreenLayout
-                  ? 'agent-chat-mobile-close'
-                  : 'agent-chat-collapse',
-            ),
-            icon: viewData.fullScreen
-                ? Icons.arrow_back_rounded
-                : Icons.chevron_right_rounded,
-            tooltip: leadingTooltip,
-            onPressed: viewData.onClose ?? commands.collapse,
-          ),
-          Expanded(
-            child: SizedBox(
-              height: 48,
-              child: Row(
-                children: [
-                  ExcludeSemantics(
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer.withValues(
-                          alpha: 0.72,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.auto_awesome_rounded,
-                        size: 14,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  Expanded(child: _sessionSelector(context)),
-                ],
-              ),
-            ),
-          ),
-          _HeaderIconButton(
-            key: ValueKey(
-              fullScreenLayout
-                  ? 'agent-chat-mobile-new-session'
-                  : 'agent-chat-new-session',
-            ),
-            icon: Icons.add_comment_outlined,
-            tooltip: l10n.agentChat_newChat,
-            onPressed: viewData.sessionActionsEnabled
-                ? commands.newSession
-                : null,
-          ),
-          _moreMenu(context, l10n),
-        ],
-      ),
+        _moreMenu(context, l10n),
+      ],
+      trailing: fullScreenLayout ? null : collapseButton,
     );
     return viewData.mobileHeaderWrapper?.call(header) ?? header;
   }

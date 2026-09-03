@@ -11,6 +11,7 @@ import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_vi
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/workspace_panel_header.dart';
 
 void main() {
   testWidgets(
@@ -42,6 +43,7 @@ void main() {
             ),
           );
           expect(header, findsOneWidget);
+          expect(find.byType(WorkspacePanelHeader), findsOneWidget);
           expect(tester.getSize(header).height, 56);
           expect(find.text('当前会话'), findsOneWidget);
           expect(find.text('提示词助手'), findsNothing);
