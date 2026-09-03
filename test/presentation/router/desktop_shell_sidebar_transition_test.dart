@@ -58,6 +58,13 @@ class _ContentLifecycle {
   int initialized = 0;
   int built = 0;
   int disposed = 0;
+  final List<double> constraintWidths = [];
+
+  void recordWidth(double width) {
+    if (constraintWidths.isEmpty || constraintWidths.last != width) {
+      constraintWidths.add(width);
+    }
+  }
 }
 
 class _TrackedContent extends StatefulWidget {
@@ -87,12 +94,17 @@ class _TrackedContentState extends State<_TrackedContent> {
   @override
   Widget build(BuildContext context) {
     widget.lifecycle.built++;
-    return Center(
-      child: FilledButton(
-        key: const Key('tracked-content-button'),
-        onPressed: () => setState(() => value++),
-        child: Text('content-$value'),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        widget.lifecycle.recordWidth(constraints.maxWidth);
+        return Center(
+          child: FilledButton(
+            key: const Key('tracked-content-button'),
+            onPressed: () => setState(() => value++),
+            child: Text('content-$value'),
+          ),
+        );
+      },
     );
   }
 }
@@ -161,6 +173,7 @@ void main() {
 
     expect(lifecycle.initialized, 1);
     expect(lifecycle.built, 1);
+    expect(lifecycle.constraintWidths, [840]);
     expect(find.text('content-0'), findsOneWidget);
     expect(tester.getTopLeft(find.byType(MainNavRail)).dy, 24);
     expect(tester.getBottomRight(find.byType(MainNavRail)).dy, 584);
@@ -185,6 +198,13 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 40));
     expect(lifecycle.built, 1);
+    expect(lifecycle.constraintWidths, [
+      840,
+      704,
+    ], reason: '导航动画期间工作区只接收最终约束，不逐帧触发布局重建');
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(lifecycle.constraintWidths, [840, 704]);
 
     await tester.tap(find.byKey(const Key('tracked-content-button')));
     await tester.pump();

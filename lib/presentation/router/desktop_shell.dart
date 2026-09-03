@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../adaptive/window_size_class.dart';
 import '../agent_chat/providers/agent_chat_notifier.dart';
+import '../providers/layout_state_provider.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import 'app_branch.dart';
 import 'global_status_banners.dart';
@@ -67,6 +68,17 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         final allowRailExpansion = WindowSizeClass.fromWidth(
           safeUsableWidth,
         ).isExpandedOrWider;
+        final storedRailExpansion = ref.watch(
+          layoutStateNotifierProvider.select(
+            (state) => state.mainNavRailExpanded,
+          ),
+        );
+        final targetRailWidth = allowRailExpansion && storedRailExpansion
+            ? MainNavRail.expandedWidthFor(context)
+            : MainNavRail.collapsedWidth;
+        final targetWorkspaceWidth = (safeUsableWidth - targetRailWidth)
+            .clamp(0.0, double.infinity)
+            .toDouble();
         return CallbackShortcuts(
           bindings: {
             if (activePanel != null)
@@ -99,7 +111,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                       restoreFocus: isVisible ? null : _queueFocusNode,
                     ),
                   ),
-                  Expanded(
+                  _StableWorkspaceViewport(
+                    targetWidth: targetWorkspaceWidth,
                     child: Stack(
                       key: const ValueKey('desktop-workspace-stack'),
                       children: [
@@ -147,6 +160,38 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Keeps routed pages on their target constraint while the rail clips through
+/// intermediate widths. This prevents page-level LayoutBuilders from running
+/// once per animation frame without changing the rail's visible motion.
+class _StableWorkspaceViewport extends StatelessWidget {
+  const _StableWorkspaceViewport({
+    required this.targetWidth,
+    required this.child,
+  });
+
+  final double targetWidth;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: ClipRect(
+        key: const ValueKey('desktop-workspace-viewport'),
+        child: OverflowBox(
+          alignment: Alignment.centerRight,
+          minWidth: targetWidth,
+          maxWidth: targetWidth,
+          child: SizedBox(
+            width: targetWidth,
+            height: double.infinity,
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }
