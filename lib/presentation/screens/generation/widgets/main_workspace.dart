@@ -6,7 +6,6 @@ import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
-import '../../../widgets/character/inline_character_section.dart';
 import 'generation_controls/generation_controls.dart';
 import 'image_preview.dart';
 import 'prompt_input.dart';
@@ -104,10 +103,6 @@ class MainWorkspace extends ConsumerWidget {
                   child: _buildPromptInput(theme, isPromptMaximized),
                 ),
               ),
-
-            // 角色提示词是主提示词的组成部分，经典布局固定在编辑区下方；
-            // 参数栏只承载生成参数，避免把内容编辑入口混入设置序列。
-            if (!canvasOpen) const ClassicCharacterSection(),
 
             // 提示词区域拖拽分隔条（最大化/画布模式隐藏）
             if (!isPromptMaximized && !canvasOpen)

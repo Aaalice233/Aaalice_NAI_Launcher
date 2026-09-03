@@ -37,7 +37,7 @@ class LeftPanel extends ConsumerWidget {
                     .read(layoutStateNotifierProvider.notifier)
                     .setLeftPanelExpanded(false),
               ),
-              const Expanded(child: ParameterPanel()),
+              const Expanded(child: ParameterPanel(showCharacterEditor: true)),
             ],
           )
         : CollapsedPanel(

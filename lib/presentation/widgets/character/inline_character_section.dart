@@ -16,7 +16,6 @@ import 'character_position_canvas.dart';
 import 'character_tooltip_content.dart';
 import 'inline_character_card.dart';
 import 'inline_character_editor.dart';
-import 'inline_character_row.dart';
 
 /// 构建角色二级菜单的单行摘要。
 ///
@@ -43,42 +42,14 @@ String buildCharacterPanelSummary(
   return l10n.character_summaryMore(enabled.length, name, enabled.length - 1);
 }
 
-/// 官网布局左栏的角色二级菜单。
-class InlineCharacterSection extends StatelessWidget {
+/// 桌面提示词侧栏的角色二级菜单。
+///
+/// 经典模式与官网式布局复用同一纵向编辑结构，角色状态始终由 Provider
+/// 持有；折叠只影响展示，不改变生成参数。
+class InlineCharacterSection extends ConsumerWidget {
   const InlineCharacterSection({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return const _CharacterWorkbenchSection(
-      presentation: _CharacterSectionPresentation.sidebarList,
-    );
-  }
-}
-
-/// 经典布局中紧邻主提示词的角色编辑区。
-class ClassicCharacterSection extends StatelessWidget {
-  const ClassicCharacterSection({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const _CharacterWorkbenchSection(
-      presentation: _CharacterSectionPresentation.workspaceGrid,
-    );
-  }
-}
-
-enum _CharacterSectionPresentation { sidebarList, workspaceGrid }
-
-/// 两种桌面布局共享的角色区壳层。
-///
-/// 布局只决定角色卡如何排布；模型可用性、折叠状态、添加入口、摘要和
-/// 悬浮预览保持同一事实来源，避免经典布局再次出现空状态入口丢失。
-class _CharacterWorkbenchSection extends ConsumerWidget {
-  const _CharacterWorkbenchSection({required this.presentation});
-
   static const panel = GenerationWorkbenchPanel.characters;
-
-  final _CharacterSectionPresentation presentation;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -98,15 +69,8 @@ class _CharacterWorkbenchSection extends ConsumerWidget {
       ),
     );
 
-    final isWorkspace =
-        presentation == _CharacterSectionPresentation.workspaceGrid;
-
     return CollapsibleImagePanel(
-      key: Key(
-        isWorkspace
-            ? 'classic-character-secondary-menu'
-            : 'character-secondary-menu',
-      ),
+      key: const Key('character-secondary-menu'),
       title: l10n.character_buttonLabel,
       icon: Icons.people,
       leading: _CharacterStackIcon(
@@ -123,13 +87,7 @@ class _CharacterWorkbenchSection extends ConsumerWidget {
       collapsedHoverPreviewBuilder: characters.isEmpty
           ? null
           : (context) => CharacterTooltipContent(config: config),
-      childBuilder: (context) {
-        if (!isWorkspace) {
-          return _CharacterPanelContent(characters: characters);
-        }
-        if (characters.isEmpty) return const SizedBox.shrink();
-        return const InlineCharacterRow(showAddAction: false, embedded: true);
-      },
+      childBuilder: (context) => _CharacterPanelContent(characters: characters),
     );
   }
 }

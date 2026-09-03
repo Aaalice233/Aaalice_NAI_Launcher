@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/character/inline_character_section.dart';
 import '../../../widgets/common/draggable_number_input.dart';
 import '../../../widgets/generation/auto_save_toggle_chip.dart';
 import 'generation_controls/batch_settings_button.dart';
@@ -17,7 +18,10 @@ import 'unified_reference_panel.dart';
 /// 由 generation_param_sections.dart 中的分节控件组合而成，
 /// 官网式布局的一体滚动列复用同一批分节控件。
 class ParameterPanel extends ConsumerWidget {
-  const ParameterPanel({super.key});
+  const ParameterPanel({super.key, this.showCharacterEditor = false});
+
+  /// 经典桌面侧栏承载角色编辑；移动端通过独立角色管理界面进入。
+  final bool showCharacterEditor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,6 +39,12 @@ class ParameterPanel extends ConsumerWidget {
         const ModelSection(),
 
         const SizedBox(height: 16),
+
+        // 经典桌面把角色编辑作为左侧栏的一级工作区，空状态也保留入口。
+        if (showCharacterEditor) ...[
+          const InlineCharacterSection(),
+          const SizedBox(height: 16),
+        ],
 
         // 尺寸设置
         const SizeSection(),
@@ -67,8 +77,6 @@ class ParameterPanel extends ConsumerWidget {
         const SeedSection(),
 
         const SizedBox(height: 16),
-
-        // ==================== 新功能面板 ====================
 
         // 反推面板
         const ReversePromptPanel(),
