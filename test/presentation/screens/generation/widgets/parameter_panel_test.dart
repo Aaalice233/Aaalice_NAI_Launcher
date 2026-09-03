@@ -169,6 +169,64 @@ void main() {
       expect(stepsSliders.single.hideTickMarks, isTrue);
     });
 
+    testWidgets('高级选项在侧栏色面内使用独立 Material', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith(
+              (ref) => _TestLocalStorageService(),
+            ),
+            vibeLibraryStorageServiceProvider.overrideWithValue(
+              _TestVibeLibraryStorageService(),
+            ),
+            kritaBridgeNotifierProvider.overrideWith(
+              (ref) => _TestKritaBridgeNotifier(),
+            ),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: DecoratedBox(
+                decoration: BoxDecoration(color: Color(0xFF1A1A1A)),
+                child: SizedBox(
+                  width: 320,
+                  height: 1200,
+                  child: ParameterPanel(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      final advancedOptions = find.byWidgetPredicate(
+        (widget) =>
+            widget is ExpansionTile &&
+            widget.title is Text &&
+            (widget.title as Text).data == '高级选项',
+      );
+      await tester.scrollUntilVisible(
+        advancedOptions,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      final material = tester
+          .element(advancedOptions)
+          .findAncestorWidgetOfExactType<Material>();
+      expect(material, isNotNull);
+      expect(material!.type, MaterialType.transparency);
+
+      await tester.tap(advancedOptions);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('经典侧栏显示角色编辑，移动参数面板不重复挂载', (tester) async {
       Widget buildSubject({required bool showCharacterEditor}) {
         return ProviderScope(

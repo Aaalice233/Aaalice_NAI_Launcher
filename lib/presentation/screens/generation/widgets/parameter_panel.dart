@@ -99,19 +99,22 @@ class ParameterPanel extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // 高级选项
-        ExpansionTile(
-          title: Text(
-            context.l10n.generation_advancedOptions,
-            style: theme.textTheme.titleSmall,
+        Material(
+          type: MaterialType.transparency,
+          child: ExpansionTile(
+            title: Text(
+              context.l10n.generation_advancedOptions,
+              style: theme.textTheme.titleSmall,
+            ),
+            tilePadding: EdgeInsets.zero,
+            initiallyExpanded: advancedOptionsExpanded,
+            onExpansionChanged: (expanded) {
+              ref
+                  .read(generationParamsNotifierProvider.notifier)
+                  .setAdvancedOptionsExpanded(expanded);
+            },
+            children: const [AdvancedSamplingOptions()],
           ),
-          tilePadding: EdgeInsets.zero,
-          initiallyExpanded: advancedOptionsExpanded,
-          onExpansionChanged: (expanded) {
-            ref
-                .read(generationParamsNotifierProvider.notifier)
-                .setAdvancedOptionsExpanded(expanded);
-          },
-          children: const [AdvancedSamplingOptions()],
         ),
       ],
     );
