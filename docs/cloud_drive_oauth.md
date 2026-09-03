@@ -1,11 +1,11 @@
 # Google Drive / OneDrive OAuth 开发者配置
 
-本文只描述云盘 OAuth 基础设施和人工控制台配置。应用不内置 client secret，仓库中也不得提交真实 client ID、token、`google-services.json` 或下载的 Google plist。
+本文只描述云盘 OAuth 基础设施和人工控制台配置。仓库中不得提交真实 client ID、Google Windows Desktop client secret、token、`google-services.json` 或下载的 Google plist。
 
 ## 安全模型
 
 - Android Google Drive 使用 Google 官方 [`google_sign_in`](https://pub.dev/packages/google_sign_in) SDK；Google 已停止支持 Android 上自建 custom-scheme OAuth redirect。macOS Google Drive 与 Android/macOS OneDrive 使用 [`flutter_appauth`](https://pub.dev/packages/flutter_appauth)（AppAuth system browser + authorization code + PKCE）。Google 唯一文件业务权限是 [`drive.appdata`](https://developers.google.com/workspace/drive/api/guides/appdata)；Microsoft 唯一文件业务权限是 `Files.ReadWrite.AppFolder`。OIDC 身份权限用于稳定账号 ID，应用直接持有的 refresh token 只进入系统安全存储；Android Google 的续期凭据由官方 SDK 管理。
-- Windows 对两个 provider 都使用系统默认浏览器、`127.0.0.1` 随机端口、authorization code、PKCE S256、state 和 nonce。禁止嵌入 WebView、固定端口、client secret。
+- Windows 对两个 provider 都使用系统默认浏览器、`127.0.0.1` 随机端口、authorization code、PKCE S256、state 和 nonce。Google Desktop client 的 token endpoint 还要求该注册项附带的 client secret；它只能从开发或 CI 环境注入，不得提交。OneDrive 仍按 public client 运行，不创建 client secret。
 - scope 和 OAuth endpoint 固定在代码中，不能通过 `--dart-define` 扩大。session 是严格版本化 JSON，只能写入 `flutter_secure_storage`；secure-storage key 由 provider 和 account ID 哈希共同隔离。
 - redirect URI、state、nonce、PKCE verifier/audience/expiry 均会校验。loopback 仅绑定 IPv4 loopback，回调有三分钟超时，只接受一次正确路径的回调。
 - `toString`、异常和诊断不输出 access/refresh token。不要记录 package 返回的原始 token 对象；部分上游 package 的默认 `toString` 会包含 token。
@@ -34,7 +34,7 @@
 2. 配置 [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent)，只声明本应用使用的 `drive.appdata` 文件业务 scope。按 Google 当前规则设置测试用户、隐私政策、应用域名和发布状态；在对外发布前完成品牌/权限审核前置工作。`drive.appdata` 当前属于 non-sensitive scope，但 Console 要求与审核政策可能变化，发布前必须复核官方页面。
 3. Android：注册 package `com.aaalice.nai_launcher` 的 Android OAuth client，并登记 debug/release/CI 签名证书 SHA-1/SHA-256；再创建 Web OAuth client，将其 client ID 作为 `GOOGLE_DRIVE_ANDROID_CLIENT_ID`（官方 SDK 的 `serverClientId`）。Google SDK 自行完成 Android 回调，不配置 `GOOGLE_DRIVE_ANDROID_REDIRECT_URI`，仓库也不提交 `google-services.json`。
 4. macOS：创建与 bundle ID `com.aaalice.naiLauncher` 对应的 OAuth client。redirect URI 的 scheme 必须是 Console 提供的 reversed client ID（`com.googleusercontent.apps.…`）。macOS 构建脚本从 `GOOGLE_DRIVE_MACOS_REDIRECT_URI` 注入该 URL scheme。
-5. Windows：创建 Desktop app OAuth client。Google 的 Desktop client 原生应用策略允许 loopback IP redirect；应用以 `http://127.0.0.1` 为基值，在运行时追加随机端口和 `/oauth2/callback`。不要创建或传入 client secret，也不要改成 Console 中的 Web client redirect 配置。
+5. Windows：创建 Desktop app OAuth client。Google 的 Desktop client 原生应用策略允许 loopback IP redirect；应用以 `http://127.0.0.1` 为基值，在运行时追加随机端口和 `/oauth2/callback`。将该 Desktop client 下载凭据中的 client secret 作为构建环境配置传入；不要使用 Web client 的 ID/secret 或 redirect 配置。桌面二进制无法把该值视为机密，因此仍必须依赖 PKCE、state 和 nonce，且不得把它当作服务端凭据。
 
 Google disconnect 在 Android 调用官方 SDK `disconnect`，在 macOS/Windows 调用 Google [revocation endpoint](https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke)，随后无论远端撤销结果如何都删除本地 secure-storage session。
 
@@ -56,7 +56,7 @@ Microsoft 没有适合本最小权限流程的单 token revoke 调用。断开�
 | --- | --- | --- |
 | Android | `GOOGLE_DRIVE_ANDROID_CLIENT_ID` | `ONEDRIVE_ANDROID_CLIENT_ID`、`ONEDRIVE_ANDROID_REDIRECT_URI` |
 | macOS | `GOOGLE_DRIVE_MACOS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_REDIRECT_URI` | `ONEDRIVE_MACOS_CLIENT_ID`、`ONEDRIVE_MACOS_REDIRECT_URI` |
-| Windows | `GOOGLE_DRIVE_WINDOWS_CLIENT_ID`、`GOOGLE_DRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1` | `ONEDRIVE_WINDOWS_CLIENT_ID`、`ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1` |
+| Windows | `GOOGLE_DRIVE_WINDOWS_CLIENT_ID`、`GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET`、`GOOGLE_DRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1` | `ONEDRIVE_WINDOWS_CLIENT_ID`、`ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1` |
 | 全平台 OneDrive | — | `ONEDRIVE_TENANT_ID=common` |
 
 PowerShell 构建示例：
@@ -64,13 +64,14 @@ PowerShell 构建示例：
 ```powershell
 flutter run -d windows `
   --dart-define=GOOGLE_DRIVE_WINDOWS_CLIENT_ID=<google-desktop-client-id> `
+  --dart-define=GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET=<google-desktop-client-secret> `
   --dart-define=GOOGLE_DRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1 `
   --dart-define=ONEDRIVE_WINDOWS_CLIENT_ID=<entra-public-client-id> `
   --dart-define=ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1 `
   --dart-define=ONEDRIVE_TENANT_ID=common
 ```
 
-Android/macOS 用表中的平台键替换；OneDrive mobile redirect 使用上节固定 URI，Google macOS redirect 使用 reversed client ID URI。Android Google 不使用 redirect define。Release 构建也必须传同一组 define。client ID/redirect URI 不是凭据，但生产注册值仍应由 CI 环境管理，不写入仓库普通配置；access/refresh token 绝不能作为 define。
+Android/macOS 用表中的平台键替换；OneDrive mobile redirect 使用上节固定 URI，Google macOS redirect 使用 reversed client ID URI。Android Google 不使用 redirect define。Release 构建也必须传同一组 define。Google Windows Desktop client secret 只存放在受保护的开发环境或 GitHub Actions secret 中；client ID/redirect URI 由 CI 环境管理，access/refresh token 绝不能作为 define。
 
 ## 配置诊断与验证
 
@@ -95,7 +96,7 @@ flutter analyze lib/core/cloud_sync/oauth lib/core/storage/secure_storage_servic
 
 真机诊断还必须分别检查：Google Android debug/release SHA 是否登记；macOS 构建产物 `Info.plist` 是否出现实际 reversed client ID scheme；OneDrive redirect 是否逐字符匹配 Entra；Windows 浏览器是否回到随机 `127.0.0.1` 端口。
 
-Release workflow 要求先设置 GitHub Actions repository variables：`GOOGLE_DRIVE_WINDOWS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_REDIRECT_URI`、`GOOGLE_DRIVE_ANDROID_CLIENT_ID`、`ONEDRIVE_CLIENT_ID`、`ONEDRIVE_MACOS_REDIRECT_URI`、`ONEDRIVE_ANDROID_REDIRECT_URI`，以及 `ONEDRIVE_TENANT_ID=common`。正式发布缺少任一平台必需值时会在构建前失败，避免发布一个静默缺失云盘登录能力的安装包。这些值来自外部 Google/Entra 应用注册与审核，不在仓库中提供真实值。
+Release workflow 要求先设置 GitHub Actions repository variables：`GOOGLE_DRIVE_WINDOWS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_REDIRECT_URI`、`GOOGLE_DRIVE_ANDROID_CLIENT_ID`、`ONEDRIVE_CLIENT_ID`、`ONEDRIVE_MACOS_REDIRECT_URI`、`ONEDRIVE_ANDROID_REDIRECT_URI`，以及 `ONEDRIVE_TENANT_ID=common`；Google Windows Desktop client secret 单独存入 repository secret `GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET`。正式发布缺少任一平台必需值时会在构建前失败，避免发布一个静默缺失云盘登录能力的安装包。这些值来自外部 Google/Entra 应用注册与审核，不在仓库中提供真实值。
 
 ## 数据与账号隔离
 

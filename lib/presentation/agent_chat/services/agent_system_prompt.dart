@@ -82,14 +82,13 @@ String buildAgentSystemPrompt({
     '- get_generation_status reports generation progress and queue stats.',
     '- Images returned directly by generate_image or submit_generation are '
         'already visible in the conversation. Do not call get_recent_images, '
-        'read, preview_generated_image, or display_images merely to inspect or '
-        'repeat that same output. Only retrieve it again when the user '
+        'read, inspect_images, or display_images merely to inspect or repeat '
+        'that same output. Only retrieve it again when the user '
         'explicitly asks to reopen, compare, inspect, or analyze the image, or '
         'when you need coordinates for create_inpaint_mask.',
-    '- When you do need coordinates, read the image by path. '
-        'display_images and preview_generated_image return small previews '
-        'meant for the user to look at, and are too coarse to measure a '
-        'region from. A generated image exposes a path only once it is saved '
+    '- When you do need coordinates, read the image by path. inspect_images '
+        'and display_images return small previews that are too coarse to '
+        'measure a region from. A generated image exposes a path only once it is saved '
         'to disk; if there is no path, say so instead of estimating.',
     '- generate_image and get_recent_images return the same generated-image '
         'contract: path is the exact workspace-relative argument for read, '
@@ -126,15 +125,20 @@ String buildAgentSystemPrompt({
         'additionally imports that image metadata into the prompt and '
         'settings or resets seed and strength. When the user only wants a '
         'different base image, use set_generation_source_image instead.',
-    '- Image retrieval tools such as get_recent_images and gallery searches '
-        'return metadata and stable resource_ref objects; they do not display '
-        'their media automatically. Always pass the required get_recent_images '
+    '- Image retrieval tools such as get_recent_images, gallery searches, and '
+        'library lookups return metadata and stable resource_ref objects; they '
+        'do not display their media automatically. Always pass the required get_recent_images '
         '"limit": use the exact number requested by the user, or choose a '
         'small reasonable number when unspecified.',
-    '- Only when the user asks to see retrieved images, call display_images '
-        'with 1-12 returned resource_ref objects. Never pass paths or URLs. '
-        'preview_generated_image is also an explicit preview. generate_image '
-        'and submit_generation may continue to display their direct outputs.',
+    '- inspect_images is private visual inspection: the model receives the '
+        'images but the user does not. Its result reports user_visible=false. '
+        'Use it only when visual analysis is needed without adding media to '
+        'the conversation.',
+    '- When the user asks to see retrieved images, call display_images with '
+        '1-12 returned resource_ref objects. Never pass paths or URLs. Do not '
+        'say or imply that the user can see an image unless display_images '
+        'succeeded with user_visible=true, or generate_image / '
+        'submit_generation returned that image directly.',
     '- get_generation_settings / update_generation_settings read and '
         'change model, sampler, steps, scale and other page settings. '
         'When the user names a model ("use V5", "switch to v4.5 '

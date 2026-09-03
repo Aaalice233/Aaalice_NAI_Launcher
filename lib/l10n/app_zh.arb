@@ -411,6 +411,7 @@
   "agentChat_toolQueueImageTask": "添加图片任务",
   "agentChat_toolInterrogateImage": "反推图片提示词",
   "agentChat_toolRecentImages": "查看最近图片",
+  "agentChat_toolInspectImages": "检查图片",
   "agentChat_toolDisplayImages": "展示图片",
   "agentChat_toolResult": "结果",
   "agentChat_toolGenerationStatus": "查看生成状态",

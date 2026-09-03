@@ -422,6 +422,8 @@ final class LoopbackCloudDriveOAuthClient
     try {
       final fields = <String, String>{
         'client_id': _config.clientId,
+        if (_config.clientSecret case final clientSecret?)
+          'client_secret': clientSecret,
         'code': code,
         'code_verifier': request.codeVerifier,
         'redirect_uri': redirectUri.toString(),
@@ -452,6 +454,8 @@ final class LoopbackCloudDriveOAuthClient
     try {
       final fields = <String, String>{
         'client_id': _config.clientId,
+        if (_config.clientSecret case final clientSecret?)
+          'client_secret': clientSecret,
         'refresh_token': refreshToken,
         'grant_type': 'refresh_token',
         'scope': _config.scopes.join(' '),
@@ -593,6 +597,10 @@ final class LoopbackCloudDriveOAuthClient
 
   CloudDriveOAuthException _mapHttpError(OAuthHttpException error) {
     var description = error.description?.replaceAll(RegExp(r'[\r\n]+'), ' ');
+    final clientSecret = _config.clientSecret;
+    if (description != null && clientSecret != null) {
+      description = description.replaceAll(clientSecret, '[redacted]');
+    }
     if (description != null && description.length > 300) {
       description = '${description.substring(0, 300)}…';
     }

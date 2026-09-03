@@ -15,7 +15,6 @@ import '../../router/app_routes.dart';
 import 'agent_image_observation_ledger.dart';
 import 'agent_resource_resolver.dart';
 import 'application_toolbox.dart';
-import 'display_images_toolbox.dart';
 import 'execution_toolbox.dart';
 import 'gallery_toolbox.dart';
 import 'generation_image_favorite_toolbox.dart';
@@ -27,6 +26,7 @@ import 'generation_resource_toolbox.dart';
 import 'generation_toolbox.dart';
 import 'image_resource_action_service.dart';
 import 'image_resource_action_toolbox.dart';
+import 'image_presentation_toolbox.dart';
 import 'manual_inpaint_toolbox.dart';
 import 'prompt_toolbox.dart';
 import 'queue_toolbox.dart';
@@ -149,7 +149,7 @@ class AgentToolRegistryBuilder {
     );
     final imageActionService = ImageResourceActionService(
       resolve: (reference) async {
-        await resourceResolver.validateForDisplay(reference);
+        await resourceResolver.validateImageResource(reference);
         final resolved = await resourceResolver.resolve(reference);
         final bytes = resolved?.bytes;
         return resolved == null || bytes == null
@@ -204,7 +204,7 @@ class AgentToolRegistryBuilder {
       ).tools(),
       ...GalleryToolbox(_ref).tools(),
       ...ReferenceLibraryToolbox(_ref, resourceResolver).tools(),
-      ...DisplayImagesToolbox(resourceResolver).tools(),
+      ...ImagePresentationToolbox(resourceResolver).tools(),
       ...GenerationResourceToolbox(_ref).tools(),
       ...GenerationImageWorkflowToolbox(workflowService).tools(),
       ...GenerationImageFavoriteToolbox(_ref).tools(),

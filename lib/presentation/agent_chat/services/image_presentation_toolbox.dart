@@ -9,31 +9,38 @@ import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
 import 'generation_image_resource.dart';
 
-typedef DisplayImageResourceResolver =
+typedef AgentImageResourceResolver =
     Future<ResolvedAgentResource?> Function(
       AgentChatResourceReference reference,
     );
-typedef DisplayImageResourceValidator =
+typedef AgentImageResourceValidator =
     Future<void> Function(AgentChatResourceReference reference);
 
-/// Resolves stable application-owned image references into bounded previews.
-class DisplayImagesService {
-  DisplayImagesService({
-    required DisplayImageResourceResolver resolve,
-    DisplayImageResourceValidator? validate,
+enum AgentImagePresentation { modelOnly, conversation }
+
+/// Resolves application-owned image references for either private inspection
+/// by the model or explicit presentation in the conversation.
+class AgentImagePresentationService {
+  AgentImagePresentationService({
+    required AgentImageResourceResolver resolve,
+    AgentImageResourceValidator? validate,
   }) : _resolve = resolve,
        _validate = validate;
 
-  factory DisplayImagesService.fromResolver(AgentResourceResolver resolver) =>
-      DisplayImagesService(
-        resolve: resolver.resolve,
-        validate: resolver.validateForDisplay,
-      );
+  factory AgentImagePresentationService.fromResolver(
+    AgentResourceResolver resolver,
+  ) => AgentImagePresentationService(
+    resolve: resolver.resolve,
+    validate: resolver.validateImageResource,
+  );
 
-  final DisplayImageResourceResolver _resolve;
-  final DisplayImageResourceValidator? _validate;
+  final AgentImageResourceResolver _resolve;
+  final AgentImageResourceValidator? _validate;
 
-  Future<AgentToolResult> display(Map<String, dynamic> args) async {
+  Future<AgentToolResult> present(
+    Map<String, dynamic> args, {
+    required AgentImagePresentation presentation,
+  }) async {
     final values = args['resource_refs'];
     if (values is! List || values.isEmpty || values.length > 12) {
       return agentToolError(
@@ -118,9 +125,14 @@ class DisplayImagesService {
       ));
     }
 
+    final userVisible = presentation == AgentImagePresentation.conversation;
     final details = <String, dynamic>{
       'ok': true,
+      'media_presentation': userVisible ? 'conversation' : 'model_only',
+      'user_visible': userVisible,
       'count': previews.length,
+      if (userVisible) 'displayed_count': previews.length,
+      if (!userVisible) 'inspected_count': previews.length,
       'images': [
         for (final preview in previews)
           {
@@ -149,38 +161,55 @@ class DisplayImagesService {
   }
 }
 
-/// Read-only display contract; it cannot resolve paths or arbitrary URLs.
-class DisplayImagesToolbox {
-  DisplayImagesToolbox(AgentResourceResolver resolver)
-    : service = DisplayImagesService.fromResolver(resolver);
+class ImagePresentationToolbox {
+  ImagePresentationToolbox(AgentResourceResolver resolver)
+    : service = AgentImagePresentationService.fromResolver(resolver);
 
-  DisplayImagesToolbox.withService(this.service);
+  ImagePresentationToolbox.withService(this.service);
 
-  final DisplayImagesService service;
+  final AgentImagePresentationService service;
 
   List<AgentTool> tools() => [
+    DefinedAgentTool(
+      name: 'inspect_images',
+      label: 'Inspect Images',
+      description:
+          'Privately inspect 1-12 images from stable resource_ref objects. '
+          'The model receives the images, but they are NOT shown to the user. '
+          'The result reports user_visible=false. Use display_images instead '
+          'whenever the user should see the images.',
+      parameters: _parameters,
+      executeFn: (_, args) =>
+          service.present(args, presentation: AgentImagePresentation.modelOnly),
+    ),
     DefinedAgentTool(
       name: 'display_images',
       label: 'Display Images',
       description:
-          'The only explicit multi-image display tool. Display 1-12 images from '
-          'stable resource_ref objects returned by application image tools. Use '
-          'when the user asks to see retrieved images; preserve the selected '
-          'references and order. onlineGalleryMedia references render as '
-          'interactive gallery cards. Paths and arbitrary URLs are not accepted.',
-      parameters: const {
-        'type': 'object',
-        'properties': {
-          'resource_refs': {
-            'type': 'array',
-            'minItems': 1,
-            'maxItems': 12,
-            'items': {'type': 'object'},
-          },
-        },
-        'required': ['resource_refs'],
-      },
-      executeFn: (_, args) => service.display(args),
+          'Show 1-12 images in the conversation from stable resource_ref '
+          'objects returned by application image tools. Use this whenever the '
+          'user asks to see retrieved images. The result reports '
+          'user_visible=true only after the images are available to the user. '
+          'Paths and arbitrary URLs are not accepted.',
+      parameters: _parameters,
+      executeFn: (_, args) => service.present(
+        args,
+        presentation: AgentImagePresentation.conversation,
+      ),
     ),
   ];
 }
+
+const Map<String, dynamic> _parameters = {
+  'type': 'object',
+  'properties': {
+    'resource_refs': {
+      'type': 'array',
+      'minItems': 1,
+      'maxItems': 12,
+      'items': {'type': 'object'},
+    },
+  },
+  'required': ['resource_refs'],
+  'additionalProperties': false,
+};

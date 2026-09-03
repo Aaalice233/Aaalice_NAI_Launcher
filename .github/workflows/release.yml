@@ -245,6 +245,7 @@ jobs:
         shell: pwsh
         env:
           GOOGLE_DRIVE_WINDOWS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_WINDOWS_CLIENT_ID }}
+          GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET }}
           GOOGLE_DRIVE_WINDOWS_REDIRECT_URI: http://127.0.0.1
           ONEDRIVE_WINDOWS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
           ONEDRIVE_WINDOWS_REDIRECT_URI: http://127.0.0.1
@@ -255,11 +256,13 @@ jobs:
         shell: pwsh
         env:
           GOOGLE_DRIVE_WINDOWS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_WINDOWS_CLIENT_ID }}
+          GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET }}
           ONEDRIVE_WINDOWS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
           ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
         run: |
           flutter build windows --release --no-pub `
             "--dart-define=GOOGLE_DRIVE_WINDOWS_CLIENT_ID=$env:GOOGLE_DRIVE_WINDOWS_CLIENT_ID" `
+            "--dart-define=GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET=$env:GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET" `
             "--dart-define=GOOGLE_DRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1" `
             "--dart-define=ONEDRIVE_WINDOWS_CLIENT_ID=$env:ONEDRIVE_WINDOWS_CLIENT_ID" `
             "--dart-define=ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1" `

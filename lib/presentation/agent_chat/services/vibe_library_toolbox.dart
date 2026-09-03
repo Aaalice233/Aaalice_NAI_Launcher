@@ -1,9 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/display_thumbnail_utils.dart';
@@ -26,7 +23,6 @@ class VibeLibraryToolbox {
     _get(),
     _create(),
     _update(),
-    _preview(),
     _apply(),
     _removeActive(),
     _delete(),
@@ -223,47 +219,6 @@ class VibeLibraryToolbox {
       }
       final updated = await _entry(id);
       return agentToolJsonResult({'ok': true, 'entry': _entryJson(updated!)});
-    },
-  );
-
-  DefinedAgentTool _preview() => DefinedAgentTool(
-    name: 'preview_vibe_library_entry',
-    label: 'Preview Vibe Library Entry',
-    description:
-        'Return the bounded Vibe thumbnail without exposing its encoding.',
-    parameters: _idSchema,
-    executeFn: (_, params) async {
-      final entry = await _entry(params['entry_id'] as String);
-      if (entry == null) {
-        return agentToolError('not_found', 'Vibe entry not found.');
-      }
-      final bytes =
-          entry.thumbnail ?? entry.vibeThumbnail ?? entry.rawImageData;
-      if (bytes == null) {
-        return agentToolError('preview_unavailable', 'Vibe has no preview.');
-      }
-      final thumbnail = await DisplayThumbnailUtils.normalize(bytes);
-      final mime = thumbnail == null
-          ? null
-          : detectSupportedImageMimeType(thumbnail);
-      if (thumbnail == null || mime == null) {
-        return agentToolError('preview_invalid', 'Vibe preview is invalid.');
-      }
-      final details = <String, dynamic>{'ok': true, 'entry': _entryJson(entry)};
-      return AgentToolResult(
-        content: [
-          ToolResultTextContent(jsonEncode(details)),
-          ToolResultImageContent(
-            ImageContent(
-              source: ImageSource.base64(
-                mimeType: mime,
-                base64Data: base64Encode(thumbnail),
-              ),
-            ),
-          ),
-        ],
-        details: details,
-      );
     },
   );
 

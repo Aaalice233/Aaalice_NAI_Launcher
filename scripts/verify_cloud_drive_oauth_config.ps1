@@ -13,6 +13,9 @@ $keys = @(
     "ONEDRIVE_$($Platform.ToUpperInvariant())_REDIRECT_URI",
     'ONEDRIVE_TENANT_ID'
 )
+if ($Platform -eq 'windows') {
+    $keys += 'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET'
+}
 $dartArgs = @()
 foreach ($key in $keys) {
     $value = [Environment]::GetEnvironmentVariable($key)

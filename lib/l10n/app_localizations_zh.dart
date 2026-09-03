@@ -1091,6 +1091,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_toolRecentImages => '查看最近图片';
 
   @override
+  String get agentChat_toolInspectImages => '检查图片';
+
+  @override
   String get agentChat_toolDisplayImages => '展示图片';
 
   @override
@@ -14903,6 +14906,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolRecentImages => '檢視最近圖片';
+
+  @override
+  String get agentChat_toolInspectImages => '檢查圖片';
 
   @override
   String get agentChat_toolDisplayImages => '展示圖片';

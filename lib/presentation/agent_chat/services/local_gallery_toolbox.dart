@@ -1,30 +1,22 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/database/database_providers.dart';
-import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../providers/local_gallery_provider.dart';
 import 'defined_agent_tool.dart';
 import 'toolbox_json.dart';
 
-/// Indexed local-gallery search, metadata, preview, and favorite tools.
+/// Indexed local-gallery search, metadata, and favorite tools.
 class LocalGalleryToolbox {
   LocalGalleryToolbox(this._ref);
 
   final Ref _ref;
 
-  List<AgentTool> tools() => [
-    _search(),
-    _detail(),
-    _preview(),
-    _toggleFavorite(),
-  ];
+  List<AgentTool> tools() => [_search(), _detail(), _toggleFavorite()];
 
   DefinedAgentTool _search() => DefinedAgentTool(
     name: 'search_local_gallery',
@@ -148,6 +140,14 @@ class LocalGalleryToolbox {
       return agentToolJsonResult({
         'ok': true,
         'image_id': data.id,
+        'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+          AgentChatResourceReference(
+            kind: AgentChatResourceKind.localGalleryImage,
+            source: 'local_gallery',
+            resourceId: '${data.id}',
+            display: {'title': data.record!.fileName},
+          ),
+        ),
         'name': data.record!.fileName,
         'size': data.record!.fileSize,
         'width': data.record!.width,
@@ -171,47 +171,6 @@ class LocalGalleryToolbox {
         'software': metadata?.software,
         'version': metadata?.version,
       });
-    },
-  );
-
-  DefinedAgentTool _preview() => DefinedAgentTool(
-    name: 'preview_local_gallery_image',
-    label: 'Preview Local Gallery Image',
-    description:
-        'Return a bounded preview for a local image without revealing its file path.',
-    parameters: _identitySchema,
-    executeFn: (_, params) async {
-      final data = await _load(params['image_id'] as int);
-      if (data.error != null) return data.error!;
-      final thumbnail = await DisplayThumbnailUtils.normalize(
-        await File(data.record!.filePath).readAsBytes(),
-      );
-      if (thumbnail == null) {
-        return agentToolError('preview_invalid', 'Image preview is invalid.');
-      }
-      final mime = detectSupportedImageMimeType(thumbnail);
-      if (mime == null) {
-        return agentToolError('preview_invalid', 'Unsupported preview format.');
-      }
-      final details = <String, dynamic>{
-        'ok': true,
-        'image_id': data.id,
-        'name': data.record!.fileName,
-      };
-      return AgentToolResult(
-        content: [
-          ToolResultTextContent(jsonEncode(details)),
-          ToolResultImageContent(
-            ImageContent(
-              source: ImageSource.base64(
-                mimeType: mime,
-                base64Data: base64Encode(thumbnail),
-              ),
-            ),
-          ),
-        ],
-        details: details,
-      );
     },
   );
 

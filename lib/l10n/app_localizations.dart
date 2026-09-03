@@ -2153,6 +2153,12 @@ abstract class AppLocalizations {
   /// **'View recent images'**
   String get agentChat_toolRecentImages;
 
+  /// No description provided for @agentChat_toolInspectImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Inspect images'**
+  String get agentChat_toolInspectImages;
+
   /// No description provided for @agentChat_toolDisplayImages.
   ///
   /// In en, this message translates to:

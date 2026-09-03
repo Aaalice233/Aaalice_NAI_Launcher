@@ -418,6 +418,7 @@
   "agentChat_toolQueueImageTask": "画像タスクをキューに追加",
   "agentChat_toolInterrogateImage": "画像プロンプトを解析",
   "agentChat_toolRecentImages": "最近の画像を表示",
+  "agentChat_toolInspectImages": "画像を確認",
   "agentChat_toolDisplayImages": "画像を表示",
   "agentChat_toolResult": "結果",
   "agentChat_toolGenerationStatus": "生成状態を確認",

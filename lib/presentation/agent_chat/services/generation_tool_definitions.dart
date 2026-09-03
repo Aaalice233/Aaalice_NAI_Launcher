@@ -369,24 +369,6 @@ class GenerationToolDefinitions {
         executeFn: (_, params) => _history.recentImages(params),
       ),
       DefinedAgentTool(
-        name: 'preview_generated_image',
-        label: 'Preview Generated Image',
-        description:
-            'Resolve one generated image by stable resource_ref (preferred) '
-            'or stable image_id and return a bounded preview without exposing '
-            'its saved file path. List indexes and paths are not accepted.',
-        parameters: const {
-          'type': 'object',
-          'properties': {
-            'resource_ref': {'type': 'object'},
-            'image_id': {'type': 'string'},
-          },
-          'required': <String>[],
-          'additionalProperties': false,
-        },
-        executeFn: (_, params) => _history.previewGeneratedImage(params),
-      ),
-      DefinedAgentTool(
         name: 'get_generation_settings',
         label: 'Get Generation Settings',
         description:

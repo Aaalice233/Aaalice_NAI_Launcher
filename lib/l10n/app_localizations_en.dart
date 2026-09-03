@@ -1126,6 +1126,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_toolRecentImages => 'View recent images';
 
   @override
+  String get agentChat_toolInspectImages => 'Inspect images';
+
+  @override
   String get agentChat_toolDisplayImages => 'Display images';
 
   @override

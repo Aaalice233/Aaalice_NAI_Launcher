@@ -40,7 +40,6 @@ class GenerationToolbox {
     final imageReadContract = GenerationImageReadContract(pathResolver);
     final history = GenerationHistoryService(
       ref,
-      resourceResolver: resolver,
       imageReadContract: imageReadContract,
       maxRecentImageLimit: maxRecentImageLimit,
     );
@@ -99,8 +98,5 @@ class GenerationToolbox {
   late final GenerationToolDefinitions _definitions;
   late final GenerationSourceImageToolbox _sourceImage;
 
-  List<AgentTool> tools() => [
-    ..._definitions.tools(),
-    ..._sourceImage.tools(),
-  ];
+  List<AgentTool> tools() => [..._definitions.tools(), ..._sourceImage.tools()];
 }

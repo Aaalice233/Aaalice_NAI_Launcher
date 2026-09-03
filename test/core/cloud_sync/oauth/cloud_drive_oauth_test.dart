@@ -77,6 +77,10 @@ void main() {
       );
       expect(
         diagnostic.reasons.join(' '),
+        contains('GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET'),
+      );
+      expect(
+        diagnostic.reasons.join(' '),
         contains('GOOGLE_DRIVE_WINDOWS_REDIRECT_URI'),
       );
     });
@@ -154,6 +158,7 @@ void main() {
         platform: CloudDriveOAuthPlatform.windows,
         values: {
           'GOOGLE_DRIVE_WINDOWS_CLIENT_ID': 'client-id',
+          'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET': 'desktop-client-secret',
           'GOOGLE_DRIVE_WINDOWS_REDIRECT_URI': 'http://localhost:8080',
         },
       );
@@ -635,7 +640,34 @@ void main() {
       expect(receiver.waitCalls, 1);
       expect(receiver.closed, isTrue);
       expect(transport.lastForm, containsPair('code_verifier', isNotEmpty));
-      expect(transport.lastForm, isNot(contains('client_secret')));
+      expect(
+        transport.lastForm,
+        containsPair('client_secret', 'desktop-client-secret'),
+      );
+    });
+
+    test('includes Google desktop client secret when refreshing', () async {
+      final transport = _FakeTransport(
+        tokenResponse: () => {
+          'access_token': 'new-access',
+          'expires_in': 3600,
+          'token_type': 'Bearer',
+        },
+      );
+      final client = LoopbackCloudDriveOAuthClient(
+        config: _windowsConfig(
+          CloudDriveOAuthProvider.googleDrive,
+        ).requireProvider(CloudDriveOAuthProvider.googleDrive),
+        transport: transport,
+        clock: () => now,
+      );
+
+      await client.refresh(_session(now: now));
+
+      expect(
+        transport.lastForm,
+        containsPair('client_secret', 'desktop-client-secret'),
+      );
     });
 
     test(
@@ -763,6 +795,8 @@ CloudDriveOAuthConfig _windowsConfig(
     platform: CloudDriveOAuthPlatform.windows,
     values: {
       '${prefix}_WINDOWS_CLIENT_ID': 'client-id',
+      if (provider == CloudDriveOAuthProvider.googleDrive)
+        'GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET': 'desktop-client-secret',
       '${prefix}_WINDOWS_REDIRECT_URI': 'http://127.0.0.1',
       ...extras,
     },

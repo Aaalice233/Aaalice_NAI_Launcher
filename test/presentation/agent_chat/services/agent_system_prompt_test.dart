@@ -12,7 +12,7 @@ void main() {
     expect(
       prompt,
       contains(
-        'Do not call get_recent_images, read, preview_generated_image, or '
+        'Do not call get_recent_images, read, inspect_images, or '
         'display_images merely to inspect or repeat that same output.',
       ),
     );
@@ -24,13 +24,12 @@ void main() {
         'coordinates for create_inpaint_mask.',
       ),
     );
-    // 量坐标必须走 read：预览通道是 256px，够看不够量。
+    // 量坐标必须走 read：图片展示通道是缩略图，够看不够量。
     expect(
       prompt,
       contains(
-        'display_images and preview_generated_image return small previews '
-        'meant for the user to look at, and are too coarse to measure a '
-        'region from.',
+        'inspect_images and display_images return small previews that are too '
+        'coarse to measure a region from.',
       ),
     );
     expect(
@@ -45,6 +44,29 @@ void main() {
       contains(
         'Never turn resource_ref/resourceId into a path, filename, or '
         'extension.',
+      ),
+    );
+  });
+
+  test('distinguishes private inspection from user-visible display', () {
+    final prompt = buildAgentSystemPrompt(
+      workspacePath: 'C:/exports',
+      webAccessEnabled: false,
+      skillBlock: '',
+    );
+
+    expect(
+      prompt,
+      contains(
+        'inspect_images is private visual inspection: the model receives the '
+        'images but the user does not.',
+      ),
+    );
+    expect(
+      prompt,
+      contains(
+        'Do not say or imply that the user can see an image unless '
+        'display_images succeeded with user_visible=true',
       ),
     );
   });

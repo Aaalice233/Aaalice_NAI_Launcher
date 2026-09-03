@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +7,6 @@ import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../../data/models/tag_library/tag_library_category.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../data/services/tag_library_portable_thumbnail_store.dart';
@@ -51,14 +48,13 @@ class TagLibraryToolbox {
   static TagLibraryImageResourceLoader _validatedResourceLoader(
     AgentResourceResolver resolver,
   ) => (reference) async {
-    await resolver.validateForDisplay(reference);
+    await resolver.validateImageResource(reference);
     return resolver.resolve(reference);
   };
 
   List<AgentTool> tools() => [
     _listEntries(),
     _getEntry(),
-    _previewEntry(),
     _createEntry(),
     _updateEntry(),
     _toggleFavorite(),
@@ -130,53 +126,6 @@ class TagLibraryToolbox {
               'ok': true,
               'entry': _entryJson(entry, state.categories),
             });
-    },
-  );
-
-  DefinedAgentTool _previewEntry() => DefinedAgentTool(
-    name: 'preview_tag_library_entry',
-    label: 'Preview Tag Library Entry',
-    description:
-        'Inspect an entry and its bounded thumbnail without exposing a local path.',
-    parameters: _idSchema,
-    executeFn: (_, params) async {
-      final state = _ref.read(tagLibraryPageNotifierProvider);
-      final entry = _entry(params['entry_id'] as String);
-      if (entry == null) {
-        return agentToolError('not_found', 'Tag library entry not found.');
-      }
-      final details = <String, dynamic>{
-        'ok': true,
-        'entry': _entryJson(entry, state.categories),
-      };
-      final content = <ToolResultContent>[
-        ToolResultTextContent(jsonEncode(details)),
-      ];
-      final thumbnailPath = entry.thumbnail;
-      if (thumbnailPath != null && thumbnailPath.isNotEmpty) {
-        final file = File(thumbnailPath);
-        if (await file.exists()) {
-          final thumbnail = await DisplayThumbnailUtils.normalize(
-            await file.readAsBytes(),
-          );
-          final mime = thumbnail == null
-              ? null
-              : detectSupportedImageMimeType(thumbnail);
-          if (thumbnail != null && mime != null) {
-            content.add(
-              ToolResultImageContent(
-                ImageContent(
-                  source: ImageSource.base64(
-                    mimeType: mime,
-                    base64Data: base64Encode(thumbnail),
-                  ),
-                ),
-              ),
-            );
-          }
-        }
-      }
-      return AgentToolResult(content: content, details: details);
     },
   );
 

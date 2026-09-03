@@ -426,6 +426,7 @@
   "agentChat_toolQueueImageTask": "Queue image task",
   "agentChat_toolInterrogateImage": "Analyze image prompt",
   "agentChat_toolRecentImages": "View recent images",
+  "agentChat_toolInspectImages": "Inspect images",
   "agentChat_toolDisplayImages": "Display images",
   "agentChat_toolResult": "Result",
   "agentChat_toolGenerationStatus": "Check generation status",

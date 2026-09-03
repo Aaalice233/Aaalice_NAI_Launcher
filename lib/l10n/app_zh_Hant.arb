@@ -406,6 +406,7 @@
   "agentChat_toolQueueImageTask": "新增圖片任務",
   "agentChat_toolInterrogateImage": "反推圖片提示詞",
   "agentChat_toolRecentImages": "檢視最近圖片",
+  "agentChat_toolInspectImages": "檢查圖片",
   "agentChat_toolDisplayImages": "展示圖片",
   "agentChat_toolResult": "結果",
   "agentChat_toolGenerationStatus": "檢視生成狀態",

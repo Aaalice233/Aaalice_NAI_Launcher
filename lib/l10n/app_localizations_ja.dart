@@ -1108,6 +1108,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_toolRecentImages => '最近の画像を表示';
 
   @override
+  String get agentChat_toolInspectImages => '画像を確認';
+
+  @override
   String get agentChat_toolDisplayImages => '画像を表示';
 
   @override

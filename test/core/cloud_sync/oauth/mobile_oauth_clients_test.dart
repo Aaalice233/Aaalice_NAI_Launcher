@@ -13,6 +13,7 @@ void main() {
     provider: CloudDriveOAuthProvider.oneDrive,
     platform: CloudDriveOAuthPlatform.android,
     clientId: clientId,
+    clientSecret: null,
     redirectUri: Uri.parse(
       'com.aaalice.nailauncher.oauth://oauth2redirect/microsoft',
     ),

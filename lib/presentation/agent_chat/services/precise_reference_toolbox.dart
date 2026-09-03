@@ -1,14 +1,11 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/enums/precise_ref_type.dart';
-import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../providers/precise_ref_library_provider.dart';
@@ -27,7 +24,6 @@ class PreciseReferenceToolbox {
     _get(),
     _create(),
     _update(),
-    _preview(),
     _apply(),
     _removeActive(),
     _delete(),
@@ -189,56 +185,6 @@ class PreciseReferenceToolbox {
         'ok': true,
         'entry': _entryJson((await _entry(id))!),
       });
-    },
-  );
-
-  DefinedAgentTool _preview() => DefinedAgentTool(
-    name: 'preview_precise_reference_entry',
-    label: 'Preview Precise Reference Entry',
-    description: 'Return a bounded preview for a precise-reference entry.',
-    parameters: _idSchema,
-    executeFn: (_, params) async {
-      final entry = await _entry(params['entry_id'] as String);
-      if (entry == null) {
-        return agentToolError(
-          'not_found',
-          'Precise-reference entry not found.',
-        );
-      }
-      final file = File(entry.imagePath);
-      if (!await file.exists()) {
-        return agentToolError(
-          'resource_unavailable',
-          'Reference image is unavailable.',
-        );
-      }
-      final thumbnail = await DisplayThumbnailUtils.normalize(
-        await file.readAsBytes(),
-      );
-      final mime = thumbnail == null
-          ? null
-          : detectSupportedImageMimeType(thumbnail);
-      if (thumbnail == null || mime == null) {
-        return agentToolError(
-          'preview_invalid',
-          'Reference preview is invalid.',
-        );
-      }
-      final details = <String, dynamic>{'ok': true, 'entry': _entryJson(entry)};
-      return AgentToolResult(
-        content: [
-          ToolResultTextContent(jsonEncode(details)),
-          ToolResultImageContent(
-            ImageContent(
-              source: ImageSource.base64(
-                mimeType: mime,
-                base64Data: base64Encode(thumbnail),
-              ),
-            ),
-          ),
-        ],
-        details: details,
-      );
     },
   );
 

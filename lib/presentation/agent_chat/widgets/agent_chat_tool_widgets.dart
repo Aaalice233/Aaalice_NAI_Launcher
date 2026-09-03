@@ -46,6 +46,7 @@ String agentToolLabel(BuildContext context, String toolName) {
     'queue_image_task' => l10n.agentChat_toolQueueImageTask,
     'interrogate_image' => l10n.agentChat_toolInterrogateImage,
     'get_recent_images' => l10n.agentChat_toolRecentImages,
+    'inspect_images' => l10n.agentChat_toolInspectImages,
     'display_images' => l10n.agentChat_toolDisplayImages,
     'get_generation_status' => l10n.agentChat_toolGenerationStatus,
     'get_generation_settings' => l10n.agentChat_toolGetGenerationSettings,
@@ -111,6 +112,7 @@ IconData agentToolIcon(String toolName) => switch (toolName) {
   'get_recent_images' ||
   'preview_generated_image' ||
   'get_generation_status' => Icons.image_search_outlined,
+  'inspect_images' => Icons.visibility_outlined,
   'display_images' => Icons.photo_library_outlined,
   'get_generation_settings' || 'update_generation_settings' => Icons.tune,
   String() when toolName.contains('generation_source') =>
