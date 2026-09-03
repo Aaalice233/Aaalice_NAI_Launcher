@@ -7,6 +7,7 @@ import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/prompt/random_prompt_result.dart';
 import '../../../../data/services/random_prompt_generator.dart';
 import '../../../providers/random_preset_provider.dart';
+import '../../../themes/core/layered_surface_style.dart';
 import '../../common/app_toast.dart';
 
 class PreviewGeneratorController {
@@ -157,7 +158,7 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
     return Container(
       key: const ValueKey('random-manager-preview-panel'),
       decoration: BoxDecoration(
-        color: colors.surfaceContainer,
+        color: sectionSurfaceColor(colors),
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
@@ -433,7 +434,7 @@ class _PromptOutputBlock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.surfaceContainerLow,
+        color: controlSurfaceColor(colors),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(

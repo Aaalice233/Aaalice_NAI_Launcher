@@ -36,11 +36,13 @@ void main() {
         expect(tester.takeException(), isNull);
 
         if (width == 1600) {
-          await tester.tap(find.text('混合 · Character Prompts + Catalog'));
+          await tester.tap(
+            find.byKey(const ValueKey('random-manager-source-status')),
+          );
           await tester.pumpAndSettle();
 
           expect(
-            find.byKey(const ValueKey('adaptive-side-sheet')),
+            find.byKey(const ValueKey('adaptive-centered-form')),
             findsOneWidget,
           );
           expect(find.byType(AlertDialog), findsNothing);
@@ -70,10 +72,15 @@ void main() {
 
       expect(find.text(scenario.$2), findsOneWidget);
       expect(find.text(scenario.$3), findsOneWidget);
-      await tester.tap(find.text(scenario.$2));
+      await tester.tap(
+        find.byKey(const ValueKey('random-manager-source-status')),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('adaptive-centered-form')),
+        findsOneWidget,
+      );
       expect(find.byType(AlertDialog), findsNothing);
       expect(
         find.text('https://example.com/catalog.csv'),

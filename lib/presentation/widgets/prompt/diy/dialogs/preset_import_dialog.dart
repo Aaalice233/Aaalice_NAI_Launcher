@@ -5,9 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import '../../../../widgets/common/app_toast.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
-import 'package:nai_launcher/presentation/widgets/common/elevated_card.dart';
 
 /// 预设导入/导出弹窗
 ///
@@ -162,10 +162,12 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
             padding: const EdgeInsets.all(16),
             children: [
               if (widget.isExport) ...[
-                ElevatedCard(
-                  elevation: CardElevation.level1,
-                  borderRadius: 10,
+                Container(
                   padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: sectionSurfaceColor(colorScheme),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   child: Row(
                     children: [
                       Icon(
@@ -245,11 +247,12 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
               ],
               if (!widget.isExport && _previewPreset != null) ...[
                 const SizedBox(height: 16),
-                ElevatedCard(
-                  elevation: CardElevation.level2,
-                  borderRadius: 12,
-                  gradientBorder: CardGradients.primary(colorScheme),
+                Container(
                   padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

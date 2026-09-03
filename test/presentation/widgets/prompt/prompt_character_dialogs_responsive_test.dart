@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/shortcuts/default_shortcuts.dart';
+import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/data/models/prompt/prompt_regex_rule.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/prompt_regex_rules_provider.dart';
+import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/add_to_library_dialog.dart';
-import 'package:nai_launcher/presentation/widgets/prompt/random_manager/keyboard_shortcuts.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/regex_rules_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_help_dialog.dart';
 
 void main() {
   testWidgets(
@@ -23,6 +26,17 @@ void main() {
           overrides: [
             promptRegexRulesProvider.overrideWith(_EmptyRegexRules.new),
             tagLibraryPageCategoriesProvider.overrideWith((ref) => const []),
+            shortcutsByContextProvider.overrideWith(
+              (ref) => const {
+                ShortcutContext.global: [
+                  ShortcutBinding(
+                    id: 'responsive-test',
+                    actionKey: 'responsive_test_action',
+                    defaultShortcut: 'Ctrl+Shift+Alt+G',
+                  ),
+                ],
+              },
+            ),
           ],
           child: MaterialApp(
             locale: const Locale('zh'),

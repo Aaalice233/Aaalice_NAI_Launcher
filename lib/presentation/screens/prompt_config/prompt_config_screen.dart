@@ -14,13 +14,17 @@ import '../../providers/random_mode_provider.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../themes/core/input_surface_style.dart';
+import '../../themes/core/layered_surface_style.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/prompt/diy/dialogs/preset_import_dialog.dart';
 import '../../widgets/prompt/global_settings_dialog.dart';
 import '../../widgets/prompt/random_manager/algorithm_config_card.dart';
-import '../../widgets/prompt/random_manager/category_card.dart';
+import '../../widgets/prompt/random_manager/category_card_list.dart';
 import '../../widgets/prompt/random_manager/preset_selector_bar.dart';
 import '../../widgets/prompt/random_manager/preview_generator_panel.dart';
+import 'prompt_source_details_dialog.dart';
+
+export 'prompt_source_details_dialog.dart' show PromptSourceDetailsDialog;
 
 class PromptConfigScreen extends ConsumerStatefulWidget {
   const PromptConfigScreen({super.key});
@@ -34,6 +38,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   final _searchFocusNode = FocusNode();
   final _previewController = PreviewGeneratorController();
   String _query = '';
+  int _compactSection = 0;
 
   @override
   void dispose() {
@@ -117,24 +122,28 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
         if (useExpandedPromptConfigLayout(constraints.maxWidth, textScale)) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _RecipeWorkspace(
-                  libraryState: libraryState,
-                  query: _query,
-                  searchController: _searchController,
-                  searchFocusNode: _searchFocusNode,
-                  onQueryChanged: _updateQuery,
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _RecipeWorkspace(
+                    libraryState: libraryState,
+                    query: _query,
+                    searchController: _searchController,
+                    searchFocusNode: _searchFocusNode,
+                    onQueryChanged: _updateQuery,
+                  ),
                 ),
-              ),
-              _InspectorPanel(
-                width: constraints.maxWidth >= 1500 ? 420 : 370,
-                onGlobalSettings: _showGlobalSettings,
-                previewController: _previewController,
-              ),
-            ],
+                const SizedBox(width: 16),
+                _InspectorPanel(
+                  width: constraints.maxWidth >= 1500 ? 420 : 370,
+                  onGlobalSettings: _showGlobalSettings,
+                  previewController: _previewController,
+                ),
+              ],
+            ),
           );
         }
 
@@ -146,6 +155,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           onQueryChanged: _updateQuery,
           onGlobalSettings: _showGlobalSettings,
           previewController: _previewController,
+          selectedSection: _compactSection,
+          onSectionSelected: (value) => setState(() => _compactSection = value),
         );
       },
     );
@@ -167,16 +178,18 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       maxChildSize: 0.62,
       builder: (context, scrollController) => ListView(
         controller: scrollController,
+        padding: const EdgeInsets.all(16),
         children: [
-          ListTile(
-            leading: const Icon(Icons.download_rounded),
+          _ImportExportActionCard(
+            icon: Icons.download_rounded,
             title: Text(context.l10n.randomManager_importPreset),
             subtitle: Text(context.l10n.randomManager_importPresetSubtitle),
             onTap: () => Navigator.pop(context, 'import'),
           ),
-          ListTile(
+          const SizedBox(height: 10),
+          _ImportExportActionCard(
             enabled: selectedPreset != null,
-            leading: const Icon(Icons.upload_rounded),
+            icon: Icons.upload_rounded,
             title: Text(context.l10n.randomManager_exportCurrentPreset),
             subtitle: Text(
               selectedPreset?.name ??
@@ -232,6 +245,78 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   }
 }
 
+class _ImportExportActionCard extends StatelessWidget {
+  const _ImportExportActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.enabled = true,
+  });
+
+  final IconData icon;
+  final Widget title;
+  final Widget subtitle;
+  final VoidCallback? onTap;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: Material(
+        color: sectionSurfaceColor(colors),
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: controlSurfaceColor(colors),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 21),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DefaultTextStyle.merge(
+                        style: Theme.of(context).textTheme.titleSmall,
+                        child: title,
+                      ),
+                      const SizedBox(height: 3),
+                      DefaultTextStyle.merge(
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                        child: subtitle,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: colors.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StudioHeader extends StatelessWidget {
   const _StudioHeader({required this.onImportExport});
 
@@ -244,7 +329,7 @@ class _StudioHeader extends StatelessWidget {
     final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     return Container(
       constraints: const BoxConstraints(minHeight: 72),
-      color: colors.surfaceContainerLow,
+      color: sectionSurfaceColor(colors),
       padding: EdgeInsets.symmetric(
         horizontal: textScale > 1.5 ? 12 : 20,
         vertical: 12,
@@ -310,22 +395,14 @@ class _RecipeWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _RecipeHeading(libraryState: libraryState),
-          const SizedBox(height: 16),
-          _LibrarySearchField(
-            query: query,
-            controller: searchController,
-            focusNode: searchFocusNode,
-            onChanged: onQueryChanged,
-          ),
-          const SizedBox(height: 18),
-          Expanded(child: CategoryCardList(query: query)),
-        ],
+    return CategoryCardList(
+      query: query,
+      overviewHeader: _RecipeOverviewHeader(
+        libraryState: libraryState,
+        query: query,
+        searchController: searchController,
+        searchFocusNode: searchFocusNode,
+        onQueryChanged: onQueryChanged,
       ),
     );
   }
@@ -340,6 +417,8 @@ class _CompactWorkspace extends StatelessWidget {
     required this.onQueryChanged,
     required this.onGlobalSettings,
     required this.previewController,
+    required this.selectedSection,
+    required this.onSectionSelected,
   });
 
   final TagLibraryState libraryState;
@@ -349,37 +428,71 @@ class _CompactWorkspace extends StatelessWidget {
   final ValueChanged<String> onQueryChanged;
   final VoidCallback onGlobalSettings;
   final PreviewGeneratorController previewController;
+  final int selectedSection;
+  final ValueChanged<int> onSectionSelected;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-      children: [
-        _RecipeHeading(libraryState: libraryState),
-        const SizedBox(height: 14),
-        _LibrarySearchField(
+    final pages = <Widget>[
+      CategoryCardList(
+        query: query,
+        overviewHeader: _RecipeOverviewHeader(
+          libraryState: libraryState,
           query: query,
-          controller: searchController,
-          focusNode: searchFocusNode,
-          onChanged: onQueryChanged,
+          searchController: searchController,
+          searchFocusNode: searchFocusNode,
+          onQueryChanged: onQueryChanged,
           showShortcutHint: false,
         ),
-        const SizedBox(height: 16),
-        const AlgorithmConfigCard(),
-        const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.tonalIcon(
-            onPressed: onGlobalSettings,
-            icon: const Icon(Icons.people_outline_rounded),
-            label: Text(context.l10n.randomManager_globalPeopleSettings),
+      ),
+      ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+        children: [
+          PreviewGeneratorPanel(controller: previewController, inline: true),
+        ],
+      ),
+      ListView(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+        children: [AlgorithmConfigCard(onGlobalSettings: onGlobalSettings)],
+      ),
+    ];
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          child: SegmentedButton<int>(
+            key: const ValueKey('random-manager-compact-sections'),
+            segments: [
+              ButtonSegment(
+                value: 0,
+                icon: const Icon(Icons.layers_outlined, size: 17),
+                label: Text(context.l10n.randomManager_recipeTitle),
+              ),
+              ButtonSegment(
+                value: 1,
+                icon: const Icon(Icons.preview_outlined, size: 17),
+                label: Text(context.l10n.randomManager_previewGeneration),
+              ),
+              ButtonSegment(
+                value: 2,
+                icon: const Icon(Icons.tune_rounded, size: 17),
+                label: Text(context.l10n.randomManager_inspectorTitle),
+              ),
+            ],
+            selected: {selectedSection},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) =>
+                onSectionSelected(selection.first),
+            style: const ButtonStyle(
+              visualDensity: VisualDensity(horizontal: -2, vertical: -1),
+            ),
           ),
         ),
-        const SizedBox(height: 14),
-        PreviewGeneratorPanel(controller: previewController, inline: true),
-        const SizedBox(height: 22),
-        CategoryCardList(query: query, shrinkWrap: true),
+        const SizedBox(height: 2),
+        Expanded(
+          child: IndexedStack(index: selectedSection, children: pages),
+        ),
       ],
     );
   }
@@ -398,40 +511,18 @@ class _InspectorPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Container(
+    return SizedBox(
       width: width,
-      color: colors.surfaceContainerLow,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final setup = <Widget>[
-            Text(
-              context.l10n.randomManager_inspectorTitle,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              context.l10n.randomManager_inspectorSubtitle,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-            ),
-            const SizedBox(height: 18),
-            const AlgorithmConfigCard(),
-            const SizedBox(height: 10),
-            FilledButton.tonalIcon(
-              onPressed: onGlobalSettings,
-              icon: const Icon(Icons.people_outline_rounded),
-              label: Text(context.l10n.randomManager_globalPeopleSettings),
-            ),
+            AlgorithmConfigCard(onGlobalSettings: onGlobalSettings),
             const SizedBox(height: 16),
           ];
           if (constraints.maxHeight < 620) {
             return ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+              padding: EdgeInsets.zero,
               children: [
                 ...setup,
                 PreviewGeneratorPanel(
@@ -442,7 +533,7 @@ class _InspectorPanel extends StatelessWidget {
             );
           }
           return Padding(
-            padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+            padding: EdgeInsets.zero,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -455,6 +546,42 @@ class _InspectorPanel extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _RecipeOverviewHeader extends StatelessWidget {
+  const _RecipeOverviewHeader({
+    required this.libraryState,
+    required this.query,
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.onQueryChanged,
+    this.showShortcutHint = true,
+  });
+
+  final TagLibraryState libraryState;
+  final String query;
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final ValueChanged<String> onQueryChanged;
+  final bool showShortcutHint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _RecipeHeading(libraryState: libraryState),
+        const SizedBox(height: 14),
+        _LibrarySearchField(
+          query: query,
+          controller: searchController,
+          focusNode: searchFocusNode,
+          onChanged: onQueryChanged,
+          showShortcutHint: showShortcutHint,
+        ),
+      ],
     );
   }
 }
@@ -606,19 +733,19 @@ class _LibraryStatusButton extends StatelessWidget {
     final supportedProfile = profile ?? RandomPromptProfile.characterPrompts;
     final officialCount = unsupported
         ? null
-        : _officialProfileCount(supportedProfile);
+        : randomPromptProfileCount(supportedProfile);
     final label = unsupported
         ? context.l10n.randomMode_unsupportedModel
         : switch (mode) {
             RandomGenerationMode.naiOfficial =>
               context.l10n.randomManager_sourceOfficial(
-                _officialProfileName(context, supportedProfile),
+                randomPromptProfileName(context, supportedProfile),
               ),
             RandomGenerationMode.custom =>
               context.l10n.randomManager_sourceCatalog,
             RandomGenerationMode.hybrid =>
               context.l10n.randomManager_sourceHybrid(
-                _officialProfileName(context, supportedProfile),
+                randomPromptProfileName(context, supportedProfile),
               ),
           };
     final count = unsupported
@@ -634,6 +761,7 @@ class _LibraryStatusButton extends StatelessWidget {
           ? context.l10n.randomMode_unsupportedModelHint
           : context.l10n.randomManager_sourceDetails,
       child: InkWell(
+        key: const ValueKey('random-manager-source-status'),
         onTap: unsupported
             ? null
             : () => _showSourceDetails(
@@ -696,167 +824,6 @@ Future<void> _showSourceDetails(
   profile: profile,
   officialData: officialData,
 );
-
-class PromptSourceDetailsDialog extends StatelessWidget {
-  const PromptSourceDetailsDialog({
-    super.key,
-    required this.library,
-    required this.mode,
-    required this.profile,
-    required this.officialData,
-    this.scrollController,
-  });
-
-  final TagLibrary library;
-  final RandomGenerationMode mode;
-  final RandomPromptProfile profile;
-  final OfficialWordlistData? officialData;
-  final ScrollController? scrollController;
-
-  static Future<void> show(
-    BuildContext context, {
-    required TagLibrary library,
-    required RandomGenerationMode mode,
-    required RandomPromptProfile profile,
-    required OfficialWordlistData? officialData,
-  }) => AdaptivePresenter.showForm<void>(
-    context: context,
-    title: context.l10n.randomManager_sourceDetails,
-    sideSheetWidth: 680,
-    builder: (context, scrollController) => PromptSourceDetailsDialog(
-      library: library,
-      mode: mode,
-      profile: profile,
-      officialData: officialData,
-      scrollController: scrollController,
-    ),
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    final includesOfficial = mode != RandomGenerationMode.custom;
-    final includesCatalog = mode != RandomGenerationMode.naiOfficial;
-    return ListView(
-      controller: scrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.all(20),
-      children: [
-        SelectionArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _SourceDetailRow(
-                label: context.l10n.randomManager_currentMode,
-                value: mode.getName(context.l10n),
-              ),
-              if (includesOfficial) ...[
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_officialWordlist,
-                  value: context.l10n.randomManager_officialWordlistCount(
-                    _officialProfileName(context, profile),
-                    _officialProfileCount(profile),
-                  ),
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_officialAsset,
-                  value: context.l10n.randomManager_officialAssetCount(
-                    officialWordlistTotalEntryCount,
-                    officialWordlistTotalGroupCount,
-                  ),
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceFile,
-                  value: officialData?.sourceFileName ?? '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceSha256,
-                  value: officialData?.sourceSha256 ?? '—',
-                ),
-              ],
-              if (includesCatalog) ...[
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceUrl,
-                  value: library.sourceUrl ?? '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceCommit,
-                  value: library.sourceCommit ?? '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceDate,
-                  value:
-                      library.sourceVersionDate?.toUtc().toIso8601String() ??
-                      '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_sourceLicense,
-                  value: library.sourceLicense ?? '—',
-                ),
-                _SourceDetailRow(
-                  label: context.l10n.randomManager_catalogExtension,
-                  value: context.l10n.randomManager_catalogCounts(
-                    library.sourceCatalogTagCount ?? 0,
-                    library.sourceCatalogAliasCount ?? 0,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.tonal(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.common_close),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-String _officialProfileName(
-  BuildContext context,
-  RandomPromptProfile profile,
-) => switch (profile) {
-  RandomPromptProfile.legacyAnime =>
-    context.l10n.randomManager_wordlistLegacyAnime,
-  RandomPromptProfile.furryV3 => context.l10n.randomManager_wordlistFurryV3,
-  RandomPromptProfile.characterPrompts =>
-    context.l10n.randomManager_wordlistCharacterPrompts,
-};
-
-int _officialProfileCount(RandomPromptProfile profile) =>
-    officialWordlistGeneratorEntryCounts[profile.name]!;
-
-class _SourceDetailRow extends StatelessWidget {
-  const _SourceDetailRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 3),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium),
-        ],
-      ),
-    );
-  }
-}
 
 class _LibraryLoadingState extends StatelessWidget {
   const _LibraryLoadingState();

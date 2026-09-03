@@ -7,6 +7,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
+import '../../../themes/core/layered_surface_style.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../../data/models/prompt/tag_category.dart';
 import '../diy/panels/conditional_branch_panel.dart';
@@ -28,6 +29,7 @@ class TagGroupCard extends ConsumerStatefulWidget {
     required this.presetId,
     this.isPresetDefault = false,
     this.onTap,
+    this.dragHandle,
   });
 
   final RandomTagGroup tagGroup;
@@ -36,6 +38,7 @@ class TagGroupCard extends ConsumerStatefulWidget {
   final String presetId;
   final bool isPresetDefault;
   final VoidCallback? onTap;
+  final Widget? dragHandle;
 
   @override
   ConsumerState<TagGroupCard> createState() => _TagGroupCardState();
@@ -69,8 +72,11 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
             curve: Curves.easeOutCubic,
             decoration: BoxDecoration(
               color: _isHovered
-                  ? colors.surfaceContainerHighest
-                  : colors.surfaceContainerHigh,
+                  ? Color.alphaBlend(
+                      colors.onSurface.withValues(alpha: 0.035),
+                      controlSurfaceColor(colors),
+                    )
+                  : controlSurfaceColor(colors),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Material(
@@ -85,11 +91,24 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
                     padding: const EdgeInsets.fromLTRB(12, 7, 4, 7),
                     child: Row(
                       children: [
-                        Icon(
-                          _sourceIcon(tagGroup.sourceType),
-                          size: 18,
-                          color: colors.onSurfaceVariant,
-                        ),
+                        if (widget.dragHandle != null)
+                          IconTheme(
+                            data: IconThemeData(
+                              size: 18,
+                              color: colors.onSurfaceVariant,
+                            ),
+                            child: SizedBox(
+                              width: 28,
+                              height: 40,
+                              child: Center(child: widget.dragHandle),
+                            ),
+                          )
+                        else
+                          Icon(
+                            _sourceIcon(tagGroup.sourceType),
+                            size: 18,
+                            color: colors.onSurfaceVariant,
+                          ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -278,40 +297,47 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
     AdaptivePresenter.showForm<void>(
       context: context,
       sideSheetWidth: 640,
-      titleBuilder: (panelContext) => Row(
-        children: [
-          Icon(
-            Icons.tune_rounded,
-            size: 20,
-            color: Theme.of(panelContext).colorScheme.primary,
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  panelContext.l10n.randomManager_editTagGroup,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(panelContext).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  panelContext.l10n.randomTagGroupName(widget.tagGroup),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(panelContext).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(panelContext).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+      titleBuilder: (panelContext) {
+        final compactTitle =
+            MediaQuery.textScalerOf(panelContext).scale(1) >= 2;
+        return Row(
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 20,
+              color: Theme.of(panelContext).colorScheme.primary,
             ),
-          ),
-        ],
-      ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    panelContext.l10n.randomManager_editTagGroup,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(panelContext).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  if (!compactTitle)
+                    Text(
+                      panelContext.l10n.randomTagGroupName(widget.tagGroup),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(panelContext).textTheme.bodySmall
+                          ?.copyWith(
+                            color: Theme.of(
+                              panelContext,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
       builder: (panelContext, scrollController) => _TagGroupEditDialog(
         tagGroup: widget.tagGroup,
         categoryId: widget.categoryId,
@@ -386,68 +412,84 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final compactTabs = MediaQuery.textScalerOf(context).scale(1) >= 2;
+
+    Widget editorTab(IconData icon, String label) {
+      if (compactTabs) {
+        return Tab(
+          icon: Tooltip(
+            message: label,
+            child: Icon(icon, size: 20, semanticLabel: label),
+          ),
+        );
+      }
+      return Tab(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 17),
+            const SizedBox(width: 8),
+            Text(label),
+          ],
+        ),
+      );
+    }
 
     return Column(
       children: [
-        TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          dividerColor: Colors.transparent,
-          indicatorSize: TabBarIndicatorSize.label,
-          tabs: [
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.tune_rounded, size: 17),
-                  const SizedBox(width: 8),
-                  Text(l10n.randomManager_basicTab),
-                ],
-              ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: sectionSurfaceColor(colorScheme),
+              borderRadius: BorderRadius.circular(10),
             ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.sell_outlined, size: 17),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.randomManager_tagsTab(
-                      ref.watch(groupTagCountProvider(_editingTagGroup)),
-                    ),
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.tab,
+              tabs: [
+                editorTab(Icons.tune_rounded, l10n.randomManager_basicTab),
+                editorTab(
+                  Icons.sell_outlined,
+                  l10n.randomManager_tagsTab(
+                    ref.watch(groupTagCountProvider(_editingTagGroup)),
                   ),
-                ],
-              ),
+                ),
+                editorTab(
+                  Icons.account_tree_outlined,
+                  l10n.randomManager_diyAbilitiesTab,
+                ),
+              ],
             ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.account_tree_outlined, size: 17),
-                  const SizedBox(width: 8),
-                  Text(l10n.randomManager_diyAbilitiesTab),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
         Expanded(
-          child: ColoredBox(
-            color: colorScheme.surfaceContainerLow,
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildBasicTab(context),
-                _buildTagsTab(context),
-                _buildDiyTab(context),
-              ],
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: sectionSurfaceColor(colorScheme),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildBasicTab(context),
+                  _buildTagsTab(context),
+                  _buildDiyTab(context),
+                ],
+              ),
             ),
           ),
         ),
         SafeArea(
           top: false,
-          child: Padding(
+          child: Container(
+            color: sectionSurfaceColor(colorScheme),
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             child: Wrap(
               alignment: WrapAlignment.end,
@@ -694,7 +736,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
+                color: controlSurfaceColor(colorScheme),
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
@@ -828,7 +870,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
+              color: controlSurfaceColor(colorScheme),
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
@@ -1165,6 +1207,7 @@ class _DiySectionState extends State<_DiySection> {
               ],
             );
             final action = FilledButton.tonal(
+              key: ValueKey('tag-group-diy-action-${widget.title}'),
               onPressed: widget.enabled ? widget.onEdit : widget.onAdd,
               child: Text(
                 widget.enabled

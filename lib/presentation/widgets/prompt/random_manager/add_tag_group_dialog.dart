@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
@@ -186,13 +187,24 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
             padding: EdgeInsets.zero,
             children: [
               _buildNameSection(context),
-              _buildSourceTabs(context),
-              if (_sourceTabIndex > 0) _buildSearchBar(context),
-              SizedBox(
-                height: tabHeight,
-                child: ColoredBox(
-                  color: colorScheme.surfaceContainerLow,
-                  child: _buildTabContent(context),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: sectionSurfaceColor(colorScheme),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      _buildSourceTabs(context),
+                      if (_sourceTabIndex > 0) _buildSearchBar(context),
+                      SizedBox(
+                        height: tabHeight,
+                        child: _buildTabContent(context),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               _buildFooter(context),
@@ -206,8 +218,13 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   Widget _buildNameSection(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: sectionSurfaceColor(colorScheme),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: [
           Expanded(
@@ -249,7 +266,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compactTabs =

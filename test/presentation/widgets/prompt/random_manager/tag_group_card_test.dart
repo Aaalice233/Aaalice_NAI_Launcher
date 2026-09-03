@@ -116,9 +116,15 @@ void main() {
     expect(find.text('编辑'), findsNWidgets(5));
     expect(tester.takeException(), isNull);
 
-    final firstEdit = find.text('编辑').first;
+    final firstEdit = find.byKey(const ValueKey('tag-group-diy-action-条件分支'));
     await tester.ensureVisible(firstEdit);
     await tester.pumpAndSettle();
+    expect(
+      firstEdit.hitTestable(),
+      findsOneWidget,
+      reason:
+          'action=${tester.getRect(firstEdit)} scroll=${tester.getRect(find.byType(SingleChildScrollView).last)}',
+    );
     await tester.tap(firstEdit);
     await tester.pumpAndSettle();
 

@@ -5,6 +5,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
+import '../../../themes/core/layered_surface_style.dart';
 import 'category_card.dart';
 
 class CategoryCardList extends ConsumerWidget {
@@ -13,11 +14,13 @@ class CategoryCardList extends ConsumerWidget {
     this.onAddCategory,
     this.query = '',
     this.shrinkWrap = false,
+    this.overviewHeader,
   });
 
   final VoidCallback? onAddCategory;
   final String query;
   final bool shrinkWrap;
+  final Widget? overviewHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,18 +57,38 @@ class CategoryCardList extends ConsumerWidget {
             },
           );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
-      children: [
-        _RecipeSummary(
-          preset: preset,
-          visibleCount: categories.length,
-          onAddCategory: onAddCategory,
-        ),
-        const SizedBox(height: 10),
-        if (shrinkWrap) list else Expanded(child: list),
-      ],
+    return Padding(
+      padding: EdgeInsets.fromLTRB(overviewHeader == null ? 0 : 16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          Container(
+            key: const ValueKey('random-manager-overview-card'),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: sectionSurfaceColor(Theme.of(context).colorScheme),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (overviewHeader != null) ...[
+                  overviewHeader!,
+                  const SizedBox(height: 14),
+                ],
+                _RecipeSummary(
+                  preset: preset,
+                  visibleCount: categories.length,
+                  onAddCategory: onAddCategory,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (shrinkWrap) list else Expanded(child: list),
+        ],
+      ),
     );
   }
 
@@ -90,22 +113,6 @@ class CategoryCardList extends ConsumerWidget {
           });
         })
         .toList(growable: false);
-  }
-}
-
-class CategoryCardGrid extends StatelessWidget {
-  const CategoryCardGrid({super.key, this.onAddCategory, this.query = ''});
-
-  final VoidCallback? onAddCategory;
-  final String query;
-
-  @override
-  Widget build(BuildContext context) {
-    return CategoryCardList(
-      onAddCategory: onAddCategory,
-      query: query,
-      shrinkWrap: true,
-    );
   }
 }
 

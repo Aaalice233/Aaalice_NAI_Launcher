@@ -201,6 +201,7 @@ class PresetSelectorBar extends ConsumerWidget {
             ),
           ),
         if (selected != null && !selected.isDefault) ...[
+          const PopupMenuDivider(),
           PopupMenuItem(
             value: _PresetAction.rename,
             child: ListTile(

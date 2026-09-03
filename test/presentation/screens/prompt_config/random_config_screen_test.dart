@@ -12,6 +12,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_provider.dart';
 import 'package:nai_launcher/presentation/screens/prompt_config/prompt_config_screen.dart';
+import 'package:nai_launcher/presentation/themes/app_theme.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/category_card.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/preset_selector_bar.dart';
 
@@ -118,6 +119,69 @@ void main() {
 
     expect(find.text('输出预览'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, '生成样例'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Grunge 暗色主题下工作区卡片与画布保持可见层级', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomPresetNotifierProvider.overrideWith(
+            _ScreenTestRandomPresetNotifier.new,
+          ),
+          tagLibraryNotifierProvider.overrideWith(
+            _ScreenTestTagLibraryNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: AppTheme.getTheme(AppStyle.grungeCollage, Brightness.dark),
+          home: const PromptConfigScreen(),
+        ),
+      ),
+    );
+    await _pumpBounded(tester);
+
+    final surface = Theme.of(
+      tester.element(find.byType(PromptConfigScreen)),
+    ).colorScheme.surface;
+    Color decorationColor(Finder finder) =>
+        (tester.widget<Container>(finder).decoration! as BoxDecoration).color!;
+
+    expect(
+      decorationColor(
+        find.byKey(const ValueKey('random-manager-overview-card')),
+      ),
+      isNot(surface),
+    );
+    expect(
+      decorationColor(
+        find.byKey(const ValueKey('random-manager-algorithm-card')),
+      ),
+      isNot(surface),
+    );
+    expect(
+      decorationColor(
+        find.byKey(const ValueKey('random-manager-preview-panel')),
+      ),
+      isNot(surface),
+    );
+    final category = tester.widget<CategoryCard>(
+      find.byType(CategoryCard).first,
+    );
+    expect(
+      decorationColor(
+        find.byKey(ValueKey('random-manager-category-${category.category.id}')),
+      ),
+      isNot(surface),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -278,6 +342,18 @@ void main() {
         expect(more.width, greaterThanOrEqualTo(44));
         expect(more.height, greaterThanOrEqualTo(44));
       }
+      if (width < 1050) {
+        expect(
+          find.byKey(const ValueKey('random-manager-compact-sections')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('random-manager-preview-panel')),
+          findsNothing,
+        );
+        await tester.tap(find.text('输出预览'));
+        await _pumpBounded(tester);
+      }
       expect(
         find.byKey(const ValueKey('random-manager-preview-panel')),
         findsOneWidget,
@@ -386,6 +462,12 @@ void main() {
       find.byKey(const ValueKey('random-manager-mode-selector')),
     );
     expect(selector.height, greaterThanOrEqualTo(44));
+    expect(
+      find.byKey(const ValueKey('random-manager-preview-panel')),
+      findsNothing,
+    );
+    await tester.tap(find.text('输出预览'));
+    await _pumpBounded(tester);
     expect(
       find.byKey(const ValueKey('random-manager-preview-panel')),
       findsOneWidget,

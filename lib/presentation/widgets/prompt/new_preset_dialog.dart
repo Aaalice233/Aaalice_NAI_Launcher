@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../adaptive/adaptive_presenter.dart';
+import '../../themes/core/layered_surface_style.dart';
 
 /// 预设创建模式
 enum PresetCreationMode {
@@ -173,13 +174,7 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
           // 底部按钮
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                ),
-              ),
-            ),
+            color: sectionSurfaceColor(colorScheme),
             child: SafeArea(
               top: false,
               left: false,
@@ -233,19 +228,14 @@ class _ModeOptionCard extends StatelessWidget {
     return Material(
       color: isSelected
           ? colorScheme.primaryContainer.withValues(alpha: 0.5)
-          : colorScheme.surfaceContainerHighest,
+          : controlSurfaceColor(colorScheme),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: isSelected
-                ? Border.all(color: colorScheme.primary, width: 2)
-                : null,
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
           child: Row(
             children: [
               Icon(
@@ -275,8 +265,14 @@ class _ModeOptionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isSelected)
-                Icon(Icons.check_circle, color: colorScheme.primary),
+              Icon(
+                isSelected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
             ],
           ),
         ),
