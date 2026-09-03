@@ -10,7 +10,6 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
 import '../../../../core/utils/window_focus_tracker.dart';
 import '../../../../core/windowing/workspace_side_panel_contract.dart';
-import '../../../../data/models/metadata/metadata_import_options.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/share_image_settings_provider.dart';
 import '../../../screens/watermark/watermark_editor_launcher.dart';
@@ -19,7 +18,6 @@ import '../../shortcuts/shortcuts.dart';
 import '../app_toast.dart';
 import '../horizontal_resize_handle.dart';
 import '../resizable_pane.dart';
-import '../../metadata/metadata_import_dialog.dart';
 import 'components/detail_image_page.dart';
 import 'components/detail_metadata_panel.dart';
 import 'components/prompt_copy_dialog.dart';
@@ -33,9 +31,7 @@ class ImageDetailCallbacks {
   final void Function(ImageDetailData image)? onFavoriteToggle;
 
   /// 复用元数据回调
-  /// 接收图像数据和用户选择的导入选项
-  final void Function(ImageDetailData image, MetadataImportOptions options)?
-  onReuseMetadata;
+  final Future<void> Function(ImageDetailData image)? onReuseMetadata;
 
   /// 保存回调
   final Future<void> Function(ImageDetailData image)? onSave;
@@ -762,16 +758,8 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       return;
     }
 
-    // 显示参数选择对话框
-    final options = await MetadataImportDialog.show(
-      context,
-      metadata: metadata,
-    );
-
-    if (options == null || !context.mounted) return; // 用户取消
-
-    // 调用回调并传递选项
-    widget.callbacks?.onReuseMetadata?.call(_currentImage, options);
+    await widget.callbacks?.onReuseMetadata?.call(_currentImage);
+    if (!context.mounted) return;
 
     // 关闭图像详情页
     if (context.mounted) {

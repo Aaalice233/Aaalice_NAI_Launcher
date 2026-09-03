@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/utils/fixed_tag_import_resolution.dart';
 import 'package:nai_launcher/presentation/widgets/metadata/metadata_import_dialog.dart';
 
 void main() {
@@ -13,6 +14,7 @@ void main() {
     EdgeInsets padding = EdgeInsets.zero,
     EdgeInsets viewInsets = EdgeInsets.zero,
     NaiImageMetadata metadata = const NaiImageMetadata(steps: 28, scale: 5),
+    FixedTagImportResolution? fixedTagResolution,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
@@ -43,6 +45,7 @@ void main() {
                 result = await MetadataImportDialog.show(
                   context,
                   metadata: metadata,
+                  fixedTagResolution: fixedTagResolution,
                 );
               },
               child: const Text('Open'),
@@ -206,5 +209,24 @@ void main() {
     expect(find.text('步数'), findsOneWidget);
     expect(find.text('CFG 强度'), findsOneWidget);
     expect(find.text('CFG 强度：'), findsNothing);
+  });
+
+  testWidgets('unknown fixed tags require an explicit stacking policy', (
+    tester,
+  ) async {
+    const metadata = NaiImageMetadata(prompt: 'shared prompt');
+    await pumpAndOpenDialog(
+      tester,
+      size: const Size(700, 800),
+      metadata: metadata,
+      fixedTagResolution: const FixedTagImportResolution(
+        metadata: metadata,
+        source: FixedTagImportSource.unknown,
+      ),
+    );
+
+    expect(find.text('Source: not recorded; cannot be determined'), findsOne);
+    expect(find.text('Disable current fixed tags (recommended)'), findsOne);
+    expect(find.text('Keep and stack with the image prompt'), findsOne);
   });
 }

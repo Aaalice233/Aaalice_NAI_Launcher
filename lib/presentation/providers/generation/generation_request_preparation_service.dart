@@ -3,6 +3,7 @@ import 'dart:ui';
 import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../core/utils/prompt_preset_resolution.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 
 class GenerationPromptPreparation {
   const GenerationPromptPreparation({
@@ -13,6 +14,7 @@ class GenerationPromptPreparation {
     required this.applyFixedPositiveTags,
     required this.applyFixedNegativeTags,
     required this.resolvePresets,
+    required this.fixedTagUsageSnapshot,
   });
 
   final bool randomModeEnabled;
@@ -22,6 +24,7 @@ class GenerationPromptPreparation {
   final String Function(String prompt) applyFixedPositiveTags;
   final String Function(String prompt) applyFixedNegativeTags;
   final PromptPresetResolution Function(ImageParams params) resolvePresets;
+  final FixedTagUsageSnapshot fixedTagUsageSnapshot;
 
   bool get randomModeActive => randomModeEnabled && !queueExecuting;
 }
@@ -85,11 +88,13 @@ class GenerationPreparationResult {
     required this.params,
     required this.randomModeActive,
     required this.focusedSnapshot,
+    required this.fixedTagUsageSnapshot,
   });
 
   final ImageParams params;
   final bool randomModeActive;
   final GenerationFocusedSnapshot focusedSnapshot;
+  final FixedTagUsageSnapshot fixedTagUsageSnapshot;
 }
 
 /// Produces request snapshots without reading Riverpod or writing UI state.
@@ -151,6 +156,7 @@ class GenerationRequestPreparationService {
       params: effective,
       randomModeActive: promptPreparation.randomModeActive,
       focusedSnapshot: dependencies.focused.read(),
+      fixedTagUsageSnapshot: promptPreparation.fixedTagUsageSnapshot,
     );
   }
 

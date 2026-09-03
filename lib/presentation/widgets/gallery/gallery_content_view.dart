@@ -596,7 +596,7 @@ class LocalGalleryContentView extends ConsumerWidget {
         showThumbnails: images.length > 1,
         callbacks: ImageDetailCallbacks(
           onReuseMetadata: onReuseMetadata != null
-              ? (data, _) =>
+              ? (data) async =>
                     onReuseMetadata?.call((data as LocalImageDetailData).record)
               : null,
           onFavoriteToggle: (data) => ref

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 
 enum GeneratedImageKind { completed, failedStreamSnapshot }
@@ -86,6 +87,7 @@ class GeneratedImage {
   final int height;
   final GeneratedImageKind kind;
   final NaiImageMetadata? metadata;
+  final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
 
   /// Source captured for a supported current-session transformation.
   ///
@@ -107,6 +109,7 @@ class GeneratedImage {
     DateTime? createdAt,
     this.kind = GeneratedImageKind.completed,
     this.metadata,
+    this.fixedTagUsageSnapshot,
     this.comparisonSource,
     this.preserveOriginalBytesOnSave = false,
     this.filePath,
@@ -119,6 +122,7 @@ class GeneratedImage {
     required int height,
     GeneratedImageKind kind = GeneratedImageKind.completed,
     NaiImageMetadata? metadata,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     ImageComparisonSource? comparisonSource,
     bool preserveOriginalBytesOnSave = false,
   }) {
@@ -130,6 +134,7 @@ class GeneratedImage {
       height: encodedSize?.$2 ?? height,
       kind: kind,
       metadata: metadata,
+      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       comparisonSource: comparisonSource,
       preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
     );
@@ -145,6 +150,7 @@ class GeneratedImage {
       createdAt: createdAt,
       kind: kind,
       metadata: metadata,
+      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       comparisonSource: comparisonSource,
       preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
       filePath: path,

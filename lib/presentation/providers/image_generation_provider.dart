@@ -24,6 +24,8 @@ import '../../core/utils/prompt_preset_resolution.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/models/image/image_stream_chunk.dart';
@@ -98,6 +100,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   final Map<String, _RememberedStreamPreview> _streamPreviews = {};
   final Set<String> _failedSnapshotKeys = {};
   ImageComparisonSource? _activeComparisonSource;
+  FixedTagUsageSnapshot? _activeFixedTagUsageSnapshot;
   bool _isDisposed = false;
   int _lifecycleEpoch = 0;
 
@@ -371,6 +374,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
       final runId = ++_runCounter;
       _activeRunId = runId;
+      _activeFixedTagUsageSnapshot = prepared.fixedTagUsageSnapshot;
       _streamPreviews.clear();
       _failedSnapshotKeys.clear();
       final coordinator = ImageGenerationCoordinator(
@@ -403,6 +407,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         _activeInvocationId = 0;
         _generationInvocationStarting = false;
         _activeComparisonSource = null;
+        _activeFixedTagUsageSnapshot = null;
       }
       if (!invocationSettled.isCompleted) {
         invocationSettled.complete();
@@ -463,6 +468,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           applyFixedPositiveTags: fixedTags.applyToPrompt,
           applyFixedNegativeTags: fixedTags.applyToNegativePrompt,
           resolvePresets: _resolvePromptPresets,
+          fixedTagUsageSnapshot: FixedTagUsageSnapshot.capture(
+            fixedTags.entries,
+          ),
         ),
         characters: GenerationCharacterPreparation(
           read: (_) {
@@ -589,6 +597,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
                 width: params.width,
                 height: params.height,
                 comparisonSource: _activeComparisonSource,
+                fixedTagUsageSnapshot: _activeFixedTagUsageSnapshot,
               ),
             )
             .toList();
@@ -718,6 +727,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         width: size.$1,
         height: size.$2,
         kind: GeneratedImageKind.failedStreamSnapshot,
+        fixedTagUsageSnapshot: _activeFixedTagUsageSnapshot,
         metadata: _metadataFromParams(
           preview.params,
           outputWidth: size.$1,
@@ -921,32 +931,45 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!_isCurrentLifecycle(epoch)) {
       return GenerationSaveResult(images, const []);
     }
-    final fixed = ref.read(fixedTagsNotifierProvider);
+    final fixedTagUsageSnapshot =
+        (images.isEmpty ? null : images.first.fixedTagUsageSnapshot) ??
+        FixedTagUsageSnapshot.capture(
+          ref.read(fixedTagsNotifierProvider).entries,
+        );
     final lifecycle = _lifecycle();
     final result = await lifecycle.saveImages(
       images,
       params,
       snapshot: GenerationSaveSnapshot(
-        fixedPrefixTags: fixed.enabledPrefixes
-            .sortedByOrder()
-            .map((entry) => entry.weightedContent)
-            .where((content) => content.isNotEmpty)
+        fixedPrefixTags: fixedTagUsageSnapshot
+            .entriesFor(
+              promptType: FixedTagPromptType.positive,
+              position: FixedTagPosition.prefix,
+            )
+            .map((entry) => entry.renderedContent)
             .toList(),
-        fixedSuffixTags: fixed.enabledSuffixes
-            .sortedByOrder()
-            .map((entry) => entry.weightedContent)
-            .where((content) => content.isNotEmpty)
+        fixedSuffixTags: fixedTagUsageSnapshot
+            .entriesFor(
+              promptType: FixedTagPromptType.positive,
+              position: FixedTagPosition.suffix,
+            )
+            .map((entry) => entry.renderedContent)
             .toList(),
-        fixedNegativePrefixTags: fixed.negativeEnabledPrefixes
-            .sortedByOrder()
-            .map((entry) => entry.weightedContent)
-            .where((content) => content.isNotEmpty)
+        fixedNegativePrefixTags: fixedTagUsageSnapshot
+            .entriesFor(
+              promptType: FixedTagPromptType.negative,
+              position: FixedTagPosition.prefix,
+            )
+            .map((entry) => entry.renderedContent)
             .toList(),
-        fixedNegativeSuffixTags: fixed.negativeEnabledSuffixes
-            .sortedByOrder()
-            .map((entry) => entry.weightedContent)
-            .where((content) => content.isNotEmpty)
+        fixedNegativeSuffixTags: fixedTagUsageSnapshot
+            .entriesFor(
+              promptType: FixedTagPromptType.negative,
+              position: FixedTagPosition.suffix,
+            )
+            .map((entry) => entry.renderedContent)
             .toList(),
+        fixedTagUsageSnapshot: fixedTagUsageSnapshot,
         useCoords: params.useCoords,
       ),
       directoryPath: directoryPath,
@@ -1120,6 +1143,35 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final comment = ImageSaveUtils.buildCommentJson(
       params: effective,
       actualSeed: effective.seed,
+      fixedTagUsageSnapshot: _activeFixedTagUsageSnapshot,
+      fixedPrefixTags: _activeFixedTagUsageSnapshot
+          ?.entriesFor(
+            promptType: FixedTagPromptType.positive,
+            position: FixedTagPosition.prefix,
+          )
+          .map((entry) => entry.renderedContent)
+          .toList(),
+      fixedSuffixTags: _activeFixedTagUsageSnapshot
+          ?.entriesFor(
+            promptType: FixedTagPromptType.positive,
+            position: FixedTagPosition.suffix,
+          )
+          .map((entry) => entry.renderedContent)
+          .toList(),
+      fixedNegativePrefixTags: _activeFixedTagUsageSnapshot
+          ?.entriesFor(
+            promptType: FixedTagPromptType.negative,
+            position: FixedTagPosition.prefix,
+          )
+          .map((entry) => entry.renderedContent)
+          .toList(),
+      fixedNegativeSuffixTags: _activeFixedTagUsageSnapshot
+          ?.entriesFor(
+            promptType: FixedTagPromptType.negative,
+            position: FixedTagPosition.suffix,
+          )
+          .map((entry) => entry.renderedContent)
+          .toList(),
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: effective.useCoords,

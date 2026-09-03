@@ -61,7 +61,7 @@ void main() {
     expect(result.fixedSuffixTags, [fragment]);
   });
 
-  test('keeps recorded fields and supplements additional current matches', () {
+  test('explicit recorded fields prevent additional inference', () {
     final libraryEntry = FixedTagEntry.create(
       name: 'new',
       content: 'new library value',
@@ -76,10 +76,7 @@ void main() {
       negativeEntries: const [],
     );
 
-    expect(
-      result.fixedPrefixTags,
-      equals(['recorded value', 'new library value']),
-    );
+    expect(result.fixedPrefixTags, equals(['recorded value']));
   });
 
   test('does not infer fixed tags from the middle of a negative prompt', () {

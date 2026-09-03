@@ -3660,6 +3660,15 @@
   "metadataImport_clear": "クリア",
   "metadataImport_mainPrompt": "メイン プロンプト",
   "metadataImport_fixedTags": "固定タグ",
+  "metadataImport_fixedSourceStructured": "ソース：画像に明示的に記録",
+  "metadataImport_fixedSourceLegacy": "ソース：旧形式の画像フィールド",
+  "metadataImport_fixedSourceLibrary": "ソース：現在の固定タグライブラリとの完全一致",
+  "metadataImport_fixedSourceUnknown": "ソース：記録がなく判別不能",
+  "metadataImport_unknownFixedTagsHint": "この画像には固定タグの記録がありません。現在有効な固定タグの扱いを選択してください。",
+  "metadataImport_disableCurrentFixedTags": "現在の固定タグを無効にする（推奨）",
+  "metadataImport_keepCurrentFixedTags": "保持して画像プロンプトに重ねる",
+  "metadataImport_imageVersionName": "{name}（画像バージョン）",
+  "@metadataImport_imageVersionName": {"placeholders": {"name": {}}},
   "metadataImport_fixedPrefix": "プレフィックス: {text}",
   "@metadataImport_fixedPrefix": {
     "placeholders": {
@@ -3887,8 +3896,8 @@
     }
   },
   "drop_addedToCharacterRef": "精密参照に追加しました",
-  "drop_extractMetadata": "メタデータの抽出",
-  "drop_extractMetadataSubtitle": "画像からプロンプト、シード、その他のパラメーターを読み取ります",
+  "drop_extractMetadata": "テキストから画像へ送信",
+  "drop_extractMetadataSubtitle": "適用するプロンプト、固定タグ、生成パラメータを選択します",
   "drop_addToQueue": "キューに追加",
   "drop_addToQueueSubtitle": "プロンプトを抽出して生成キューに追加します",
   "drop_vibeDetected": "事前にエンコードされた Vibe を検出しました (2 Anlas を節約)",

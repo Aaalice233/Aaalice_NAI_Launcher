@@ -49,6 +49,45 @@ void main() {
       expect(NaiImageMetadata.fromJson(metadata.toJson()), metadata);
     });
 
+    test('fromNaiComment preserves an explicit empty fixed-tag record', () {
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'prompt': 'subject',
+        'fixed_prefix': <String>[],
+        'fixed_suffix': <String>[],
+        'fixed_negative_prefix': <String>[],
+        'fixed_negative_suffix': <String>[],
+      });
+
+      expect(metadata.hasRecordedFixedTagFields, isTrue);
+      expect(metadata.hasExplicitFixedTagMetadata, isTrue);
+    });
+
+    test('fromNaiComment parses the structured fixed-tag snapshot', () {
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'prompt': 'masterpiece, subject',
+        'aaalice_fixed_tags': {
+          'version': 1,
+          'entries': [
+            {
+              'fixed_tag_id': 'tag-a',
+              'name': 'A',
+              'content': 'masterpiece',
+              'weight': 1,
+              'rendered_content': 'masterpiece',
+              'position': 'prefix',
+              'prompt_type': 'positive',
+              'order': 0,
+            },
+          ],
+        },
+      });
+
+      expect(
+        metadata.fixedTagUsageSnapshot?.entries.single.fixedTagId,
+        'tag-a',
+      );
+    });
+
     test('displayNegativePrompt should mirror embedded raw uc text', () {
       final preset = UcPresets.getPresetContent(
         ImageModels.animeDiffusionV45Full,
@@ -402,6 +441,42 @@ void main() {
         expect(metadata.mainPrompt, prompt);
       },
     );
+
+    test(
+      'metadata should not classify markup-wrapped main prompt as fixed tags',
+      () {
+        const prompt = '''<quality>
+2::best quality::,masterpiece,very aesthetic, highres, absurdres, highly finished
+</quality>''';
+        final metadata = NaiImageMetadata.fromNaiComment({
+          'Comment': jsonEncode({
+            'prompt': prompt,
+            'v4_prompt': {
+              'caption': {'base_caption': prompt, 'char_captions': []},
+            },
+          }),
+          'Software': 'NovelAI',
+          'Source': 'NovelAI Diffusion V4.5 4BDE2A90',
+        });
+
+        expect(metadata.fixedPrefixTags, isEmpty);
+        expect(metadata.fixedSuffixTags, isEmpty);
+        expect(metadata.qualityTags, isEmpty);
+        expect(metadata.mainPrompt, prompt);
+      },
+    );
+
+    test('metadata should not infer fixed tags from common prompt words', () {
+      const prompt = '2::best quality::, masterpiece, 1girl';
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({'prompt': prompt}),
+        'Software': 'NovelAI',
+      });
+
+      expect(metadata.fixedPrefixTags, isEmpty);
+      expect(metadata.fixedSuffixTags, isEmpty);
+      expect(metadata.mainPrompt, prompt);
+    });
 
     test('V5 metadata should restore the Light tier and transparent suffix', () {
       const prompt =

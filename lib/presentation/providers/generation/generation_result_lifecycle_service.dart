@@ -8,6 +8,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../services/generation_history_storage_service.dart';
 import 'generation_models.dart';
@@ -37,6 +38,7 @@ class GenerationSaveSnapshot {
     this.fixedSuffixTags = const [],
     this.fixedNegativePrefixTags = const [],
     this.fixedNegativeSuffixTags = const [],
+    this.fixedTagUsageSnapshot,
     this.useCoords = false,
   });
 
@@ -44,6 +46,7 @@ class GenerationSaveSnapshot {
   final List<String> fixedSuffixTags;
   final List<String> fixedNegativePrefixTags;
   final List<String> fixedNegativeSuffixTags;
+  final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
   final bool useCoords;
 }
 
@@ -197,8 +200,15 @@ class GenerationResultLifecycleService {
             actualSeed = Random().nextInt(4294967295);
           }
         }
-        final bytes = image.preserveOriginalBytesOnSave || hasMetadata
+        final fixedTagUsageSnapshot =
+            image.fixedTagUsageSnapshot ?? snapshot.fixedTagUsageSnapshot;
+        final bytes = image.preserveOriginalBytesOnSave
             ? image.bytes
+            : hasMetadata && fixedTagUsageSnapshot != null
+            ? await ImageSaveUtils.mergeFixedTagUsageMetadata(
+                imageBytes: image.bytes,
+                snapshot: fixedTagUsageSnapshot,
+              )
             : await ImageSaveUtils.rebuildImageBytesWithMetadata(
                 imageBytes: image.bytes,
                 params: params.copyWith(
@@ -210,6 +220,7 @@ class GenerationResultLifecycleService {
                 fixedSuffixTags: snapshot.fixedSuffixTags,
                 fixedNegativePrefixTags: snapshot.fixedNegativePrefixTags,
                 fixedNegativeSuffixTags: snapshot.fixedNegativeSuffixTags,
+                fixedTagUsageSnapshot: fixedTagUsageSnapshot,
                 charCaptions: charCaptions,
                 charNegCaptions: charNegCaptions,
                 useCoords: snapshot.useCoords,

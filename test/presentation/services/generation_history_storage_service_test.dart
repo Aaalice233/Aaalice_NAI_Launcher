@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
 import 'package:nai_launcher/presentation/services/generation_history_storage_service.dart';
 
@@ -38,6 +41,20 @@ void main() {
       createdAt: DateTime.utc(2026, 8, 26, 12, byte),
       filePath: '/images/$id.png',
       preserveOriginalBytesOnSave: true,
+      fixedTagUsageSnapshot: const FixedTagUsageSnapshot(
+        entries: [
+          FixedTagUsageEntry(
+            fixedTagId: 'fixed-a',
+            name: 'A',
+            content: 'masterpiece',
+            weight: 1,
+            renderedContent: 'masterpiece',
+            position: FixedTagPosition.prefix,
+            promptType: FixedTagPromptType.positive,
+            order: 0,
+          ),
+        ],
+      ),
     );
   }
 
@@ -62,6 +79,10 @@ void main() {
       expect(restored.first.createdAt, second.createdAt);
       expect(restored.first.filePath, second.filePath);
       expect(restored.first.preserveOriginalBytesOnSave, isTrue);
+      expect(
+        restored.first.fixedTagUsageSnapshot?.entries.single.fixedTagId,
+        'fixed-a',
+      );
     },
   );
 

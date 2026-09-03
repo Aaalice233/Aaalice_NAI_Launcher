@@ -8,6 +8,9 @@ import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/utils/comfyui_prompt_parser.dart';
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
@@ -466,6 +469,69 @@ void main() {
         expect(commentJson['fixed_suffix'], equals(['cinematic lighting']));
         expect(commentJson['fixed_negative_prefix'], equals(['lowres']));
         expect(commentJson['fixed_negative_suffix'], equals(['text']));
+      },
+    );
+
+    test('writes an explicit empty fixed-tag snapshot', () {
+      final commentJson = ImageSaveUtils.buildCommentJson(
+        params: const ImageParams(prompt: 'subject'),
+        actualSeed: 12,
+        fixedTagUsageSnapshot: const FixedTagUsageSnapshot(),
+      );
+
+      expect(commentJson['aaalice_fixed_tags'], {
+        'version': 1,
+        'entries': <dynamic>[],
+      });
+      expect(commentJson['fixed_prefix'], isEmpty);
+      expect(commentJson['fixed_suffix'], isEmpty);
+      expect(commentJson['fixed_negative_prefix'], isEmpty);
+      expect(commentJson['fixed_negative_suffix'], isEmpty);
+    });
+
+    test(
+      'merges fixed-tag provenance without replacing official fields',
+      () async {
+        final png = img.Image(width: 2, height: 2);
+        final base = await ImageSaveUtils.rebuildImageBytesWithMetadata(
+          imageBytes: Uint8List.fromList(img.encodePng(png)),
+          params: const ImageParams(
+            prompt: 'original prompt',
+            negativePrompt: 'original negative',
+            width: 2,
+            height: 2,
+          ),
+          actualSeed: 777,
+        );
+        const snapshot = FixedTagUsageSnapshot(
+          entries: [
+            FixedTagUsageEntry(
+              fixedTagId: 'fixed-a',
+              name: 'A',
+              content: 'masterpiece',
+              weight: 1,
+              renderedContent: 'masterpiece',
+              position: FixedTagPosition.prefix,
+              promptType: FixedTagPromptType.positive,
+              order: 0,
+            ),
+          ],
+        );
+
+        final merged = await ImageSaveUtils.mergeFixedTagUsageMetadata(
+          imageBytes: base,
+          snapshot: snapshot,
+        );
+        final metadata = UnifiedMetadataParser.parseFromPng(merged).metadata!;
+
+        expect(metadata.prompt, 'original prompt');
+        expect(metadata.negativePrompt, 'original negative');
+        expect(metadata.seed, 777);
+        expect(metadata.fixedPrefixTags, ['masterpiece']);
+        expect(
+          metadata.fixedTagUsageSnapshot?.entries.single.fixedTagId,
+          'fixed-a',
+        );
       },
     );
   });

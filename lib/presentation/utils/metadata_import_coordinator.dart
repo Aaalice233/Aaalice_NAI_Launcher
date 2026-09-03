@@ -1,7 +1,7 @@
-import '../../core/utils/nai_prompt_parser.dart';
 import '../../data/models/character/character_prompt.dart' as char;
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/metadata/metadata_import_options.dart';
 import '../../l10n/app_localizations.dart';
@@ -10,6 +10,7 @@ import '../providers/fixed_tags_provider.dart';
 import '../providers/image_generation_provider.dart';
 import '../providers/quality_preset_provider.dart';
 import 'metadata_import_applier.dart';
+import 'fixed_tag_import_resolution.dart';
 import 'prompt_preset_import_utils.dart';
 
 class MetadataImportCoordinator {
@@ -20,9 +21,17 @@ class MetadataImportCoordinator {
     required NaiImageMetadata metadata,
     required MetadataImportOptions options,
     required AppLocalizations l10n,
+    FixedTagImportResolution? fixedTagResolution,
   }) async {
+    final resolution =
+        fixedTagResolution ??
+        resolveFixedTagImport(
+          metadata: metadata,
+          entries: read(fixedTagsNotifierProvider).entries,
+        );
+    final resolvedMetadata = resolution.metadata;
     final notifier = read(generationParamsNotifierProvider.notifier);
-    final characterPrompts = metadata.characterPrompts;
+    final characterPrompts = resolvedMetadata.characterPrompts;
 
     if (options.importCharacterPrompts && characterPrompts.isNotEmpty) {
       read(characterPromptNotifierProvider.notifier).clearAllCharacters();
@@ -30,7 +39,7 @@ class MetadataImportCoordinator {
 
     final currentModel = read(generationParamsNotifierProvider).model;
     var appliedCount = MetadataImportApplier.applyPromptAndGenerationParams(
-      metadata: metadata,
+      metadata: resolvedMetadata,
       options: options,
       currentModel: currentModel,
       target: MetadataImportTarget(
@@ -64,12 +73,18 @@ class MetadataImportCoordinator {
     );
 
     if (options.importCharacterPrompts && characterPrompts.isNotEmpty) {
-      _applyCharacterPrompts(read, metadata);
+      _applyCharacterPrompts(read, resolvedMetadata);
       appliedCount++;
     }
 
-    appliedCount += _applyReferenceParams(read, metadata, options);
-    appliedCount += await _applyFixedTags(read, metadata, options, l10n);
+    appliedCount += _applyReferenceParams(read, resolvedMetadata, options);
+    appliedCount += await _applyFixedTags(
+      read,
+      resolvedMetadata,
+      options,
+      l10n,
+      resolution,
+    );
 
     return appliedCount;
   }
@@ -79,88 +94,52 @@ class MetadataImportCoordinator {
     NaiImageMetadata metadata,
     MetadataImportOptions options,
     AppLocalizations l10n,
+    FixedTagImportResolution resolution,
   ) async {
     if (!options.importFixedTags) {
       return 0;
     }
 
-    final fixedTagsNotifier = read(fixedTagsNotifierProvider.notifier);
-    var added = 0;
-
-    Future<void> addTags(
-      List<String> tags, {
-      required FixedTagPosition position,
-      required FixedTagPromptType promptType,
-      required String Function(String content) buildName,
-    }) async {
-      for (final tag in tags) {
-        final content = tag.trim();
-        if (content.isEmpty) {
-          continue;
-        }
-
-        final normalizedContent = NaiPromptParser.normalizeSegment(content);
-        final matchingEntries = read(fixedTagsNotifierProvider).entries
-            .where((entry) {
-              return entry.position == position &&
-                  entry.promptType == promptType &&
-                  NaiPromptParser.normalizeSegment(entry.content) ==
-                      normalizedContent;
-            })
-            .toList(growable: false);
-        final existing = matchingEntries.isEmpty ? null : matchingEntries.first;
-        if (existing != null) {
-          if (!existing.enabled) {
-            await fixedTagsNotifier.updateEntry(
-              existing.copyWith(enabled: true, updatedAt: DateTime.now()),
-            );
-            added++;
-          }
-          continue;
-        }
-
-        await fixedTagsNotifier.addEntry(
-          name: buildName(content),
-          content: content,
-          position: position,
-          promptType: promptType,
-          enabled: true,
-        );
-        added++;
+    final scopes = <FixedTagScope>{};
+    void addSelectedScopes(FixedTagPromptType promptType) {
+      final isPositive = promptType == FixedTagPromptType.positive;
+      if (isPositive
+          ? options.importFixedPrefix
+          : options.importFixedNegativePrefix) {
+        scopes.add(FixedTagScope(promptType, FixedTagPosition.prefix));
+      }
+      if (isPositive
+          ? options.importFixedSuffix
+          : options.importFixedNegativeSuffix) {
+        scopes.add(FixedTagScope(promptType, FixedTagPosition.suffix));
       }
     }
 
-    if (options.importFixedPrefix) {
-      await addTags(
-        metadata.fixedPrefixTags,
-        position: FixedTagPosition.prefix,
-        promptType: FixedTagPromptType.positive,
-        buildName: l10n.metadataImport_fixedPrefix,
-      );
-      await addTags(
-        metadata.fixedNegativePrefixTags,
-        position: FixedTagPosition.prefix,
-        promptType: FixedTagPromptType.negative,
-        buildName: l10n.metadataImport_negativeFixedPrefix,
-      );
+    FixedTagUsageSnapshot snapshot;
+    if (resolution.isUnknown) {
+      if (options.unknownFixedTagPolicy == UnknownFixedTagPolicy.keepCurrent) {
+        return 0;
+      }
+      if (options.importPrompt && metadata.prompt.isNotEmpty) {
+        addSelectedScopes(FixedTagPromptType.positive);
+      }
+      if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
+        addSelectedScopes(FixedTagPromptType.negative);
+      }
+      snapshot = const FixedTagUsageSnapshot();
+    } else {
+      addSelectedScopes(FixedTagPromptType.positive);
+      addSelectedScopes(FixedTagPromptType.negative);
+      snapshot = resolution.snapshot ?? const FixedTagUsageSnapshot();
     }
+    if (scopes.isEmpty) return 0;
 
-    if (options.importFixedSuffix) {
-      await addTags(
-        metadata.fixedSuffixTags,
-        position: FixedTagPosition.suffix,
-        promptType: FixedTagPromptType.positive,
-        buildName: l10n.metadataImport_fixedSuffix,
-      );
-      await addTags(
-        metadata.fixedNegativeSuffixTags,
-        position: FixedTagPosition.suffix,
-        promptType: FixedTagPromptType.negative,
-        buildName: l10n.metadataImport_negativeFixedSuffix,
-      );
-    }
-
-    return added > 0 ? 1 : 0;
+    await read(fixedTagsNotifierProvider.notifier).restoreUsageSnapshot(
+      snapshot: snapshot,
+      scopes: scopes,
+      buildImageVersionName: l10n.metadataImport_imageVersionName,
+    );
+    return 1;
   }
 
   static void _applyCharacterPrompts(

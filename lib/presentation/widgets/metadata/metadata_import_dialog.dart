@@ -4,6 +4,7 @@ import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
+import '../../utils/fixed_tag_import_resolution.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../common/adaptive_dialog_frame.dart';
 import '../common/translated_tag_text.dart';
@@ -15,17 +16,20 @@ import '../common/translated_tag_text.dart';
 class MetadataImportDialog extends StatefulWidget {
   final NaiImageMetadata metadata;
   final ScrollController? scrollController;
+  final FixedTagImportResolution? fixedTagResolution;
 
   const MetadataImportDialog({
     super.key,
     required this.metadata,
     this.scrollController,
+    this.fixedTagResolution,
   });
 
   /// 显示对话框并返回用户选择的导入选项
   static Future<MetadataImportOptions?> show(
     BuildContext context, {
     required NaiImageMetadata metadata,
+    FixedTagImportResolution? fixedTagResolution,
   }) {
     return AdaptivePresenter.showForm<MetadataImportOptions>(
       context: context,
@@ -52,6 +56,7 @@ class MetadataImportDialog extends StatefulWidget {
       },
       builder: (context, scrollController) => MetadataImportDialog(
         metadata: metadata,
+        fixedTagResolution: fixedTagResolution,
         scrollController: scrollController,
       ),
     );
@@ -276,7 +281,8 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
               setState(() => _options = _options.copyWith(importPrompt: v)),
         ),
         // 固定词（带子选项）
-        if (metadata.hasSeparatedFields) ...[
+        if (metadata.hasSeparatedFields ||
+            widget.fixedTagResolution != null) ...[
           _buildParentCheckboxTile(
             title: l10n.metadataImport_fixedTags,
             value: _options.importFixedTags,
@@ -284,11 +290,17 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 metadata.fixedPrefixTags.isNotEmpty ||
                 metadata.fixedSuffixTags.isNotEmpty ||
                 metadata.fixedNegativePrefixTags.isNotEmpty ||
-                metadata.fixedNegativeSuffixTags.isNotEmpty,
+                metadata.fixedNegativeSuffixTags.isNotEmpty ||
+                metadata.hasExplicitFixedTagMetadata ||
+                widget.fixedTagResolution?.isUnknown == true,
             onChanged: (v) => setState(
               () => _options = _options.copyWith(importFixedTags: v),
             ),
             children: [
+              if (widget.fixedTagResolution != null)
+                _buildFixedTagSource(widget.fixedTagResolution!),
+              if (widget.fixedTagResolution?.isUnknown == true)
+                _buildUnknownFixedTagPolicy(),
               if (metadata.fixedPrefixTags.isNotEmpty)
                 _buildChildCheckboxTile(
                   title: l10n.metadataImport_fixedPrefix(
@@ -352,11 +364,11 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                     selectable: false,
                     maxLines: 1,
                   ),
-                  value: _options.importFixedPrefix,
+                  value: _options.importFixedNegativePrefix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
                           () => _options = _options.copyWith(
-                            importFixedPrefix: v,
+                            importFixedNegativePrefix: v,
                           ),
                         )
                       : null,
@@ -380,11 +392,11 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                     selectable: false,
                     maxLines: 1,
                   ),
-                  value: _options.importFixedSuffix,
+                  value: _options.importFixedNegativeSuffix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
                           () => _options = _options.copyWith(
-                            importFixedSuffix: v,
+                            importFixedNegativeSuffix: v,
                           ),
                         )
                       : null,
@@ -504,6 +516,68 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFixedTagSource(FixedTagImportResolution resolution) {
+    final l10n = context.l10n;
+    final text = switch (resolution.source) {
+      FixedTagImportSource.structured =>
+        l10n.metadataImport_fixedSourceStructured,
+      FixedTagImportSource.legacyFields =>
+        l10n.metadataImport_fixedSourceLegacy,
+      FixedTagImportSource.currentLibrary =>
+        l10n.metadataImport_fixedSourceLibrary,
+      FixedTagImportSource.unknown => l10n.metadataImport_fixedSourceUnknown,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, right: 8, bottom: 6),
+      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+    );
+  }
+
+  Widget _buildUnknownFixedTagPolicy() {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              l10n.metadataImport_unknownFixedTagsHint,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          RadioGroup<UnknownFixedTagPolicy>(
+            groupValue: _options.unknownFixedTagPolicy,
+            onChanged: _options.importFixedTags
+                ? (value) => setState(
+                    () => _options = _options.copyWith(
+                      unknownFixedTagPolicy: value!,
+                    ),
+                  )
+                : (_) {},
+            child: Column(
+              children: [
+                RadioListTile<UnknownFixedTagPolicy>(
+                  dense: true,
+                  title: Text(l10n.metadataImport_disableCurrentFixedTags),
+                  value: UnknownFixedTagPolicy.disableCurrent,
+                  enabled: _options.importFixedTags,
+                ),
+                RadioListTile<UnknownFixedTagPolicy>(
+                  dense: true,
+                  title: Text(l10n.metadataImport_keepCurrentFixedTags),
+                  value: UnknownFixedTagPolicy.keepCurrent,
+                  enabled: _options.importFixedTags,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

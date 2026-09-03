@@ -3733,6 +3733,15 @@
   "metadataImport_clear": "Clear",
   "metadataImport_mainPrompt": "Main Prompt",
   "metadataImport_fixedTags": "Fixed Tags",
+  "metadataImport_fixedSourceStructured": "Source: explicitly recorded by the image",
+  "metadataImport_fixedSourceLegacy": "Source: legacy image fields",
+  "metadataImport_fixedSourceLibrary": "Source: exact match from the current fixed-tag library",
+  "metadataImport_fixedSourceUnknown": "Source: not recorded; cannot be determined",
+  "metadataImport_unknownFixedTagsHint": "This image does not record fixed tags. Choose how to handle the currently enabled fixed tags.",
+  "metadataImport_disableCurrentFixedTags": "Disable current fixed tags (recommended)",
+  "metadataImport_keepCurrentFixedTags": "Keep and stack with the image prompt",
+  "metadataImport_imageVersionName": "{name} (image version)",
+  "@metadataImport_imageVersionName": {"placeholders": {"name": {}}},
   "metadataImport_fixedPrefix": "Prefix: {text}",
   "@metadataImport_fixedPrefix": {
     "placeholders": {
@@ -3941,8 +3950,8 @@
     }
   },
   "drop_addedToCharacterRef": "Added to Precise Reference",
-  "drop_extractMetadata": "Extract Metadata",
-  "drop_extractMetadataSubtitle": "Read Prompt, Seed and other parameters from image",
+  "drop_extractMetadata": "Send to Text to Image",
+  "drop_extractMetadataSubtitle": "Choose prompts, fixed tags, and generation parameters to apply",
   "drop_addToQueue": "Add to Queue",
   "drop_addToQueueSubtitle": "Extract prompt and add to generation queue",
   "drop_vibeDetected": "Pre-encoded Vibe detected (saves 2 Anlas)",

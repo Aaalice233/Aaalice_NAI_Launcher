@@ -1814,6 +1814,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       showSaveButton: image.canSave,
       showCopyButton: image.canSave,
       preserveOriginalBytesOnSave: image.preserveOriginalBytesOnSave,
+      fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,
     );
   }
 

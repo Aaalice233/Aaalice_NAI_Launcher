@@ -4,6 +4,8 @@ import '../gallery/nai_image_metadata.dart';
 
 part 'metadata_import_options.freezed.dart';
 
+enum UnknownFixedTagPolicy { disableCurrent, keepCurrent }
+
 /// 元数据导入选项模型
 ///
 /// 用于选择性地套用图片元数据中的参数
@@ -18,6 +20,10 @@ class MetadataImportOptions with _$MetadataImportOptions {
     @Default(true) bool importFixedTags,
     @Default(true) bool importFixedPrefix,
     @Default(true) bool importFixedSuffix,
+    @Default(true) bool importFixedNegativePrefix,
+    @Default(true) bool importFixedNegativeSuffix,
+    @Default(UnknownFixedTagPolicy.disableCurrent)
+    UnknownFixedTagPolicy unknownFixedTagPolicy,
 
     // 质量词
     @Default(true) bool importQualityTags,
@@ -106,6 +112,8 @@ class MetadataImportOptions with _$MetadataImportOptions {
     importFixedTags: false,
     importFixedPrefix: false,
     importFixedSuffix: false,
+    importFixedNegativePrefix: false,
+    importFixedNegativeSuffix: false,
     importQualityTags: false,
     importCharacterPrompts: false,
     importVibeReferences: true,
@@ -133,6 +141,8 @@ class MetadataImportOptions with _$MetadataImportOptions {
     importFixedTags: false,
     importFixedPrefix: false,
     importFixedSuffix: false,
+    importFixedNegativePrefix: false,
+    importFixedNegativeSuffix: false,
     importQualityTags: false,
     importCharacterPrompts: false,
     importVibeReferences: false,
@@ -164,14 +174,25 @@ class MetadataImportOptions with _$MetadataImportOptions {
     if (importNegativePrompt && metadata.negativePrompt.isNotEmpty) count++;
 
     final hasSelectedFixedPrefix =
-        importFixedPrefix &&
-        (metadata.fixedPrefixTags.isNotEmpty ||
-            metadata.fixedNegativePrefixTags.isNotEmpty);
+        importFixedPrefix && metadata.fixedPrefixTags.isNotEmpty;
     final hasSelectedFixedSuffix =
-        importFixedSuffix &&
-        (metadata.fixedSuffixTags.isNotEmpty ||
-            metadata.fixedNegativeSuffixTags.isNotEmpty);
-    if (importFixedTags && (hasSelectedFixedPrefix || hasSelectedFixedSuffix)) {
+        importFixedSuffix && metadata.fixedSuffixTags.isNotEmpty;
+    final hasSelectedNegativeFixedPrefix =
+        importFixedNegativePrefix &&
+        metadata.fixedNegativePrefixTags.isNotEmpty;
+    final hasSelectedNegativeFixedSuffix =
+        importFixedNegativeSuffix &&
+        metadata.fixedNegativeSuffixTags.isNotEmpty;
+    if (importFixedTags &&
+        (hasSelectedFixedPrefix ||
+            hasSelectedFixedSuffix ||
+            hasSelectedNegativeFixedPrefix ||
+            hasSelectedNegativeFixedSuffix ||
+            (metadata.hasExplicitFixedTagMetadata &&
+                (importFixedPrefix ||
+                    importFixedSuffix ||
+                    importFixedNegativePrefix ||
+                    importFixedNegativeSuffix)))) {
       count++;
     }
 
@@ -236,7 +257,13 @@ class MetadataImportOptions with _$MetadataImportOptions {
     var count = 0;
     if (importPrompt) count++;
     if (importNegativePrompt) count++;
-    if (importFixedTags && (importFixedPrefix || importFixedSuffix)) count++;
+    if (importFixedTags &&
+        (importFixedPrefix ||
+            importFixedSuffix ||
+            importFixedNegativePrefix ||
+            importFixedNegativeSuffix)) {
+      count++;
+    }
     if (importQualityTags && selectedQualityTags.isNotEmpty) count++;
     if (importCharacterPrompts && selectedCharacterIndices.isNotEmpty) count++;
     if (importVibeReferences && selectedVibeIndices.isNotEmpty) count++;
@@ -270,7 +297,11 @@ class MetadataImportOptions with _$MetadataImportOptions {
   bool get isImportingAnyPrompt =>
       importPrompt ||
       importNegativePrompt ||
-      (importFixedTags && (importFixedPrefix || importFixedSuffix)) ||
+      (importFixedTags &&
+          (importFixedPrefix ||
+              importFixedSuffix ||
+              importFixedNegativePrefix ||
+              importFixedNegativeSuffix)) ||
       (importQualityTags && selectedQualityTags.isNotEmpty) ||
       (importCharacterPrompts && selectedCharacterIndices.isNotEmpty);
 
