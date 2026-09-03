@@ -50,7 +50,7 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
     final highlighted = _hovering || _focused;
     final baseColor = entry.enabled
         ? theme.colorScheme.surfaceContainerHigh
-        : theme.colorScheme.surfaceContainer;
+        : theme.colorScheme.surfaceContainerLow;
     final tile = Material(
       color: Colors.transparent,
       child: InkWell(
@@ -83,11 +83,6 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
                   )
                 : baseColor,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: highlighted
-                  ? theme.colorScheme.primary.withValues(alpha: 0.38)
-                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.28),
-            ),
             boxShadow: highlighted
                 ? [
                     BoxShadow(

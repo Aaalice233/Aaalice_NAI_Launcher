@@ -22,6 +22,23 @@ import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.d
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('历史记录标题栏操作按钮贴齐面板右侧', (tester) async {
+    final container = _createContainer([_image('header-alignment')]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_historyApp(container));
+    await tester.pump();
+
+    final panelRect = tester.getRect(find.byType(HistoryPanel));
+    final clearButtonRect = tester.getRect(
+      find.ancestor(
+        of: find.byTooltip('清除'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(clearButtonRect.right, closeTo(panelRect.right - 4, 0.01));
+  });
+
   testWidgets('classic single click opens one image detail', (tester) async {
     final container = _createContainer([_image('classic')]);
     addTearDown(container.dispose);

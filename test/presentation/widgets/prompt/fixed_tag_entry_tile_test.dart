@@ -7,7 +7,7 @@ import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_entry_tile.dart';
 
 void main() {
-  testWidgets('桌面禁用态保留清晰色面、边界和文字弱化样式', (tester) async {
+  testWidgets('桌面禁用态以色面和文字弱化表达层级且不添加边框', (tester) async {
     final entry = FixedTagEntry.create(
       name: '禁用固定词',
       content: '1girl, blue eyes',
@@ -21,8 +21,8 @@ void main() {
       find.byType(AnimatedContainer),
     );
     final decoration = container.decoration! as BoxDecoration;
-    expect(decoration.color, theme.colorScheme.surfaceContainer);
-    expect(decoration.border, isA<Border>());
+    expect(decoration.color, theme.colorScheme.surfaceContainerLow);
+    expect(decoration.border, isNull);
     expect(decoration.boxShadow, isEmpty);
     expect(tester.getSize(find.byType(Switch)).width, greaterThanOrEqualTo(48));
 

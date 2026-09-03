@@ -265,36 +265,41 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                 // 折叠按钮
                 _buildCollapseButton(theme),
                 const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    context.l10n.generation_historyRecord,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          context.l10n.generation_historyRecord,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (state.history.isNotEmpty ||
+                          state.currentImages.isNotEmpty) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${_getAllSelectableImages(state).length}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                if (state.history.isNotEmpty ||
-                    state.currentImages.isNotEmpty) ...[
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${_getAllSelectableImages(state).length}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ),
-                ],
-                const Spacer(),
                 // 全选按钮
                 if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
                   IconButton(
