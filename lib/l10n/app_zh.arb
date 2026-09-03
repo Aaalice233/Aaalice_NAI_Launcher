@@ -2554,6 +2554,7 @@
     }
   },
   "localGallery_sendToImg2Img": "发送到图生图",
+  "localGallery_moreImageActions": "更多图片操作",
   "localGallery_sendToReversePrompt": "发送到反推",
   "localGallery_sendToStyleTransfer": "发送到风格迁移",
   "localGallery_sendToPreciseReference": "发送到精准参考",

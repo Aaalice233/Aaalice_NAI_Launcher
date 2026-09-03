@@ -114,6 +114,8 @@ void main() {
     await tester.pump();
     final agentAction = find.byTooltip('Send to Agent');
     expect(agentAction, findsOneWidget);
+    expect(find.byTooltip('More image actions'), findsOneWidget);
+    expect(find.byTooltip('Send to Image2Image'), findsNothing);
     final portraitActionRects = [
       for (
         var index = 0;

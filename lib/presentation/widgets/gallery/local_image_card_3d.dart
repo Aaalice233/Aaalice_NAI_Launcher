@@ -611,7 +611,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         ),
         CardActionButtonConfig(
           icon: Icons.send,
-          tooltip: context.l10n.detail_sendToImg2Img,
+          tooltip: context.l10n.localGallery_moreImageActions,
           onPressed: () => unawaited(_showSendMenu(context)),
         ),
       ],

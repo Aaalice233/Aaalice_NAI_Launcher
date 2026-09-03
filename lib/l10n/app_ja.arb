@@ -2511,6 +2511,7 @@
     }
   },
   "localGallery_sendToImg2Img": "Image2Image に送信",
+  "localGallery_moreImageActions": "その他の画像操作",
   "localGallery_sendToReversePrompt": "逆プロンプトに送信",
   "localGallery_sendToStyleTransfer": "バイブストランスファーに送信",
   "localGallery_sendToPreciseReference": "精密参照に送信",

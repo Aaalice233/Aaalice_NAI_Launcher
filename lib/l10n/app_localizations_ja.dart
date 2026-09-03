@@ -5634,6 +5634,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_sendToImg2Img => 'Image2Image に送信';
 
   @override
+  String get localGallery_moreImageActions => 'その他の画像操作';
+
+  @override
   String get localGallery_sendToReversePrompt => '逆プロンプトに送信';
 
   @override

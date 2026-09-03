@@ -2570,6 +2570,7 @@
     }
   },
   "localGallery_sendToImg2Img": "傳送到圖生圖",
+  "localGallery_moreImageActions": "更多圖片操作",
   "localGallery_sendToReversePrompt": "傳送到反推",
   "localGallery_sendToStyleTransfer": "傳送到風格遷移",
   "localGallery_sendToPreciseReference": "傳送到精準參考",

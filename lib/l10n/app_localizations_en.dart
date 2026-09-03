@@ -5780,6 +5780,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_sendToImg2Img => 'Send to Image2Image';
 
   @override
+  String get localGallery_moreImageActions => 'More image actions';
+
+  @override
   String get localGallery_sendToReversePrompt => 'Send to Reverse Prompt';
 
   @override

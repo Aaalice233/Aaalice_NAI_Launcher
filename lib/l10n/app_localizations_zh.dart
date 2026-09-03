@@ -5536,6 +5536,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_sendToImg2Img => '发送到图生图';
 
   @override
+  String get localGallery_moreImageActions => '更多图片操作';
+
+  @override
   String get localGallery_sendToReversePrompt => '发送到反推';
 
   @override
@@ -19381,6 +19384,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_sendToImg2Img => '傳送到圖生圖';
+
+  @override
+  String get localGallery_moreImageActions => '更多圖片操作';
 
   @override
   String get localGallery_sendToReversePrompt => '傳送到反推';

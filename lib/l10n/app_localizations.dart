@@ -10291,6 +10291,12 @@ abstract class AppLocalizations {
   /// **'Send to Image2Image'**
   String get localGallery_sendToImg2Img;
 
+  /// No description provided for @localGallery_moreImageActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More image actions'**
+  String get localGallery_moreImageActions;
+
   /// No description provided for @localGallery_sendToReversePrompt.
   ///
   /// In en, this message translates to:
