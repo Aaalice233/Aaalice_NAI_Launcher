@@ -6567,6 +6567,7 @@
   "agentSettings_chatModel": "チャットモデル",
   "agentSettings_providerModel": "プロバイダー / モデル",
   "agentSettings_modelManagedInIntegrations": "プロバイダー、API キー、モデル検出は引き続き「連携」で一元管理されます。",
+  "agentSettings_manageProviders": "プロバイダーを管理",
   "agentSettings_noModel": "利用可能なチャットモデルがありません。先に「連携」でプロバイダーを追加し、モデルを検出してください。",
   "agentSettings_pendingMatch": "照合待ち",
   "agentSettings_contextWindow": "コンテキストウィンドウ（トークン）",

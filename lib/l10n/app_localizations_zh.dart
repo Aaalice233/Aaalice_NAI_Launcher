@@ -13305,6 +13305,9 @@ class AppLocalizationsZh extends AppLocalizations {
       '供应商、API Key 与模型发现仍在“集成”中统一管理。';
 
   @override
+  String get agentSettings_manageProviders => '管理服务商';
+
+  @override
   String get agentSettings_noModel => '没有可用聊天模型。请先在“集成”中添加供应商并发现模型。';
 
   @override
@@ -27148,6 +27151,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get agentSettings_modelManagedInIntegrations =>
       '供應商、API Key 與模型探索仍在「整合」中統一管理。';
+
+  @override
+  String get agentSettings_manageProviders => '管理供應商';
 
   @override
   String get agentSettings_noModel => '沒有可用聊天模型。請先在「整合」中新增供應商並探索模型。';

@@ -6888,6 +6888,7 @@
   "agentSettings_chatModel": "聊天模型",
   "agentSettings_providerModel": "供應商 / 模型",
   "agentSettings_modelManagedInIntegrations": "供應商、API Key 與模型探索仍在「整合」中統一管理。",
+  "agentSettings_manageProviders": "管理供應商",
   "agentSettings_noModel": "沒有可用聊天模型。請先在「整合」中新增供應商並探索模型。",
   "agentSettings_pendingMatch": "待配對",
   "agentSettings_contextWindow": "上下文視窗（token）",

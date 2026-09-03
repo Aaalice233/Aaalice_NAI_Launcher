@@ -13541,6 +13541,9 @@ class AppLocalizationsJa extends AppLocalizations {
       'プロバイダー、API キー、モデル検出は引き続き「連携」で一元管理されます。';
 
   @override
+  String get agentSettings_manageProviders => 'プロバイダーを管理';
+
+  @override
   String get agentSettings_noModel =>
       '利用可能なチャットモデルがありません。先に「連携」でプロバイダーを追加し、モデルを検出してください。';
 

@@ -24194,6 +24194,12 @@ abstract class AppLocalizations {
   /// **'Providers, API keys, and model discovery remain centrally managed in Integrations.'**
   String get agentSettings_modelManagedInIntegrations;
 
+  /// No description provided for @agentSettings_manageProviders.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage providers'**
+  String get agentSettings_manageProviders;
+
   /// No description provided for @agentSettings_noModel.
   ///
   /// In en, this message translates to:

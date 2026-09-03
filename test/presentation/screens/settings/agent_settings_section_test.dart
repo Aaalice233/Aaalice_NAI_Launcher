@@ -126,6 +126,7 @@ void main() {
     final root = Directory('tool/.tmp/agent-settings-section-test')
       ..createSync(recursive: true);
     final storage = _MemoryLocalStorage();
+    var openedIntegrations = false;
     await storage.setSetting(
       StorageKeys.promptAssistantConfigJson,
       PromptAssistantConfigState.defaults()
@@ -186,10 +187,12 @@ void main() {
               ).copyWith(textScaler: const TextScaler.linear(3)),
               child: child!,
             ),
-            home: const Scaffold(
+            home: Scaffold(
               body: SingleChildScrollView(
-                padding: EdgeInsets.all(16),
-                child: AgentSettingsSection(),
+                padding: const EdgeInsets.all(16),
+                child: AgentSettingsSection(
+                  onOpenIntegrations: () => openedIntegrations = true,
+                ),
               ),
             ),
           ),
@@ -281,6 +284,13 @@ void main() {
         find.byKey(const ValueKey('agent-settings-model-header-close')),
       );
       await tester.pumpAndSettle();
+
+      final manageProviders = find.byKey(
+        const ValueKey('agent-settings-open-integrations'),
+      );
+      await tester.ensureVisible(manageProviders);
+      await tester.tap(manageProviders);
+      expect(openedIntegrations, isTrue);
 
       final skillsTab = find.descendant(
         of: panelSelector,

@@ -13902,6 +13902,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Providers, API keys, and model discovery remain centrally managed in Integrations.';
 
   @override
+  String get agentSettings_manageProviders => 'Manage providers';
+
+  @override
   String get agentSettings_noModel =>
       'No chat model is available. Add a provider and discover models in Integrations first.';
 

@@ -6613,6 +6613,7 @@
   "agentSettings_chatModel": "聊天模型",
   "agentSettings_providerModel": "供应商 / 模型",
   "agentSettings_modelManagedInIntegrations": "供应商、API Key 与模型发现仍在“集成”中统一管理。",
+  "agentSettings_manageProviders": "管理服务商",
   "agentSettings_noModel": "没有可用聊天模型。请先在“集成”中添加供应商并发现模型。",
   "agentSettings_pendingMatch": "待匹配",
   "agentSettings_contextWindow": "上下文窗口（token）",

@@ -6544,6 +6544,7 @@
   "agentSettings_chatModel": "Chat model",
   "agentSettings_providerModel": "Provider / model",
   "agentSettings_modelManagedInIntegrations": "Providers, API keys, and model discovery remain centrally managed in Integrations.",
+  "agentSettings_manageProviders": "Manage providers",
   "agentSettings_noModel": "No chat model is available. Add a provider and discover models in Integrations first.",
   "agentSettings_pendingMatch": "pending match",
   "agentSettings_contextWindow": "Context window (tokens)",

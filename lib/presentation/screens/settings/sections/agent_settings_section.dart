@@ -18,7 +18,9 @@ import 'agent/skill_management_panel.dart';
 import 'agent/system_prompt_editor.dart';
 
 class AgentSettingsSection extends ConsumerStatefulWidget {
-  const AgentSettingsSection({super.key});
+  const AgentSettingsSection({super.key, this.onOpenIntegrations});
+
+  final VoidCallback? onOpenIntegrations;
 
   @override
   ConsumerState<AgentSettingsSection> createState() =>
@@ -98,7 +100,11 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
       description: context.l10n.agentSettings_subtitle,
       actions: const AgentProfileActions(),
       children: [
-        _ModelCard(settings: state.settings, promptConfig: promptConfig),
+        _ModelCard(
+          settings: state.settings,
+          promptConfig: promptConfig,
+          onOpenIntegrations: widget.onOpenIntegrations,
+        ),
         _ReadingPreferencesCard(settings: state.settings),
         _PermissionCard(settings: state.settings),
         _WebAccessCard(settings: state.settings),
@@ -112,10 +118,15 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
 }
 
 class _ModelCard extends ConsumerWidget {
-  const _ModelCard({required this.settings, required this.promptConfig});
+  const _ModelCard({
+    required this.settings,
+    required this.promptConfig,
+    required this.onOpenIntegrations,
+  });
 
   final AgentSettings settings;
   final PromptAssistantConfigState promptConfig;
+  final VoidCallback? onOpenIntegrations;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -204,6 +215,15 @@ class _ModelCard extends ConsumerWidget {
                     .setModelReference(value),
               );
             },
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: const ValueKey('agent-settings-open-integrations'),
+              onPressed: onOpenIntegrations,
+              icon: const Icon(Icons.arrow_forward, size: 18),
+              label: Text(context.l10n.agentSettings_manageProviders),
+            ),
           ),
           if (available.isEmpty)
             Padding(

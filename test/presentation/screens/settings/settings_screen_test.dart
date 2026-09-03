@@ -582,6 +582,18 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.tap(
+      find.byKey(const ValueKey('agent-settings-open-integrations')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(IntegrationsSettingsSection), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.smart_toy_outlined));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('agent-custom-system-prompt')),
+      findsOneWidget,
+    );
+
     await tester.enterText(
       find.byKey(const ValueKey('agent-custom-system-prompt')),
       '尚未保存',

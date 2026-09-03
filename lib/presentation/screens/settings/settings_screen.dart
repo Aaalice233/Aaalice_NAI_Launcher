@@ -112,7 +112,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.smart_toy_outlined,
         selectedIcon: Icons.smart_toy,
         label: context.l10n.settings_agent,
-        widget: const AgentSettingsSection(),
+        widget: AgentSettingsSection(
+          onOpenIntegrations: () => _onSectionSelected(
+            SettingsSection.integrations,
+            showCompactDetail: true,
+          ),
+        ),
       ),
       _SettingsSection(
         id: SettingsSection.storage,
