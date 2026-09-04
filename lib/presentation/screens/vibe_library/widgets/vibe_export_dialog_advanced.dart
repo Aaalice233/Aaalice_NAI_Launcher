@@ -239,39 +239,53 @@ class _VibeExportDialogAdvancedState
               // 导出进度
               _buildProgressView(theme),
             ] else ...[
-              // 导出选项
-              Expanded(
+              Flexible(
+                fit: FlexFit.loose,
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        context.l10n.vibe_export_format,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        context.l10n.vibe_export_multipleFormatsHint,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       // Bundle 导出选项（如果不是单选 bundle，或选择了导出整个 bundle）
                       if (!isSingleBundle || _exportWholeBundle) ...[
                         _buildExportBundleOption(theme),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         _buildExportZipOption(theme),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                       ],
 
                       // 单选 bundle 时的导出模式选择
                       if (isSingleBundle) ...[
                         _buildBundleExportModeOption(theme),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                       ],
 
                       // 内部 vibe 选择列表（仅当单选 bundle 且选择导出单个 vibe 时显示）
                       if (isSingleBundle && !_exportWholeBundle) ...[
                         _buildInternalVibeSelection(theme),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                       ],
 
                       if (widget.entries.length == 1) ...[
                         _buildEmbedIntoImageOption(theme),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                       ],
                       _buildExportEncodingOption(theme),
-                      const SizedBox(height: 16),
                       if (_errorMessage != null) ...[
+                        const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -905,7 +919,8 @@ class _VibeExportDialogAdvancedState
 
   /// 构建进度视图
   Widget _buildProgressView(ThemeData theme) {
-    return Expanded(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1471,15 +1486,12 @@ class _OptionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: isSelected
-              ? Border.all(color: theme.colorScheme.primary, width: 2)
-              : null,
           borderRadius: BorderRadius.circular(12),
           color: isDisabled
               ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
               : isSelected
-              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.2)
-              : theme.colorScheme.surface,
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.16)
+              : theme.colorScheme.surfaceContainerLow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

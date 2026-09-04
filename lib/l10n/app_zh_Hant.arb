@@ -4327,6 +4327,7 @@
   "vibeDetail_saveParameters": "儲存引數",
   "vibe_export_title": "匯出 Vibe",
   "vibe_export_format": "匯出格式",
+  "vibe_export_multipleFormatsHint": "可同時選擇多種格式，每種格式會產生一份獨立的匯出結果。",
   "vibe_selector_title": "選擇 Vibe",
   "vibe_selector_recent": "最近使用",
   "vibe_export_include_thumbnails": "包含縮圖",

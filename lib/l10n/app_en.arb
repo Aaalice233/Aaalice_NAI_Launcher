@@ -4345,6 +4345,7 @@
   "vibeDetail_saveParameters": "Save Parameters",
   "vibe_export_title": "Export Vibe",
   "vibe_export_format": "Export Format",
+  "vibe_export_multipleFormatsHint": "Select multiple formats if needed. Each format creates a separate export result.",
   "vibe_selector_title": "Select Vibe",
   "vibe_selector_recent": "Recent",
   "vibe_export_include_thumbnails": "Include Thumbnails",

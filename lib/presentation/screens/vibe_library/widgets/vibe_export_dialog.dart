@@ -232,7 +232,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                 ),
               ),
             ] else ...[
-              Expanded(
+              Flexible(
+                fit: FlexFit.loose,
                 child: SingleChildScrollView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
@@ -278,7 +279,6 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                         ),
                         const SizedBox(height: 16),
                       ],
-
                       _buildDialogActions(),
                     ],
                   ),

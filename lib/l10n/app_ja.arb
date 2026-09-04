@@ -4293,6 +4293,7 @@
   "vibeDetail_saveParameters": "パラメーターを保存",
   "vibe_export_title": "Vibe をエクスポート",
   "vibe_export_format": "エクスポート形式",
+  "vibe_export_multipleFormatsHint": "必要に応じて複数の形式を選択できます。形式ごとに個別のエクスポート結果が作成されます。",
   "vibe_selector_title": "Vibe を選択してください",
   "vibe_selector_recent": "最近の",
   "vibe_export_include_thumbnails": "サムネイルを含める",

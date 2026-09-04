@@ -9157,6 +9157,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_export_format => 'Export Format';
 
   @override
+  String get vibe_export_multipleFormatsHint =>
+      'Select multiple formats if needed. Each format creates a separate export result.';
+
+  @override
   String get vibe_selector_title => 'Select Vibe';
 
   @override
