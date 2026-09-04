@@ -693,7 +693,7 @@ Future<void> showGalleryFilterPanel(BuildContext context) {
   return AdaptivePresenter.showForm<void>(
     context: context,
     title: context.l10n.localGallery_advancedFilters,
-    width: 460,
+    dialogWidth: 460,
     builder: (context, scrollController) =>
         GalleryFilterPanel(scrollController: scrollController),
   );

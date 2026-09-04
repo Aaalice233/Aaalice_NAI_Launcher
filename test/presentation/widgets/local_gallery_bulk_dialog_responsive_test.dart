@@ -89,7 +89,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('open-bulk-metadata-edit')));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(tester.getTopLeft(surface).dy, greaterThanOrEqualTo(24));

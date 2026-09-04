@@ -376,7 +376,7 @@ Future<List<VibeReference>> showVibeEmbedSelectionForm({
   final result = await AdaptivePresenter.showForm<List<VibeReference>>(
     context: context,
     title: context.l10n.vibe_export_selectToEmbed,
-    width: 480,
+    dialogWidth: 480,
     builder: (panelContext, scrollController) => StatefulBuilder(
       builder: (panelContext, setState) => Column(
         children: [

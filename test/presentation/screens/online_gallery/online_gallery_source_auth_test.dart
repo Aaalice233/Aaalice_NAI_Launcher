@@ -216,7 +216,7 @@ void main() {
         expect(
           find.byKey(
             ValueKey(
-              width < 600 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
+              width < 840 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
             ),
           ),
           findsOneWidget,

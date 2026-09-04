@@ -8,7 +8,7 @@ import 'package:nai_launcher/presentation/screens/cloud_sync/cloud_sync_agent_co
 
 void main() {
   testWidgets(
-    'Skill backup starts off and enables explicit searchable selection',
+    'Agent content starts on and Skills allow explicit searchable selection',
     (tester) async {
       var selection = const CloudSyncContentSelection();
       late StateSetter rebuild;
@@ -46,13 +46,8 @@ void main() {
       );
 
       expect(selection.includeAgentSystemPrompt, isTrue);
-      expect(selection.includeSkills, isFalse);
-      expect(find.text('自定义系统提示词'), findsOneWidget);
-      expect(find.text('搜索 Skill'), findsNothing);
-
-      await tester.tap(find.widgetWithText(SwitchListTile, '备份已选 Skill'));
-      await tester.pumpAndSettle();
       expect(selection.includeSkills, isTrue);
+      expect(find.text('自定义系统提示词'), findsOneWidget);
       expect(selection.selectedSkillIds, isEmpty);
       expect(find.text('已选择 0 个 Skill'), findsOneWidget);
 

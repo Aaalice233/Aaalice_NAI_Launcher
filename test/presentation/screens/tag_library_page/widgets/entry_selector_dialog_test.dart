@@ -60,11 +60,11 @@ void main() {
       await tester.tap(find.text('打开'));
       await tester.pumpAndSettle();
 
-      final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
+      final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
       expect(panel, findsOneWidget);
       final panelRect = tester.getRect(panel);
       expect(panelRect.top, greaterThanOrEqualTo(24));
-      expect(panelRect.bottom, lessThanOrEqualTo(476));
+      expect(panelRect.bottom, lessThanOrEqualTo(500));
 
       await tester.enterText(find.byType(TextField), '目标标签');
       await tester.pump();
@@ -121,19 +121,16 @@ void main() {
       await tester.tap(find.text('打开'));
       await tester.pumpAndSettle();
 
-      final panel = find.byKey(const ValueKey('adaptive-centered-form'));
+      final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
       expect(panel, findsOneWidget);
-      expect(tester.getSize(panel).width, 500);
+      expect(tester.getSize(panel).width, lessThanOrEqualTo(700));
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
       expect(completed, isTrue);
       expect(result, isNull);
-      expect(
-        find.byKey(const ValueKey('adaptive-centered-form')),
-        findsNothing,
-      );
+      expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

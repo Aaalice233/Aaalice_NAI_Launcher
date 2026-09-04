@@ -377,7 +377,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('手机多角色管理使用全屏表单并保持概览到编辑器状态', (tester) async {
+  testWidgets('手机多角色管理使用全高 bottom sheet 并保持概览到编辑器状态', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(380, 800);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -400,10 +400,7 @@ void main() {
       const ValueKey('generation_mobile_character_manager_sheet'),
     );
     final formHeight = tester.getSize(sheet).height;
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.text('角色甲'), findsOneWidget);
     expect(find.text('角色乙'), findsOneWidget);
     expect(find.byType(CharacterPromptEditor), findsNothing);

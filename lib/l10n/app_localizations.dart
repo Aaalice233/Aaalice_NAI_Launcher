@@ -23246,6 +23246,156 @@ abstract class AppLocalizations {
   /// **'Choose what to push and pull. Accounts, passwords, and API keys are never uploaded.'**
   String get cloudSync_dataScopeDescription;
 
+  /// No description provided for @cloudSync_chooseBackupContents.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose backup content'**
+  String get cloudSync_chooseBackupContents;
+
+  /// No description provided for @cloudSync_backupContentDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Only data required for recovery is backed up. Image resources are compressed before upload.'**
+  String get cloudSync_backupContentDescription;
+
+  /// No description provided for @cloudSync_lightweightData.
+  ///
+  /// In en, this message translates to:
+  /// **'Lightweight data (default)'**
+  String get cloudSync_lightweightData;
+
+  /// No description provided for @cloudSync_settingsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme, generation parameters, and app preferences'**
+  String get cloudSync_settingsDescription;
+
+  /// No description provided for @cloudSync_promptsAndTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompts and tag library'**
+  String get cloudSync_promptsAndTags;
+
+  /// No description provided for @cloudSync_promptsAndTagsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries, categories, fixed tags, and presets'**
+  String get cloudSync_promptsAndTagsDescription;
+
+  /// No description provided for @cloudSync_tagThumbnails.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag-library previews'**
+  String get cloudSync_tagThumbnails;
+
+  /// No description provided for @cloudSync_tagThumbnailsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Compressed before upload; originals are not stored'**
+  String get cloudSync_tagThumbnailsDescription;
+
+  /// No description provided for @cloudSync_onlineGallerySettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Online gallery settings'**
+  String get cloudSync_onlineGallerySettings;
+
+  /// No description provided for @cloudSync_onlineGallerySettingsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Blacklist, filters, and user categories'**
+  String get cloudSync_onlineGallerySettingsDescription;
+
+  /// No description provided for @cloudSync_onlineGalleryFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Online gallery favorites'**
+  String get cloudSync_onlineGalleryFavorites;
+
+  /// No description provided for @cloudSync_onlineGalleryFavoritesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores source IDs and recovery fields only, never original images'**
+  String get cloudSync_onlineGalleryFavoritesDescription;
+
+  /// No description provided for @cloudSync_galleryAlbums.
+  ///
+  /// In en, this message translates to:
+  /// **'Local gallery albums'**
+  String get cloudSync_galleryAlbums;
+
+  /// No description provided for @cloudSync_galleryAlbumsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores album structure and image references, never original images'**
+  String get cloudSync_galleryAlbumsDescription;
+
+  /// No description provided for @cloudSync_optionalResources.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional resources (off by default)'**
+  String get cloudSync_optionalResources;
+
+  /// No description provided for @cloudSync_vibes.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe'**
+  String get cloudSync_vibes;
+
+  /// No description provided for @cloudSync_preciseReferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Precise references'**
+  String get cloudSync_preciseReferences;
+
+  /// No description provided for @cloudSync_largeResourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes resources required for recovery and may significantly increase size'**
+  String get cloudSync_largeResourceDescription;
+
+  /// No description provided for @cloudSync_neverBackedUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud credentials, caches, logs, browsing history, and remote gallery originals are never backed up.'**
+  String get cloudSync_neverBackedUp;
+
+  /// No description provided for @cloudSync_restoreDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore defaults'**
+  String get cloudSync_restoreDefaults;
+
+  /// No description provided for @cloudSync_saveSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Save selection'**
+  String get cloudSync_saveSelection;
+
+  /// No description provided for @cloudSync_selectedContentSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} content items selected'**
+  String cloudSync_selectedContentSummary(int count);
+
+  /// No description provided for @cloudSync_rebuildCompactBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean and rebuild backup'**
+  String get cloudSync_rebuildCompactBackup;
+
+  /// No description provided for @cloudSync_rebuildCompactBackupDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletes the current cloud backup namespace and uploads a compact backup using the current selection. Provider-retained history is not rewritten.'**
+  String get cloudSync_rebuildCompactBackupDescription;
+
+  /// No description provided for @cloudSync_rebuildCompactBackupConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the current cloud backup and immediately upload a new compact backup? This cannot be undone.'**
+  String get cloudSync_rebuildCompactBackupConfirm;
+
   /// No description provided for @cloudSync_kindSettings.
   ///
   /// In en, this message translates to:
@@ -23297,7 +23447,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_skillsBackupDescription.
   ///
   /// In en, this message translates to:
-  /// **'Off by default. Turn it on to choose which Skills to bring to your other devices.'**
+  /// **'Backup is on by default; only the Skills selected below are included.'**
   String get cloudSync_skillsBackupDescription;
 
   /// No description provided for @cloudSync_skillsSelectedCount.

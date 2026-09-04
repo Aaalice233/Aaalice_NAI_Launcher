@@ -13,7 +13,7 @@ import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../providers/cloud_sync/cloud_sync_flight_gate.dart';
 import '../../providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
-import 'cloud_sync_agent_content_section.dart';
+import 'cloud_sync_content_selection_dialog.dart';
 import 'cloud_sync_setup_configuration.dart';
 import 'cloud_sync_widgets.dart';
 
@@ -37,7 +37,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   var _authorizingOAuth = false;
   var _allowInsecureHttp = false;
   CloudSyncConnectionDraft? _oauthDraft;
-  var _dataKinds = <CloudSyncDataKind>{
+  final _dataKinds = <CloudSyncDataKind>{
     CloudSyncDataKind.settings,
     CloudSyncDataKind.prompts,
     CloudSyncDataKind.galleries,
@@ -377,45 +377,29 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   Widget _dataScope() => CloudSyncSection(
     title: context.l10n.cloudSync_dataScope,
     subtitle: context.l10n.cloudSync_dataScopeDescription,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _filter(
-              CloudSyncDataKind.settings,
-              context.l10n.cloudSync_kindSettings,
-            ),
-            _filter(
-              CloudSyncDataKind.prompts,
-              context.l10n.cloudSync_kindPrompts,
-            ),
-            _filter(
-              CloudSyncDataKind.galleries,
-              context.l10n.cloudSync_kindGalleries,
-            ),
-          ],
+    child: ListTile(
+      key: const ValueKey('cloud-sync-content-selection-entry'),
+      contentPadding: EdgeInsets.zero,
+      minTileHeight: 56,
+      title: Text(context.l10n.cloudSync_chooseBackupContents),
+      subtitle: Text(
+        context.l10n.cloudSync_selectedContentSummary(
+          _contentSelection.selectedItemCount,
         ),
-        const SizedBox(height: 16),
-        CloudSyncAgentContentSection(
-          selection: _contentSelection,
-          skills: ref.watch(agentSettingsProvider).skills,
-          onChanged: _updateContentSelection,
-        ),
-      ],
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: _editContentSelection,
     ),
   );
 
-  Widget _filter(CloudSyncDataKind kind, String label) => FilterChip(
-    label: Text(label),
-    selected: _dataKinds.contains(kind),
-    onSelected: (selected) => setState(() {
-      _dataKinds = {..._dataKinds};
-      selected ? _dataKinds.add(kind) : _dataKinds.remove(kind);
-    }),
-  );
+  Future<void> _editContentSelection() async {
+    final value = await showCloudSyncContentSelectionDialog(
+      context: context,
+      initialSelection: _contentSelection,
+      skills: ref.read(agentSettingsProvider).skills,
+    );
+    if (value != null && mounted) _updateContentSelection(value);
+  }
 
   void _updateContentSelection(CloudSyncContentSelection value) {
     setState(() => _contentSelection = value);

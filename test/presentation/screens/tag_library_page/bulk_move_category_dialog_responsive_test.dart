@@ -26,7 +26,7 @@ void main() {
       await _openDialog(tester);
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(
@@ -56,10 +56,7 @@ void main() {
     );
     await _openDialog(tester);
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -76,7 +73,7 @@ void main() {
     await _openDialog(tester);
 
     final surfaceRect = tester.getRect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
     );
     expect(surfaceRect.top, greaterThanOrEqualTo(36));
     expect(surfaceRect.bottom, lessThanOrEqualTo(760 - 280));
@@ -95,10 +92,13 @@ void main() {
         await _openDialog(tester);
 
         final surfaceFinder = size.width < 840
-            ? find.byKey(const ValueKey('adaptive-centered-form'))
+            ? find.byKey(const ValueKey('adaptive-bottom-sheet'))
             : find.byKey(const ValueKey('adaptive-centered-form'));
         expect(surfaceFinder, findsOneWidget);
-        expect(tester.getSize(surfaceFinder).width, lessThan(size.width));
+        expect(
+          tester.getSize(surfaceFinder).width,
+          lessThanOrEqualTo(size.width),
+        );
         expect(tester.takeException(), isNull, reason: '$size');
 
         await tester.tap(find.byTooltip('Close'));
@@ -128,10 +128,7 @@ void main() {
 
     expect(completed, isTrue);
     expect(result, 'category-1');
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
   });
 
   testWidgets('system back dismisses without returning a category', (
@@ -155,10 +152,7 @@ void main() {
 
     expect(completed, isTrue);
     expect(result, isNull);
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
   });
 }
 

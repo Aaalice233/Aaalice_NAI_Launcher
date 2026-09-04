@@ -94,10 +94,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byKey(const ValueKey('mapping-rule-form')), findsOneWidget);
     final submit = find.byKey(const ValueKey('mapping-rule-submit'));
     expect(tester.widget<FilledButton>(submit).onPressed, isNull);

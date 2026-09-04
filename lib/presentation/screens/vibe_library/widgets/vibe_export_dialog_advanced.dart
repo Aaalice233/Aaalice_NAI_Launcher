@@ -61,7 +61,7 @@ class VibeExportDialogAdvanced extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      width: 520,
+      dialogWidth: 520,
       builder: (_, __) => VibeExportDialogAdvanced(entries: entries),
     );
   }

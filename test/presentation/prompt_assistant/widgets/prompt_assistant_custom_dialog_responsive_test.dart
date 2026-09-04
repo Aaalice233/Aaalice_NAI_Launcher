@@ -53,10 +53,8 @@ void main() {
       await tester.pumpAndSettle();
       final sheet = find.byWidgetPredicate(
         (widget) =>
-            widget.key == const ValueKey('adaptive-full-screen-form') ||
-            widget.key == const ValueKey('adaptive-centered-form') ||
-            widget.key == const ValueKey('adaptive-centered-form') ||
-            widget.key == const ValueKey('adaptive-bottom-sheet'),
+            widget.key == const ValueKey('adaptive-bottom-sheet') ||
+            widget.key == const ValueKey('adaptive-centered-form'),
       );
       final visibleField = tester
           .getRect(requestField)

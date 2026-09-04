@@ -14,7 +14,7 @@ class PromptAssistantQuickSettings {
       title: context.l10n.promptAssistant_assistantSettings,
       initialChildSize: 0.42,
       minChildSize: 0.32,
-      width: 440,
+      dialogWidth: 440,
       builder: (context, scrollController) => Consumer(
         builder: (context, ref, _) {
           final config = ref.watch(promptAssistantConfigProvider);

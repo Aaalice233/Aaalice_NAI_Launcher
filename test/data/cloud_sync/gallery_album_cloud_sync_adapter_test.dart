@@ -115,6 +115,7 @@ void main() {
 
     final records = await adapter.exportRecords().toList();
     final data = records.single.data;
+    expect(records.single.resource, isNull);
     expect(data['images'], ['2025/a.png', 'gallery/waiting.png']);
     expect(data['coverPath'], 'covers/c.png');
   });

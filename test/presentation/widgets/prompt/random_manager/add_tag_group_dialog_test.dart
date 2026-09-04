@@ -15,65 +15,68 @@ void main() {
     key: 'testCategory',
   );
 
-  testWidgets('320dp 3x text with IME and SafeArea uses full-screen form', (
-    tester,
-  ) async {
-    final errors = FlutterErrorCollector.install(tester);
-    addTearDown(errors.restoreAndAssertNoErrors);
-    tester.view.devicePixelRatio = 3;
-    tester.view.physicalSize = const Size(960, 1704);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.view.resetPhysicalSize);
+  testWidgets(
+    '320dp 3x text with IME and SafeArea uses a full-height bottom sheet',
+    (tester) async {
+      final errors = FlutterErrorCollector.install(tester);
+      addTearDown(errors.restoreAndAssertNoErrors);
+      tester.view.devicePixelRatio = 3;
+      tester.view.physicalSize = const Size(960, 1704);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
 
-    await _pumpHost(
-      tester,
-      category: category,
-      mediaQuery: (data) => data.copyWith(
-        padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-        viewPadding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-        viewInsets: const EdgeInsets.only(bottom: 240),
-        textScaler: const TextScaler.linear(3),
-      ),
-    );
+      await _pumpHost(
+        tester,
+        category: category,
+        mediaQuery: (data) => data.copyWith(
+          padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+          viewPadding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+          viewInsets: const EdgeInsets.only(bottom: 240),
+          textScaler: const TextScaler.linear(3),
+        ),
+      );
 
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
-    expect(surface, findsOneWidget);
-    expect(find.byType(Dialog), findsNothing);
-    expect(find.byType(AdaptiveDialogFrame), findsNothing);
+      final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+      expect(surface, findsOneWidget);
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.byType(AdaptiveDialogFrame), findsNothing);
 
-    final surfaceRect = tester.getRect(surface);
-    expect(surfaceRect.left, greaterThanOrEqualTo(12));
-    expect(surfaceRect.top, greaterThanOrEqualTo(24));
-    expect(surfaceRect.right, lessThanOrEqualTo(320 - 12));
-    expect(surfaceRect.bottom, lessThanOrEqualTo(568 - 240));
+      final surfaceRect = tester.getRect(surface);
+      expect(surfaceRect.left, greaterThanOrEqualTo(12));
+      expect(surfaceRect.top, greaterThanOrEqualTo(24));
+      expect(surfaceRect.right, lessThanOrEqualTo(320 - 12));
+      expect(surfaceRect.bottom, lessThanOrEqualTo(568 - 240));
 
-    expect(
-      tester
-          .widget<EditableText>(find.byType(EditableText).first)
-          .focusNode
-          .hasFocus,
-      isTrue,
-    );
+      expect(
+        tester
+            .widget<EditableText>(find.byType(EditableText).first)
+            .focusNode
+            .hasFocus,
+        isTrue,
+      );
 
-    final formScroll = find.byKey(const ValueKey('add-tag-group-form-scroll'));
-    final scrollableFinder = find
-        .descendant(of: formScroll, matching: find.byType(Scrollable))
-        .first;
-    final scrollable = tester.state<ScrollableState>(scrollableFinder);
-    expect(scrollable.position.maxScrollExtent, greaterThan(0));
+      final formScroll = find.byKey(
+        const ValueKey('add-tag-group-form-scroll'),
+      );
+      final scrollableFinder = find
+          .descendant(of: formScroll, matching: find.byType(Scrollable))
+          .first;
+      final scrollable = tester.state<ScrollableState>(scrollableFinder);
+      expect(scrollable.position.maxScrollExtent, greaterThan(0));
 
-    scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
-    await tester.pumpAndSettle();
-    final cancel = find.text('Cancel');
-    expect(cancel, findsOneWidget);
-    await tester.ensureVisible(cancel);
-    await tester.pumpAndSettle();
-    expect(cancel.hitTestable(), findsOneWidget);
-    errors.expectNoErrors(reason: 'compact tag group form');
-  });
+      scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+      final cancel = find.text('Cancel');
+      expect(cancel, findsOneWidget);
+      await tester.ensureVisible(cancel);
+      await tester.pumpAndSettle();
+      expect(cancel.hitTestable(), findsOneWidget);
+      errors.expectNoErrors(reason: 'compact tag group form');
+    },
+  );
 
   testWidgets(
     'wide presentation stays bounded and preserves all source modes',

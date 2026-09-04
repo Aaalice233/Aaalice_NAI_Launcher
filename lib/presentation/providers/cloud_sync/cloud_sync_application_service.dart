@@ -1,6 +1,7 @@
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/cloud_sync/cloud_drive_provider.dart';
 import '../../../core/cloud_sync/coordinator.dart';
+import '../../../core/cloud_sync/content_selection.dart';
 import '../../../core/cloud_sync/oauth/cloud_drive_oauth_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/storage/local_storage_service.dart';
@@ -176,7 +177,6 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
           supportsHistory: capability.supportsHistory,
           supportsDelete: capability.supportsDelete,
           capabilityWarnings: capability.warnings,
-          providerLimit: cloudSyncProviderLimit(connection),
           remoteExists: remoteExists,
           remoteRevision: remoteRevision,
           clearError: true,
@@ -287,6 +287,7 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
           accountLabel: request.connection.accountLabel.isEmpty
               ? null
               : request.connection.accountLabel,
+          contentSelection: request.contentSelection,
           clearError: true,
         ),
       );
@@ -323,6 +324,7 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
           connectionStatus: CloudSyncConnectionStatus.connected,
           remoteRevision: currentRevision ?? knownRevision,
           lastSync: _state.lastSync ?? persisted.lastSync,
+          contentSelection: persisted.contentSelection,
           clearProgress: true,
         ),
       );
@@ -447,6 +449,51 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
       _errorReporter.record(error);
       rethrow;
     }
+  });
+
+  @override
+  Future<void> updateContentSelection(CloudSyncContentSelection selection) =>
+      _gate.run((_) async {
+        final persisted = await _connectionStore.load();
+        if (persisted == null || _backend == null) {
+          throw StateError('Cloud sync connection is not ready.');
+        }
+        _state.ensureNoPendingPreview();
+        final coordinator = await _coordinatorFactory(
+          _backend!,
+          persisted.dataKinds,
+          selection,
+          persisted.draft,
+        );
+        await _connectionStore.save(
+          persisted.draft,
+          persisted.dataKinds,
+          contentSelection: selection,
+          remoteRevision: _state.remoteRevision,
+          lastSync: _state.lastSync,
+        );
+        _coordinator = coordinator;
+        _set(_state.copyWith(contentSelection: selection, clearError: true));
+      });
+
+  @override
+  Future<void> rebuildCompactBackup() => _gate.run((operation) async {
+    _state.ensureNoPendingPreview();
+    if (!_state.supportsDelete || _backend == null || _coordinator == null) {
+      throw StateError('Cloud backup rebuild is unavailable.');
+    }
+    await _backend!.deleteNamespace();
+    _set(
+      _state.copyWith(
+        remoteExists: false,
+        clearRemoteRevision: true,
+        snapshots: const [],
+      ),
+    );
+    await _operations.runSync(
+      operation,
+      direction: CloudSyncInitialAction.upload,
+    );
   });
 
   @override

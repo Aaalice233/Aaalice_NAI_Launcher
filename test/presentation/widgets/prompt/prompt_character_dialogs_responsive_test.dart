@@ -60,7 +60,7 @@ void main() {
 
         expect(
           find
-                  .byKey(const ValueKey('adaptive-full-screen-form'))
+                  .byKey(const ValueKey('adaptive-bottom-sheet'))
                   .evaluate()
                   .isNotEmpty ||
               find

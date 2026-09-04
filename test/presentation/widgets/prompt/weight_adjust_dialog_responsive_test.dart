@@ -70,19 +70,13 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'replacement tag');
     await tester.tap(find.text('确定'));
     await tester.pumpAndSettle();
 
     expect(changedText, 'replacement tag');
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

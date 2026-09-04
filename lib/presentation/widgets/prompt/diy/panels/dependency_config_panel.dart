@@ -729,7 +729,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
           ),
         ],
       ),
-      width: 480,
+      dialogWidth: 480,
       builder: (context, scrollController) =>
           _MappingRuleForm(scrollController: scrollController),
     );

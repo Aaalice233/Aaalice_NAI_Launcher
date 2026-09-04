@@ -43,7 +43,7 @@ class AddToLibraryDialog extends ConsumerStatefulWidget {
   }) async {
     final result = await AdaptivePresenter.showForm<bool>(
       context: context,
-      width: 520,
+      dialogWidth: 520,
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(

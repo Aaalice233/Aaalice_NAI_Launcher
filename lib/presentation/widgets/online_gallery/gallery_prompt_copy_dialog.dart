@@ -26,7 +26,7 @@ class GalleryPromptCopyDialog extends StatefulWidget {
       panelContext.l10n.onlineGallery_copyPrompt,
       style: Theme.of(panelContext).textTheme.titleMedium,
     ),
-    width: 500,
+    dialogWidth: 500,
     builder: (_, scrollController) => GalleryPromptCopyDialog._(
       projection: projection,
       initialSelection: initialSelection,

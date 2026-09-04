@@ -17,16 +17,16 @@ typedef AdaptivePanelBuilder =
 class AdaptivePresenter {
   AdaptivePresenter._();
 
-  static const _defaultCenteredWidth = 560.0;
+  static const double defaultDialogWidth = 560;
 
-  /// Presents dialog-style editing flows full-screen on compact panes and in
-  /// a bounded, centered surface at every larger width.
+  /// Presents dialog-style editing flows in a bottom sheet below the expanded
+  /// breakpoint and in a bounded, centered surface on wider panes.
   static Future<T?> showForm<T>({
     required BuildContext context,
     String? title,
     WidgetBuilder? titleBuilder,
     required AdaptivePanelBuilder builder,
-    double? width,
+    double? dialogWidth,
     double? maxCenteredHeight,
     bool barrierDismissible = true,
     bool requestFocus = true,
@@ -42,12 +42,12 @@ class AdaptivePresenter {
     final previousFocus = restoreFocus
         ? FocusManager.instance.primaryFocus
         : null;
-    if (!metrics.isCompact) {
+    if (metrics.isExpandedOrWider) {
       final result = await _showCenteredForm<T>(
         context: context,
         titleBuilder: resolvedTitleBuilder,
         builder: builder,
-        width: width ?? _defaultCenteredWidth,
+        width: dialogWidth ?? defaultDialogWidth,
         maxHeight: maxCenteredHeight,
         barrierDismissible: barrierDismissible,
         requestFocus: requestFocus,
@@ -62,27 +62,19 @@ class AdaptivePresenter {
       }
       return result;
     }
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final motion = Theme.of(context).appTheme;
-    final result = await showGeneralDialog<T>(
+    final result = await showPanel<T>(
       context: context,
-      useRootNavigator: true,
+      titleBuilder: resolvedTitleBuilder,
+      builder: builder,
+      initialChildSize: 1,
+      minChildSize: 0.5,
+      maxChildSize: 1,
+      dialogWidth: dialogWidth,
       barrierDismissible: barrierDismissible,
-      barrierLabel: barrierDismissible
-          ? MaterialLocalizations.of(context).modalBarrierDismissLabel
-          : null,
+      allowDragDismissal: barrierDismissible,
       requestFocus: requestFocus,
-      barrierColor: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.4),
-      transitionDuration: reduceMotion ? Duration.zero : motion.fastDuration,
-      pageBuilder: (dialogContext, _, __) => _FullScreenPanel(
-        titleBuilder: resolvedTitleBuilder,
-        builder: builder,
-        showHeader: showHeader,
-      ),
-      transitionBuilder: (context, animation, _, child) {
-        if (reduceMotion) return child;
-        return FadeTransition(opacity: animation, child: child);
-      },
+      restoreFocus: false,
+      showHeader: showHeader,
     );
     if (restoreFocus && context.mounted && previousFocus?.context != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,8 +86,8 @@ class AdaptivePresenter {
     return result;
   }
 
-  /// Presents a searchable picker using a bottom sheet on compact panes and
-  /// a geometrically stable, centered surface at every larger width.
+  /// Presents a searchable picker using a bottom sheet below the expanded
+  /// breakpoint and a geometrically stable, centered surface on wider panes.
   static Future<T?> showPicker<T>({
     required BuildContext context,
     required AdaptivePanelBuilder builder,
@@ -109,7 +101,7 @@ class AdaptivePresenter {
     bool restoreFocus = true,
   }) async {
     final metrics = context.adaptiveWindow;
-    if (metrics.isCompact) {
+    if (!metrics.isExpandedOrWider) {
       final motion = Theme.of(context).appTheme;
       return showPanel<T>(
         context: context,
@@ -118,7 +110,7 @@ class AdaptivePresenter {
         initialChildSize: initialChildSize,
         minChildSize: minChildSize,
         maxChildSize: maxChildSize,
-        width: width,
+        dialogWidth: width,
         barrierDismissible: barrierDismissible,
         requestFocus: requestFocus,
         restoreFocus: restoreFocus,
@@ -139,7 +131,7 @@ class AdaptivePresenter {
       context: context,
       titleBuilder: (_) => const SizedBox.shrink(),
       builder: builder,
-      width: width ?? _defaultCenteredWidth,
+      width: width ?? defaultDialogWidth,
       maxHeight: maxCenteredHeight,
       barrierDismissible: barrierDismissible,
       requestFocus: requestFocus,
@@ -165,8 +157,7 @@ class AdaptivePresenter {
     double initialChildSize = 0.72,
     double minChildSize = 0.38,
     double maxChildSize = 0.94,
-    double? width,
-    double? maxCenteredHeight,
+    double? dialogWidth,
     bool barrierDismissible = true,
     bool allowDragDismissal = true,
     bool requestFocus = true,
@@ -184,13 +175,12 @@ class AdaptivePresenter {
         ? FocusManager.instance.primaryFocus
         : null;
     final Future<T?> presentation;
-    if (!metrics.isCompact) {
+    if (metrics.isExpandedOrWider) {
       presentation = _showCenteredForm<T>(
         context: context,
         titleBuilder: resolvedTitleBuilder,
         builder: builder,
-        width: width ?? _defaultCenteredWidth,
-        maxHeight: maxCenteredHeight,
+        width: dialogWidth ?? defaultDialogWidth,
         barrierDismissible: barrierDismissible,
         requestFocus: requestFocus,
         showHeader: showHeader,
@@ -217,7 +207,7 @@ class AdaptivePresenter {
               : motion.fastDuration,
           curve: motion.standardCurve,
           padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+            bottom: _activeRouteViewInsetBottom(sheetContext),
           ),
           child: DraggableScrollableSheet(
             expand: false,
@@ -225,7 +215,9 @@ class AdaptivePresenter {
             minChildSize: minChildSize,
             maxChildSize: maxChildSize,
             snap: true,
-            snapSizes: [initialChildSize, maxChildSize],
+            snapSizes: initialChildSize == maxChildSize
+                ? [maxChildSize]
+                : [initialChildSize, maxChildSize],
             builder: (context, scrollController) => _PanelSurface(
               titleBuilder: resolvedTitleBuilder,
               scrollController: scrollController,
@@ -285,57 +277,6 @@ class AdaptivePresenter {
   }
 }
 
-class _FullScreenPanel extends StatefulWidget {
-  const _FullScreenPanel({
-    required this.titleBuilder,
-    required this.builder,
-    required this.showHeader,
-  });
-
-  final WidgetBuilder titleBuilder;
-  final AdaptivePanelBuilder builder;
-  final bool showHeader;
-
-  @override
-  State<_FullScreenPanel> createState() => _FullScreenPanelState();
-}
-
-class _FullScreenPanelState extends State<_FullScreenPanel> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final motion = Theme.of(context).appTheme;
-    return AnimatedPadding(
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : motion.fastDuration,
-      curve: motion.standardCurve,
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        child: Material(
-          color: Theme.of(context).colorScheme.surface,
-          child: SizedBox.expand(
-            child: _PanelSurface(
-              titleBuilder: widget.titleBuilder,
-              scrollController: _scrollController,
-              fullScreen: true,
-              showHeader: widget.showHeader,
-              child: widget.builder(context, _scrollController),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _CenteredFormPanel extends StatefulWidget {
   const _CenteredFormPanel({
     required this.width,
@@ -373,12 +314,12 @@ class _CenteredFormPanelState extends State<_CenteredFormPanel> {
           ? Duration.zero
           : motion.fastDuration,
       curve: motion.standardCurve,
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      padding: EdgeInsets.only(bottom: _activeRouteViewInsetBottom(context)),
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final maxPanelHeight = math.min(
-              constraints.maxHeight * 0.9,
+              math.max(0.0, constraints.maxHeight - 32),
               widget.maxHeight ?? double.infinity,
             );
             final panel = _PanelSurface(
@@ -404,12 +345,17 @@ class _CenteredFormPanelState extends State<_CenteredFormPanel> {
   }
 }
 
+double _activeRouteViewInsetBottom(BuildContext context) {
+  final route = ModalRoute.of(context);
+  if (route != null && !route.isCurrent) return 0;
+  return MediaQuery.viewInsetsOf(context).bottom;
+}
+
 class _PanelSurface extends StatelessWidget {
   const _PanelSurface({
     required this.titleBuilder,
     required this.scrollController,
     required this.child,
-    this.fullScreen = false,
     this.centered = false,
     this.showHeader = true,
   });
@@ -417,7 +363,6 @@ class _PanelSurface extends StatelessWidget {
   final WidgetBuilder titleBuilder;
   final ScrollController scrollController;
   final Widget child;
-  final bool fullScreen;
   final bool centered;
   final bool showHeader;
 
@@ -431,25 +376,19 @@ class _PanelSurface extends StatelessWidget {
         explicitChildNodes: true,
         child: Material(
           key: ValueKey(
-            fullScreen
-                ? 'adaptive-full-screen-form'
-                : centered
-                ? 'adaptive-centered-form'
-                : 'adaptive-bottom-sheet',
+            centered ? 'adaptive-centered-form' : 'adaptive-bottom-sheet',
           ),
           color: theme.colorScheme.surface,
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
-            borderRadius: fullScreen
-                ? BorderRadius.zero
-                : centered
+            borderRadius: centered
                 ? BorderRadius.circular(24)
                 : const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             mainAxisSize: centered ? MainAxisSize.min : MainAxisSize.max,
             children: [
-              if (!fullScreen && !centered)
+              if (!centered)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Container(

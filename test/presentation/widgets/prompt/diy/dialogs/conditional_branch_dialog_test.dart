@@ -45,7 +45,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('expanded uses a bounded centered dialog', (tester) async {
+  testWidgets('expanded keeps a bounded centered dialog and all actions', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1600, 900);
     addTearDown(() {

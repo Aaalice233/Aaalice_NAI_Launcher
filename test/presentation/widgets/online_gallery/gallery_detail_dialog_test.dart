@@ -843,7 +843,7 @@ void main() {
 
     final optionScroll = find
         .descendant(
-          of: find.byKey(const ValueKey('adaptive-centered-form')),
+          of: find.byKey(const ValueKey('adaptive-bottom-sheet')),
           matching: find.byType(Scrollable),
         )
         .first;
@@ -983,10 +983,7 @@ void main() {
     await tester.tap(find.text('Open embedded detail'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.text('Embedded detail'), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(tester.takeException(), isNull);
@@ -1016,7 +1013,7 @@ void main() {
                 onPressed: () => AdaptivePresenter.showForm<void>(
                   context: context,
                   showHeader: false,
-                  width: 960,
+                  dialogWidth: 960,
                   builder: (context, _) => GalleryDetailDialog(
                     embedded: true,
                     item: item,

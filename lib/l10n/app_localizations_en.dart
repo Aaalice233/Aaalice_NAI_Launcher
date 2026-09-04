@@ -13356,6 +13356,95 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose what to push and pull. Accounts, passwords, and API keys are never uploaded.';
 
   @override
+  String get cloudSync_chooseBackupContents => 'Choose backup content';
+
+  @override
+  String get cloudSync_backupContentDescription =>
+      'Only data required for recovery is backed up. Image resources are compressed before upload.';
+
+  @override
+  String get cloudSync_lightweightData => 'Lightweight data (default)';
+
+  @override
+  String get cloudSync_settingsDescription =>
+      'Theme, generation parameters, and app preferences';
+
+  @override
+  String get cloudSync_promptsAndTags => 'Prompts and tag library';
+
+  @override
+  String get cloudSync_promptsAndTagsDescription =>
+      'Entries, categories, fixed tags, and presets';
+
+  @override
+  String get cloudSync_tagThumbnails => 'Tag-library previews';
+
+  @override
+  String get cloudSync_tagThumbnailsDescription =>
+      'Compressed before upload; originals are not stored';
+
+  @override
+  String get cloudSync_onlineGallerySettings => 'Online gallery settings';
+
+  @override
+  String get cloudSync_onlineGallerySettingsDescription =>
+      'Blacklist, filters, and user categories';
+
+  @override
+  String get cloudSync_onlineGalleryFavorites => 'Online gallery favorites';
+
+  @override
+  String get cloudSync_onlineGalleryFavoritesDescription =>
+      'Stores source IDs and recovery fields only, never original images';
+
+  @override
+  String get cloudSync_galleryAlbums => 'Local gallery albums';
+
+  @override
+  String get cloudSync_galleryAlbumsDescription =>
+      'Stores album structure and image references, never original images';
+
+  @override
+  String get cloudSync_optionalResources =>
+      'Optional resources (off by default)';
+
+  @override
+  String get cloudSync_vibes => 'Vibe';
+
+  @override
+  String get cloudSync_preciseReferences => 'Precise references';
+
+  @override
+  String get cloudSync_largeResourceDescription =>
+      'Includes resources required for recovery and may significantly increase size';
+
+  @override
+  String get cloudSync_neverBackedUp =>
+      'Cloud credentials, caches, logs, browsing history, and remote gallery originals are never backed up.';
+
+  @override
+  String get cloudSync_restoreDefaults => 'Restore defaults';
+
+  @override
+  String get cloudSync_saveSelection => 'Save selection';
+
+  @override
+  String cloudSync_selectedContentSummary(int count) {
+    return '$count content items selected';
+  }
+
+  @override
+  String get cloudSync_rebuildCompactBackup => 'Clean and rebuild backup';
+
+  @override
+  String get cloudSync_rebuildCompactBackupDescription =>
+      'Deletes the current cloud backup namespace and uploads a compact backup using the current selection. Provider-retained history is not rewritten.';
+
+  @override
+  String get cloudSync_rebuildCompactBackupConfirm =>
+      'Delete the current cloud backup and immediately upload a new compact backup? This cannot be undone.';
+
+  @override
   String get cloudSync_kindSettings => 'Settings';
 
   @override
@@ -13383,7 +13472,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_skillsBackupDescription =>
-      'Off by default. Turn it on to choose which Skills to bring to your other devices.';
+      'Backup is on by default; only the Skills selected below are included.';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {

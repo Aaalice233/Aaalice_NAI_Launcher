@@ -64,93 +64,117 @@ class VibeDetailParamPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(DesignTokens.radiusXl),
-        bottomLeft: Radius.circular(DesignTokens.radiusXl),
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: DesignTokens.glassBlurRadius,
-          sigmaY: DesignTokens.glassBlurRadius,
-        ),
-        child: Container(
-          color: theme.colorScheme.surface.withValues(
-            alpha: DesignTokens.glassOpacity,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactVerticalChrome =
+            constraints.maxHeight < 360 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 2;
+        return ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(DesignTokens.radiusXl),
+            bottomLeft: Radius.circular(DesignTokens.radiusXl),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 标题栏
-              _buildTitleBar(context, theme),
-
-              // 参数滑块区域（使用 Flexible 避免无界高度约束崩溃）
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(DesignTokens.spacingMd),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSliderSection(
-                        context,
-                        labelKey: 'strength',
-                        value: strength,
-                        onChanged: onStrengthChanged,
-                        enabled: parametersEditable,
-                        description:
-                            context.l10n.vibeDetail_strengthDescription,
-                      ),
-                      if (showInfoExtractedControl) ...[
-                        const SizedBox(height: DesignTokens.spacingLg),
-                        _buildSliderSection(
-                          context,
-                          labelKey: 'infoExtracted',
-                          value: infoExtracted,
-                          onChanged: onInfoExtractedChanged,
-                          enabled: parametersEditable,
-                          description:
-                              context.l10n.vibeDetail_infoExtractedDescription,
-                        ),
-                      ],
-                      if (parameterHint != null) ...[
-                        const SizedBox(height: DesignTokens.spacingMd),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(DesignTokens.spacingSm),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest
-                                .withValues(alpha: 0.2),
-                            borderRadius: DesignTokens.borderRadiusMd,
-                          ),
-                          child: Text(
-                            parameterHint!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: DesignTokens.spacingLg),
-                      // 统计信息
-                      _buildStatsSection(context, theme),
-                    ],
-                  ),
-                ),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: DesignTokens.glassBlurRadius,
+              sigmaY: DesignTokens.glassBlurRadius,
+            ),
+            child: Container(
+              color: theme.colorScheme.surface.withValues(
+                alpha: DesignTokens.glassOpacity,
               ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTitleBar(
+                    context,
+                    theme,
+                    compact: compactVerticalChrome,
+                  ),
 
-              // 操作按钮区域
-              _buildActionBar(context, theme),
-            ],
+                  // 参数滑块区域（使用 Flexible 避免无界高度约束崩溃）
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(DesignTokens.spacingMd),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSliderSection(
+                            context,
+                            labelKey: 'strength',
+                            value: strength,
+                            onChanged: onStrengthChanged,
+                            enabled: parametersEditable,
+                            description:
+                                context.l10n.vibeDetail_strengthDescription,
+                          ),
+                          if (showInfoExtractedControl) ...[
+                            const SizedBox(height: DesignTokens.spacingLg),
+                            _buildSliderSection(
+                              context,
+                              labelKey: 'infoExtracted',
+                              value: infoExtracted,
+                              onChanged: onInfoExtractedChanged,
+                              enabled: parametersEditable,
+                              description: context
+                                  .l10n
+                                  .vibeDetail_infoExtractedDescription,
+                            ),
+                          ],
+                          if (parameterHint != null) ...[
+                            const SizedBox(height: DesignTokens.spacingMd),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(
+                                DesignTokens.spacingSm,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.2),
+                                borderRadius: DesignTokens.borderRadiusMd,
+                              ),
+                              child: Text(
+                                parameterHint!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: DesignTokens.spacingLg),
+                          // 统计信息
+                          _buildStatsSection(context, theme),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 操作按钮区域
+                  _buildActionBar(
+                    context,
+                    theme,
+                    compact: compactVerticalChrome,
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   /// 标题栏：名称 + 来源类型 + 收藏按钮
-  Widget _buildTitleBar(BuildContext context, ThemeData theme) {
+  Widget _buildTitleBar(
+    BuildContext context,
+    ThemeData theme, {
+    required bool compact,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(DesignTokens.spacingMd),
+      padding: EdgeInsets.symmetric(
+        horizontal: DesignTokens.spacingMd,
+        vertical: compact ? DesignTokens.spacingSm : DesignTokens.spacingMd,
+      ),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
@@ -370,11 +394,18 @@ class VibeDetailParamPanel extends StatelessWidget {
   }
 
   /// 操作按钮区域
-  Widget _buildActionBar(BuildContext context, ThemeData theme) {
+  Widget _buildActionBar(
+    BuildContext context,
+    ThemeData theme, {
+    required bool compact,
+  }) {
     final l10n = context.l10n;
 
     return Container(
-      padding: const EdgeInsets.all(DesignTokens.spacingMd),
+      padding: EdgeInsets.symmetric(
+        horizontal: DesignTokens.spacingMd,
+        vertical: compact ? DesignTokens.spacingSm : DesignTokens.spacingMd,
+      ),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(

@@ -18,10 +18,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('open-canvas-size')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.byKey(const ValueKey('canvas-size-scroll')), findsOneWidget);
     expect(tester.takeException(), isNull);

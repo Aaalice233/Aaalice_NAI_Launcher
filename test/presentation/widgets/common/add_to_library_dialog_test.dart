@@ -6,7 +6,9 @@ import 'package:nai_launcher/presentation/providers/tag_library_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/add_to_library_dialog.dart';
 
 void main() {
-  testWidgets('320 宽 3x 字体、IME 与 SafeArea 下使用全屏表单且字段可达', (tester) async {
+  testWidgets('320 宽 3x 字体、IME 与 SafeArea 下使用全高 bottom sheet 且字段可达', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(320, 568);
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(top: 24, bottom: 16);
@@ -23,14 +25,14 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     final surfaceRect = tester.getRect(surface);
     expect(surfaceRect.left, greaterThanOrEqualTo(0));
     expect(surfaceRect.top, greaterThanOrEqualTo(24));
     expect(surfaceRect.right, lessThanOrEqualTo(320));
-    expect(surfaceRect.bottom, lessThanOrEqualTo(568 - 16 - 240));
+    expect(surfaceRect.bottom, lessThanOrEqualTo(568 - 240));
 
     expect(find.byKey(const ValueKey('add-to-library-name')), findsOneWidget);
     expect(

@@ -41,7 +41,7 @@ class AccountProfileBottomSheet extends ConsumerStatefulWidget {
   }) {
     return AdaptivePresenter.showForm<void>(
       context: context,
-      width: 520,
+      dialogWidth: 520,
       titleBuilder: (panelContext) => Row(
         children: [
           const Icon(Icons.manage_accounts_outlined, size: 21),

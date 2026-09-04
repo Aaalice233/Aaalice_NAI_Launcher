@@ -825,7 +825,7 @@ void main() {
       expect(
         find.byKey(
           ValueKey(
-            size.width < 600
+            size.width < 840
                 ? 'adaptive-bottom-sheet'
                 : 'adaptive-centered-form',
           ),

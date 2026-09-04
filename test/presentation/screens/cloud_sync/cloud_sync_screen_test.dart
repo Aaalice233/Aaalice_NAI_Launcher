@@ -77,7 +77,11 @@ void main() {
       CloudSyncDataKind.galleries,
     });
     expect(port.request!.contentSelection.includeAgentSystemPrompt, isTrue);
-    expect(port.request!.contentSelection.includeSkills, isFalse);
+    expect(port.request!.contentSelection.includeSkills, isTrue);
+    expect(port.request!.contentSelection.includeTagThumbnails, isTrue);
+    expect(port.request!.contentSelection.includeGalleryAlbums, isTrue);
+    expect(port.request!.contentSelection.includeVibes, isFalse);
+    expect(port.request!.contentSelection.includePreciseReferences, isFalse);
     expect(tester.takeException(), isNull);
   });
 
@@ -852,7 +856,6 @@ class _FakePort extends CloudSyncUiPortAdapter {
     supportsHistory: true,
     supportsDelete: true,
     warnings: [CloudBackendWarning.githubPublicRepository],
-    limit: '2 GiB',
   );
 
   @override

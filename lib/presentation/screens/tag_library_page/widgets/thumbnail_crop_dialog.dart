@@ -573,7 +573,7 @@ Future<void> showThumbnailCropDialog({
         ),
       ],
     ),
-    width: 720,
+    dialogWidth: 720,
     builder: (_, __) => ThumbnailCropDialog(
       imagePath: imagePath,
       initialOffsetX: initialOffsetX,

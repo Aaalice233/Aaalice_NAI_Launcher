@@ -155,10 +155,7 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     await tester.tap(find.text('选择要导入的 Vibe'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('导入'));

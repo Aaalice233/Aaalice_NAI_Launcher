@@ -119,7 +119,7 @@ void main() {
 
     final panel = find.byWidgetPredicate(
       (widget) =>
-          widget.key == const ValueKey('adaptive-full-screen-form') ||
+          widget.key == const ValueKey('adaptive-bottom-sheet') ||
           widget.key == const ValueKey('adaptive-centered-form'),
     );
     expect(panel, findsOneWidget);
@@ -133,7 +133,7 @@ void main() {
     expect(panelRect.left, greaterThanOrEqualTo(safePadding.left));
     expect(panelRect.top, greaterThanOrEqualTo(safePadding.top));
     expect(panelRect.right, lessThanOrEqualTo(320 - safePadding.right));
-    expect(panelRect.bottom, lessThanOrEqualTo(568 - 160 - safePadding.bottom));
+    expect(panelRect.bottom, lessThanOrEqualTo(568 - 160));
     expect(tester.takeException(), isNull);
   });
 
@@ -146,7 +146,9 @@ void main() {
     await tester.tap(find.text('Anlas 警告阈值'));
     await tester.pumpAndSettle();
     var panel = find.byWidgetPredicate(
-      (widget) => widget.key == const ValueKey('adaptive-centered-form'),
+      (widget) =>
+          widget.key == const ValueKey('adaptive-centered-form') ||
+          widget.key == const ValueKey('adaptive-bottom-sheet'),
     );
     var editor = find.descendant(of: panel, matching: find.byType(TextField));
     await tester.enterText(editor, '0');
@@ -165,7 +167,9 @@ void main() {
     await tester.tap(find.text('生图间隔'));
     await tester.pumpAndSettle();
     panel = find.byWidgetPredicate(
-      (widget) => widget.key == const ValueKey('adaptive-centered-form'),
+      (widget) =>
+          widget.key == const ValueKey('adaptive-centered-form') ||
+          widget.key == const ValueKey('adaptive-bottom-sheet'),
     );
     editor = find.descendant(of: panel, matching: find.byType(TextField));
     await tester.enterText(editor, '3601');

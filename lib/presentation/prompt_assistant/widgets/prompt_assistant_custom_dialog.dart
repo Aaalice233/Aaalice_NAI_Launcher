@@ -43,7 +43,7 @@ class PromptAssistantCustomDialog extends StatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      width: 600,
+      dialogWidth: 600,
       builder: (context, scrollController) => PromptAssistantCustomDialog(
         currentPrompt: currentPrompt,
         allowImages: allowImages,

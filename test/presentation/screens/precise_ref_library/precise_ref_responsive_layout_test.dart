@@ -140,8 +140,8 @@ void main() {
           findsOneWidget,
         );
         final surfaceKey = switch (width) {
-          < 600 => 'adaptive-full-screen-form',
-          < 840 => 'adaptive-centered-form',
+          < 600 => 'adaptive-bottom-sheet',
+          < 840 => 'adaptive-bottom-sheet',
           _ => 'adaptive-centered-form',
         };
         final surface = find.byKey(ValueKey(surfaceKey));
@@ -224,7 +224,7 @@ void main() {
       await tester.tap(find.text('打开选择器'));
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(
@@ -237,7 +237,7 @@ void main() {
       );
       expect(
         tester
-            .getTopLeft(find.byKey(const ValueKey('adaptive-full-screen-form')))
+            .getTopLeft(find.byKey(const ValueKey('adaptive-bottom-sheet')))
             .dy,
         greaterThanOrEqualTo(24),
       );
@@ -278,7 +278,7 @@ void main() {
   );
 
   for (final (width, surfaceKey) in [
-    (700.0, 'adaptive-centered-form'),
+    (700.0, 'adaptive-bottom-sheet'),
     (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('${width.toInt()}px selector uses a bounded adaptive surface', (
@@ -343,7 +343,7 @@ void main() {
       await tester.tap(find.text('打开编辑'));
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(

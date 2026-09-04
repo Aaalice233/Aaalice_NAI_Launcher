@@ -16,8 +16,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final surfaceKey = switch (width) {
-          < 600 => 'adaptive-full-screen-form',
-          < 840 => 'adaptive-centered-form',
+          < 600 => 'adaptive-bottom-sheet',
+          < 840 => 'adaptive-bottom-sheet',
           _ => 'adaptive-centered-form',
         };
         final surface = find.byKey(ValueKey(surfaceKey));
@@ -52,7 +52,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(find.byType(TextField), findsAtLeastNWidgets(3));
@@ -62,10 +62,7 @@ void main() {
       await tester.tap(confirm);
       await tester.pumpAndSettle();
       expect(result?.name, 'encoded-vibe.png');
-      expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
-        findsNothing,
-      );
+      expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

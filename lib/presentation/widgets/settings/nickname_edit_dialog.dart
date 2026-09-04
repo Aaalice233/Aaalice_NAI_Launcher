@@ -49,7 +49,7 @@ class NicknameEditDialog extends StatefulWidget {
           ],
         );
       },
-      width: 400,
+      dialogWidth: 400,
       builder: (panelContext, scrollController) => NicknameEditDialog(
         account: account,
         scrollController: scrollController,

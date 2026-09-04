@@ -26,7 +26,7 @@ class TimeConditionDialog extends StatefulWidget {
   }) {
     return AdaptivePresenter.showForm<TimeCondition>(
       context: context,
-      width: 600,
+      dialogWidth: 600,
       titleBuilder: (context) => Row(
         children: [
           const Icon(Icons.calendar_month),
@@ -87,12 +87,7 @@ class _TimeConditionDialogState extends State<TimeConditionDialog> {
           top: false,
           child: Padding(
             padding: EdgeInsets.all(compact ? 12 : 16),
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: _buildActions(),
-            ),
+            child: _buildActionBar(),
           ),
         ),
       ],
@@ -139,6 +134,23 @@ class _TimeConditionDialogState extends State<TimeConditionDialog> {
         child: Text(context.l10n.common_save),
       ),
     ];
+  }
+
+  Widget _buildActionBar() {
+    final actions = _buildActions();
+    if (MediaQuery.textScalerOf(context).scale(1) < 2) {
+      return Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 8,
+        runSpacing: 8,
+        children: actions,
+      );
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      reverse: true,
+      child: Row(mainAxisSize: MainAxisSize.min, children: actions),
+    );
   }
 
   void _clear() {

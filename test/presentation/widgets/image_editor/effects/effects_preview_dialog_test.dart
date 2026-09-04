@@ -61,7 +61,7 @@ void main() {
 
     await _openDialog(tester);
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(find.byKey(const ValueKey('effects-preview-frame')), findsOneWidget);
@@ -100,7 +100,7 @@ void main() {
     (
       name: 'Medium',
       size: const Size(700, 800),
-      surfaceKey: const ValueKey('adaptive-centered-form'),
+      surfaceKey: const ValueKey('adaptive-bottom-sheet'),
     ),
     (
       name: 'Expanded',

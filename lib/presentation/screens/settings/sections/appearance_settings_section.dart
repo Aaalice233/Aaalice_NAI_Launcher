@@ -177,7 +177,7 @@ class _AppearanceSettingsSectionState
     return AdaptivePresenter.showForm<void>(
       context: context,
       title: context.l10n.settings_selectFont,
-      width: 560,
+      dialogWidth: 560,
       builder: (panelContext, scrollController) => _FontPickerContent(
         currentFont: currentFont,
         scrollController: scrollController,
@@ -397,7 +397,7 @@ class _AppearanceSettingsSectionState
     return AdaptivePresenter.showForm<void>(
       context: context,
       title: context.l10n.settings_fontScale,
-      width: 420,
+      dialogWidth: 420,
       builder: (panelContext, scrollController) => _FontScaleEditor(
         initialScale: currentScale,
         scrollController: scrollController,

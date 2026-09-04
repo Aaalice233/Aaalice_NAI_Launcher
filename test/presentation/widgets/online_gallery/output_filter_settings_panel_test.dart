@@ -105,7 +105,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     final surfaceRect = tester.getRect(surface);
     expect(find.byType(AlertDialog), findsNothing);
     expect(surfaceRect.left, greaterThanOrEqualTo(0));

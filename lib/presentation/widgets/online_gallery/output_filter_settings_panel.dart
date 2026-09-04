@@ -124,7 +124,7 @@ Future<void> showOnlineGalleryOutputFilterDialog(BuildContext context) {
   return AdaptivePresenter.showForm<void>(
     context: context,
     title: context.l10n.onlineGallery_outputFilter,
-    width: 728,
+    dialogWidth: 728,
     builder: (panelContext, scrollController) => SingleChildScrollView(
       key: const ValueKey('online-gallery-output-filter-form-scroll'),
       controller: scrollController,

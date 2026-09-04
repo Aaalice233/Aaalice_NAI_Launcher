@@ -107,17 +107,14 @@ final cloudSyncApplicationServiceProvider =
         },
         coordinatorFactory:
             (backend, scope, contentSelection, connection) async {
-              AgentSkillsCloudSyncAdapter? agentSkills;
-              if (contentSelection.includeSkills) {
-                final context = await ref
-                    .read(agentSettingsProvider.notifier)
-                    .skillBackupContext();
-                agentSkills = AgentSkillsCloudSyncAdapter(
-                  roots: context.roots,
-                  localEntries: context.entries,
-                  selectedSkillIds: contentSelection.selectedSkillIds,
-                );
-              }
+              final skillContext = await ref
+                  .read(agentSettingsProvider.notifier)
+                  .skillBackupContext();
+              final agentSkills = AgentSkillsCloudSyncAdapter(
+                roots: skillContext.roots,
+                localEntries: skillContext.entries,
+                selectedSkillIds: contentSelection.selectedSkillIds,
+              );
               final all = createAppCloudSyncAdapterRegistry(
                 localStorage: local,
                 vibeLibrary: ref.read(vibeLibraryStorageServiceProvider),
@@ -134,16 +131,36 @@ final cloudSyncApplicationServiceProvider =
                   StorageKeys.cloudSyncPendingFfdkjInstall,
                   true,
                 ),
+                contentSelection: contentSelection.copyWith(
+                  includeSettings:
+                      contentSelection.includeSettings &&
+                      scope.contains(CloudSyncDataKind.settings),
+                  includePromptsAndTags:
+                      contentSelection.includePromptsAndTags &&
+                      scope.contains(CloudSyncDataKind.prompts),
+                  includeOnlineGallerySettings:
+                      contentSelection.includeOnlineGallerySettings &&
+                      scope.contains(CloudSyncDataKind.galleries),
+                  includeOnlineGalleryFavorites:
+                      contentSelection.includeOnlineGalleryFavorites &&
+                      scope.contains(CloudSyncDataKind.galleries),
+                  includeGalleryAlbums:
+                      contentSelection.includeGalleryAlbums &&
+                      scope.contains(CloudSyncDataKind.galleries),
+                ),
                 agentSkills: agentSkills,
               );
               final registry = CloudSyncDataAdapterRegistry(
-                all.adapters.where(
-                  (adapter) => isCloudSyncAdapterInScope(
-                    adapter.id,
-                    scope,
-                    contentSelection,
-                  ),
-                ),
+                all.adapters,
+                activeAdapterIds: {
+                  for (final adapter in all.adapters)
+                    if (isCloudSyncAdapterInScope(
+                      adapter.id,
+                      scope,
+                      contentSelection,
+                    ))
+                      adapter.id,
+                },
                 afterApply: (adapterIds) =>
                     refreshCloudSyncRuntime(ref, adapterIds),
               );
@@ -212,9 +229,38 @@ bool isCloudSyncAdapterInScope(
     return contentSelection.includeAgentSystemPrompt;
   }
   if (id == 'agent-skills') return contentSelection.includeSkills;
-  if (id == 'vibe-library' || id == 'precise-ref-library') return false;
-  if (id.contains('gallery') || id == 'online-favorites') {
-    return scope.contains(CloudSyncDataKind.galleries);
+  if (id == 'vibe-library') return contentSelection.includeVibes;
+  if (id == 'precise-ref-library') {
+    return contentSelection.includePreciseReferences;
+  }
+  if (id == 'online-gallery-favorites') {
+    return contentSelection.includeOnlineGalleryFavorites &&
+        scope.contains(CloudSyncDataKind.galleries);
+  }
+  if (id == 'gallery-albums') {
+    return contentSelection.includeGalleryAlbums &&
+        scope.contains(CloudSyncDataKind.galleries);
+  }
+  if (id == 'gallery-blacklist') {
+    return contentSelection.includeOnlineGallerySettings &&
+        scope.contains(CloudSyncDataKind.galleries);
+  }
+  if (id == 'portable-settings') {
+    return (contentSelection.includeSettings &&
+            scope.contains(CloudSyncDataKind.settings)) ||
+        (contentSelection.includePromptsAndTags &&
+            scope.contains(CloudSyncDataKind.prompts)) ||
+        (contentSelection.includeOnlineGallerySettings &&
+            scope.contains(CloudSyncDataKind.galleries));
+  }
+  if (id == 'user-tag-library' ||
+      id == 'tag-favorites' ||
+      id == 'tag-templates' ||
+      id == 'random-presets' ||
+      id == 'prompt-assistant-profile' ||
+      id == 'ffdkj-install-intent') {
+    return contentSelection.includePromptsAndTags &&
+        scope.contains(CloudSyncDataKind.prompts);
   }
   if (id.contains('prompt') ||
       id.contains('tag') ||

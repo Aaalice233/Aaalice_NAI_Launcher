@@ -10,7 +10,9 @@ import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dar
 import 'package:nai_launcher/presentation/screens/generation/widgets/comfyui_workflow_dialog.dart';
 
 void main() {
-  testWidgets('320dp、3x 字号、IME 和 SafeArea 下全屏表单保留执行结果语义', (tester) async {
+  testWidgets('320dp、3x 字号、IME 和 SafeArea 下全高 bottom sheet 保留执行结果语义', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(320, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -31,10 +33,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(ComfyUIWorkflowDialog), findsOneWidget);
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.text('采样器'), findsOneWidget);
 
     final execute = find.text('执行');
@@ -46,7 +45,7 @@ void main() {
       expect(find.text(label), findsOneWidget);
     }
     final panelRect = tester.getRect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
     );
     expect(panelRect.top, greaterThanOrEqualTo(24));
     expect(panelRect.bottom, lessThanOrEqualTo(580));

@@ -395,7 +395,7 @@ abstract final class AgentChatResourcePicker {
       initialChildSize: 0.9,
       minChildSize: 0.5,
       maxChildSize: 0.96,
-      width: 720,
+      dialogWidth: 720,
       builder: (_, __) => _AgentChatResourcePickerBody(
         mode: _PickerMode.gallery,
         onSelected: onSelected,
@@ -419,7 +419,7 @@ abstract final class AgentChatResourcePicker {
       initialChildSize: 0.9,
       minChildSize: 0.5,
       maxChildSize: 0.96,
-      width: 720,
+      dialogWidth: 720,
       builder: (_, __) => _AgentChatResourcePickerBody(
         mode: _PickerMode.library,
         onSelected: onSelected,

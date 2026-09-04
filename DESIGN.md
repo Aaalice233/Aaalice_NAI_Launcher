@@ -188,7 +188,7 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 
 - **Compact `<600px`**：移动 Shell，单列主流程、Material `NavigationBar`、bottom sheet 或独立次级页面。
 - **Medium `600–839px`**：内容可采用紧凑双区，但面板仍优先 bottom sheet；不得通过等比例缩放获得平板布局。
-- **Expanded `≥840px`**：桌面 Shell、稳定侧栏与可并行主辅面板。
+- **Expanded `≥840px`**：宽屏 Shell、稳定侧栏与可并行主辅面板。
 - **Wide `≥1180px`**：可增加辅助列或更宽工作区，但不盲目拉宽表单。
 
 桌面 Navigation Rail 折叠宽 60px、展开宽 196px；导航项高 48px。宽度动效只改变导航自身的裁切视口，路由工作区只能接收动画起点与终点约束，不得把每一帧的中间宽度传入页面级 `LayoutBuilder`。触屏平台核心命中区优先 48×48 logical pixels，最低不小于 44×44；桌面常规点击目标通常不小于 40×40。方向、窗口尺寸、软键盘与导航容器变化后必须保留输入、选择、滚动位置和任务状态。
@@ -231,7 +231,7 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 ## Shapes
 
-默认主题使用小而清晰的圆角：微型与 chip 为 4px，按钮为 6px，输入和普通 Card 为 8px，图像卡片为 12px。Adaptive bottom/side panel 的 24px 顶部圆角属于大型可拖拽容器，不应下放到普通卡片。
+默认主题使用小而清晰的圆角：微型与 chip 为 4px，按钮为 6px，输入和普通 Card 为 8px，图像卡片为 12px。Adaptive bottom sheet 使用 24px 顶部圆角，居中 Dialog 使用四周 24px 圆角；这些值属于大型浮层，不应下放到普通卡片。常驻 side panel 不是模态浮层，沿用所属工作区的 Section 形状。
 
 业务组件声明 `control`、`card`、`dialog`、`menu`、`panel`、`circle` 或 `pill` 等语义角色，实际值由当前 shape preset 和 `AppThemeExtension` 提供。父子圆角通常递减；内层只有 chip、状态标记或圆形控件可以更圆。
 
@@ -280,9 +280,11 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 ### Dialogs and adaptive panels
 
-- Dialog 只用于必须打断流程的决策；标题先说决策，正文先说结果，再说原因或风险。
+- Dialog 用于需要完成、取消或确认后才能返回的短时模态流程，例如设置表单、内容选择与风险决策；标题直接说明任务，风险流程的正文先说结果，再说原因。
 - 操作顺序保持低强调取消在前、主操作在后；Esc 与系统返回可关闭并恢复合理焦点。
-- Expanded 使用受限 side sheet；Compact / Medium 使用避开 SafeArea 与软键盘的 bottom sheet。
+- Expanded / Wide 使用位于视口中央、宽高受限的独立模态 Dialog；标题与底部操作区固定，正文独立滚动，弹窗四周必须保留可见遮罩空间，不得贴靠窗口侧边呈现。
+- Compact / Medium 使用避开 SafeArea 与软键盘的 bottom sheet，并保持与桌面 Dialog 相同的字段语义、状态和操作结果。
+- Side panel 只承载常驻、非模态的工作区辅助内容；设置表单、内容选择、确认和其他需要用户完成或取消的流程不得使用 side sheet。
 
 ### Image Cards
 
@@ -311,7 +313,7 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 - **Do** 从公共组件、`ColorScheme`、`TextTheme`、`AppThemeExtension` 和稳定 spacing tokens 获取样式。
 - **Do** 保持 default、hover、pressed、selected、focused、disabled、loading 状态完整且几何稳定。
 - **Do** 为桌面鼠标、触控板、键盘和移动端触屏提供等价完成路径。
-- **Do** 在共享 UI 变更中覆盖必要的 360、412、600、840、1180、1600px 断点，并检查 SafeArea、软键盘、系统返回和窗口缩放。
+- **Do** 在共享 UI 变更中至少覆盖 320、600、840、1180、1600px，并按需要补充 360/412 等实际设备宽度；同时检查 3 倍文字、短横屏、SafeArea、软键盘、系统返回和窗口缩放。
 - **Do** 使用 Semantics、清晰焦点、至少 WCAG AA 的正文对比度，以及不只依赖颜色的 selected / error / success 表达。
 - **Do** 让加载和错误原位呈现，局部刷新保留已有内容；超过约 300ms 的异步操作提供可见反馈。
 

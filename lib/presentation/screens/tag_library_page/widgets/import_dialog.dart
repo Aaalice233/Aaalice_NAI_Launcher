@@ -39,7 +39,7 @@ class ImportDialog extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      width: 700,
+      dialogWidth: 700,
       builder: (context, _) => const ImportDialog._(),
     );
   }

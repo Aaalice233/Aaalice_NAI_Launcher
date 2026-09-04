@@ -101,7 +101,7 @@ void main() {
     tester.view.viewInsets = const FakeViewPadding(bottom: 180);
     await tester.pumpAndSettle();
 
-    final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(panel, findsOneWidget);
     expect(find.text('Exa API Key'), findsWidgets);
     expect(find.byType(SingleChildScrollView), findsWidgets);
@@ -115,7 +115,7 @@ void main() {
     expect(panelRect.left, greaterThanOrEqualTo(8));
     expect(panelRect.top, greaterThanOrEqualTo(24));
     expect(panelRect.right, lessThanOrEqualTo(312));
-    expect(panelRect.bottom, lessThanOrEqualTo(372));
+    expect(panelRect.bottom, lessThanOrEqualTo(388));
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(secureStorage.key, 'reachable-key');
@@ -159,7 +159,7 @@ void main() {
 
     await tester.tap(find.text('Configure'));
     await tester.pumpAndSettle();
-    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
+    final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     final editor = find.descendant(of: panel, matching: find.byType(TextField));
     await tester.enterText(editor, '  replacement-key  ');
     await tester.tap(find.text('Save'));

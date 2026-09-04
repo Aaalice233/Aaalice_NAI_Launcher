@@ -45,7 +45,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsNothing);
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       final albumScroll = find.byKey(const Key('album-select-scroll'));
@@ -119,7 +119,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('desktop selectors use bounded centered dialogs', (tester) async {
+  testWidgets('expanded selectors use bounded centered dialogs', (
+    tester,
+  ) async {
     await _pumpHost(
       tester,
       size: const Size(1180, 800),
@@ -132,6 +134,7 @@ void main() {
       find.byKey(const ValueKey('adaptive-centered-form')),
       findsOneWidget,
     );
+    expect(find.byType(AlertDialog), findsNothing);
     expect(find.byType(AlertDialog), findsNothing);
     final collectionDialog = tester.getRect(
       find.byKey(const ValueKey('adaptive-centered-form')),

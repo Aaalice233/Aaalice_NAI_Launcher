@@ -45,7 +45,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      final surfaceKey = scenario.size.width >= 600
+      final surfaceKey = scenario.size.width >= 840
           ? 'adaptive-centered-form'
           : 'adaptive-bottom-sheet';
       expect(find.byKey(ValueKey(surfaceKey)), findsOneWidget);
