@@ -6,9 +6,47 @@ import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_card.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/widgets/common/library_card_badges.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
 
 void main() {
+  testWidgets('已收藏词库卡片在左上角显示居中的常驻徽章', (tester) async {
+    final entry = TagLibraryEntry(
+      id: 'favorite-entry',
+      name: '收藏词条',
+      content: '1girl, solo',
+      isFavorite: true,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            width: 240,
+            height: 80,
+            child: EntryCard(
+              entry: entry,
+              onTap: () {},
+              onDelete: () {},
+              onToggleFavorite: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cardRect = tester.getRect(find.byType(EntryCard));
+    final badge = find.byType(LibraryCardFavoriteBadge);
+    final badgeRect = tester.getRect(badge);
+    expect(badge, findsOneWidget);
+    expect(badgeRect.topLeft, cardRect.topLeft + const Offset(8, 8));
+    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+  });
+
   testWidgets('词库卡片在多选模式下仍显示名称', (tester) async {
     final entry = TagLibraryEntry(
       id: 'entry-1',
