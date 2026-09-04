@@ -104,13 +104,26 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
               key: _comparisonKey,
               fit: StackFit.expand,
               children: [
-                DecodedMemoryImage(
-                  key: const ValueKey('generation-comparison-generated'),
-                  bytes: widget.generatedImageBytes,
-                  fit: BoxFit.cover,
+                // Keep the image regions disjoint so transparent pixels reveal
+                // the card underlay instead of the image on the opposite side.
+                ClipRect(
+                  key: const ValueKey('generation-comparison-generated-clip'),
+                  clipper: _ComparisonClipper(
+                    _position,
+                    side: _ComparisonSide.generated,
+                  ),
+                  child: DecodedMemoryImage(
+                    key: const ValueKey('generation-comparison-generated'),
+                    bytes: widget.generatedImageBytes,
+                    fit: BoxFit.cover,
+                  ),
                 ),
                 ClipRect(
-                  clipper: _ComparisonClipper(_position),
+                  key: const ValueKey('generation-comparison-source-clip'),
+                  clipper: _ComparisonClipper(
+                    _position,
+                    side: _ComparisonSide.source,
+                  ),
                   child: DecodedMemoryImage(
                     key: const ValueKey('generation-comparison-source'),
                     bytes: widget.sourceImageBytes,
@@ -245,16 +258,29 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
   }
 }
 
+enum _ComparisonSide { source, generated }
+
 class _ComparisonClipper extends CustomClipper<Rect> {
-  const _ComparisonClipper(this.position);
+  const _ComparisonClipper(this.position, {required this.side});
 
   final double position;
+  final _ComparisonSide side;
 
   @override
-  Rect getClip(Size size) =>
-      Rect.fromLTWH(0, 0, size.width * position, size.height);
+  Rect getClip(Size size) {
+    final dividerX = size.width * position;
+    return switch (side) {
+      _ComparisonSide.source => Rect.fromLTRB(0, 0, dividerX, size.height),
+      _ComparisonSide.generated => Rect.fromLTRB(
+        dividerX,
+        0,
+        size.width,
+        size.height,
+      ),
+    };
+  }
 
   @override
   bool shouldReclip(covariant _ComparisonClipper oldClipper) =>
-      oldClipper.position != position;
+      oldClipper.position != position || oldClipper.side != side;
 }

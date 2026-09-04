@@ -68,6 +68,34 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   });
 
+  testWidgets('source and generated image clips do not overlap', (
+    tester,
+  ) async {
+    const comparisonSize = Size(400, 300);
+    await _pumpComparison(
+      tester,
+      width: comparisonSize.width,
+      height: comparisonSize.height,
+    );
+
+    final sourceClip = tester
+        .widget<ClipRect>(
+          find.byKey(const ValueKey('generation-comparison-source-clip')),
+        )
+        .clipper!
+        .getClip(comparisonSize);
+    final generatedClip = tester
+        .widget<ClipRect>(
+          find.byKey(const ValueKey('generation-comparison-generated-clip')),
+        )
+        .clipper!
+        .getClip(comparisonSize);
+
+    expect(sourceClip, const Rect.fromLTRB(0, 0, 200, 300));
+    expect(generatedClip, const Rect.fromLTRB(200, 0, 400, 300));
+    expect(sourceClip.overlaps(generatedClip), isFalse);
+  });
+
   testWidgets('divider and thumb keep a constant painted size while zooming', (
     tester,
   ) async {
