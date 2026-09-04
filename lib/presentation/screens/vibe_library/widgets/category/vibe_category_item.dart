@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
+import '../../../../widgets/common/library_classification_drag.dart';
 import '../../../../adaptive/interaction_policy.dart';
 
 enum _VibeCategoryAction { rename, addSubCategory, delete }
@@ -90,6 +91,9 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isAcceptingDrop = LibraryClassificationDropTargetStatus.isAcceptingOf(
+      context,
+    );
     final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
     const controlExtent = 48.0;
     // Preserve a usable label/action area for deeply nested imported trees.
@@ -113,6 +117,8 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
+                : isAcceptingDrop
+                ? theme.colorScheme.primary.withValues(alpha: 0.12)
                 : (_isHovering
                       ? theme.colorScheme.surfaceContainerHighest
                       : Colors.transparent),
