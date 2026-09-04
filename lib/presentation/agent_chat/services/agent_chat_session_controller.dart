@@ -23,6 +23,7 @@ import '../providers/agent_chat_state.dart';
 import '../models/agent_chat_turn_timeline.dart';
 import 'agent_chat_draft_controller.dart';
 import 'agent_chat_session_recovery.dart';
+import 'agent_chat_session_summary_cache.dart';
 
 class AgentChatRewindCheckpoint {
   const AgentChatRewindCheckpoint({
@@ -57,6 +58,7 @@ class AgentChatSessionController {
     required void Function(AgentChatState state) writeState,
     required bool Function() isMounted,
   }) : _repository = repository,
+       _summaryCache = AgentChatSessionSummaryCache(repository: repository),
        _localStorage = localStorage,
        _draftController = draftController,
        _workspaceDir = workspaceDir,
@@ -67,6 +69,7 @@ class AgentChatSessionController {
        _isMounted = isMounted;
 
   final JsonlSessionRepo _repository;
+  final AgentChatSessionSummaryCache _summaryCache;
   final LocalStorageService _localStorage;
   final AgentChatDraftController _draftController;
   final String _workspaceDir;
@@ -116,15 +119,9 @@ class AgentChatSessionController {
 
   Future<List<AgentChatSessionSummary>> listSessions() async {
     try {
-      final raw = await _repository.listWithNames();
-      return [
-        for (final (metadata, name, updatedAt) in raw)
-          AgentChatSessionSummary(
-            metadata: metadata,
-            name: name,
-            updatedAt: updatedAt,
-          ),
-      ].take(sessionSummaryLimit).toList(growable: false);
+      return (await _summaryCache.list())
+          .take(sessionSummaryLimit)
+          .toList(growable: false);
     } catch (error) {
       AppLogger.w('list sessions failed: $error', 'AgentChat');
       return const [];
