@@ -68,6 +68,17 @@ void main() {
             provider: 'openrouter',
             protocol: ProviderProtocol.openaiChatCompletions,
             baseUrl: 'https://openrouter.ai/api/v1',
+            model: 'google/gemini-3.8-flash',
+            levels: const [
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+            ],
+          ),
+          (
+            provider: 'openrouter',
+            protocol: ProviderProtocol.openaiChatCompletions,
+            baseUrl: 'https://openrouter.ai/api/v1',
             model: 'openai/gpt-5.2',
             levels: const [
               ThinkingLevel.off,
@@ -156,7 +167,6 @@ void main() {
                 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
             model: 'qwen3.8-max',
             levels: const [
-              ThinkingLevel.off,
               ThinkingLevel.low,
               ThinkingLevel.medium,
               ThinkingLevel.xhigh,
@@ -288,7 +298,7 @@ void main() {
     );
     final flashCapability = AgentChatModelCapability.resolve(
       provider,
-      'gemini-3.7-flash',
+      'gemini-3.8-flash',
     );
 
     final proRequest = proCapability.resolveReasoningRequest(null);
@@ -306,6 +316,27 @@ void main() {
     expect(flashRequest?.sendWhenDisabled, isTrue);
     expect(flashRequest?.effort, 'LOW');
     expect(flashCapability.resolveReasoningRequest('minimal')?.effort, 'LOW');
+  });
+
+  test('OpenRouter Gemini 3.8 uses native reasoning levels', () {
+    final capability = AgentChatModelCapability.resolve(
+      ProviderPreset.openRouter.createConfig(id: 'openrouter'),
+      'google/gemini-3.8-flash',
+    );
+
+    expect(capability.model.contextWindow, 1048576);
+    expect(capability.model.maxTokens, 65536);
+    expect(capability.levels, [
+      ThinkingLevel.low,
+      ThinkingLevel.medium,
+      ThinkingLevel.high,
+    ]);
+    expect(
+      capability.resolveReasoningRequest('low')?.api,
+      AgentReasoningApi.openRouter,
+    );
+    expect(capability.resolveReasoningRequest('low')?.effort, 'low');
+    expect(capability.resolveReasoningRequest('high')?.effort, 'high');
   });
 
   test('omits missing reasoning on models whose off mapping is null', () {
@@ -362,6 +393,34 @@ void main() {
       baseUrl: 'https://api.my-relay.test/v1',
       preset: ProviderPreset.openaiCompatibleChat,
     );
+
+    const geminiRelay = ProviderConfig(
+      id: 'gemini-relay',
+      name: 'Gemini relay station',
+      protocol: ProviderProtocol.geminiGenerateContent,
+      baseUrl: 'https://relay.example.test/v1beta',
+      preset: ProviderPreset.gemini,
+    );
+
+    test('keeps Gemini 3.8 reasoning semantics on a custom v1beta host', () {
+      final capability = AgentChatModelCapability.resolve(
+        geminiRelay,
+        'gemini-3.8-flash',
+      );
+
+      expect(capability.model.contextWindow, 1048576);
+      expect(capability.model.maxTokens, 65536);
+      expect(capability.levels, [
+        ThinkingLevel.low,
+        ThinkingLevel.medium,
+        ThinkingLevel.high,
+      ]);
+      expect(
+        capability.resolveReasoningRequest('low')?.api,
+        AgentReasoningApi.geminiLevel,
+      );
+      expect(capability.resolveReasoningRequest('low')?.effort, 'LOW');
+    });
 
     test('borrows the window for a transparently proxied model', () {
       final capability = AgentChatModelCapability.resolve(

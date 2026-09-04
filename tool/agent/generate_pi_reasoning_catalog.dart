@@ -271,7 +271,8 @@ String? _disabledEffort(String api, String modelId) {
 String _geminiMinimumLevel(String modelId) {
   final normalizedId = modelId.toLowerCase();
   if (RegExp(r'gemini-3(?:\.\d+)?-pro').hasMatch(normalizedId) ||
-      normalizedId == 'gemini-3.7-flash') {
+      normalizedId == 'gemini-3.7-flash' ||
+      normalizedId == 'gemini-3.8-flash') {
     return 'LOW';
   }
   return 'MINIMAL';
