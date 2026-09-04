@@ -850,47 +850,66 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
   Widget _buildActionButtons() {
     final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
+    final actions = <Widget>[
+      if (onAddToAgent != null)
+        _ActionButton(
+          icon: Icons.auto_awesome_outlined,
+          tooltip: context.l10n.agentChat_addResource,
+          onTap: onAddToAgent,
+        ),
+      if (widget.onSendToGeneration != null)
+        _ActionButton(
+          icon: Icons.send,
+          tooltip: context.l10n.vibe_reuseButton,
+          modifierHint: context.l10n.vibe_shiftReplaceHint,
+          onTap: widget.onSendToGeneration,
+        ),
+      if (widget.onExport != null)
+        _ActionButton(
+          icon: Icons.download,
+          tooltip: context.l10n.common_export,
+          onTap: widget.onExport,
+        ),
+      if (widget.onEdit != null)
+        _ActionButton(
+          icon: Icons.edit,
+          tooltip: context.l10n.common_edit,
+          onTap: widget.onEdit,
+        ),
+      if (widget.onDelete != null)
+        _ActionButton(
+          icon: Icons.delete,
+          tooltip: context.l10n.common_delete,
+          onTap: widget.onDelete,
+          isDanger: true,
+        ),
+    ];
+    final cardHeight = widget.height ?? widget.width;
+    final top = widget.showFavoriteIndicator ? 60.0 : 8.0;
+    const actionExtent = 44.0;
+    final availableHeight = math.max(actionExtent, cardHeight - top - 8);
+    final needsSecondColumn = actions.length * actionExtent > availableHeight;
+
     return Positioned(
-      // 收藏按钮位于 top 8 且保留 48dp 命中区，操作组再留 4dp 间距。
-      top: widget.showFavoriteIndicator ? 60 : 8,
+      // 收藏按钮位于 top 8 且保留 40dp 命中区，操作组与其保持 12dp 间距。
+      top: top,
       right: 8,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (onAddToAgent != null)
-            _ActionButton(
-              icon: Icons.auto_awesome_outlined,
-              tooltip: context.l10n.agentChat_addResource,
-              onTap: onAddToAgent,
-            ),
-          if (widget.onSendToGeneration != null)
-            _ActionButton(
-              icon: Icons.send,
-              tooltip: context.l10n.vibe_reuseButton,
-              modifierHint: context.l10n.vibe_shiftReplaceHint,
-              onTap: widget.onSendToGeneration,
-            ),
-          if (widget.onExport != null)
-            _ActionButton(
-              icon: Icons.download,
-              tooltip: context.l10n.common_export,
-              onTap: widget.onExport,
-            ),
-          if (widget.onEdit != null)
-            _ActionButton(
-              icon: Icons.edit,
-              tooltip: context.l10n.common_edit,
-              onTap: widget.onEdit,
-            ),
-          if (widget.onDelete != null)
-            _ActionButton(
-              icon: Icons.delete,
-              tooltip: context.l10n.common_delete,
-              onTap: widget.onDelete,
-              isDanger: true,
-            ),
-        ],
-      ),
+      child: needsSecondColumn
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: actions.skip((actions.length + 1) ~/ 2).toList(),
+                ),
+                const SizedBox(width: 4),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: actions.take((actions.length + 1) ~/ 2).toList(),
+                ),
+              ],
+            )
+          : Column(mainAxisSize: MainAxisSize.min, children: actions),
     );
   }
 }
@@ -1356,14 +1375,10 @@ class _ActionButtonState extends State<_ActionButton> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    final backgroundColor = widget.isDanger
-        ? (_isHovered
-              ? colorScheme.error
-              : colorScheme.error.withValues(alpha: 0.9))
-        : (_isHovered ? Colors.white : Colors.white.withValues(alpha: 0.9));
-    final iconColor = widget.isDanger
-        ? colorScheme.onError
-        : (_isHovered ? Colors.black : Colors.black.withValues(alpha: 0.65));
+    final backgroundColor = Colors.black.withValues(
+      alpha: _isHovered ? 0.68 : 0.5,
+    );
+    final iconColor = widget.isDanger ? colorScheme.error : Colors.white;
 
     return MouseRegion(
       onEnter: (_) => _onEnter(),
@@ -1380,23 +1395,14 @@ class _ActionButtonState extends State<_ActionButton> {
                   ? Duration.zero
                   : const Duration(milliseconds: 120),
               curve: Curves.easeOut,
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               margin: const EdgeInsets.only(bottom: 4),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
                 color: backgroundColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: _isHovered ? 0.28 : 0.2,
-                    ),
-                    blurRadius: _isHovered ? 8 : 4,
-                    offset: Offset(0, _isHovered ? 3 : 2),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(widget.icon, size: 16, color: iconColor),
+              child: Icon(widget.icon, size: 18, color: iconColor),
             ),
             // 自定义 Tooltip
             if (_showTooltip)

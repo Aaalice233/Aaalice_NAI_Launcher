@@ -135,15 +135,18 @@ void main() {
           home: Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
-              child: VibeCard(
-                entry: entry.toDisplayEntry(),
-                width: 170,
-                height: computeVibeCardHeight(170),
-                onFavoriteToggle: () {},
-                onSendToGeneration: () {},
-                onExport: () {},
-                onEdit: () {},
-                onDelete: () {},
+              child: ImageCardActionScope(
+                onAddToAgent: () {},
+                child: VibeCard(
+                  entry: entry.toDisplayEntry(),
+                  width: 170,
+                  height: computeVibeCardHeight(170),
+                  onFavoriteToggle: () {},
+                  onSendToGeneration: () {},
+                  onExport: () {},
+                  onEdit: () {},
+                  onDelete: () {},
+                ),
               ),
             ),
           ),
@@ -166,8 +169,21 @@ void main() {
       ),
     );
     final actionRects = [
-      for (final icon in [Icons.send, Icons.download, Icons.edit, Icons.delete])
-        tester.getRect(find.byIcon(icon)),
+      for (final icon in [
+        Icons.auto_awesome_outlined,
+        Icons.send,
+        Icons.download,
+        Icons.edit,
+        Icons.delete,
+      ])
+        tester.getRect(
+          find
+              .ancestor(
+                of: find.byIcon(icon),
+                matching: find.byType(AnimatedContainer),
+              )
+              .first,
+        ),
     ];
 
     for (final rect in actionRects) {
@@ -175,6 +191,33 @@ void main() {
       expect(cardRect.contains(rect.bottomRight), isTrue);
       expect(favoriteRect.overlaps(rect), isFalse);
     }
+    final sendButton = tester.widget<AnimatedContainer>(
+      find
+          .ancestor(
+            of: find.byIcon(Icons.send),
+            matching: find.byType(AnimatedContainer),
+          )
+          .first,
+    );
+    final deleteButton = tester.widget<AnimatedContainer>(
+      find
+          .ancestor(
+            of: find.byIcon(Icons.delete),
+            matching: find.byType(AnimatedContainer),
+          )
+          .first,
+    );
+    final sendDecoration = sendButton.decoration! as BoxDecoration;
+    final deleteDecoration = deleteButton.decoration! as BoxDecoration;
+    expect(sendDecoration.color, Colors.black.withValues(alpha: 0.5));
+    expect(deleteDecoration.color, sendDecoration.color);
+    expect(sendDecoration.borderRadius, BorderRadius.circular(16));
+    expect(deleteDecoration.borderRadius, sendDecoration.borderRadius);
+    expect(tester.widget<Icon>(find.byIcon(Icons.send)).color, Colors.white);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.delete)).color,
+      Theme.of(tester.element(find.byIcon(Icons.delete))).colorScheme.error,
+    );
     expect(tester.takeException(), isNull);
   });
 
