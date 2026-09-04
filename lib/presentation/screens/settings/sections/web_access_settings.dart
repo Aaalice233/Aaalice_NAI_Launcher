@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/web_access/web_access_models.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../prompt_assistant/providers/web_access_provider.dart';
 
 class WebAccessSettings extends ConsumerStatefulWidget {
@@ -398,54 +399,49 @@ class _ApiKeyEditorFormState extends State<_ApiKeyEditorForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            controller: widget.scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(20),
-            child: TextField(
-              controller: _controller,
-              autofocus: true,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: context.l10n.promptAssistant_webAccessExaApiKey,
-                hintText: widget.hasKey
-                    ? context.l10n.promptAssistant_apiKeyLeaveEmpty
-                    : null,
-              ),
-            ),
-          ),
-        ),
-        SafeArea(
-          top: false,
-          minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (widget.hasKey)
-                  TextButton(
-                    onPressed: () => _complete(_ApiKeyAction.clear),
-                    child: Text(context.l10n.promptAssistant_webAccessClearKey),
-                  ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: () => _complete(_ApiKeyAction.save),
-                  child: Text(context.l10n.common_save),
-                ),
-              ],
-            ),
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
+      padding: const EdgeInsets.all(20),
+      content: [
+        TextField(
+          controller: _controller,
+          autofocus: true,
+          obscureText: true,
+          decoration: InputDecoration(
+            labelText: context.l10n.promptAssistant_webAccessExaApiKey,
+            hintText: widget.hasKey
+                ? context.l10n.promptAssistant_apiKeyLeaveEmpty
+                : null,
           ),
         ),
       ],
+      footer: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (widget.hasKey)
+                TextButton(
+                  onPressed: () => _complete(_ApiKeyAction.clear),
+                  child: Text(context.l10n.promptAssistant_webAccessClearKey),
+                ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(context.l10n.common_cancel),
+              ),
+              FilledButton(
+                onPressed: () => _complete(_ApiKeyAction.save),
+                child: Text(context.l10n.common_save),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

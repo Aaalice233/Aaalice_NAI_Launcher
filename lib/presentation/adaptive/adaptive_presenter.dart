@@ -9,7 +9,7 @@ import 'window_size_class.dart';
 /// Builds a panel body with the presenter-owned scroll controller.
 ///
 /// Centered forms receive a loose height constraint so short content can size
-/// naturally. Scrollable short forms must set `shrinkWrap: true`; long,
+/// naturally. Scrollable short forms must use `ContentSizedAdaptiveForm`; long,
 /// virtualized collections can consume the bounded viewport instead.
 typedef AdaptivePanelBuilder =
     Widget Function(BuildContext context, ScrollController scrollController);

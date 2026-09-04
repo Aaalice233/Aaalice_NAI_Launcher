@@ -159,8 +159,8 @@ void main() {
 
     await tester.tap(find.text('Configure'));
     await tester.pumpAndSettle();
-    final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
-    final editor = find.descendant(of: panel, matching: find.byType(TextField));
+    final editor = find.byType(TextField);
+    expect(editor, findsOneWidget);
     await tester.enterText(editor, '  replacement-key  ');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
