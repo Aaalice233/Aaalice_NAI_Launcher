@@ -7,6 +7,60 @@ import 'package:nai_launcher/data/services/tag_library_io_service.dart';
 import 'package:nai_launcher/data/services/tag_library_portable_thumbnail_store.dart';
 
 void main() {
+  test('exports tag entries without thumbnail image resources', () async {
+    final storage = _FailingStorage(
+      entries: jsonEncode([
+        {'id': 'tag-1', 'name': 'Portrait', 'thumbnail': 'portrait.png'},
+      ]),
+      categories: '[]',
+    );
+    final io = _TrackingIo(_TrackingMutation());
+    final records = await UserTagLibraryCloudSyncAdapter(
+      storage,
+      io,
+    ).exportRecords().toList();
+
+    expect(records, hasLength(1));
+    expect(records.single.resource, isNull);
+    expect(records.single.data, {
+      'entry': {'id': 'tag-1', 'name': 'Portrait'},
+    });
+    expect(io.thumbnailReads, 0);
+  });
+
+  test('restoring tag metadata preserves the device-local thumbnail', () async {
+    final storage = _FailingStorage(
+      entries: jsonEncode([
+        {'id': 'tag-1', 'name': 'Old', 'thumbnail': 'local.png'},
+      ]),
+      categories: '[]',
+    )..failNextCategoryWrite = false;
+    final io = _TrackingIo(_TrackingMutation());
+    final adapter = UserTagLibraryCloudSyncAdapter(storage, io);
+
+    await adapter.apply([
+      PortableSyncRecord(
+        adapterId: adapter.id,
+        id: 'entry:tag-1',
+        kind: 'entry',
+        data: {
+          'entry': {'id': 'tag-1', 'name': 'Updated'},
+          'thumbnailExtension': '.png',
+        },
+        resource: PortableSyncResource(
+          relativePath: 'tag-library/tag-1/thumbnail.png',
+          length: 3,
+          openRead: () => Stream.value([1, 2, 3]),
+        ),
+      ),
+    ]);
+
+    expect(jsonDecode(storage.entries), [
+      {'id': 'tag-1', 'name': 'Updated', 'thumbnail': 'local.png'},
+    ]);
+    expect(io.stageCalls, 0);
+  });
+
   test('metadata failure rolls back a tombstoned thumbnail', () async {
     final storage = _FailingStorage(
       entries: jsonEncode([
@@ -66,6 +120,14 @@ class _TrackingIo extends TagLibraryIOService {
 
   final PortableThumbnailMutation mutation;
   String? existingPath;
+  var stageCalls = 0;
+  var thumbnailReads = 0;
+
+  @override
+  Future<int?> thumbnailLength(String? filePath) async {
+    thumbnailReads++;
+    return 3;
+  }
 
   @override
   Future<PortableThumbnailMutation> stagePortableThumbnail(
@@ -74,6 +136,7 @@ class _TrackingIo extends TagLibraryIOService {
     required Stream<List<int>>? bytes,
     String? existingPath,
   }) async {
+    stageCalls++;
     this.existingPath = existingPath;
     return mutation;
   }

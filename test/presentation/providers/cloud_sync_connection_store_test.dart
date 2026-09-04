@@ -160,6 +160,32 @@ void main() {
     expect(restored.contentSelection.includeSkills, isFalse);
     expect(restored.contentSelection.selectedSkillIds, isEmpty);
   });
+
+  test(
+    'legacy large-file scope is removed when restoring a connection',
+    () async {
+      final local = _MemoryLocalStorage();
+      final secure = _MemorySecureStorage()
+        ..credentials = jsonEncode({'username': 'user', 'secret': 'secret'});
+      local.values[StorageKeys.cloudSyncConfiguration] = jsonEncode({
+        'version': 3,
+        'backend': CloudSyncBackendKind.webDav.name,
+        'serverUrl': 'https://dav.test/root',
+        'dataKinds': [
+          CloudSyncDataKind.prompts.name,
+          CloudSyncDataKind.largeBinary.name,
+        ],
+      });
+      final store = CloudSyncConnectionStore(
+        localStorage: local,
+        secureStorage: secure,
+      );
+
+      final restored = await store.load();
+
+      expect(restored!.dataKinds, {CloudSyncDataKind.prompts});
+    },
+  );
 }
 
 class _MemoryLocalStorage extends LocalStorageService {

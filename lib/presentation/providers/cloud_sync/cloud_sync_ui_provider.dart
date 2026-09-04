@@ -30,6 +30,12 @@ enum CloudSyncConflictChoice { local, remote, keepBoth }
 
 enum CloudSyncDataKind { settings, prompts, galleries, largeBinary }
 
+const cloudSyncSelectableDataKinds = <CloudSyncDataKind>{
+  CloudSyncDataKind.settings,
+  CloudSyncDataKind.prompts,
+  CloudSyncDataKind.galleries,
+};
+
 enum CloudSyncChangeKind { added, modified, deleted }
 
 @immutable

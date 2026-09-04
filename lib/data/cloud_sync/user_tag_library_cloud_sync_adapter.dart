@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:path/path.dart' as p;
-
 import '../../core/storage/local_storage_service.dart';
 import '../services/tag_library_io_service.dart';
 import '../services/tag_library_portable_thumbnail_store.dart';
@@ -24,26 +22,12 @@ class UserTagLibraryCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   Stream<PortableSyncRecord> exportRecords() async* {
     for (final original in _decodeList(_storage.getTagLibraryEntriesJson())) {
       final entry = Map<String, dynamic>.from(original);
-      final thumbnail = entry.remove('thumbnail') as String?;
-      final length = await _io.thumbnailLength(thumbnail);
-      final extension = thumbnail == null
-          ? ''
-          : p.extension(thumbnail).toLowerCase();
+      entry.remove('thumbnail');
       yield PortableSyncRecord(
         adapterId: id,
         id: 'entry:${entry['id']}',
         kind: 'entry',
-        data: {
-          'entry': entry,
-          'thumbnailExtension': length == null ? null : extension,
-        },
-        resource: length == null
-            ? null
-            : PortableSyncResource(
-                relativePath: 'tag-library/${entry['id']}/thumbnail$extension',
-                length: length,
-                openRead: () => _io.openThumbnail(thumbnail!),
-              ),
+        data: {'entry': entry},
       );
     }
     for (final category in _decodeList(
@@ -80,11 +64,13 @@ class UserTagLibraryCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
     final extension = record.data['thumbnailExtension'];
     if (record.kind == 'category' && resource != null ||
         record.kind == 'entry' &&
-            ((resource == null) != (extension == null) ||
-                resource != null &&
-                    (!resource.relativePath.endsWith('/thumbnail$extension') ||
-                        resource.relativePath.contains('..')))) {
-      throw const CloudSyncPreflightException('Invalid tag thumbnail');
+            resource != null &&
+            (extension is! String ||
+                resource.relativePath !=
+                    'tag-library/$stableId/thumbnail$extension')) {
+      throw const CloudSyncPreflightException(
+        'Invalid legacy tag thumbnail resource',
+      );
     }
   }
 
@@ -125,15 +111,8 @@ class UserTagLibraryCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
         final value = Map<String, dynamic>.from(
           record.data[record.kind]! as Map,
         );
-        if (record.kind == 'entry') {
-          final mutation = await _io.stagePortableThumbnail(
-            stableId,
-            extension: record.data['thumbnailExtension'] as String?,
-            bytes: record.resource?.openRead(),
-            existingPath: existingThumbnail,
-          );
-          mutations.add(mutation);
-          value['thumbnail'] = mutation.path;
+        if (record.kind == 'entry' && existingThumbnail != null) {
+          value['thumbnail'] = existingThumbnail;
         }
         target[stableId] = value;
       }

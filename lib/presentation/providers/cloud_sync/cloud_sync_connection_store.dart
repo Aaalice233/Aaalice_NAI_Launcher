@@ -88,7 +88,10 @@ class CloudSyncConnectionStore {
         'allowInsecureHttp': draft.allowInsecureHttp,
         'accountId': draft.accountId,
         'accountLabel': draft.accountLabel,
-        'dataKinds': dataKinds.map((value) => value.name).toList(),
+        'dataKinds': dataKinds
+            .where(cloudSyncSelectableDataKinds.contains)
+            .map((value) => value.name)
+            .toList(),
         'contentSelection': contentSelection.toJson(),
         'remoteRevision': remoteRevision,
         'lastSync': lastSync?.toUtc().toIso8601String(),
@@ -143,9 +146,15 @@ class CloudSyncConnectionStore {
       public['version'] = _configurationVersion;
       await _localStorage.setSetting(configurationKey, jsonEncode(public));
     }
-    final scope = (public['dataKinds'] as List? ?? const [])
+    final storedKinds = public['dataKinds'] as List?;
+    final scope = (storedKinds ?? const [])
         .whereType<String>()
-        .map(CloudSyncDataKind.values.byName)
+        .map(
+          (name) => CloudSyncDataKind.values.where((kind) => kind.name == name),
+        )
+        .where((matches) => matches.isNotEmpty)
+        .map((matches) => matches.single)
+        .where(cloudSyncSelectableDataKinds.contains)
         .toSet();
     return PersistedCloudSyncConnection(
       draft: CloudSyncConnectionDraft(
@@ -163,7 +172,9 @@ class CloudSyncConnectionStore {
         accountId: public['accountId'] as String? ?? '',
         accountLabel: public['accountLabel'] as String? ?? '',
       ),
-      dataKinds: scope.isEmpty ? CloudSyncDataKind.values.toSet() : scope,
+      dataKinds: storedKinds == null
+          ? cloudSyncSelectableDataKinds
+          : Set.unmodifiable(scope),
       contentSelection: public['contentSelection'] == null
           ? const CloudSyncContentSelection()
           : CloudSyncContentSelection.decode(

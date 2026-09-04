@@ -48,4 +48,18 @@ void main() {
       isNot(contains('prompt-assistant')),
     );
   });
+
+  test('large-file libraries are never included in cloud backup', () {
+    const scope = {CloudSyncDataKind.largeBinary};
+    const selection = CloudSyncContentSelection();
+
+    expect(
+      isCloudSyncAdapterInScope('precise-ref-library', scope, selection),
+      isFalse,
+    );
+    expect(
+      isCloudSyncAdapterInScope('vibe-library', scope, selection),
+      isFalse,
+    );
+  });
 }
