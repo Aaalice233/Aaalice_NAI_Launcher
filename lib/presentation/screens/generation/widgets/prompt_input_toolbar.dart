@@ -373,10 +373,12 @@ class PromptInputBottomActions extends ConsumerWidget {
     super.key,
     required this.controller,
     required this.commands,
+    this.showClearButton = true,
   });
 
   final PromptInputController controller;
   final PromptInputCommands commands;
+  final bool showClearButton;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -386,6 +388,7 @@ class PromptInputBottomActions extends ConsumerWidget {
       config: PromptEditorToolbarConfig.mainEditor.copyWith(
         showRandomButton: showRandomTools,
         showFullscreenButton: false,
+        showClearButton: showClearButton,
       ),
       onRandomPressed: showRandomTools ? commands.generateRandomPrompt : null,
       onClearPressed: controller.isNegativeMode
@@ -434,55 +437,81 @@ class _MobileFullscreenToolbar extends StatelessWidget {
             SizedBox(
               key: const ValueKey('generation_prompt_mobile_context_bar'),
               height: 48,
-              child: SingleChildScrollView(
-                key: const ValueKey(
-                  'generation_prompt_mobile_secondary_scroll',
-                ),
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  key: const ValueKey('generation_prompt_mobile_secondary_row'),
-                  children: [
-                    _MobilePromptToolbarAction(
-                      actionKey: const ValueKey(
-                        'generation_prompt_mobile_character_action',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      key: const ValueKey(
+                        'generation_prompt_mobile_secondary_scroll',
                       ),
-                      child: CharacterPromptButton(
-                        onManage: commands.showMobileCharacterManager,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Row(
+                        key: const ValueKey(
+                          'generation_prompt_mobile_secondary_row',
+                        ),
+                        children: [
+                          _MobilePromptToolbarAction(
+                            actionKey: const ValueKey(
+                              'generation_prompt_mobile_character_action',
+                            ),
+                            child: CharacterPromptButton(
+                              onManage: commands.showMobileCharacterManager,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const _MobilePromptToolbarAction(
+                            actionKey: ValueKey(
+                              'generation_prompt_mobile_fixed_tags_action',
+                            ),
+                            child: FixedTagsButton(),
+                          ),
+                          const SizedBox(width: 6),
+                          _MobilePromptToolbarAction(
+                            actionKey: const ValueKey(
+                              'generation_prompt_mobile_quality_action',
+                            ),
+                            child: QualityTagsSelector(model: model),
+                          ),
+                          const SizedBox(width: 6),
+                          _MobilePromptToolbarAction(
+                            actionKey: const ValueKey(
+                              'generation_prompt_mobile_uc_action',
+                            ),
+                            child: UcPresetSelector(model: model),
+                          ),
+                          const SizedBox(width: 6),
+                          _MobilePromptToolbarAction(
+                            actionKey: const ValueKey(
+                              'generation_prompt_mobile_bottom_actions',
+                            ),
+                            child: PromptInputBottomActions(
+                              controller: controller,
+                              commands: commands,
+                              showClearButton: false,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    const _MobilePromptToolbarAction(
-                      actionKey: ValueKey(
-                        'generation_prompt_mobile_fixed_tags_action',
-                      ),
-                      child: FixedTagsButton(),
+                  ),
+                  SizedBox.square(
+                    key: const ValueKey(
+                      'generation_prompt_mobile_clear_action',
                     ),
-                    const SizedBox(width: 6),
-                    _MobilePromptToolbarAction(
-                      actionKey: const ValueKey(
-                        'generation_prompt_mobile_quality_action',
+                    dimension: 48,
+                    child: PromptEditorToolbar(
+                      config: PromptEditorToolbarConfig.mainEditor.copyWith(
+                        showRandomButton: false,
+                        showFullscreenButton: false,
+                        showSettingsButton: false,
                       ),
-                      child: QualityTagsSelector(model: model),
+                      onClearPressed: controller.isNegativeMode
+                          ? commands.clearNegativePrompt
+                          : commands.clearPrompt,
                     ),
-                    const SizedBox(width: 6),
-                    _MobilePromptToolbarAction(
-                      actionKey: const ValueKey(
-                        'generation_prompt_mobile_uc_action',
-                      ),
-                      child: UcPresetSelector(model: model),
-                    ),
-                    const SizedBox(width: 6),
-                    _MobilePromptToolbarAction(
-                      actionKey: const ValueKey(
-                        'generation_prompt_mobile_bottom_actions',
-                      ),
-                      child: PromptInputBottomActions(
-                        controller: controller,
-                        commands: commands,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],

@@ -233,7 +233,7 @@ void main() {
             body: Align(
               alignment: Alignment.topLeft,
               child: SizedBox(
-                width: 380,
+                width: 320,
                 height: 420,
                 child: PromptInputWidget(isMaximized: true),
               ),
@@ -252,6 +252,12 @@ void main() {
     final secondaryScroll = find.byKey(
       const ValueKey('generation_prompt_mobile_secondary_scroll'),
     );
+    final contextBar = find.byKey(
+      const ValueKey('generation_prompt_mobile_context_bar'),
+    );
+    final clearAction = find.byKey(
+      const ValueKey('generation_prompt_mobile_clear_action'),
+    );
     final secondaryActions = [
       find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
       find.byKey(const ValueKey('generation_prompt_mobile_fixed_tags_action')),
@@ -265,8 +271,19 @@ void main() {
 
     expect(typeSwitch, findsOneWidget);
     expect(secondaryScroll, findsOneWidget);
+    expect(clearAction, findsOneWidget);
     expect(tester.getSize(secondaryScroll).height, greaterThanOrEqualTo(48));
-    expect(tester.getSize(secondaryScroll).width, 380);
+    expect(tester.getSize(secondaryScroll).width, 272);
+    expect(tester.getSize(clearAction), const Size.square(48));
+    expect(
+      tester.getRect(clearAction).right,
+      closeTo(tester.getRect(contextBar).right, 0.1),
+    );
+    expect(
+      find.descendant(of: clearAction, matching: find.byIcon(Icons.clear)),
+      findsOneWidget,
+    );
+    expect(clearAction.hitTestable(), findsOneWidget);
     for (final action in secondaryActions) {
       expect(action, findsOneWidget);
       expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
@@ -298,7 +315,7 @@ void main() {
     );
     expect(
       find.descendant(of: bottomActions, matching: find.byIcon(Icons.clear)),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.descendant(of: bottomActions, matching: find.byIcon(Icons.settings)),
