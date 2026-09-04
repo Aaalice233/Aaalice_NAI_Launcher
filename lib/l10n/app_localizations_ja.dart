@@ -13002,13 +13002,6 @@ class AppLocalizationsJa extends AppLocalizations {
       'このサービスでは複数デバイスからの同時変更を安全に処理できません。自動的な統合や上書きは行わず、選択したプッシュまたはプルだけを実行します。';
 
   @override
-  String get cloudSync_dataScope => '保存する内容を選択';
-
-  @override
-  String get cloudSync_dataScopeDescription =>
-      'プッシュとプルの対象を選択します。アカウント、パスワード、API キーはアップロードされません。';
-
-  @override
   String get cloudSync_chooseBackupContents => 'バックアップ内容を選択';
 
   @override
@@ -13121,6 +13114,9 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get cloudSync_skillsBackupDescription =>
       'バックアップは既定でオンです。下で選択した Skill だけを保存します。';
+
+  @override
+  String get cloudSync_chooseSkills => 'Skill を選択';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {

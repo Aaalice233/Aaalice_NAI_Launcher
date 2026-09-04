@@ -13349,13 +13349,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'This service cannot reliably handle changes from multiple devices at once. Nothing is merged or overwritten automatically; data moves only when you choose push or pull.';
 
   @override
-  String get cloudSync_dataScope => 'Choose what to save';
-
-  @override
-  String get cloudSync_dataScopeDescription =>
-      'Choose what to push and pull. Accounts, passwords, and API keys are never uploaded.';
-
-  @override
   String get cloudSync_chooseBackupContents => 'Choose backup content';
 
   @override
@@ -13473,6 +13466,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cloudSync_skillsBackupDescription =>
       'Backup is on by default; only the Skills selected below are included.';
+
+  @override
+  String get cloudSync_chooseSkills => 'Choose Skills';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {

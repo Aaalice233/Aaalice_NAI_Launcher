@@ -23234,18 +23234,6 @@ abstract class AppLocalizations {
   /// **'This service cannot reliably handle changes from multiple devices at once. Nothing is merged or overwritten automatically; data moves only when you choose push or pull.'**
   String get cloudSync_manualBackupOnlyDescription;
 
-  /// No description provided for @cloudSync_dataScope.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose what to save'**
-  String get cloudSync_dataScope;
-
-  /// No description provided for @cloudSync_dataScopeDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose what to push and pull. Accounts, passwords, and API keys are never uploaded.'**
-  String get cloudSync_dataScopeDescription;
-
   /// No description provided for @cloudSync_chooseBackupContents.
   ///
   /// In en, this message translates to:
@@ -23449,6 +23437,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Backup is on by default; only the Skills selected below are included.'**
   String get cloudSync_skillsBackupDescription;
+
+  /// No description provided for @cloudSync_chooseSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Skills'**
+  String get cloudSync_chooseSkills;
 
   /// No description provided for @cloudSync_skillsSelectedCount.
   ///
