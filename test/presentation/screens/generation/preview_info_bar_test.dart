@@ -191,6 +191,41 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('触屏窄预览优先完整显示种子和透明背景开关', (tester) async {
+    const seed = 2889740361;
+    await _pumpBar(
+      tester,
+      _image(seed: seed),
+      width: 360,
+      defaultModel: 'nai-diffusion-5-curated',
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+    );
+
+    final bar = find.byType(PreviewInfoBar);
+    final seedText = find.text('$seed');
+    final toggle = find.byKey(
+      const ValueKey('generation_preview_transparent_background_toggle'),
+    );
+
+    expect(find.text('832'), findsNothing);
+    expect(find.text('1216'), findsNothing);
+    expect(seedText, findsOneWidget);
+    expect(toggle, findsOneWidget);
+    expect(
+      tester.getRect(seedText).right,
+      lessThanOrEqualTo(tester.getRect(toggle).left),
+    );
+    expect(
+      tester.getRect(seedText).right,
+      lessThanOrEqualTo(tester.getRect(bar).right),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('不支持透明背景的模型不显示主预览开关', (tester) async {
     await _pumpBar(
       tester,

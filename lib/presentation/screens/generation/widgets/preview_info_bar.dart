@@ -41,6 +41,7 @@ class PreviewInfoBar extends ConsumerWidget {
   /// 低于该宽度就收起分辨率胶囊（官网在窄容器下同样隐藏它）
   static const double _resolutionMinWidth = 300;
   static const double _comparisonResolutionMinWidth = 400;
+  static const double _transparentToggleResolutionMinWidth = 400;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -65,7 +66,9 @@ class PreviewInfoBar extends ConsumerWidget {
       height: heightFor(context),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final resolutionMinWidth = onComparisonChanged == null
+          final resolutionMinWidth = showTransparentBackground
+              ? _transparentToggleResolutionMinWidth
+              : onComparisonChanged == null
               ? _resolutionMinWidth
               : _comparisonResolutionMinWidth;
           final showResolution =
