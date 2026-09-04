@@ -45,10 +45,7 @@ void main() {
         await _pumpLibrary(tester);
 
         expect(find.text('目标参考'), findsOneWidget);
-        expect(
-          find.byKey(const Key('precise-ref-library-search')),
-          findsOneWidget,
-        );
+        expect(_preciseRefSearchField(), findsOneWidget);
         expect(
           find.byKey(const Key('precise-ref-library-favorites-toggle')),
           findsNothing,
@@ -88,6 +85,15 @@ void main() {
           find.byKey(const Key('precise-ref-library-unified-toolbar')),
           findsOneWidget,
         );
+        for (final key in [
+          'precise-ref-library-sort-menu',
+          'precise-ref-library-multi-select-button',
+          'precise-ref-library-import-button',
+          'precise-ref-library-export-button',
+          'precise-ref-library-refresh-button',
+        ]) {
+          expect(find.byKey(Key(key)), findsOneWidget);
+        }
         if (width >= 1050) {
           final titleRect = tester.getRect(
             find.byKey(const Key('precise-ref-library-page-title')),
@@ -122,10 +128,7 @@ void main() {
         }
         expect(find.byType(PaginationBar), findsOneWidget);
 
-        await tester.enterText(
-          find.byKey(const Key('precise-ref-library-search')),
-          '目标',
-        );
+        await tester.enterText(_preciseRefSearchField(), '目标');
         await tester.pump(const Duration(milliseconds: 350));
         expect(find.text('目标参考'), findsOneWidget);
         expect(find.text('其他参考'), findsNothing);
@@ -385,9 +388,12 @@ void main() {
       );
 
       const surfaceKey = Key('precise-ref-library-search-surface');
-      const fieldKey = Key('precise-ref-library-search');
+      final field = _preciseRefSearchField();
       final surface = tester.widget<InputSurfaceContainer>(
-        find.byKey(surfaceKey),
+        find.descendant(
+          of: find.byKey(surfaceKey),
+          matching: find.byType(InputSurfaceContainer),
+        ),
       );
       final restingRect = tester.getRect(find.byKey(surfaceKey));
 
@@ -397,8 +403,8 @@ void main() {
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       addTearDown(mouse.removePointer);
       await mouse.addPointer(location: const Offset(1100, 700));
-      await mouse.moveTo(tester.getCenter(find.byKey(fieldKey)));
-      await mouse.down(tester.getCenter(find.byKey(fieldKey)));
+      await mouse.moveTo(tester.getCenter(field));
+      await mouse.down(tester.getCenter(field));
       await mouse.up();
       await tester.pumpAndSettle();
 
@@ -462,7 +468,7 @@ void main() {
       );
       await _pumpLibrary(tester, textScale: 3);
 
-      final search = find.byKey(const Key('precise-ref-library-search'));
+      final search = _preciseRefSearchField();
       await tester.tap(search);
       await tester.enterText(search, '目标');
       await tester.pump(const Duration(milliseconds: 350));
@@ -563,6 +569,11 @@ Future<void> _pumpLibrary(
   );
   await tester.pump();
 }
+
+Finder _preciseRefSearchField() => find.descendant(
+  of: find.byKey(const Key('precise-ref-library-search-surface')),
+  matching: find.byType(TextField),
+);
 
 class _PopulatedPreciseRefNotifier extends PreciseRefLibraryNotifier {
   static final entries = [

@@ -177,6 +177,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get common_grid => 'Grid';
 
   @override
+  String get common_list => 'List';
+
+  @override
+  String get common_grouped => 'Grouped';
+
+  @override
   String get common_date => 'Date';
 
   @override
@@ -11731,6 +11737,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preciseRefLib_import => 'Import Images';
+
+  @override
+  String get preciseRefLib_exportTitle => 'Export Precise Reference Package';
+
+  @override
+  String preciseRefLib_exportedCount(Object count) {
+    return 'Exported $count precise references';
+  }
+
+  @override
+  String preciseRefLib_exportFailed(Object error) {
+    return 'Failed to export precise references: $error';
+  }
+
+  @override
+  String preciseRefLib_openFolderFailed(Object error) {
+    return 'Failed to open the precise reference folder: $error';
+  }
+
+  @override
+  String get preciseRefLib_enterSelectionMode => 'Enter selection mode';
+
+  @override
+  String get preciseRefLib_changeType => 'Change type';
+
+  @override
+  String preciseRefLib_sentSelectedSummary(Object failed, Object success) {
+    return 'Sent $success precise references; $failed failed';
+  }
+
+  @override
+  String preciseRefLib_failedItems(Object items) {
+    return 'Failed items: $items';
+  }
+
+  @override
+  String preciseRefLib_confirmDeleteSelected(Object count) {
+    return 'Delete the $count selected precise references? Their image files will also be removed.';
+  }
+
+  @override
+  String preciseRefLib_deletedCount(Object count) {
+    return 'Deleted $count precise references';
+  }
 
   @override
   String preciseRefLib_entryCount(int count) {

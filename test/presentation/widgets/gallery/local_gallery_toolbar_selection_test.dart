@@ -9,8 +9,8 @@ import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
-import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_library_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
 
 void _noop() {}
@@ -77,6 +77,7 @@ void main() {
     await _pumpToolbar(tester, selectionActive: false);
 
     expect(find.byType(LocalGalleryToolbar), findsOneWidget);
+    expect(find.byType(GalleryLibraryToolbar), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -112,35 +113,18 @@ void main() {
 
         await _pumpToolbar(tester, selectionActive: false);
 
-        final compact = width < 1180;
+        final compact = width < 1050;
         expect(
           find.byKey(
             ValueKey(
               compact
-                  ? 'localGalleryMobileActionBar'
-                  : 'localGalleryDesktopToolbar',
+                  ? 'gallery-library-toolbar-compact'
+                  : 'gallery-library-toolbar-desktop',
             ),
           ),
           findsOneWidget,
         );
-
-        if (compact) {
-          final resultCount = find.byKey(
-            const ValueKey('localGalleryMobileSearchResultCount'),
-          );
-          final searchSurface = find.ancestor(
-            of: resultCount,
-            matching: find.byType(InputSurfaceContainer),
-          );
-          expect(resultCount, findsOneWidget);
-          expect(searchSurface, findsOneWidget);
-          expect(
-            tester
-                .getRect(searchSurface)
-                .contains(tester.getCenter(resultCount)),
-            isTrue,
-          );
-        }
+        expect(find.text('5'), findsOneWidget);
 
         for (final label in ['分类', '筛选', '日期', '多选', '刷新']) {
           final labelFinder = find.text(label);
@@ -165,11 +149,11 @@ void main() {
         await _pumpToolbar(tester, selectionActive: false, textScaleFactor: 3);
 
         expect(
-          find.byKey(const ValueKey('localGalleryCompactToolbar')),
+          find.byKey(const ValueKey('gallery-library-toolbar-compact')),
           findsOneWidget,
         );
         expect(
-          find.byKey(const ValueKey('localGalleryMobileActionBar')),
+          find.byKey(const ValueKey('gallery-library-toolbar-actions')),
           findsOneWidget,
         );
         for (final label in ['分类', '筛选', '日期', '多选', '刷新']) {

@@ -5,6 +5,7 @@ import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/tag_library_toolbar.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_library_toolbar.dart';
 
 class _FakeTagLibraryPageNotifier extends TagLibraryPageNotifier {
   @override
@@ -17,147 +18,95 @@ class _FakeTagLibraryPageNotifier extends TagLibraryPageNotifier {
 }
 
 void main() {
-  setUp(() {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.android,
-    );
+  tearDown(() => PlatformCapabilities.debugOverride = null);
+
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+    testWidgets('词库使用公共顶栏并保留全部能力 ${width.toInt()}px', (tester) async {
+      await _pumpToolbar(tester, width: width);
+
+      expect(find.byType(GalleryLibraryToolbar), findsOneWidget);
+      expect(find.byType(GalleryLibrarySearchField), findsOneWidget);
+      expect(
+        find.byType(GalleryLibrarySortMenu<TagLibrarySortBy>),
+        findsOneWidget,
+      );
+      expect(
+        find.byType(GalleryLibraryViewModeSelector<TagLibraryViewMode>),
+        findsOneWidget,
+      );
+      for (final label in ['分类', '多选', '导入', '导出', '添加条目']) {
+        expect(find.text(label), findsOneWidget);
+      }
+      expect(find.text('0'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('排序菜单切换 provider 状态', (tester) async {
+    await _pumpToolbar(tester, width: 1180);
+
+    await tester.tap(find.text('自定义排序'));
+    await tester.pumpAndSettle();
+    expect(find.text('更新时间'), findsOneWidget);
+    await tester.tap(find.text('名称').last);
+    await tester.pumpAndSettle();
+    expect(find.text('名称'), findsOneWidget);
   });
 
-  tearDown(() {
-    PlatformCapabilities.debugOverride = null;
-  });
+  testWidgets('3x 文本保留完整可横向滚动操作区', (tester) async {
+    await _pumpToolbar(tester, width: 320, textScale: 3);
 
-  testWidgets('桌面宽度保留紧凑排序入口并可打开菜单', (tester) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
-    await tester.binding.setSurfaceSize(const Size(1180, 800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          tagLibraryPageNotifierProvider.overrideWith(
-            _FakeTagLibraryPageNotifier.new,
-          ),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: TagLibraryToolbar()),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final sortButton = find.byKey(const Key('tag-library-sort-menu-button'));
-    final addButton = find.byKey(const Key('tag-library-add-entry-button'));
-    expect(tester.getSize(sortButton).height, 36);
-    expect(tester.getSize(addButton).height, greaterThanOrEqualTo(40));
-    expect(find.text('自定义排序'), findsOneWidget);
-
-    await tester.tap(sortButton);
-    await tester.pumpAndSettle();
     expect(
-      find.byKey(const ValueKey('tag-library-sort-option-updatedAt')),
+      find.byKey(const ValueKey('gallery-library-toolbar-compact')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('gallery-library-toolbar-actions')),
+      findsOneWidget,
+    );
+    for (final label in ['分类', '多选', '导入', '导出', '添加条目']) {
+      expect(find.text(label), findsOneWidget);
+    }
     expect(tester.takeException(), isNull);
   });
+}
 
-  for (final width in [360.0, 390.0]) {
-    testWidgets('手机宽度 $width 下分类与排序菜单完整显示', (tester) async {
-      await tester.binding.setSurfaceSize(Size(width, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            tagLibraryPageNotifierProvider.overrideWith(
-              _FakeTagLibraryPageNotifier.new,
-            ),
-          ],
-          child: MaterialApp(
-            locale: const Locale('zh'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: Align(
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  height: 180,
-                  child: ClipRect(
-                    child: TagLibraryToolbar(onShowCategories: () {}),
-                  ),
-                ),
+Future<void> _pumpToolbar(
+  WidgetTester tester, {
+  required double width,
+  double textScale = 1,
+}) async {
+  await tester.binding.setSurfaceSize(Size(width, 900));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        tagLibraryPageNotifierProvider.overrideWith(
+          _FakeTagLibraryPageNotifier.new,
+        ),
+      ],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: Scaffold(
+              body: TagLibraryToolbar(
+                onShowCategories: () {},
+                onEnterSelectionMode: () {},
+                onImport: () {},
+                onExport: () {},
+                onAddEntry: () {},
               ),
             ),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-
-      final categories = find.byKey(const Key('tag-library-categories-button'));
-      final sortButton = find.byKey(const Key('tag-library-sort-menu-button'));
-      expect(categories, findsOneWidget);
-      expect(
-        find.descendant(of: categories, matching: find.text('分类')),
-        findsOneWidget,
-      );
-      expect(sortButton, findsOneWidget);
-      expect(
-        find.descendant(of: sortButton, matching: find.text('自定义排序')),
-        findsOneWidget,
-      );
-      _expectOnScreen(tester.getRect(categories), width);
-      _expectOnScreen(tester.getRect(sortButton), width);
-      expect(tester.takeException(), isNull);
-
-      final anchor = tester.widget<MenuAnchor>(
-        find.byKey(const Key('tag-library-sort-menu-anchor')),
-      );
-      expect(anchor.useRootOverlay, isTrue);
-      expect(anchor.style?.minimumSize?.resolve({})?.width, 176);
-      expect(anchor.style?.maximumSize?.resolve({})?.width, 176);
-      expect(anchor.style?.maximumSize?.resolve({})?.height, 280);
-
-      await tester.tap(sortButton);
-      await tester.pumpAndSettle();
-
-      final optionKeys = ['order', 'name', 'useCount', 'updatedAt'];
-      for (final optionKey in optionKeys) {
-        final option = find.byKey(
-          ValueKey('tag-library-sort-option-$optionKey'),
-        );
-        expect(option, findsOneWidget);
-        final rect = tester.getRect(option);
-        _expectOnScreen(rect, width);
-        expect(rect.width, inInclusiveRange(140, 176));
-      }
-
-      final firstOption = tester.getRect(
-        find.byKey(const ValueKey('tag-library-sort-option-order')),
-      );
-      expect(
-        firstOption.top,
-        greaterThanOrEqualTo(tester.getRect(sortButton).bottom),
-      );
-
-      await tester.tap(
-        find.byKey(const ValueKey('tag-library-sort-option-name')),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(of: sortButton, matching: find.text('名称')),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-    });
-  }
-}
-
-void _expectOnScreen(Rect rect, double screenWidth) {
-  expect(rect.left, greaterThanOrEqualTo(0));
-  expect(rect.right, lessThanOrEqualTo(screenWidth));
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
 }

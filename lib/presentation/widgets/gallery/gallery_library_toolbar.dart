@@ -1,93 +1,131 @@
 import 'package:flutter/material.dart';
 
+import '../../adaptive/interaction_policy.dart';
+import '../common/compact_icon_button.dart';
+import '../common/input_surface_container.dart';
 import 'gallery_sidebar.dart';
 
-/// Shared responsive toolbar layout for collection-style library pages.
+/// Shared responsive toolbar for collection-style library pages.
 ///
-/// The title and count stay together, search owns the remaining width, and
-/// page-specific actions are supplied as slots so Vibe and Precise Reference
-/// keep one responsive toolbar structure without coupling their commands.
+/// Pages declare their title, search and action modules. This widget owns the
+/// layout transition so page implementations cannot drift between desktop and
+/// compact presentations.
 class GalleryLibraryToolbar extends StatelessWidget {
   const GalleryLibraryToolbar({
     super.key,
-    required this.compact,
     required this.title,
     required this.search,
     this.count,
-    this.desktopActions = const [],
-    this.compactHeaderActions = const [],
-    this.compactSearchActions = const [],
+    this.actions = const [],
+    this.primaryAction,
+    this.supplementary,
+    this.compactBreakpoint = 1050,
   });
 
-  final bool compact;
   final Widget title;
   final Widget? count;
   final Widget search;
-  final List<Widget> desktopActions;
-  final List<Widget> compactHeaderActions;
-  final List<Widget> compactSearchActions;
+  final List<Widget> actions;
+  final Widget? primaryAction;
+  final Widget? supplementary;
+  final double compactBreakpoint;
 
   @override
   Widget build(BuildContext context) {
     return GalleryCollectionToolbarSurface(
-      child: compact ? _buildCompact() : _buildDesktop(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final compact =
+              constraints.maxWidth / textScale < compactBreakpoint ||
+              textScale > 1.5;
+          return _GalleryLibraryToolbarScope(
+            compact: compact,
+            child: compact ? _buildCompact(context) : _buildDesktop(),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildDesktop() {
-    return Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        title,
-        if (count != null) ...[const SizedBox(width: 8), count!],
-        const SizedBox(width: GalleryCollectionChrome.toolbarGroupGap),
-        Expanded(child: search),
-        if (desktopActions.isNotEmpty) ...[
-          const SizedBox(width: 8),
-          ..._spaced(desktopActions, 6),
+        Row(
+          key: const ValueKey('gallery-library-toolbar-desktop'),
+          children: [
+            title,
+            if (count != null) ...[const SizedBox(width: 8), count!],
+            const SizedBox(width: GalleryCollectionChrome.toolbarGroupGap),
+            Expanded(child: search),
+            if (actions.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              ..._spaced(actions, 6),
+            ],
+            if (primaryAction != null) ...[
+              const SizedBox(width: 8),
+              primaryAction!,
+            ],
+          ],
+        ),
+        if (supplementary != null) ...[
+          const SizedBox(height: 8),
+          supplementary!,
         ],
       ],
     );
   }
 
-  Widget _buildCompact() {
+  Widget _buildCompact(BuildContext context) {
+    final minimumExtent = context.interactionPolicy.minimumControlExtent;
     return Column(
+      key: const ValueKey('gallery-library-toolbar-compact'),
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            Expanded(
-              child: Row(
-                children: [
-                  Flexible(child: title),
-                  if (count != null) ...[const SizedBox(width: 8), count!],
-                ],
-              ),
-            ),
-            ...compactHeaderActions,
+            Flexible(child: title),
+            if (count != null) ...[const SizedBox(width: 8), count!],
           ],
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: search),
-            if (compactSearchActions.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              ..._spaced(compactSearchActions, 4),
-            ],
-          ],
-        ),
+        search,
+        if (actions.isNotEmpty || primaryAction != null) ...[
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minimumExtent),
+            child: SingleChildScrollView(
+              key: const ValueKey('gallery-library-toolbar-actions'),
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ..._spaced(actions, 4),
+                  if (primaryAction != null) ...[
+                    if (actions.isNotEmpty) const SizedBox(width: 4),
+                    primaryAction!,
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+        if (supplementary != null) ...[
+          const SizedBox(height: 8),
+          supplementary!,
+        ],
       ],
     );
   }
 
-  List<Widget> _spaced(List<Widget> children, double spacing) {
-    return [
-      for (var index = 0; index < children.length; index++) ...[
-        if (index > 0) SizedBox(width: spacing),
-        children[index],
-      ],
-    ];
-  }
+  List<Widget> _spaced(List<Widget> children, double spacing) => [
+    for (var index = 0; index < children.length; index++) ...[
+      if (index > 0) SizedBox(width: spacing),
+      children[index],
+    ],
+  ];
 }
 
 class GalleryLibraryCountBadge extends StatelessWidget {
@@ -112,4 +150,298 @@ class GalleryLibraryCountBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Shared search surface. Autocomplete-enabled pages can wrap this widget with
+/// their existing autocomplete coordinator without duplicating its chrome.
+class GalleryLibrarySearchField extends StatelessWidget {
+  const GalleryLibrarySearchField({
+    super.key,
+    required this.controller,
+    required this.hintText,
+    required this.onChanged,
+    this.focusNode,
+    this.onClear,
+    this.onSubmitted,
+    this.clearTooltip,
+  });
+
+  final TextEditingController controller;
+  final FocusNode? focusNode;
+  final String hintText;
+  final ValueChanged<String> onChanged;
+  final VoidCallback? onClear;
+  final ValueChanged<String>? onSubmitted;
+  final String? clearTooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = _GalleryLibraryToolbarScope.maybeCompactOf(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final touch = context.interactionPolicy.shouldExposeTouchAlternatives;
+    final expandedHeight = 48.0 + (textScale - 1).clamp(0.0, 2.0) * 8.0;
+    final height = compact || touch ? expandedHeight : 36.0;
+    return InputSurfaceContainer(
+      height: height,
+      borderRadius: compact || touch ? 16 : 18,
+      focusedBorderColor: theme.colorScheme.primary.withValues(alpha: 0.38),
+      child: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (context, value, _) => TextField(
+          controller: controller,
+          focusNode: focusNode,
+          style: theme.textTheme.bodyMedium,
+          textAlignVertical: TextAlignVertical.center,
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55),
+            ),
+            prefixIcon: const Icon(Icons.search_rounded, size: 18),
+            suffixIcon: value.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: clearTooltip,
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    onPressed: () {
+                      controller.clear();
+                      (onClear ?? () => onChanged(''))();
+                    },
+                  ),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          ),
+          onChanged: onChanged,
+          onSubmitted: onSubmitted,
+        ),
+      ),
+    );
+  }
+}
+
+class GalleryLibraryAction extends StatelessWidget {
+  const GalleryLibraryAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.tooltip,
+    this.onPressed,
+    this.isActive = false,
+    this.isDanger = false,
+    this.isLoading = false,
+    this.shortcutId,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? tooltip;
+  final VoidCallback? onPressed;
+  final bool isActive;
+  final bool isDanger;
+  final bool isLoading;
+  final String? shortcutId;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: context.interactionPolicy.minimumControlExtent,
+      ),
+      child: CompactIconButton(
+        icon: icon,
+        label: label,
+        tooltip: tooltip,
+        onPressed: onPressed,
+        isActive: isActive,
+        isDanger: isDanger,
+        isLoading: isLoading,
+        shortcutId: shortcutId,
+      ),
+    );
+  }
+}
+
+class GalleryLibraryPrimaryAction extends StatelessWidget {
+  const GalleryLibraryPrimaryAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.onPressed,
+    this.isLoading = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final minimumExtent = context.interactionPolicy.minimumControlExtent;
+    return FilledButton.icon(
+      onPressed: isLoading ? null : onPressed,
+      icon: isLoading
+          ? SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
+              ),
+            )
+          : Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        minimumSize: Size(0, minimumExtent),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+      ),
+    );
+  }
+}
+
+@immutable
+class GalleryLibrarySortOption<T> {
+  const GalleryLibrarySortOption({required this.value, required this.label});
+
+  final T value;
+  final String label;
+}
+
+class GalleryLibrarySortMenu<T> extends StatelessWidget {
+  const GalleryLibrarySortMenu({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onSelected,
+    this.descending,
+  });
+
+  final String label;
+  final T value;
+  final List<GalleryLibrarySortOption<T>> options;
+  final ValueChanged<T> onSelected;
+  final bool? descending;
+
+  @override
+  Widget build(BuildContext context) {
+    return MenuAnchor(
+      menuChildren: [
+        for (final option in options)
+          MenuItemButton(
+            onPressed: () => onSelected(option.value),
+            trailingIcon: option.value == value
+                ? Icon(
+                    descending == null
+                        ? Icons.check
+                        : descending!
+                        ? Icons.arrow_downward
+                        : Icons.arrow_upward,
+                    size: 16,
+                  )
+                : null,
+            child: Text(option.label),
+          ),
+      ],
+      builder: (context, controller, _) => GalleryLibraryAction(
+        icon: Icons.sort,
+        label: label,
+        tooltip: label,
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+      ),
+    );
+  }
+}
+
+class GalleryLibraryViewToggle extends StatelessWidget {
+  const GalleryLibraryViewToggle({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.tooltip,
+    this.isActive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? tooltip;
+  final VoidCallback? onPressed;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) => GalleryLibraryAction(
+    icon: icon,
+    label: label,
+    tooltip: tooltip,
+    onPressed: onPressed,
+    isActive: isActive,
+  );
+}
+
+@immutable
+class GalleryLibraryViewModeOption<T> {
+  const GalleryLibraryViewModeOption({
+    required this.value,
+    required this.icon,
+    required this.label,
+  });
+
+  final T value;
+  final IconData icon;
+  final String label;
+}
+
+class GalleryLibraryViewModeSelector<T> extends StatelessWidget {
+  const GalleryLibraryViewModeSelector({
+    super.key,
+    required this.value,
+    required this.options,
+    required this.onSelected,
+  });
+
+  final T value;
+  final List<GalleryLibraryViewModeOption<T>> options;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = _GalleryLibraryToolbarScope.maybeCompactOf(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final option in options)
+          GalleryLibraryAction(
+            icon: option.icon,
+            label: compact ? option.label : '',
+            tooltip: option.label,
+            isActive: option.value == value,
+            onPressed: () => onSelected(option.value),
+          ),
+      ],
+    );
+  }
+}
+
+class _GalleryLibraryToolbarScope extends InheritedWidget {
+  const _GalleryLibraryToolbarScope({
+    required this.compact,
+    required super.child,
+  });
+
+  final bool compact;
+
+  static bool maybeCompactOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_GalleryLibraryToolbarScope>()
+          ?.compact ??
+      false;
+
+  @override
+  bool updateShouldNotify(_GalleryLibraryToolbarScope oldWidget) =>
+      compact != oldWidget.compact;
 }

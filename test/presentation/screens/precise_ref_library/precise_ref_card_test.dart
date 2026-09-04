@@ -53,6 +53,10 @@ void main() {
     VoidCallback? onToggleFavorite,
     VoidCallback? onClassify,
     VoidCallback? onAddToAgent,
+    bool isSelectionMode = false,
+    bool isSelected = false,
+    VoidCallback? onToggleSelection,
+    VoidCallback? onEnterSelectionMode,
   }) async {
     final card = PreciseRefCard(
       entry: entry,
@@ -62,6 +66,10 @@ void main() {
       onDelete: onDelete,
       onToggleFavorite: onToggleFavorite,
       onClassify: onClassify,
+      isSelectionMode: isSelectionMode,
+      isSelected: isSelected,
+      onToggleSelection: onToggleSelection,
+      onEnterSelectionMode: onEnterSelectionMode,
     );
     await tester.pumpWidget(
       ProviderScope(
@@ -238,6 +246,26 @@ void main() {
 
     await tester.tap(find.text('银发少女'));
     expect(sendCount, 1);
+  });
+
+  testWidgets('选择模式点击切换选择，长按普通卡片进入选择模式', (tester) async {
+    var toggleCount = 0;
+    var enterCount = 0;
+    await pumpCard(
+      tester,
+      isSelectionMode: true,
+      isSelected: true,
+      onToggleSelection: () => toggleCount++,
+    );
+
+    expect(find.byType(Checkbox), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_rounded), findsNothing);
+    await tester.tap(find.text('银发少女'));
+    expect(toggleCount, 1);
+
+    await pumpCard(tester, onEnterSelectionMode: () => enterCount++);
+    await tester.longPress(find.text('银发少女'));
+    expect(enterCount, 1);
   });
 
   testWidgets('Android touch 无需 hover 可从更多菜单触发全部卡片命令', (tester) async {

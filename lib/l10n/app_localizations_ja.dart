@@ -177,6 +177,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get common_grid => 'グリッド';
 
   @override
+  String get common_list => 'リスト';
+
+  @override
+  String get common_grouped => 'グループ';
+
+  @override
   String get common_date => '日付';
 
   @override
@@ -11448,6 +11454,50 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preciseRefLib_import => '画像をインポート';
+
+  @override
+  String get preciseRefLib_exportTitle => '精密参照パッケージをエクスポート';
+
+  @override
+  String preciseRefLib_exportedCount(Object count) {
+    return '精密参照を $count 件エクスポートしました';
+  }
+
+  @override
+  String preciseRefLib_exportFailed(Object error) {
+    return '精密参照のエクスポートに失敗しました：$error';
+  }
+
+  @override
+  String preciseRefLib_openFolderFailed(Object error) {
+    return '精密参照フォルダーを開けませんでした：$error';
+  }
+
+  @override
+  String get preciseRefLib_enterSelectionMode => '複数選択モードに入る';
+
+  @override
+  String get preciseRefLib_changeType => '種類を変更';
+
+  @override
+  String preciseRefLib_sentSelectedSummary(Object failed, Object success) {
+    return '精密参照を $success 件送信しました。$failed 件失敗しました';
+  }
+
+  @override
+  String preciseRefLib_failedItems(Object items) {
+    return '失敗した項目: $items';
+  }
+
+  @override
+  String preciseRefLib_confirmDeleteSelected(Object count) {
+    return '選択した精密参照 $count 件を削除しますか？画像ファイルも削除されます。';
+  }
+
+  @override
+  String preciseRefLib_deletedCount(Object count) {
+    return '精密参照を $count 件削除しました';
+  }
 
   @override
   String preciseRefLib_entryCount(int count) {
