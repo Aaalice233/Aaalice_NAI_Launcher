@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/cache/local_gallery_thumbnail_provider.dart';
 import 'package:nai_launcher/core/utils/byte_format.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_hover_preview.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_hover_preview.dart';
 
 void main() {
@@ -59,6 +60,7 @@ void main() {
 
       final preview = find.byKey(const ValueKey('local-gallery-hover-preview'));
       expect(preview, findsOneWidget);
+      expect(find.byType(ImageHoverPreviewSurface), findsOneWidget);
       expect(find.text('tray_icon.png'), findsOneWidget);
       expect(find.text('1024×1536'), findsOneWidget);
       final modifiedDate =

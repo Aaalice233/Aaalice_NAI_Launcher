@@ -16,6 +16,7 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_hover_preview.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
 void main() {
@@ -807,6 +808,7 @@ void main() {
 
     final preview = find.byKey(const ValueKey('online-gallery-hover-preview'));
     expect(preview, findsOneWidget);
+    expect(find.byType(ImageHoverPreviewSurface), findsOneWidget);
     final rect = tester.getRect(preview);
     expect(rect.left, greaterThanOrEqualTo(10));
     expect(rect.top, greaterThanOrEqualTo(10));
@@ -827,7 +829,7 @@ void main() {
           .descendant(of: media, matching: find.byType(CachedNetworkImage))
           .first,
     );
-    expect(hoverImage.fit, BoxFit.fitWidth);
+    expect(hoverImage.fit, BoxFit.cover);
     expect(hoverImage.alignment, Alignment.topCenter);
   });
 
@@ -951,7 +953,7 @@ void main() {
             .descendant(of: media, matching: find.byType(CachedNetworkImage))
             .first,
       );
-      expect(hoverImage.fit, BoxFit.contain);
+      expect(hoverImage.fit, BoxFit.cover);
       expect(hoverImage.alignment, Alignment.center);
       await mouse.removePointer();
     }
@@ -965,7 +967,7 @@ void main() {
         previewFileUrl: 'https://example.com/landscape.jpg',
         tagString: 'test_tag',
       ),
-      expectedHeight: 316 / 1.5,
+      expectedHeight: 320 / 1.5,
     );
     await verify(
       post: const DanbooruPost(

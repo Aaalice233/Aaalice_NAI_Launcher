@@ -14,6 +14,7 @@ import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_hover_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_hover_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/library_card_badges.dart';
 
 void main() {
@@ -74,10 +75,14 @@ void main() {
 
     final preview = find.byKey(const ValueKey('vibe-hover-preview'));
     expect(preview, findsOneWidget);
-    final previewDecoration = tester.widget<Container>(preview).decoration;
-    final previewColor = (previewDecoration! as BoxDecoration).color;
-    final previewContext = tester.element(preview);
-    expect(previewColor, isNot(Theme.of(previewContext).colorScheme.surface));
+    expect(tester.widget<ImageHoverPreviewSurface>(preview).maxWidth, 420);
+    expect(
+      find.descendant(
+        of: preview,
+        matching: find.byType(ImageHoverPreviewMetric),
+      ),
+      findsNWidgets(3),
+    );
     expect(
       find.descendant(of: preview, matching: find.byType(Divider)),
       findsNothing,

@@ -10,8 +10,8 @@ import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/card_action_buttons.dart';
-import '../../../widgets/common/card_hover_preview_controller.dart';
 import '../../../widgets/common/image_card_actions.dart';
+import '../../../widgets/common/image_hover_preview_controller.dart';
 import '../../../widgets/common/library_card_badges.dart';
 import 'vibe_hover_preview.dart';
 
@@ -86,8 +86,8 @@ class _VibeCardState extends ConsumerState<VibeCard>
   Uint8List? _lazyThumbnailData;
   Future<void>? _thumbnailLoadFuture;
   Future<VibeLibraryDetailData?>? _hoverDetailFuture;
-  final CardHoverPreviewController _hoverController =
-      CardHoverPreviewController();
+  final ImageHoverPreviewController _hoverController =
+      ImageHoverPreviewController();
   final LayerLink _layerLink = LayerLink();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -253,7 +253,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
       layerLink: _layerLink,
       targetRect: targetRect,
       previewSize: previewSize,
-      verticalAlignment: CardHoverPreviewVerticalAlignment.targetTop,
+      verticalAlignment: ImageHoverPreviewVerticalAlignment.targetTop,
       builder: (_) => VibeHoverPreview(
         displayEntry: widget.entry,
         detailFuture: _hoverDetailFuture!,
