@@ -69,6 +69,7 @@ class AssetDatabaseManager {
         'tags': {'id', 'name', 'category', 'post_count'},
         'aliases': {'id', 'tag_id', 'alias'},
         'tag_search': {'term', 'search_key', 'tag_id', 'kind'},
+        'zh_translations': {'tag', 'zh_cn', 'mode'},
       },
     );
     await _migrateLegacyAutocompleteData(appDir, assetDbDir);

@@ -1,0 +1,6396 @@
+{
+  "schemaVersion": 1,
+  "ffdkjBaseline": {
+    "blobSha": "98c4c94c9f17249274ca4a8b6f98966b63eedd12",
+    "tagCount": 321332
+  },
+  "mergePolicy": {
+    "translationPrecedence": [
+      "gpt",
+      "gemini",
+      "grok"
+    ],
+    "runtimePrecedence": [
+      "override",
+      "ffdkj",
+      "missing"
+    ]
+  },
+  "entries": [
+    {
+      "tag": "3d_render",
+      "zhCn": "3D渲染",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "4k",
+      "zhCn": "4K",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "8k",
+      "zhCn": "8K",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "8k_wallpaper",
+      "zhCn": "8K壁纸",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "accurate_anatomy",
+      "zhCn": "准确解剖",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "acne",
+      "zhCn": "痘痘",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "acnes",
+      "zhCn": "痘痘",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "acrylic_paint",
+      "zhCn": "丙烯画",
+      "mode": "missing",
+      "category": "material",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 原生标签含 `(medium)`；此处按基础概念规范化。"
+    },
+    {
+      "tag": "action_pose",
+      "zhCn": "动作姿势",
+      "mode": "missing",
+      "category": "pose",
+      "priority": "high",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "高动态的打斗或运动姿态"
+    },
+    {
+      "tag": "aesthetic",
+      "zhCn": "美观",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine XL 3.1 明确定义的美学等级。"
+    },
+    {
+      "tag": "aesthetic_quality",
+      "zhCn": "美学画质增强",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "high",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/qualitytags.html",
+      "notes": "NovelAI V3专用艺术美学提升词"
+    },
+    {
+      "tag": "age_spot",
+      "zhCn": "老年斑",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "ai_artifacts",
+      "zhCn": "AI痕迹",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "airbrushed",
+      "zhCn": "过度磨皮",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "amateur",
+      "zhCn": "业余",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "amazing_quality",
+      "zhCn": "惊艳质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/qualitytags/",
+      "notes": "NovelAI V5 Light、V4 Curated、Anime V3 等使用。"
+    },
+    {
+      "tag": "ambient_light",
+      "zhCn": "环境光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "通用渲染提示；类别级间接证据。"
+    },
+    {
+      "tag": "ambient_occlusion",
+      "zhCn": "环境光遮蔽",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "增强缝隙与接触面阴影真实感"
+    },
+    {
+      "tag": "amputated",
+      "zhCn": "截肢感",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "amputation",
+      "zhCn": "肢体截断",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "用于抑制异常截肢外观。"
+    },
+    {
+      "tag": "anime_screencap",
+      "zhCn": "动漫截图风格",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 官方 digital medium 标签。"
+    },
+    {
+      "tag": "artifacts",
+      "zhCn": "瑕疵",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "图像生成中指视觉伪影，不是“文物”。"
+    },
+    {
+      "tag": "artist_signature",
+      "zhCn": "画师签名",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "artist_watermark",
+      "zhCn": "画师水印",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "asymmetrical_body",
+      "zhCn": "身体不对称",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "仅指不期望的异常不对称。"
+    },
+    {
+      "tag": "asymmetrical_face",
+      "zhCn": "脸不对称",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "average_quality",
+      "zhCn": "一般质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "average_score",
+      "zhCn": "平均评分",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "notes": "Animagine XL 4.0 推荐负面中出现。"
+    },
+    {
+      "tag": "award_winning",
+      "zhCn": "获奖级",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "awful",
+      "zhCn": "糟透",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "background_focus",
+      "zhCn": "背景焦点",
+      "mode": "missing",
+      "category": "background",
+      "priority": "low",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "由 NovelAI focus 类概念延伸；模型适用性有差异。"
+    },
+    {
+      "tag": "bad",
+      "zhCn": "糟糕",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V2/V3 UC 与 Furry UC 使用；保持原词宽泛语义。"
+    },
+    {
+      "tag": "bad_arms",
+      "zhCn": "手臂错误",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "泛化手臂错误。"
+    },
+    {
+      "tag": "bad_body",
+      "zhCn": "身体畸形",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "bad_eyes",
+      "zhCn": "眼睛错误",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "泛化眼部错误。"
+    },
+    {
+      "tag": "bad_fingers",
+      "zhCn": "手指错误",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/datasets/diffusers/community-pipelines-mirror",
+      "notes": "Diffusers 社区管线示例中的动漫负面词。"
+    },
+    {
+      "tag": "bad_hands_v4",
+      "zhCn": "BadHandv4 负面嵌入",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+      "notes": "纠正原译'坏手4'：特指SD社区BadHandv4负面模型触发词"
+    },
+    {
+      "tag": "bad_legs",
+      "zhCn": "腿部错误",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/datasets/diffusers/community-pipelines-mirror",
+      "notes": "Diffusers 社区管线示例。"
+    },
+    {
+      "tag": "bad_nails",
+      "zhCn": "指甲错误",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "手部细节负面提示。"
+    },
+    {
+      "tag": "bad_prompt",
+      "zhCn": "Bad Prompt 负面嵌入",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+      "notes": "社区特定Negative Embedding词"
+    },
+    {
+      "tag": "bad_quality",
+      "zhCn": "差质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V4/V5 UC 的固定质量词。"
+    },
+    {
+      "tag": "bad_rendering",
+      "zhCn": "糟糕渲染",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "bad_score",
+      "zhCn": "低劣评分",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "notes": "Animagine XL 4.0 推荐负面中出现。"
+    },
+    {
+      "tag": "bad_toes",
+      "zhCn": "脚趾错误",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "泛化脚趾错误。"
+    },
+    {
+      "tag": "badhandv4",
+      "zhCn": "BadHandv4 负面嵌入",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+      "notes": "SD常用手部修复模型触发标记"
+    },
+    {
+      "tag": "ballpoint_pen",
+      "zhCn": "圆珠笔画",
+      "mode": "missing",
+      "category": "material",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 原生标签含 `(medium)`。"
+    },
+    {
+      "tag": "banding",
+      "zhCn": "色带",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "beautiful",
+      "zhCn": "美丽",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "自然语言和标签式提示中的通用审美增强词。"
+    },
+    {
+      "tag": "beautiful_detailed_eyes",
+      "zhCn": "美丽细致的眼睛",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "beautiful_lighting",
+      "zhCn": "漂亮光影",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "beginner",
+      "zhCn": "新手画",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "best",
+      "zhCn": "最佳",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "单独出现含义弱"
+    },
+    {
+      "tag": "best_illustration",
+      "zhCn": "最佳插画",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "best_quality",
+      "zhCn": "最佳质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/qualitytags/",
+      "notes": "NovelAI Anime V1–V4/V3 等 Quality Tags。"
+    },
+    {
+      "tag": "best_shadow",
+      "zhCn": "最佳阴影",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "black_and_white",
+      "zhCn": "黑白",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "blocky",
+      "zhCn": "色块感",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "blur",
+      "zhCn": "模糊",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "blurred_background",
+      "zhCn": "背景虚化",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "景深控制自然语言提示。"
+    },
+    {
+      "tag": "blurred_foreground",
+      "zhCn": "前景模糊",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "Furry Focus UC；本身也可作摄影效果。"
+    },
+    {
+      "tag": "body_out_of_frame",
+      "zhCn": "人体超出画框",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "high",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+      "notes": "防止身体部位被裁切"
+    },
+    {
+      "tag": "bokeh_background",
+      "zhCn": "背景虚化",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "bold_lines",
+      "zhCn": "粗线条",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "官方有 lineart/outline 等线条概念，但未直接列出 exact tag `bold lines`。"
+    },
+    {
+      "tag": "bowlegged",
+      "zhCn": "罗圈腿",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "broken_anatomy",
+      "zhCn": "身体结构损坏",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "broken_elbow",
+      "zhCn": "手肘断裂感",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "broken_fingers",
+      "zhCn": "手指断裂",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "broken_hand",
+      "zhCn": "手部损坏",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "broken_wrist",
+      "zhCn": "手腕断裂感",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "busy_background",
+      "zhCn": "背景过乱",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "c4d",
+      "zhCn": "Cinema 4D",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "low",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://www.maxon.net/en/cinema-4d",
+      "notes": "Cinema 4D 的常用简称；保留专名以避免误导。"
+    },
+    {
+      "tag": "cel_shading",
+      "zhCn": "赛璐珞阴影",
+      "mode": "missing",
+      "category": "style",
+      "priority": "high",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "边界清晰的经典动画阴影画风"
+    },
+    {
+      "tag": "cg",
+      "zhCn": "CG",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "cgi",
+      "zhCn": "电脑图形",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "character_sheet",
+      "zhCn": "角色设定表",
+      "mode": "missing",
+      "category": "meta",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "包含多视角或表情拆解的立绘模板"
+    },
+    {
+      "tag": "cinematic",
+      "zhCn": "电影感",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "notes": "SD/SDXL 高频自然语言风格词；非控制标签。"
+    },
+    {
+      "tag": "cinematic_lighting",
+      "zhCn": "电影感光照",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "通用 SD/SDXL 自然语言提示；类别级间接证据。"
+    },
+    {
+      "tag": "clean_image",
+      "zhCn": "干净画面",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "clean_lines",
+      "zhCn": "干净线条",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "与 lineart/outline 类线条控制相关。"
+    },
+    {
+      "tag": "clear",
+      "zhCn": "清晰",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "cloned_face",
+      "zhCn": "重复面孔",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "抑制重复/克隆面部。"
+    },
+    {
+      "tag": "cluttered",
+      "zhCn": "画面堆砌",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "cold_color_palette",
+      "zhCn": "冷色调色板",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "notes": "SDXL 提示示例类自然语言色彩概念。"
+    },
+    {
+      "tag": "collage_page",
+      "zhCn": "拼贴页",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "comic_panel",
+      "zhCn": "漫画分格",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "Furry UC 会抑制；正向漫画生成也可使用。"
+    },
+    {
+      "tag": "compressed",
+      "zhCn": "压缩过的",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "compression",
+      "zhCn": "压缩感",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "compression_artifacts",
+      "zhCn": "压缩瑕疵",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry V3 UC。"
+    },
+    {
+      "tag": "concept_sheet",
+      "zhCn": "设定表",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "construction_lines",
+      "zhCn": "结构辅助线",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "copyright",
+      "zhCn": "版权文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "crisp",
+      "zhCn": "清晰锐利",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "crisp_lines",
+      "zhCn": "清晰线条",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "线稿清晰度自然语言描述。"
+    },
+    {
+      "tag": "crooked_face",
+      "zhCn": "歪脸",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "crop_mark",
+      "zhCn": "裁切标记",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/qualitytags.html",
+      "notes": "去除印刷裁切线或四周留白"
+    },
+    {
+      "tag": "cropped_fingers",
+      "zhCn": "手指被裁切",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "指构图意外裁掉手指。"
+    },
+    {
+      "tag": "cropped_toes",
+      "zhCn": "脚趾被裁切",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "指构图意外裁掉脚趾。"
+    },
+    {
+      "tag": "cross_eye",
+      "zhCn": "斗鸡眼",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 社区眼部负面词。"
+    },
+    {
+      "tag": "crystal_clear",
+      "zhCn": "水晶般清晰",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "cut_off",
+      "zhCn": "被截断",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+      "notes": "防止肢体或背景被切掉"
+    },
+    {
+      "tag": "cut_off_head",
+      "zhCn": "头被切掉",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "cut_off_legs",
+      "zhCn": "腿被切掉",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "cutoff",
+      "zhCn": "切断",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "dead_eyes",
+      "zhCn": "死鱼眼",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "deep_depth_of_field",
+      "zhCn": "大景深",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "`depth of field` 的常用细化；来源间接。"
+    },
+    {
+      "tag": "deepnegative",
+      "zhCn": "DeepNegative 负面嵌入",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "high",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+      "notes": "SD社区广泛使用的负面Embedding标记"
+    },
+    {
+      "tag": "deformed_anatomy",
+      "zhCn": "变形人体结构",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "泛化解剖错误负面词。"
+    },
+    {
+      "tag": "deformed_body",
+      "zhCn": "身体变形",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "人体生成失败类负面概念。"
+    },
+    {
+      "tag": "deformed_face",
+      "zhCn": "面部变形",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "面部形态错误。"
+    },
+    {
+      "tag": "deformed_hands",
+      "zhCn": "手部变形",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "手部形态错误。"
+    },
+    {
+      "tag": "deformed_iris",
+      "zhCn": "畸形虹膜",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "deformed_limbs",
+      "zhCn": "肢体变形",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "社区解剖负面词。"
+    },
+    {
+      "tag": "deformed_pupils",
+      "zhCn": "畸形瞳孔",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "delicate",
+      "zhCn": "精巧",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "depth_map",
+      "zhCn": "深度图",
+      "mode": "missing",
+      "category": "background",
+      "priority": "low",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "多用于ControlNet或三维深度景深控制"
+    },
+    {
+      "tag": "detailed",
+      "zhCn": "细致",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "notes": "SDXL 常用自然语言质量词；不是模型专用控制标签。"
+    },
+    {
+      "tag": "detailed_background",
+      "zhCn": "细致背景",
+      "mode": "missing",
+      "category": "background",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "背景细节自然语言提示。"
+    },
+    {
+      "tag": "detailed_clothes",
+      "zhCn": "精细服饰",
+      "mode": "missing",
+      "category": "clothing",
+      "priority": "high",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "增强衣服质感与纹理细节"
+    },
+    {
+      "tag": "detailed_eyes",
+      "zhCn": "细致眼睛",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-charactercreation/",
+      "notes": "眼部细节增强的自然语言概念。"
+    },
+    {
+      "tag": "detailed_face",
+      "zhCn": "细致面部",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-charactercreation/",
+      "notes": "面部细节增强的通用生成提示。"
+    },
+    {
+      "tag": "detailed_hair",
+      "zhCn": "细致头发",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-charactercreation/",
+      "notes": "头发细节增强的通用生成提示。"
+    },
+    {
+      "tag": "detailed_skin",
+      "zhCn": "细致皮肤",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/Muapi/realistic-photos-detailed-skin-textures-flux",
+      "notes": "社区 Flux/SD 系资源明确使用 trained word；非通用模型控制词。"
+    },
+    {
+      "tag": "detailed_textures",
+      "zhCn": "精细纹理",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/Muapi/realistic-photos-detailed-skin-textures-flux",
+      "notes": "写实/材质生成中的常见细节概念。"
+    },
+    {
+      "tag": "diffusion_artifacts",
+      "zhCn": "扩散模型痕迹",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "digital_media",
+      "zhCn": "数字绘制",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "disconnected_body_parts",
+      "zhCn": "身体部位断开",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "抑制身体部位不自然分离。"
+    },
+    {
+      "tag": "disconnected_limbs",
+      "zhCn": "肢体断开",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "肢体连接异常。"
+    },
+    {
+      "tag": "disfigured_face",
+      "zhCn": "面部毁损变形",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "面部严重变形。"
+    },
+    {
+      "tag": "disgusting",
+      "zhCn": "恶心",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "displeasing",
+      "zhCn": "不美观",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V2/V3/Furry UC 与 Animagine 美学分级。"
+    },
+    {
+      "tag": "disproportionate",
+      "zhCn": "比例失衡",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "distorted",
+      "zhCn": "扭曲",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "distorted_anatomy",
+      "zhCn": "扭曲人体结构",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "泛化解剖错误负面词。"
+    },
+    {
+      "tag": "distorted_body",
+      "zhCn": "身体扭曲",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "人体生成失败类负面概念。"
+    },
+    {
+      "tag": "distorted_hands",
+      "zhCn": "手部扭曲",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "手部扭曲错误。"
+    },
+    {
+      "tag": "distorted_text",
+      "zhCn": "扭曲文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry V3 Heavy UC。"
+    },
+    {
+      "tag": "distracting_watermark",
+      "zhCn": "干扰性水印",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry Focus UC。"
+    },
+    {
+      "tag": "doll_like",
+      "zhCn": "假人感",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "dramatic_lighting",
+      "zhCn": "戏剧性光照",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "通用生成提示；Stability 官方资料仅属 lighting 类能力间接证据。"
+    },
+    {
+      "tag": "dramatic_shadows",
+      "zhCn": "强对比戏剧阴影",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "高对比度暗部与光影表现"
+    },
+    {
+      "tag": "dull_colors",
+      "zhCn": "色彩沉闷",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "duplicate_body",
+      "zhCn": "重复身体",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "抑制身体重复。"
+    },
+    {
+      "tag": "duplicate_face",
+      "zhCn": "重复脸",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "early",
+      "zhCn": "早期年代风格",
+      "mode": "missing",
+      "category": "model_control",
+      "priority": "low",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine temporal tag；推荐负面中也用于排除旧画风。"
+    },
+    {
+      "tag": "easynegative",
+      "zhCn": "EasyNegative",
+      "mode": "missing",
+      "category": "model_control",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/docs/diffusers/main/using-diffusers/textual_inversion_inference",
+      "notes": "广泛使用的负面 Textual Inversion embedding；必须加载对应 embedding，非普通词。"
+    },
+    {
+      "tag": "eldritch_horror",
+      "zhCn": "克苏鲁恐怖",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "elegant",
+      "zhCn": "优雅",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "embedded_text",
+      "zhCn": "内嵌文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "error",
+      "zhCn": "错误",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V2–V4 UC 与 Animagine 负面提示使用。"
+    },
+    {
+      "tag": "error_arm",
+      "zhCn": "手臂错误",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/datasets/diffusers/community-pipelines-mirror",
+      "notes": "Diffusers 社区管线示例。"
+    },
+    {
+      "tag": "error_fingers",
+      "zhCn": "手指错误",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/datasets/diffusers/community-pipelines-mirror",
+      "notes": "Diffusers 社区管线示例。"
+    },
+    {
+      "tag": "error_hands",
+      "zhCn": "手部错误",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/datasets/diffusers/community-pipelines-mirror",
+      "notes": "Diffusers 社区管线示例。"
+    },
+    {
+      "tag": "error_legs",
+      "zhCn": "腿部错误",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/datasets/diffusers/community-pipelines-mirror",
+      "notes": "Diffusers 社区管线示例。"
+    },
+    {
+      "tag": "explicit",
+      "zhCn": "露骨内容",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "notes": "Animagine XL 4.0 rating tag。"
+    },
+    {
+      "tag": "explicit_content",
+      "zhCn": "露骨内容",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "expressions",
+      "zhCn": "表情合集",
+      "mode": "missing",
+      "category": "expression",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-charactercreation/",
+      "notes": "角色设定/多视图相关标签。"
+    },
+    {
+      "tag": "exquisite",
+      "zhCn": "精致",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "extra",
+      "zhCn": "额外",
+      "mode": "override",
+      "category": "generic_negative",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "旧译“额外插画”明显错误；原词没有 illustration 语义。"
+    },
+    {
+      "tag": "extra_anatomy",
+      "zhCn": "多余人体结构",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "泛化多余结构词。"
+    },
+    {
+      "tag": "extra_body",
+      "zhCn": "多余身体",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "抑制多出的身体。"
+    },
+    {
+      "tag": "extra_digit",
+      "zhCn": "多余指趾",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "digit 在解剖语境指手指或脚趾。"
+    },
+    {
+      "tag": "extra_digit_fingers",
+      "zhCn": "多生手指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "extra_digit_on_hand",
+      "zhCn": "手上多指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "extra_feet",
+      "zhCn": "多余脚部",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "多余脚部。"
+    },
+    {
+      "tag": "extra_finger",
+      "zhCn": "多余手指",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 社区负面提示。"
+    },
+    {
+      "tag": "extra_fingers",
+      "zhCn": "多余手指",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "Stable Diffusion 社区负面提示。"
+    },
+    {
+      "tag": "extra_heads",
+      "zhCn": "多头",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "extra_limb",
+      "zhCn": "多余肢体",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "extra_limbs",
+      "zhCn": "多余肢体",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 常见人体负面提示。"
+    },
+    {
+      "tag": "extra_toes",
+      "zhCn": "多余脚趾",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "明确的脚趾数量错误。"
+    },
+    {
+      "tag": "extremely_delicate",
+      "zhCn": "极其精致",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "extremely_detailed",
+      "zhCn": "极度细致",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "fewer",
+      "zhCn": "较少",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V2/V3 UC 单独出现，表示数量偏少。"
+    },
+    {
+      "tag": "fewer_digits",
+      "zhCn": "指趾数量不足",
+      "mode": "override",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "旧译“指数异常”错误；digits 在此为 anatomical digits。"
+    },
+    {
+      "tag": "fewer_digits_on_hand",
+      "zhCn": "手上数字",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "fewer_fingers",
+      "zhCn": "手指数量不足",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "手指数不足。"
+    },
+    {
+      "tag": "fewer_than_5_fingers",
+      "zhCn": "少于五指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "fine_details",
+      "zhCn": "精细细节",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "notes": "通用扩散模型细节提示，非训练控制词。"
+    },
+    {
+      "tag": "fine_lines",
+      "zhCn": "细线条",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "绘画和线稿提示基础概念。"
+    },
+    {
+      "tag": "finely_detailed",
+      "zhCn": "精细刻画",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "fingers_too_long",
+      "zhCn": "手指过长",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "fingers_too_short",
+      "zhCn": "手指过短",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "fisheye_lens",
+      "zhCn": "鱼眼镜头",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "由官方 fisheye 构图概念规范化的摄影表达。"
+    },
+    {
+      "tag": "five_fingers",
+      "zhCn": "五指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "正面约束手"
+    },
+    {
+      "tag": "flat_colors",
+      "zhCn": "平涂色彩",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "Furry Focus UC 有复数实际写法；与 flat_color 均保留。"
+    },
+    {
+      "tag": "flat_shading",
+      "zhCn": "平涂光照",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "flawless_skin",
+      "zhCn": "无瑕皮肤",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "floating_body_parts",
+      "zhCn": "悬浮身体部位",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "抑制脱离主体悬浮的身体部分。"
+    },
+    {
+      "tag": "floating_limbs",
+      "zhCn": "悬浮肢体",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "肢体脱离主体。"
+    },
+    {
+      "tag": "floating_particles",
+      "zhCn": "漂浮粒子",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "",
+      "notes": "社区提示中可见的视觉效果短语，但本次缺少足够高质量的直接来源。"
+    },
+    {
+      "tag": "font",
+      "zhCn": "字体",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "foreground_blur",
+      "zhCn": "前景虚化",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "与官方 `blurred foreground` 概念对应。"
+    },
+    {
+      "tag": "four_fingers",
+      "zhCn": "四指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "frame",
+      "zhCn": "画框",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "full_body_pose",
+      "zhCn": "全身姿势",
+      "mode": "missing",
+      "category": "pose",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-charactercreation/",
+      "notes": "由 full body framing 延伸的自然语言提示。"
+    },
+    {
+      "tag": "fused",
+      "zhCn": "融合异常",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "fused_body_parts",
+      "zhCn": "身体部位融合",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "",
+      "notes": "概念合理，但 exact-tag 直接证据不足；`fused_limbs`、`fused_fingers`、`fused_feet` 证据更强。"
+    },
+    {
+      "tag": "fused_face",
+      "zhCn": "五官融合",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "fused_feet",
+      "zhCn": "脚部融合",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "双脚或脚部结构异常融合。"
+    },
+    {
+      "tag": "fused_fingers",
+      "zhCn": "手指融合",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "手指粘连/融合类错误。"
+    },
+    {
+      "tag": "fused_hand",
+      "zhCn": "手部融合",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "fused_hands",
+      "zhCn": "手部融合",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "手部融合类错误。"
+    },
+    {
+      "tag": "fused_legs",
+      "zhCn": "双腿黏连",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/qualitytags.html",
+      "notes": "腿部无法独立分离开的瑕疵"
+    },
+    {
+      "tag": "fused_limbs",
+      "zhCn": "肢体融合",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 常见人体负面提示。"
+    },
+    {
+      "tag": "fused_toes",
+      "zhCn": "脚趾融合",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "脚趾融合。"
+    },
+    {
+      "tag": "gan_artifacts",
+      "zhCn": "GAN伪影",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "gaudy",
+      "zhCn": "艳俗",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "global_illumination",
+      "zhCn": "全局光照",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "真实的光线漫反射效果"
+    },
+    {
+      "tag": "glossy",
+      "zhCn": "光滑有光泽",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "god_rays",
+      "zhCn": "云隙光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "从云层或树缝穿透出的光束"
+    },
+    {
+      "tag": "good_quality",
+      "zhCn": "良好质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine XL 3.1 的分级质量标签。"
+    },
+    {
+      "tag": "good_score",
+      "zhCn": "良好评分",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "notes": "Animagine XL 4.0 score tag。"
+    },
+    {
+      "tag": "gorgeous",
+      "zhCn": "华丽",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "grain",
+      "zhCn": "颗粒",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "grainy",
+      "zhCn": "颗粒感",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "graphite",
+      "zhCn": "石墨画",
+      "mode": "missing",
+      "category": "material",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 官方媒介标签。"
+    },
+    {
+      "tag": "grayscale",
+      "zhCn": "灰度",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "great_quality",
+      "zhCn": "优秀质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine XL 3.1 的分级质量标签。"
+    },
+    {
+      "tag": "great_score",
+      "zhCn": "优秀评分",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "notes": "Animagine XL 4.0 专用 score tag。"
+    },
+    {
+      "tag": "gross",
+      "zhCn": "粗劣难看",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "gross_proportions",
+      "zhCn": "严重比例失调",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 社区负面提示。"
+    },
+    {
+      "tag": "gui",
+      "zhCn": "界面",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "guide_lines",
+      "zhCn": "辅助线",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry V3 UC。"
+    },
+    {
+      "tag": "hard_lighting",
+      "zhCn": "硬光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "通用摄影/生成提示；类别级间接证据。"
+    },
+    {
+      "tag": "heavily_compressed",
+      "zhCn": "重度压缩",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "heavy_uc",
+      "zhCn": "强力负面",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "NAI UC 预设名"
+    },
+    {
+      "tag": "hideous",
+      "zhCn": "极其难看",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "high_quality",
+      "zhCn": "高质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "NovelAI 提示基础页列作质量描述。"
+    },
+    {
+      "tag": "high_resolution",
+      "zhCn": "高分辨率",
+      "mode": "missing",
+      "category": "meta",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "notes": "通用扩散提示；与 `absurdres`、`lowres` 语义层级不同。"
+    },
+    {
+      "tag": "high_score",
+      "zhCn": "高评分",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "notes": "Animagine XL 4.0 专用 score tag。"
+    },
+    {
+      "tag": "highest_quality",
+      "zhCn": "最高质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "highly_detailed",
+      "zhCn": "高度细致",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "notes": "SD/SDXL 常见自然语言增强词。"
+    },
+    {
+      "tag": "highres_fix",
+      "zhCn": "高分辨率修复",
+      "mode": "missing",
+      "category": "model_control",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+      "notes": "SD算法中的二次放大控制术语"
+    },
+    {
+      "tag": "horrible",
+      "zhCn": "糟糕透顶",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "horror",
+      "zhCn": "恐怖主题",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "官方原生形式含 `horror (theme)`；这里规范为基础概念。"
+    },
+    {
+      "tag": "huge_head",
+      "zhCn": "头过大",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "human_focus",
+      "zhCn": "人体焦点负面",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "NAI UC 预设名"
+    },
+    {
+      "tag": "hyper_detailed",
+      "zhCn": "超精细",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "illustration",
+      "zhCn": "插画",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "in_focus",
+      "zhCn": "合焦",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "incorrect_anatomy",
+      "zhCn": "人体结构不正确",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "自然语言式扩散负面提示。"
+    },
+    {
+      "tag": "inhuman",
+      "zhCn": "非人比例",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "insanely_detailed",
+      "zhCn": "极致细节",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "interface",
+      "zhCn": "界面",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "intricate",
+      "zhCn": "繁复",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "intricate_details",
+      "zhCn": "繁复细节",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "notes": "通用 SD/SDXL 细节增强短语；来源属类别级证据。"
+    },
+    {
+      "tag": "jaggies",
+      "zhCn": "锯齿",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "japanese_text",
+      "zhCn": "日文文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "jpeg",
+      "zhCn": "JPEG压缩感",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "jpeg_compression",
+      "zhCn": "JPEG压缩",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "jpg_artifacts",
+      "zhCn": "JPEG伪影",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "key_light",
+      "zhCn": "主光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "摄影布光基础词；自然语言式提示。"
+    },
+    {
+      "tag": "kitsch",
+      "zhCn": "俗气",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "knock_kneed",
+      "zhCn": "X型腿",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "letterbox",
+      "zhCn": "黑边",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "lettering",
+      "zhCn": "字样",
+      "mode": "missing",
+      "category": "text",
+      "priority": "low",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "notes": "通用文字渲染概念；模型间能力差异大。"
+    },
+    {
+      "tag": "letters",
+      "zhCn": "字母",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "light_uc",
+      "zhCn": "轻度负面",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "NAI UC 预设名"
+    },
+    {
+      "tag": "liquid_fingers",
+      "zhCn": "融化手指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "location",
+      "zhCn": "场景地点",
+      "mode": "missing",
+      "category": "background",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/qualitytags/",
+      "notes": "NovelAI V4.5 Quality Tags 会自动加入。"
+    },
+    {
+      "tag": "low",
+      "zhCn": "低",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "单独出现含义弱"
+    },
+    {
+      "tag": "low_complexity",
+      "zhCn": "低复杂度",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "",
+      "notes": "可作为抽象质量描述，但未找到证据证明是主流动漫扩散模型的稳定基础标签。"
+    },
+    {
+      "tag": "low_effort",
+      "zhCn": "低努力敷衍",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "low_quality",
+      "zhCn": "低质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI UC 和 Animagine 常用负面质量词。"
+    },
+    {
+      "tag": "low_res",
+      "zhCn": "低分辨率",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "low_resolution",
+      "zhCn": "低分辨率",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 社区负面提示常见自然语言变体；与 lowres 有独立检索价值。"
+    },
+    {
+      "tag": "low_score",
+      "zhCn": "低评分",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "notes": "Animagine XL 4.0 推荐负面中出现。"
+    },
+    {
+      "tag": "lowest_quality",
+      "zhCn": "最低质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "macro",
+      "zhCn": "微距",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "通用摄影构图词；类别级间接证据。"
+    },
+    {
+      "tag": "malformed",
+      "zhCn": "畸形",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "malformed_anatomy",
+      "zhCn": "畸形人体结构",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "泛化解剖错误负面词。"
+    },
+    {
+      "tag": "malformed_body",
+      "zhCn": "身体畸形",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "人体生成失败类负面概念。"
+    },
+    {
+      "tag": "malformed_face",
+      "zhCn": "面部畸形",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "面部结构错误。"
+    },
+    {
+      "tag": "malformed_fingers",
+      "zhCn": "手指畸形",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "社区解剖负面提示。"
+    },
+    {
+      "tag": "malformed_hands",
+      "zhCn": "手部畸形",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 常见负面提示。"
+    },
+    {
+      "tag": "malformed_legs",
+      "zhCn": "腿部畸形",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "腿部形态错误。"
+    },
+    {
+      "tag": "malformed_limbs",
+      "zhCn": "肢体畸形",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "肢体形态异常。"
+    },
+    {
+      "tag": "masterpiece",
+      "zhCn": "杰作",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/qualitytags/",
+      "notes": "NovelAI 多代 Quality Tags；Animagine 亦使用。"
+    },
+    {
+      "tag": "maya",
+      "zhCn": "Maya渲染感",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "medium_quality",
+      "zhCn": "中等质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "mid",
+      "zhCn": "中期年代风格",
+      "mode": "missing",
+      "category": "model_control",
+      "priority": "low",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine 3.1 特定 temporal tag；普通语境含义过宽。"
+    },
+    {
+      "tag": "mismatched",
+      "zhCn": "不匹配",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "missing",
+      "zhCn": "缺失",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V2/V3 UC 单独出现，不限定具体身体部位。"
+    },
+    {
+      "tag": "missing_anatomy",
+      "zhCn": "缺失人体结构",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "泛化缺失结构词。"
+    },
+    {
+      "tag": "missing_arms",
+      "zhCn": "缺少手臂",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "手臂缺失。"
+    },
+    {
+      "tag": "missing_body",
+      "zhCn": "身体缺失",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "抑制主体身体生成不完整。"
+    },
+    {
+      "tag": "missing_digit",
+      "zhCn": "缺指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "missing_eyes",
+      "zhCn": "缺少眼睛",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "眼睛缺失。"
+    },
+    {
+      "tag": "missing_feet",
+      "zhCn": "缺少脚部",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "脚部缺失。"
+    },
+    {
+      "tag": "missing_fingers",
+      "zhCn": "缺少手指",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI 旧版 Bad Anatomy UC；复数形式有独立检索价值。"
+    },
+    {
+      "tag": "missing_hands",
+      "zhCn": "缺少手部",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "手部缺失。"
+    },
+    {
+      "tag": "missing_legs",
+      "zhCn": "缺少腿部",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/datasets/diffusers/community-pipelines-mirror",
+      "notes": "Diffusers 社区管线示例。"
+    },
+    {
+      "tag": "missing_limb",
+      "zhCn": "缺肢",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "missing_limbs",
+      "zhCn": "缺失肢体",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 常见人体负面提示。"
+    },
+    {
+      "tag": "missing_toes",
+      "zhCn": "缺少脚趾",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "明确的脚趾缺失。"
+    },
+    {
+      "tag": "monochromatic",
+      "zhCn": "单色调",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "单一色彩深浅变化的配色"
+    },
+    {
+      "tag": "morbid",
+      "zhCn": "病态",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "low",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "社区负面审美提示，含义较宽泛。"
+    },
+    {
+      "tag": "more_than_5_fingers",
+      "zhCn": "超过五指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "mosaic",
+      "zhCn": "马赛克",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry V3 UC。"
+    },
+    {
+      "tag": "multiple_scenes",
+      "zhCn": "多场景",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry Focus UC。"
+    },
+    {
+      "tag": "museum_quality",
+      "zhCn": "博物馆级",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "mutated",
+      "zhCn": "突变畸形",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 社区负面提示。"
+    },
+    {
+      "tag": "mutated_fingers",
+      "zhCn": "变异手指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "mutated_hands",
+      "zhCn": "手部畸变",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 经典负面提示。"
+    },
+    {
+      "tag": "mutated_hands_and_fingers",
+      "zhCn": "变异的手和手指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "mutation_hands",
+      "zhCn": "变异手",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "mutilated",
+      "zhCn": "残缺变形",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 社区负面提示。"
+    },
+    {
+      "tag": "naked",
+      "zhCn": "赤裸",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "name",
+      "zhCn": "名称",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "nasty",
+      "zhCn": "难看恶心",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "natural_hands",
+      "zhCn": "自然的手",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "natural_lighting",
+      "zhCn": "自然光照",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "通用写实提示；类别级间接证据。"
+    },
+    {
+      "tag": "natural_pose",
+      "zhCn": "自然姿势",
+      "mode": "missing",
+      "category": "pose",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-charactercreation/",
+      "notes": "写实/角色生成常用；类别级间接证据。"
+    },
+    {
+      "tag": "neon_lighting",
+      "zhCn": "霓虹灯光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "动漫/赛博风常见；类别级间接证据。"
+    },
+    {
+      "tag": "neutral_expression",
+      "zhCn": "中性表情",
+      "mode": "missing",
+      "category": "expression",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "中性表情/无明显喜怒哀乐"
+    },
+    {
+      "tag": "newest",
+      "zhCn": "最新年代风格",
+      "mode": "missing",
+      "category": "model_control",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine XL 3.1 temporal tag，约对应 2021–2024 分组。"
+    },
+    {
+      "tag": "nib_pen",
+      "zhCn": "蘸水笔画",
+      "mode": "missing",
+      "category": "material",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 官方媒介标签。"
+    },
+    {
+      "tag": "nightmare_fuel",
+      "zhCn": "恐怖素材",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "no_text",
+      "zhCn": "无文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/qualitytags/",
+      "notes": "NovelAI V4/V4.5/V5 Quality Tags。"
+    },
+    {
+      "tag": "noise",
+      "zhCn": "噪点",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 社区常见画面瑕疵词。"
+    },
+    {
+      "tag": "noise_grain",
+      "zhCn": "噪点颗粒",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "noisy",
+      "zhCn": "有噪点",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "normal",
+      "zhCn": "普通",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "单独出现含义弱"
+    },
+    {
+      "tag": "normal_quality",
+      "zhCn": "普通质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI 旧版 Low Quality UC 与 Animagine 质量分级均出现。"
+    },
+    {
+      "tag": "not_enough_fingers",
+      "zhCn": "手指不够",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "nsfw",
+      "zhCn": "成人内容",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine 3.1/4.0 rating tag；放入负面时可用于抑制成人内容。"
+    },
+    {
+      "tag": "octane_render",
+      "zhCn": "Octane 渲染",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "超写实光影与超高细节CG风格"
+    },
+    {
+      "tag": "oil_painting",
+      "zhCn": "油画",
+      "mode": "missing",
+      "category": "material",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 官方媒介标签。"
+    },
+    {
+      "tag": "oldest",
+      "zhCn": "最早年代风格",
+      "mode": "missing",
+      "category": "model_control",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine temporal tag；常见于其推荐负面。"
+    },
+    {
+      "tag": "out_of_focus",
+      "zhCn": "失焦",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "out_of_focus_background",
+      "zhCn": "背景失焦",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "按需求可正可负"
+    },
+    {
+      "tag": "overexposed",
+      "zhCn": "过曝",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "overprocessed",
+      "zhCn": "过度处理",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "oversaturated",
+      "zhCn": "过饱和",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "oversharpened",
+      "zhCn": "过锐",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "oversmoothed",
+      "zhCn": "过滑",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "painting",
+      "zhCn": "绘画",
+      "mode": "missing",
+      "category": "material",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 官方媒介标签。"
+    },
+    {
+      "tag": "panel",
+      "zhCn": "分格",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "pastel",
+      "zhCn": "粉彩画",
+      "mode": "missing",
+      "category": "material",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 官方媒介标签。"
+    },
+    {
+      "tag": "perfect_anatomy",
+      "zhCn": "完美解剖",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "正面约束"
+    },
+    {
+      "tag": "perfect_details",
+      "zhCn": "完美细节",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "perfect_rendering",
+      "zhCn": "完美渲染",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "可理解为自然语言提示，但未取得足够可靠的模型卡/官方 exact-tag 证据。"
+    },
+    {
+      "tag": "perfect_skin",
+      "zhCn": "完美皮肤",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "pillarbox",
+      "zhCn": "两侧黑边",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "pixel_censor",
+      "zhCn": "像素打码",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "pixelation",
+      "zhCn": "像素化",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "plain_background",
+      "zhCn": "纯净背景",
+      "mode": "missing",
+      "category": "background",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "比 simple_background 更偏向无复杂纹理。"
+    },
+    {
+      "tag": "polished",
+      "zhCn": "精修",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "poor_anatomy",
+      "zhCn": "人体结构欠佳",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "社区负面提示同义变体。"
+    },
+    {
+      "tag": "poor_quality",
+      "zhCn": "劣质",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "poorly_drawn",
+      "zhCn": "画工差",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "poorly_drawn_body",
+      "zhCn": "身体画工差",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "poorly_drawn_eyes",
+      "zhCn": "眼睛绘制欠佳",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "眼部生成质量错误。"
+    },
+    {
+      "tag": "poorly_drawn_face",
+      "zhCn": "面部绘制欠佳",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 经典负面提示。"
+    },
+    {
+      "tag": "poorly_drawn_feet",
+      "zhCn": "脚部画工差",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "poorly_drawn_hands",
+      "zhCn": "手部绘制欠佳",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 经典负面提示。"
+    },
+    {
+      "tag": "poorly_drawn_mouth",
+      "zhCn": "嘴部绘制欠佳",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "嘴部生成质量错误。"
+    },
+    {
+      "tag": "poorly_rendered",
+      "zhCn": "渲染差",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "porcelain_skin",
+      "zhCn": "瓷娃娃皮肤",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "过假时"
+    },
+    {
+      "tag": "pores",
+      "zhCn": "毛孔",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "posterization",
+      "zhCn": "色调分离",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "precise_lineart",
+      "zhCn": "精准线稿",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "print_quality",
+      "zhCn": "印刷级质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "professional",
+      "zhCn": "专业",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "questionable",
+      "zhCn": "敏感内容",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "questionable_content",
+      "zhCn": "敏感内容",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "rating:explicit",
+      "zhCn": "成人分级",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "rating:general",
+      "zhCn": "全年龄分级",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "NAI / Danbooru 分级写法"
+    },
+    {
+      "tag": "rating:questionable",
+      "zhCn": "敏感分级",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "rating:sensitive",
+      "zhCn": "敏感分级",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "rating_general",
+      "zhCn": "全年龄分级",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/qualitytags/",
+      "notes": "NovelAI 原生语法 `rating:general`；数据库规范化为下划线。"
+    },
+    {
+      "tag": "ray_tracing",
+      "zhCn": "光线追踪",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "真实物理反射与折射质感"
+    },
+    {
+      "tag": "realistic_face",
+      "zhCn": "写实面部",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://stable-diffusion-art.com/realistic-people/",
+      "notes": "写实人像自然语言概念；不是固定控制标签。"
+    },
+    {
+      "tag": "realistic_rendering",
+      "zhCn": "写实渲染",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "官方支持 `realistic`/`photorealistic`，但未直接支持 exact phrase `realistic rendering`；仅为间接证据。"
+    },
+    {
+      "tag": "realistic_skin",
+      "zhCn": "真实皮肤",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "realistic_texture",
+      "zhCn": "写实纹理",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "recent",
+      "zhCn": "较新年代风格",
+      "mode": "missing",
+      "category": "model_control",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine XL 3.1 temporal tag，约对应 2018–2020。"
+    },
+    {
+      "tag": "render",
+      "zhCn": "渲染",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "repeated_text",
+      "zhCn": "重复文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry V3 Heavy UC。"
+    },
+    {
+      "tag": "retro",
+      "zhCn": "复古",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "`retro artstyle` 的通用生成表达。"
+    },
+    {
+      "tag": "rich_colors",
+      "zhCn": "浓郁色彩",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "rim_light",
+      "zhCn": "轮廓光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "high",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "勾勒人物边缘的高亮光"
+    },
+    {
+      "tag": "rim_lighting",
+      "zhCn": "轮廓光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "通用绘画/摄影提示；类别级间接证据。"
+    },
+    {
+      "tag": "rough",
+      "zhCn": "粗糙",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "rough_sketch",
+      "zhCn": "草图",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "round_face",
+      "zhCn": "圆脸",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://dav.one/using-prompts-to-modify-face-and-body-in-stable-diffusion-xl/",
+      "notes": "SDXL 面部特征提示实践中使用。"
+    },
+    {
+      "tag": "safe",
+      "zhCn": "安全级内容",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine 3.1/4.0 rating tag。"
+    },
+    {
+      "tag": "sample",
+      "zhCn": "样图水印",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "scanned",
+      "zhCn": "扫描痕迹",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "screentone",
+      "zhCn": "网点纸效果",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V5 UC 中作为不期望效果。"
+    },
+    {
+      "tag": "sensitive",
+      "zhCn": "敏感级内容",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "notes": "Animagine 3.1/4.0 rating tag。"
+    },
+    {
+      "tag": "sequence",
+      "zhCn": "连续画面",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "low",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry Focus/Furry V3 UC。"
+    },
+    {
+      "tag": "sfw",
+      "zhCn": "全年龄内容",
+      "mode": "missing",
+      "category": "rating",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/qualitytags.html",
+      "notes": "适合公开展示的非敏感画作"
+    },
+    {
+      "tag": "shallow_depth_of_field",
+      "zhCn": "浅景深",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "`depth of field` 的高频扩散提示细化；来源间接。"
+    },
+    {
+      "tag": "sharp_background",
+      "zhCn": "清晰背景",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "景深控制自然语言提示。"
+    },
+    {
+      "tag": "sharp_focus",
+      "zhCn": "清晰对焦",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "与 soft focus 相对的常见生成/摄影语义。"
+    },
+    {
+      "tag": "sharp_image",
+      "zhCn": "锐利图像",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "shine",
+      "zhCn": "光泽",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "side_lighting",
+      "zhCn": "侧光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "光向提示；类别级间接证据。"
+    },
+    {
+      "tag": "signature_text",
+      "zhCn": "签名文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "simple",
+      "zhCn": "简单",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "low",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "Furry Focus UC 中作负面；翻译仍保持原词中性语义。"
+    },
+    {
+      "tag": "simple_face",
+      "zhCn": "简化面部",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "",
+      "notes": "语义可理解，但未找到足够强的官方/模型卡证据证明 exact tag 具有稳定基础价值。"
+    },
+    {
+      "tag": "simple_illustration",
+      "zhCn": "简约插画",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/strengthening-weakening/",
+      "notes": "NovelAI 强弱化示例中的概念。"
+    },
+    {
+      "tag": "simple_shading",
+      "zhCn": "简单涂影",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "six_fingers",
+      "zhCn": "六指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "sketch_page",
+      "zhCn": "草图页",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "low",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry V3 UC。"
+    },
+    {
+      "tag": "skin_blemishes",
+      "zhCn": "皮肤瑕疵",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "skin_pores",
+      "zhCn": "皮肤毛孔",
+      "mode": "missing",
+      "category": "generic_positive",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://stable-diffusion-art.com/realistic-people/",
+      "notes": "写实 Stable Diffusion 人像提示常见细节词。"
+    },
+    {
+      "tag": "skin_spots",
+      "zhCn": "色斑",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "skin_texture",
+      "zhCn": "皮肤纹理",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "sloppy",
+      "zhCn": "潦草",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "small_image",
+      "zhCn": "小图放大",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "smooth_skin",
+      "zhCn": "光滑皮肤",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "soft",
+      "zhCn": "柔和",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "不想要糊图时"
+    },
+    {
+      "tag": "soft_lighting",
+      "zhCn": "柔和光照",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "通用生成提示；类别级间接证据。"
+    },
+    {
+      "tag": "speech",
+      "zhCn": "台词",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "stamp",
+      "zhCn": "印章",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "standard_quality",
+      "zhCn": "标准质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "偶作负面"
+    },
+    {
+      "tag": "stiff_pose",
+      "zhCn": "僵硬姿势",
+      "mode": "missing",
+      "category": "pose",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-charactercreation/",
+      "notes": "用于抑制不自然僵硬姿态；类别级间接证据。"
+    },
+    {
+      "tag": "strange_fingers",
+      "zhCn": "奇怪手指",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "stuck_fingers",
+      "zhCn": "手指黏在一起",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/qualitytags.html",
+      "notes": "手指连接未分开负面词"
+    },
+    {
+      "tag": "studio_lighting",
+      "zhCn": "影棚光照",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "写实和产品图生成常见；类别级间接证据。"
+    },
+    {
+      "tag": "studio_quality",
+      "zhCn": "棚拍级质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "stunning",
+      "zhCn": "惊艳",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "subtitle",
+      "zhCn": "字幕",
+      "mode": "missing",
+      "category": "text",
+      "priority": "low",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-charactercreation/",
+      "notes": "通用画面文字概念。"
+    },
+    {
+      "tag": "tacky",
+      "zhCn": "俗套",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "telephoto",
+      "zhCn": "长焦",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "通用摄影镜头提示；来源为摄影/构图类间接证据。"
+    },
+    {
+      "tag": "terrible",
+      "zhCn": "极差",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "text",
+      "zhCn": "文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V2/旧版 UC、Animagine 推荐负面提示。"
+    },
+    {
+      "tag": "text_overlay",
+      "zhCn": "文字叠层",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "textless",
+      "zhCn": "无字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "three_arms",
+      "zhCn": "三只手臂",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "three_legs",
+      "zhCn": "三条腿",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "thumbnail",
+      "zhCn": "缩略图感",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "tilted_horizon",
+      "zhCn": "地平线倾斜",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "tiny_head",
+      "zhCn": "头过小",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "too_high_contrast",
+      "zhCn": "对比过强",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "过强时用这个，避免和正面 high contrast 冲突"
+    },
+    {
+      "tag": "too_many_legs",
+      "zhCn": "腿数量过多",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+      "notes": "多腿控制词"
+    },
+    {
+      "tag": "too_many_limbs",
+      "zhCn": "肢体过多",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "top_aesthetic",
+      "zhCn": "顶级美观",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "NAI V4+"
+    },
+    {
+      "tag": "top_lighting",
+      "zhCn": "顶光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stable-diffusion-3-medium",
+      "notes": "光向提示；类别级间接证据。"
+    },
+    {
+      "tag": "transparent_watermark",
+      "zhCn": "透明水印",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "trending_on_artstation",
+      "zhCn": "ArtStation热门",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "twisted_body",
+      "zhCn": "身体扭转异常",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "躯体扭曲类错误。"
+    },
+    {
+      "tag": "twisted_fingers",
+      "zhCn": "手指扭转",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "two_heads",
+      "zhCn": "双头",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "ugly",
+      "zhCn": "丑陋",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/13187",
+      "notes": "Stable Diffusion 社区长期使用的通用负面审美词。"
+    },
+    {
+      "tag": "ugly_face",
+      "zhCn": "丑陋的面部",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "high",
+      "researchSources": [
+        "gemini"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
+      "notes": "防止五官走样负面控制词"
+    },
+    {
+      "tag": "uhd",
+      "zhCn": "超高清",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "ui",
+      "zhCn": "界面元素",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "ultra_detailed",
+      "zhCn": "超细致",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "ultra_hd",
+      "zhCn": "超高清",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "ultra_highres",
+      "zhCn": "超高分辨率",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "ultra_quality",
+      "zhCn": "超高质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "ultra_sharp",
+      "zhCn": "超锐利",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "unaesthetic",
+      "zhCn": "不美观",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "unappealing",
+      "zhCn": "不悦目",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "unattractive",
+      "zhCn": "不吸引人",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "uncanny",
+      "zhCn": "恐怖谷",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "underexposed",
+      "zhCn": "欠曝",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "undersaturated",
+      "zhCn": "欠饱和",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "undesired",
+      "zhCn": "不期望",
+      "mode": "missing",
+      "category": "generic_negative",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "undetailed",
+      "zhCn": "缺少细节",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "unfinished_sketch",
+      "zhCn": "未完成草稿",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "unfinished_small_objects",
+      "zhCn": "未完成的小物件",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "",
+      "notes": "语义合理，但未找到可靠 exact-tag 证据；可能来自特定负面词库的组合项。"
+    },
+    {
+      "tag": "unity",
+      "zhCn": "Unity渲染感",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "unknown_text",
+      "zhCn": "未知文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry V3 UC。"
+    },
+    {
+      "tag": "unnatural_anatomy",
+      "zhCn": "不自然人体结构",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "自然语言式扩散负面提示。"
+    },
+    {
+      "tag": "unnatural_pose",
+      "zhCn": "不自然姿势",
+      "mode": "missing",
+      "category": "pose",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "Stable Diffusion 人体负面提示。"
+    },
+    {
+      "tag": "unpolished",
+      "zhCn": "未精修",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "unreal_engine",
+      "zhCn": "虚幻引擎",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "gemini",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "次世代游戏CG质感"
+    },
+    {
+      "tag": "unusual_pupils",
+      "zhCn": "异常瞳孔",
+      "mode": "missing",
+      "category": "face_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI Furry V3 UC。"
+    },
+    {
+      "tag": "upscale",
+      "zhCn": "放大处理",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "low",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "Furry Focus UC 中作为不期望概念。"
+    },
+    {
+      "tag": "upscale_artifacts",
+      "zhCn": "超分伪影",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "url",
+      "zhCn": "网址",
+      "mode": "missing",
+      "category": "text",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "抑制画面中的网址。"
+    },
+    {
+      "tag": "username_text",
+      "zhCn": "用户名文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "username_watermark",
+      "zhCn": "用户名水印",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "very_aesthetic",
+      "zhCn": "极具美感",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/qualitytags/",
+      "notes": "NovelAI Quality Tags；Animagine 3.1 美学分级。"
+    },
+    {
+      "tag": "very_awa",
+      "zhCn": "非常美观",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "very_displeasing",
+      "zhCn": "非常不美观",
+      "mode": "missing",
+      "category": "aesthetic",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V4/V5 UC 与 Animagine 美学分级。"
+    },
+    {
+      "tag": "vibrant_colors",
+      "zhCn": "鲜艳色彩",
+      "mode": "missing",
+      "category": "color",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/image/prompts.html",
+      "notes": "高饱和度与明亮的色彩"
+    },
+    {
+      "tag": "volumetric_lighting",
+      "zhCn": "体积光",
+      "mode": "missing",
+      "category": "lighting",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://stability.ai/news-updates/stability-ais-top-3-text-to-image-models-now-available-in-amazon-bedrock",
+      "notes": "通用 3D/扩散提示；官方来源属 lighting/textures 类间接证据。"
+    },
+    {
+      "tag": "wallpaper",
+      "zhCn": "壁纸",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "washed_out",
+      "zhCn": "发灰褪色",
+      "mode": "missing",
+      "category": "color",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "watercolor",
+      "zhCn": "水彩画",
+      "mode": "missing",
+      "category": "material",
+      "priority": "high",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 官方媒介标签。"
+    },
+    {
+      "tag": "watercolor_pencil",
+      "zhCn": "水彩铅笔画",
+      "mode": "missing",
+      "category": "material",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/tutorial-artstyles/",
+      "notes": "NovelAI 官方媒介标签。"
+    },
+    {
+      "tag": "watermark_signature",
+      "zhCn": "签名水印",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "watermark_text",
+      "zhCn": "水印文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "watermarked",
+      "zhCn": "带水印",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "watermarks",
+      "zhCn": "水印",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "waxy",
+      "zhCn": "蜡感",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "waxy_skin",
+      "zhCn": "蜡感皮肤",
+      "mode": "missing",
+      "category": "rendering",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "web_screenshot",
+      "zhCn": "网页截图",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "website",
+      "zhCn": "网站",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "well_drawn_face",
+      "zhCn": "画得好的脸",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "well_drawn_hands",
+      "zhCn": "画得好的手",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "western_comic",
+      "zhCn": "欧美漫画",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "white_haze",
+      "zhCn": "白色雾霾",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI V5 Light UC 明确使用。"
+    },
+    {
+      "tag": "wide_angle",
+      "zhCn": "广角构图",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "NovelAI Basics framing 示例。"
+    },
+    {
+      "tag": "wide_angle_lens",
+      "zhCn": "广角镜头",
+      "mode": "missing",
+      "category": "photography",
+      "priority": "high",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/basics/",
+      "notes": "基于官方 wide angle framing 的摄影表达。"
+    },
+    {
+      "tag": "widescreen",
+      "zhCn": "宽屏画幅",
+      "mode": "missing",
+      "category": "artifact",
+      "priority": "low",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "Furry UC 中可作负面，本身是画幅属性。"
+    },
+    {
+      "tag": "words",
+      "zhCn": "文字",
+      "mode": "missing",
+      "category": "text",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "worst",
+      "zhCn": "最差",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "单独出现含义弱"
+    },
+    {
+      "tag": "worst_face",
+      "zhCn": "最差面部",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "worst_feet",
+      "zhCn": "最差脚部",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "worst_hands",
+      "zhCn": "最差手部",
+      "mode": "missing",
+      "category": "anatomy_error",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "worst_quality",
+      "zhCn": "最差质量",
+      "mode": "missing",
+      "category": "quality",
+      "priority": "high",
+      "researchSources": [
+        "gemini",
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://docs.novelai.net/en/image/undesiredcontent/",
+      "notes": "NovelAI 多代 UC 与 Animagine 常用负面词。"
+    },
+    {
+      "tag": "wrong_feet",
+      "zhCn": "脚部错误",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "社区同义变体。"
+    },
+    {
+      "tag": "wrong_hands",
+      "zhCn": "手部错误",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "社区同义表达。"
+    },
+    {
+      "tag": "wrong_nails",
+      "zhCn": "指甲错误",
+      "mode": "missing",
+      "category": "hand_error",
+      "priority": "low",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "社区变体。"
+    },
+    {
+      "tag": "wrong_perspective",
+      "zhCn": "透视不对",
+      "mode": "missing",
+      "category": "composition",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "wrong_toes",
+      "zhCn": "脚趾错误",
+      "mode": "missing",
+      "category": "limb_error",
+      "priority": "medium",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/12572",
+      "notes": "社区同义表达。"
+    },
+    {
+      "tag": "ych",
+      "zhCn": "YCH模板图",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "year_2005",
+      "zhCn": "2005年画风",
+      "mode": "missing",
+      "category": "model_control",
+      "priority": "low",
+      "researchSources": [
+        "gpt"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "notes": "原生形式为 `year 2005`，作为 temporal control 示例。"
+    },
+    {
+      "tag": "year_2023",
+      "zhCn": "2023年画风",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": "NAI 年代标签偏质量"
+    },
+    {
+      "tag": "year_2024",
+      "zhCn": "2024年画风",
+      "mode": "missing",
+      "category": "style",
+      "priority": "medium",
+      "researchSources": [
+        "grok"
+      ],
+      "sourceUrl": "",
+      "notes": ""
+    },
+    {
+      "tag": "year_2025",
+      "zhCn": "2025年画风",
+      "mode": "missing",
+      "category": "model_control",
+      "priority": "medium",
+      "researchSources": [
+        "gpt",
+        "grok"
+      ],
+      "sourceUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "notes": "原生形式为 `year 2025`。"
+    }
+  ]
+}

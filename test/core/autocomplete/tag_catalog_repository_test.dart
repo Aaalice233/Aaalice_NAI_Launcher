@@ -24,6 +24,7 @@ void main() {
       CREATE TABLE tags(id INTEGER PRIMARY KEY, name TEXT, category INTEGER, post_count INTEGER);
       CREATE TABLE aliases(id INTEGER PRIMARY KEY, tag_id INTEGER, alias TEXT);
       CREATE VIRTUAL TABLE tag_search USING fts5(term, search_key, tag_id UNINDEXED, kind UNINDEXED);
+      CREATE TABLE zh_translations(tag TEXT PRIMARY KEY, zh_cn TEXT, mode INTEGER);
       INSERT INTO tags VALUES (1, 'blue_eyes', 0, 1000);
       INSERT INTO tags VALUES (2, 'blue_hair', 0, 2000);
       INSERT INTO tags VALUES (3, 'artist_blue', 1, 500);
@@ -42,6 +43,8 @@ void main() {
       INSERT INTO tag_search VALUES ('story_contributor', 'story contributor', 6, 0);
       INSERT INTO tag_search VALUES ('world_lore', 'world lore', 7, 0);
       INSERT INTO tag_search VALUES ('painter_blue', 'painter blue', 8, 0);
+      INSERT INTO zh_translations VALUES ('extra', '额外', 1);
+      INSERT INTO zh_translations VALUES ('worst_quality', '最差质量', 0);
       WITH RECURSIVE seq(i) AS (
         SELECT 1 UNION ALL SELECT i + 1 FROM seq WHERE i < 450
       )
@@ -151,6 +154,20 @@ void main() {
     expect(results, hasLength(450));
     expect(results.first.canonicalTag, 'blue_archive_001');
     expect(results.last.canonicalTag, 'blue_archive_450');
+  });
+
+  test('按覆盖与补充模式分别查询内置翻译', () async {
+    final overrides = await repository.resolveTranslations([
+      'extra',
+      'worst quality',
+    ], mode: BundledTranslationMode.override);
+    final missing = await repository.resolveTranslations([
+      'extra',
+      'worst quality',
+    ], mode: BundledTranslationMode.missing);
+
+    expect(overrides, {'extra': '额外'});
+    expect(missing, {'worst_quality': '最差质量'});
   });
 }
 

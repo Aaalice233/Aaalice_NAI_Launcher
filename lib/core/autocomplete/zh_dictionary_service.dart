@@ -264,12 +264,14 @@ class ZhDictionaryService extends ChangeNotifier
     return result;
   }
 
-  /// Resolves a narrowly scoped typo fallback for plain single-word tags.
+  /// Resolves a narrowly scoped missing-character fallback for plain words.
   ///
   /// Structured tags, artist names, identifiers and multi-word tags are
   /// deliberately excluded because an approximate match could silently change
-  /// their meaning. A match is accepted only when exactly one dictionary tag
-  /// is one edit away.
+  /// their meaning. Substitutions and extra characters are also rejected so a
+  /// valid word absent from the dictionary cannot become another word such as
+  /// `fewer` -> `fever`. A match is accepted only when exactly one dictionary
+  /// tag with the same first character can restore one omitted character.
   Future<Map<String, String>> resolveFuzzy(List<String> canonicalTags) async {
     if (canonicalTags.isEmpty || !await _openIfInstalled()) return const {};
     final result = <String, String>{};
@@ -288,15 +290,15 @@ class ZhDictionaryService extends ChangeNotifier
         '''
         SELECT name, cn_name FROM tags
         WHERE name >= ? AND name < ?
-          AND LENGTH(name) BETWEEN ? AND ?
+          AND LENGTH(name) = ?
           AND cn_name IS NOT NULL
           AND TRIM(cn_name) <> ''
         ORDER BY post_count DESC
         ''',
-        [prefix, prefixUpperBound, tag.length - 1, tag.length + 1],
+        [prefix, prefixUpperBound, tag.length + 1],
       );
       final matches = rows.where(
-        (row) => _isOneEditApart(tag, row['name'] as String),
+        (row) => _isSingleMissingCharacterAway(tag, row['name'] as String),
       );
       final unique = matches.take(2).toList(growable: false);
       if (unique.length == 1) {
@@ -451,32 +453,21 @@ class ZhDictionaryService extends ChangeNotifier
   static String _normalize(String value) =>
       value.trim().toLowerCase().replaceAll(' ', '_');
 
-  static bool _isOneEditApart(String left, String right) {
-    if ((left.length - right.length).abs() > 1 || left == right) return false;
-    if (left.length == right.length) {
-      var differences = 0;
-      for (var index = 0; index < left.length; index++) {
-        if (left.codeUnitAt(index) != right.codeUnitAt(index) &&
-            ++differences > 1) {
-          return false;
-        }
-      }
-      return differences == 1;
-    }
-    final shorter = left.length < right.length ? left : right;
-    final longer = left.length < right.length ? right : left;
-    var shortIndex = 0;
-    var longIndex = 0;
+  static bool _isSingleMissingCharacterAway(String source, String candidate) {
+    if (candidate.length != source.length + 1) return false;
+    var sourceIndex = 0;
+    var candidateIndex = 0;
     var skipped = false;
-    while (shortIndex < shorter.length && longIndex < longer.length) {
-      if (shorter.codeUnitAt(shortIndex) == longer.codeUnitAt(longIndex)) {
-        shortIndex++;
-        longIndex++;
+    while (sourceIndex < source.length && candidateIndex < candidate.length) {
+      if (source.codeUnitAt(sourceIndex) ==
+          candidate.codeUnitAt(candidateIndex)) {
+        sourceIndex++;
+        candidateIndex++;
       } else if (skipped) {
         return false;
       } else {
         skipped = true;
-        longIndex++;
+        candidateIndex++;
       }
     }
     return true;

@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 
+import '../../../core/autocomplete/local_first_prompt_translation.dart';
+import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../providers/proxy_settings_provider.dart';
 import '../models/prompt_assistant_models.dart';
@@ -32,6 +34,9 @@ final promptAssistantServiceProvider = Provider<PromptAssistantService>((ref) {
   return PromptAssistantService(
     ref: ref,
     apiClient: PromptAssistantApiClient(dio: dio),
+    localFirstTranslation: LocalFirstPromptTranslationPipeline(
+      ref.watch(tagTranslationLookupProvider),
+    ),
   );
 });
 
@@ -49,11 +54,14 @@ class PromptAssistantService {
   PromptAssistantService({
     required Ref ref,
     required PromptAssistantApiClient apiClient,
+    LocalFirstPromptTranslationPipeline? localFirstTranslation,
   }) : _ref = ref,
-       _apiClient = apiClient;
+       _apiClient = apiClient,
+       _localFirstTranslation = localFirstTranslation;
 
   final Ref _ref;
   final PromptAssistantApiClient _apiClient;
+  final LocalFirstPromptTranslationPipeline? _localFirstTranslation;
 
   Future<void> cancelCurrentTask({String? sessionId}) async {
     _apiClient.cancelCurrentRequest(sessionId: sessionId);
@@ -89,6 +97,18 @@ class PromptAssistantService {
     required String sessionId,
     String? targetLanguage,
   }) async* {
+    final localFirst = await _localFirstTranslation?.translate(
+      input,
+      targetLanguage: targetLanguage,
+      translateMissing: (tags) async =>
+          (await translateTags(tags, sessionId: sessionId)).translations,
+    );
+    if (localFirst != null) {
+      yield StreamingChunk(delta: localFirst.text);
+      yield const StreamingChunk(delta: '', done: true);
+      return;
+    }
+
     final instruction = targetLanguage == null || targetLanguage.isEmpty
         ? 'Automatically detect the source language and translate between Chinese and English. Return only the translation.'
         : 'Translate the text into $targetLanguage. Return only the translation.';
