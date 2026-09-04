@@ -23,6 +23,28 @@ const _uncategorizedSectionId = '__uncategorized__';
 const _linkDetachDistance = 36.0;
 const _linkEndpointHitSize = 30.0;
 
+double _gridCardHeight(
+  BuildContext context, {
+  required double cardWidth,
+  required bool hasCategory,
+}) {
+  final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
+  final usesActionMenu =
+      context.interactionPolicy.shouldExposeTouchAlternatives ||
+      scaledLabelSize >= 20;
+  final needsTallBase = !hasCategory || cardWidth < 180 || usesActionMenu;
+
+  // Grid previews can contain up to five scaled text lines. Grow the fixed
+  // extent with the text scaler so asynchronous translations cannot outgrow it.
+  final scaledTextGrowth = (scaledLabelSize - 14).clamp(0.0, double.infinity);
+  final baseHeight = usesActionMenu
+      ? 210.0
+      : needsTallBase
+      ? 180.0
+      : 150.0;
+  return baseHeight + scaledTextGrowth * 6;
+}
+
 /// 桌面端固定词侧边栏。
 class FixedTagsSidebar extends ConsumerStatefulWidget {
   const FixedTagsSidebar({super.key, this.isResizing = false});
@@ -462,11 +484,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                   (constraints.crossAxisExtent -
                       spacing * (crossAxisCount - 1)) /
                   crossAxisCount;
-              final mainAxisExtent = largeText
-                  ? 230.0
-                  : cardWidth < 180
-                  ? 180.0
-                  : 150.0;
+              final mainAxisExtent = _gridCardHeight(
+                context,
+                cardWidth: cardWidth,
+                hasCategory: true,
+              );
               return SliverGrid.builder(
                 key: ValueKey('positive-grid-${section.id}'),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -660,7 +682,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                 .clamp(1, 3);
         final itemWidth =
             (availableWidth - spacing * (columnCount - 1)) / columnCount;
-        final itemHeight = textScale >= 2 ? 220.0 : 150.0;
+        final itemHeight = _gridCardHeight(
+          context,
+          cardWidth: itemWidth,
+          hasCategory: categoryName != null,
+        );
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
