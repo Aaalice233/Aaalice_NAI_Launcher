@@ -11659,6 +11659,18 @@ abstract class AppLocalizations {
   /// **'No enabled prompt fixed tags'**
   String get fixedTags_emptyEnabledPositive;
 
+  /// No description provided for @fixedTags_enabledNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled Negative'**
+  String get fixedTags_enabledNegative;
+
+  /// No description provided for @fixedTags_emptyEnabledNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'No enabled negative fixed tags'**
+  String get fixedTags_emptyEnabledNegative;
+
   /// No description provided for @fixedTags_noMatchingEnabled.
   ///
   /// In en, this message translates to:

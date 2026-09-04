@@ -939,15 +939,110 @@ void main() {
     expect(negativeRail, findsOneWidget);
     expect(tester.getSize(positiveRail).width, 48);
 
+    final categoryButton = find.byKey(
+      ValueKey('fixed-tags-positive-category-${categories.first.id}'),
+    );
+    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await pointer.addPointer();
+    await pointer.moveTo(tester.getCenter(categoryButton));
+    await tester.pump(const Duration(milliseconds: 150));
+    final hoverLabel = find.byKey(
+      ValueKey(
+        'fixed-tags-positive-category-${categories.first.id}-hover-label',
+      ),
+    );
+    expect(hoverLabel, findsOneWidget);
+    final hoverLabelSize = tester.getSize(hoverLabel);
+    expect(hoverLabelSize.width, lessThanOrEqualTo(220));
+    expect(hoverLabelSize.height, lessThan(60));
+    expect(tester.getSize(positiveRail).width, 48);
+    await pointer.moveTo(Offset.zero);
+    await tester.pump();
+    await pointer.removePointer();
+
     await tester.tap(
       find.byKey(
         ValueKey('fixed-tags-negative-category-${categories.first.id}'),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('negative quality'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('fixed-tags-negative-pane')),
+        matching: find.text('negative quality'),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'sparse positive pane contracts and enabled prompt types stay distinct',
+    (tester) async {
+      final positive = FixedTagEntry.create(
+        name: '夏日狂想曲风格',
+        content: 'pixel art, makoto daibakuhatsu',
+        enabled: true,
+      );
+      final negatives = [
+        for (var index = 0; index < 5; index++)
+          FixedTagEntry.create(
+            name: '负向固定词 $index',
+            content: 'bad hands, lowres, artifact $index',
+            promptType: FixedTagPromptType.negative,
+            enabled: index == 0,
+          ),
+      ];
+      final storage = _SidebarTestStorage(
+        fixedEntries: [positive, ...negatives],
+        categories: const [],
+        libraryEntries: const [],
+      )..negativeHeight = 500;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 420,
+                height: 980,
+                child: FixedTagsSidebar(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final positivePane = tester.getRect(
+        find.byKey(const ValueKey('fixed-tags-positive-pane')),
+      );
+      final negativePane = tester.getRect(
+        find.byKey(const ValueKey('fixed-tags-negative-pane')),
+      );
+      expect(positivePane.height, lessThan(220));
+      expect(negativePane.height, greaterThan(positivePane.height * 2));
+      expect(find.text('已启用正向'), findsOneWidget);
+      expect(find.text('已启用负向'), findsOneWidget);
+
+      final positiveStrip = tester.widget<Container>(
+        find.byKey(const ValueKey('fixed-tags-enabled-positive-strip')),
+      );
+      final negativeStrip = tester.widget<Container>(
+        find.byKey(const ValueKey('fixed-tags-enabled-negative-strip')),
+      );
+      final positiveColor = (positiveStrip.decoration! as BoxDecoration).color;
+      final negativeColor = (negativeStrip.decoration! as BoxDecoration).color;
+      expect(positiveColor, isNot(equals(negativeColor)));
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('FixedTagsButton 预览区分正负面与前后缀', (tester) async {
     final linkedPositive = FixedTagEntry.create(
@@ -1931,12 +2026,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(ThumbnailDisplay), findsNWidgets(3));
-
     final tiles = find.byType(SidebarEntryTile);
-    expect(tiles, findsNWidgets(3));
-    final firstTop = tester.getTopLeft(tiles.at(0)).dy;
-    expect(tester.getTopLeft(tiles.at(1)).dy, closeTo(firstTop, 1));
+    expect(tiles, findsAtLeastNWidgets(2));
+    final positiveGrid = find.descendant(
+      of: find.byKey(const ValueKey('fixed-tags-positive-pane')),
+      matching: find.byType(GridView),
+    );
+    final controller = tester.widget<GridView>(positiveGrid).controller!;
+    controller.jumpTo(controller.position.maxScrollExtent);
+    await tester.pumpAndSettle();
     expect(
       find.descendant(
         of: find.byType(SidebarEntryTile),
@@ -1944,6 +2042,7 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.byType(ThumbnailDisplay), findsAtLeastNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 

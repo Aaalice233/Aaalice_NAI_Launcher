@@ -2979,6 +2979,8 @@
   "fixedTags_clearSearch": "清空搜索",
   "fixedTags_enabledPositive": "已启用正向",
   "fixedTags_emptyEnabledPositive": "暂无启用的正向固定词",
+  "fixedTags_enabledNegative": "已启用负向",
+  "fixedTags_emptyEnabledNegative": "暂无启用的负向固定词",
   "fixedTags_noMatchingEnabled": "没有匹配的启用固定词",
   "fixedTags_negativeTitle": "负向固定词",
   "fixedTags_emptyNegative": "暂无负向固定词",

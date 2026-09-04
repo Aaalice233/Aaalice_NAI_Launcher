@@ -29,22 +29,18 @@ class FixedTagsCategoryRail extends StatelessWidget {
     required this.destinations,
     required this.selectedId,
     required this.onSelected,
-    required this.compact,
   });
 
   final String keyPrefix;
   final List<FixedTagsRailDestination> destinations;
   final String selectedId;
   final ValueChanged<String> onSelected;
-  final bool compact;
-
-  double get width => compact ? 48 : 68;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       key: ValueKey('$keyPrefix-category-rail'),
-      width: width,
+      width: 48,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         itemCount: destinations.length,
@@ -55,7 +51,7 @@ class FixedTagsCategoryRail extends StatelessWidget {
             key: ValueKey('$keyPrefix-category-${destination.id}'),
             destination: destination,
             selected: destination.id == selectedId,
-            compact: compact,
+            hoverLabelKey: '$keyPrefix-category-${destination.id}-hover-label',
             onTap: () => onSelected(destination.id),
           );
         },
@@ -64,66 +60,67 @@ class FixedTagsCategoryRail extends StatelessWidget {
   }
 }
 
-class _RailDestinationButton extends StatelessWidget {
+class _RailDestinationButton extends StatefulWidget {
   const _RailDestinationButton({
     super.key,
     required this.destination,
     required this.selected,
-    required this.compact,
+    required this.hoverLabelKey,
     required this.onTap,
   });
 
   final FixedTagsRailDestination destination;
   final bool selected;
-  final bool compact;
+  final String hoverLabelKey;
   final VoidCallback onTap;
+
+  @override
+  State<_RailDestinationButton> createState() => _RailDestinationButtonState();
+}
+
+class _RailDestinationButtonState extends State<_RailDestinationButton> {
+  final _overlayController = OverlayPortalController();
+  final _layerLink = LayerLink();
+  var _hovered = false;
+  var _focused = false;
+
+  void _syncLabelOverlay() {
+    if (_hovered || _focused) {
+      _overlayController.show();
+    } else {
+      _overlayController.hide();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final foreground = selected
-        ? destination.color
+    final foreground = widget.selected
+        ? widget.destination.color
         : theme.colorScheme.onSurfaceVariant;
     final button = Semantics(
       button: true,
-      selected: selected,
-      label: '${destination.label} ${destination.count}',
+      selected: widget.selected,
+      label: '${widget.destination.label} ${widget.destination.count}',
       child: Material(
-        color: selected
-            ? destination.color.withValues(alpha: 0.12)
+        color: widget.selected
+            ? widget.destination.color.withValues(alpha: 0.12)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
           borderRadius: BorderRadius.circular(6),
-          onTap: onTap,
+          onTap: widget.onTap,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: compact ? 48 : 58),
+            constraints: const BoxConstraints(minHeight: 48),
             child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: compact ? 4 : 6,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(destination.icon, size: 18, color: foreground),
-                  if (!compact) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      destination.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: foreground,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                  Icon(widget.destination.icon, size: 18, color: foreground),
                   const SizedBox(height: 2),
                   Text(
-                    destination.count.toString(),
+                    widget.destination.count.toString(),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: foreground,
                       fontWeight: FontWeight.w700,
@@ -138,7 +135,84 @@ class _RailDestinationButton extends StatelessWidget {
       ),
     );
 
-    if (!compact) return button;
-    return Tooltip(message: destination.label, child: button);
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: OverlayPortal(
+        controller: _overlayController,
+        overlayChildBuilder: (context) => CompositedTransformFollower(
+          link: _layerLink,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.centerRight,
+          followerAnchor: Alignment.centerLeft,
+          offset: const Offset(6, 0),
+          child: IgnorePointer(
+            child: UnconstrainedBox(
+              alignment: Alignment.centerLeft,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 120),
+                curve: Curves.easeOutCubic,
+                builder: (context, progress, child) => Opacity(
+                  opacity: progress,
+                  child: Transform.scale(
+                    scale: 0.96 + progress * 0.04,
+                    alignment: Alignment.centerLeft,
+                    child: child,
+                  ),
+                ),
+                child: Material(
+                  key: ValueKey(widget.hoverLabelKey),
+                  elevation: 4,
+                  color: Color.alphaBlend(
+                    widget.destination.color.withValues(alpha: 0.12),
+                    theme.colorScheme.surfaceContainerHigh,
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        widget.destination.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: foreground,
+                          fontWeight: widget.selected
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        child: MouseRegion(
+          onEnter: (_) {
+            _hovered = true;
+            _syncLabelOverlay();
+          },
+          onExit: (_) {
+            _hovered = false;
+            _syncLabelOverlay();
+          },
+          child: Focus(
+            onFocusChange: (focused) {
+              _focused = focused;
+              _syncLabelOverlay();
+            },
+            child: button,
+          ),
+        ),
+      ),
+    );
   }
 }

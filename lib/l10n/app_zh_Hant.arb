@@ -2995,6 +2995,8 @@
   "fixedTags_clearSearch": "清空搜尋",
   "fixedTags_enabledPositive": "已啟用正向",
   "fixedTags_emptyEnabledPositive": "暫無啟用的正向固定詞",
+  "fixedTags_enabledNegative": "已啟用負向",
+  "fixedTags_emptyEnabledNegative": "暫無啟用的負向固定詞",
   "fixedTags_noMatchingEnabled": "沒有匹配的啟用固定詞",
   "fixedTags_negativeTitle": "負向固定詞",
   "fixedTags_emptyNegative": "暫無負向固定詞",

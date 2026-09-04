@@ -6543,6 +6543,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixedTags_emptyEnabledPositive => 'No enabled prompt fixed tags';
 
   @override
+  String get fixedTags_enabledNegative => 'Enabled Negative';
+
+  @override
+  String get fixedTags_emptyEnabledNegative => 'No enabled negative fixed tags';
+
+  @override
   String get fixedTags_noMatchingEnabled => 'No matching enabled fixed tags';
 
   @override

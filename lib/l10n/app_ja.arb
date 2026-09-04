@@ -2908,6 +2908,8 @@
   "fixedTags_clearSearch": "検索をクリア",
   "fixedTags_enabledPositive": "有効なプロンプト",
   "fixedTags_emptyEnabledPositive": "有効なプロンプト固定タグがありません",
+  "fixedTags_enabledNegative": "有効なネガティブ",
+  "fixedTags_emptyEnabledNegative": "有効なネガティブ固定タグがありません",
   "fixedTags_noMatchingEnabled": "一致する有効な固定タグがありません",
   "fixedTags_negativeTitle": "除外したい要素固定タグ",
   "fixedTags_emptyNegative": "除外したい要素固定タグはありません",

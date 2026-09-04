@@ -6383,6 +6383,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fixedTags_emptyEnabledPositive => '有効なプロンプト固定タグがありません';
 
   @override
+  String get fixedTags_enabledNegative => '有効なネガティブ';
+
+  @override
+  String get fixedTags_emptyEnabledNegative => '有効なネガティブ固定タグがありません';
+
+  @override
   String get fixedTags_noMatchingEnabled => '一致する有効な固定タグがありません';
 
   @override

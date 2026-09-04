@@ -2956,6 +2956,8 @@
   "fixedTags_clearSearch": "Clear Search",
   "fixedTags_enabledPositive": "Enabled Prompt",
   "fixedTags_emptyEnabledPositive": "No enabled prompt fixed tags",
+  "fixedTags_enabledNegative": "Enabled Negative",
+  "fixedTags_emptyEnabledNegative": "No enabled negative fixed tags",
   "fixedTags_noMatchingEnabled": "No matching enabled fixed tags",
   "fixedTags_negativeTitle": "Undesired Content Fixed Tags",
   "fixedTags_emptyNegative": "No Undesired Content fixed tags",
