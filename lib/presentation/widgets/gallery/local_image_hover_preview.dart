@@ -9,6 +9,7 @@ import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/utils/byte_format.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
+import '../../themes/core/layered_surface_style.dart';
 import '../../utils/local_gallery_metadata_resolver.dart';
 import '../common/gallery_hover_controller.dart';
 
@@ -292,7 +293,7 @@ class _LocalImageHoverPreviewCardState
         width: cardWidth,
         constraints: BoxConstraints(maxHeight: widget.maxHeight),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
+          color: overlaySurfaceColor(theme.colorScheme),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -328,7 +329,7 @@ class _LocalImageHoverPreviewCardState
                 width: cardWidth,
                 height: imageHeight,
                 child: ColoredBox(
-                  color: theme.colorScheme.surfaceContainerLowest,
+                  color: overlaySurfaceColor(theme.colorScheme),
                   child: imageProvider == null
                       ? Center(
                           child: CircularProgressIndicator(

@@ -46,12 +46,7 @@ class _CloudSyncAgentContentSectionState
             widget.selection.copyWith(includeAgentSystemPrompt: value == true),
           ),
         ),
-        Divider(
-          height: 1,
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.45),
-        ),
+        const SizedBox(height: 4),
         SwitchListTile(
           key: const ValueKey('cloud-sync-agent-skills'),
           contentPadding: EdgeInsets.zero,
@@ -63,12 +58,7 @@ class _CloudSyncAgentContentSectionState
               widget.onChanged(widget.selection.copyWith(includeSkills: value)),
         ),
         if (widget.selection.includeSkills) ...[
-          Divider(
-            height: 1,
-            color: Theme.of(
-              context,
-            ).colorScheme.outlineVariant.withValues(alpha: 0.45),
-          ),
+          const SizedBox(height: 4),
           ListTile(
             key: const ValueKey('cloud-sync-skill-selection-entry'),
             contentPadding: EdgeInsets.zero,

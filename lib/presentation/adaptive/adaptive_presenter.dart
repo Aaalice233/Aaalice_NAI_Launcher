@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../themes/core/layered_surface_style.dart';
 import '../themes/theme_extension.dart';
 import 'window_size_class.dart';
 
@@ -403,40 +404,37 @@ class _PanelSurface extends StatelessWidget {
                   ),
                 ),
               if (showHeader) ...[
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 56),
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.only(
-                      start: 20,
-                      end: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: DefaultTextStyle.merge(
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            child: titleBuilder(context),
+                ColoredBox(
+                  key: const ValueKey('adaptive-panel-header-surface'),
+                  color: sectionSurfaceColor(theme.colorScheme),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 56),
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        start: 20,
+                        end: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: DefaultTextStyle.merge(
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              child: titleBuilder(context),
+                            ),
                           ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          tooltip: MaterialLocalizations.of(
-                            context,
-                          ).closeButtonTooltip,
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
+                          IconButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).closeButtonTooltip,
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                if (theme.appTheme.useDivider)
-                  Divider(
-                    key: const ValueKey('adaptive-panel-header-divider'),
-                    height: 1,
-                    thickness: theme.appTheme.dividerThickness,
-                    color: theme.appTheme.dividerColor,
-                  ),
               ],
               Flexible(
                 fit: centered ? FlexFit.loose : FlexFit.tight,

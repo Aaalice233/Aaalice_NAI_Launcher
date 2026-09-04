@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../themes/core/layered_surface_style.dart';
 import 'decoded_memory_image.dart';
 import 'thumbnail_display.dart';
 
@@ -180,7 +181,7 @@ class _HoverImagePreviewState extends State<HoverImagePreview> {
           borderRadius: BorderRadius.circular(12),
           clipBehavior: Clip.antiAlias,
           child: ColoredBox(
-            color: Theme.of(context).colorScheme.surface,
+            color: overlaySurfaceColor(Theme.of(context).colorScheme),
             child: _buildPreviewContent(
               context,
               previewWidth: previewWidth,

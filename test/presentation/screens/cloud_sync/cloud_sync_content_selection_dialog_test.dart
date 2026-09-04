@@ -5,6 +5,7 @@ import 'package:nai_launcher/core/agent/skill_catalog.dart';
 import 'package:nai_launcher/core/cloud_sync/content_selection.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/cloud_sync/cloud_sync_content_selection_dialog.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
 void main() {
   for (final width in const [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
@@ -144,6 +145,51 @@ void main() {
     final panel = find.byKey(const ValueKey('adaptive-centered-form'));
     final actions = find.byKey(const ValueKey('cloud-sync-content-actions'));
     expect(tester.getTopRight(actions).dx, tester.getTopRight(panel).dx - 20);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('内容分组使用有色差的无边框卡片且不绘制层级横线', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 760);
+    addTearDown(() {
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPhysicalSize();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () => showCloudSyncContentSelectionDialog(
+                context: context,
+                initialSelection: const CloudSyncContentSelection(),
+                skills: const SkillCatalogSnapshot(),
+              ),
+              child: const Text('打开'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+
+    const surfaceKey = ValueKey('cloud-sync-content-group-lightweight-surface');
+    final surface = tester.widget<Material>(find.byKey(surfaceKey));
+    final surfaceContext = tester.element(find.byKey(surfaceKey));
+    final colors = Theme.of(surfaceContext).colorScheme;
+    expect(surface.color, sectionSurfaceColor(colors));
+    expect(surface.color, isNot(colors.surface));
+    expect(find.byType(Divider), findsNothing);
+    expect(
+      find.byKey(const ValueKey('adaptive-panel-header-divider')),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 
