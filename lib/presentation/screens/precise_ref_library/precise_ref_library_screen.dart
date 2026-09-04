@@ -40,6 +40,7 @@ import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'widgets/precise_ref_card.dart';
 import 'widgets/precise_ref_entry_edit_dialog.dart';
 import 'widgets/precise_ref_library_sidebar.dart';
+import 'widgets/precise_ref_selector_dialog.dart';
 
 /// 精准参考库页面
 ///
@@ -236,6 +237,15 @@ class _PreciseRefLibraryScreenState
       }
       if (mounted) setState(() => _isExporting = false);
     }
+  }
+
+  Future<void> _chooseAndExportEntries() async {
+    final entries = await PreciseRefSelectorDialog.show(
+      context,
+      purpose: PreciseRefSelectorPurpose.export,
+    );
+    if (!mounted || entries == null || entries.isEmpty) return;
+    await _exportEntries(entries);
   }
 
   Future<void> _openLibraryFolder() async {
@@ -782,7 +792,7 @@ class _PreciseRefLibraryScreenState
           isLoading: _isExporting,
           onPressed: state.entries.isEmpty || _isExporting
               ? null
-              : () => _exportEntries(state.entries),
+              : _chooseAndExportEntries,
         ),
         if (PlatformCapabilities.current.supportsOpenFolder)
           GalleryLibraryAction(

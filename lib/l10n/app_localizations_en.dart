@@ -11742,6 +11742,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preciseRefLib_exportTitle => 'Export Precise Reference Package';
 
   @override
+  String get preciseRefLib_exportSelectionHint =>
+      'Choose the precise references to include. The selected items will be bundled into one .naipreciseref file.';
+
+  @override
+  String preciseRefLib_exportConfirm(int count) {
+    return 'Export Selected ($count)';
+  }
+
+  @override
   String preciseRefLib_exportedCount(Object count) {
     return 'Exported $count precise references';
   }

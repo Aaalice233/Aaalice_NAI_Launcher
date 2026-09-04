@@ -11459,6 +11459,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preciseRefLib_exportTitle => '精密参照パッケージをエクスポート';
 
   @override
+  String get preciseRefLib_exportSelectionHint =>
+      '含める精密参照を選択してください。選択した項目は 1 つの .naipreciseref ファイルにまとめられます。';
+
+  @override
+  String preciseRefLib_exportConfirm(int count) {
+    return '選択項目をエクスポート ($count)';
+  }
+
+  @override
   String preciseRefLib_exportedCount(Object count) {
     return '精密参照を $count 件エクスポートしました';
   }

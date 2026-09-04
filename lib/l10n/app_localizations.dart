@@ -20554,6 +20554,18 @@ abstract class AppLocalizations {
   /// **'Export Precise Reference Package'**
   String get preciseRefLib_exportTitle;
 
+  /// No description provided for @preciseRefLib_exportSelectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the precise references to include. The selected items will be bundled into one .naipreciseref file.'**
+  String get preciseRefLib_exportSelectionHint;
+
+  /// No description provided for @preciseRefLib_exportConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Selected ({count})'**
+  String preciseRefLib_exportConfirm(int count);
+
   /// No description provided for @preciseRefLib_exportedCount.
   ///
   /// In en, this message translates to:

@@ -5612,6 +5612,13 @@
   "preciseRefLib_emptyHintTouch": "You can also save images from generation results, history, or the local gallery",
   "preciseRefLib_import": "Import Images",
   "preciseRefLib_exportTitle": "Export Precise Reference Package",
+  "preciseRefLib_exportSelectionHint": "Choose the precise references to include. The selected items will be bundled into one .naipreciseref file.",
+  "preciseRefLib_exportConfirm": "Export Selected ({count})",
+  "@preciseRefLib_exportConfirm": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "preciseRefLib_exportedCount": "Exported {count} precise references",
   "preciseRefLib_exportFailed": "Failed to export precise references: {error}",
   "preciseRefLib_openFolderFailed": "Failed to open the precise reference folder: {error}",

@@ -11260,6 +11260,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preciseRefLib_exportTitle => '导出精准参考配置包';
 
   @override
+  String get preciseRefLib_exportSelectionHint =>
+      '选择要包含的精准参考；所选内容会打包为一个 .naipreciseref 文件。';
+
+  @override
+  String preciseRefLib_exportConfirm(int count) {
+    return '导出所选 ($count)';
+  }
+
+  @override
   String preciseRefLib_exportedCount(Object count) {
     return '已导出 $count 个精准参考';
   }
@@ -25148,6 +25157,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get preciseRefLib_exportTitle => '匯出精準參考設定包';
+
+  @override
+  String get preciseRefLib_exportSelectionHint =>
+      '選擇要包含的精準參考；所選內容會封裝成一個 .naipreciseref 檔案。';
+
+  @override
+  String preciseRefLib_exportConfirm(int count) {
+    return '匯出所選 ($count)';
+  }
 
   @override
   String preciseRefLib_exportedCount(Object count) {

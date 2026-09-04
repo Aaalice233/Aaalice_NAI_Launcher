@@ -185,6 +185,52 @@ void main() {
     expect(find.text('精准参考库'), findsOneWidget);
   });
 
+  testWidgets('顶栏导出先选择包内内容并默认全选', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          preciseRefLibraryNotifierProvider.overrideWith(
+            _PopulatedLibraryNotifier.new,
+          ),
+          preciseRefLibraryStorageServiceProvider.overrideWithValue(
+            _ThumbnailFreeStorage(),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: PreciseRefLibraryScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const Key('precise-ref-library-export-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('导出精准参考配置包'), findsOneWidget);
+    expect(find.textContaining('一个 .naipreciseref 文件'), findsOneWidget);
+    expect(find.text('导出所选 (2)'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('precise-ref-selector-item-first')));
+    await tester.pump();
+    expect(find.text('导出所选 (1)'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('precise-ref-export-deselect-all')));
+    await tester.pump();
+    expect(find.text('导出所选 (0)'), findsOneWidget);
+    final confirm = tester.widget<FilledButton>(
+      find.byKey(const Key('precise-ref-selector-confirm')),
+    );
+    expect(confirm.onPressed, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('快捷保存失败时显示错误提示', (tester) async {
     await tester.pumpWidget(
       ProviderScope(

@@ -313,6 +313,37 @@ void main() {
     });
   }
 
+  testWidgets('320px 3x text keeps export selection controls reachable', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(320, 720));
+    await _pumpSelectorHost(
+      tester,
+      purpose: PreciseRefSelectorPurpose.export,
+      textScale: 3,
+    );
+
+    await tester.tap(find.text('打开选择器'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('一个 .naipreciseref 文件'), findsOneWidget);
+    final deselectAll = find.byKey(
+      const Key('precise-ref-export-deselect-all'),
+    );
+    await tester.ensureVisible(deselectAll);
+    await tester.tap(deselectAll);
+    await tester.pump();
+
+    final selectAll = find.byKey(const Key('precise-ref-export-select-all'));
+    await tester.ensureVisible(selectAll);
+    await tester.tap(selectAll);
+    await tester.pump();
+    final confirm = find.byKey(const Key('precise-ref-selector-confirm'));
+    await tester.ensureVisible(confirm);
+    expect(find.text('导出所选 (2)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     '320px 3x text with SafeArea and IME keeps the edit form scrollable and submittable',
     (tester) async {
@@ -505,7 +536,11 @@ Future<void> _setViewport(
   });
 }
 
-Future<void> _pumpSelectorHost(WidgetTester tester) async {
+Future<void> _pumpSelectorHost(
+  WidgetTester tester, {
+  PreciseRefSelectorPurpose purpose = PreciseRefSelectorPurpose.add,
+  double textScale = 1,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -520,10 +555,17 @@ Future<void> _pumpSelectorHost(WidgetTester tester) async {
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
         home: Scaffold(
           body: Builder(
             builder: (context) => TextButton(
-              onPressed: () => PreciseRefSelectorDialog.show(context),
+              onPressed: () =>
+                  PreciseRefSelectorDialog.show(context, purpose: purpose),
               child: const Text('打开选择器'),
             ),
           ),
