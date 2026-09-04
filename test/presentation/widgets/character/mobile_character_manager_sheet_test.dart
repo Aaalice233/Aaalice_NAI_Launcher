@@ -116,8 +116,12 @@ void main() {
     expect(find.text('正在编辑'), findsOneWidget);
     expect(nameField, findsOneWidget);
     expect(
-      tester.getRect(editingContext).bottom,
-      lessThanOrEqualTo(tester.getRect(nameField).top),
+      tester.getCenter(editingContext).dy,
+      closeTo(tester.getCenter(nameField).dy, 0.1),
+    );
+    expect(
+      tester.getRect(editingContext).right,
+      lessThanOrEqualTo(tester.getRect(nameField).left),
     );
     expect(tester.takeException(), isNull);
   });

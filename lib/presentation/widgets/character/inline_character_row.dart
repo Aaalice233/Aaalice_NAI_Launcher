@@ -363,33 +363,33 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
     final largeText =
         widget.borderless && MediaQuery.textScalerOf(context).scale(14) >= 20;
 
-    final nameBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (widget.borderless) ...[
-          Text(
-            l10n.characterEditor_editing,
-            key: ValueKey('character-editor-context-${widget.character.id}'),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 2),
-        ],
-        // 面板即编辑态，名字就地可改
-        CharacterNameField(
-          key: ValueKey('panel-name-${widget.character.id}'),
-          character: widget.character,
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+    final nameField = CharacterNameField(
+      key: ValueKey('panel-name-${widget.character.id}'),
+      character: widget.character,
+      style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
     );
+    final nameBlock = widget.borderless
+        ? Row(
+            children: [
+              Text(
+                l10n.characterEditor_editing,
+                key: ValueKey(
+                  'character-editor-context-${widget.character.id}',
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 6),
+              // 面板即编辑态，名字就地可改。剩余宽度交给名字，
+              // 避免窄屏时把右侧操作挤出可见区。
+              Expanded(child: nameField),
+            ],
+          )
+        : nameField;
     final actions = <Widget>[
       _PanelIconButton(
         icon: Icons.arrow_upward,
