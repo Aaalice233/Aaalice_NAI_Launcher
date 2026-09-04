@@ -89,7 +89,7 @@ class CanvasSizeDialog extends StatefulWidget {
     final resolvedConfirmText = confirmText ?? context.l10n.common_confirm;
     return AdaptivePresenter.showForm<CanvasSizeResult>(
       context: context,
-      width: 480,
+      dialogWidth: 480,
       titleBuilder: (context) => Text(
         resolvedTitle,
         maxLines: 2,

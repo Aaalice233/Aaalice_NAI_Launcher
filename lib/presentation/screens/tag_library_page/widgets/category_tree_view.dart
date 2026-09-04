@@ -24,6 +24,7 @@ class CategoryTreeView extends StatefulWidget {
   final void Function(String id, String newName) onCategoryRename;
   final ValueChanged<String> onCategoryDelete;
   final ValueChanged<String?> onAddSubCategory;
+  final ValueChanged<String?>? onAddEntry;
 
   /// 分类移动到新父级（跨层级移动）
   final void Function(String categoryId, String? newParentId)? onCategoryMove;
@@ -48,6 +49,7 @@ class CategoryTreeView extends StatefulWidget {
     required this.onCategoryRename,
     required this.onCategoryDelete,
     required this.onAddSubCategory,
+    this.onAddEntry,
     this.onCategoryMove,
     this.onCategoryReorder,
     this.onEntryDrop,
@@ -149,6 +151,17 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
       context: context,
       position: contextMenuAnchorAt(context, position),
       items: [
+        if (widget.onAddEntry != null)
+          PopupMenuItem(
+            onTap: () => widget.onAddEntry?.call(null),
+            child: Row(
+              children: [
+                const Icon(Icons.add_box_outlined, size: 18),
+                const SizedBox(width: 8),
+                Text(context.l10n.tagLibrary_addEntry),
+              ],
+            ),
+          ),
         PopupMenuItem(
           onTap: () => widget.onAddSubCategory(null),
           child: Row(
@@ -191,6 +204,9 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
       onRename: (newName) => widget.onCategoryRename(category.id, newName),
       onDelete: () => widget.onCategoryDelete(category.id),
       onAddSubCategory: () => widget.onAddSubCategory(category.id),
+      onAddEntry: widget.onAddEntry == null
+          ? null
+          : () => widget.onAddEntry?.call(category.id),
       // 仅当分类不在根目录时显示"移动到根目录"选项
       onMoveToRoot: category.parentId != null && widget.onCategoryMove != null
           ? () => widget.onCategoryMove!(category.id, null)
@@ -446,6 +462,7 @@ class _CategoryItem extends StatefulWidget {
   final void Function(String)? onRename;
   final VoidCallback? onDelete;
   final VoidCallback? onAddSubCategory;
+  final VoidCallback? onAddEntry;
   final VoidCallback? onMoveToRoot;
 
   const _CategoryItem({
@@ -461,6 +478,7 @@ class _CategoryItem extends StatefulWidget {
     this.onRename,
     this.onDelete,
     this.onAddSubCategory,
+    this.onAddEntry,
     this.onMoveToRoot,
   });
 
@@ -489,7 +507,7 @@ class _CategoryItemState extends State<_CategoryItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Deep imported hierarchies must retain room for the label and action menu
-    // instead of pushing the row beyond a compact modal surface.
+    // instead of pushing the row beyond a compact bottom sheet.
     final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
     final showActions =
         widget.onRename != null &&
@@ -651,6 +669,17 @@ class _CategoryItemState extends State<_CategoryItem> {
           ],
         ),
       ),
+      if (widget.onAddEntry != null)
+        PopupMenuItem(
+          value: _CategoryAction.addEntry,
+          child: Row(
+            children: [
+              const Icon(Icons.add_box_outlined, size: 18),
+              const SizedBox(width: 8),
+              Text(context.l10n.tagLibrary_addEntry),
+            ],
+          ),
+        ),
       if (widget.onAddSubCategory != null)
         PopupMenuItem(
           value: _CategoryAction.addSubCategory,
@@ -700,6 +729,8 @@ class _CategoryItemState extends State<_CategoryItem> {
         setState(() => _isEditing = true);
       case _CategoryAction.addSubCategory:
         widget.onAddSubCategory?.call();
+      case _CategoryAction.addEntry:
+        widget.onAddEntry?.call();
       case _CategoryAction.moveToRoot:
         widget.onMoveToRoot?.call();
       case _CategoryAction.delete:
@@ -708,4 +739,4 @@ class _CategoryItemState extends State<_CategoryItem> {
   }
 }
 
-enum _CategoryAction { rename, addSubCategory, moveToRoot, delete }
+enum _CategoryAction { rename, addEntry, addSubCategory, moveToRoot, delete }

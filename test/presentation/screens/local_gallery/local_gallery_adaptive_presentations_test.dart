@@ -64,8 +64,8 @@ void main() {
           ),
         );
 
-        final expectedSurface = size.width < 600
-            ? const ValueKey('adaptive-full-screen-form')
+        final expectedSurface = size.width < 840
+            ? const ValueKey('adaptive-bottom-sheet')
             : const ValueKey('adaptive-centered-form');
 
         await tester.tap(find.text('move'));

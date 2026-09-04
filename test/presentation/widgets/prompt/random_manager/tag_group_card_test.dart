@@ -101,10 +101,7 @@ void main() {
     await tester.tap(find.text('包含全部复杂配置的超长词组名称'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
 
     final diyTab = find.byIcon(Icons.account_tree_outlined);
@@ -130,7 +127,7 @@ void main() {
 
     expect(find.text('条件分支'), findsWidgets);
     expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
       findsNWidgets(2),
     );
     expect(find.byType(Dialog), findsNothing);

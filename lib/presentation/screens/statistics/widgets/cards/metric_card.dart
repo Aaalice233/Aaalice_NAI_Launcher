@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
+import '../../../../themes/core/layered_surface_style.dart';
+
 /// Metric card with value, trend indicator and optional sparkline.
 class MetricCard extends StatefulWidget {
   final IconData icon;
@@ -60,8 +62,8 @@ class _MetricCardState extends State<MetricCard> {
             curve: theme.appTheme.standardCurve,
             decoration: BoxDecoration(
               color: interactive && _isHovered
-                  ? colorScheme.surfaceContainer
-                  : colorScheme.surfaceContainerLow,
+                  ? controlSurfaceColor(colorScheme)
+                  : sectionSurfaceColor(colorScheme),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Material(

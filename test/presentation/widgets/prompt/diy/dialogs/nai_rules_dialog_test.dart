@@ -11,8 +11,8 @@ void main() {
       await _pumpAndShowDialog(tester);
 
       final expectedSurface = switch (width) {
-        < 600 => 'adaptive-full-screen-form',
-        < 840 => 'adaptive-centered-form',
+        < 600 => 'adaptive-bottom-sheet',
+        < 840 => 'adaptive-bottom-sheet',
         _ => 'adaptive-centered-form',
       };
       final surface = tester.getRect(find.byKey(ValueKey(expectedSurface)));
@@ -49,7 +49,7 @@ void main() {
     await _pumpAndShowDialog(tester, textScale: 3, completed: completed);
 
     final surface = tester.getRect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
     );
     final actionFinder = find.descendant(
       of: find.byType(NaiRulesDialog),

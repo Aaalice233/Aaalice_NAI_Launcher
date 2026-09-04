@@ -51,7 +51,7 @@ void main() {
         );
         expect(
           find.byKey(const ValueKey('adaptive-centered-form')),
-          width >= 600 ? findsOneWidget : findsNothing,
+          width >= 840 ? findsOneWidget : findsNothing,
         );
 
         await tester.tap(find.text('本地图库'));

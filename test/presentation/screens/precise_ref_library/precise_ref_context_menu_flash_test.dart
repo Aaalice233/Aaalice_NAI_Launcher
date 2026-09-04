@@ -41,6 +41,9 @@ class _ProbeStorage extends PreciseRefLibraryStorageService {
     _memory[id] = bytes;
     return bytes;
   }
+
+  @override
+  Future<Uint8List?> readImageBytes(String id) async => _memory[id];
 }
 
 class _ProbeNotifier extends PreciseRefLibraryNotifier {

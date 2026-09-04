@@ -42,7 +42,7 @@ class ShortcutSettingsPanel extends ConsumerStatefulWidget {
           ],
         );
       },
-      width: 720,
+      dialogWidth: 720,
       builder: (context, scrollController) =>
           const ShortcutSettingsPanel(presented: true),
     );

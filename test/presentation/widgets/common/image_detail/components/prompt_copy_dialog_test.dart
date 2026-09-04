@@ -142,7 +142,7 @@ void main() {
     },
   );
 
-  testWidgets('worst-case export stays usable in compact full-screen form', (
+  testWidgets('worst-case export stays usable in compact bottom sheet', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(320, 568));
@@ -194,22 +194,26 @@ void main() {
     await tester.tap(find.text('open export'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byKey(const Key('prompt-copy-options-list')), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    final copyButton = find.text('Copy');
     await tester.scrollUntilVisible(
-      find.text('Copy'),
-      600,
-      scrollable: find.descendant(
-        of: find.byKey(const Key('prompt-copy-options-list')),
-        matching: find.byType(Scrollable),
-      ),
+      copyButton,
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('prompt-copy-options-list')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
-    await tester.tap(find.text('Copy'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(copyButton);
+    await tester.pumpAndSettle();
+    expect(copyButton.hitTestable(), findsOneWidget);
+    await tester.tap(copyButton);
     await tester.pumpAndSettle();
 
     expect(result, isNotNull);

@@ -5,12 +5,21 @@ import '../services/tag_library_io_service.dart';
 import '../services/tag_library_portable_thumbnail_store.dart';
 import 'cloud_sync_data_adapter.dart';
 import 'portable_sync_record.dart';
+import 'tag_library_thumbnail_compressor.dart';
 
 class UserTagLibraryCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
-  UserTagLibraryCloudSyncAdapter(this._storage, this._io);
+  UserTagLibraryCloudSyncAdapter(
+    this._storage,
+    this._io, {
+    this.includeThumbnails = true,
+    TagLibraryThumbnailCompressor thumbnailCompressor =
+        const TagLibraryThumbnailCompressor(),
+  }) : _thumbnailCompressor = thumbnailCompressor;
 
   final LocalStorageService _storage;
   final TagLibraryIOService _io;
+  final bool includeThumbnails;
+  final TagLibraryThumbnailCompressor _thumbnailCompressor;
 
   @override
   String get id => 'user-tag-library';
@@ -22,12 +31,27 @@ class UserTagLibraryCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   Stream<PortableSyncRecord> exportRecords() async* {
     for (final original in _decodeList(_storage.getTagLibraryEntriesJson())) {
       final entry = Map<String, dynamic>.from(original);
-      entry.remove('thumbnail');
+      final thumbnailPath = entry.remove('thumbnail') as String?;
+      final compressed = includeThumbnails && thumbnailPath?.isNotEmpty == true
+          ? await _compressThumbnail(thumbnailPath!)
+          : null;
       yield PortableSyncRecord(
         adapterId: id,
         id: 'entry:${entry['id']}',
         kind: 'entry',
-        data: {'entry': entry},
+        data: {
+          'entry': entry,
+          if (compressed != null) 'thumbnailExtension': compressed.extension,
+        },
+        resource: compressed == null
+            ? null
+            : PortableSyncResource(
+                relativePath:
+                    'tag-library/${entry['id']}/thumbnail${compressed.extension}',
+                length: compressed.bytes.length,
+                mediaType: compressed.mediaType,
+                openRead: () => Stream.value(compressed.bytes),
+              ),
       );
     }
     for (final category in _decodeList(
@@ -111,8 +135,20 @@ class UserTagLibraryCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
         final value = Map<String, dynamic>.from(
           record.data[record.kind]! as Map,
         );
-        if (record.kind == 'entry' && existingThumbnail != null) {
-          value['thumbnail'] = existingThumbnail;
+        if (record.kind == 'entry') {
+          final resource = record.resource;
+          if (resource != null) {
+            final mutation = await _io.stagePortableThumbnail(
+              stableId,
+              extension: record.data['thumbnailExtension']! as String,
+              bytes: resource.openRead(),
+              existingPath: existingThumbnail,
+            );
+            mutations.add(mutation);
+            value['thumbnail'] = mutation.path;
+          } else if (existingThumbnail != null) {
+            value['thumbnail'] = existingThumbnail;
+          }
         }
         target[stableId] = value;
       }
@@ -140,6 +176,12 @@ class UserTagLibraryCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   Future<void> _restoreJson(String? entries, String? categories) async {
     await _storage.setTagLibraryEntriesJson(entries ?? '[]');
     await _storage.setTagLibraryCategoriesJson(categories ?? '[]');
+  }
+
+  Future<CompressedTagThumbnail?> _compressThumbnail(String path) async {
+    final length = await _io.thumbnailLength(path);
+    if (length == null) return null;
+    return _thumbnailCompressor.compress(_io.openThumbnail(path));
   }
 
   List<Map<String, dynamic>> _decodeList(String? raw) {

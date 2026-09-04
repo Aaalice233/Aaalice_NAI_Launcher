@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -92,6 +93,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('desktop toolbar toggles the persistent category panel', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1180, 700));
+    await _pumpTagLibrary(tester, _TestTagLibraryPageNotifier.new);
+
+    final categoriesButton = find.byKey(
+      const Key('tag-library-categories-button'),
+    );
+    expect(
+      find.byKey(const Key('tag-library-category-sidebar')),
+      findsOneWidget,
+    );
+
+    await tester.tap(categoriesButton);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('tag-library-category-sidebar')), findsNothing);
+
+    await tester.tap(categoriesButton);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('tag-library-category-sidebar')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('compact category panel keeps expansion after close and reopen', (
     tester,
   ) async {
@@ -140,6 +168,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('card tail and content context menu both create entries', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _DialogTagLibraryPageNotifier.new);
+
+    await tester.tap(find.byKey(const Key('tag-library-create-card')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(GridView), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('tag-library-context-create-entry')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('tag-library-context-create-entry')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('new category input survives compact SafeArea IME and 3x text', (
     tester,
   ) async {
@@ -162,8 +220,9 @@ void main() {
     await tester.tap(find.text('新建'));
     await tester.pumpAndSettle();
 
-    final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
-    expect(panel, findsOneWidget);
+    final panels = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+    expect(panels, findsNWidgets(2));
+    final panel = panels.last;
     expect(
       find.byKey(const ValueKey('tag-library-add-category-form')),
       findsOneWidget,
@@ -178,7 +237,11 @@ void main() {
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(panel, findsNothing);
+    expect(
+      find.byKey(const ValueKey('tag-library-add-category-form')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
   });
 
   testWidgets('responsive sidebar rebuild keeps the active library viewport', (
@@ -279,6 +342,7 @@ class _TestShortcutConfigNotifier extends ShortcutConfigNotifier {
 class _DialogTagLibraryPageNotifier extends TagLibraryPageNotifier {
   @override
   TagLibraryPageState build() => TagLibraryPageState(
+    viewMode: TagLibraryViewMode.card,
     entries: [
       TagLibraryEntry(
         id: 'dialog-entry',

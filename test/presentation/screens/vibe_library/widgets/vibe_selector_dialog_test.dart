@@ -80,6 +80,8 @@ void main() {
       textScaler: const TextScaler.linear(3),
     );
 
+    await tester.ensureVisible(find.text('全选'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('全选'));
     await tester.pump();
 
@@ -111,19 +113,14 @@ void main() {
       viewInsets: const EdgeInsets.only(bottom: 280),
     );
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'entry-11');
     await tester.pump();
 
     expect(find.text('entry-11'), findsNWidgets(2));
     expect(find.text('entry-0'), findsNothing);
     expect(
-      tester
-          .getTopLeft(find.byKey(const ValueKey('adaptive-full-screen-form')))
-          .dy,
+      tester.getTopLeft(find.byKey(const ValueKey('adaptive-bottom-sheet'))).dy,
       greaterThanOrEqualTo(24),
     );
     expect(
@@ -136,7 +133,7 @@ void main() {
   });
 
   for (final (width, surfaceKey) in [
-    (700.0, 'adaptive-centered-form'),
+    (700.0, 'adaptive-bottom-sheet'),
     (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('$width 宽度使用 AdaptivePresenter 有界选择面', (tester) async {
@@ -274,8 +271,7 @@ Future<void> _pumpSelectorHost(
   );
 
   await tester.tap(find.text('open'));
-  await tester.pump();
-  await tester.pump();
+  await tester.pumpAndSettle();
 }
 
 class _EmptyVibeLibraryNotifier extends VibeLibraryNotifier {

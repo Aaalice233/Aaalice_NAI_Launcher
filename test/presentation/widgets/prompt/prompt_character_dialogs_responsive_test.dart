@@ -60,7 +60,7 @@ void main() {
 
         expect(
           find
-                  .byKey(const ValueKey('adaptive-full-screen-form'))
+                  .byKey(const ValueKey('adaptive-bottom-sheet'))
                   .evaluate()
                   .isNotEmpty ||
               find
@@ -77,6 +77,43 @@ void main() {
       }
     },
   );
+
+  testWidgets('short desktop prompt dialogs follow their content height', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1000, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          promptRegexRulesProvider.overrideWith(_EmptyRegexRules.new),
+          tagLibraryPageCategoriesProvider.overrideWith((ref) => const []),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _PanelTestHost(),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Library'));
+    await tester.pumpAndSettle();
+    var panel = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(tester.getSize(panel).height, lessThan(650));
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Regex'));
+    await tester.pumpAndSettle();
+    panel = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(tester.getSize(panel).height, lessThan(700));
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _PanelTestHost extends StatelessWidget {

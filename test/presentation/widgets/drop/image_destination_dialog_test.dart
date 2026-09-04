@@ -56,10 +56,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-centered-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     final dialogContext = tester.element(find.byType(ImageDestinationDialog));
     final l10n = AppLocalizations.of(dialogContext)!;
@@ -293,8 +290,8 @@ void main() {
             .state<ScrollableState>(detailsScrollable)
             .position;
         expect(scrollPosition.maxScrollExtent, greaterThan(0));
-        final presentationKey = scenario.size.width < 600
-            ? const ValueKey('adaptive-full-screen-form')
+        final presentationKey = scenario.size.width < 840
+            ? const ValueKey('adaptive-bottom-sheet')
             : const ValueKey('adaptive-centered-form');
         expect(find.byKey(presentationKey), findsNWidgets(2));
         expect(tester.takeException(), isNull);
@@ -345,7 +342,7 @@ void main() {
       expect(target.hitTestable(), findsOneWidget);
       final availableHeight = scenario.size.height - scenario.keyboard;
       final presentation = scenario.size.width < 600 || availableHeight < 560
-          ? find.byKey(const ValueKey('adaptive-full-screen-form'))
+          ? find.byKey(const ValueKey('adaptive-bottom-sheet'))
           : find.byKey(const ValueKey('adaptive-centered-form'));
       expect(presentation, findsOneWidget);
       expect(
@@ -380,10 +377,12 @@ void main() {
         await _openMetadataDialog(tester, metadata: metadata);
 
         final presentation = find.byKey(
-          const ValueKey('adaptive-centered-form'),
+          ValueKey(
+            width < 840 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
+          ),
         );
         expect(presentation, findsOneWidget);
-        expect(tester.getSize(presentation).width, lessThan(width));
+        expect(tester.getSize(presentation).width, lessThanOrEqualTo(width));
         expect(find.byType(Dialog), findsNothing);
         expect(
           find.byKey(const ValueKey('drop-positive-prompt-card')),
@@ -426,13 +425,11 @@ void main() {
         padding: const EdgeInsets.only(top: 24, bottom: 20),
       );
 
-      final presentation = find.byKey(
-        const ValueKey('adaptive-full-screen-form'),
-      );
+      final presentation = find.byKey(const ValueKey('adaptive-bottom-sheet'));
       expect(presentation, findsOneWidget);
       expect(find.byType(Dialog), findsNothing);
       expect(tester.getTopLeft(presentation).dy, greaterThanOrEqualTo(24));
-      expect(tester.getBottomRight(presentation).dy, lessThanOrEqualTo(680));
+      expect(tester.getBottomRight(presentation).dy, lessThanOrEqualTo(700));
 
       final target = find.text('Precise Reference');
       await tester.scrollUntilVisible(

@@ -167,7 +167,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(
@@ -202,10 +202,7 @@ void main() {
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
-        findsNothing,
-      );
+      expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
     },
   );
 

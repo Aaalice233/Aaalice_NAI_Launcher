@@ -44,7 +44,7 @@ class AddToLibraryDialog extends ConsumerStatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      width: 520,
+      dialogWidth: 520,
       builder: (context, scrollController) => AddToLibraryDialog(
         defaultName: name,
         content: content,
@@ -114,10 +114,13 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
     final categories = ref.watch(tagLibraryPageCategoriesProvider);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
+        Flexible(
+          fit: FlexFit.loose,
           child: ListView(
             controller: widget.scrollController,
+            shrinkWrap: true,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.all(16),
             children: [

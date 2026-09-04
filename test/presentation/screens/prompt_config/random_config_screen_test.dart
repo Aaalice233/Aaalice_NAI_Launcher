@@ -375,6 +375,13 @@ void main() {
         expect(more.width, greaterThanOrEqualTo(44));
         expect(more.height, greaterThanOrEqualTo(44));
       }
+      if (width >= 1050) {
+        final title = tester.getRect(find.text('随机词库'));
+        final selector = tester.getRect(
+          find.byKey(const ValueKey('random-manager-preset-selector')),
+        );
+        expect(selector.left - title.right, 12);
+      }
       if (width < 1050) {
         expect(
           find.byKey(const ValueKey('random-manager-compact-sections')),

@@ -1,8 +1,7 @@
 import 'dart:math' as math;
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
@@ -13,7 +12,8 @@ import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/card_action_buttons.dart';
 import '../../../widgets/common/card_hover_preview_controller.dart';
 import '../../../widgets/common/image_card_actions.dart';
-import '../../../widgets/common/translated_tag_text.dart';
+import '../../../widgets/common/library_card_badges.dart';
+import 'vibe_hover_preview.dart';
 
 /// Vibe 图像卡片统一采用 4:5 纵向比例，为缩略图和底部参数保留稳定空间。
 const double vibeCardAspectRatio = 4 / 5;
@@ -46,6 +46,7 @@ class VibeCard extends ConsumerStatefulWidget {
   final void Function(TapUpDetails)? onSecondaryTapUp;
   final bool isSelected;
   final bool showFavoriteIndicator;
+  final String? categoryLabel;
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSendToGeneration;
   final VoidCallback? onExport;
@@ -64,6 +65,7 @@ class VibeCard extends ConsumerStatefulWidget {
     this.onSecondaryTapUp,
     this.isSelected = false,
     this.showFavoriteIndicator = true,
+    this.categoryLabel,
     this.onFavoriteToggle,
     this.onSendToGeneration,
     this.onExport,
@@ -79,6 +81,7 @@ class VibeCard extends ConsumerStatefulWidget {
 class _VibeCardState extends ConsumerState<VibeCard>
     with SingleTickerProviderStateMixin {
   bool _isHovered = false;
+  bool _isFocused = false;
   bool _branchVisible = true;
   Uint8List? _lazyThumbnailData;
   Future<void>? _thumbnailLoadFuture;
@@ -125,7 +128,9 @@ class _VibeCardState extends ConsumerState<VibeCard>
         : const Duration(milliseconds: 300);
     if (disableAnimations) {
       _animationController.stop();
-      _animationController.value = _isHovered && widget.entry.isBundle ? 1 : 0;
+      _animationController.value = _isInteractive && widget.entry.isBundle
+          ? 1
+          : 0;
     }
   }
 
@@ -137,9 +142,13 @@ class _VibeCardState extends ConsumerState<VibeCard>
       _lazyThumbnailData = null;
       _thumbnailLoadFuture = null;
       _hoverDetailFuture = null;
-      _isHovered = false;
       _animationController.value = 0;
       _loadThumbnailIfNeeded();
+      if (_isInteractive) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _isInteractive) _scheduleHoverPreview();
+        });
+      }
       return;
     }
 
@@ -188,28 +197,42 @@ class _VibeCardState extends ConsumerState<VibeCard>
         });
   }
 
-  void _onHoverEnter(PointerEvent event) {
-    setState(() => _isHovered = true);
-    if (widget.entry.isBundle) {
-      if (_disableAnimations) {
-        _animationController.value = 1;
-      } else {
-        _animationController.forward();
-      }
-    }
-    _scheduleHoverPreview();
+  bool get _isInteractive => _isHovered || _isFocused;
+
+  void _onHoverEnter(PointerEvent event) => _setHovered(true);
+
+  void _onHoverExit(PointerEvent event) => _setHovered(false);
+
+  void _setHovered(bool value) {
+    if (_isHovered == value) return;
+    final wasInteractive = _isInteractive;
+    setState(() => _isHovered = value);
+    _syncInteractiveState(wasInteractive);
   }
 
-  void _onHoverExit(PointerEvent event) {
-    setState(() => _isHovered = false);
+  void _onFocusChange(bool value) {
+    if (_isFocused == value) return;
+    final wasInteractive = _isInteractive;
+    setState(() => _isFocused = value);
+    _syncInteractiveState(wasInteractive);
+  }
+
+  void _syncInteractiveState(bool wasInteractive) {
+    if (wasInteractive == _isInteractive) return;
     if (widget.entry.isBundle) {
       if (_disableAnimations) {
-        _animationController.value = 0;
+        _animationController.value = _isInteractive ? 1 : 0;
+      } else if (_isInteractive) {
+        _animationController.forward();
       } else {
         _animationController.reverse();
       }
     }
-    _hoverController.dismissFor(widget.entry.id);
+    if (_isInteractive) {
+      _scheduleHoverPreview();
+    } else {
+      _hoverController.dismissFor(widget.entry.id);
+    }
   }
 
   void _scheduleHoverPreview() {
@@ -230,7 +253,8 @@ class _VibeCardState extends ConsumerState<VibeCard>
       layerLink: _layerLink,
       targetRect: targetRect,
       previewSize: previewSize,
-      builder: (_) => _VibeHoverPreview(
+      verticalAlignment: CardHoverPreviewVerticalAlignment.targetTop,
+      builder: (_) => VibeHoverPreview(
         displayEntry: widget.entry,
         detailFuture: _hoverDetailFuture!,
         fallbackImage: _thumbnailData,
@@ -259,74 +283,123 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
     return CompositedTransformTarget(
       link: _layerLink,
-      child: MouseRegion(
-        onEnter: _onHoverEnter,
-        onExit: _onHoverExit,
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: widget.onTap,
-          onDoubleTap: widget.onDoubleTap,
-          onLongPress: widget.onLongPress,
-          // 必须抬起后弹菜单：按住时 push 会合成 touch 取消事件，令 DraggableWidget 整批重建闪烁
-          onSecondaryTapUp: widget.onSecondaryTapUp,
-          child: AnimatedContainer(
-            duration: _disableAnimations
-                ? Duration.zero
-                : const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-            width: widget.width,
-            height: cardHeight,
-            transform: Matrix4.identity()
-              ..translateByDouble(0, _isHovered ? -2 : 0, 0, 1),
-            transformAlignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: _buildShadows(colorScheme),
-            ),
-            foregroundDecoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: _buildBorder(colorScheme),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 主内容层
-                  _buildMainContent(),
+      child: FocusableActionDetector(
+        onFocusChange: _onFocusChange,
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              (widget.onTap ?? widget.onDoubleTap)?.call();
+              return null;
+            },
+          ),
+        },
+        child: MouseRegion(
+          onEnter: _onHoverEnter,
+          onExit: _onHoverExit,
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: widget.onTap,
+            onDoubleTap: widget.onDoubleTap,
+            onLongPress: widget.onLongPress,
+            // 必须抬起后弹菜单：按住时 push 会合成 touch 取消事件，令 DraggableWidget 整批重建闪烁
+            onSecondaryTapUp: widget.onSecondaryTapUp,
+            child: AnimatedContainer(
+              duration: _disableAnimations
+                  ? Duration.zero
+                  : const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+              width: widget.width,
+              height: cardHeight,
+              transform: Matrix4.identity()
+                ..translateByDouble(0, _isInteractive ? -2 : 0, 0, 1),
+              transformAlignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: _buildShadows(colorScheme),
+              ),
+              foregroundDecoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: _buildBorder(colorScheme),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // 主内容层
+                    _buildMainContent(),
 
-                  // Bundle 扑克牌层叠展开层
-                  if (widget.entry.isBundle)
-                    FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: _buildCardStack(),
-                    ),
+                    // Bundle 扑克牌层叠展开层
+                    if (widget.entry.isBundle)
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: _buildCardStack(),
+                      ),
 
-                  // 信息层
-                  _buildInfoOverlay(),
+                    // 信息层
+                    _buildInfoOverlay(),
 
-                  // Bundle 数量标识
-                  if (widget.entry.isBundle) _buildBundleBadge(),
+                    // Bundle 数量标识
+                    if (widget.entry.isBundle) _buildBundleBadge(),
 
-                  // 选中状态
-                  if (widget.isSelected) _buildSelectionOverlay(colorScheme),
+                    if (widget.categoryLabel case final categoryLabel?)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: LibraryCardCategoryBadge(
+                          key: ValueKey(
+                            'vibe-card-category-${widget.entry.id}',
+                          ),
+                          icon: Icons.category_outlined,
+                          label: categoryLabel,
+                          maxWidth: math.max(
+                            80,
+                            widget.width -
+                                (widget.entry.isFavorite && !isTouch ? 48 : 16),
+                          ),
+                        ),
+                      ),
 
-                  // 操作按钮
-                  if (isTouch &&
-                      !widget.isSelected &&
-                      (widget.onLongPress != null ||
-                          (widget.showFavoriteIndicator &&
-                              widget.onFavoriteToggle != null) ||
-                          onAddToAgent != null ||
-                          widget.onSendToGeneration != null ||
-                          widget.onExport != null ||
-                          widget.onEdit != null ||
-                          widget.onClassify != null ||
-                          widget.onDelete != null))
-                    _buildTouchActionMenu()
-                  else if (_isHovered && !widget.isSelected)
-                    _buildActionButtons(),
-                ],
+                    if (!isTouch &&
+                        !_isInteractive &&
+                        !widget.isSelected &&
+                        widget.showFavoriteIndicator &&
+                        widget.entry.isFavorite)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: LibraryCardFavoriteBadge(
+                          key: ValueKey(
+                            'vibe-card-favorite-badge-${widget.entry.id}',
+                          ),
+                          semanticLabel: context.l10n.common_favorite,
+                        ),
+                      ),
+
+                    // 选中状态
+                    if (widget.isSelected) _buildSelectionOverlay(colorScheme),
+
+                    // 操作按钮
+                    if (isTouch &&
+                        !widget.isSelected &&
+                        (widget.onLongPress != null ||
+                            (widget.showFavoriteIndicator &&
+                                widget.onFavoriteToggle != null) ||
+                            onAddToAgent != null ||
+                            widget.onSendToGeneration != null ||
+                            widget.onExport != null ||
+                            widget.onEdit != null ||
+                            widget.onClassify != null ||
+                            widget.onDelete != null))
+                      _buildTouchActionMenu()
+                    else if (_isInteractive && !widget.isSelected)
+                      _buildActionButtons(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -336,12 +409,15 @@ class _VibeCardState extends ConsumerState<VibeCard>
   }
 
   Border? _buildBorder(ColorScheme colorScheme) {
-    if (!widget.isSelected) return null;
-    return Border.all(color: colorScheme.primary, width: 1);
+    if (!widget.isSelected && !_isFocused) return null;
+    return Border.all(
+      color: colorScheme.primary,
+      width: widget.isSelected ? 2 : 1,
+    );
   }
 
   List<BoxShadow> _buildShadows(ColorScheme colorScheme) {
-    if (!_isHovered) return const [];
+    if (!_isInteractive) return const [];
     return [
       BoxShadow(
         color: colorScheme.shadow.withValues(alpha: 0.12),
@@ -656,7 +732,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
   Widget _buildBundleBadge() {
     return Positioned(
-      top: 8,
+      top: widget.categoryLabel == null ? 8 : 38,
       left: 8,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -904,414 +980,6 @@ class _VibeCardState extends ConsumerState<VibeCard>
         visible: true,
         direction: Axis.vertical,
         buttons: actions,
-      ),
-    );
-  }
-}
-
-class _VibeHoverPreview extends StatefulWidget {
-  const _VibeHoverPreview({
-    required this.displayEntry,
-    required this.detailFuture,
-    required this.fallbackImage,
-    required this.maxWidth,
-    required this.maxHeight,
-  });
-
-  final VibeLibraryEntry displayEntry;
-  final Future<VibeLibraryDetailData?> detailFuture;
-  final Uint8List? fallbackImage;
-  final double maxWidth;
-  final double maxHeight;
-
-  @override
-  State<_VibeHoverPreview> createState() => _VibeHoverPreviewState();
-}
-
-class _VibeHoverPreviewState extends State<_VibeHoverPreview> {
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<VibeLibraryDetailData?>(
-      future: widget.detailFuture,
-      builder: (context, snapshot) {
-        final detail = snapshot.data;
-        final entry = detail?.entry ?? widget.displayEntry;
-        final image = _bestPreviewImage(detail, widget.fallbackImage);
-        return _VibeHoverPreviewContent(
-          entry: entry,
-          image: image,
-          maxWidth: widget.maxWidth,
-          maxHeight: widget.maxHeight,
-          isLoading: snapshot.connectionState != ConnectionState.done,
-        );
-      },
-    );
-  }
-
-  Uint8List? _bestPreviewImage(
-    VibeLibraryDetailData? detail,
-    Uint8List? fallback,
-  ) {
-    final entry = detail?.entry;
-    final candidates = <Uint8List?>[
-      entry?.rawImageData,
-      if (detail != null && detail.bundleVibes.isNotEmpty)
-        detail.bundleVibes.first.rawImageData,
-      entry?.thumbnail,
-      entry?.vibeThumbnail,
-      if (detail != null && detail.bundleVibes.isNotEmpty)
-        detail.bundleVibes.first.thumbnail,
-      fallback,
-    ];
-    for (final candidate in candidates) {
-      if (candidate != null && candidate.isNotEmpty) return candidate;
-    }
-    return null;
-  }
-}
-
-class _VibeHoverPreviewContent extends StatefulWidget {
-  const _VibeHoverPreviewContent({
-    required this.entry,
-    required this.image,
-    required this.maxWidth,
-    required this.maxHeight,
-    required this.isLoading,
-  });
-
-  final VibeLibraryEntry entry;
-  final Uint8List? image;
-  final double maxWidth;
-  final double maxHeight;
-  final bool isLoading;
-
-  @override
-  State<_VibeHoverPreviewContent> createState() =>
-      _VibeHoverPreviewContentState();
-}
-
-class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
-  Future<double>? _aspectRatioFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _resolveAspectRatio();
-  }
-
-  @override
-  void didUpdateWidget(covariant _VibeHoverPreviewContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.image, widget.image)) _resolveAspectRatio();
-  }
-
-  void _resolveAspectRatio() {
-    final image = widget.image;
-    _aspectRatioFuture = image == null ? Future.value(1) : _decodeRatio(image);
-  }
-
-  Future<double> _decodeRatio(Uint8List bytes) async {
-    ui.Codec? codec;
-    ui.FrameInfo? frame;
-    try {
-      codec = await ui.instantiateImageCodec(bytes);
-      frame = await codec.getNextFrame();
-      final width = frame.image.width;
-      final height = frame.image.height;
-      return width > 0 && height > 0 ? width / height : 1;
-    } catch (_) {
-      return 1;
-    } finally {
-      frame?.image.dispose();
-      codec?.dispose();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<double>(
-      future: _aspectRatioFuture,
-      initialData: 1,
-      builder: (context, snapshot) =>
-          _buildCard(context, (snapshot.data ?? 1).clamp(0.1, 10).toDouble()),
-    );
-  }
-
-  Widget _buildCard(BuildContext context, double aspectRatio) {
-    final theme = Theme.of(context);
-    final entry = widget.entry;
-    final hasTags = entry.tags.isNotEmpty;
-    final metadataHeight = hasTags ? 160.0 : 92.0;
-    final imageSize = computeVibeHoverImageSize(
-      aspectRatio: aspectRatio,
-      maxWidth: widget.maxWidth,
-      maxHeight: math.max(80, widget.maxHeight - metadataHeight - 4),
-    );
-    final cardWidth = imageSize.width;
-    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        key: const ValueKey('vibe-hover-preview'),
-        width: cardWidth,
-        constraints: BoxConstraints(maxHeight: widget.maxHeight),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.32),
-              blurRadius: 28,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                key: const ValueKey('vibe-hover-media'),
-                width: cardWidth,
-                height: imageSize.height,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ColoredBox(color: theme.colorScheme.surfaceContainerLowest),
-                    if (widget.image != null)
-                      Image.memory(
-                        widget.image!,
-                        fit: BoxFit.contain,
-                        cacheWidth: (cardWidth * pixelRatio).round(),
-                        gaplessPlayback: true,
-                        errorBuilder: (_, __, ___) => _imageFallback(theme),
-                      )
-                    else
-                      _imageFallback(theme),
-                    if (widget.isLoading)
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            value: MediaQuery.disableAnimationsOf(context)
-                                ? 0.5
-                                : null,
-                          ),
-                        ),
-                      ),
-                    if (entry.isBundle)
-                      Positioned(
-                        left: 10,
-                        top: 10,
-                        child: _HoverBadge(
-                          icon: Icons.layers_outlined,
-                          label: '${entry.bundledVibeCount}',
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            entry.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        if (entry.encodingModel case final model?) ...[
-                          const SizedBox(width: 8),
-                          _HoverBadge(
-                            icon: Icons.memory_outlined,
-                            label: model,
-                            subtle: true,
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _VibeHoverStat(
-                            icon: Icons.tune,
-                            label: context.l10n.vibe_strength,
-                            value: '${(entry.strength * 100).round()}%',
-                          ),
-                        ),
-                        Expanded(
-                          child: _VibeHoverStat(
-                            icon: Icons.auto_awesome_outlined,
-                            label: context.l10n.vibe_infoExtracted,
-                            value: '${(entry.infoExtracted * 100).round()}%',
-                          ),
-                        ),
-                        Expanded(
-                          child: _VibeHoverStat(
-                            icon: Icons.history,
-                            label: context.l10n.vibeDetail_usageCount,
-                            value: '${entry.usedCount}',
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (hasTags) ...[
-                      const SizedBox(height: 10),
-                      TranslatedPromptText(
-                        entry.tags.take(6).join(', '),
-                        originalText: entry.tags
-                            .take(6)
-                            .map((tag) => '#$tag')
-                            .join('  '),
-                        selectable: false,
-                        maxLines: 2,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _imageFallback(ThemeData theme) {
-    return ColoredBox(
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Center(
-        child: Icon(
-          widget.entry.isBundle ? Icons.style : Icons.auto_fix_high,
-          size: 46,
-          color: theme.colorScheme.outline,
-        ),
-      ),
-    );
-  }
-}
-
-@visibleForTesting
-Size computeVibeHoverPreviewBounds(Size viewport) {
-  return Size(
-    math.min(380.0, math.max(0.0, viewport.width - 20)),
-    math.min(680.0, math.max(0.0, viewport.height - 20)),
-  );
-}
-
-@visibleForTesting
-Size computeVibeHoverImageSize({
-  required double aspectRatio,
-  required double maxWidth,
-  required double maxHeight,
-}) {
-  final safeRatio = aspectRatio > 0 ? aspectRatio : 1.0;
-  final width = safeRatio >= 1
-      ? maxWidth
-      : math.min(maxWidth, math.max(240.0, maxHeight * safeRatio));
-  final naturalHeight = width / safeRatio;
-  final height = math.min(maxHeight, math.max(120.0, naturalHeight));
-  return Size(width, height);
-}
-
-class _VibeHoverStat extends StatelessWidget {
-  const _VibeHoverStat({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 5),
-        Flexible(
-          child: Text(
-            '$label $value',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontFeatures: const [ui.FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HoverBadge extends StatelessWidget {
-  const _HoverBadge({
-    required this.icon,
-    required this.label,
-    this.subtle = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool subtle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final foreground = subtle
-        ? theme.colorScheme.onSurfaceVariant
-        : Colors.white;
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 150),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-      decoration: BoxDecoration(
-        color: subtle
-            ? theme.colorScheme.surfaceContainerHighest
-            : Colors.black.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: foreground),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: foreground,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

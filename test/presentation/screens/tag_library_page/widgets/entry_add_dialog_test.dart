@@ -1,11 +1,18 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_add_dialog.dart';
 
 void main() {
-  testWidgets('320px、3x 字号、IME 与 SafeArea 下全屏呈现且全部表单操作可达', (tester) async {
+  testWidgets('320px、3x 字号、IME 与 SafeArea 下 bottom sheet 全部操作可达', (
+    tester,
+  ) async {
     await _pumpLauncher(
       tester,
       size: const Size(320, 900),
@@ -17,20 +24,17 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(tester.takeException(), isNull);
 
     final surface = tester.getRect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
     );
     expect(surface.left, greaterThanOrEqualTo(12));
     expect(surface.right, lessThanOrEqualTo(308));
     expect(surface.top, greaterThanOrEqualTo(24));
-    expect(surface.bottom, lessThanOrEqualTo(600));
+    expect(surface.bottom, lessThanOrEqualTo(620));
 
     final scrollable = find
         .descendant(
@@ -54,7 +58,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Medium 在 IME 导致短高度时切换为全屏表单', (tester) async {
+  testWidgets('Medium 在 IME 导致短高度时使用 bottom sheet', (tester) async {
     await _pumpLauncher(
       tester,
       size: const Size(700, 720),
@@ -67,11 +71,11 @@ void main() {
 
     expect(find.byType(Dialog), findsNothing);
     expect(find.byKey(const ValueKey('adaptive-centered-form')), findsNothing);
-    final panelFinder = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final panelFinder = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(panelFinder, findsOneWidget);
     final panel = tester.getRect(panelFinder);
     expect(panel.top, greaterThanOrEqualTo(24));
-    expect(panel.bottom, lessThanOrEqualTo(520));
+    expect(panel.bottom, lessThanOrEqualTo(540));
     expect(find.byKey(const Key('entry-add-dialog-scroll')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -103,9 +107,19 @@ void main() {
       find.byKey(const Key('entry-add-dialog-content-editor')),
     );
     expect(thumbnailSection.width, 220);
-    expect(thumbnailSection.height, lessThan(210));
+    expect(thumbnailSection.height, greaterThan(240));
+    final squarePreview = tester.getRect(
+      find.byKey(const ValueKey('entry-thumbnail-square-preview')),
+    );
+    expect(squarePreview.size, const Size.square(220));
     expect(editor.height, 176);
     expect(editor.top, lessThan(490));
+    final contentFooter = find.byKey(
+      const ValueKey('entry-add-dialog-content-footer'),
+    );
+    final assistant = find.byType(PromptAssistantOverlay);
+    expect(contentFooter, findsOneWidget);
+    expect(assistant, findsOneWidget);
     expect(
       find.descendant(
         of: find.byKey(const Key('entry-add-dialog-content-editor')),
@@ -113,10 +127,79 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(tester.getTopLeft(contentFooter).dy, closeTo(editor.bottom + 4, 1));
+    expect(
+      tester.widget<PromptAssistantOverlay>(assistant).floatOverEditor,
+      false,
+    );
+    expect(
+      tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
+      false,
+    );
+    expect(
+      tester.getTopRight(assistant).dx,
+      closeTo(tester.getTopRight(contentFooter).dx - 4, 1),
+    );
+
+    final dialogScrollable = find
+        .descendant(
+          of: find.byKey(const Key('entry-add-dialog-scroll')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.drag(dialogScrollable, const Offset(0, -180));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final expandedAssistantRect = tester.getRect(assistant);
+    final footerRect = tester.getRect(contentFooter);
+    expect(expandedAssistantRect.left, greaterThanOrEqualTo(footerRect.left));
+    expect(expandedAssistantRect.right, lessThanOrEqualTo(footerRect.right));
+    expect(expandedAssistantRect.top, greaterThanOrEqualTo(footerRect.top));
+    expect(expandedAssistantRect.bottom, lessThanOrEqualTo(footerRect.bottom));
 
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();
     expect(completed, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('已有预览图时在方形区域标出卡片显示范围', (tester) async {
+    final testImage = File('assets/icons/android/playstore-icon.png').absolute;
+    await _cacheFileImage(tester, testImage);
+    final entry = TagLibraryEntry(
+      id: 'entry-with-preview',
+      name: '测试词条',
+      content: '1girl',
+      thumbnail: testImage.path,
+      thumbnailOffsetX: 0.4,
+      thumbnailOffsetY: -0.3,
+      thumbnailScale: 1.5,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    await _pumpLauncher(tester, size: const Size(1180, 800), entry: entry);
+
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+
+    final preview = tester.getRect(
+      find.byKey(const ValueKey('entry-thumbnail-square-preview')),
+    );
+    final frame = tester.getRect(
+      find.byKey(const ValueKey('entry-thumbnail-card-frame')),
+    );
+    expect(preview.size, const Size.square(220));
+    expect(frame.width / frame.height, closeTo(2.5, 0.01));
+    expect(preview.contains(frame.topLeft), isTrue);
+    expect(preview.contains(frame.bottomRight), isTrue);
+    expect(frame.center.dx, greaterThan(preview.center.dx));
+    expect(frame.center.dy, lessThan(preview.center.dy));
     expect(tester.takeException(), isNull);
   });
 
@@ -135,12 +218,31 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
     expect(completed, isTrue);
     expect(tester.takeException(), isNull);
+  });
+}
+
+Future<void> _cacheFileImage(WidgetTester tester, File file) async {
+  await tester.runAsync(() async {
+    final completed = Completer<void>();
+    final stream = FileImage(file).resolve(ImageConfiguration.empty);
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (_, __) {
+        if (!completed.isCompleted) completed.complete();
+        stream.removeListener(listener);
+      },
+      onError: (Object error, StackTrace? stackTrace) {
+        if (!completed.isCompleted) {
+          completed.completeError(error, stackTrace);
+        }
+        stream.removeListener(listener);
+      },
+    );
+    stream.addListener(listener);
+    await completed.future;
   });
 }
 
@@ -151,6 +253,7 @@ Future<void> _pumpLauncher(
   EdgeInsets padding = EdgeInsets.zero,
   EdgeInsets viewInsets = EdgeInsets.zero,
   VoidCallback? onCompleted,
+  TagLibraryEntry? entry,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -178,7 +281,11 @@ Future<void> _pumpLauncher(
             builder: (context) => Center(
               child: FilledButton(
                 onPressed: () async {
-                  await EntryAddDialog.show(context, categories: const []);
+                  await EntryAddDialog.show(
+                    context,
+                    categories: const [],
+                    entry: entry,
+                  );
                   onCompleted?.call();
                 },
                 child: const Text('打开'),

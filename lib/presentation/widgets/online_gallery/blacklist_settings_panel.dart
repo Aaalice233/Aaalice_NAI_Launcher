@@ -350,7 +350,7 @@ class _OnlineGalleryBlacklistSettingsPanelState
     final text = await AdaptivePresenter.showForm<String>(
       context: context,
       title: context.l10n.onlineGallery_blacklistImportTitle,
-      width: 560,
+      dialogWidth: 560,
       builder: (panelContext, scrollController) =>
           _BlacklistImportForm(scrollController: scrollController),
     );
@@ -466,7 +466,7 @@ class _OnlineGalleryBlacklistSettingsPanelState
         await AdaptivePresenter.showForm<_BlacklistPushReviewResult>(
           context: context,
           title: context.l10n.onlineGallery_pushBlacklistConfirmTitle,
-          width: 620,
+          dialogWidth: 620,
           builder: (panelContext, scrollController) => _BlacklistPushReviewForm(
             preview: preview,
             scrollController: scrollController,
@@ -500,7 +500,7 @@ class _OnlineGalleryBlacklistSettingsPanelState
       initialChildSize: 0.82,
       minChildSize: 0.58,
       maxChildSize: 0.96,
-      width: 440,
+      dialogWidth: 440,
       builder: (_, scrollController) => DanbooruLoginDialog(
         embedded: true,
         scrollController: scrollController,
@@ -713,7 +713,7 @@ Future<void> showOnlineGalleryBlacklistDialog(
   await AdaptivePresenter.showForm<void>(
     context: context,
     title: context.l10n.onlineGallery_blacklistSettingsTitle,
-    width: 728,
+    dialogWidth: 728,
     builder: (panelContext, scrollController) => SingleChildScrollView(
       key: const ValueKey('online-gallery-blacklist-form-scroll'),
       controller: scrollController,

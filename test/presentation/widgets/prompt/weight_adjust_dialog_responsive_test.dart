@@ -70,19 +70,13 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'replacement tag');
     await tester.tap(find.text('确定'));
     await tester.pumpAndSettle();
 
     expect(changedText, 'replacement tag');
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -118,6 +112,39 @@ void main() {
     final panel = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panel, findsOneWidget);
     expect(tester.getSize(panel).width, lessThanOrEqualTo(640));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wide tag edit form follows its content height', (tester) async {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.single;
+    view.devicePixelRatio = 1;
+    view.physicalSize = const Size(1000, 800);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () =>
+                  TagEditDialog.show(context, tag: _tag, onTextChanged: (_) {}),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(panel, findsOneWidget);
+    expect(tester.getSize(panel).height, lessThan(320));
+    expect(tester.getRect(panel).center.dy, moreOrLessEquals(400));
     expect(tester.takeException(), isNull);
   });
 }

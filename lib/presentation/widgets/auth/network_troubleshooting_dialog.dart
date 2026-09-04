@@ -12,7 +12,7 @@ class NetworkTroubleshootingDialog extends StatelessWidget {
   static Future<void> show(BuildContext context) {
     return AdaptivePresenter.showPanel<void>(
       context: context,
-      width: 498,
+      dialogWidth: 498,
       titleBuilder: (context) {
         final theme = Theme.of(context);
         return Row(

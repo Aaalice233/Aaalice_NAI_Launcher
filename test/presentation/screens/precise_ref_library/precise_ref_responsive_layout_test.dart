@@ -15,6 +15,7 @@ import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/pr
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_selector_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_library_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 void main() {
@@ -44,13 +45,10 @@ void main() {
         await _pumpLibrary(tester);
 
         expect(find.text('目标参考'), findsOneWidget);
-        expect(
-          find.byKey(const Key('precise-ref-library-search')),
-          findsOneWidget,
-        );
+        expect(_preciseRefSearchField(), findsOneWidget);
         expect(
           find.byKey(const Key('precise-ref-library-favorites-toggle')),
-          findsOneWidget,
+          findsNothing,
         );
         if (width < 840) {
           final categoriesButton = find.byKey(
@@ -87,15 +85,28 @@ void main() {
           find.byKey(const Key('precise-ref-library-unified-toolbar')),
           findsOneWidget,
         );
-        if (width >= 840) {
+        for (final key in [
+          'precise-ref-library-sort-menu',
+          'precise-ref-library-multi-select-button',
+          'precise-ref-library-import-button',
+          'precise-ref-library-export-button',
+          'precise-ref-library-refresh-button',
+        ]) {
+          expect(find.byKey(Key(key)), findsOneWidget);
+        }
+        if (width >= 1050) {
           final titleRect = tester.getRect(
             find.byKey(const Key('precise-ref-library-page-title')),
+          );
+          final countRect = tester.getRect(
+            find.byType(GalleryLibraryCountBadge),
           );
           final searchRect = tester.getRect(
             find.byKey(const Key('precise-ref-library-search-surface')),
           );
+          expect(countRect.left - titleRect.right, 8);
           expect(
-            searchRect.left - titleRect.right,
+            searchRect.left - countRect.right,
             GalleryCollectionChrome.toolbarGroupGap,
           );
         }
@@ -117,10 +128,7 @@ void main() {
         }
         expect(find.byType(PaginationBar), findsOneWidget);
 
-        await tester.enterText(
-          find.byKey(const Key('precise-ref-library-search')),
-          '目标',
-        );
+        await tester.enterText(_preciseRefSearchField(), '目标');
         await tester.pump(const Duration(milliseconds: 350));
         expect(find.text('目标参考'), findsOneWidget);
         expect(find.text('其他参考'), findsNothing);
@@ -140,8 +148,8 @@ void main() {
           findsOneWidget,
         );
         final surfaceKey = switch (width) {
-          < 600 => 'adaptive-full-screen-form',
-          < 840 => 'adaptive-centered-form',
+          < 600 => 'adaptive-bottom-sheet',
+          < 840 => 'adaptive-bottom-sheet',
           _ => 'adaptive-centered-form',
         };
         final surface = find.byKey(ValueKey(surfaceKey));
@@ -224,7 +232,7 @@ void main() {
       await tester.tap(find.text('打开选择器'));
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(
@@ -237,7 +245,7 @@ void main() {
       );
       expect(
         tester
-            .getTopLeft(find.byKey(const ValueKey('adaptive-full-screen-form')))
+            .getTopLeft(find.byKey(const ValueKey('adaptive-bottom-sheet')))
             .dy,
         greaterThanOrEqualTo(24),
       );
@@ -278,7 +286,7 @@ void main() {
   );
 
   for (final (width, surfaceKey) in [
-    (700.0, 'adaptive-centered-form'),
+    (700.0, 'adaptive-bottom-sheet'),
     (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('${width.toInt()}px selector uses a bounded adaptive surface', (
@@ -304,6 +312,37 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('320px 3x text keeps export selection controls reachable', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(320, 720));
+    await _pumpSelectorHost(
+      tester,
+      purpose: PreciseRefSelectorPurpose.export,
+      textScale: 3,
+    );
+
+    await tester.tap(find.text('打开选择器'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('一个 .naipreciseref 文件'), findsOneWidget);
+    final deselectAll = find.byKey(
+      const Key('precise-ref-export-deselect-all'),
+    );
+    await tester.ensureVisible(deselectAll);
+    await tester.tap(deselectAll);
+    await tester.pump();
+
+    final selectAll = find.byKey(const Key('precise-ref-export-select-all'));
+    await tester.ensureVisible(selectAll);
+    await tester.tap(selectAll);
+    await tester.pump();
+    final confirm = find.byKey(const Key('precise-ref-selector-confirm'));
+    await tester.ensureVisible(confirm);
+    expect(find.text('导出所选 (2)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     '320px 3x text with SafeArea and IME keeps the edit form scrollable and submittable',
@@ -343,7 +382,7 @@ void main() {
       await tester.tap(find.text('打开编辑'));
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(
@@ -380,20 +419,23 @@ void main() {
       );
 
       const surfaceKey = Key('precise-ref-library-search-surface');
-      const fieldKey = Key('precise-ref-library-search');
+      final field = _preciseRefSearchField();
       final surface = tester.widget<InputSurfaceContainer>(
-        find.byKey(surfaceKey),
+        find.descendant(
+          of: find.byKey(surfaceKey),
+          matching: find.byType(InputSurfaceContainer),
+        ),
       );
       final restingRect = tester.getRect(find.byKey(surfaceKey));
 
-      expect(surface.height, 40);
-      expect(surface.borderRadius, 20);
+      expect(surface.height, 36);
+      expect(surface.borderRadius, 18);
 
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       addTearDown(mouse.removePointer);
       await mouse.addPointer(location: const Offset(1100, 700));
-      await mouse.moveTo(tester.getCenter(find.byKey(fieldKey)));
-      await mouse.down(tester.getCenter(find.byKey(fieldKey)));
+      await mouse.moveTo(tester.getCenter(field));
+      await mouse.down(tester.getCenter(field));
       await mouse.up();
       await tester.pumpAndSettle();
 
@@ -408,7 +450,7 @@ void main() {
                   )
                   .decoration!
               as BoxDecoration;
-      expect(focusedDecoration.borderRadius, BorderRadius.circular(20));
+      expect(focusedDecoration.borderRadius, BorderRadius.circular(18));
       expect(
         (focusedDecoration.border! as Border).top.color.a,
         closeTo(0.38, 0.01),
@@ -417,7 +459,7 @@ void main() {
     },
   );
 
-  testWidgets('desktop toolbar actions expose distinct hover feedback', (
+  testWidgets('desktop shared toolbar omits duplicate favorite filter', (
     tester,
   ) async {
     await _setViewport(tester, const Size(1180, 800));
@@ -430,27 +472,19 @@ void main() {
       ),
     );
 
-    final favorites = tester.widget<IconButton>(
+    expect(find.byType(GalleryLibraryToolbar), findsOneWidget);
+    expect(
       find.byKey(const Key('precise-ref-library-favorites-toggle')),
+      findsNothing,
     );
-    final sort = tester.widget<PopupMenuButton<PreciseRefLibrarySortOrder>>(
+    expect(
       find.byKey(const Key('precise-ref-library-sort-menu')),
+      findsOneWidget,
     );
-    final import = tester.widget<FilledButton>(
+    expect(
       find.byKey(const Key('precise-ref-library-import-button')),
+      findsOneWidget,
     );
-
-    void expectHoverDiffers(ButtonStyle style) {
-      final resting = style.backgroundColor?.resolve(<WidgetState>{});
-      final hovered = style.backgroundColor?.resolve({WidgetState.hovered});
-      final pressed = style.backgroundColor?.resolve({WidgetState.pressed});
-      expect(hovered, isNot(resting));
-      expect(pressed, isNot(hovered));
-    }
-
-    expectHoverDiffers(favorites.style!);
-    expectHoverDiffers(sort.style!);
-    expectHoverDiffers(import.style!);
     expect(tester.takeException(), isNull);
   });
 
@@ -465,7 +499,7 @@ void main() {
       );
       await _pumpLibrary(tester, textScale: 3);
 
-      final search = find.byKey(const Key('precise-ref-library-search'));
+      final search = _preciseRefSearchField();
       await tester.tap(search);
       await tester.enterText(search, '目标');
       await tester.pump(const Duration(milliseconds: 350));
@@ -502,7 +536,11 @@ Future<void> _setViewport(
   });
 }
 
-Future<void> _pumpSelectorHost(WidgetTester tester) async {
+Future<void> _pumpSelectorHost(
+  WidgetTester tester, {
+  PreciseRefSelectorPurpose purpose = PreciseRefSelectorPurpose.add,
+  double textScale = 1,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -517,10 +555,17 @@ Future<void> _pumpSelectorHost(WidgetTester tester) async {
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
         home: Scaffold(
           body: Builder(
             builder: (context) => TextButton(
-              onPressed: () => PreciseRefSelectorDialog.show(context),
+              onPressed: () =>
+                  PreciseRefSelectorDialog.show(context, purpose: purpose),
               child: const Text('打开选择器'),
             ),
           ),
@@ -566,6 +611,11 @@ Future<void> _pumpLibrary(
   );
   await tester.pump();
 }
+
+Finder _preciseRefSearchField() => find.descendant(
+  of: find.byKey(const Key('precise-ref-library-search-surface')),
+  matching: find.byType(TextField),
+);
 
 class _PopulatedPreciseRefNotifier extends PreciseRefLibraryNotifier {
   static final entries = [

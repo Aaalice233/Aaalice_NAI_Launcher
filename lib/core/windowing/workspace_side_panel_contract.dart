@@ -5,7 +5,6 @@
 /// the primary workspace, with an absolute ceiling suitable for readable text.
 abstract final class WorkspaceSidePanelContract {
   static const double standardWidth = 520;
-  static const double preferredFormWidth = 560;
   static const double maximumWidth = 960;
   static const double wideWorkspaceFraction = 0.38;
 

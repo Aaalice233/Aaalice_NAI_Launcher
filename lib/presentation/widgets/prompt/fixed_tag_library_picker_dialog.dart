@@ -15,11 +15,13 @@ class FixedTagLibraryPickerDialog extends StatefulWidget {
     required this.entries,
     required this.onSelect,
     this.presentationManaged = false,
+    this.scrollController,
   });
 
   final List<TagLibraryEntry> entries;
   final ValueChanged<TagLibraryEntry> onSelect;
   final bool presentationManaged;
+  final ScrollController? scrollController;
 
   static Future<TagLibraryEntry?> show({
     required BuildContext context,
@@ -28,10 +30,11 @@ class FixedTagLibraryPickerDialog extends StatefulWidget {
     return AdaptivePresenter.showForm<TagLibraryEntry>(
       context: context,
       title: context.l10n.fixedTags_addFromLibrary,
-      width: 460,
-      builder: (_, __) => FixedTagLibraryPickerDialog(
+      dialogWidth: 460,
+      builder: (_, scrollController) => FixedTagLibraryPickerDialog(
         entries: entries,
         presentationManaged: true,
+        scrollController: scrollController,
         onSelect: (_) {},
       ),
     );
@@ -106,6 +109,8 @@ class _FixedTagLibraryPickerDialogState
                   ),
                 )
               : ListView.builder(
+                  key: const ValueKey('fixed-tag-library-entry-list'),
+                  controller: widget.scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {

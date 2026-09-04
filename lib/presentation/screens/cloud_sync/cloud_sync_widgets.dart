@@ -40,13 +40,13 @@ void showCloudSyncActionError(BuildContext context, Object error) {
 class CloudSyncSection extends StatelessWidget {
   const CloudSyncSection({
     super.key,
-    required this.title,
+    this.title,
     required this.child,
     this.subtitle,
     this.trailing,
   });
 
-  final String title;
+  final String? title;
   final String? subtitle;
   final Widget child;
   final Widget? trailing;

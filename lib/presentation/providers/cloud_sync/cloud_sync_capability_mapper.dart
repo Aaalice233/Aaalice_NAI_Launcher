@@ -13,10 +13,4 @@ CloudSyncCapabilityResult mapCloudSyncCapability(
   supportsHistory: capability.supportsHistory,
   supportsDelete: capability.supportsDelete,
   warnings: capability.warnings,
-  limit: cloudSyncProviderLimit(connection),
 );
-
-String? cloudSyncProviderLimit(CloudSyncConnectionDraft connection) =>
-    connection.backend == CloudSyncBackendKind.github
-    ? 'GitHub Contents API: 100 MiB per file'
-    : null;

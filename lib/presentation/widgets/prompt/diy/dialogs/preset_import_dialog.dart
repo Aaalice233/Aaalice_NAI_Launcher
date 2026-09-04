@@ -56,7 +56,7 @@ class PresetImportDialog extends StatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      width: 560,
+      dialogWidth: 560,
       builder: (context, scrollController) => PresetImportDialog(
         isExport: isExport,
         presetToExport: presetToExport,
@@ -153,11 +153,14 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
         : _error;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
+        Flexible(
+          fit: FlexFit.loose,
           child: ListView(
             key: const ValueKey('preset-import-scroll'),
             controller: widget.scrollController,
+            shrinkWrap: true,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.all(16),
             children: [

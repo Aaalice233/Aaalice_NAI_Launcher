@@ -26,3 +26,17 @@ Color controlSurfaceColor(ColorScheme colorScheme) {
     colorScheme.surface,
   );
 }
+
+/// Returns the overlay surface used by hover previews and other transient
+/// quick-look cards. It remains distinct when a theme collapses Material
+/// container roles back to the page canvas.
+Color overlaySurfaceColor(ColorScheme colorScheme) {
+  final base = colorScheme.surfaceContainerHigh;
+  if (base != colorScheme.surface) return base;
+  return Color.alphaBlend(
+    colorScheme.onSurface.withValues(
+      alpha: colorScheme.brightness == Brightness.dark ? 0.11 : 0.07,
+    ),
+    colorScheme.surface,
+  );
+}

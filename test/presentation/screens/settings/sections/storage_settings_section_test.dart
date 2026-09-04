@@ -159,7 +159,9 @@ void main() {
     }
   });
 
-  testWidgets('删除共现数据在 320、3x、IME 与 SafeArea 下使用全屏表单', (tester) async {
+  testWidgets('删除共现数据在 320、3x、IME 与 SafeArea 下使用全高 bottom sheet', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(320, 568);
     addTearDown(tester.view.reset);
@@ -184,7 +186,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    final form = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final form = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(form, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     final rect = tester.getRect(form);

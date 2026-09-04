@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/themes/theme_extension.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/new_preset_dialog.dart';
 
 void main() {
@@ -12,10 +12,7 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('new-preset-dialog-frame')),
       findsOneWidget,
@@ -34,20 +31,21 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
+    _expectBoundedDialog(tester, surfaceKey: 'adaptive-bottom-sheet');
     expect(
-      find.byKey(const ValueKey('adaptive-centered-form')),
-      findsOneWidget,
-    );
-    _expectCompactCenteredDialog(tester);
-    final headerDivider = tester.widget<Divider>(
       find.byKey(const ValueKey('adaptive-panel-header-divider')),
+      findsNothing,
     );
-    final dividerContext = tester.element(
-      find.byKey(const ValueKey('adaptive-panel-header-divider')),
+    final headerSurface = tester.widget<ColoredBox>(
+      find.byKey(const ValueKey('adaptive-panel-header-surface')),
+    );
+    final headerContext = tester.element(
+      find.byKey(const ValueKey('adaptive-panel-header-surface')),
     );
     expect(
-      headerDivider.color,
-      Theme.of(dividerContext).appTheme.dividerColor,
+      headerSurface.color,
+      sectionSurfaceColor(Theme.of(headerContext).colorScheme),
     );
 
     await tester.tap(find.byTooltip('关闭'));
@@ -61,7 +59,7 @@ void main() {
       find.byKey(const ValueKey('adaptive-centered-form')),
       findsOneWidget,
     );
-    _expectCompactCenteredDialog(tester);
+    _expectBoundedDialog(tester, surfaceKey: 'adaptive-centered-form');
     expect(tester.takeException(), isNull);
   });
 
@@ -78,12 +76,12 @@ void main() {
     await tester.pumpAndSettle();
 
     final surfaceRect = tester.getRect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
     );
     expect(surfaceRect.left, greaterThanOrEqualTo(12));
     expect(surfaceRect.right, lessThanOrEqualTo(300));
     expect(surfaceRect.top, greaterThanOrEqualTo(32));
-    expect(surfaceRect.bottom, lessThanOrEqualTo(492));
+    expect(surfaceRect.bottom, lessThanOrEqualTo(520));
 
     final scrollable = find.byKey(const ValueKey('new-preset-dialog-scroll'));
     expect(scrollable, findsOneWidget);
@@ -142,21 +140,28 @@ void main() {
   });
 }
 
-void _expectCompactCenteredDialog(WidgetTester tester) {
-  final surfaceRect = tester.getRect(
-    find.byKey(const ValueKey('adaptive-centered-form')),
-  );
+void _expectBoundedDialog(WidgetTester tester, {required String surfaceKey}) {
+  final surfaceRect = tester.getRect(find.byKey(ValueKey(surfaceKey)));
   final frameRect = tester.getRect(
     find.byKey(const ValueKey('new-preset-dialog-frame')),
   );
   final createRect = tester.getRect(find.text('创建'));
 
-  expect(surfaceRect.size, const Size(420, 460));
-  expect(frameRect.width, 420);
-  expect(frameRect.bottom, closeTo(surfaceRect.bottom, 0.01));
-  expect(createRect.right, lessThanOrEqualTo(surfaceRect.right - 16));
-  expect(createRect.bottom, lessThanOrEqualTo(surfaceRect.bottom - 16));
-  expect(createRect.bottom, greaterThan(surfaceRect.bottom - 64));
+  if (surfaceKey == 'adaptive-centered-form') {
+    expect(frameRect.width, 420);
+    expect(frameRect.height, lessThanOrEqualTo(460));
+  } else {
+    expect(frameRect.width, surfaceRect.width);
+    expect(frameRect.height, lessThan(surfaceRect.height));
+    expect(frameRect.bottom, closeTo(surfaceRect.bottom, 0.01));
+  }
+  expect(frameRect.left, greaterThanOrEqualTo(surfaceRect.left));
+  expect(frameRect.right, lessThanOrEqualTo(surfaceRect.right));
+  expect(frameRect.top, greaterThanOrEqualTo(surfaceRect.top));
+  expect(frameRect.bottom, lessThanOrEqualTo(surfaceRect.bottom));
+  expect(createRect.right, lessThanOrEqualTo(frameRect.right - 16));
+  expect(createRect.bottom, lessThanOrEqualTo(frameRect.bottom - 16));
+  expect(createRect.bottom, greaterThan(frameRect.bottom - 64));
 }
 
 Future<void> _setView(

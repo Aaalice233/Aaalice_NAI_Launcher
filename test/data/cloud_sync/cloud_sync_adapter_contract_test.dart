@@ -200,7 +200,15 @@ void main() {
     );
     expect(
       portableSettingKeys,
+      isNot(contains(StorageKeys.quickTagCloudBrowsingFiltersV1)),
+    );
+    expect(
+      portableOnlineGallerySettingKeys,
       contains(StorageKeys.quickTagCloudBrowsingFiltersV1),
+    );
+    expect(
+      portableOnlineGallerySettingKeys,
+      contains(StorageKeys.quickTagCloudContentAccessV1),
     );
     expect(portableSettingKeys, isNot(contains(StorageKeys.proxyManualHost)));
     expect(portableSettingKeys, isNot(contains(StorageKeys.comfyuiServerUrl)));
@@ -211,6 +219,51 @@ void main() {
     expect(
       portableSettingKeys,
       isNot(contains(StorageKeys.onnxTaggerModelDirectory)),
+    );
+  });
+
+  test('settings adapter applies only currently selected groups', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'sync-selected-settings-',
+    );
+    addTearDown(() async {
+      await Hive.close();
+      await directory.delete(recursive: true);
+    });
+    Hive.init(directory.path);
+    await Hive.openBox<dynamic>(StorageKeys.settingsBox);
+    final storage = LocalStorageService();
+    await storage.setSetting(
+      StorageKeys.quickTagCloudBrowsingFiltersV1,
+      'local-filter',
+    );
+    final adapter = SettingsCloudSyncAdapter(
+      storage,
+      includeOnlineGallerySettings: false,
+    );
+
+    await adapter.apply([
+      PortableSyncRecord(
+        adapterId: 'portable-settings',
+        id: StorageKeys.locale,
+        kind: 'setting',
+        data: {'key': StorageKeys.locale, 'value': 'ja'},
+      ),
+      PortableSyncRecord(
+        adapterId: 'portable-settings',
+        id: StorageKeys.quickTagCloudBrowsingFiltersV1,
+        kind: 'setting',
+        data: {
+          'key': StorageKeys.quickTagCloudBrowsingFiltersV1,
+          'value': 'remote-filter',
+        },
+      ),
+    ]);
+
+    expect(storage.getSetting<String>(StorageKeys.locale), 'ja');
+    expect(
+      storage.getSetting<String>(StorageKeys.quickTagCloudBrowsingFiltersV1),
+      'local-filter',
     );
   });
 

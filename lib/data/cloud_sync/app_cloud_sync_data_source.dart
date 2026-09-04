@@ -260,7 +260,7 @@ class AppCloudSyncDataSource
       for (final record in base.records.values) {
         if (record.kind != 'metadata') continue;
         final portable = decodedBase.records[record.id]!;
-        if (!_registry.adapterIds.contains(portable.adapterId)) {
+        if (!_registry.knownAdapterIds.contains(portable.adapterId)) {
           records.add(record);
           for (final chunkId in decodedBase.metadataChunks[record.id]!) {
             records.add(base.records[chunkId]!);

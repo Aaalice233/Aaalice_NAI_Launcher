@@ -15,17 +15,22 @@ import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/interaction_policy.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/safe_dropdown.dart';
-import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_formatter_wrapper.dart';
 import '../../../widgets/prompt/quick_translate_prompt_field.dart';
 import 'thumbnail_crop_dialog.dart';
+import 'thumbnail_selection_preview.dart';
 
 /// 添加/编辑词库条目对话框
 class EntryAddDialog extends ConsumerStatefulWidget {
@@ -71,7 +76,7 @@ class EntryAddDialog extends ConsumerStatefulWidget {
     return AdaptivePresenter.showForm<void>(
       context: context,
       titleBuilder: title,
-      width: 700,
+      dialogWidth: 700,
       maxCenteredHeight: 680,
       builder: (dialogContext, scrollController) => EntryAddDialog._(
         categories: categories,
@@ -125,6 +130,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   late final TextEditingController _nameController;
   late final NaiSyntaxController _contentController;
   late final TextEditingController _tagsController;
+  late final String _assistantSessionId;
   final _nameFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
   final _tagsFocusNode = FocusNode();
@@ -167,6 +173,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     _nameController = TextEditingController(text: initialName);
     _contentController = NaiSyntaxController(text: initialContent);
     _tagsController = TextEditingController(text: entry?.tags.join(', ') ?? '');
+    _assistantSessionId = PromptHistorySessionIds.tagLibraryEntry(
+      entry?.id ?? 'draft-${identityHashCode(this)}',
+    );
     _selectedCategoryId = entry?.categoryId ?? widget.initialCategoryId;
     _thumbnailPath = entry?.thumbnail;
 
@@ -368,16 +377,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(start: 12),
-                    child: Text(
-                      context.l10n.tagLibrary_characterNegativeSyntaxHelp,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ),
+                  _buildPromptFooter(theme),
                 ],
               ),
             ),
@@ -418,6 +418,76 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     );
   }
 
+  Widget _buildPromptFooter(ThemeData theme) {
+    final interactionPolicy = context.interactionPolicy;
+    final assistantConfig = ref.watch(promptAssistantConfigProvider);
+    final assistantVisible =
+        assistantConfig.enabled &&
+        (!interactionPolicy.usesAnchoredMenus ||
+            assistantConfig.desktopOverlayEnabled);
+    final assistantExpanded =
+        assistantVisible &&
+        ref.watch(
+          promptAssistantStateProvider.select(
+            (states) => states[_assistantSessionId]?.expanded ?? false,
+          ),
+        );
+    final assistantToolbarHeight = assistantVisible
+        ? PromptAssistantOverlay.effectiveInlineToolbarHeight(interactionPolicy)
+        : 32.0;
+    final assistantIconOnly = interactionPolicy.prefersTouchPresentation;
+    final collapsedAssistantWidth = assistantIconOnly
+        ? assistantToolbarHeight
+        : PromptAssistantOverlay.collapsedInlineButtonWidth(
+            context,
+            context.l10n.promptAssistant_assistant,
+          );
+    final hint = Text(
+      context.l10n.tagLibrary_characterNegativeSyntaxHelp,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
+        fontSize: 12,
+      ),
+    );
+    final assistant = assistantVisible
+        ? PromptAssistantOverlay(
+            key: ValueKey(
+              'tag-library-entry-prompt-assistant-$_assistantSessionId',
+            ),
+            sessionId: _assistantSessionId,
+            controller: _contentController,
+            interactionPolicy: interactionPolicy,
+            onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+            floatOverEditor: false,
+            iconOnly: assistantIconOnly,
+            stripFixedTagsFromInput: false,
+          )
+        : null;
+
+    return Container(
+      key: const ValueKey('entry-add-dialog-content-footer'),
+      width: double.infinity,
+      constraints: BoxConstraints(minHeight: assistantToolbarHeight),
+      padding: const EdgeInsets.only(left: 12, right: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          if (!assistantExpanded) Expanded(child: hint),
+          if (!assistantExpanded && assistant != null) const SizedBox(width: 8),
+          if (assistant != null)
+            assistantExpanded
+                ? Expanded(child: assistant)
+                : SizedBox(width: collapsedAssistantWidth, child: assistant),
+        ],
+      ),
+    );
+  }
+
   Widget _buildThumbnailSection(ThemeData theme, {bool expand = false}) {
     return SizedBox(
       key: const Key('entry-add-dialog-thumbnail-section'),
@@ -430,62 +500,79 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
             style: theme.textTheme.labelLarge,
           ),
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _thumbnailPath != null
-                ? _showThumbnailOptions
-                : _selectThumbnail,
-            child: Container(
-              width: double.infinity,
-              height: expand ? 112 : 124,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: _thumbnailPath != null
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(11),
-                          child: _buildThumbnailImage(),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: IconButton.filled(
-                            icon: const Icon(Icons.close, size: 16),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.black54,
-                              foregroundColor: Colors.white,
-                              minimumSize: Size.square(
-                                context.interactionPolicy.minimumControlExtent,
-                              ),
-                              padding: EdgeInsets.zero,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final previewSize = constraints.maxWidth.clamp(0, 220).toDouble();
+              return Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: SizedBox.square(
+                  key: const ValueKey('entry-thumbnail-square-preview'),
+                  dimension: previewSize,
+                  child: GestureDetector(
+                    onTap: _thumbnailPath != null
+                        ? _showThumbnailOptions
+                        : _selectThumbnail,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _thumbnailPath != null
+                          ? Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(11),
+                                  child: ThumbnailSelectionPreview(
+                                    imagePath: _thumbnailPath!,
+                                    offsetX: _thumbnailOffsetX,
+                                    offsetY: _thumbnailOffsetY,
+                                    scale: _thumbnailScale,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: IconButton.filled(
+                                    icon: const Icon(Icons.close, size: 16),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black54,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: Size.square(
+                                        context
+                                            .interactionPolicy
+                                            .minimumControlExtent,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                    ),
+                                    onPressed: _clearThumbnail,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  size: 36,
+                                  color: theme.colorScheme.outline,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  context.l10n.tagLibrary_selectImage,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ],
                             ),
-                            onPressed: _clearThumbnail,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_photo_alternate_outlined,
-                          size: 36,
-                          color: theme.colorScheme.outline,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          context.l10n.tagLibrary_selectImage,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                      ],
                     ),
-            ),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 8),
           Text(
@@ -582,36 +669,6 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
           ),
         ),
       ],
-    );
-  }
-
-  /// 构建带变换效果的预览图
-  /// 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
-  Widget _buildThumbnailImage() {
-    if (_thumbnailPath == null) {
-      return Container(
-        color: Colors.grey.shade800,
-        child: const Center(
-          child: Icon(Icons.image_not_supported, color: Colors.white38),
-        ),
-      );
-    }
-
-    // 调试用
-    debugPrint(
-      'EntryAddDialog: offset=($_thumbnailOffsetX, $_thumbnailOffsetY), scale=$_thumbnailScale',
-    );
-
-    // 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
-    return LayoutBuilder(
-      builder: (context, constraints) => ThumbnailDisplay(
-        imagePath: _thumbnailPath!,
-        offsetX: _thumbnailOffsetX,
-        offsetY: _thumbnailOffsetY,
-        scale: _thumbnailScale,
-        width: constraints.maxWidth,
-        height: constraints.maxHeight,
-      ),
     );
   }
 

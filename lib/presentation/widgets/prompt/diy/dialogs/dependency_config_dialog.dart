@@ -53,7 +53,7 @@ class DependencyConfigDialog extends StatefulWidget {
           ),
         ],
       ),
-      width: 560,
+      dialogWidth: 560,
       builder: (context, scrollController) => DependencyConfigDialog(
         initialConfig: initialConfig,
         availableCategories: availableCategories,

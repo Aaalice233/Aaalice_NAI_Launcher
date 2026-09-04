@@ -52,7 +52,7 @@ class ExportDialog extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      width: 600,
+      dialogWidth: 600,
       builder: (context, _) =>
           ExportDialog._(entries: entries, categories: categories),
     );
@@ -124,13 +124,8 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
               ),
             ),
           ] else ...[
-            // 统计信息
-            _buildStatsBar(theme),
-
-            const SizedBox(height: 16),
-
-            // 全选/全不选按钮
-            _buildSelectionActions(theme),
+            // 统计与选择操作
+            _buildSelectionHeader(theme),
 
             const SizedBox(height: 8),
 
@@ -154,31 +149,50 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
             const SizedBox(height: 16),
 
             // 操作按钮
-            Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton.icon(
-                  onPressed:
-                      _selectedEntryIds.isNotEmpty ||
-                          _selectedCategoryIds.isNotEmpty
-                      ? _export
-                      : null,
-                  icon: const Icon(Icons.file_download),
-                  label: Text(
-                    context.l10n.tagLibrary_selectedExportCount(
-                      _selectedEntryIds.length + _selectedCategoryIds.length,
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                key: const Key('tag-library-export-dialog-actions'),
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(context.l10n.common_cancel),
+                  ),
+                  FilledButton.icon(
+                    onPressed:
+                        _selectedEntryIds.isNotEmpty ||
+                            _selectedCategoryIds.isNotEmpty
+                        ? _export
+                        : null,
+                    icon: const Icon(Icons.file_download),
+                    label: Text(
+                      context.l10n.tagLibrary_selectedExportCount(
+                        _selectedEntryIds.length + _selectedCategoryIds.length,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectionHeader(ThemeData theme) {
+    return SingleChildScrollView(
+      key: const Key('tag-library-export-selection-header-scroll'),
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        key: const Key('tag-library-export-selection-header'),
+        children: [
+          _buildStatsBar(theme),
+          const SizedBox(width: 16),
+          _buildSelectionActions(theme),
         ],
       ),
     );
@@ -187,20 +201,20 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
   /// 构建统计信息栏
   Widget _buildStatsBar(ThemeData theme) {
     return Container(
+      key: const Key('tag-library-export-stats'),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Wrap(
-        spacing: 24,
-        runSpacing: 8,
+      child: Row(
         children: [
           _StatItem(
             label: context.l10n.tagLibrary_entriesLabel,
             value: '${_selectedEntryIds.length}/${widget.entries.length}',
             icon: Icons.article_outlined,
           ),
+          const SizedBox(width: 24),
           _StatItem(
             label: context.l10n.tagLibrary_categoriesLabel,
             value: '${_selectedCategoryIds.length}/${widget.categories.length}',
@@ -219,16 +233,14 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
         _selectedCategoryIds.length == widget.categories.length;
     final allSelected = allEntriesSelected && allCategoriesSelected;
 
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 8,
-      runSpacing: 8,
+    return Row(
+      key: const Key('tag-library-export-selection-actions'),
       children: [
         Text(
           context.l10n.tagLibrary_selectExportContent,
           style: theme.textTheme.titleSmall,
         ),
+        const SizedBox(width: 8),
         TextButton.icon(
           onPressed: allSelected ? null : _selectAll,
           icon: const Icon(Icons.select_all, size: 18),
@@ -237,6 +249,7 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
         ),
+        const SizedBox(width: 4),
         TextButton.icon(
           onPressed: _selectedEntryIds.isEmpty && _selectedCategoryIds.isEmpty
               ? null

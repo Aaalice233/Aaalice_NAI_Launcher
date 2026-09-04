@@ -88,7 +88,7 @@ class _OnlineGalleryContentPresenter {
       initialChildSize: 0.86,
       minChildSize: 0.58,
       maxChildSize: 0.96,
-      width: 480,
+      dialogWidth: 480,
       builder: (_, scrollController) => GelbooruCredentialsDialog(
         embedded: true,
         scrollController: scrollController,

@@ -14,6 +14,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../core/utils/vibe_performance_diagnostics.dart';
 import '../../../../data/models/vibe/vibe_empty_state_info.dart';
+import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
@@ -38,6 +39,15 @@ import 'vibe_export_dialog.dart';
 import 'vibe_library_empty_view.dart';
 
 const vibeLibraryGridSpacing = 16.0;
+
+Map<String, String> buildVibeCategoryLabels(
+  List<VibeLibraryCategory> categories,
+) {
+  return {
+    for (final category in categories)
+      category.id: categories.getPathString(category.id),
+  };
+}
 
 /// Vibe 库内容视图
 ///
@@ -75,15 +85,20 @@ class _VibeLibraryContentViewState
   Widget build(BuildContext context) {
     final state = ref.watch(vibeLibraryNotifierProvider);
     final selectionState = ref.watch(vibeLibrarySelectionNotifierProvider);
+    final categories = ref.watch(
+      vibeLibraryCategoryNotifierProvider.select((state) => state.categories),
+    );
+    final categoryLabels = buildVibeCategoryLabels(categories);
 
     // 使用 3D 卡片视图模式
-    return _build3DCardView(state, selectionState);
+    return _build3DCardView(state, selectionState, categoryLabels);
   }
 
   /// 构建 3D 卡片视图
   Widget _build3DCardView(
     VibeLibraryState state,
     SelectionModeState selectionState,
+    Map<String, String> categoryLabels,
   ) {
     final entries = state.currentEntries;
 
@@ -167,6 +182,7 @@ class _VibeLibraryContentViewState
                 height: computeVibeCardHeight(widget.itemWidth),
                 isSelected: isSelected,
                 showFavoriteIndicator: true,
+                categoryLabel: categoryLabels[entry.categoryId],
                 onTap: () {
                   if (selectionState.isActive) {
                     ref

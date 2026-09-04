@@ -348,8 +348,8 @@ class _StudioHeader extends StatelessWidget {
           }
           return Row(
             children: [
-              SizedBox(width: 220, child: title),
-              const SizedBox(width: 24),
+              title,
+              const SizedBox(width: 12),
               Expanded(
                 child: PresetSelectorBar(onImportExport: onImportExport),
               ),

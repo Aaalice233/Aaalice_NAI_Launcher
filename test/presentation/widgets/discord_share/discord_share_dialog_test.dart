@@ -162,7 +162,7 @@ void main() {
       scale: 3.0,
       keyboard: 300.0,
       padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-      surfaceKey: const ValueKey('adaptive-full-screen-form'),
+      surfaceKey: const ValueKey('adaptive-bottom-sheet'),
     ),
     (
       name: 'Expanded',

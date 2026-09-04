@@ -13,36 +13,45 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/precise_ref_library_provider.dart';
 import 'precise_ref_type_filter_chips.dart';
 
+enum PreciseRefSelectorPurpose { add, export }
+
 /// 精准参考库条目选择器对话框
 ///
-/// 供生成页「从库导入」使用：网格 + 搜索 + 类型过滤。
+/// 供生成页「从库导入」及精准参考库导出使用：网格 + 搜索 + 类型过滤。
 /// [multiSelect] 为 false 时点击条目直接返回单个条目。
+/// 导出用途默认全选，并提供当前筛选结果的全选与全不选操作。
 /// 搜索与类型过滤为对话框内部状态，不影响库页面的过滤条件。
 class PreciseRefSelectorDialog extends ConsumerStatefulWidget {
   const PreciseRefSelectorDialog({
     super.key,
     this.multiSelect = true,
+    this.purpose = PreciseRefSelectorPurpose.add,
     this.scrollController,
   });
 
   final bool multiSelect;
+  final PreciseRefSelectorPurpose purpose;
   final ScrollController? scrollController;
 
   static Future<List<PreciseRefLibraryEntry>?> show(
     BuildContext context, {
     bool multiSelect = true,
+    PreciseRefSelectorPurpose purpose = PreciseRefSelectorPurpose.add,
   }) {
     return AdaptivePresenter.showForm<List<PreciseRefLibraryEntry>>(
       context: context,
       titleBuilder: (panelContext) => Text(
-        panelContext.l10n.preciseRefLib_selectorTitle,
+        purpose == PreciseRefSelectorPurpose.export
+            ? panelContext.l10n.preciseRefLib_exportTitle
+            : panelContext.l10n.preciseRefLib_selectorTitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(panelContext).textTheme.titleLarge,
       ),
-      width: 720,
+      dialogWidth: 720,
       builder: (panelContext, scrollController) => PreciseRefSelectorDialog(
         multiSelect: multiSelect,
+        purpose: purpose,
         scrollController: scrollController,
       ),
     );
@@ -63,6 +72,7 @@ class _PreciseRefSelectorDialogState
   String? _cachedQuery;
   PreciseRefType? _cachedTypeFilter;
   List<PreciseRefLibraryEntry> _cachedVisibleEntries = const [];
+  bool _initializedExportSelection = false;
 
   @override
   void initState() {
@@ -119,6 +129,12 @@ class _PreciseRefSelectorDialogState
     final theme = Theme.of(context);
     final state = ref.watch(preciseRefLibraryNotifierProvider);
     final entries = _visibleEntries(state.entries);
+    if (widget.purpose == PreciseRefSelectorPurpose.export &&
+        !_initializedExportSelection &&
+        !state.isLoading) {
+      _selectedIds.addAll(state.entries.map((entry) => entry.id));
+      _initializedExportSelection = true;
+    }
 
     return LayoutBuilder(
       key: const Key('precise-ref-selector-dialog'),
@@ -138,6 +154,15 @@ class _PreciseRefSelectorDialogState
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               sliver: SliverList.list(
                 children: [
+                  if (widget.purpose == PreciseRefSelectorPurpose.export) ...[
+                    Text(
+                      l10n.preciseRefLib_exportSelectionHint,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   TextField(
                     key: const Key('precise-ref-selector-search'),
                     textAlignVertical: TextAlignVertical.center,
@@ -158,6 +183,31 @@ class _PreciseRefSelectorDialogState
                       onChanged: (type) => setState(() => _typeFilter = type),
                     ),
                   ),
+                  if (widget.purpose == PreciseRefSelectorPurpose.export) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        TextButton(
+                          key: const Key('precise-ref-export-select-all'),
+                          onPressed: entries.isEmpty
+                              ? null
+                              : () => setState(
+                                  () => _selectedIds.addAll(
+                                    entries.map((entry) => entry.id),
+                                  ),
+                                ),
+                          child: Text(l10n.common_selectAll),
+                        ),
+                        TextButton(
+                          key: const Key('precise-ref-export-deselect-all'),
+                          onPressed: _selectedIds.isEmpty
+                              ? null
+                              : () => setState(_selectedIds.clear),
+                          child: Text(l10n.common_deselectAll),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -240,9 +290,13 @@ class _PreciseRefSelectorDialogState
                             ? null
                             : () => _confirm(state.entries),
                         child: Text(
-                          l10n.preciseRefLib_selectorConfirm(
-                            _selectedIds.length,
-                          ),
+                          widget.purpose == PreciseRefSelectorPurpose.export
+                              ? l10n.preciseRefLib_exportConfirm(
+                                  _selectedIds.length,
+                                )
+                              : l10n.preciseRefLib_selectorConfirm(
+                                  _selectedIds.length,
+                                ),
                         ),
                       ),
                   ],

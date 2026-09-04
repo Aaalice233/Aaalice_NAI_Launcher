@@ -21,6 +21,7 @@ import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
 import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_library_toolbar.dart';
 
 void main() {
   test('vibe grid uses fewer larger cards at 3x text scale', () {
@@ -47,6 +48,21 @@ void main() {
         await _pumpWorkspace(tester, controller, commands);
 
         expect(find.text('测试 Vibe'), findsOneWidget);
+        expect(find.byType(GalleryLibraryToolbar), findsOneWidget);
+        expect(find.byType(GalleryLibrarySearchField), findsOneWidget);
+        expect(
+          find.byType(GalleryLibrarySortMenu<VibeLibrarySortOrder>),
+          findsOneWidget,
+        );
+        for (final label in ['分类', '多选', '导入', '导出', '刷新']) {
+          expect(
+            find.descendant(
+              of: find.byType(GalleryLibraryToolbar),
+              matching: find.text(label),
+            ),
+            findsOneWidget,
+          );
+        }
         final cardSize = tester.getSize(find.byType(VibeCard).first);
         expect(
           cardSize.width / cardSize.height,
@@ -85,6 +101,8 @@ void main() {
       commands,
       interactionPolicy: InteractionPolicy.touchFirst,
     );
+
+    await _revealToolbarImport(tester);
 
     await tester.tap(
       find.byTooltip('导入 Vibe 文件或 PNG/JPG/JPEG/WEBP 图片（右键查看更多选项）'),
@@ -239,6 +257,8 @@ void main() {
       addTearDown(controller.dispose);
       await _pumpTouchImportFlow(tester, controller, commands);
 
+      await _revealToolbarImport(tester);
+
       await tester.tap(
         find.byTooltip('导入 Vibe 文件或 PNG/JPG/JPEG/WEBP 图片（右键查看更多选项）'),
       );
@@ -328,7 +348,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(
@@ -336,7 +356,7 @@ void main() {
         findsOneWidget,
       );
       final surface = tester.getRect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
       );
       expect(surface.top, greaterThanOrEqualTo(24));
       expect(surface.bottom, lessThanOrEqualTo(720 - 220));
@@ -407,6 +427,9 @@ Future<void> _pumpTouchImportFlow(
       overrides: [
         vibeLibraryNotifierProvider.overrideWith(
           _PopulatedVibeLibraryNotifier.new,
+        ),
+        vibeLibraryCategoryNotifierProvider.overrideWith(
+          _ResponsiveVibeLibraryCategoryNotifier.new,
         ),
       ],
       child: MaterialApp(
@@ -512,6 +535,9 @@ Future<void> _pumpWorkspace(
         vibeLibraryNotifierProvider.overrideWith(
           _PopulatedVibeLibraryNotifier.new,
         ),
+        vibeLibraryCategoryNotifierProvider.overrideWith(
+          _ResponsiveVibeLibraryCategoryNotifier.new,
+        ),
       ],
       child: MaterialApp(
         locale: const Locale('zh'),
@@ -542,6 +568,14 @@ Future<void> _pumpWorkspace(
   await tester.pump();
 }
 
+Future<void> _revealToolbarImport(WidgetTester tester) async {
+  final actions = find.byKey(const ValueKey('gallery-library-toolbar-actions'));
+  if (actions.evaluate().isNotEmpty) {
+    await tester.drag(actions, const Offset(-500, 0));
+    await tester.pumpAndSettle();
+  }
+}
+
 List<VibeLibraryCategory> _buildCategories(int count) => List.generate(
   count,
   (index) => VibeLibraryCategory(
@@ -551,6 +585,12 @@ List<VibeLibraryCategory> _buildCategories(int count) => List.generate(
     createdAt: DateTime(2026),
   ),
 );
+
+class _ResponsiveVibeLibraryCategoryNotifier
+    extends VibeLibraryCategoryNotifier {
+  @override
+  VibeLibraryCategoryState build() => const VibeLibraryCategoryState();
+}
 
 Future<void> _pumpCategoryPanelHost(
   WidgetTester tester, {

@@ -83,7 +83,7 @@ class ThemedInputDialog extends StatefulWidget {
     return AdaptivePresenter.showForm<String>(
       context: context,
       title: title,
-      width: multiline ? 440 : 380,
+      dialogWidth: multiline ? 440 : 380,
       builder: (context, scrollController) => ThemedInputDialog(
         title: title,
         labelText: labelText,

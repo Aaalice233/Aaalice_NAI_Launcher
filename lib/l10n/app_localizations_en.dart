@@ -177,6 +177,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get common_grid => 'Grid';
 
   @override
+  String get common_list => 'List';
+
+  @override
+  String get common_grouped => 'Grouped';
+
+  @override
   String get common_date => 'Date';
 
   @override
@@ -11733,6 +11739,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preciseRefLib_import => 'Import Images';
 
   @override
+  String get preciseRefLib_exportTitle => 'Export Precise Reference Package';
+
+  @override
+  String get preciseRefLib_exportSelectionHint =>
+      'Choose the precise references to include. The selected items will be bundled into one .naipreciseref file.';
+
+  @override
+  String preciseRefLib_exportConfirm(int count) {
+    return 'Export Selected ($count)';
+  }
+
+  @override
+  String preciseRefLib_exportedCount(Object count) {
+    return 'Exported $count precise references';
+  }
+
+  @override
+  String preciseRefLib_exportFailed(Object error) {
+    return 'Failed to export precise references: $error';
+  }
+
+  @override
+  String preciseRefLib_openFolderFailed(Object error) {
+    return 'Failed to open the precise reference folder: $error';
+  }
+
+  @override
+  String get preciseRefLib_enterSelectionMode => 'Enter selection mode';
+
+  @override
+  String get preciseRefLib_changeType => 'Change type';
+
+  @override
+  String preciseRefLib_sentSelectedSummary(Object failed, Object success) {
+    return 'Sent $success precise references; $failed failed';
+  }
+
+  @override
+  String preciseRefLib_failedItems(Object items) {
+    return 'Failed items: $items';
+  }
+
+  @override
+  String preciseRefLib_confirmDeleteSelected(Object count) {
+    return 'Delete the $count selected precise references? Their image files will also be removed.';
+  }
+
+  @override
+  String preciseRefLib_deletedCount(Object count) {
+    return 'Deleted $count precise references';
+  }
+
+  @override
   String preciseRefLib_entryCount(int count) {
     return '$count items';
   }
@@ -13349,11 +13408,93 @@ class AppLocalizationsEn extends AppLocalizations {
       'This service cannot reliably handle changes from multiple devices at once. Nothing is merged or overwritten automatically; data moves only when you choose push or pull.';
 
   @override
-  String get cloudSync_dataScope => 'Choose what to save';
+  String get cloudSync_chooseBackupContents => 'Choose backup content';
 
   @override
-  String get cloudSync_dataScopeDescription =>
-      'Choose what to push and pull. Accounts, passwords, and API keys are never uploaded.';
+  String get cloudSync_backupContentDescription =>
+      'Only data required for recovery is backed up. Image resources are compressed before upload.';
+
+  @override
+  String get cloudSync_lightweightData => 'Lightweight data (default)';
+
+  @override
+  String get cloudSync_settingsDescription =>
+      'Theme, generation parameters, and app preferences';
+
+  @override
+  String get cloudSync_promptsAndTags => 'Prompts and tag library';
+
+  @override
+  String get cloudSync_promptsAndTagsDescription =>
+      'Entries, categories, fixed tags, and presets';
+
+  @override
+  String get cloudSync_tagThumbnails => 'Tag-library previews';
+
+  @override
+  String get cloudSync_tagThumbnailsDescription =>
+      'Compressed before upload; originals are not stored';
+
+  @override
+  String get cloudSync_onlineGallerySettings => 'Online gallery settings';
+
+  @override
+  String get cloudSync_onlineGallerySettingsDescription =>
+      'Blacklist, filters, and user categories';
+
+  @override
+  String get cloudSync_onlineGalleryFavorites => 'Online gallery favorites';
+
+  @override
+  String get cloudSync_onlineGalleryFavoritesDescription =>
+      'Stores source IDs and recovery fields only, never original images';
+
+  @override
+  String get cloudSync_galleryAlbums => 'Local gallery albums';
+
+  @override
+  String get cloudSync_galleryAlbumsDescription =>
+      'Stores album structure and image references, never original images';
+
+  @override
+  String get cloudSync_optionalResources =>
+      'Optional resources (off by default)';
+
+  @override
+  String get cloudSync_vibes => 'Vibe';
+
+  @override
+  String get cloudSync_preciseReferences => 'Precise references';
+
+  @override
+  String get cloudSync_largeResourceDescription =>
+      'Includes resources required for recovery and may significantly increase size';
+
+  @override
+  String get cloudSync_neverBackedUp =>
+      'Cloud credentials, caches, logs, browsing history, and remote gallery originals are never backed up.';
+
+  @override
+  String get cloudSync_restoreDefaults => 'Restore defaults';
+
+  @override
+  String get cloudSync_saveSelection => 'Save selection';
+
+  @override
+  String cloudSync_selectedContentSummary(int count) {
+    return '$count content items selected';
+  }
+
+  @override
+  String get cloudSync_rebuildCompactBackup => 'Clean and rebuild backup';
+
+  @override
+  String get cloudSync_rebuildCompactBackupDescription =>
+      'Deletes the current cloud backup namespace and uploads a compact backup using the current selection. Provider-retained history is not rewritten.';
+
+  @override
+  String get cloudSync_rebuildCompactBackupConfirm =>
+      'Delete the current cloud backup and immediately upload a new compact backup? This cannot be undone.';
 
   @override
   String get cloudSync_kindSettings => 'Settings';
@@ -13383,7 +13524,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_skillsBackupDescription =>
-      'Off by default. Turn it on to choose which Skills to bring to your other devices.';
+      'Backup is on by default; only the Skills selected below are included.';
+
+  @override
+  String get cloudSync_chooseSkills => 'Choose Skills';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {

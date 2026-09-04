@@ -81,7 +81,7 @@ class VibeBundleImportDialog extends StatefulWidget {
           ),
         ],
       ),
-      width: 500,
+      dialogWidth: 500,
       builder: (dialogContext, scrollController) =>
           VibeBundleImportDialog._presented(
             bundleName: bundleName,

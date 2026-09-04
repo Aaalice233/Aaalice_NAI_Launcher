@@ -265,7 +265,7 @@ class PromptInputCoordinator {
     await AdaptivePresenter.showForm<void>(
       context: context,
       title: context.l10n.prompt_characterPrompts,
-      width: 560,
+      dialogWidth: 560,
       builder: (context, scrollController) =>
           MobileCharacterManagerSheet(scrollController: scrollController),
     );

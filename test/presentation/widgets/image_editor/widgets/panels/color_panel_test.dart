@@ -45,10 +45,7 @@ void main() {
     await tester.tap(find.byKey(const Key('color_panel_foreground_preview')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byKey(const Key('color_picker_surface')), findsOneWidget);
     expect(find.byKey(const Key('color_picker_cancel')), findsOneWidget);
     expect(find.byKey(const Key('color_picker_confirm')), findsOneWidget);
@@ -72,7 +69,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('expanded picker is constrained to an adaptive centered dialog', (
+  testWidgets('expanded picker is constrained to a centered dialog', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 800);

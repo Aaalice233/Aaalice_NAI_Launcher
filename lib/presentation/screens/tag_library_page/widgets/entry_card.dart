@@ -6,6 +6,7 @@ import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/library_classification_drag.dart';
+import '../../../widgets/common/library_card_badges.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
 
@@ -120,15 +121,17 @@ class _EntryCardState extends State<EntryCard> {
                   if (widget.isSelectionMode || !_isHovering)
                     _buildNameArea(theme, entry),
 
-                  // 4. 收藏图标（常驻显示在右上角，仅非选择模式、非悬浮且已收藏时）
+                  // 4. 收藏图标（常驻显示在左上角，仅非选择模式、非悬浮且已收藏时）
                   if (!isTouch &&
                       !widget.isSelectionMode &&
                       !_isHovering &&
                       widget.entry.isFavorite)
-                    const Positioned(
+                    Positioned(
                       top: 8,
-                      right: 8,
-                      child: _FavoriteIndicator(),
+                      left: 8,
+                      child: LibraryCardFavoriteBadge(
+                        semanticLabel: context.l10n.common_favorite,
+                      ),
                     ),
 
                   if (isTouch && !widget.isSelectionMode)
@@ -503,31 +506,6 @@ class _ActionIconState extends State<_ActionIcon> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// 收藏指示器（常驻小红心）
-class _FavoriteIndicator extends StatelessWidget {
-  const _FavoriteIndicator();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 20,
-      height: 20,
-      decoration: BoxDecoration(
-        color: Colors.redAccent,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: const Icon(Icons.favorite, size: 12, color: Colors.white),
     );
   }
 }

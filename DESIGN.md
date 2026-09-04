@@ -163,6 +163,8 @@ Aaalice NAI Launcher 是高频创作工具，而不是视觉陈列品。Prompt�
 
 Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow`，Control=`surfaceContainer` / `surfaceContainerHighest`，Overlay=`surfaceContainerHigh`。同一页面最多出现三个明显表面层级。
 
+Section、Control 与 Overlay 的语义色必须在实际主题中与 Canvas 保持可辨色差；旧主题若把对应 Material token 映射为相同颜色，统一通过 `sectionSurfaceColor`、`controlSurfaceColor`、`overlaySurfaceColor` 回退解析，禁止组件直接接受与背景融为一体的色面。
+
 **The Semantic Color Rule.** 页面只使用 `ColorScheme` 与具名业务语义；禁止散落固定颜色或把 `secondary` 当作错误色。
 
 **The Quiet Accent Rule.** `primary` 只标记主操作、选择、焦点与关键进度，不能让所有按钮和标签同时高亮。
@@ -178,6 +180,8 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 
 一个局部区域最多使用三个明显字号层级。Placeholder 不能替代永久标签；文本缩放和中、英、日、繁体中文长度变化不得裁切关键内容。
 
+标题只负责命名当前层级，层级顺序固定为页面或弹窗标题 → 分组标题 → 控件标签。相邻父子标题若表达同一件事，必须合并为一个；不得用“选择要保存的内容 / 选择备份内容”这类近义标题连续占两层。副标题只有在补充用户作决定所需的结果、约束或风险时才出现，不得复述标题、解释显而易见的控件，也不得给同组每一项机械添加副标题；可统一说明的信息上移到分组说明，计数与状态优先作为紧凑元数据呈现。
+
 **The Working Type Rule.** 排版服务于扫描和操作：标题靠字号、字重与留白建立层级，不靠描边、全大写或高饱和颜色。
 
 ## Layout
@@ -188,7 +192,7 @@ Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow
 
 - **Compact `<600px`**：移动 Shell，单列主流程、Material `NavigationBar`、bottom sheet 或独立次级页面。
 - **Medium `600–839px`**：内容可采用紧凑双区，但面板仍优先 bottom sheet；不得通过等比例缩放获得平板布局。
-- **Expanded `≥840px`**：桌面 Shell、稳定侧栏与可并行主辅面板。
+- **Expanded `≥840px`**：宽屏 Shell、稳定侧栏与可并行主辅面板。
 - **Wide `≥1180px`**：可增加辅助列或更宽工作区，但不盲目拉宽表单。
 
 桌面 Navigation Rail 折叠宽 60px、展开宽 196px；导航项高 48px。宽度动效只改变导航自身的裁切视口，路由工作区只能接收动画起点与终点约束，不得把每一帧的中间宽度传入页面级 `LayoutBuilder`。触屏平台核心命中区优先 48×48 logical pixels，最低不小于 44×44；桌面常规点击目标通常不小于 40×40。方向、窗口尺寸、软键盘与导航容器变化后必须保留输入、选择、滚动位置和任务状态。
@@ -231,7 +235,7 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 ## Shapes
 
-默认主题使用小而清晰的圆角：微型与 chip 为 4px，按钮为 6px，输入和普通 Card 为 8px，图像卡片为 12px。Adaptive bottom/side panel 的 24px 顶部圆角属于大型可拖拽容器，不应下放到普通卡片。
+默认主题使用小而清晰的圆角：微型与 chip 为 4px，按钮为 6px，输入和普通 Card 为 8px，图像卡片为 12px。Adaptive bottom sheet 使用 24px 顶部圆角，居中 Dialog 使用四周 24px 圆角；这些值属于大型浮层，不应下放到普通卡片。常驻 side panel 不是模态浮层，沿用所属工作区的 Section 形状。
 
 业务组件声明 `control`、`card`、`dialog`、`menu`、`panel`、`circle` 或 `pill` 等语义角色，实际值由当前 shape preset 和 `AppThemeExtension` 提供。父子圆角通常递减；内层只有 chip、状态标记或圆形控件可以更圆。
 
@@ -271,7 +275,12 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 - **Static Card**：`surfaceContainerLow`、无边框、无阴影；内部 padding 使用 16px 或 24px。
 - **Interactive Card**：hover 可提高色面对比或轻移 2px；focus 使用不改变布局的 1px primary 状态线。
-- **Grouping**：优先标题与留白，其次低对比色面，最后才是边界；不使用三层嵌套卡片。
+- **Grouping**：相关内容使用有明确色差的无边框 Card / Section 色面分组，组间依靠标题与留白分层；禁止用横向分隔线承担界面层级，不使用三层嵌套卡片。分隔线只用于无法通过分组与间距表达的同级连续记录，不能与分组卡片重复表达边界。
+
+### Hover previews
+
+- 悬浮预览属于 Overlay 层，统一使用 `overlaySurfaceColor`，必须与所在页面 Canvas 和源卡片保持可辨色差；不得直接使用可能与背景相同的 `surface` 或未校验的容器 token。
+- 预览依靠色面、圆角与环境阴影从工作区浮起，默认不加完整描边；图片留白和元数据区域必须继承同一 Overlay 色面，不能出现与页面背景连成一片的大块空区。
 
 ### Navigation
 
@@ -280,9 +289,15 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 ### Dialogs and adaptive panels
 
-- Dialog 只用于必须打断流程的决策；标题先说决策，正文先说结果，再说原因或风险。
+- Dialog 用于需要完成、取消或确认后才能返回的短时模态流程，例如设置表单、内容选择与风险决策；标题直接说明任务，风险流程的正文先说结果，再说原因。
+- Dialog / adaptive panel 标题区使用无边框 Section 色面与正文建立层级，禁止用横向分隔线切开标题和内容。
 - 操作顺序保持低强调取消在前、主操作在后；Esc 与系统返回可关闭并恢复合理焦点。
-- Expanded 使用受限 side sheet；Compact / Medium 使用避开 SafeArea 与软键盘的 bottom sheet。
+- Expanded / Wide 使用位于视口中央、宽高受限的独立模态 Dialog；标题与底部操作区固定，正文独立滚动，弹窗四周必须保留可见遮罩空间，不得贴靠窗口侧边呈现。
+- Compact / Medium 使用避开 SafeArea 与软键盘的 bottom sheet，并保持与桌面 Dialog 相同的字段语义、状态和操作结果。
+- Side panel 只承载常驻、非模态的工作区辅助内容；设置表单、内容选择、确认和其他需要用户完成或取消的流程不得使用 side sheet。
+- 页面或弹窗在同一纵向轴上只能有一个主滚动容器。禁止在外层 `ListView` / `SingleChildScrollView` 中再放固定高度、可独立滚动的 `ListView`；少量子项直接随主容器滚动，长列表、搜索结果或选择器必须进入独立 Dialog / adaptive panel，并由该表面独占滚动控制器。横向工具栏滚动不受此限制，但不得劫持纵向滚轮。
+- 长表单和选择清单不得铺成无分组的连续控件墙。使用少量、互斥且能一句话命名的分组；组间依靠 24px 左右留白和低对比 Section 色面建立层级，组内保持稳定行高与对齐。不要同时用外框、内框、分隔线和重复标题表达同一层关系。
+- 回归测试必须确认主表面内不存在第二个同轴滚动列表，并覆盖从主清单打开独立选择器、保存后回写状态、取消不改动，以及 320、600、840、1180、1600px 和 3 倍文字下的操作可达性与无 overflow。
 
 ### Image Cards
 
@@ -311,7 +326,7 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 - **Do** 从公共组件、`ColorScheme`、`TextTheme`、`AppThemeExtension` 和稳定 spacing tokens 获取样式。
 - **Do** 保持 default、hover、pressed、selected、focused、disabled、loading 状态完整且几何稳定。
 - **Do** 为桌面鼠标、触控板、键盘和移动端触屏提供等价完成路径。
-- **Do** 在共享 UI 变更中覆盖必要的 360、412、600、840、1180、1600px 断点，并检查 SafeArea、软键盘、系统返回和窗口缩放。
+- **Do** 在共享 UI 变更中至少覆盖 320、600、840、1180、1600px，并按需要补充 360/412 等实际设备宽度；同时检查 3 倍文字、短横屏、SafeArea、软键盘、系统返回和窗口缩放。
 - **Do** 使用 Semantics、清晰焦点、至少 WCAG AA 的正文对比度，以及不只依赖颜色的 selected / error / success 表达。
 - **Do** 让加载和错误原位呈现，局部刷新保留已有内容；超过约 300ms 的异步操作提供可见反馈。
 
@@ -319,6 +334,8 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 - **Don't** 给普通卡片、工具按钮、导航项、chip 或已填充控件默认添加高对比完整描边。
 - **Don't** 叠加“大圆角卡片 + 图标底座 + 标题 + 副标题”，或用外框、内框和分隔线重复表达同一分组。
+- **Don't** 连续堆放近义标题，或把副标题当成每个控件的默认组成；信息不能帮助判断时直接删除。
+- **Don't** 在同一纵向流程里嵌套两个可滚动区域；长子列表拆成独立选择弹窗。
 - **Don't** 在页面散落固定颜色、圆角、间距和 Duration，或声明没有实际消费者的 token。
 - **Don't** 通过缩小文字、裁切、`FittedBox`、静默隐藏功能或复制业务流程得到移动版。
 - **Don't** 让 hover、右键、外接键盘或精细拖拽成为核心任务的唯一入口。

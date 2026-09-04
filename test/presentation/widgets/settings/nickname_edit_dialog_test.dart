@@ -63,10 +63,8 @@ void main() {
       await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
 
-      final presentation = width < 600
-          ? find.byKey(const ValueKey('adaptive-full-screen-form'))
-          : width < 840
-          ? find.byKey(const ValueKey('adaptive-centered-form'))
+      final presentation = width < 840
+          ? find.byKey(const ValueKey('adaptive-bottom-sheet'))
           : find.byKey(const ValueKey('adaptive-centered-form'));
       expect(presentation, findsOneWidget, reason: 'width=$width');
       expect(find.byType(Dialog), findsNothing);
@@ -108,9 +106,7 @@ void main() {
     await tester.tap(find.text('Edit'));
     await tester.pumpAndSettle();
 
-    final presentation = find.byKey(
-      const ValueKey('adaptive-full-screen-form'),
-    );
+    final presentation = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(tester.getTopLeft(presentation).dy, greaterThanOrEqualTo(20));
     expect(tester.getBottomRight(presentation).dy, lessThanOrEqualTo(540));
     for (final label in ['Cancel', 'Save']) {

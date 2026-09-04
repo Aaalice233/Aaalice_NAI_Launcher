@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
@@ -123,5 +124,47 @@ void main() {
       find.ancestor(of: find.text('已选分类'), matching: find.byType(InkWell)),
     );
     expect(selectedInkWell.hoverColor, Colors.transparent);
+  });
+
+  testWidgets('分类右键菜单可在目标分类中创建词条', (tester) async {
+    final category = TagLibraryCategory(
+      id: 'target-category',
+      name: '目标分类',
+      createdAt: DateTime(2026),
+    );
+    String? createdInCategory;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 320,
+            child: CategoryTreeView(
+              categories: [category],
+              entries: const [],
+              expandedCategoryIds: const {},
+              onExpandedCategoryIdsChanged: (_) {},
+              onCategorySelected: (_) {},
+              onCategoryRename: (_, _) {},
+              onCategoryDelete: (_) {},
+              onAddSubCategory: (_) {},
+              onAddEntry: (id) => createdInCategory = id,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('目标分类'), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('添加条目'));
+    await tester.pumpAndSettle();
+
+    expect(createdInCategory, 'target-category');
+    expect(tester.takeException(), isNull);
   });
 }

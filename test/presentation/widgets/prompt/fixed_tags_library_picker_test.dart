@@ -46,12 +46,9 @@ void main() {
     );
 
     expect(find.byType(FixedTagLibraryPickerDialog), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     final dialogRect = tester.getRect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
     );
     expect(dialogRect.top, greaterThanOrEqualTo(24));
     expect(dialogRect.bottom, lessThanOrEqualTo(720));
@@ -126,7 +123,7 @@ void main() {
     expect(find.byKey(previewKey), findsOneWidget);
 
     await mouse.moveTo(const Offset(5, 5));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
     expect(find.byKey(previewKey), findsNothing);
 
     await mouse.moveTo(
@@ -138,12 +135,10 @@ void main() {
     expect(find.byKey(previewKey), findsOneWidget);
 
     final scrollable = tester.state<ScrollableState>(
-      find
-          .descendant(
-            of: find.byType(ListView),
-            matching: find.byType(Scrollable),
-          )
-          .first,
+      find.descendant(
+        of: find.byKey(const ValueKey('fixed-tag-library-entry-list')),
+        matching: find.byType(Scrollable),
+      ),
     );
     scrollable.position.jumpTo(100);
     await tester.pump();

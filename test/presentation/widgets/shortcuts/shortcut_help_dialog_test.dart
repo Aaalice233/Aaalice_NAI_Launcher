@@ -20,12 +20,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('open-shortcut-help')));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(find.byKey(const ValueKey('shortcut-help-scroll')), findsOneWidget);
     expect(tester.getTopLeft(surface).dy, greaterThanOrEqualTo(24));
-    expect(tester.getBottomRight(surface).dy, lessThanOrEqualTo(564));
+    expect(tester.getBottomRight(surface).dy, lessThanOrEqualTo(580));
 
     expect(find.textContaining('Ctrl'), findsOneWidget);
 
@@ -46,7 +46,7 @@ void main() {
     (
       name: 'Medium',
       size: const Size(700, 800),
-      surfaceKey: const ValueKey('adaptive-centered-form'),
+      surfaceKey: const ValueKey('adaptive-bottom-sheet'),
     ),
     (
       name: 'Expanded',

@@ -351,7 +351,7 @@ void main() {
     expect(
       find.byWidgetPredicate(
         (widget) =>
-            widget.key == const ValueKey('adaptive-full-screen-form') ||
+            widget.key == const ValueKey('adaptive-bottom-sheet') ||
             widget.key == const ValueKey('adaptive-centered-form'),
       ),
       findsOneWidget,

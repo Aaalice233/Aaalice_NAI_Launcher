@@ -22,6 +22,7 @@ import '../providers/character_prompt_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
 import '../services/generation_prompt_transfer_service.dart';
+import '../themes/core/layered_surface_style.dart';
 import '../themes/theme_extension.dart';
 import 'common/card_action_buttons.dart';
 import 'common/image_card_actions.dart';
@@ -1061,7 +1062,7 @@ class _HoverPreviewCardInnerState
         width: maxWidth,
         constraints: BoxConstraints(maxHeight: maxHeight),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHigh,
+          color: overlaySurfaceColor(theme.colorScheme),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -1086,7 +1087,7 @@ class _HoverPreviewCardInnerState
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    ColoredBox(color: theme.colorScheme.surfaceContainerLowest),
+                    ColoredBox(color: overlaySurfaceColor(theme.colorScheme)),
                     if (imageUrl.isEmpty)
                       Center(
                         child: Icon(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../themes/core/layered_surface_style.dart';
 
 /// 悬浮预览卡片组件
 ///
@@ -87,6 +88,7 @@ class _HoverPreviewCardState extends State<HoverPreviewCard> {
         followerAnchor: Alignment.topLeft,
         offset: widget.offset,
         child: Material(
+          color: overlaySurfaceColor(Theme.of(context).colorScheme),
           elevation: 8,
           borderRadius: BorderRadius.circular(12),
           clipBehavior: Clip.antiAlias,

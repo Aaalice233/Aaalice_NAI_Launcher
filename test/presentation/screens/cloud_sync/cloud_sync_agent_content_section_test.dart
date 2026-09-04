@@ -8,7 +8,7 @@ import 'package:nai_launcher/presentation/screens/cloud_sync/cloud_sync_agent_co
 
 void main() {
   testWidgets(
-    'Skill backup starts off and enables explicit searchable selection',
+    'Agent content starts on and Skills allow explicit searchable selection',
     (tester) async {
       var selection = const CloudSyncContentSelection();
       late StateSetter rebuild;
@@ -46,16 +46,16 @@ void main() {
       );
 
       expect(selection.includeAgentSystemPrompt, isTrue);
-      expect(selection.includeSkills, isFalse);
-      expect(find.text('自定义系统提示词'), findsOneWidget);
-      expect(find.text('搜索 Skill'), findsNothing);
-
-      await tester.tap(find.widgetWithText(SwitchListTile, '备份已选 Skill'));
-      await tester.pumpAndSettle();
       expect(selection.includeSkills, isTrue);
+      expect(find.text('自定义系统提示词'), findsOneWidget);
       expect(selection.selectedSkillIds, isEmpty);
       expect(find.text('已选择 0 个 Skill'), findsOneWidget);
+      expect(find.byKey(const ValueKey('cloud-sync-skill-list')), findsNothing);
 
+      await tester.tap(
+        find.byKey(const ValueKey('cloud-sync-skill-selection-entry')),
+      );
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextField, '搜索 Skill'),
         'Workspace',
@@ -68,8 +68,11 @@ void main() {
         find.byKey(const ValueKey('cloud-sync-skill-workspace:shared')),
       );
       await tester.pumpAndSettle();
-      expect(selection.selectedSkillIds, {'workspace:shared'});
       expect(find.text('已选择 1 个 Skill'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('cloud-sync-skill-save')));
+      await tester.pumpAndSettle();
+      expect(selection.selectedSkillIds, {'workspace:shared'});
 
       rebuild(
         () => selection = selection.copyWith(
@@ -80,11 +83,17 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('其中 1 个当前不可用'), findsOneWidget);
+      expect(find.textContaining('其中 1 个当前不可用'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('cloud-sync-skill-selection-entry')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('移除不可用项'));
       await tester.pumpAndSettle();
-      expect(selection.selectedSkillIds, {'workspace:shared'});
       expect(find.text('已选择 1 个 Skill'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('cloud-sync-skill-save')));
+      await tester.pumpAndSettle();
+      expect(selection.selectedSkillIds, {'workspace:shared'});
     },
   );
 }

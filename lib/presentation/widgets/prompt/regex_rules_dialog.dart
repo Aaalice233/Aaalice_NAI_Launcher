@@ -26,7 +26,7 @@ class RegexRulesDialog extends ConsumerStatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      width: 600,
+      dialogWidth: 600,
       builder: (context, scrollController) =>
           RegexRulesDialog(scrollController: scrollController),
     );
@@ -68,12 +68,15 @@ class _RegexRulesDialogState extends ConsumerState<RegexRulesDialog> {
       title: l10n.regexRules_deleteConfirmTitle,
       initialChildSize: 0.46,
       minChildSize: 0.36,
-      width: 440,
+      dialogWidth: 440,
       builder: (dialogContext, scrollController) => Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
+          Flexible(
+            fit: FlexFit.loose,
             child: ListView(
               controller: scrollController,
+              shrinkWrap: true,
               padding: const EdgeInsets.all(16),
               children: [Text(l10n.regexRules_deleteConfirmMessage(label))],
             ),
@@ -113,10 +116,13 @@ class _RegexRulesDialogState extends ConsumerState<RegexRulesDialog> {
     final rules = ref.watch(promptRegexRulesProvider);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
+        Flexible(
+          fit: FlexFit.loose,
           child: ListView(
             controller: widget.scrollController,
+            shrinkWrap: true,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             children: [
@@ -437,7 +443,7 @@ class _RuleEditDialog extends StatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      width: 480,
+      dialogWidth: 480,
       builder: (context, scrollController) =>
           _RuleEditDialog(rule: rule, scrollController: scrollController),
     );
@@ -529,10 +535,13 @@ class _RuleEditDialogState extends State<_RuleEditDialog> {
     final isEditing = widget.rule != null;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
+        Flexible(
+          fit: FlexFit.loose,
           child: ListView(
             controller: widget.scrollController,
+            shrinkWrap: true,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.all(16),
             children: [

@@ -6,6 +6,7 @@ import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/library_classification_drag.dart';
+import '../../../widgets/common/library_card_badges.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 
@@ -56,6 +57,8 @@ class EntryListItem extends StatefulWidget {
 }
 
 class _EntryListItemState extends State<EntryListItem> {
+  static const double _desktopActionsWidth = 132;
+
   bool _isHovering = false;
   bool _isDragging = false;
 
@@ -64,12 +67,16 @@ class _EntryListItemState extends State<EntryListItem> {
     final theme = Theme.of(context);
     final entry = widget.entry;
     final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
+    final restingBackground = theme.colorScheme.surfaceContainerLow;
 
     final backgroundColor = widget.isSelected
         ? theme.colorScheme.primary.withValues(alpha: 0.12)
         : (_isHovering && !widget.isSelectionMode
-              ? theme.colorScheme.surfaceContainer
-              : theme.colorScheme.surfaceContainerLow);
+              ? Color.alphaBlend(
+                  theme.colorScheme.primary.withValues(alpha: 0.08),
+                  restingBackground,
+                )
+              : restingBackground);
 
     final itemContent = MouseRegion(
       onEnter: (_) {
@@ -96,11 +103,6 @@ class _EntryListItemState extends State<EntryListItem> {
           curve: Curves.easeOutCubic,
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           padding: const EdgeInsets.all(12),
-          // 悬停时微微上移（非选择模式）
-          transform: widget.isSelectionMode
-              ? null
-              : (Matrix4.identity()
-                  ..translateByDouble(0.0, _isHovering ? -2.0 : 0.0, 0, 1)),
           decoration: BoxDecoration(
             color: backgroundColor,
             borderRadius: BorderRadius.circular(12),
@@ -108,29 +110,61 @@ class _EntryListItemState extends State<EntryListItem> {
                 ? Border.all(color: theme.colorScheme.primary)
                 : null,
           ),
-          child: Row(
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              // 选择模式下的复选框
-              if (widget.isSelectionMode) ...[
-                _SelectionCheckbox(
-                  isSelected: widget.isSelected,
-                  onTap: widget.onToggleSelection,
+              Row(
+                children: [
+                  // 选择模式下的复选框
+                  if (widget.isSelectionMode) ...[
+                    _SelectionCheckbox(
+                      isSelected: widget.isSelected,
+                      onTap: widget.onToggleSelection,
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+
+                  // 预览图
+                  _buildThumbnail(theme, entry),
+                  const SizedBox(width: 16),
+
+                  // 信息
+                  Expanded(child: _buildInfo(theme, entry)),
+
+                  // 为桌面悬浮操作保留固定几何空间，避免提示词翻译因可用宽度
+                  // 改变而重新换行，造成整行高度抖动。
+                  if (!widget.isSelectionMode) ...[
+                    const SizedBox(width: 12),
+                    if (isTouch)
+                      _buildActions(theme)
+                    else
+                      SizedBox(
+                        width: _desktopActionsWidth,
+                        child: IgnorePointer(
+                          ignoring: !_isHovering,
+                          child: AnimatedOpacity(
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 120),
+                            opacity: _isHovering ? 1 : 0,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: _buildActions(theme),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+              if (entry.isFavorite)
+                Positioned(
+                  top: -8,
+                  left: -8,
+                  child: LibraryCardFavoriteBadge(
+                    semanticLabel: context.l10n.common_favorite,
+                  ),
                 ),
-                const SizedBox(width: 12),
-              ],
-
-              // 预览图
-              _buildThumbnail(theme, entry),
-              const SizedBox(width: 16),
-
-              // 信息
-              Expanded(child: _buildInfo(theme, entry)),
-
-              // 精确指针悬浮时显示完整操作；触屏始终显示菜单入口。
-              if (!widget.isSelectionMode && (isTouch || _isHovering)) ...[
-                const SizedBox(width: 12),
-                _buildActions(theme),
-              ],
             ],
           ),
         ),
@@ -171,7 +205,12 @@ class _EntryListItemState extends State<EntryListItem> {
 
   Widget _buildPlaceholder(ThemeData theme) {
     return Container(
-      color: theme.colorScheme.surfaceContainerHighest,
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Center(
         child: Icon(
           Icons.image_outlined,
@@ -187,37 +226,13 @@ class _EntryListItemState extends State<EntryListItem> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 名称行
-        Row(
-          children: [
-            // 收藏图标 - 红心徽章
-            if (entry.isFavorite)
-              Container(
-                margin: const EdgeInsets.only(right: 6),
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade400,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.favorite,
-                  size: 12,
-                  color: Colors.white,
-                ),
-              ),
-
-            // 名称
-            Expanded(
-              child: Text(
-                entry.displayName,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+        Text(
+          entry.displayName,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
 
         const SizedBox(height: 4),

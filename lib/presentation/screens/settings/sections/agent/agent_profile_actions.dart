@@ -86,15 +86,18 @@ class _AgentProfileActionsState extends ConsumerState<AgentProfileActions> {
       if (!mounted) return;
       final confirmed = await AdaptivePresenter.showForm<bool>(
         context: context,
-        width: 568,
+        dialogWidth: 568,
         title: context.l10n.agentSettings_confirmProfileImport,
         builder: (context, scrollController) => LayoutBuilder(
           builder: (context, constraints) => Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
+              Flexible(
+                fit: FlexFit.loose,
                 child: ListView(
                   key: const Key('agent-profile-import-review-list'),
                   controller: scrollController,
+                  shrinkWrap: true,
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                   children: [
                     Text(context.l10n.agentSettings_profilePrivacy),

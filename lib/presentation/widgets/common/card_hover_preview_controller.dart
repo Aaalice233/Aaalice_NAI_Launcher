@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+enum CardHoverPreviewVerticalAlignment { center, targetTop }
+
 /// 在根 Overlay 中显示卡片悬浮预览，并自动避让窗口边缘。
 class CardHoverPreviewController {
   OverlayEntry? _entry;
@@ -21,6 +23,8 @@ class CardHoverPreviewController {
     required Size previewSize,
     required WidgetBuilder builder,
     VoidCallback? onIntent,
+    CardHoverPreviewVerticalAlignment verticalAlignment =
+        CardHoverPreviewVerticalAlignment.center,
     Duration delay = const Duration(milliseconds: 280),
   }) {
     onIntent?.call();
@@ -60,6 +64,7 @@ class CardHoverPreviewController {
                     targetRect: liveTargetRect,
                     viewportSize: mediaSize,
                     maxPreviewSize: Size(safeWidth, safeHeight),
+                    verticalAlignment: verticalAlignment,
                   ),
                   child: Builder(builder: builder),
                 ),
@@ -93,11 +98,13 @@ class _HoverFollowerLayoutDelegate extends SingleChildLayoutDelegate {
     required this.targetRect,
     required this.viewportSize,
     required this.maxPreviewSize,
+    required this.verticalAlignment,
   });
 
   final Rect targetRect;
   final Size viewportSize;
   final Size maxPreviewSize;
+  final CardHoverPreviewVerticalAlignment verticalAlignment;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
@@ -130,10 +137,12 @@ class _HoverFollowerLayoutDelegate extends SingleChildLayoutDelegate {
       viewportMargin,
       viewportSize.height - childSize.height - viewportMargin,
     );
-    final globalTop = (targetRect.center.dy - childSize.height / 2).clamp(
-      viewportMargin,
-      maxTop,
-    );
+    final preferredTop = switch (verticalAlignment) {
+      CardHoverPreviewVerticalAlignment.center =>
+        targetRect.center.dy - childSize.height / 2,
+      CardHoverPreviewVerticalAlignment.targetTop => targetRect.top,
+    };
+    final globalTop = preferredTop.clamp(viewportMargin, maxTop);
     return Offset(globalLeft - targetRect.left, globalTop - targetRect.top);
   }
 
@@ -141,5 +150,6 @@ class _HoverFollowerLayoutDelegate extends SingleChildLayoutDelegate {
   bool shouldRelayout(covariant _HoverFollowerLayoutDelegate oldDelegate) =>
       targetRect != oldDelegate.targetRect ||
       viewportSize != oldDelegate.viewportSize ||
-      maxPreviewSize != oldDelegate.maxPreviewSize;
+      maxPreviewSize != oldDelegate.maxPreviewSize ||
+      verticalAlignment != oldDelegate.verticalAlignment;
 }

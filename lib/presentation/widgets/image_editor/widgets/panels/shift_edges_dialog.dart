@@ -43,7 +43,7 @@ class ShiftEdgesDialog extends StatefulWidget {
   }) {
     return AdaptivePresenter.showForm<ShiftEdgesResult>(
       context: context,
-      width: 480,
+      dialogWidth: 480,
       titleBuilder: (context) => Text(
         context.l10n.editor_shiftEdges,
         maxLines: 2,
@@ -173,38 +173,42 @@ class _ShiftEdgesDialogState extends State<ShiftEdgesDialog> {
               top: false,
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        key: const Key('shift_edges_cancel'),
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          context.l10n.common_cancel,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton(
-                        key: const Key('shift_edges_confirm'),
-                        onPressed: _canConfirm(preview)
-                            ? () => _confirm(preview)
-                            : null,
-                        child: Text(
-                          context.l10n.editor_shiftEdges,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                child: _buildActions(preview),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActions(_ShiftEdgesPreview preview) {
+    final cancel = TextButton(
+      key: const Key('shift_edges_cancel'),
+      onPressed: () => Navigator.pop(context),
+      child: Text(context.l10n.common_cancel, textAlign: TextAlign.center),
+    );
+    final confirm = FilledButton(
+      key: const Key('shift_edges_confirm'),
+      onPressed: _canConfirm(preview) ? () => _confirm(preview) : null,
+      child: Text(context.l10n.editor_shiftEdges, textAlign: TextAlign.center),
+    );
+    if (MediaQuery.textScalerOf(context).scale(1) >= 2) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        reverse: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [cancel, const SizedBox(width: 8), confirm],
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: cancel),
+        const SizedBox(width: 8),
+        Expanded(child: confirm),
+      ],
     );
   }
 

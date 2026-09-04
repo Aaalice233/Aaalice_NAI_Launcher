@@ -38,7 +38,7 @@ class EffectsPreviewDialog extends StatefulWidget {
     required ImageEditorProcessingService processingService,
   }) => AdaptivePresenter.showForm<EditorEffectSelection>(
     context: context,
-    width: 960,
+    dialogWidth: 960,
     titleBuilder: (context) => Text(
       context.l10n.editor_localEffects,
       maxLines: 2,
