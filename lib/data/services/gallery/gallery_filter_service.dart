@@ -292,8 +292,13 @@ class GalleryFilterService {
     AppLogger.i('Filter cache cleared', 'GalleryFilterService');
   }
 
-  String _buildCacheKey(List<File> allFiles, FilterCriteria criteria) {
-    return '${criteria.cacheKey}|files:${allFiles.length}|rev:${_dataSource.dataRevision}';
+  String _buildCacheKey(
+    List<File> allFiles,
+    FilterCriteria criteria,
+    int fileListGeneration,
+  ) {
+    return '${criteria.cacheKey}|files:${allFiles.length}'
+        '|gen:$fileListGeneration|rev:${_dataSource.dataRevision}';
   }
 
   /// 异步应用过滤条件
@@ -301,10 +306,13 @@ class GalleryFilterService {
   /// [allFiles] 所有文件列表
   /// [criteria] 过滤条件
   /// [operationId] 操作 ID（用于取消）
+  /// [fileListGeneration] 文件列表世代，由列表持有者在成员或顺序变化时递增；
+  /// 文件数量和 `dataRevision` 都无法区分等长的不同列表。
   Future<FilterResult> applyFilters(
     List<File> allFiles,
     FilterCriteria criteria, {
     String? operationId,
+    int fileListGeneration = 0,
   }) async {
     final id = operationId ?? 'filter_${DateTime.now().millisecondsSinceEpoch}';
     final stopwatch = Stopwatch()..start();
@@ -315,7 +323,7 @@ class GalleryFilterService {
 
     try {
       // 检查缓存
-      final cacheKey = _buildCacheKey(allFiles, criteria);
+      final cacheKey = _buildCacheKey(allFiles, criteria, fileListGeneration);
       final cached = _filterCache.get(cacheKey);
       if (cached != null) {
         AppLogger.d('Filter cache hit: $cacheKey', 'GalleryFilterService');
