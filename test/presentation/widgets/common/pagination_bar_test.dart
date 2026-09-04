@@ -22,6 +22,13 @@ void main() {
     expect(find.byIcon(Icons.chevron_right), findsOneWidget);
     expect(find.byIcon(Icons.edit), findsOneWidget);
     expect(tester.getSize(find.byType(PaginationBar)).height, 48);
+    final barRect = tester.getRect(find.byType(PaginationBar));
+    final previousCenter = tester.getCenter(find.byIcon(Icons.chevron_left));
+    final selectorCenter = tester.getCenter(find.byIcon(Icons.tune_rounded));
+    expect(
+      (previousCenter.dx + selectorCenter.dx) / 2,
+      closeTo(barRect.center.dx, 2.1),
+    );
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byIcon(Icons.chevron_right));

@@ -273,86 +273,96 @@ class _PaginationBarState extends State<PaginationBar> {
     final itemCountLabel =
         widget.totalItemsLabel ??
         context.l10n.onlineGallery_imageCount(widget.totalItems.toString());
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildNavButton(
-            icon: Icons.chevron_left,
-            tooltip: context.l10n.pagination_previousPage,
-            onPressed: widget.currentPage > 0
-                ? () => widget.onPageChanged(widget.currentPage - 1)
-                : null,
-          ),
-          const SizedBox(width: 4),
-          _buildCurrentPageJump(theme, colorScheme),
-          const SizedBox(width: 4),
-          _buildNavButton(
-            icon: Icons.chevron_right,
-            tooltip: context.l10n.pagination_nextPage,
-            onPressed: widget.currentPage < widget.totalPages - 1
-                ? () => widget.onPageChanged(widget.currentPage + 1)
-                : null,
-          ),
-          SizedBox(width: veryNarrow ? 12 : 24),
-          if (veryNarrow)
-            Tooltip(
-              message: itemCountLabel,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    widget.totalIcon ?? Icons.photo_library_outlined,
-                    size: 16,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildNavButton(
+                icon: Icons.chevron_left,
+                tooltip: context.l10n.pagination_previousPage,
+                onPressed: widget.currentPage > 0
+                    ? () => widget.onPageChanged(widget.currentPage - 1)
+                    : null,
+              ),
+              const SizedBox(width: 4),
+              _buildCurrentPageJump(theme, colorScheme),
+              const SizedBox(width: 4),
+              _buildNavButton(
+                icon: Icons.chevron_right,
+                tooltip: context.l10n.pagination_nextPage,
+                onPressed: widget.currentPage < widget.totalPages - 1
+                    ? () => widget.onPageChanged(widget.currentPage + 1)
+                    : null,
+              ),
+              SizedBox(width: veryNarrow ? 12 : 24),
+              if (veryNarrow)
+                Tooltip(
+                  message: itemCountLabel,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        widget.totalIcon ?? Icons.photo_library_outlined,
+                        size: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.totalItems.toString(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Text(
+                  itemCountLabel,
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    widget.totalItems.toString(),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Text(
-              itemCountLabel,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          if (widget.showItemsPerPage &&
-              widget.onItemsPerPageChanged != null) ...[
-            const SizedBox(width: 4),
-            SizedBox.square(
-              dimension: context.interactionPolicy.minimumControlExtent,
-              child: PopupMenuButton<int>(
-                key: const ValueKey('pagination-narrow-items-per-page'),
-                enabled: _canInteract,
-                style: ButtonStyle(
-                  minimumSize: WidgetStatePropertyAll(
-                    Size.square(context.interactionPolicy.minimumControlExtent),
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                tooltip: context.l10n.pagination_itemsPerPage,
-                icon: const Icon(Icons.tune_rounded, size: 18),
-                onSelected: widget.onItemsPerPageChanged,
-                itemBuilder: (context) => [
-                  for (final count in _effectiveItemsPerPageOptions)
-                    CheckedPopupMenuItem<int>(
-                      value: count,
-                      checked: count == widget.itemsPerPage,
-                      child: Text('$count ${context.l10n.pagination_itemUnit}'),
+              if (widget.showItemsPerPage &&
+                  widget.onItemsPerPageChanged != null) ...[
+                const SizedBox(width: 4),
+                SizedBox.square(
+                  dimension: context.interactionPolicy.minimumControlExtent,
+                  child: PopupMenuButton<int>(
+                    key: const ValueKey('pagination-narrow-items-per-page'),
+                    enabled: _canInteract,
+                    style: ButtonStyle(
+                      minimumSize: WidgetStatePropertyAll(
+                        Size.square(
+                          context.interactionPolicy.minimumControlExtent,
+                        ),
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                ],
-              ),
-            ),
-          ],
-        ],
+                    tooltip: context.l10n.pagination_itemsPerPage,
+                    icon: const Icon(Icons.tune_rounded, size: 18),
+                    onSelected: widget.onItemsPerPageChanged,
+                    itemBuilder: (context) => [
+                      for (final count in _effectiveItemsPerPageOptions)
+                        CheckedPopupMenuItem<int>(
+                          value: count,
+                          checked: count == widget.itemsPerPage,
+                          child: Text(
+                            '$count ${context.l10n.pagination_itemUnit}',
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
