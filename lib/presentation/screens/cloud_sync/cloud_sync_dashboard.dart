@@ -78,8 +78,6 @@ class CloudSyncDashboard extends ConsumerWidget {
           ),
         ),
         CloudSyncSection(
-          title: context.l10n.cloudSync_dataScope,
-          subtitle: context.l10n.cloudSync_dataScopeDescription,
           child: ListTile(
             key: const ValueKey('cloud-sync-content-selection-entry'),
             contentPadding: EdgeInsets.zero,

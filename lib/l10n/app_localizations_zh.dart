@@ -12780,13 +12780,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '此服务无法可靠处理多台设备同时修改。这里不会自动合并或覆盖，只按你的选择推送或拉取。';
 
   @override
-  String get cloudSync_dataScope => '选择要保存的内容';
-
-  @override
-  String get cloudSync_dataScopeDescription =>
-      '选择要推送和拉取的内容。账号、密码和 API Key 不会上传。';
-
-  @override
   String get cloudSync_chooseBackupContents => '选择备份内容';
 
   @override
@@ -12893,6 +12886,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSync_skillsBackupDescription => '备份开关默认开启；只备份你在下方选择的 Skill。';
+
+  @override
+  String get cloudSync_chooseSkills => '选择 Skill';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {
@@ -26625,13 +26621,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '此服務無法可靠處理多台裝置同時修改。這裡不會自動合併或覆蓋，只按你的選擇推送或拉取。';
 
   @override
-  String get cloudSync_dataScope => '選擇要儲存的內容';
-
-  @override
-  String get cloudSync_dataScopeDescription =>
-      '選擇要推送和拉取的內容。帳號、密碼和 API Key 不會上傳。';
-
-  @override
   String get cloudSync_chooseBackupContents => '選擇備份內容';
 
   @override
@@ -26738,6 +26727,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_skillsBackupDescription => '備份開關預設開啟；只備份你在下方選擇的 Skill。';
+
+  @override
+  String get cloudSync_chooseSkills => '選擇 Skill';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {

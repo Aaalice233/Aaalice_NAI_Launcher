@@ -58,7 +58,7 @@ void main() {
       'webdav-secret',
     );
     expect(tester.widget<TextField>(passwordField).obscureText, isTrue);
-    expect(find.text('选择要保存的内容'), findsOneWidget);
+    expect(find.text('选择备份内容'), findsOneWidget);
     expect(find.text('图片与其他大文件'), findsNothing);
     expect(find.textContaining('快照'), findsNothing);
     expect(find.textContaining('后端'), findsNothing);
