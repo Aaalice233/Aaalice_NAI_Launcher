@@ -1,7 +1,7 @@
 # NAI Launcher
 
 <p align="center">
-  简体中文 · <a href="README.en-US.md">English</a>
+  简体中文 · <a href="README.zh-TW.md">繁體中文</a> · <a href="README.en-US.md">English</a>
 </p>
 
 <p align="center">
@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <strong>面向 NovelAI 的第三方跨平台客户端，集中处理生成、编辑、图库、标签与队列。</strong>
+  <strong>不只是生成图片，而是把整套 NovelAI 创作流程装进一个应用。</strong>
 </p>
 
 <p align="center">
@@ -21,206 +21,191 @@
 
 <p align="center">
   <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest">下载最新版</a> ·
+  <a href="CHANGELOG.md">查看更新记录</a> ·
   <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues">反馈问题</a> ·
   <a href="https://discord.gg/R48n6GwXzD">加入 Discord</a>
 </p>
 
-> NAI Launcher 是 NovelAI 的第三方客户端，并非 NovelAI 官方产品。使用在线功能前，请确保你拥有自己的 NovelAI 账号，并遵守相关服务条款与当地法律。
+> NAI Launcher 是社区开发的第三方客户端，并非 NovelAI 官方产品。使用在线功能前，请准备自己的 NovelAI 账号，并遵守相关服务条款、内容规则与当地法律。
 
-![生成工作台](docs/screenshots/generation-desktop.png)
+NAI Launcher 面向经常使用 NovelAI 的图像创作者。生成、改图、Prompt、角色、参考图、图库、队列和智能代理都能在同一套工作流里衔接；Windows、macOS 与 Android 共享核心能力，不登录也能先使用本地工具。
 
-## 它能做什么？
+## ✨ 一套完整的创作流程
 
-NAI Launcher 面向长期使用 NovelAI 的创作者：生成图片、反复调整提示词、保存灵感、查找参考、管理作品，都在同一个工作流里完成。
+| 你要做什么 | NAI Launcher 可以怎么帮你 |
+| --- | --- |
+| **开始创作** | 写 Prompt、选模型和参数，加入角色、Vibe、Precise Reference 或源图。 |
+| **反复调整** | 图生图、局部重绘、扩图、变体、增强，随时从历史图片取回部分参数。 |
+| **批量处理** | 把多组任务交给队列，暂停、继续、排序、重试，并查看真实进度与 Anlas 消耗。 |
+| **沉淀素材** | 将作品放进本地图库，把标签、Vibe 和精准参考整理成可搜索、可分类的个人资源库。 |
+| **寻找灵感** | 搜索多个在线画廊，查看原始 Prompt 与生成信息，再送回生成页继续创作。 |
+| **跨工具与设备** | 连接 Krita、ComfyUI 和云备份，让桌面创作流程延续到 Android。 |
 
-### 🎨 创作
+## 🚀 功能全览
 
-- **文生图与图像编辑**：文生图、图生图、Inpaint、Focused Inpaint、Outpaint，以及放大/增强。
-- **参考与角色**：Vibe Transfer、Precise Reference、多角色提示词、参考图和独立负面提示词。
-- **Prompt 工作台**：标签自动补全、权重语法、Token 统计、固定词、随机词库、提示词导入导出，以及不改动原文的 ffdkj 本地快速汉化预览。
+### 🎨 NovelAI 生成与编辑
 
-### 🗂️ 整理
+- 支持文生图、图生图、普通 Inpaint、Focused Inpaint、Outpaint、变体和增强。
+- 支持 NovelAI V5 Curated / Full、V4.5、V4 与 V3 系列常用工作流；切换模型时，可用参数、默认值、Token 上限与参考功能会跟随模型能力变化。
+- 可设置尺寸、采样器、Steps、CFG、Seed、噪声计划等生成参数，并在不符合 NovelAI 请求限制时给出可用尺寸建议。
+- 生成前显示预计 Anlas 消耗；可能产生费用的关键操作会单独确认，完成后自动更新余额和统计。
+- 内置生成历史与预览，可以复用 Prompt、Seed、模型和部分参数，不会覆盖仍在编辑的内容。
 
-- **本地图库**：扫描本地作品，搜索 Prompt 与元数据，分类、收藏、创建集合，并支持批量操作。
-- **生成队列**：批量提交、暂停/继续、排序、失败处理和进度查看。
-- **图片详情**：查看生成参数、正负提示词和角色词；需要时将内容安全地复制回生成页或词库。
-- **统计面板**：按尺寸、采样器、时间与 Anlas 消耗回顾自己的创作习惯。
+### ✍️ Prompt、固定词与角色
 
-### 🌐 探索
+- 正向 Prompt、负向 Prompt、正负面固定词和角色内容分区编辑，复杂工作流也能看清每一部分来自哪里。
+- 多角色可以分别设置正负面 Prompt、参考图与画面位置，并根据当前模型处理角色数量和定位能力。
+- 内置 Danbooru / e621 基础标签与别名，可离线显示补全、类型、热度和翻译；也可安装中文词库与相关标签数据包。
+- 相关标签补全能继续寻找构图、服装、动作和画面元素；Danbooru 在线结果可补充较新的标签。
+- 自定义标签词库、固定词和随机词库都支持分类、搜索、批量编辑与快速插入。
+- 本地快速汉化只生成预览，不改写原 Prompt；本地未命中的内容可以交给你配置的 AI 翻译服务。
 
-- **在线画廊**：在 Danbooru、Safebooru、Gelbooru、AI TAG 和法典图鉴（NovelAI QuickTagCloud）之间切换搜索。
-- **来源筛选**：搜索、收藏、日期/排行榜、内容分级、黑名单与输出过滤，随来源能力提供。
-- **词库与参考资源**：管理自己的标签、固定词、Vibe 和 Precise Reference 资源。
+### 🧬 Vibe、精准参考与图像编辑
 
-### 🤝 协作与连接
+- Vibe Transfer 支持图片、预编码 Vibe 与 Bundle，能够调整信息提取和参考强度，并按模型复用已有编码。
+- Precise Reference 可用于角色或风格参考，支持多选、批量修改类型，以及带图片的配置包导入导出。
+- Vibe 与 Precise Reference 都有独立资源库，可分类、搜索、预览、批量管理，并直接送到当前生成任务。
+- 重绘编辑器提供画笔、蒙版、Focused Inpaint 区域和画布扩展；也可以先让智能代理准备蒙版或扩图草稿，再由你检查后提交。
+- 支持从 NovelAI 图片元数据读取模型、尺寸、采样器、Steps、CFG、Seed、角色词等内容，并选择性恢复。
 
-- **智能代理**：在生成页侧栏或移动端抽屉中对话，让它协助检索标签、整理 Prompt、查看历史并准备生成；所有可能消耗 Anlas 的操作都会单独确认。
-- **桌面联动**：连接 Krita Bridge 与本地 ComfyUI 工作流，把生成和编辑接到已有创作工具中。
-- **同步与备份**：可选择 Google Drive、OneDrive、GitHub 或 WebDAV 作为目的地，只同步明确勾选的数据；备份使用应用专属命名空间中的明文快照并复用未变化内容，连接配置与上传、拉取彼此独立，凭据与 NovelAI Token 不会进入备份。
+### 🗂️ 本地图库与作品整理
 
-## 界面预览
+- 扫描你指定的目录，按文件夹、相簿、收藏、Prompt 和生成信息查找作品；不会因为启动应用就盲目扫描所有图片。
+- 图片详情会整理正负面 Prompt、固定词、角色词与完整生成参数，可以整组复制，也可以只取需要的部分。
+- 支持批量分类、收藏、移动与删除，并提供图片对比、幻灯片、水印和多种查看方式。
+- 桌面端提供右键、悬浮预览和拖拽，触屏端提供对应菜单；核心操作不会因为换到手机就消失。
+- 本地图片可以直接发送到生成页、智能代理或 Krita，省去重复保存和选择文件。
 
-以下截图来自当前版本，按「生成 → 整理 → 探索 → 连接 → 移动端」排列。
+### 🔎 在线画廊与灵感收集
 
-### 生成与编辑
+- 聚合 Danbooru、Safebooru、Gelbooru、AI TAG 与法典图鉴（NovelAI QuickTagCloud）。
+- 根据来源提供搜索、热门、随机、排行榜、日期、内容分级、黑名单与输出过滤，不把不支持的筛选硬套到所有站点。
+- 支持本地收藏；登录 Danbooru 或配置 Gelbooru API 后，还可以使用对应的账号能力。
+- 可查看多图作品、原始 Prompt 和结构化生成信息，整组下载，或把可识别的参数送回生成页。
+- 法典图鉴支持公开法典、分类、版本、多图与纯文本词条、贡献者信息和最近浏览。
 
-<p align="center">
-  <img src="docs/screenshots/generation-desktop.png" alt="桌面端生成工作台" width="100%">
-  <br>
-  <em>生成工作台：Prompt、角色、参数与历史结果同屏协作</em>
-</p>
+### 🤖 智能代理
 
-<table>
-  <tr>
-    <td width="33%"><img src="docs/screenshots/generation-panel.png" alt="角色与图生图面板" width="100%"></td>
-    <td width="33%"><img src="docs/screenshots/generation-params.png" alt="生成参数面板" width="100%"></td>
-    <td width="33%"><img src="docs/screenshots/generation-batch.png" alt="批量生成过程" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/generation-results.png" alt="批量生成结果" width="100%"></td>
-  </tr>
-</table>
+- 在桌面侧栏或移动端抽屉中对话，让代理查询标签、整理 Prompt、查看生成历史、操作资源库并准备生成任务。
+- 图片、Vibe 和 Precise Reference 可以直接作为上下文加入会话；代理也能准备重绘蒙版、扩展画布与重绘草稿。
+- “准备任务”和“真正生成”严格分开：代理规划不会扣 Anlas，实际提交前仍需要明确确认。
+- 支持 OpenAI 兼容接口、Google Gemini 原生接口、第三方 Gemini 兼容中转与 OpenRouter；可获取模型列表，并按模型能力启用思考等级和工具调用。
+- 模型服务、API Key、可用地区和费用由你选择的提供方负责；联网搜索等额外工具默认关闭。
 
-### 画廊与资源库
+### 📋 队列、历史与统计
 
-<table>
-  <tr>
-    <td width="33%"><img src="docs/screenshots/online-favorites.png" alt="在线画廊收藏与搜索" width="100%"></td>
-    <td width="33%"><img src="docs/screenshots/online-detail.png" alt="在线画廊图片详情" width="100%"></td>
-    <td width="33%"><img src="docs/screenshots/codex-detail.png" alt="法典图鉴详情" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/blacklist-settings.png" alt="在线画廊黑名单设置" width="100%"></td>
-    <td><img src="docs/screenshots/vibe-library.png" alt="Vibe 资源库" width="100%"></td>
-    <td><img src="docs/screenshots/precise-reference.png" alt="Precise Reference 资源库" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/random-library.png" alt="随机词库配置" width="100%"></td>
-    <td><img src="docs/screenshots/tag-library.png" alt="角色与画师词库" width="100%"></td>
-    <td><img src="docs/screenshots/stats.png" alt="统计仪表盘" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/queue.png" alt="生成队列管理" width="100%"></td>
-    <td></td>
-    <td></td>
-  </tr>
-</table>
+- 生成任务可以批量加入队列，支持暂停、继续、调整顺序、取消和重试失败任务。
+- 运行中可以查看单项状态、整体进度和失败原因，不需要守着每一次请求。
+- 统计页面按时间、尺寸、采样器、模型与 Anlas 消耗回顾创作记录，帮助了解自己的常用设置。
 
-### 智能代理与设置
+### 🧩 Krita 与 ComfyUI
 
-<table>
-  <tr>
-    <td width="33%"><img src="docs/screenshots/agent.png" alt="智能代理对话与生成协作" width="100%"></td>
-    <td width="33%"><img src="docs/screenshots/agent-confirm.png" alt="智能代理生成确认" width="100%"></td>
-    <td width="33%"><img src="docs/screenshots/agent-result.png" alt="智能代理生成结果" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/agent-search.png" alt="智能代理查询词库" width="100%"></td>
-    <td><img src="docs/screenshots/generation-settings.png" alt="生成设置" width="100%"></td>
-    <td><img src="docs/screenshots/agent-settings.png" alt="智能代理设置" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/data-settings.png" alt="数据与存储设置" width="100%"></td>
-    <td><img src="docs/screenshots/backup-settings.png" alt="备份与恢复设置" width="100%"></td>
-    <td><img src="docs/screenshots/security-settings.png" alt="安全与分享设置" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/integrations-settings.png" alt="集成设置" width="100%"></td>
-    <td><img src="docs/screenshots/autocomplete.png" alt="标签自动补全" width="100%"></td>
-    <td><img src="docs/screenshots/tag-search.png" alt="标签搜索与词库候选" width="100%"></td>
-  </tr>
-</table>
+- **Krita Bridge**：把 Krita 画布送到 Launcher 生成或重绘，并将结果送回 Krita。
+- **ComfyUI**：连接本地服务器，执行常规超分或 SeedVR2 工作流；服务器模型与自定义节点仍由你的 ComfyUI 环境负责。
+- 从图库、预览和编辑流程都能进入这些工具，不必每次手动导出再重新选文件。
 
-### Android
+### ☁️ 同步与备份
+
+- 支持 Google Drive、OneDrive、GitHub 与 WebDAV；连接账号不会自动上传、下载或覆盖内容。
+- 推送、拉取和恢复都由你主动开始，并可预览差异与处理冲突。
+- 可分别选择设置、Prompt 与词库、词库预览图、在线画廊设置与收藏、本地相簿、智能代理 Prompt 与 Skill，以及可选的 Vibe、Precise Reference。
+- 本地图库原图、远程图库原图、账号凭据、缓存和日志不会进入备份。
+- 备份使用便于查看和迁移的明文数据，不需要额外恢复密钥；请自行确认目标空间的访问权限。
+
+## 🖼️ 界面预览
+
+### 🖥️ 桌面端
 
 <table>
   <tr>
-    <td width="25%"><img src="docs/screenshots/mobile-generation-progress.png" alt="Android 生成中" width="100%"></td>
-    <td width="25%"><img src="docs/screenshots/generation-mobile.png" alt="Android 生成完成" width="100%"></td>
-    <td width="25%"><img src="docs/screenshots/mobile-viewer.png" alt="Android 图片查看器" width="100%"></td>
-    <td width="25%"><img src="docs/screenshots/mobile-image-menu.png" alt="Android 图片操作菜单" width="100%"></td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/overview-generation-desktop.png" alt="生成工作台与智能代理" width="100%"><br>
+      <sub>生成工作台：Prompt、参数、预览与智能代理同屏协作</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/overview-local-gallery-desktop.png" alt="本地图库" width="100%"><br>
+      <sub>本地图库：搜索、相簿、文件夹与批量整理</sub>
+    </td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/mobile-generation-settings.png" alt="Android 生成设置" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-agent.png" alt="Android 智能代理对话" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-agent-result.png" alt="Android 智能代理生成流程" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-gallery.png" alt="Android 本地画廊" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/mobile-library.png" alt="Android 词库页面" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-more.png" alt="Android 更多菜单" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-settings.png" alt="Android 设置页面" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-extensions.png" alt="Android 扩展页面" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/mobile-image-menu-alt.png" alt="Android 图片菜单" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-tag-library.png" alt="Android 标签库" width="100%"></td>
-    <td></td>
-    <td></td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/overview-online-gallery-desktop.png" alt="在线画廊" width="100%"><br>
+      <sub>在线画廊：多个来源、筛选与瀑布流浏览</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/overview-statistics-desktop.png" alt="统计仪表盘" width="100%"><br>
+      <sub>统计仪表盘：作品、参数与 Anlas 使用情况</sub>
+    </td>
   </tr>
 </table>
 
-## 平台支持
+### 📱 Android
 
-| 平台 | 当前状态 | 适合谁 |
+Android 截图正在整理中，后续会补充少量具有代表性的手机端界面。
+
+## 💻 支持平台
+
+| 平台 | 当前状态 | 说明 |
 | --- | --- | --- |
-| **Windows** | 主要开发与发布平台 | 适合长时间创作、批量生成、Krita / ComfyUI 联动。提供安装版和便携版。 |
-| **macOS** | 可用，仍在持续完善 | 提供便携版；首次使用未公证应用时，按 macOS 的安全提示允许打开。 |
-| **Android** | beta | 支持手机、横屏、平板和大屏；生成、画廊、词库、队列与设置均提供移动端入口。 |
-| **Linux** | 暂无正式发行包 | 暂不作为正式下载目标。 |
+| **Windows** | 主要开发与发布平台 | 提供安装版和便携版，适合长时间创作、批量任务以及 Krita / ComfyUI 联动。 |
+| **macOS** | 可用，持续完善中 | 提供便携版；若系统阻止打开未公证应用，请按 macOS 安全提示手动允许。 |
+| **Android** | Beta | 支持手机、横屏、平板和大屏；生成、图库、词库、队列、代理与设置均有触屏入口。 |
+| **Linux** | 暂无正式发行包 | 当前不提供正式下载包。 |
 
-## 下载与首次使用
+## ⚡ 下载与开始使用
 
-### 1. 下载
+### 1. 下载对应平台的安装包
 
-从 [GitHub Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest) 下载对应平台的文件。每个 Release 同时提供 `checksums.txt`，遇到下载损坏或安装异常时可先核对校验值。
+前往 [GitHub Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest)：
 
-| 平台 | 文件 | 说明 |
+| 平台 | 文件 | 用法 |
 | --- | --- | --- |
-| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 安装版，适合大多数用户。 |
-| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 便携版，解压后直接运行，不改变安装目录。 |
+| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 推荐给大多数用户的安装版。 |
+| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 解压后直接运行的便携版。 |
 | macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | 解压后打开 `Aaalice NAI Launcher.app`。 |
-| Android | `NAI_Launcher_Android_<version>.apk` | APK 侧载安装；首次安装可能需要允许文件管理器或浏览器安装未知应用。 |
+| Android | `NAI_Launcher_Android_<version>.apk` | 侧载 APK；首次安装可能需要允许当前应用安装未知来源软件。 |
+
+每个 Release 都会提供 `checksums.txt`。如果下载后无法解压或安装，可以先核对文件校验值。
 
 ### 2. 登录 NovelAI
 
-首次启动可以使用 NovelAI 账号密码或 **Persistent API Token** 登录。若网页安全验证导致密码登录失败，建议改用 Persistent API Token。未登录也可以先使用本地图库、词库、资源库和设置；生成、Vibe 编码、云端超分等在线操作需要登录。
+可以使用 NovelAI 账号密码或 **Persistent API Token** 登录。如果网页安全验证导致密码登录失败，建议改用 Persistent API Token。Token 只保存在当前设备的安全存储中。
 
-### 3. 配置自己的工作流
+### 3. 设置常用资源
 
-- **本地图库**：在设置中选择作品目录，再进入图库开始扫描；图库按需处理，不会因为只启动应用就扫描全部文件。
-- **标签补全**：基础标签库随应用提供，可离线使用。相关标签推荐、中文标签词库和 AI 翻译属于可选数据源，在“设置 → 数据源与缓存”中管理。
-- **Krita**：先在 Launcher 设置中启用 Krita Bridge，再按 [`krita_plugin/README.md`](krita_plugin/README.md) 安装插件。
-- **ComfyUI**：在“设置 → 集成”中配置本地 ComfyUI 地址和工作流；具体模型与节点仍由 ComfyUI 环境负责。
+- 在“设置”中选择本地作品目录，进入本地图库后开始扫描。
+- 在“设置 → 数据源与缓存”中管理中文词库、相关标签数据包和在线缓存。
+- 需要 Krita 联动时，先启用 Krita Bridge，再按照 [Krita 插件说明](krita_plugin/README.md) 安装插件。
+- 需要 ComfyUI 时，在“设置 → ComfyUI”中填写本地地址并选择工作流。
+- 需要跨设备使用时，在云同步页面连接一个备份目标，并认真确认要同步的内容。
 
-## 数据与隐私
+## 🔒 数据与隐私
 
-NAI Launcher 不把账号系统和作品托管在本项目服务器上。不同功能会把数据发送给不同的服务：
+NAI Launcher 不在项目自有服务器上托管你的账号或作品。只有在你主动使用对应功能时，数据才会发送给相关服务：
 
-| 你正在使用的功能 | 数据接收方 |
+| 使用的功能 | 数据会发送到哪里 |
 | --- | --- |
-| 生成、图生图、编辑、Vibe 编码 | NovelAI；包括对应的 Prompt、参数和参考图/源图。 |
-| 在线画廊搜索与下载 | 你选择的第三方图库；各站点的可用性、限流和内容规则由站点决定。 |
+| 生成、图生图、重绘、Vibe 编码 | NovelAI；包括本次请求所需的 Prompt、参数和源图或参考图。 |
+| 在线画廊搜索与下载 | 你选择的第三方图库；可用性、限流和内容规则由各站点决定。 |
 | AI 翻译或智能代理 | 你配置的模型服务；对话、附加图片和完成任务所需的工具结果可能产生服务费用。 |
-| 同步与备份 | 你选择的 Google Drive、OneDrive、GitHub 或 WebDAV 存储；只上传你明确选择的数据范围。Google Drive/OneDrive 仅使用应用专属隐藏目录。 |
+| 同步与备份 | 你选择的 Google Drive、OneDrive、GitHub 或 WebDAV；只上传明确勾选的内容。 |
 
-- NovelAI Token、OAuth access/refresh token、WebDAV 密码和 GitHub Token 使用设备的安全存储保存，不会写入备份；备份内容不加密，请确保所选存储空间及 GitHub 仓库的访问权限符合你的隐私需求。
-- 本地 Prompt、图库索引、标签和代理会话默认保存在本机；代理的联网工具默认关闭。
-- 在线图库包含第三方内容，分级筛选不能替代用户判断；请遵守来源站点规则、当地法律和 NovelAI 服务条款。
-- WebDAV 的数据安全取决于你配置的服务和传输方式；同步前请确认服务器可信，并保留重要数据的本地备份。
+- NovelAI Token、OAuth access/refresh token、WebDAV 密码和 GitHub Token 使用设备安全存储，不会写入备份。
+- 本地 Prompt、图库索引、标签、资源库和代理会话默认保存在本机。
+- 在线画廊可能包含第三方内容；分级筛选不能替代用户判断。
+- WebDAV 的安全性取决于你配置的服务器与传输方式，请保留重要数据的本地副本。
 
-## 支持与反馈
+## 🆘 支持与反馈
 
-- 遇到异常时，可通过“设置 → 关于 → 导出诊断日志”保存排查信息，并在反馈时一并提供。
-- [提交 Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues)：报告可复现的问题或提出功能建议。
+- 如遇异常，请通过“设置 → 关于 → 导出诊断日志”保存排查信息，并在反馈时一并提供。
+- [提交 Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues)：报告可以复现的问题或提出功能建议。
 - [加入 Discord](https://discord.gg/R48n6GwXzD)：交流使用经验、获取社区帮助。
-- [查看 Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases)：下载版本、校验文件与更新内容。
-- 欢迎提交 Pull Request；界面改动请附截图或录屏，方便复现和讨论。
+- [查看 Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases)：下载版本、校验文件并阅读更新内容。
 
-## 致谢
+## 🙏 致谢
 
 感谢 [NovelAI](https://novelai.net/)、[法典图鉴](https://novelai.quicktagcloud.com/)、[AgIzT/NovelAI-Tag](https://github.com/AgIzT/NovelAI-Tag)、[Flutter](https://flutter.dev/)、[Riverpod](https://riverpod.dev/) 以及所有贡献者和测试用户。
 
-## 许可证
+## 📄 许可证
 
 本项目基于 [MIT License](LICENSE) 开源。

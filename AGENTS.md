@@ -172,11 +172,11 @@ CI 与 Release checkout 不直接消耗 GitHub LFS 流量；`scripts/prepare_bun
 
 共现数据包只能通过 `tool/database/build_cooccurrence_only.dart` 从 `tool/database/cooccurrence_source_lock.json` 固定的完整源构建，产物写入 `tool/.tmp/cooccurrence/`，不得提交 `.db`、`.gz` 或源 CSV。完整构建必须通过哈希确定性、记录数、SQLite、查询计划、160 MiB 数据库和 80 MiB GZip 门槛；客户端只提交 `assets/data/cooccurrence_data_pack_manifest.json`。数据版本变化时手动运行 `.github/workflows/cooccurrence-data-pack.yml`，使用独立的 `autocomplete-data-cooccurrence-*` prerelease tag 发布，不得并入普通应用 Release 或设为 latest。
 
-## README 双语同步规范
+## README 多语言同步规范
 
-`README.md`（简体中文）与 `README.en-US.md`（English）只面向最终用户，保留产品简介、功能、界面、平台、下载安装、隐私、支持和致谢；构建命令、项目结构和开发约定写在 `AGENTS.md`，版本发布流程写在项目级 `aaalice-launcher-release` skill，不要再放回 README。
+`README.md`（简体中文）、`README.zh-TW.md`（繁體中文）与 `README.en-US.md`（English）只面向最终用户，保留产品简介、功能、界面、平台、下载安装、隐私、支持和致谢；构建命令、项目结构和开发约定写在 `AGENTS.md`，版本发布流程写在项目级 `aaalice-launcher-release` skill，不要再放回 README。
 
-两份 README 内容必须保持同步：任一用户可见功能、平台支持、安装方式或隐私说明变化时，在同一提交中同时更新。两份文件顶部均保留语言切换链接；英文版只翻译中文版事实，不自行增删承诺。
+三份 README 内容必须保持同步：任一用户可见功能、平台支持、安装方式或隐私说明变化时，在同一提交中同时更新。三份文件顶部均保留语言切换链接；繁中版与英文版只翻译简中版事实，不自行增删承诺。
 
 ## 提交与 Pull Request 规范
 
