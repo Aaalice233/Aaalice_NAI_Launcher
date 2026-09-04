@@ -164,6 +164,39 @@ void main() {
     );
   }
 
+  testWidgets('compact action strip shows a forward scroll hint when clipped', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GalleryLibraryToolbar(
+            title: const Text('图库'),
+            search: const SizedBox(height: 48),
+            actions: [
+              for (var index = 0; index < 6; index++)
+                GalleryLibraryAction(
+                  icon: Icons.tune,
+                  label: '较长操作 $index',
+                  onPressed: _noop,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('gallery-library-toolbar-scroll-hint')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [320.0, 360.0, 600.0, 840.0, 1180.0, 1600.0]) {
     testWidgets(
       'batch toolbar remains operable at 3x text and ${width.toInt()}px',

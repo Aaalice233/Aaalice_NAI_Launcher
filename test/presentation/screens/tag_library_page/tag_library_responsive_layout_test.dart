@@ -53,6 +53,14 @@ void main() {
         );
         expect(find.text('目标条目'), findsOneWidget);
         expect(find.byType(TextField), findsOneWidget);
+        if (width < 840) {
+          final searchRect = tester.getRect(find.byType(TextField));
+          final addRect = tester.getRect(
+            find.byKey(const Key('tag-library-add-entry-button')),
+          );
+          expect(addRect.left, greaterThan(searchRect.left));
+          expect(addRect.center.dy, closeTo(searchRect.center.dy, 1));
+        }
 
         if (width >= 840) {
           expect(
