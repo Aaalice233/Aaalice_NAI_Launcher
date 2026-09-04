@@ -7339,6 +7339,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String tagLibrary_importRejectedCount(Object count) {
+    return '$count not imported';
+  }
+
+  @override
   String get tagLibrary_unknownCategory => 'Unknown Category';
 
   @override
