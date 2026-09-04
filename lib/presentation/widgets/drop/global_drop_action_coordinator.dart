@@ -61,7 +61,7 @@ Future<String?> showVibeLibraryNamingForm({
     title: isBundle
         ? '${l10n.vibe_saveToLibrary_saveAsBundle} (${vibes.length})'
         : l10n.vibe_saveToLibrary_title,
-    sideSheetWidth: 520,
+    width: 520,
     builder: (dialogContext, scrollController) => _VibeLibraryNamingForm(
       vibes: vibes,
       initialName: initialName,

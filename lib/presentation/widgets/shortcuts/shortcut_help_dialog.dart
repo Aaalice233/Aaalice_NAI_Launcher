@@ -34,7 +34,7 @@ class ShortcutHelpDialog extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      sideSheetWidth: 800,
+      width: 800,
       builder: (context, scrollController) =>
           ShortcutHelpDialog(scrollController: scrollController),
     );

@@ -43,7 +43,7 @@ class BulkProgressDialog extends ConsumerStatefulWidget {
       barrierDismissible: false,
       allowDragDismissal: false,
       showHeader: false,
-      sideSheetWidth: 480,
+      width: 480,
       initialChildSize: 0.5,
       minChildSize: 0.38,
       maxChildSize: 0.72,

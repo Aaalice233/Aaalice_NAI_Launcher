@@ -26,7 +26,7 @@ class RegexRulesDialog extends ConsumerStatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      sideSheetWidth: 600,
+      width: 600,
       builder: (context, scrollController) =>
           RegexRulesDialog(scrollController: scrollController),
     );
@@ -68,7 +68,7 @@ class _RegexRulesDialogState extends ConsumerState<RegexRulesDialog> {
       title: l10n.regexRules_deleteConfirmTitle,
       initialChildSize: 0.46,
       minChildSize: 0.36,
-      sideSheetWidth: 440,
+      width: 440,
       builder: (dialogContext, scrollController) => Column(
         children: [
           Expanded(
@@ -437,7 +437,7 @@ class _RuleEditDialog extends StatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      sideSheetWidth: 480,
+      width: 480,
       builder: (context, scrollController) =>
           _RuleEditDialog(rule: rule, scrollController: scrollController),
     );

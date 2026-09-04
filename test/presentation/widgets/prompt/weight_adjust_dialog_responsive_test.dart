@@ -115,7 +115,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    final panel = find.byKey(const ValueKey('adaptive-side-sheet'));
+    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panel, findsOneWidget);
     expect(tester.getSize(panel).width, lessThanOrEqualTo(640));
     expect(tester.takeException(), isNull);

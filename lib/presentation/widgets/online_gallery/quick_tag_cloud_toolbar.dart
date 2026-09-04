@@ -289,7 +289,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
       context: context,
       title: l10n.onlineGallery_codexSelect,
       initialChildSize: 0.82,
-      sideSheetWidth: 680,
+      width: 680,
       builder: (panelContext, scrollController) => ListView(
         controller: scrollController,
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -383,7 +383,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
       context: context,
       title: l10n.onlineGallery_codexCategory,
       initialChildSize: 0.82,
-      sideSheetWidth: 580,
+      width: 580,
       builder: (panelContext, scrollController) => ListView(
         controller: scrollController,
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -515,7 +515,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
       context: context,
       title: l10n.common_filter,
       initialChildSize: 0.72,
-      sideSheetWidth: 560,
+      width: 560,
       builder: (panelContext, scrollController) => StatefulBuilder(
         builder: (panelContext, setPanelState) => SingleChildScrollView(
           controller: scrollController,
@@ -657,7 +657,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
       context: context,
       title: meta.title,
       initialChildSize: 0.78,
-      sideSheetWidth: 580,
+      width: 580,
       builder: (panelContext, scrollController) => ListView(
         controller: scrollController,
         padding: const EdgeInsets.all(20),

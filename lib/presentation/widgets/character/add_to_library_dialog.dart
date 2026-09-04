@@ -44,7 +44,7 @@ class AddToLibraryDialog extends ConsumerStatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      sideSheetWidth: 520,
+      width: 520,
       builder: (context, scrollController) => AddToLibraryDialog(
         defaultName: name,
         content: content,

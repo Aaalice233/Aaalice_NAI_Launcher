@@ -76,7 +76,7 @@ class _VibeRenameForm extends StatefulWidget {
     return AdaptivePresenter.showForm<String>(
       context: context,
       title: context.l10n.shortcut_action_vibe_detail_rename,
-      sideSheetWidth: 440,
+      width: 440,
       builder: (panelContext, scrollController) => _VibeRenameForm(
         initialValue: initialValue,
         scrollController: scrollController,
@@ -210,7 +210,7 @@ class VibeDetailViewer extends ConsumerStatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(panelContext).textTheme.titleLarge,
       ),
-      sideSheetWidth: 960,
+      width: 960,
       builder: (panelContext, _) => VibeDetailViewer(
         entry: entry,
         detailDataFuture: detailDataFuture,

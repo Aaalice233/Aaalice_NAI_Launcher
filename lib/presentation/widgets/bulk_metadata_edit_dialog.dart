@@ -410,7 +410,7 @@ void showBulkMetadataEditDialog(BuildContext context) {
   unawaited(
     AdaptivePresenter.showForm<void>(
       context: context,
-      sideSheetWidth: 500,
+      width: 500,
       titleBuilder: (panelContext) => Consumer(
         builder: (context, ref, _) {
           final selectedCount = ref

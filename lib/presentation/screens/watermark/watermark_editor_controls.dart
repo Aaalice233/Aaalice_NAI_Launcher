@@ -422,7 +422,7 @@ class WatermarkEditorControls extends StatelessWidget {
     final result = await AdaptivePresenter.showForm<Color>(
       context: context,
       title: context.l10n.editor_toolColorPicker,
-      sideSheetWidth: 440,
+      width: 440,
       builder: (panelContext, scrollController) => _WatermarkColorForm(
         initial: initial,
         scrollController: scrollController,

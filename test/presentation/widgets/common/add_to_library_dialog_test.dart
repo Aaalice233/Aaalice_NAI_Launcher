@@ -59,7 +59,7 @@ void main() {
     expect(result, isFalse);
   });
 
-  testWidgets('宽屏使用有界侧边表单并保留全部字段与返回语义', (tester) async {
+  testWidgets('宽屏使用有界居中弹窗并保留全部字段与返回语义', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

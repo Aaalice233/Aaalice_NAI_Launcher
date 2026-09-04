@@ -45,9 +45,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('expanded keeps a bounded adaptive side sheet and all actions', (
-    tester,
-  ) async {
+  testWidgets('expanded uses a bounded centered dialog', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1600, 900);
     addTearDown(() {

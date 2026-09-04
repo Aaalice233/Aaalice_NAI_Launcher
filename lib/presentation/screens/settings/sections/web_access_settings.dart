@@ -309,7 +309,7 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(panelContext).textTheme.titleMedium,
       ),
-      sideSheetWidth: 420,
+      width: 420,
       builder: (panelContext, scrollController) =>
           _ApiKeyEditorForm(hasKey: hasKey, scrollController: scrollController),
     );

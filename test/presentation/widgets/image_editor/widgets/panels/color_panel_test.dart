@@ -72,7 +72,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('expanded picker is constrained to an adaptive side sheet', (
+  testWidgets('expanded picker is constrained to an adaptive centered dialog', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 800);
@@ -88,9 +88,9 @@ void main() {
     await tester.tap(find.byKey(const Key('color_panel_foreground_preview')));
     await tester.pumpAndSettle();
 
-    final sideSheet = find.byKey(const ValueKey('adaptive-centered-form'));
-    expect(sideSheet, findsOneWidget);
-    expect(tester.getSize(sideSheet).width, lessThanOrEqualTo(440));
+    final dialog = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(dialog, findsOneWidget);
+    expect(tester.getSize(dialog).width, lessThanOrEqualTo(440));
     expect(find.byKey(const Key('color_picker_confirm')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

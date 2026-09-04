@@ -403,7 +403,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('medium short forms fill the safe area with IME and large text', (
+  testWidgets('non-compact panels use a content-sized centered dialog', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(700, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () {
+                unawaited(
+                  AdaptivePresenter.showPanel<void>(
+                    context: context,
+                    title: 'Short panel',
+                    width: 420,
+                    builder: (context, _) => const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('Short panel content'),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Open short panel'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open short panel'));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(tester.getSize(surface).width, 420);
+    expect(tester.getSize(surface).height, lessThan(140));
+    expect(tester.getRect(surface).center, const Offset(350, 400));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('medium forms remain centered with IME and large text', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -461,10 +506,12 @@ void main() {
     await tester.tap(find.text('Open short form'));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(surface, findsOneWidget);
-    expect(find.byKey(const Key('adaptive-centered-form')), findsNothing);
-    expect(tester.getRect(surface), const Rect.fromLTWH(0, 12, 839.9, 392));
+    final rect = tester.getRect(surface);
+    expect(rect.width, 560);
+    expect(rect.height, lessThanOrEqualTo(392 * 0.9));
+    expect(rect.center.dy, moreOrLessEquals(208));
     expect(find.byKey(const Key('bottom-action')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -479,7 +526,7 @@ void main() {
 
     expect(find.byType(DraggableScrollableSheet), findsNothing);
     expect(find.text('Panel title'), findsOneWidget);
-    expect(tester.getSize(find.byKey(const Key('panel-content'))).width, 520);
+    expect(tester.getSize(find.byKey(const Key('panel-content'))).width, 560);
 
     await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();
@@ -493,7 +540,6 @@ void main() {
 
     final surface = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(surface, findsOneWidget);
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsNothing);
     expect(tester.getSize(find.byKey(const Key('panel-content'))).width, 560);
     final rect = tester.getRect(surface);
     expect(rect.center.dx, moreOrLessEquals(800));
@@ -550,7 +596,7 @@ void main() {
     },
   );
 
-  testWidgets('expanded side sheet supports large text without overflow', (
+  testWidgets('expanded centered dialog supports large text without overflow', (
     tester,
   ) async {
     await pumpHost(
@@ -563,7 +609,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(tester.getSize(find.byKey(const Key('panel-content'))).width, 520);
+    expect(tester.getSize(find.byKey(const Key('panel-content'))).width, 560);
     expect(tester.takeException(), isNull);
   });
 }

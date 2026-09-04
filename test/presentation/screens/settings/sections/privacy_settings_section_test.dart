@@ -146,9 +146,7 @@ void main() {
     await tester.tap(find.text('Anlas 警告阈值'));
     await tester.pumpAndSettle();
     var panel = find.byWidgetPredicate(
-      (widget) =>
-          widget.key == const ValueKey('adaptive-centered-form') ||
-          widget.key == const ValueKey('adaptive-side-sheet'),
+      (widget) => widget.key == const ValueKey('adaptive-centered-form'),
     );
     var editor = find.descendant(of: panel, matching: find.byType(TextField));
     await tester.enterText(editor, '0');
@@ -167,9 +165,7 @@ void main() {
     await tester.tap(find.text('生图间隔'));
     await tester.pumpAndSettle();
     panel = find.byWidgetPredicate(
-      (widget) =>
-          widget.key == const ValueKey('adaptive-centered-form') ||
-          widget.key == const ValueKey('adaptive-side-sheet'),
+      (widget) => widget.key == const ValueKey('adaptive-centered-form'),
     );
     editor = find.descendant(of: panel, matching: find.byType(TextField));
     await tester.enterText(editor, '3601');

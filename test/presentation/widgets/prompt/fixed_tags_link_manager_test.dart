@@ -23,7 +23,10 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     final listFinder = find.descendant(
       of: find.byType(AdaptiveDialogFrame),
       matching: find.byType(ListView),
@@ -44,7 +47,7 @@ void main() {
     await tester.tap(lastOption);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsNothing);
+    expect(find.byKey(const ValueKey('adaptive-centered-form')), findsNothing);
     expect(notifier.removedPair, (fixture.positive.id, lastEntry.id));
     expect(tester.takeException(), isNull);
   });
@@ -108,7 +111,10 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     final frame = find.byType(AdaptiveDialogFrame);
     expect(frame, findsOneWidget);
     expect(tester.getSize(frame).width, lessThanOrEqualTo(420));
@@ -117,7 +123,7 @@ void main() {
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
+    expect(find.byKey(const ValueKey('adaptive-centered-form')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

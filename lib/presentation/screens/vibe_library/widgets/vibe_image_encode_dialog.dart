@@ -92,7 +92,7 @@ class VibeImageEncodeDialog extends StatefulWidget {
           ),
         ],
       ),
-      sideSheetWidth: 400,
+      width: 400,
       builder: (panelContext, scrollController) =>
           VibeImageEncodeDialog._presented(
             thumbnail: imageBytes,
@@ -620,7 +620,7 @@ class VibeImageEncodeErrorDialog extends StatelessWidget {
           ),
         ],
       ),
-      sideSheetWidth: 440,
+      width: 440,
       builder: (panelContext, scrollController) => VibeImageEncodeErrorDialog(
         fileName: fileName,
         errorMessage: errorMessage,

@@ -69,7 +69,7 @@ class _AnlasCostCardState extends ConsumerState<AnlasCostCard> {
       final selectedDays = await AdaptivePresenter.showForm<int>(
         context: context,
         title: AppLocalizations.of(context)!.statistics_customPeriodTitle,
-        sideSheetWidth: 420,
+        width: 420,
         builder: (context, scrollController) => _CustomDaysForm(
           initialDays: _customDays,
           maxDays: _maxCustomDays,

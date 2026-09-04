@@ -51,7 +51,7 @@ class TaskEditDialog extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      sideSheetWidth: 560,
+      width: 560,
       builder: (panelContext, scrollController) => TaskEditDialog(
         task: task,
         scrollController: scrollController,

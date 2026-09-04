@@ -447,9 +447,10 @@ Future<void> confirmClearAllCharacters(
     title: l10n.characterEditor_clearAllTitle,
     initialChildSize: 0.46,
     minChildSize: 0.38,
-    sideSheetWidth: 440,
+    width: 440,
     builder: (panelContext, scrollController) => ListView(
       controller: scrollController,
+      shrinkWrap: true,
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       children: [
         Text(l10n.characterEditor_clearAllConfirm),
