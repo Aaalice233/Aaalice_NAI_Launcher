@@ -23,8 +23,12 @@ void main() {
     final maximizeSlot = find.byKey(
       const ValueKey('generation-prompt-overview-maximize-slot'),
     );
+    final summary = tester.widget<Text>(
+      find.byKey(const ValueKey('generation-prompt-overview-summary')),
+    );
 
     expect(find.text('632 字'), findsOneWidget);
+    expect(summary.softWrap, isFalse);
     expect(
       tester.getCenter(primaryRow).dy,
       lessThan(tester.getCenter(characters).dy),

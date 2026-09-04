@@ -302,6 +302,9 @@ class MobileCollapsedPromptLauncher extends StatelessWidget {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
+                                        key: const ValueKey(
+                                          'generation-prompt-overview-summary',
+                                        ),
                                         hasPrompt
                                             ? prompt.replaceAll(
                                                 RegExp(r'\s+'),
@@ -309,6 +312,7 @@ class MobileCollapsedPromptLauncher extends StatelessWidget {
                                               )
                                             : context.l10n.prompt_describeImage,
                                         maxLines: 1,
+                                        softWrap: false,
                                         overflow: TextOverflow.ellipsis,
                                         style: theme.textTheme.bodySmall
                                             ?.copyWith(
