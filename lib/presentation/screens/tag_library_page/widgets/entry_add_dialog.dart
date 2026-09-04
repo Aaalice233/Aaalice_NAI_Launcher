@@ -15,6 +15,11 @@ import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/interaction_policy.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
@@ -125,6 +130,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   late final TextEditingController _nameController;
   late final NaiSyntaxController _contentController;
   late final TextEditingController _tagsController;
+  late final String _assistantSessionId;
   final _nameFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
   final _tagsFocusNode = FocusNode();
@@ -167,6 +173,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     _nameController = TextEditingController(text: initialName);
     _contentController = NaiSyntaxController(text: initialContent);
     _tagsController = TextEditingController(text: entry?.tags.join(', ') ?? '');
+    _assistantSessionId = PromptHistorySessionIds.tagLibraryEntry(
+      entry?.id ?? 'draft-${identityHashCode(this)}',
+    );
     _selectedCategoryId = entry?.categoryId ?? widget.initialCategoryId;
     _thumbnailPath = entry?.thumbnail;
 
@@ -368,16 +377,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(start: 12),
-                    child: Text(
-                      context.l10n.tagLibrary_characterNegativeSyntaxHelp,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ),
+                  _buildPromptFooter(theme),
                 ],
               ),
             ),
@@ -415,6 +415,76 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPromptFooter(ThemeData theme) {
+    final interactionPolicy = context.interactionPolicy;
+    final assistantConfig = ref.watch(promptAssistantConfigProvider);
+    final assistantVisible =
+        assistantConfig.enabled &&
+        (!interactionPolicy.usesAnchoredMenus ||
+            assistantConfig.desktopOverlayEnabled);
+    final assistantExpanded =
+        assistantVisible &&
+        ref.watch(
+          promptAssistantStateProvider.select(
+            (states) => states[_assistantSessionId]?.expanded ?? false,
+          ),
+        );
+    final assistantToolbarHeight = assistantVisible
+        ? PromptAssistantOverlay.effectiveInlineToolbarHeight(interactionPolicy)
+        : 32.0;
+    final assistantIconOnly = interactionPolicy.prefersTouchPresentation;
+    final collapsedAssistantWidth = assistantIconOnly
+        ? assistantToolbarHeight
+        : PromptAssistantOverlay.collapsedInlineButtonWidth(
+            context,
+            context.l10n.promptAssistant_assistant,
+          );
+    final hint = Text(
+      context.l10n.tagLibrary_characterNegativeSyntaxHelp,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
+        fontSize: 12,
+      ),
+    );
+    final assistant = assistantVisible
+        ? PromptAssistantOverlay(
+            key: ValueKey(
+              'tag-library-entry-prompt-assistant-$_assistantSessionId',
+            ),
+            sessionId: _assistantSessionId,
+            controller: _contentController,
+            interactionPolicy: interactionPolicy,
+            onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+            floatOverEditor: false,
+            iconOnly: assistantIconOnly,
+            stripFixedTagsFromInput: false,
+          )
+        : null;
+
+    return Container(
+      key: const ValueKey('entry-add-dialog-content-footer'),
+      width: double.infinity,
+      constraints: BoxConstraints(minHeight: assistantToolbarHeight),
+      padding: const EdgeInsets.only(left: 12, right: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          if (!assistantExpanded) Expanded(child: hint),
+          if (!assistantExpanded && assistant != null) const SizedBox(width: 8),
+          if (assistant != null)
+            assistantExpanded
+                ? Expanded(child: assistant)
+                : SizedBox(width: collapsedAssistantWidth, child: assistant),
+        ],
+      ),
     );
   }
 

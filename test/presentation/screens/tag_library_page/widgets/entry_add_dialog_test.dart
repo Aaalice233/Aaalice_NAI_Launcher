@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_add_dialog.dart';
 
 void main() {
@@ -105,6 +106,12 @@ void main() {
     expect(thumbnailSection.height, lessThan(210));
     expect(editor.height, 176);
     expect(editor.top, lessThan(490));
+    final contentFooter = find.byKey(
+      const ValueKey('entry-add-dialog-content-footer'),
+    );
+    final assistant = find.byType(PromptAssistantOverlay);
+    expect(contentFooter, findsOneWidget);
+    expect(assistant, findsOneWidget);
     expect(
       find.descendant(
         of: find.byKey(const Key('entry-add-dialog-content-editor')),
@@ -112,6 +119,36 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      tester.getTopLeft(contentFooter).dy,
+      closeTo(editor.bottom + 4, 1),
+    );
+    expect(
+      tester.widget<PromptAssistantOverlay>(assistant).floatOverEditor,
+      false,
+    );
+    expect(
+      tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
+      false,
+    );
+    expect(
+      tester.getTopRight(assistant).dx,
+      closeTo(tester.getTopRight(contentFooter).dx - 4, 1),
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final expandedAssistantRect = tester.getRect(assistant);
+    final footerRect = tester.getRect(contentFooter);
+    expect(expandedAssistantRect.left, greaterThanOrEqualTo(footerRect.left));
+    expect(expandedAssistantRect.right, lessThanOrEqualTo(footerRect.right));
+    expect(expandedAssistantRect.top, greaterThanOrEqualTo(footerRect.top));
+    expect(expandedAssistantRect.bottom, lessThanOrEqualTo(footerRect.bottom));
 
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();
