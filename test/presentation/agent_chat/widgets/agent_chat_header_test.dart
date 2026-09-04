@@ -115,6 +115,44 @@ void main() {
     );
   });
 
+  testWidgets('overflow button shows pointer and keyboard hover feedback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        width: 600,
+        mobile: false,
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+      ),
+    );
+
+    final menu = tester.widget<PopupMenuButton<String>>(
+      find.byKey(const ValueKey('agent-chat-desktop-more')),
+    );
+    final backgroundColor = menu.style!.backgroundColor!;
+    final colors = Theme.of(
+      tester.element(find.byKey(const ValueKey('agent-chat-desktop-more'))),
+    ).colorScheme;
+
+    expect(backgroundColor.resolve({}), Colors.transparent);
+    expect(
+      backgroundColor.resolve({WidgetState.hovered}),
+      colors.surfaceContainerHigh,
+    );
+    expect(
+      backgroundColor.resolve({WidgetState.focused}),
+      colors.surfaceContainerHigh,
+    );
+    expect(
+      backgroundColor.resolve({WidgetState.pressed}),
+      colors.surfaceContainerHighest,
+    );
+  });
+
   testWidgets('session picker and overflow retain all header actions', (
     tester,
   ) async {

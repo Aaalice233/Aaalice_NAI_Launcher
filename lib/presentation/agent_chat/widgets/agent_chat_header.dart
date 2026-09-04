@@ -71,6 +71,8 @@ class AgentChatHeader extends StatelessWidget {
     final hasActiveSession = viewData.state.sessions.any(
       (session) => session.id == viewData.state.activeSessionId,
     );
+    final colors = Theme.of(context).colorScheme;
+    final controlExtent = context.interactionPolicy.minimumControlExtent;
     return PopupMenuButton<String>(
       key: ValueKey(
         viewData.fullScreen
@@ -81,6 +83,26 @@ class AgentChatHeader extends StatelessWidget {
       ),
       tooltip: l10n.agentChat_moreActions,
       constraints: const BoxConstraints(minWidth: 220),
+      padding: EdgeInsets.zero,
+      icon: const Icon(Icons.more_vert_rounded, size: 22),
+      style: ButtonStyle(
+        minimumSize: WidgetStatePropertyAll(Size.square(controlExtent)),
+        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed)) {
+            return colors.surfaceContainerHighest;
+          }
+          if (states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.focused)) {
+            return colors.surfaceContainerHigh;
+          }
+          return Colors.transparent;
+        }),
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
       onSelected: (value) async {
         switch (value) {
           case 'rename':
@@ -111,10 +133,6 @@ class AgentChatHeader extends StatelessWidget {
         ],
         _menuItem('settings', Icons.settings_outlined, l10n.settings_agent),
       ],
-      child: SizedBox.square(
-        dimension: context.interactionPolicy.minimumControlExtent,
-        child: const Icon(Icons.more_vert_rounded, size: 22),
-      ),
     );
   }
 
