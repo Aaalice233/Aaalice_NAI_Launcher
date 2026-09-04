@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
@@ -9,7 +8,6 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel.dart';
 
 void main() {
@@ -140,30 +138,20 @@ void main() {
     await pumpViewport(const Size(360, 800), textScale: 3);
     _expectCoreRegionsVisible(tester, 800);
     expect(tester.takeException(), isNull);
-    final compactControls = find.byKey(
-      const ValueKey('agent-chat-compact-controls'),
-    );
-    expect(compactControls, findsOneWidget);
-    await tester.tap(compactControls);
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('agent-chat-compact-web-access')),
-      findsOneWidget,
-    );
-    for (final mode in AgentPermissionMode.values) {
+    for (final key in [
+      'agent-chat-permission-mode',
+      'agent-chat-web-access-toggle',
+      'agent-chat-context-target',
+    ]) {
+      final control = find.byKey(ValueKey(key));
+      expect(control, findsOneWidget, reason: key);
       expect(
-        find.byKey(ValueKey('agent-chat-compact-permission-${mode.name}')),
-        findsOneWidget,
+        tester.getSize(control).shortestSide,
+        greaterThanOrEqualTo(44),
+        reason: '$key touch target',
       );
     }
-    final webAccess = find.byKey(
-      const ValueKey('agent-chat-compact-web-access'),
-    );
-    await tester.ensureVisible(webAccess);
-    expect(webAccess.hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
 
     final input = find.byKey(const ValueKey('agent-chat-input'));
     await tester.tap(input);

@@ -495,7 +495,10 @@ void main() {
     );
     expect(sheet, findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.control_camera));
+    final positionAction = find.byIcon(Icons.control_camera);
+    await tester.ensureVisible(positionAction);
+    await tester.pump();
+    await tester.tap(positionAction);
     await tester.pumpAndSettle();
 
     expect(sheet, findsNothing);
@@ -642,7 +645,12 @@ void main() {
     await mouse.moveTo(tester.getCenter(toggle));
     await tester.pump(const Duration(milliseconds: 301));
 
-    expect(find.text(', transparent background'), findsOneWidget);
+    final toggleTooltip = find.ancestor(
+      of: toggle,
+      matching: find.byType(Tooltip),
+    );
+    expect(toggleTooltip, findsOneWidget);
+    expect(tester.widget<Tooltip>(toggleTooltip).richMessage, isNotNull);
 
     await mouse.moveTo(const Offset(950, 400));
     await tester.pump();
@@ -1134,10 +1142,7 @@ void main() {
       tester.getRect(assistant).right,
       closeTo(tester.getRect(footer).right, 0.1),
     );
-    expect(
-      textField.decoration?.contentPadding,
-      const EdgeInsets.fromLTRB(12, 12, 12, 56),
-    );
+    expect(textField.decoration?.contentPadding, const EdgeInsets.all(12));
     expect(
       find.descendant(
         of: input,

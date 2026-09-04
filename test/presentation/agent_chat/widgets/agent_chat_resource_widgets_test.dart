@@ -47,7 +47,7 @@ void main() {
         );
         expect(
           find.byKey(const ValueKey('adaptive-bottom-sheet')),
-          width < 600 ? findsOneWidget : findsNothing,
+          width < 840 ? findsOneWidget : findsNothing,
         );
         expect(
           find.byKey(const ValueKey('adaptive-centered-form')),

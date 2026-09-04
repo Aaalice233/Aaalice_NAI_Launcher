@@ -256,7 +256,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('agent-chat-stop')), findsOneWidget);
+    expect(find.byKey(const ValueKey('agent-chat-send')), findsOneWidget);
+    expect(find.bySemanticsLabel('Stop'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -1023,20 +1024,19 @@ void main() {
     notifier.setQueuedMessages(20);
     await tester.pumpWidget(buildPanel(width: 320, height: 640));
     await tester.pump();
-    expect(find.byKey(const ValueKey('agent-chat-stop')), findsOneWidget);
+    expect(find.byKey(const ValueKey('agent-chat-send')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-chat-follow-up')),
       findsNothing,
       reason: 'queued actions stay inside the collapsed queue disclosure',
     );
-    for (final key in ['agent-chat-stop', 'agent-chat-send']) {
-      expect(
-        tester.getSize(find.byKey(ValueKey(key))).shortestSide,
-        greaterThanOrEqualTo(44),
-        reason: '$key running target',
-      );
-    }
-    expect(find.bySemanticsLabel('Steer current work'), findsWidgets);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('agent-chat-send')))
+          .shortestSide,
+      greaterThanOrEqualTo(44),
+      reason: 'agent-chat-send running target',
+    );
     expect(find.bySemanticsLabel('Stop'), findsWidgets);
     await tester.tap(find.byKey(const ValueKey('agent-chat-queue')));
     await tester.pump(const Duration(milliseconds: 300));
@@ -1046,6 +1046,7 @@ void main() {
           .shortestSide,
       greaterThanOrEqualTo(44),
     );
+    expect(find.byTooltip('Steer current work'), findsWidgets);
     expect(find.bySemanticsLabel('Continue after current task'), findsWidgets);
     final layoutError = tester.takeException();
     expect(
