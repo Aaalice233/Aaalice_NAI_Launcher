@@ -387,11 +387,19 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('prompt-assistant-provider-openai_chat')),
-      findsOneWidget,
+    final providerCard = find.byKey(
+      const ValueKey('prompt-assistant-provider-openai_chat'),
     );
+    expect(providerCard, findsOneWidget);
     expect(find.text('连接配置'), findsOneWidget);
+    expect(
+      find.descendant(of: providerCard, matching: find.byIcon(Icons.key)),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: providerCard, matching: find.byIcon(Icons.key_off)),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());

@@ -356,7 +356,6 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
                   icon: const Icon(Icons.link, size: 16),
                   label: Text(context.l10n.promptAssistant_connectionConfig),
                 ),
-                Icon(hasApiKey ? Icons.key : Icons.key_off, size: 18),
                 IconButton(
                   icon: const Icon(Icons.download_for_offline_outlined),
                   tooltip: context.l10n.promptAssistant_pullModelList,
