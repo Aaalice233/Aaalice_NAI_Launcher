@@ -360,6 +360,92 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
     final l10n = AppLocalizations.of(context)!;
     final notifier = ref.read(characterPromptNotifierProvider.notifier);
     final iconColor = colorScheme.onSurfaceVariant;
+    final largeText =
+        widget.borderless && MediaQuery.textScalerOf(context).scale(14) >= 20;
+
+    final nameBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.borderless) ...[
+          Text(
+            l10n.characterEditor_editing,
+            key: ValueKey('character-editor-context-${widget.character.id}'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+        ],
+        // 面板即编辑态，名字就地可改
+        CharacterNameField(
+          key: ValueKey('panel-name-${widget.character.id}'),
+          character: widget.character,
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+    final actions = <Widget>[
+      _PanelIconButton(
+        icon: Icons.arrow_upward,
+        color: iconColor,
+        tooltip: l10n.characterEditor_moveUp,
+        enabled: widget.index > 0,
+        comfortable: widget.borderless,
+        onTap: () => notifier.moveCharacterUp(widget.index),
+      ),
+      _PanelIconButton(
+        icon: Icons.arrow_downward,
+        color: iconColor,
+        tooltip: l10n.characterEditor_moveDown,
+        enabled: widget.index < widget.total - 1,
+        comfortable: widget.borderless,
+        onTap: () => notifier.moveCharacterDown(widget.index),
+      ),
+      _PanelIconButton(
+        icon: Icons.library_add_outlined,
+        color: iconColor,
+        tooltip: l10n.tagLibrary_addToLibrary,
+        comfortable: widget.borderless,
+        onTap: () => _openModal(
+          () => AddToLibraryDialog.show(
+            context,
+            name: widget.character.name,
+            content: CharacterPromptBlockParser.compose(
+              positivePrompt: widget.character.prompt,
+              negativePrompt: widget.character.negativePrompt,
+            ),
+          ),
+        ),
+      ),
+      _PanelIconButton(
+        icon: Icons.close,
+        color: iconColor,
+        tooltip: l10n.characterEditor_close,
+        comfortable: widget.borderless,
+        onTap: () => ref.read(selectedCharacterIdProvider.notifier).clear(),
+      ),
+    ];
+
+    Widget buildIdentity() => Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: _genderColor(widget.character.effectiveGender),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(child: nameBlock),
+      ],
+    );
 
     return TapRegion(
       groupId: CharacterPromptEditor.tapRegionGroupId(widget.character.id),
@@ -381,69 +467,20 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _genderColor(widget.character.effectiveGender),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    // 面板即编辑态，名字就地可改
-                    child: CharacterNameField(
-                      key: ValueKey('panel-name-${widget.character.id}'),
-                      character: widget.character,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  _PanelIconButton(
-                    icon: Icons.arrow_upward,
-                    color: iconColor,
-                    tooltip: l10n.characterEditor_moveUp,
-                    enabled: widget.index > 0,
-                    comfortable: widget.borderless,
-                    onTap: () => notifier.moveCharacterUp(widget.index),
-                  ),
-                  _PanelIconButton(
-                    icon: Icons.arrow_downward,
-                    color: iconColor,
-                    tooltip: l10n.characterEditor_moveDown,
-                    enabled: widget.index < widget.total - 1,
-                    comfortable: widget.borderless,
-                    onTap: () => notifier.moveCharacterDown(widget.index),
-                  ),
-                  _PanelIconButton(
-                    icon: Icons.library_add_outlined,
-                    color: iconColor,
-                    tooltip: l10n.tagLibrary_addToLibrary,
-                    comfortable: widget.borderless,
-                    onTap: () => _openModal(
-                      () => AddToLibraryDialog.show(
-                        context,
-                        name: widget.character.name,
-                        content: CharacterPromptBlockParser.compose(
-                          positivePrompt: widget.character.prompt,
-                          negativePrompt: widget.character.negativePrompt,
-                        ),
-                      ),
-                    ),
-                  ),
-                  _PanelIconButton(
-                    icon: Icons.close,
-                    color: iconColor,
-                    tooltip: l10n.characterEditor_close,
-                    comfortable: widget.borderless,
-                    onTap: () =>
-                        ref.read(selectedCharacterIdProvider.notifier).clear(),
-                  ),
-                ],
-              ),
+              if (largeText) ...[
+                buildIdentity(),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: actions),
+                ),
+              ] else
+                Row(
+                  children: [
+                    Expanded(child: buildIdentity()),
+                    ...actions,
+                  ],
+                ),
               const SizedBox(height: 6),
               CharacterPromptEditor(
                 character: widget.character,

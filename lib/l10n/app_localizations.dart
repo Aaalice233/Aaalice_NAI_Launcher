@@ -8227,6 +8227,12 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to delete all characters? This action cannot be undone.'**
   String get characterEditor_clearAllConfirm;
 
+  /// No description provided for @characterEditor_editing.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing'**
+  String get characterEditor_editing;
+
   /// No description provided for @characterEditor_nameHint.
   ///
   /// In en, this message translates to:

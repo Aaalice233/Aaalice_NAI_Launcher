@@ -1987,6 +1987,7 @@
   "characterEditor_clearAll": "清空所有",
   "characterEditor_clearAllTitle": "清空所有角色",
   "characterEditor_clearAllConfirm": "确定要删除所有角色吗？此操作无法撤销。",
+  "characterEditor_editing": "正在编辑",
   "characterEditor_nameHint": "输入角色名称",
   "characterEditor_enabled": "启用",
   "characterEditor_promptHint": "输入角色的正向提示词...",

@@ -91,6 +91,21 @@ void main() {
       );
       expect(tester.getSize(segment).height, greaterThanOrEqualTo(48));
     }
+
+    await tester.tap(find.text('Alice with a long localized name'));
+    await tester.pumpAndSettle();
+
+    final editingContext = find.byKey(
+      const ValueKey('character-editor-context-alice'),
+    );
+    final nameField = find.byKey(const ValueKey('panel-name-alice'));
+    expect(editingContext, findsOneWidget);
+    expect(find.text('正在编辑'), findsOneWidget);
+    expect(nameField, findsOneWidget);
+    expect(
+      tester.getRect(editingContext).bottom,
+      lessThanOrEqualTo(tester.getRect(nameField).top),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -160,6 +175,14 @@ void main() {
         findsOneWidget,
       );
       expect(container.read(selectedCharacterIdProvider), isNull);
+      expect(tester.takeException(), isNull);
+
+      final characterName = find.text('Alice with a long localized name');
+      await tester.ensureVisible(characterName);
+      await tester.pumpAndSettle();
+      await tester.tap(characterName);
+      await tester.pumpAndSettle();
+      expect(find.text('正在编辑'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await tester.binding.handlePopRoute();

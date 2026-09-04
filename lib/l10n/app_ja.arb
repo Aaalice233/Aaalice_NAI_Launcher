@@ -1953,6 +1953,7 @@
   "characterEditor_clearAll": "すべてクリア",
   "characterEditor_clearAllTitle": "すべてのキャラクターをクリア",
   "characterEditor_clearAllConfirm": "すべてのキャラクターを削除しますか？この操作は元に戻せません。",
+  "characterEditor_editing": "編集中",
   "characterEditor_nameHint": "キャラクター名を入力してください",
   "characterEditor_enabled": "有効",
   "characterEditor_promptHint": "このキャラクターのプロンプトを入力してください...",

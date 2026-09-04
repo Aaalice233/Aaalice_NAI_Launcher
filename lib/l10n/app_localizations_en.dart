@@ -4609,6 +4609,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Are you sure you want to delete all characters? This action cannot be undone.';
 
   @override
+  String get characterEditor_editing => 'Editing';
+
+  @override
   String get characterEditor_nameHint => 'Enter character name';
 
   @override

@@ -1972,6 +1972,7 @@
   "characterEditor_clearAll": "Clear All",
   "characterEditor_clearAllTitle": "Clear All Characters",
   "characterEditor_clearAllConfirm": "Are you sure you want to delete all characters? This action cannot be undone.",
+  "characterEditor_editing": "Editing",
   "characterEditor_nameHint": "Enter character name",
   "characterEditor_enabled": "Enabled",
   "characterEditor_promptHint": "Enter prompt for this character...",

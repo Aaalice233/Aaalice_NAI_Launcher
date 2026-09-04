@@ -4496,6 +4496,9 @@ class AppLocalizationsJa extends AppLocalizations {
       'すべてのキャラクターを削除しますか？この操作は元に戻せません。';
 
   @override
+  String get characterEditor_editing => '編集中';
+
+  @override
   String get characterEditor_nameHint => 'キャラクター名を入力してください';
 
   @override

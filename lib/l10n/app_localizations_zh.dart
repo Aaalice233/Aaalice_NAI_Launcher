@@ -4409,6 +4409,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterEditor_clearAllConfirm => '确定要删除所有角色吗？此操作无法撤销。';
 
   @override
+  String get characterEditor_editing => '正在编辑';
+
+  @override
   String get characterEditor_nameHint => '输入角色名称';
 
   @override
@@ -18332,6 +18335,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get characterEditor_clearAllConfirm => '確定要刪除所有角色嗎？此操作無法撤銷。';
+
+  @override
+  String get characterEditor_editing => '正在編輯';
 
   @override
   String get characterEditor_nameHint => '輸入角色名稱';
