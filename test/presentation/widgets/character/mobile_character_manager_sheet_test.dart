@@ -83,6 +83,19 @@ void main() {
       tester.getCenter(modes).dy,
       closeTo(tester.getCenter(clear).dy, 0.1),
     );
+    final canvasEntry = find.byKey(
+      const ValueKey('character-position-canvas-entry'),
+    );
+    expect(canvasEntry, findsOneWidget);
+    expect(
+      tester.getRect(canvasEntry).right,
+      lessThanOrEqualTo(tester.getRect(modes).right),
+    );
+    expect(tester.getSize(canvasEntry).width, greaterThanOrEqualTo(48));
+    final modeScroll = tester.state<ScrollableState>(
+      find.descendant(of: modes, matching: find.byType(Scrollable)),
+    );
+    expect(modeScroll.position.maxScrollExtent, 0);
 
     for (final label in ['AI 选择', '自定义']) {
       final segment = find.ancestor(

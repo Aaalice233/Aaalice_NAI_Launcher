@@ -110,8 +110,8 @@ class _InlineCharacterHeader extends ConsumerWidget {
     }
     return Row(
       children: [
-        Flexible(child: modeOrTitle),
-        const Spacer(),
+        Expanded(child: modeOrTitle),
+        const SizedBox(width: 8),
         actions,
       ],
     );

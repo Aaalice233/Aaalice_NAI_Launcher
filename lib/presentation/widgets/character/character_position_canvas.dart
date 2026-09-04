@@ -461,6 +461,7 @@ class CharacterPositionModeSegments extends ConsumerWidget {
         ),
         // 位置画布入口
         Tooltip(
+          key: const ValueKey('character-position-canvas-entry'),
           message: l10n.characterCanvas_title,
           waitDuration: const Duration(milliseconds: 500),
           child: _ModeSegment(
@@ -511,14 +512,23 @@ class _ModeSegment extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final controlExtent = context.interactionPolicy.minimumControlExtent;
+    final horizontalPadding = context.interactionPolicy.touchAvailable
+        ? 5.0
+        : 10.0;
 
     return InkWell(
       onTap: onTap,
       borderRadius: radius,
       child: Container(
-        constraints: BoxConstraints(minHeight: controlExtent),
+        constraints: BoxConstraints(
+          minWidth: controlExtent,
+          minHeight: controlExtent,
+        ),
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: 5,
+        ),
         decoration: BoxDecoration(
           color: selected
               ? colorScheme.primary.withValues(alpha: 0.14)
