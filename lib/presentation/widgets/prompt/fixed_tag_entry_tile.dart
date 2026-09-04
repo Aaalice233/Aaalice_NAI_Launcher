@@ -194,53 +194,53 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
                 ),
               ),
               const SizedBox(height: 3),
-              Row(
-                children: [
-                  Expanded(
-                    child: entry.content.isEmpty
-                        ? Text(context.l10n.fixedTags_empty)
-                        : TranslatedPromptText(
-                            entry.content,
-                            originalText: entry.content.replaceAll('\n', ' '),
-                            selectable: false,
-                            maxLines: 1,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(
-                    entry.isPrefix
-                        ? Icons.arrow_forward_rounded
-                        : Icons.arrow_back_rounded,
-                    size: 12,
-                    color: positionColor,
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    entry.isPrefix
-                        ? context.l10n.fixedTags_prefix
-                        : context.l10n.fixedTags_suffix,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: positionColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (entry.weight != 1) ...[
-                    const SizedBox(width: 5),
-                    Text(
-                      '${entry.weight.toStringAsFixed(1)}×',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.secondary,
-                        fontWeight: FontWeight.w700,
+              entry.content.isEmpty
+                  ? Text(context.l10n.fixedTags_empty)
+                  : TranslatedPromptText(
+                      entry.content,
+                      originalText: entry.content.replaceAll('\n', ' '),
+                      selectable: false,
+                      maxLines: 1,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  ],
-                ],
-              ),
             ],
           ),
+        ),
+        const SizedBox(width: 6),
+        Row(
+          key: ValueKey('fixed-tag-position-${entry.id}'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              entry.isPrefix
+                  ? Icons.arrow_forward_rounded
+                  : Icons.arrow_back_rounded,
+              size: 12,
+              color: positionColor,
+            ),
+            const SizedBox(width: 2),
+            Text(
+              entry.isPrefix
+                  ? context.l10n.fixedTags_prefix
+                  : context.l10n.fixedTags_suffix,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: positionColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (entry.weight != 1) ...[
+              const SizedBox(width: 5),
+              Text(
+                '${entry.weight.toStringAsFixed(1)}×',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
         ),
         if (widget.linkAnchor != null) ...[
           const SizedBox(width: 8),

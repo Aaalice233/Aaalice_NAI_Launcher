@@ -666,6 +666,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(positive.name), findsOneWidget);
+      final tile = find.byKey(ValueKey('fixed-tag-entry-${positive.id}'));
+      final position = find.byKey(
+        ValueKey('fixed-tag-position-${positive.id}'),
+      );
+      expect(
+        tester.getCenter(position).dy,
+        closeTo(tester.getCenter(tile).dy, 0.1),
+      );
       expect(tester.takeException(), isNull);
 
       await tester.tap(
