@@ -68,6 +68,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).height,
+      MobileShell.maximumNavigationBarHeight,
+    );
+    expect(
+      tester.getSize(find.byType(NavigationBar)).height,
+      MobileShell.maximumNavigationBarHeight,
+    );
+    expect(tester.takeException(), isNull);
+
     expect(lifecycle[AppBranch.generation]!.created, 1);
     for (final branch in AppBranch.values.skip(1)) {
       expect(

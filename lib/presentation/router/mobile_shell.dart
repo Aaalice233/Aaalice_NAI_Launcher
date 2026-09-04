@@ -18,6 +18,9 @@ import 'shell_panels_overlay.dart';
 /// Compact touch-first shell. Secondary destinations remain explicit in the
 /// labelled “more” panel instead of disappearing behind desktop-only routes.
 class MobileShell extends ConsumerWidget {
+  static const double compactNavigationBarHeight = 64;
+  static const double maximumNavigationBarHeight = 84;
+
   final StatefulNavigationShell navigationShell;
   final bool branchCanHandlePop;
   final Widget content;
@@ -94,6 +97,7 @@ class MobileShell extends ConsumerWidget {
           : SafeArea(
               top: false,
               child: NavigationBar(
+                height: _navigationBarHeight(context),
                 selectedIndex: activePanel != null
                     ? mobileMoreNavigationIndex
                     : mobileNavigationIndexForBranch(
@@ -171,6 +175,14 @@ class MobileShell extends ConsumerWidget {
           child: scaffold,
         ),
       ),
+    );
+  }
+
+  double _navigationBarHeight(BuildContext context) {
+    final scaledLabelHeight = MediaQuery.textScalerOf(context).scale(12);
+    return (48 + scaledLabelHeight).clamp(
+      compactNavigationBarHeight,
+      maximumNavigationBarHeight,
     );
   }
 

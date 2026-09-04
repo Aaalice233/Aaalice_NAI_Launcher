@@ -186,6 +186,14 @@ void main() {
     expect(find.byType(DesktopShell), findsNothing);
     expect(find.byType(MobileShell), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).height,
+      MobileShell.compactNavigationBarHeight,
+    );
+    expect(
+      tester.getSize(find.byType(NavigationBar)).height,
+      MobileShell.compactNavigationBarHeight,
+    );
     expect(tester.getSize(banner).width, lessThanOrEqualTo(366));
     expect(tester.getSize(banner).height, lessThan(120));
     expect(
