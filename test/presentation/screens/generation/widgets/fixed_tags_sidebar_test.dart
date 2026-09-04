@@ -28,6 +28,7 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
 import 'package:nai_launcher/presentation/themes/prompt_semantic_colors.dart';
+import 'package:nai_launcher/presentation/widgets/common/tile_action_button.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
@@ -2173,11 +2174,9 @@ void main() {
       ),
     );
 
-    final menu = find.byKey(const ValueKey('sidebar-entry-actions-menu'));
-    expect(menu, findsOneWidget);
-    await tester.ensureVisible(menu);
-    await tester.pumpAndSettle();
-    await tester.tap(menu);
+    final actions = find.byKey(const ValueKey('sidebar-entry-actions'));
+    expect(actions, findsOneWidget);
+    await tester.ensureVisible(actions);
     await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.copy_rounded), findsOneWidget);
@@ -2243,14 +2242,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
-      final entryMenu = find.byKey(
-        const ValueKey('sidebar-entry-actions-menu'),
-      );
-      await tester.ensureVisible(entryMenu);
+      final entryEdit = find.byIcon(Icons.edit_rounded);
+      await tester.ensureVisible(entryEdit);
       await tester.pumpAndSettle();
-      await tester.tap(entryMenu);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.edit_rounded));
+      await tester.tap(entryEdit);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
@@ -2773,7 +2768,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('SidebarEntryTile pointer menu exposes every action at 320', (
+  testWidgets('SidebarEntryTile pointer actions stay live at 320', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(320, 300);
@@ -2816,25 +2811,27 @@ void main() {
     );
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await mouse.addPointer();
+    await mouse.addPointer(location: Offset.zero);
     addTearDown(mouse.removePointer);
     await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
     await tester.pumpAndSettle();
 
-    final menu = find.byKey(const ValueKey('sidebar-entry-actions-menu'));
-    expect(menu, findsOneWidget);
+    expect(find.byKey(const ValueKey('sidebar-entry-actions')), findsOneWidget);
 
-    await tester.tap(menu);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.copy_rounded));
-    await tester.pumpAndSettle();
-    await tester.tap(menu);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.edit_rounded));
-    await tester.pumpAndSettle();
-    await tester.tap(menu);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    // 合成 touch tap 不会更新鼠标命中，测不出指针路径的回归，必须用真实鼠标。
+    for (final icon in [
+      Icons.copy_rounded,
+      Icons.edit_rounded,
+      Icons.delete_outline_rounded,
+    ]) {
+      final target = tester.getCenter(find.byIcon(icon));
+      await mouse.moveTo(target);
+      await tester.pumpAndSettle();
+      await mouse.down(target);
+      await tester.pump();
+      await mouse.up();
+      await tester.pumpAndSettle();
+    }
 
     expect(copiedText, 'copied tag');
     expect(edited, 1);
@@ -2842,7 +2839,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('SidebarEntryTile touch menu invokes edit and delete callbacks', (
+  testWidgets('SidebarEntryTile touch actions invoke edit and delete', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(320, 700);
@@ -2865,18 +2862,21 @@ void main() {
       onDelete: () => deleted++,
     );
 
-    final menu = find.byKey(const ValueKey('sidebar-entry-actions-menu'));
-    expect(menu, findsOneWidget);
+    expect(find.byKey(const ValueKey('sidebar-entry-actions')), findsOneWidget);
 
-    await tester.tap(menu);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.edit_rounded));
-    await tester.pumpAndSettle();
-
-    await tester.tap(menu);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
-    await tester.pumpAndSettle();
+    // 触屏没有 hover，操作必须无条件可见且命中区不小于 44。
+    for (final icon in [Icons.edit_rounded, Icons.delete_outline_rounded]) {
+      final size = tester.getSize(
+        find.ancestor(
+          of: find.byIcon(icon),
+          matching: find.byType(TileActionButton),
+        ),
+      );
+      expect(size.width, greaterThanOrEqualTo(44));
+      expect(size.height, greaterThanOrEqualTo(44));
+      await tester.tap(find.byIcon(icon));
+      await tester.pumpAndSettle();
+    }
 
     expect(edited, 1);
     expect(deleted, 1);
@@ -2884,7 +2884,7 @@ void main() {
   });
 
   testWidgets(
-    'SidebarEntryTile 3x menu invokes copy, edit and delete without overflow',
+    'SidebarEntryTile 3x actions invoke copy, edit and delete without overflow',
     (tester) async {
       tester.view.physicalSize = const Size(320, 700);
       tester.view.devicePixelRatio = 1;
@@ -2926,24 +2926,20 @@ void main() {
         onDelete: () => deleted++,
       );
 
-      final menu = find.byKey(const ValueKey('sidebar-entry-actions-menu'));
-      expect(menu, findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('sidebar-entry-actions')),
+        findsOneWidget,
+      );
       expect(find.byType(FittedBox), findsNothing);
 
-      await tester.tap(menu);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.copy_rounded));
-      await tester.pumpAndSettle();
-
-      await tester.tap(menu);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.edit_rounded));
-      await tester.pumpAndSettle();
-
-      await tester.tap(menu);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.delete_outline_rounded));
-      await tester.pumpAndSettle();
+      for (final icon in [
+        Icons.copy_rounded,
+        Icons.edit_rounded,
+        Icons.delete_outline_rounded,
+      ]) {
+        await tester.tap(find.byIcon(icon));
+        await tester.pumpAndSettle();
+      }
 
       expect(copiedText, 'copied tag');
       expect(edited, 1);
@@ -2996,11 +2992,14 @@ void main() {
     expect(find.byIcon(Icons.remove_rounded), findsNothing);
     expect(find.byIcon(Icons.add_rounded), findsNothing);
 
-    final menu = find.byKey(const ValueKey('sidebar-entry-actions-menu'));
-    expect(menu, findsOneWidget);
-    await tester.tap(menu);
+    expect(find.byKey(const ValueKey('sidebar-entry-actions')), findsOneWidget);
+    final editCenter = tester.getCenter(find.byIcon(Icons.edit_rounded));
+    await gesture.moveTo(editCenter);
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.edit_rounded));
+    await gesture.down(editCenter);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
 
     expect(edited, isTrue);
   });
