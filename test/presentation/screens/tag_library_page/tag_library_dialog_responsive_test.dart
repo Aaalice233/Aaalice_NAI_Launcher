@@ -209,6 +209,11 @@ void main() {
       await tester.ensureVisible(export);
       expect(export, findsOneWidget);
       expect(find.text('包含预览图'), findsOneWidget);
+      final stats = find.byKey(const ValueKey('tag-library-export-stats'));
+      final selectionActions = find.byKey(
+        const ValueKey('tag-library-export-selection-actions'),
+      );
+      expect(tester.getCenter(stats).dy, tester.getCenter(selectionActions).dy);
       expect(tester.takeException(), isNull);
     },
   );
@@ -269,6 +274,20 @@ void main() {
     expect(panel, findsOneWidget);
     expect(tester.getSize(panel).width, 600);
     expect(find.text('宽屏条目'), findsOneWidget);
+    final stats = find.byKey(const ValueKey('tag-library-export-stats'));
+    final selectionActions = find.byKey(
+      const ValueKey('tag-library-export-selection-actions'),
+    );
+    expect(tester.getCenter(stats).dy, tester.getCenter(selectionActions).dy);
+
+    final content = find.byKey(const ValueKey('tag-library-export-content'));
+    final dialogActions = find.byKey(
+      const ValueKey('tag-library-export-dialog-actions'),
+    );
+    expect(
+      tester.getRect(content).right - tester.getRect(dialogActions).right,
+      16,
+    );
     expect(tester.takeException(), isNull);
   });
 }
