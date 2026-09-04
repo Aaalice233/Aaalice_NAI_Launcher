@@ -1591,6 +1591,7 @@ void main() {
       container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
       isTrue,
     );
+    expect(find.byIcon(Icons.chevron_left_rounded), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('fixed-tags-collapse-sidebar')));
     await tester.pumpAndSettle();
