@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../themes/core/layered_surface_style.dart';
-import '../common/gallery_hover_controller.dart';
+import '../common/image_hover_preview_controller.dart';
 import '../common/thumbnail_display.dart';
 import '../common/translated_tag_text.dart';
 
@@ -37,7 +37,7 @@ class _TagLibraryEntryHoverPreviewState
   static const _dismissDelay = Duration(milliseconds: 120);
 
   final _layerLink = LayerLink();
-  late final GalleryHoverController _hoverController;
+  late final ImageHoverPreviewController _hoverController;
   ScrollPosition? _scrollPosition;
   Timer? _dismissTimer;
   bool _isHovering = false;
@@ -45,7 +45,7 @@ class _TagLibraryEntryHoverPreviewState
   @override
   void initState() {
     super.initState();
-    _hoverController = GalleryHoverController();
+    _hoverController = ImageHoverPreviewController();
   }
 
   @override

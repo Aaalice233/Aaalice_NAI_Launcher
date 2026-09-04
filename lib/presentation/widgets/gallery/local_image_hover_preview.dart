@@ -9,9 +9,9 @@ import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/utils/byte_format.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
-import '../../themes/core/layered_surface_style.dart';
 import '../../utils/local_gallery_metadata_resolver.dart';
-import '../common/gallery_hover_controller.dart';
+import '../common/image_hover_preview.dart';
+import '../common/image_hover_preview_controller.dart';
 
 /// Adds a delayed, full-file hover preview to a local gallery card.
 class LocalImageHoverPreview extends StatefulWidget {
@@ -32,14 +32,14 @@ class LocalImageHoverPreview extends StatefulWidget {
 
 class _LocalImageHoverPreviewState extends State<LocalImageHoverPreview> {
   final _layerLink = LayerLink();
-  late final GalleryHoverController _hoverController;
+  late final ImageHoverPreviewController _hoverController;
   NaiImageMetadata? _resolvedMetadata;
   String? _resolvedMetadataPath;
 
   @override
   void initState() {
     super.initState();
-    _hoverController = GalleryHoverController();
+    _hoverController = ImageHoverPreviewController();
   }
 
   @override
@@ -267,187 +267,142 @@ class _LocalImageHoverPreviewCardState
         (model?.isNotEmpty ?? false) ||
         metadata?.seed != null ||
         metadata?.steps != null;
-    final metadataHeight = hasGenerationInfo ? 80.0 : 56.0;
-    const borderExtent = 4.0;
-    final contentMaxWidth = math.max(1, widget.maxWidth - borderExtent);
-    final maxImageHeight = math.max(
-      1,
-      widget.maxHeight - metadataHeight - borderExtent,
-    );
     final ratio = _aspectRatio ?? 1;
-    final naturalHeight = contentMaxWidth / ratio;
-    final imageHeight = math
-        .min(maxImageHeight, math.max(150, naturalHeight))
-        .toDouble();
-    final widthForFullHeight = imageHeight * ratio;
-    final cardWidth =
-        (naturalHeight > maxImageHeight ? widthForFullHeight : contentMaxWidth)
-            .clamp(math.min(220, contentMaxWidth), contentMaxWidth)
-            .toDouble();
     final imageProvider = _imageProvider;
 
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        key: const ValueKey('local-gallery-hover-preview'),
-        width: cardWidth,
-        constraints: BoxConstraints(maxHeight: widget.maxHeight),
-        decoration: BoxDecoration(
-          color: overlaySurfaceColor(theme.colorScheme),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.55),
-              blurRadius: 32,
-              spreadRadius: 6,
-              offset: const Offset(0, 16),
-            ),
-            BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.18),
-              blurRadius: 18,
-              spreadRadius: -8,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        foregroundDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.primary.withValues(alpha: 0.3),
-            width: 2,
-          ),
-        ),
+    return ImageHoverPreviewSurface(
+      key: const ValueKey('local-gallery-hover-preview'),
+      sourceAspectRatio: ratio,
+      maxWidth: widget.maxWidth,
+      maxHeight: widget.maxHeight,
+      mediaBuilder: (context, layout) => SizedBox(
+        key: const ValueKey('local-gallery-hover-image'),
+        width: layout.size.width,
+        height: layout.size.height,
+        child: imageProvider == null
+            ? Center(
+                child: CircularProgressIndicator(
+                  value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+                ),
+              )
+            : Image(
+                image: imageProvider,
+                fit: layout.fit,
+                alignment: layout.alignment,
+                filterQuality: FilterQuality.high,
+                gaplessPlayback: true,
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  if (wasSynchronouslyLoaded || frame != null) {
+                    LocalGalleryThumbnailMemoryCache.instance
+                        .releasePendingOwner(imageProvider);
+                    return child;
+                  }
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: MediaQuery.disableAnimationsOf(context)
+                          ? 0.72
+                          : null,
+                    ),
+                  );
+                },
+                errorBuilder: (_, __, ___) {
+                  LocalGalleryThumbnailMemoryCache.instance.releasePendingOwner(
+                    imageProvider,
+                  );
+                  return Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      size: 36,
+                    ),
+                  );
+                },
+              ),
+      ),
+      footer: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(10),
-              ),
-              child: SizedBox(
-                key: const ValueKey('local-gallery-hover-image'),
-                width: cardWidth,
-                height: imageHeight,
-                child: ColoredBox(
-                  color: overlaySurfaceColor(theme.colorScheme),
-                  child: imageProvider == null
-                      ? Center(
-                          child: CircularProgressIndicator(
-                            value: MediaQuery.disableAnimationsOf(context)
-                                ? 0.72
-                                : null,
-                          ),
-                        )
-                      : Image(
-                          image: imageProvider,
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.high,
-                          gaplessPlayback: true,
-                          frameBuilder:
-                              (context, child, frame, wasSynchronouslyLoaded) {
-                                if (wasSynchronouslyLoaded || frame != null) {
-                                  LocalGalleryThumbnailMemoryCache.instance
-                                      .releasePendingOwner(imageProvider);
-                                  return child;
-                                }
-                                return Center(
-                                  child: CircularProgressIndicator(
-                                    value:
-                                        MediaQuery.disableAnimationsOf(context)
-                                        ? 0.72
-                                        : null,
-                                  ),
-                                );
-                              },
-                          errorBuilder: (_, __, ___) {
-                            LocalGalleryThumbnailMemoryCache.instance
-                                .releasePendingOwner(imageProvider);
-                            return Center(
-                              child: Icon(
-                                Icons.broken_image_outlined,
-                                color: theme.colorScheme.onSurfaceVariant,
-                                size: 36,
-                              ),
-                            );
-                          },
-                        ),
+            Row(
+              children: [
+                Icon(
+                  Icons.image_outlined,
+                  size: 16,
+                  color: theme.colorScheme.primary,
                 ),
-              ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _fileName(widget.record.path),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            SizedBox(
-              height: metadataHeight,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 7, 10, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _fileName(widget.record.path),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1,
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ImageHoverPreviewMetric(
+                    icon: Icons.photo_size_select_actual_outlined,
+                    value: _resolutionText,
+                    tone: ImageHoverPreviewTone.primary,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: ImageHoverPreviewMetric(
+                    icon: Icons.data_usage_outlined,
+                    value: formatBytes(widget.record.size),
+                    tone: ImageHoverPreviewTone.secondary,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: ImageHoverPreviewMetric(
+                    icon: Icons.calendar_today_outlined,
+                    value: _formatDate(widget.record.modifiedAt),
+                    tone: ImageHoverPreviewTone.tertiary,
+                  ),
+                ),
+              ],
+            ),
+            if (hasGenerationInfo) ...[
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  if (model?.isNotEmpty ?? false)
+                    Expanded(
+                      child: ImageHoverPreviewMetric(
+                        icon: Icons.auto_awesome_outlined,
+                        value: model!,
+                        tone: ImageHoverPreviewTone.primary,
                       ),
                     ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _PreviewStat(
-                            icon: Icons.photo_size_select_actual_outlined,
-                            value: _resolutionText,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: _PreviewStat(
-                            icon: Icons.data_usage_outlined,
-                            value: formatBytes(widget.record.size),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: _PreviewStat(
-                            icon: Icons.calendar_today_outlined,
-                            value: _formatDate(widget.record.modifiedAt),
-                          ),
-                        ),
-                      ],
+                  if (metadata?.seed != null) ...[
+                    if (model?.isNotEmpty ?? false) const SizedBox(width: 6),
+                    ImageHoverPreviewMetric(
+                      icon: Icons.casino_outlined,
+                      value: '${metadata!.seed}',
+                      tone: ImageHoverPreviewTone.secondary,
                     ),
-                    if (hasGenerationInfo) ...[
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          if (model?.isNotEmpty ?? false)
-                            Expanded(
-                              child: _PreviewStat(
-                                icon: Icons.auto_awesome_outlined,
-                                value: model!,
-                              ),
-                            ),
-                          if (metadata?.seed != null) ...[
-                            if (model?.isNotEmpty ?? false)
-                              const SizedBox(width: 8),
-                            _PreviewStat(
-                              icon: Icons.casino_outlined,
-                              value: '${metadata!.seed}',
-                            ),
-                          ],
-                          if (metadata?.steps != null) ...[
-                            const SizedBox(width: 8),
-                            _PreviewStat(
-                              icon: Icons.stairs_outlined,
-                              value: '${metadata!.steps}',
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
                   ],
-                ),
+                  if (metadata?.steps != null) ...[
+                    const SizedBox(width: 6),
+                    ImageHoverPreviewMetric(
+                      icon: Icons.stairs_outlined,
+                      value: '${metadata!.steps}',
+                      tone: ImageHoverPreviewTone.tertiary,
+                    ),
+                  ],
+                ],
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -473,39 +428,5 @@ class _LocalImageHoverPreviewCardState
     _metadataRequestId++;
     _cancelPendingImage();
     super.dispose();
-  }
-}
-
-class _PreviewStat extends StatelessWidget {
-  const _PreviewStat({required this.icon, required this.value});
-
-  final IconData icon;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: color, fontSize: 11, height: 1),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
