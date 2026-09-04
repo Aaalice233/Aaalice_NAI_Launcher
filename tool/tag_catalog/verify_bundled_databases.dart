@@ -40,7 +40,13 @@ Future<void> main() async {
         throw StateError('quick_check failed for ${file.path}');
       }
       if (entry.key == 'tag_catalog.db') {
-        for (final table in ['metadata', 'tags', 'aliases', 'tag_search']) {
+        for (final table in [
+          'metadata',
+          'tags',
+          'aliases',
+          'tag_search',
+          'zh_translations',
+        ]) {
           if (db.select("SELECT 1 FROM sqlite_master WHERE name = ?", [
             table,
           ]).isEmpty) {
@@ -60,11 +66,53 @@ Future<void> main() async {
         final actualAliases =
             db.select('SELECT COUNT(*) AS count FROM aliases').single['count']
                 as int;
-        if (actualTags != expectedTags || actualAliases != expectedAliases) {
+        final translationLock = Map<String, dynamic>.from(
+          sourceLock['translations'] as Map,
+        );
+        final expectedTranslations = (translationLock['expectedCount'] as num)
+            .toInt();
+        final expectedOverrides =
+            (translationLock['expectedOverrideCount'] as num).toInt();
+        final actualTranslations =
+            db
+                    .select('SELECT COUNT(*) AS count FROM zh_translations')
+                    .single['count']
+                as int;
+        final actualOverrides =
+            db
+                    .select(
+                      'SELECT COUNT(*) AS count FROM zh_translations WHERE mode = 1',
+                    )
+                    .single['count']
+                as int;
+        if (actualTags != expectedTags ||
+            actualAliases != expectedAliases ||
+            actualTranslations != expectedTranslations ||
+            actualOverrides != expectedOverrides) {
           throw StateError(
             'Incomplete merged catalog: tags=$actualTags/$expectedTags '
-            'aliases=$actualAliases/$expectedAliases',
+            'aliases=$actualAliases/$expectedAliases '
+            'translations=$actualTranslations/$expectedTranslations '
+            'overrides=$actualOverrides/$expectedOverrides',
           );
+        }
+        if (metadata['translation_source_sha256'] !=
+                translationLock['sha256'] ||
+            metadata['translation_ffdkj_baseline_blob_sha'] !=
+                translationLock['ffdkjBaselineBlobSha']) {
+          throw StateError('Translation metadata does not match source lock');
+        }
+        final requiredEntries = Map<String, dynamic>.from(
+          translationLock['requiredEntries'] as Map? ?? const {},
+        );
+        for (final required in requiredEntries.entries) {
+          final rows = db.select(
+            'SELECT zh_cn FROM zh_translations WHERE tag = ?',
+            [required.key],
+          );
+          if (rows.length != 1 || rows.single['zh_cn'] != required.value) {
+            throw StateError('Required translation mismatch: ${required.key}');
+          }
         }
         if (metadata['source_scope'] != 'danbooru_e621_full') {
           throw StateError('Tag catalog is not the complete merged source');

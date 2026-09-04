@@ -5,8 +5,9 @@ import 'package:crypto/crypto.dart';
 import 'package:csv/csv.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-const catalogSchemaVersion = 2;
+const catalogSchemaVersion = 3;
 const supportedSourceCategories = {0, 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15};
+const translationModes = {'missing': 0, 'override': 1};
 
 Future<void> main(List<String> args) async {
   final options = _Options.parse(args);
@@ -21,10 +22,40 @@ Future<void> main(List<String> args) async {
   }
 
   final actualHash = await sha256.bind(input.openRead()).first;
-  final expectedHash = lock['sha256'] as String?;
+  final expectedHash = lock['sha256'] as String;
   if (actualHash.toString() != expectedHash) {
     throw StateError(
       'Source SHA256 mismatch: expected=$expectedHash actual=$actualHash',
+    );
+  }
+
+  final translationLock = Map<String, dynamic>.from(
+    lock['translations'] as Map,
+  );
+  final translationInput = File(options.translationInputPath);
+  if (!await translationInput.exists()) {
+    throw StateError('Missing translation source: ${translationInput.path}');
+  }
+  final translationHash = await sha256.bind(translationInput.openRead()).first;
+  if ('$translationHash' != translationLock['sha256']) {
+    throw StateError(
+      'Translation source SHA256 mismatch: '
+      'expected=${translationLock['sha256']} actual=$translationHash',
+    );
+  }
+  final translations = await _readTranslations(
+    translationInput,
+    translationLock,
+  );
+  final dataVersion = lock['dataVersion'] as String;
+  final expectedDataVersion = sha256
+      .convert(utf8.encode('$expectedHash:$translationHash'))
+      .toString()
+      .substring(0, 12);
+  if (dataVersion != expectedDataVersion) {
+    throw StateError(
+      'Catalog dataVersion mismatch: '
+      'expected=$expectedDataVersion actual=$dataVersion',
     );
   }
 
@@ -44,6 +75,9 @@ Future<void> main(List<String> args) async {
     );
     final insertSearch = db.prepare(
       'INSERT INTO tag_search(term, search_key, tag_id, kind) VALUES (?, ?, ?, ?)',
+    );
+    final insertTranslation = db.prepare(
+      'INSERT INTO zh_translations(tag, zh_cn, mode) VALUES (?, ?, ?)',
     );
 
     var imported = 0;
@@ -114,6 +148,13 @@ Future<void> main(List<String> args) async {
           'Imported alias count mismatch: expected=$expectedAliasCount actual=$aliases',
         );
       }
+      for (final translation in translations) {
+        insertTranslation.execute([
+          translation.tag,
+          translation.zhCn,
+          translationModes[translation.mode],
+        ]);
+      }
       db.execute('COMMIT');
     } catch (_) {
       db.execute('ROLLBACK');
@@ -123,20 +164,25 @@ Future<void> main(List<String> args) async {
       findTag.dispose();
       insertAlias.dispose();
       insertSearch.dispose();
+      insertTranslation.dispose();
     }
 
-    final importedAt = DateTime.now().toUtc().toIso8601String();
     final metadata = <String, String>{
       'schema_version': '$catalogSchemaVersion',
-      'data_version': ('${lock['commit']}').substring(0, 12),
+      'data_version': dataVersion,
       'source_url': '${lock['url']}',
       'source_format': 'tag_name,category,post_count,aliases',
       'source_scope': 'danbooru_e621_full',
       'source_sha256': actualHash.toString(),
       'source_commit': '${lock['commit']}',
-      'imported_at': importedAt,
+      'translation_source_sha256': '$translationHash',
+      'translation_ffdkj_baseline_blob_sha':
+          '${translationLock['ffdkjBaselineBlobSha']}',
       'tag_count': '$imported',
       'alias_count': '$aliases',
+      'translation_count': '${translations.length}',
+      'translation_override_count':
+          '${translations.where((entry) => entry.mode == 'override').length}',
     };
     final insertMeta = db.prepare(
       'INSERT INTO metadata(key, value) VALUES (?, ?)',
@@ -167,7 +213,6 @@ Future<void> main(List<String> args) async {
   final databases = manifest['databases'] as Map<String, dynamic>;
   final previousEntry = databases['tag_catalog.db'] as Map<String, dynamic>?;
   final outputSize = await output.length();
-  final dataVersion = ('${lock['commit']}').substring(0, 12);
   final nextEntry = <String, dynamic>{
     'schemaVersion': catalogSchemaVersion,
     'dataVersion': dataVersion,
@@ -216,7 +261,102 @@ void _createSchema(Database db) {
       kind UNINDEXED,
       tokenize='unicode61 remove_diacritics 2'
     );
+    CREATE TABLE zh_translations(
+      tag TEXT PRIMARY KEY COLLATE NOCASE,
+      zh_cn TEXT NOT NULL CHECK(TRIM(zh_cn) <> ''),
+      mode INTEGER NOT NULL CHECK(mode IN (0, 1))
+    ) WITHOUT ROWID;
   ''');
+}
+
+Future<List<_TranslationEntry>> _readTranslations(
+  File input,
+  Map<String, dynamic> lock,
+) async {
+  final document = jsonDecode(await input.readAsString());
+  if (document is! Map<String, dynamic> || document['schemaVersion'] != 1) {
+    throw StateError('Unsupported translation source schema');
+  }
+  final baseline = document['ffdkjBaseline'];
+  if (baseline is! Map || baseline['blobSha'] != lock['ffdkjBaselineBlobSha']) {
+    throw StateError('Translation ffdkj baseline does not match source lock');
+  }
+  final rawEntries = document['entries'];
+  if (rawEntries is! List) {
+    throw StateError('Translation source entries must be a list');
+  }
+  final entries = <_TranslationEntry>[];
+  final seen = <String>{};
+  for (final raw in rawEntries) {
+    if (raw is! Map) throw StateError('Invalid translation source entry');
+    final tag = '${raw['tag'] ?? ''}'.trim();
+    final zhCn = '${raw['zhCn'] ?? ''}'.trim();
+    final mode = '${raw['mode'] ?? ''}'.trim();
+    if (tag != tag.toLowerCase() ||
+        tag.contains(RegExp(r'[\s,\u0000-\u001f]')) ||
+        !_isValidTag(tag) ||
+        zhCn.isEmpty ||
+        zhCn.contains(RegExp(r'[/／]')) ||
+        !translationModes.containsKey(mode) ||
+        !seen.add(tag)) {
+      throw StateError('Invalid translation source entry for tag "$tag"');
+    }
+    entries.add(_TranslationEntry(tag: tag, zhCn: zhCn, mode: mode));
+  }
+  final expectedCount = (lock['expectedCount'] as num).toInt();
+  final expectedOverrides = (lock['expectedOverrideCount'] as num).toInt();
+  final actualOverrides = entries
+      .where((entry) => entry.mode == 'override')
+      .length;
+  final expectedOverrideTags = (lock['overrideTags'] as List)
+      .map((value) => '$value')
+      .toSet();
+  final actualOverrideTags = entries
+      .where((entry) => entry.mode == 'override')
+      .map((entry) => entry.tag)
+      .toSet();
+  if (entries.length != expectedCount || actualOverrides != expectedOverrides) {
+    throw StateError(
+      'Translation count mismatch: '
+      'entries=${entries.length}/$expectedCount '
+      'overrides=$actualOverrides/$expectedOverrides',
+    );
+  }
+  if (actualOverrideTags.length != expectedOverrideTags.length ||
+      !actualOverrideTags.containsAll(expectedOverrideTags)) {
+    throw StateError(
+      'Translation override tags mismatch: '
+      'actual=$actualOverrideTags expected=$expectedOverrideTags',
+    );
+  }
+  final requiredEntries = Map<String, dynamic>.from(
+    lock['requiredEntries'] as Map? ?? const {},
+  );
+  final translationsByTag = {
+    for (final entry in entries) entry.tag: entry.zhCn,
+  };
+  for (final required in requiredEntries.entries) {
+    if (translationsByTag[required.key] != required.value) {
+      throw StateError(
+        'Required translation mismatch: '
+        'tag=${required.key} expected=${required.value} '
+        'actual=${translationsByTag[required.key]}',
+      );
+    }
+  }
+  return entries;
+}
+
+class _TranslationEntry {
+  const _TranslationEntry({
+    required this.tag,
+    required this.zhCn,
+    required this.mode,
+  });
+
+  final String tag;
+  final String zhCn;
+  final String mode;
 }
 
 bool _isValidTag(String value) =>
@@ -228,12 +368,14 @@ String _searchKey(String value) =>
 class _Options {
   const _Options({
     required this.inputPath,
+    required this.translationInputPath,
     required this.outputPath,
     required this.lockPath,
     required this.manifestPath,
   });
 
   final String inputPath;
+  final String translationInputPath;
   final String outputPath;
   final String lockPath;
   final String manifestPath;
@@ -249,6 +391,10 @@ class _Options {
       inputPath: value(
         'input',
         'tool/tag_catalog/.cache/danbooru_e621_merged.csv',
+      ),
+      translationInputPath: value(
+        'translation-input',
+        'tool/tag_catalog/zh_translations.json',
       ),
       outputPath: value('output', 'assets/databases/tag_catalog.db'),
       lockPath: value('lock', 'tool/tag_catalog/source_lock.json'),

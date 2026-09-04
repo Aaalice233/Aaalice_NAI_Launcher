@@ -163,6 +163,9 @@ ultra\_complexity, perfect\_rendering, realistic\_rendering, detailed\_textures,
       ProviderScope(
         overrides: [
           zhDictionaryServiceProvider.overrideWith((ref) => dictionary),
+          tagTranslationLookupProvider.overrideWithValue(
+            TagTranslationLookup.fromResolver((tags) async => const {}),
+          ),
         ],
         child: MaterialApp.router(
           locale: const Locale('zh'),
@@ -182,6 +185,25 @@ ultra\_complexity, perfect\_rendering, realistic\_rendering, detailed\_textures,
 
     expect(find.text('settings:storage'), findsOneWidget);
     expect(dictionary.installCalled, isTrue);
+  });
+
+  testWidgets('未安装 ffdkj 时仍可使用内置补充翻译', (tester) async {
+    final source = TextEditingController(text: 'worst_quality');
+    addTearDown(source.dispose);
+    await _pumpField(
+      tester,
+      source: source,
+      dictionary: _FakeZhDictionaryService(installed: false),
+      lookup: TagTranslationLookup.fromResolver(
+        (tags) async => {'worst_quality': '最差质量'},
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('quick-translate-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('最差质量'), findsOneWidget);
+    expect(find.text('需要汉化词库'), findsNothing);
   });
 
   testWidgets('紧凑触屏与桌面宽度均保持右下角入口和安全命中区', (tester) async {

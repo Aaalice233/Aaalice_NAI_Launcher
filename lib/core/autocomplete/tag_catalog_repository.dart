@@ -3,6 +3,15 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../database/asset_database_manager.dart';
 import 'completion_models.dart';
 
+enum BundledTranslationMode {
+  missing(0),
+  override(1);
+
+  const BundledTranslationMode(this.databaseValue);
+
+  final int databaseValue;
+}
+
 class TagCatalogRecord {
   const TagCatalogRecord({
     required this.canonicalTag,
@@ -227,6 +236,105 @@ class TagCatalogRepository implements CompletionSource {
     return result;
   }
 
+  Future<Map<String, String>> resolveTranslations(
+    Iterable<String> terms, {
+    required BundledTranslationMode mode,
+  }) async {
+    final normalized = terms
+        .map((term) => term.trim().toLowerCase().replaceAll(' ', '_'))
+        .where((term) => term.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (normalized.isEmpty) return const {};
+    await initialize();
+
+    final result = <String, String>{};
+    for (var offset = 0; offset < normalized.length; offset += 400) {
+      final chunk = normalized.skip(offset).take(400).toList(growable: false);
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final rows = await _database!.rawQuery(
+        'SELECT tag, zh_cn FROM zh_translations '
+        'WHERE mode = ? AND tag IN ($placeholders)',
+        [mode.databaseValue, ...chunk],
+      );
+      for (final row in rows) {
+        result[row['tag'] as String] = (row['zh_cn'] as String).trim();
+      }
+    }
+    return result;
+  }
+
+  /// Searches the compact bundled translation index by either tag or Chinese
+  /// label. Records missing from the full tag catalog remain usable with safe
+  /// general-category defaults instead of disappearing from autocomplete.
+  Future<List<CompletionCandidate>> searchTranslations(
+    CompletionQuery query,
+  ) async {
+    final token = query.token.trim().toLowerCase();
+    if (token.isEmpty) return const [];
+    await initialize();
+
+    final requestedLimit =
+        token.runes.length == 1 && CompletionResultLimits.isAll(query.limit)
+        ? CompletionResultLimits.oneCharacter
+        : query.limit;
+    final escaped = _escapeLike(token);
+    final field = query.isChinese ? 'zh_cn' : 'tag';
+    final rows = await _database!.rawQuery(
+      '''
+      SELECT tag, zh_cn,
+        CASE
+          WHEN $field = ? THEN 0
+          WHEN $field LIKE ? ESCAPE '\\' THEN 1
+          ELSE 2
+        END AS match_rank
+      FROM zh_translations
+      WHERE $field = ?
+         OR $field LIKE ? ESCAPE '\\'
+         OR $field LIKE ? ESCAPE '\\'
+      ORDER BY match_rank, tag ASC
+      LIMIT ?
+      ''',
+      [token, '$escaped%', token, '$escaped%', '%$escaped%', requestedLimit],
+    );
+    if (rows.isEmpty) return const [];
+
+    final records = await recordsByCanonicalTag(
+      rows.map((row) => row['tag'] as String),
+    );
+    final candidates = <CompletionCandidate>[];
+    for (final row in rows) {
+      final tag = row['tag'] as String;
+      final record = records[tag];
+      final category = record?.category ?? TagCategory.general;
+      if (query.categoryFilter != null && query.categoryFilter != category) {
+        continue;
+      }
+      final rank = (row['match_rank'] as num).toInt();
+      candidates.add(
+        CompletionCandidate(
+          canonicalTag: tag,
+          category: category,
+          postCount: record?.postCount ?? 0,
+          translation: row['zh_cn'] as String,
+          matchKind: query.isChinese
+              ? rank == 0
+                    ? CompletionMatchKind.chineseExact
+                    : rank == 1
+                    ? CompletionMatchKind.chinesePrefix
+                    : CompletionMatchKind.chineseContains
+              : rank == 0
+              ? CompletionMatchKind.englishExact
+              : rank == 1
+              ? CompletionMatchKind.englishPrefix
+              : CompletionMatchKind.fullText,
+          sources: const {CompletionSourceKind.base},
+        ),
+      );
+    }
+    return candidates;
+  }
+
   Future<Map<String, String>> metadata() async {
     await initialize();
     final rows = await _database!.rawQuery('SELECT key, value FROM metadata');
@@ -268,6 +376,11 @@ class TagCatalogRepository implements CompletionSource {
         .toList();
     return tokens.map((token) => '"${token.replaceAll('"', '""')}"*').join(' ');
   }
+
+  static String _escapeLike(String value) => value
+      .replaceAll(r'\', r'\\')
+      .replaceAll('%', r'\%')
+      .replaceAll('_', r'\_');
 
   static CompletionMatchKind _matchKind(String term, int kind, String query) {
     if (query.isEmpty) return CompletionMatchKind.fullText;

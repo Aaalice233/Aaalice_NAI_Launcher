@@ -3,7 +3,7 @@ import 'dart:collection';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/tag_normalizer.dart';
-import 'autocomplete_providers.dart';
+import 'fast_tag_service_provider.dart';
 import 'zh_dictionary_service.dart';
 
 /// Result of translating a prompt-like, comma-delimited tag document.
@@ -17,6 +17,27 @@ class TagTextTranslation {
   final int translatedTagCount;
 
   bool get hasTranslations => translatedTagCount > 0;
+}
+
+/// A reusable local-first translation plan for prompt-like tag text.
+class TagTextTranslationPlan {
+  const TagTextTranslationPlan({
+    required this.source,
+    required this.localTranslations,
+    required this.unresolvedTags,
+    required this.tagCount,
+  });
+
+  final String source;
+  final Map<String, String> localTranslations;
+  final List<String> unresolvedTags;
+  final int tagCount;
+
+  TagTextTranslation render([Map<String, String> additional = const {}]) =>
+      TagTranslationLookup.applyTagTextTranslations(source, {
+        ...additional,
+        ...localTranslations,
+      });
 }
 
 /// Shared optional Chinese lookup used outside the autocomplete overlay.
@@ -173,24 +194,60 @@ class TagTranslationLookup {
   /// Translates each tag payload while preserving weights, grouping syntax,
   /// separators, whitespace, and unmatched source text byte-for-byte.
   ///
-  /// Any prompt or tag-library surface can use this ffdkj-backed readable
+  /// Any prompt or tag-library surface can use this local readable
   /// transformation. The source string is never mutated.
   Future<TagTextTranslation> translateTagText(String source) async {
+    return (await prepareTagTextTranslation(source)).render();
+  }
+
+  /// Resolves everything available locally and returns only the remaining
+  /// canonical tags for an optional slower translation backend.
+  Future<TagTextTranslationPlan> prepareTagTextTranslation(
+    String source,
+  ) async {
     if (source.isEmpty) {
-      return const TagTextTranslation(text: '', translatedTagCount: 0);
+      return const TagTextTranslationPlan(
+        source: '',
+        localTranslations: {},
+        unresolvedTags: [],
+        tagCount: 0,
+      );
     }
 
+    final tagKeys = source
+        .split(RegExp(r'(?<=[,，\r\n])|(?=[,，\r\n])'))
+        .where((part) => !_isTagSeparator(part))
+        .map(_TranslatableTagSlice.parse)
+        .map((slice) => slice.lookupKey)
+        .where((tag) => tag.isNotEmpty)
+        .toList(growable: false);
+    final translations = await translateBatch(tagKeys);
+    final unresolved = tagKeys
+        .where((tag) => !translations.containsKey(tag))
+        .toSet()
+        .toList(growable: false);
+    return TagTextTranslationPlan(
+      source: source,
+      localTranslations: translations,
+      unresolvedTags: unresolved,
+      tagCount: tagKeys.length,
+    );
+  }
+
+  /// Applies translations without changing separators, weights, emphasis, or
+  /// unmatched source text. Translation keys must use [normalizeTag].
+  static TagTextTranslation applyTagTextTranslations(
+    String source,
+    Map<String, String> translations,
+  ) {
+    if (source.isEmpty || translations.isEmpty) {
+      return TagTextTranslation(text: source, translatedTagCount: 0);
+    }
     final parts = source.split(RegExp(r'(?<=[,，\r\n])|(?=[,，\r\n])'));
     final slices = parts
         .where((part) => !_isTagSeparator(part))
         .map(_TranslatableTagSlice.parse)
         .toList(growable: false);
-    final translations = await translateBatch(
-      slices
-          .map((slice) => slice.lookupKey)
-          .where((tag) => tag.isNotEmpty)
-          .toList(growable: false),
-    );
     var translatedTagCount = 0;
     var sliceIndex = 0;
 
@@ -358,5 +415,9 @@ class _TranslatableTagSlice {
 }
 
 final tagTranslationLookupProvider = Provider<TagTranslationLookup>((ref) {
-  return TagTranslationLookup(ref.watch(zhDictionaryServiceProvider));
+  final service = ref.watch(fastTagServiceProvider);
+  return TagTranslationLookup.fromResolver(
+    (tags) => service.resolve(tags, locale: 'zh-CN'),
+    fuzzyResolver: service.resolveFuzzy,
+  );
 });

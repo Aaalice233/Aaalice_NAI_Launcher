@@ -47,7 +47,7 @@ class UnifiedPromptConfig {
   /// 会弹出导入确认框，支持转换为 NAI 多角色格式。
   final bool enableComfyuiImport;
 
-  /// 是否显示基于本地 ffdkj 词库的快速翻译入口。
+  /// 是否显示基于内置补充与本地 ffdkj 词库的快速翻译入口。
   final bool enableQuickTranslation;
 
   // ==================== 外观选项 ====================

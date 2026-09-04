@@ -254,6 +254,7 @@ Future<File> _createCatalogFixture(String directory) async {
     CREATE TABLE tags(id INTEGER PRIMARY KEY, name TEXT, category INTEGER, post_count INTEGER);
     CREATE TABLE aliases(id INTEGER PRIMARY KEY, tag_id INTEGER, alias TEXT);
     CREATE VIRTUAL TABLE tag_search USING fts5(term, search_key, tag_id UNINDEXED, kind UNINDEXED);
+    CREATE TABLE zh_translations(tag TEXT PRIMARY KEY, zh_cn TEXT, mode INTEGER);
   ''');
   db.dispose();
   return file;

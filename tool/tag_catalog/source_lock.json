@@ -5,9 +5,34 @@
   "commit": "42f35be9d394ff62fc9e9a39b8c500b8f9b67bfe",
   "url": "https://raw.githubusercontent.com/willmiao/ComfyUI-Lora-Manager/42f35be9d394ff62fc9e9a39b8c500b8f9b67bfe/refs/danbooru_e621_merged.csv",
   "sha256": "71297f7e4adaeae005cba1259b25a10374ed01e071cb4801a6195e709c32a9e5",
+  "dataVersion": "125148ac88dc",
   "upstreamData": "https://github.com/DraconicDragon/dbr-e621-lists-archive",
   "upstreamLicense": "Unlicense",
   "includedCategories": [0, 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15],
   "expectedTagCount": 221787,
-  "expectedAliasCount": 71504
+  "expectedAliasCount": 71504,
+  "translations": {
+    "path": "tool/tag_catalog/zh_translations.json",
+    "sha256": "3640d606f65b544ab850311277f3e723c05b2a32eefe7dd162d3ddb432a9ec09",
+    "expectedCount": 517,
+    "expectedOverrideCount": 2,
+    "overrideTags": ["extra", "fewer_digits"],
+    "requiredEntries": {
+      "masterpiece": "杰作",
+      "worst_quality": "最差质量",
+      "bad_quality": "差质量",
+      "very_displeasing": "非常不美观",
+      "realistic_face": "写实面部",
+      "low_complexity": "低复杂度",
+      "unfinished_small_objects": "未完成的小物件",
+      "detailed_skin": "细致皮肤",
+      "perfect_rendering": "完美渲染",
+      "realistic_rendering": "写实渲染",
+      "detailed_textures": "精细纹理",
+      "intricate_details": "繁复细节",
+      "simple_face": "简化面部",
+      "round_face": "圆脸"
+    },
+    "ffdkjBaselineBlobSha": "98c4c94c9f17249274ca4a8b6f98966b63eedd12"
+  }
 }

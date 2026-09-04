@@ -13,10 +13,15 @@ import 'cooccurrence_completion_source.dart';
 import 'completion_models.dart';
 import 'completion_orchestrator.dart';
 import 'danbooru_completion_source.dart';
+import 'fast_tag_service_provider.dart';
 import 'llm_translation_resolver.dart';
-import 'tag_catalog_repository.dart';
 import 'tag_library_completion_source.dart';
-import 'zh_dictionary_service.dart';
+
+export 'fast_tag_service_provider.dart'
+    show
+        fastTagServiceProvider,
+        tagCatalogRepositoryProvider,
+        zhDictionaryServiceProvider;
 
 final autocompleteCacheDatabaseProvider = Provider<AutocompleteCacheDatabase>((
   ref,
@@ -31,25 +36,6 @@ final autocompleteCacheStatisticsProvider =
     FutureProvider.autoDispose<Map<String, int>>((ref) {
       return ref.watch(autocompleteCacheDatabaseProvider).statistics();
     });
-
-final tagCatalogRepositoryProvider = Provider<TagCatalogRepository>((ref) {
-  final repository = TagCatalogRepository();
-  ref.onDispose(() => unawaited(repository.dispose()));
-  return repository;
-});
-
-final zhDictionaryServiceProvider = ChangeNotifierProvider<ZhDictionaryService>(
-  (ref) {
-    final service = ZhDictionaryService();
-    unawaited(() async {
-      await service.initialize();
-      if (service.state.isInstalled) {
-        await service.checkForUpdate();
-      }
-    }());
-    return service;
-  },
-);
 
 final danbooruCompletionSourceProvider = Provider<DanbooruCompletionSource>((
   ref,
@@ -123,8 +109,7 @@ final autocompleteLocalSourcesProvider = Provider<List<CompletionSource>>((
   ref,
 ) {
   return <CompletionSource>[
-    ref.watch(tagCatalogRepositoryProvider),
-    ref.watch(zhDictionaryServiceProvider),
+    ref.watch(fastTagServiceProvider),
     ref.watch(cooccurrenceCompletionSourceProvider),
   ];
 });
@@ -146,12 +131,11 @@ final tagLibraryCompletionSourceProvider = Provider<TagLibraryCompletionSource>(
 );
 
 final autocompleteServicesProvider = Provider<AutocompleteServices>((ref) {
-  final zhDictionary = ref.watch(zhDictionaryServiceProvider);
-  final tagCatalog = ref.watch(tagCatalogRepositoryProvider);
+  final fastTags = ref.watch(fastTagServiceProvider);
   return AutocompleteServices(
     localSources: ref.watch(autocompleteLocalSourcesProvider),
-    tagLookupSources: [tagCatalog, zhDictionary],
-    dictionaryTranslations: zhDictionary,
+    tagLookupSources: [fastTags],
+    dictionaryTranslations: fastTags,
     llmTranslations: ref.watch(llmTranslationResolverProvider),
     danbooru: ref.watch(danbooruCompletionSourceProvider),
     libraryAliases: ref.watch(tagLibraryCompletionSourceProvider),

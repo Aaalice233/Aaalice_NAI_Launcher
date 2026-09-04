@@ -70,32 +70,31 @@ void main() {
     expect(results.first.translation, '标签0');
   });
 
-  test(
-    'fuzzy translation accepts one unambiguous typo and skips identifiers',
-    () async {
-      final dictionaryDirectory = Directory(
-        p.join(temp.path, 'autocomplete', 'ffdkj'),
-      );
-      await dictionaryDirectory.create(recursive: true);
-      _createDictionary(
-        p.join(dictionaryDirectory.path, 'tag.sqlite'),
-        rows: 1000,
-        extraRows: const {'toddler': '幼儿'},
-      );
+  test('fuzzy translation only restores one missing character', () async {
+    final dictionaryDirectory = Directory(
+      p.join(temp.path, 'autocomplete', 'ffdkj'),
+    );
+    await dictionaryDirectory.create(recursive: true);
+    _createDictionary(
+      p.join(dictionaryDirectory.path, 'tag.sqlite'),
+      rows: 1000,
+      extraRows: const {'toddler': '幼儿', 'screentones': '网点', 'fever': '发烧'},
+    );
 
-      final result = await service.resolveFuzzy([
-        '',
-        'a',
-        '3d',
-        '::',
-        'todder',
-        'artist:mx2j',
-        'year_2026',
-      ]);
+    final result = await service.resolveFuzzy([
+      '',
+      'a',
+      '3d',
+      '::',
+      'todder',
+      'screentone',
+      'fewer',
+      'artist:mx2j',
+      'year_2026',
+    ]);
 
-      expect(result, {'todder': '幼儿'});
-    },
-  );
+    expect(result, {'todder': '幼儿', 'screentone': '网点'});
+  });
 
   test('rejects a corrupt SQLite file', () async {
     final file = File('${temp.path}/corrupt.sqlite');

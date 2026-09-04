@@ -16,7 +16,7 @@ import '../common/themed_confirm_dialog.dart';
 import '../common/themed_input.dart';
 import 'nai_syntax_controller.dart';
 
-/// Adds a local ffdkj translation preview to a prompt editor.
+/// Adds a local bundled/ffdkj translation preview to a prompt editor.
 ///
 /// The translated editor owns a separate controller. Its text can be selected
 /// or edited for inspection, but the source controller remains untouched and
@@ -113,10 +113,6 @@ class _QuickTranslatePromptFieldState
     final dictionary = ref.read(zhDictionaryServiceProvider);
     await dictionary.initialize();
     if (!mounted) return;
-    if (!dictionary.state.isInstalled) {
-      await _offerDictionaryInstall(dictionary.state.isBusy);
-      return;
-    }
 
     final snapshot = widget.controller.value;
     final requestGeneration = ++_requestGeneration;
@@ -137,6 +133,10 @@ class _QuickTranslatePromptFieldState
     setState(() => _isTranslating = false);
     if (widget.controller.value != snapshot) return;
     if (!result.hasTranslations) {
+      if (!dictionary.state.isInstalled) {
+        await _offerDictionaryInstall(dictionary.state.isBusy);
+        return;
+      }
       AppToast.info(context, context.l10n.quickTranslate_noMatches);
       return;
     }
