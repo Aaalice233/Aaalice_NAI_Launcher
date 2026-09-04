@@ -10,6 +10,7 @@ class CompactIconButton extends StatelessWidget {
     super.key,
     required this.icon,
     this.label,
+    this.trailingIcon,
     this.tooltip,
     this.onPressed,
     this.isActive = false,
@@ -20,6 +21,7 @@ class CompactIconButton extends StatelessWidget {
 
   final IconData icon;
   final String? label;
+  final IconData? trailingIcon;
   final String? tooltip;
   final VoidCallback? onPressed;
   final bool isActive;
@@ -103,7 +105,16 @@ class CompactIconButton extends StatelessWidget {
         onPressed: enabled ? onPressed : null,
         style: style,
         icon: iconWidget,
-        label: Text(label!),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label!),
+            if (trailingIcon != null) ...[
+              const SizedBox(width: 4),
+              Icon(trailingIcon, size: 18),
+            ],
+          ],
+        ),
       );
     } else {
       button = IconButton(

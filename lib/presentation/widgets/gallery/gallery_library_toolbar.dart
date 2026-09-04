@@ -473,50 +473,6 @@ class GalleryLibraryViewToggle extends StatelessWidget {
   );
 }
 
-@immutable
-class GalleryLibraryViewModeOption<T> {
-  const GalleryLibraryViewModeOption({
-    required this.value,
-    required this.icon,
-    required this.label,
-  });
-
-  final T value;
-  final IconData icon;
-  final String label;
-}
-
-class GalleryLibraryViewModeSelector<T> extends StatelessWidget {
-  const GalleryLibraryViewModeSelector({
-    super.key,
-    required this.value,
-    required this.options,
-    required this.onSelected,
-  });
-
-  final T value;
-  final List<GalleryLibraryViewModeOption<T>> options;
-  final ValueChanged<T> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = _GalleryLibraryToolbarScope.maybeCompactOf(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final option in options)
-          GalleryLibraryAction(
-            icon: option.icon,
-            label: compact ? option.label : '',
-            tooltip: option.label,
-            isActive: option.value == value,
-            onPressed: () => onSelected(option.value),
-          ),
-      ],
-    );
-  }
-}
-
 class _GalleryLibraryToolbarScope extends InheritedWidget {
   const _GalleryLibraryToolbarScope({
     required this.compact,

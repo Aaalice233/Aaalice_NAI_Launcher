@@ -8,6 +8,7 @@ import '../../../providers/tag_library_selection_provider.dart';
 import '../../../widgets/autocomplete/autocomplete_config.dart';
 import '../../../widgets/autocomplete/autocomplete_wrapper.dart';
 import '../../../widgets/bulk_action_bar.dart';
+import '../../../widgets/common/icon_dropdown_selector.dart';
 import '../../../widgets/gallery/gallery_library_toolbar.dart';
 import '../../../widgets/gallery/gallery_sidebar.dart';
 
@@ -180,20 +181,21 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
               .read(tagLibraryPageNotifierProvider.notifier)
               .setSortBy(value),
         ),
-        GalleryLibraryViewModeSelector<TagLibraryViewMode>(
+        IconDropdownSelector<TagLibraryViewMode>(
+          key: const Key('tag-library-view-mode-selector'),
           value: state.viewMode,
           options: [
-            GalleryLibraryViewModeOption(
+            IconDropdownOption(
               value: TagLibraryViewMode.list,
               icon: Icons.view_list_rounded,
               label: context.l10n.common_list,
             ),
-            GalleryLibraryViewModeOption(
+            IconDropdownOption(
               value: TagLibraryViewMode.card,
               icon: Icons.grid_view_rounded,
               label: context.l10n.common_grid,
             ),
-            GalleryLibraryViewModeOption(
+            IconDropdownOption(
               value: TagLibraryViewMode.grouped,
               icon: Icons.folder_copy_outlined,
               label: context.l10n.common_grouped,

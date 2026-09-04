@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/tag_library_toolbar.dart';
+import 'package:nai_launcher/presentation/widgets/common/icon_dropdown_selector.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_library_toolbar.dart';
 
 class _FakeTagLibraryPageNotifier extends TagLibraryPageNotifier {
@@ -14,6 +16,11 @@ class _FakeTagLibraryPageNotifier extends TagLibraryPageNotifier {
   @override
   void setSortBy(TagLibrarySortBy sortBy) {
     state = state.copyWith(sortBy: sortBy);
+  }
+
+  @override
+  void setViewMode(TagLibraryViewMode mode) {
+    state = state.copyWith(viewMode: mode);
   }
 }
 
@@ -34,9 +41,12 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byType(GalleryLibraryViewModeSelector<TagLibraryViewMode>),
+        find.byType(IconDropdownSelector<TagLibraryViewMode>),
         findsOneWidget,
       );
+      expect(find.text('分组'), findsOneWidget);
+      expect(find.text('列表'), findsNothing);
+      expect(find.text('网格'), findsNothing);
       for (final label in ['分类', '多选', '导入', '导出', '文件夹', '添加条目']) {
         expect(find.text(label), findsOneWidget);
       }
@@ -55,6 +65,45 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('名称'), findsOneWidget);
   });
+
+  for (final width in [320.0, 1180.0]) {
+    testWidgets('视图下拉选单在 ${width.toInt()}px 保留图标并切换状态', (tester) async {
+      await _pumpToolbar(
+        tester,
+        width: width,
+        interactionPolicy: width == 320
+            ? InteractionPolicy.touchFirst
+            : InteractionPolicy.neutral,
+      );
+
+      final selector = find.byKey(const Key('tag-library-view-mode-selector'));
+      expect(
+        tester.getSize(selector).height,
+        greaterThanOrEqualTo(width == 320 ? 48 : 40),
+      );
+
+      await tester.tap(selector);
+      await tester.pumpAndSettle();
+
+      for (final icon in [
+        Icons.view_list_rounded,
+        Icons.grid_view_rounded,
+        Icons.folder_copy_outlined,
+      ]) {
+        expect(find.byIcon(icon), findsWidgets);
+      }
+      expect(find.text('列表'), findsOneWidget);
+      expect(find.text('网格'), findsOneWidget);
+      expect(find.text('分组'), findsNWidgets(2));
+
+      await tester.tap(find.text('列表'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('列表'), findsOneWidget);
+      expect(find.text('分组'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('分类与文件夹按钮转发顶栏操作', (tester) async {
     var categoryToggleCount = 0;
@@ -100,6 +149,7 @@ Future<void> _pumpToolbar(
   double textScale = 1,
   VoidCallback? onShowCategories,
   VoidCallback? onOpenFolder,
+  InteractionPolicy? interactionPolicy,
 }) async {
   await tester.binding.setSurfaceSize(Size(width, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -119,14 +169,17 @@ Future<void> _pumpToolbar(
             data: MediaQuery.of(
               context,
             ).copyWith(textScaler: TextScaler.linear(textScale)),
-            child: Scaffold(
-              body: TagLibraryToolbar(
-                onShowCategories: onShowCategories ?? () {},
-                onOpenFolder: onOpenFolder ?? () {},
-                onEnterSelectionMode: () {},
-                onImport: () {},
-                onExport: () {},
-                onAddEntry: () {},
+            child: InteractionPolicyScope(
+              initialPolicy: interactionPolicy,
+              child: Scaffold(
+                body: TagLibraryToolbar(
+                  onShowCategories: onShowCategories ?? () {},
+                  onOpenFolder: onOpenFolder ?? () {},
+                  onEnterSelectionMode: () {},
+                  onImport: () {},
+                  onExport: () {},
+                  onAddEntry: () {},
+                ),
               ),
             ),
           ),
