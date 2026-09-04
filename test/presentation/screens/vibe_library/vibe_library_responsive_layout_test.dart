@@ -408,6 +408,9 @@ Future<void> _pumpTouchImportFlow(
         vibeLibraryNotifierProvider.overrideWith(
           _PopulatedVibeLibraryNotifier.new,
         ),
+        vibeLibraryCategoryNotifierProvider.overrideWith(
+          _ResponsiveVibeLibraryCategoryNotifier.new,
+        ),
       ],
       child: MaterialApp(
         locale: const Locale('zh'),
@@ -512,6 +515,9 @@ Future<void> _pumpWorkspace(
         vibeLibraryNotifierProvider.overrideWith(
           _PopulatedVibeLibraryNotifier.new,
         ),
+        vibeLibraryCategoryNotifierProvider.overrideWith(
+          _ResponsiveVibeLibraryCategoryNotifier.new,
+        ),
       ],
       child: MaterialApp(
         locale: const Locale('zh'),
@@ -551,6 +557,12 @@ List<VibeLibraryCategory> _buildCategories(int count) => List.generate(
     createdAt: DateTime(2026),
   ),
 );
+
+class _ResponsiveVibeLibraryCategoryNotifier
+    extends VibeLibraryCategoryNotifier {
+  @override
+  VibeLibraryCategoryState build() => const VibeLibraryCategoryState();
+}
 
 Future<void> _pumpCategoryPanelHost(
   WidgetTester tester, {

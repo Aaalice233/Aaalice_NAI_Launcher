@@ -86,7 +86,7 @@ void main() {
               body: Align(
                 alignment: Alignment.topCenter,
                 child: SizedBox(
-                  height: 132,
+                  height: 180,
                   child: ClipRect(
                     child: TagLibraryToolbar(onShowCategories: () {}),
                   ),

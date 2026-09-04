@@ -16,18 +16,19 @@ import '../../../data/models/image/image_params.dart';
 import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../data/services/precise_ref_library_storage_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
-import '../../adaptive/interaction_policy.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
 import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/compact_icon_button.dart';
 import '../../widgets/common/input_surface_container.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/common/library_classification_drag.dart';
 import '../../widgets/common/precise_reference_type_dialog.dart';
 import '../../widgets/gallery/gallery_sidebar.dart';
+import '../../widgets/gallery/gallery_library_toolbar.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'widgets/precise_ref_card.dart';
 import 'widgets/precise_ref_entry_edit_dialog.dart';
@@ -469,16 +470,15 @@ class _PreciseRefLibraryScreenState
   }) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final touchTarget = context.interactionPolicy.shouldExposeTouchAlternatives;
-
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final compact = MediaQuery.sizeOf(context).width < 1050 || textScale > 1.5;
     final title = GalleryCollectionPageTitle(
       key: const Key('precise-ref-library-page-title'),
       icon: Icons.center_focus_strong,
       title: l10n.preciseRefLib_title,
-      subtitle: l10n.preciseRefLib_entryCount(state.totalCount),
-      maxWidth: 210,
+      maxWidth: compact ? 180 : 220,
     );
-    final searchHeight = touchTarget ? 48.0 : 40.0;
+    final searchHeight = compact ? 48.0 : 36.0;
     final search = InputSurfaceContainer(
       key: const Key('precise-ref-library-search-surface'),
       height: searchHeight,
@@ -517,23 +517,6 @@ class _PreciseRefLibraryScreenState
         ),
       ),
     );
-    final favorites = IconButton(
-      key: const Key('precise-ref-library-favorites-toggle'),
-      tooltip: l10n.preciseRefLib_favoritesOnly,
-      icon: Icon(
-        state.favoritesOnly
-            ? Icons.favorite_rounded
-            : Icons.favorite_border_rounded,
-        color: state.favoritesOnly ? theme.colorScheme.error : null,
-      ),
-      onPressed: () {
-        setState(() => _currentPage = 0);
-        ref
-            .read(preciseRefLibraryNotifierProvider.notifier)
-            .toggleFavoritesOnly();
-      },
-      style: _toolbarIconButtonStyle(theme),
-    );
     final sort = PopupMenuButton<PreciseRefLibrarySortOrder>(
       key: const Key('precise-ref-library-sort-menu'),
       tooltip: l10n.preciseRefLib_sortBy,
@@ -566,167 +549,52 @@ class _PreciseRefLibraryScreenState
           state,
         ),
       ],
-      style: _toolbarIconButtonStyle(theme),
     );
-    final importButton = FilledButton.icon(
+    final importButton = CompactIconButton(
       key: const Key('precise-ref-library-import-button'),
       onPressed: _isPickingFile ? null : _importImages,
-      icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
-      label: Text(l10n.preciseRefLib_import),
-      style: _toolbarImportButtonStyle(
-        theme,
-        minimumHeight: touchTarget ? 48 : 40,
-      ),
+      icon: Icons.add_photo_alternate_outlined,
+      label: l10n.preciseRefLib_import,
+      tooltip: l10n.preciseRefLib_import,
+    );
+    final compactImportButton = IconButton.filledTonal(
+      key: const Key('precise-ref-library-import-button'),
+      onPressed: _isPickingFile ? null : _importImages,
+      tooltip: l10n.preciseRefLib_import,
+      icon: const Icon(Icons.add_photo_alternate_outlined),
     );
     final showToolbarImport = state.totalCount > 0 || state.hasFilters;
-    final categories = IconButton(
+    final categories = CompactIconButton(
+      key: const Key('precise-ref-library-categories-button'),
+      icon: Icons.folder_outlined,
+      label: l10n.common_categories,
+      tooltip: l10n.localGallery_showCategoryPanel,
+      onPressed: () => _showCategoryPanel(state),
+    );
+    final compactCategories = IconButton(
       key: const Key('precise-ref-library-categories-button'),
       tooltip: l10n.localGallery_showCategoryPanel,
       onPressed: () => _showCategoryPanel(state),
       icon: const Icon(Icons.folder_outlined),
-      style: _toolbarIconButtonStyle(theme),
-    );
-    final actions = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        favorites,
-        const SizedBox(width: 2),
-        sort,
-        if (showToolbarImport) ...[const SizedBox(width: 8), importButton],
-      ],
-    );
-    final utilityActions = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [favorites, const SizedBox(width: 2), sort],
     );
 
-    return GalleryCollectionToolbarSurface(
+    return GalleryLibraryToolbar(
       key: const Key('precise-ref-library-unified-toolbar'),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final largeText = MediaQuery.textScalerOf(context).scale(14) > 18;
-          if (constraints.maxWidth >= 700 && !largeText) {
-            return Row(
-              children: [
-                if (showCategoryButton) ...[
-                  categories,
-                  const SizedBox(width: 8),
-                ],
-                if (showPageTitle) ...[
-                  title,
-                  const SizedBox(
-                    width: GalleryCollectionChrome.toolbarGroupGap,
-                  ),
-                ],
-                Expanded(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: search,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                actions,
-              ],
-            );
-          }
-
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  if (showCategoryButton) ...[
-                    categories,
-                    const SizedBox(width: 4),
-                  ],
-                  if (showPageTitle) Expanded(child: title) else const Spacer(),
-                  utilityActions,
-                ],
-              ),
-              const SizedBox(height: 10),
-              search,
-              if (showToolbarImport) ...[
-                const SizedBox(height: 10),
-                SizedBox(width: double.infinity, child: importButton),
-              ],
-            ],
-          );
-        },
+      compact: compact,
+      title: showPageTitle ? title : const SizedBox.shrink(),
+      count: GalleryLibraryCountBadge(
+        label: state.hasFilters
+            ? '${state.filteredEntries.length}/${state.totalCount}'
+            : '${state.totalCount}',
       ),
-    );
-  }
-
-  ButtonStyle _toolbarIconButtonStyle(ThemeData theme) {
-    final colors = theme.colorScheme;
-    return ButtonStyle(
-      minimumSize: WidgetStatePropertyAll(
-        Size.square(context.interactionPolicy.minimumControlExtent),
-      ),
-      foregroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.disabled)) {
-          return colors.onSurface.withValues(alpha: 0.38);
-        }
-        if (states.contains(WidgetState.hovered) ||
-            states.contains(WidgetState.focused)) {
-          return colors.primary;
-        }
-        return colors.onSurfaceVariant;
-      }),
-      backgroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.disabled)) return Colors.transparent;
-        if (states.contains(WidgetState.pressed)) {
-          return colors.primaryContainer.withValues(alpha: 0.72);
-        }
-        if (states.contains(WidgetState.hovered) ||
-            states.contains(WidgetState.focused)) {
-          return colors.primaryContainer.withValues(alpha: 0.48);
-        }
-        return Colors.transparent;
-      }),
-      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-      elevation: const WidgetStatePropertyAll(0),
-      shape: WidgetStatePropertyAll(
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  ButtonStyle _toolbarImportButtonStyle(
-    ThemeData theme, {
-    required double minimumHeight,
-  }) {
-    final colors = theme.colorScheme;
-    return FilledButton.styleFrom(
-      minimumSize: Size(64, minimumHeight),
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ).copyWith(
-      foregroundColor: WidgetStateProperty.resolveWith((states) {
-        return states.contains(WidgetState.disabled)
-            ? colors.onSurface.withValues(alpha: 0.38)
-            : colors.onPrimary;
-      }),
-      backgroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.disabled)) {
-          return colors.onSurface.withValues(alpha: 0.12);
-        }
-        if (states.contains(WidgetState.pressed)) {
-          return Color.alphaBlend(
-            colors.onPrimary.withValues(alpha: 0.14),
-            colors.primary,
-          );
-        }
-        if (states.contains(WidgetState.hovered) ||
-            states.contains(WidgetState.focused)) {
-          return Color.alphaBlend(
-            colors.onPrimary.withValues(alpha: 0.08),
-            colors.primary,
-          );
-        }
-        return colors.primary;
-      }),
-      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-      elevation: const WidgetStatePropertyAll(0),
+      search: search,
+      desktopActions: [
+        sort,
+        if (showCategoryButton) categories,
+        if (showToolbarImport) importButton,
+      ],
+      compactHeaderActions: [if (showCategoryButton) compactCategories],
+      compactSearchActions: [sort, if (showToolbarImport) compactImportButton],
     );
   }
 

@@ -15,6 +15,7 @@ import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/pr
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_selector_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_library_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 void main() {
@@ -50,7 +51,7 @@ void main() {
         );
         expect(
           find.byKey(const Key('precise-ref-library-favorites-toggle')),
-          findsOneWidget,
+          findsNothing,
         );
         if (width < 840) {
           final categoriesButton = find.byKey(
@@ -87,15 +88,19 @@ void main() {
           find.byKey(const Key('precise-ref-library-unified-toolbar')),
           findsOneWidget,
         );
-        if (width >= 840) {
+        if (width >= 1050) {
           final titleRect = tester.getRect(
             find.byKey(const Key('precise-ref-library-page-title')),
+          );
+          final countRect = tester.getRect(
+            find.byType(GalleryLibraryCountBadge),
           );
           final searchRect = tester.getRect(
             find.byKey(const Key('precise-ref-library-search-surface')),
           );
+          expect(countRect.left - titleRect.right, 8);
           expect(
-            searchRect.left - titleRect.right,
+            searchRect.left - countRect.right,
             GalleryCollectionChrome.toolbarGroupGap,
           );
         }
@@ -386,8 +391,8 @@ void main() {
       );
       final restingRect = tester.getRect(find.byKey(surfaceKey));
 
-      expect(surface.height, 40);
-      expect(surface.borderRadius, 20);
+      expect(surface.height, 36);
+      expect(surface.borderRadius, 18);
 
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       addTearDown(mouse.removePointer);
@@ -408,7 +413,7 @@ void main() {
                   )
                   .decoration!
               as BoxDecoration;
-      expect(focusedDecoration.borderRadius, BorderRadius.circular(20));
+      expect(focusedDecoration.borderRadius, BorderRadius.circular(18));
       expect(
         (focusedDecoration.border! as Border).top.color.a,
         closeTo(0.38, 0.01),
@@ -417,7 +422,7 @@ void main() {
     },
   );
 
-  testWidgets('desktop toolbar actions expose distinct hover feedback', (
+  testWidgets('desktop shared toolbar omits duplicate favorite filter', (
     tester,
   ) async {
     await _setViewport(tester, const Size(1180, 800));
@@ -430,27 +435,19 @@ void main() {
       ),
     );
 
-    final favorites = tester.widget<IconButton>(
+    expect(find.byType(GalleryLibraryToolbar), findsOneWidget);
+    expect(
       find.byKey(const Key('precise-ref-library-favorites-toggle')),
+      findsNothing,
     );
-    final sort = tester.widget<PopupMenuButton<PreciseRefLibrarySortOrder>>(
+    expect(
       find.byKey(const Key('precise-ref-library-sort-menu')),
+      findsOneWidget,
     );
-    final import = tester.widget<FilledButton>(
+    expect(
       find.byKey(const Key('precise-ref-library-import-button')),
+      findsOneWidget,
     );
-
-    void expectHoverDiffers(ButtonStyle style) {
-      final resting = style.backgroundColor?.resolve(<WidgetState>{});
-      final hovered = style.backgroundColor?.resolve({WidgetState.hovered});
-      final pressed = style.backgroundColor?.resolve({WidgetState.pressed});
-      expect(hovered, isNot(resting));
-      expect(pressed, isNot(hovered));
-    }
-
-    expectHoverDiffers(favorites.style!);
-    expectHoverDiffers(sort.style!);
-    expectHoverDiffers(import.style!);
     expect(tester.takeException(), isNull);
   });
 

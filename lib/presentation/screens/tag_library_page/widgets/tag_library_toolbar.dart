@@ -291,11 +291,11 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
                 categoriesButton,
                 const SizedBox(width: 8),
               ],
-              addButton,
-              const SizedBox(width: 12),
               Expanded(child: _buildSearchField(theme, state)),
               const SizedBox(width: 12),
               buildActions(),
+              const SizedBox(width: 8),
+              addButton,
             ],
           );
         },

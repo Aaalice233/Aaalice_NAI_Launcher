@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -137,6 +138,36 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('card tail and content context menu both create entries', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _DialogTagLibraryPageNotifier.new);
+
+    await tester.tap(find.byKey(const Key('tag-library-create-card')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(GridView), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('tag-library-context-create-entry')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('tag-library-context-create-entry')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -279,6 +310,7 @@ class _TestShortcutConfigNotifier extends ShortcutConfigNotifier {
 class _DialogTagLibraryPageNotifier extends TagLibraryPageNotifier {
   @override
   TagLibraryPageState build() => TagLibraryPageState(
+    viewMode: TagLibraryViewMode.card,
     entries: [
       TagLibraryEntry(
         id: 'dialog-entry',

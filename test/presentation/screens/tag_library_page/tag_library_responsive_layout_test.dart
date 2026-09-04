@@ -47,6 +47,10 @@ void main() {
         await _pumpLibrary(tester);
 
         expect(find.byType(GridView), findsOneWidget);
+        expect(
+          find.byKey(const Key('tag-library-create-card')),
+          findsOneWidget,
+        );
         expect(find.text('目标条目'), findsOneWidget);
         expect(find.byType(TextField), findsOneWidget);
 
@@ -72,6 +76,13 @@ void main() {
             tester.getSize(find.byKey(const Key('tag-library-toolbar'))).width,
             1600,
           );
+          final addRect = tester.getRect(
+            find.byKey(const Key('tag-library-add-entry-button')),
+          );
+          final toolbarRect = tester.getRect(
+            find.byKey(const Key('tag-library-toolbar')),
+          );
+          expect(toolbarRect.right - addRect.right, 16);
         }
 
         await tester.enterText(find.byType(TextField), '目标');
