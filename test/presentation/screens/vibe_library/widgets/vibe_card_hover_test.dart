@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
@@ -11,31 +11,20 @@ import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
+import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_hover_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/library_card_badges.dart';
 
 void main() {
-  test('悬浮大图按比例适配且不会随高窗口无限增高', () {
+  test('悬浮预览使用稳定的可读宽度且不会随窗口无限增长', () {
     expect(
       computeVibeHoverPreviewBounds(const Size(700, 520)),
-      const Size(380, 500),
+      const Size(420, 500),
     );
     expect(
       computeVibeHoverPreviewBounds(const Size(1200, 1000)),
-      const Size(380, 680),
-    );
-    expect(
-      computeVibeHoverImageSize(aspectRatio: 2, maxWidth: 380, maxHeight: 500),
-      const Size(380, 190),
-    );
-    expect(
-      computeVibeHoverImageSize(
-        aspectRatio: 0.5,
-        maxWidth: 380,
-        maxHeight: 500,
-      ),
-      const Size(250, 500),
+      const Size(420, 620),
     );
   });
 
@@ -112,6 +101,153 @@ void main() {
       (resized.imageProvider as MemoryImage).bytes,
       same(highResolutionImage),
     );
+  });
+
+  testWidgets('悬浮预览优先与源卡片顶对齐', (tester) async {
+    tester.view.physicalSize = const Size(900, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final entry = _entry(rawImageData: _onePixelPng);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(
+            _HoverStorage(entry, _onePixelPng),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Stack(
+              children: [
+                Positioned(
+                  left: 80,
+                  top: 100,
+                  child: VibeCard(entry: entry.toDisplayEntry(), width: 150),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final card = find.byType(VibeCard);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(card));
+    await tester.pump(const Duration(milliseconds: 281));
+    await tester.pump();
+
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('vibe-hover-preview'))).dy,
+      closeTo(tester.getTopLeft(card).dy, 0.01),
+    );
+  });
+
+  testWidgets('键盘聚焦可显示预览并用 Enter 触发卡片', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var activationCount = 0;
+    final entry = _entry(rawImageData: _onePixelPng);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(
+            _HoverStorage(entry, _onePixelPng),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: VibeCard(
+                entry: entry.toDisplayEntry(),
+                width: 180,
+                onTap: () => activationCount++,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump(const Duration(milliseconds: 281));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('vibe-hover-preview')), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(activationCount, 1);
+  });
+
+  testWidgets('放大文本下关键数值仍完整且无 overflow', (tester) async {
+    tester.view.physicalSize = const Size(700, 520);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final entry = _entry(rawImageData: _onePixelPng).copyWith(
+      name: '用于验证长标题不会挤掉关键统计数值的人像 Vibe',
+      encodingModel: 'nai-diffusion-4-5-full-long-model-name',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(
+            _HoverStorage(entry, _onePixelPng),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(3)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomRight,
+              child: VibeCard(entry: entry.toDisplayEntry(), width: 150),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final card = find.byType(VibeCard);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(card));
+    await tester.pump(const Duration(milliseconds: 281));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('vibe-hover-strength')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('vibe-hover-info-extracted')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('vibe-hover-usage-count')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Vibe 卡片仅在有分类时显示类别，并为收藏条目显示常驻徽章', (tester) async {
