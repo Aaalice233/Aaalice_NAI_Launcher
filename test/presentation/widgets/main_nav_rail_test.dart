@@ -117,6 +117,14 @@ void main() {
     expect(find.byIcon(Icons.settings), findsOneWidget);
     expect(find.byIcon(Icons.keyboard_double_arrow_right), findsOneWidget);
     expect(
+      tester.getCenter(find.byKey(const Key('nav-branch-6'))).dy,
+      lessThan(tester.getCenter(find.byKey(const Key('nav-branch-5'))).dy),
+    );
+    expect(
+      tester.getCenter(find.byKey(const Key('nav-branch-5'))).dy,
+      lessThan(tester.getCenter(find.byKey(const Key('nav-branch-7'))).dy),
+    );
+    expect(
       tester.getCenter(find.byKey(const Key('main-nav-toggle'))).dy,
       greaterThan(tester.getCenter(find.byIcon(Icons.settings)).dy),
     );
