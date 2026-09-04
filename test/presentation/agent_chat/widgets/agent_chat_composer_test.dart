@@ -134,7 +134,7 @@ void main() {
       decoration.color,
       isNot(Theme.of(tester.element(surfaceFinder)).colorScheme.surface),
     );
-    expect(decoration.boxShadow, isNotEmpty);
+    expect(decoration.boxShadow, isNull);
     expect(tester.takeException(), isNull);
   });
 
@@ -158,7 +158,7 @@ void main() {
     },
   );
 
-  testWidgets('dark composer stays visibly elevated above the chat canvas', (
+  testWidgets('dark composer stays tonally separated from the chat canvas', (
     tester,
   ) async {
     final colors = const GrungePalette().darkScheme;

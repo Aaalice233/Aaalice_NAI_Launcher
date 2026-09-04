@@ -158,13 +158,6 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           decoration: BoxDecoration(
             color: controlSurfaceColor(theme.colorScheme),
             borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: theme.shadowColor.withValues(alpha: 0.18),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
