@@ -55,9 +55,12 @@ void main() {
     final contentRect = tester.getRect(
       find.byKey(const ValueKey('preset-import-scroll')),
     );
+    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(find.byType(Dialog), findsNothing);
     expect(contentRect.width, lessThanOrEqualTo(560));
     expect(contentRect.right, lessThanOrEqualTo(1600));
+    expect(tester.getSize(panel).height, lessThan(700));
+    expect(tester.getRect(panel).center.dy, moreOrLessEquals(450));
     expect(tester.takeException(), isNull);
   });
 }

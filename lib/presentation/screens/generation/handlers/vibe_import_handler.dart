@@ -513,8 +513,10 @@ Future<VibeLibrarySaveFormResult?> showVibeLibrarySaveForm({
     dialogWidth: 440,
     builder: (panelContext, scrollController) => StatefulBuilder(
       builder: (panelContext, setState) => Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
+          Flexible(
+            fit: FlexFit.loose,
             child: SingleChildScrollView(
               key: const ValueKey('vibe-library-save-form-scroll'),
               controller: scrollController,

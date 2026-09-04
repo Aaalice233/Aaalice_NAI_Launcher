@@ -67,14 +67,14 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      key: const Key('tag-library-import-content'),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_isImporting) ...[
-            // 导入进度
+    if (_isImporting) {
+      return Padding(
+        key: const Key('tag-library-import-content'),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             LinearProgressIndicator(value: _progress),
             const SizedBox(height: 12),
             Text(
@@ -83,54 +83,61 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                 color: theme.colorScheme.outline,
               ),
             ),
-          ] else if (_preview == null) ...[
-            // 文件选择说明可能在大字号或软键盘下超过可用高度。
-            Expanded(
-              child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                child: _buildFileSelection(theme),
+          ],
+        ),
+      );
+    }
+
+    if (_preview == null) {
+      return SingleChildScrollView(
+        key: const Key('tag-library-import-content'),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(16),
+        child: _buildFileSelection(theme),
+      );
+    }
+
+    return Padding(
+      key: const Key('tag-library-import-content'),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _buildPreview(theme)),
+
+          const SizedBox(height: 16),
+
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedFile = null;
+                    _preview = null;
+                    _conflicts = [];
+                    _conflictResolutions.clear();
+                  });
+                },
+                child: Text(context.l10n.tagLibrary_reselect),
               ),
-            ),
-          ] else ...[
-            // 预览和选择
-            Expanded(child: _buildPreview(theme)),
-
-            const SizedBox(height: 16),
-
-            // 操作按钮
-            Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _selectedFile = null;
-                      _preview = null;
-                      _conflicts = [];
-                      _conflictResolutions.clear();
-                    });
-                  },
-                  child: Text(context.l10n.tagLibrary_reselect),
-                ),
-                FilledButton.icon(
-                  onPressed:
-                      _selectedEntryIds.isNotEmpty ||
-                          _selectedCategoryIds.isNotEmpty
-                      ? _import
-                      : null,
-                  icon: const Icon(Icons.file_download),
-                  label: Text(
-                    context.l10n.tagLibrary_selectedImportCount(
-                      _selectedEntryIds.length + _selectedCategoryIds.length,
-                    ),
+              FilledButton.icon(
+                onPressed:
+                    _selectedEntryIds.isNotEmpty ||
+                        _selectedCategoryIds.isNotEmpty
+                    ? _import
+                    : null,
+                icon: const Icon(Icons.file_download),
+                label: Text(
+                  context.l10n.tagLibrary_selectedImportCount(
+                    _selectedEntryIds.length + _selectedCategoryIds.length,
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ],
       ),
     );
