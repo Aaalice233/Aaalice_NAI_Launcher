@@ -20,6 +20,7 @@ import '../../router/app_routes.dart';
 
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/context_menu_anchor.dart';
 import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/gallery/gallery_album_tree_view.dart';
@@ -27,6 +28,7 @@ import '../../widgets/gallery/gallery_sidebar.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'widgets/category_tree_view.dart';
 import 'widgets/entry_card.dart';
+import 'widgets/entry_create_card.dart';
 import 'widgets/entry_list_item.dart';
 import 'widgets/entry_add_dialog.dart';
 import 'widgets/send_to_home_dialog.dart';
@@ -174,7 +176,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                   onAddEntry: _showAddEntryDialog,
                 ),
                 sidebar: showSidebar ? _buildCategorySidebar(state) : null,
-                body: _buildContent(theme, state),
+                body: _buildContent(theme, state, isSelectionMode),
               );
             },
           ),
@@ -259,28 +261,34 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       isSelected: state.selectedCategoryId == null,
       onTap: () => selectCategory(null),
     );
-    final allEntries = DragTarget<TagLibraryEntry>(
-      onWillAcceptWithDetails: (details) => details.data.categoryId != null,
-      onAcceptWithDetails: (details) {
-        HapticFeedback.heavyImpact();
-        ref
-            .read(tagLibraryPageNotifierProvider.notifier)
-            .moveEntryToCategory(details.data.id, null);
-        AppToast.success(context, context.l10n.tagLibrary_entryMoved);
-      },
-      builder: (context, candidateData, _) => AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 150),
-        decoration: BoxDecoration(
-          color: candidateData.isEmpty
-              ? null
-              : Theme.of(
-                  context,
-                ).colorScheme.primaryContainer.withValues(alpha: 0.32),
-          borderRadius: BorderRadius.circular(8),
+    final allEntries = GestureDetector(
+      onSecondaryTapUp: (details) => _showEntryCreationContextMenu(
+        details.globalPosition,
+        initialCategoryId: null,
+      ),
+      child: DragTarget<TagLibraryEntry>(
+        onWillAcceptWithDetails: (details) => details.data.categoryId != null,
+        onAcceptWithDetails: (details) {
+          HapticFeedback.heavyImpact();
+          ref
+              .read(tagLibraryPageNotifierProvider.notifier)
+              .moveEntryToCategory(details.data.id, null);
+          AppToast.success(context, context.l10n.tagLibrary_entryMoved);
+        },
+        builder: (context, candidateData, _) => AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            color: candidateData.isEmpty
+                ? null
+                : Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.32),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: allEntriesItem,
         ),
-        child: allEntriesItem,
       ),
     );
 
@@ -326,6 +334,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                   onAddSubCategory: (parentId) {
                     _showAddCategoryDialog(parentId: parentId);
                   },
+                  onAddEntry: _showAddEntryDialogForCategory,
                   onCategoryMove: (categoryId, newParentId) {
                     ref
                         .read(tagLibraryPageNotifierProvider.notifier)
@@ -379,7 +388,11 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   }
 
   /// 构建内容区域
-  Widget _buildContent(ThemeData theme, TagLibraryPageState state) {
+  Widget _buildContent(
+    ThemeData theme,
+    TagLibraryPageState state,
+    bool isSelectionMode,
+  ) {
     final entries = state.filteredEntries;
 
     if (state.isLoading) {
@@ -390,23 +403,34 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       );
     }
 
-    if (entries.isEmpty) {
+    if (entries.isEmpty && state.viewMode != TagLibraryViewMode.card) {
       return _buildEmptyState(theme, state);
     }
 
-    switch (state.viewMode) {
-      case TagLibraryViewMode.card:
-        return _buildCardGrid(theme, entries);
-      case TagLibraryViewMode.list:
-        return _buildListView(theme, entries);
-      case TagLibraryViewMode.grouped:
-        return GroupedEntriesView(
-          scrollController: _groupedScrollController,
-          onEdit: _showEditDialog,
-          onDelete: _showDeleteEntryConfirmationForEntry,
-          onSend: _showEntryDetail,
-        );
-    }
+    final content = switch (state.viewMode) {
+      TagLibraryViewMode.card => _buildCardGrid(
+        theme,
+        entries,
+        showCreateCard: !isSelectionMode,
+      ),
+      TagLibraryViewMode.list => _buildListView(theme, entries),
+      TagLibraryViewMode.grouped => GroupedEntriesView(
+        scrollController: _groupedScrollController,
+        onEdit: _showEditDialog,
+        onDelete: _showDeleteEntryConfirmationForEntry,
+        onSend: _showEntryDetail,
+      ),
+    };
+
+    if (isSelectionMode) return content;
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onSecondaryTapUp: (details) => _showEntryCreationContextMenu(
+        details.globalPosition,
+        initialCategoryId: _selectedEntryCategoryId(state),
+      ),
+      child: content,
+    );
   }
 
   /// 构建空状态
@@ -449,7 +473,11 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   }
 
   /// 构建卡片网格
-  Widget _buildCardGrid(ThemeData theme, List<TagLibraryEntry> entries) {
+  Widget _buildCardGrid(
+    ThemeData theme,
+    List<TagLibraryEntry> entries, {
+    required bool showCreateCard,
+  }) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
@@ -466,9 +494,13 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
           ),
-          itemCount: entries.length,
-          itemBuilder: (context, index) =>
-              _buildEntryItem(entries[index], true),
+          itemCount: entries.length + (showCreateCard ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index < entries.length) {
+              return _buildEntryItem(entries[index], true);
+            }
+            return EntryCreateCard(onPressed: _showAddEntryDialog);
+          },
         );
       },
     );
@@ -752,11 +784,49 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
   void _showAddEntryDialog() {
     final state = ref.read(tagLibraryPageNotifierProvider);
+    _showAddEntryDialogForCategory(_selectedEntryCategoryId(state));
+  }
+
+  void _showAddEntryDialogForCategory(String? categoryId) {
+    final state = ref.read(tagLibraryPageNotifierProvider);
     EntryAddDialog.show(
       context,
       categories: state.categories,
-      initialCategoryId: state.selectedCategoryId,
+      initialCategoryId: categoryId,
     );
+  }
+
+  String? _selectedEntryCategoryId(TagLibraryPageState state) {
+    final selected = state.selectedCategoryId;
+    return state.categories.any((category) => category.id == selected)
+        ? selected
+        : null;
+  }
+
+  Future<void> _showEntryCreationContextMenu(
+    Offset position, {
+    required String? initialCategoryId,
+  }) async {
+    final create = await showMenu<bool>(
+      context: context,
+      position: contextMenuAnchorAt(context, position),
+      items: [
+        PopupMenuItem(
+          key: const Key('tag-library-context-create-entry'),
+          value: true,
+          child: Row(
+            children: [
+              const Icon(Icons.add_box_outlined, size: 18),
+              const SizedBox(width: 8),
+              Text(context.l10n.tagLibrary_addEntry),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (create == true && mounted) {
+      _showAddEntryDialogForCategory(initialCategoryId);
+    }
   }
 
   Future<void> _showAddCategoryDialog({String? parentId}) async {
