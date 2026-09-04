@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-02T15:23:05.839Z",
+  "generatedAt": "2026-09-04T01:57:45.423Z",
   "title": "Design System: Aaalice NAI Launcher",
   "extensions": {
     "colorMeta": {
@@ -186,9 +186,9 @@
       "name": "Image Card",
       "kind": "custom",
       "refersTo": "image-card",
-      "description": "The signature content card with paint-only hover lift and selection feedback.",
-      "html": "<button class=\"ds-image-card\" aria-label=\"查看生成结果\"><span class=\"ds-image-placeholder\">IMAGE</span><span class=\"ds-image-badge\">已收藏</span></button>",
-      "css": ".ds-image-card { position: relative; width: 220px; aspect-ratio: 3 / 4; overflow: hidden; padding: 0; border: 0; border-radius: 12px; background: #343434; color: #f0ead6; box-shadow: 0 2px 6px rgba(0,0,0,.08); cursor: pointer; transition: transform 100ms ease-out, box-shadow 100ms ease-out; } .ds-image-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: #d4cfc0; font: 500 12px 'Courier Prime', monospace; letter-spacing: .12em; } .ds-image-badge { position: absolute; top: 8px; left: 8px; padding: 4px 8px; border-radius: 4px; background: #5c4a3d; color: #fff5ee; font: 500 11px 'Courier Prime', monospace; } .ds-image-card:hover { transform: scale(1.01); box-shadow: 0 6px 14px rgba(0,0,0,.16); } .ds-image-card:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-image-card { transition: none; } .ds-image-card:hover { transform: none; } }"
+      "description": "The signature content card with paint-only hover lift and a shared, overflow-safe action rail.",
+      "html": "<article class=\"ds-image-card\" tabindex=\"0\" aria-label=\"查看生成结果\"><span class=\"ds-image-placeholder\">IMAGE</span><span class=\"ds-image-badge\">已收藏</span><span class=\"ds-image-actions\"><button class=\"ds-image-action\" aria-label=\"发送到生成\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 20V4l19 8-19 8zm2-3 11.85-5L5 7v3.5l6 1.5-6 1.5V17z\" fill=\"currentColor\"/></svg></button><button class=\"ds-image-action ds-image-action-danger\" aria-label=\"删除\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zm3.5-9h1v8h-1v-8zm4 0h1v8h-1v-8zM15.5 4l-1-1h-5l-1 1H5v2h14V4z\" fill=\"currentColor\"/></svg></button></span></article>",
+      "css": ".ds-image-card { position: relative; width: 220px; aspect-ratio: 3 / 4; overflow: hidden; padding: 0; border: 0; border-radius: 12px; background: #343434; color: #f0ead6; box-shadow: 0 2px 6px rgba(0,0,0,.08); cursor: pointer; transition: transform 100ms ease-out, box-shadow 100ms ease-out; } .ds-image-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: #d4cfc0; font: 500 12px 'Courier Prime', monospace; letter-spacing: .12em; } .ds-image-badge { position: absolute; top: 8px; left: 8px; padding: 4px 8px; border-radius: 4px; background: #5c4a3d; color: #fff5ee; font: 500 11px 'Courier Prime', monospace; } .ds-image-actions { position: absolute; top: 8px; right: 8px; display: grid; gap: 4px; opacity: 0; pointer-events: none; transition: opacity 100ms ease-out; } .ds-image-card:hover .ds-image-actions, .ds-image-card:focus-within .ds-image-actions { opacity: 1; pointer-events: auto; } .ds-image-action { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 16px; background: rgba(0,0,0,.5); color: #fff; cursor: pointer; transition: background-color 120ms ease-out, opacity 120ms ease-out; } .ds-image-action:hover, .ds-image-action:focus-visible { background: rgba(0,0,0,.68); outline: 2px solid #f0ead6; outline-offset: 2px; } .ds-image-action:active { opacity: .78; } .ds-image-action-danger { color: #dc143c; } .ds-image-action svg { width: 18px; height: 18px; } .ds-image-card:hover { transform: scale(1.01); box-shadow: 0 6px 14px rgba(0,0,0,.16); } .ds-image-card:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-image-card, .ds-image-actions, .ds-image-action { transition: none; } .ds-image-card:hover { transform: none; } }"
     }
   ],
   "narrative": {
@@ -209,7 +209,8 @@
       {"name": "The Capability Parity Rule", "body": "桌面 hover、右键与快捷键必须有移动端单击、长按、菜单或系统入口的等价路径；低频操作可以折叠，但不能静默消失。", "section": "layout"},
       {"name": "The Local Constraint Rule", "body": "响应式判断使用局部 LayoutBuilder.constraints 与 capabilities；禁止按设备型号、FittedBox 缩小交互工具栏或在共享页面散落平台判断。", "section": "layout"},
       {"name": "The Flat-at-Rest Rule", "body": "阴影不是默认装饰；只有浮层、状态反馈或图像内容需要与背景分离时才出现。", "section": "elevation"},
-      {"name": "The Semantic Shape Rule", "body": "页面选择形状角色，不复制圆角数字；硬编码只允许稳定的签名组件尺寸，并应逐步归并到主题或公共组件。", "section": "shapes"}
+      {"name": "The Semantic Shape Rule", "body": "页面选择形状角色，不复制圆角数字；硬编码只允许稳定的签名组件尺寸，并应逐步归并到主题或公共组件。", "section": "shapes"},
+      {"name": "The Image Action Rail Rule", "body": "所有图片类卡片共享一套操作栏几何、遮罩样式、动作排序和跨端入口；动作增多时换列，不缩小、不裁切，也不创建页面专属的第二套按钮外观。", "section": "components"}
     ],
     "dos": [
       "**Do** 让 Prompt、图像、参数与主操作比容器和主题装饰更醒目。",
