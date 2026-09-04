@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../../data/models/gallery/local_image_record.dart'
     show MetadataStatus;
 import '../../../data/models/gallery/nai_image_metadata.dart';
@@ -380,6 +382,79 @@ class ScanLogRecord {
       failedFiles: (map['failed_files'] as num?)?.toInt() ?? 0,
       errorMessage: map['error_message'] as String?,
       scanPath: map['scan_path'] as String?,
+    );
+  }
+}
+
+/// 相簿记录
+///
+/// 逻辑相簿的数据库实体；成员关系存于 gallery_album_images，
+/// 尚未绑定到图片记录的成员路径存于 pending_paths（JSON 数组）。
+class GalleryAlbumRecord {
+  final String id;
+  final String name;
+  final String? description;
+  final String? parentId;
+  final int sortOrder;
+  final String? coverPath;
+  final List<String> pendingPaths;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final int imageCount;
+
+  const GalleryAlbumRecord({
+    required this.id,
+    required this.name,
+    this.description,
+    this.parentId,
+    this.sortOrder = 0,
+    this.coverPath,
+    this.pendingPaths = const [],
+    required this.createdAt,
+    required this.updatedAt,
+    this.imageCount = 0,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'parent_id': parentId,
+    'sort_order': sortOrder,
+    'cover_path': coverPath,
+    'pending_paths': jsonEncode(pendingPaths),
+    'created_at': createdAt.millisecondsSinceEpoch,
+    'updated_at': updatedAt.millisecondsSinceEpoch,
+    'image_count': imageCount,
+  };
+
+  factory GalleryAlbumRecord.fromMap(Map<String, dynamic> map) {
+    List<String> parsePending(Object? raw) {
+      if (raw is! String || raw.isEmpty) return const [];
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is! List) return const [];
+        return decoded.whereType<String>().toList();
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    return GalleryAlbumRecord(
+      id: map['id'] as String,
+      name: map['name'] as String,
+      description: map['description'] as String?,
+      parentId: map['parent_id'] as String?,
+      sortOrder: (map['sort_order'] as num?)?.toInt() ?? 0,
+      coverPath: map['cover_path'] as String?,
+      pendingPaths: parsePending(map['pending_paths']),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        (map['created_at'] as num?)?.toInt() ?? 0,
+      ),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(
+        (map['updated_at'] as num?)?.toInt() ?? 0,
+      ),
+      imageCount: (map['image_count'] as num?)?.toInt() ?? 0,
     );
   }
 }

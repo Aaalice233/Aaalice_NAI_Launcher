@@ -588,6 +588,14 @@ class EditorState extends ChangeNotifier {
 
   void _notifyRenderChange() => notifyRenderChange();
 
+  /// 光标位置未变但视觉参数变了（如 Shift 拖拽调笔刷半径）时强制光标层重绘
+  void notifyCursorVisualChange() {
+    if (_isDisposed) return;
+
+    // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+    cursorNotifier.notifyListeners();
+  }
+
   void _notifyStrokePreviewChange() {
     if (_isDisposed) return;
     _pendingStrokePreviewChange = false;

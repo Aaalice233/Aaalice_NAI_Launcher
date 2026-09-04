@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../adaptive/adaptive_presenter.dart';
 import '../../../core/utils/comfyui_prompt_parser.dart';
 import '../../../core/utils/comfyui_prompt_parser/models/comfyui_parse_result.dart';
 import '../../../core/utils/comfyui_prompt_parser/position_converter.dart';
@@ -26,8 +27,13 @@ class ComfyuiImportResult {
 class ComfyuiImportDialog extends StatefulWidget {
   /// 解析结果
   final ComfyuiParseResult parseResult;
+  final ScrollController? scrollController;
 
-  const ComfyuiImportDialog({super.key, required this.parseResult});
+  const ComfyuiImportDialog({
+    super.key,
+    required this.parseResult,
+    this.scrollController,
+  });
 
   /// 显示导入弹窗
   ///
@@ -36,9 +42,24 @@ class ComfyuiImportDialog extends StatefulWidget {
     required BuildContext context,
     required ComfyuiParseResult parseResult,
   }) {
-    return showDialog<ComfyuiImportResult>(
+    final title = parseResult.syntaxType == ComfyuiSyntaxType.pipe
+        ? context.l10n.prompt_characterPrompts
+        : context.l10n.comfyImport_detectedTitle;
+    return AdaptivePresenter.showPanel<ComfyuiImportResult>(
       context: context,
-      builder: (context) => ComfyuiImportDialog(parseResult: parseResult),
+      titleBuilder: (context) => Text(
+        title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      sideSheetWidth: 520,
+      builder: (context, scrollController) => ComfyuiImportDialog(
+        parseResult: parseResult,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -62,115 +83,125 @@ class _ComfyuiImportDialogState extends State<ComfyuiImportDialog> {
     final l10n = context.l10n;
     final characters = widget.parseResult.characters;
 
-    return AlertDialog(
-      title: Row(
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.transform,
-              color: theme.colorScheme.primary,
-              size: 20,
+          Expanded(
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              children: [
+                // 语法类型提示
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    _getSyntaxTypeName(widget.parseResult.syntaxType),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 全局提示词卡片
+                if (widget.parseResult.globalPrompt.isNotEmpty) ...[
+                  _GlobalPromptCard(prompt: widget.parseResult.globalPrompt),
+                  const SizedBox(height: 12),
+                ],
+
+                // 角色列表
+                Text(
+                  l10n.comfyImport_characterList(characters.length),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (var index = 0; index < characters.length; index++)
+                  _CharacterCard(
+                    index: index + 1,
+                    character: characters[index],
+                  ),
+
+                // 位置选项
+                if (widget.parseResult.hasPositionInfo) ...[
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    value: _usePosition,
+                    onChanged: (value) {
+                      setState(() => _usePosition = value ?? true);
+                    },
+                    title: Text(l10n.comfyImport_usePositionInfo),
+                    subtitle: Text(l10n.comfyImport_usePositionInfoSubtitle),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              widget.parseResult.syntaxType == ComfyuiSyntaxType.pipe
-                  ? l10n.prompt_characterPrompts
-                  : l10n.comfyImport_detectedTitle,
+          const Divider(height: 1),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: constraints.maxHeight * 0.45,
+            ),
+            child: SingleChildScrollView(
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stacked =
+                          constraints.maxWidth < 400 ||
+                          MediaQuery.textScalerOf(context).scale(1) >= 2;
+                      final cancel = TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(l10n.common_cancel),
+                      );
+                      final submit = FilledButton(
+                        onPressed: () {
+                          Navigator.pop(
+                            context,
+                            ComfyuiImportResult(
+                              usePosition: _usePosition,
+                              parseResult: widget.parseResult,
+                            ),
+                          );
+                        },
+                        child: Text(
+                          l10n.comfyImport_convertCharacters(characters.length),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                      if (stacked) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [submit, cancel],
+                        );
+                      }
+                      return Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [cancel, submit],
+                      );
+                    },
+                  ),
+                ),
+              ),
             ),
           ),
         ],
       ),
-      content: SizedBox(
-        width: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 语法类型提示
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                _getSyntaxTypeName(widget.parseResult.syntaxType),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 全局提示词卡片
-            if (widget.parseResult.globalPrompt.isNotEmpty) ...[
-              _GlobalPromptCard(prompt: widget.parseResult.globalPrompt),
-              const SizedBox(height: 12),
-            ],
-
-            // 角色列表
-            Text(
-              l10n.comfyImport_characterList(characters.length),
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 200),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: characters.length,
-                itemBuilder: (context, index) => _CharacterCard(
-                  index: index + 1,
-                  character: characters[index],
-                ),
-              ),
-            ),
-
-            // 位置选项
-            if (widget.parseResult.hasPositionInfo) ...[
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                value: _usePosition,
-                onChanged: (value) {
-                  setState(() => _usePosition = value ?? true);
-                },
-                title: Text(l10n.comfyImport_usePositionInfo),
-                subtitle: Text(l10n.comfyImport_usePositionInfoSubtitle),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-              ),
-            ],
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: () {
-            Navigator.pop(
-              context,
-              ComfyuiImportResult(
-                usePosition: _usePosition,
-                parseResult: widget.parseResult,
-              ),
-            );
-          },
-          child: Text(l10n.comfyImport_convertCharacters(characters.length)),
-        ),
-      ],
     );
   }
 
@@ -213,11 +244,13 @@ class _GlobalPromptCard extends StatelessWidget {
             children: [
               Icon(Icons.public, size: 14, color: theme.colorScheme.primary),
               const SizedBox(width: 6),
-              Text(
-                context.l10n.comfyImport_globalPrompt,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  context.l10n.comfyImport_globalPrompt,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -278,11 +311,13 @@ class _CharacterCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // 性别图标
+          // 性别图标仅作为辅助信息，语义颜色由主题负责。
           Icon(
             gender == CharacterGender.male ? Icons.male : Icons.female,
             size: 16,
-            color: gender == CharacterGender.male ? Colors.blue : Colors.pink,
+            color: gender == CharacterGender.male
+                ? theme.colorScheme.primary
+                : theme.colorScheme.tertiary,
           ),
           const SizedBox(width: 8),
 

@@ -10,11 +10,14 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
+import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/providers/watermark_settings_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
@@ -67,6 +70,92 @@ void main() {
 
     expect(find.byTooltip('局部重绘'), findsOneWidget);
     expect(find.byTooltip('放大'), findsOneWidget);
+  });
+
+  testWidgets('agent reference action is shown on hover only when available', (
+    tester,
+  ) async {
+    var addCount = 0;
+    await tester.pumpWidget(_buildCardApp(onAddToAgent: () => addCount++));
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer();
+    await gesture.moveTo(tester.getCenter(find.byType(SelectableImageCard)));
+    await tester.pumpAndSettle();
+
+    final action = find.byTooltip('发送到智能体');
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    expect(addCount, 1);
+
+    await tester.pumpWidget(_buildCardApp());
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('发送到智能体'), findsNothing);
+  });
+
+  testWidgets('generating cards settle decorative motion when disabled', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _buildCardApp(isGenerating: true, disableAnimations: true),
+    );
+
+    expect(
+      tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
+      Duration.zero,
+    );
+    for (final indicator in tester.widgetList<CircularProgressIndicator>(
+      find.byType(CircularProgressIndicator),
+    )) {
+      expect(indicator.value, isNotNull);
+    }
+  });
+
+  testWidgets('stream preview progress stays legible over image content', (
+    tester,
+  ) async {
+    final preview = Uint8List.fromList(
+      img.encodePng(img.Image(width: 32, height: 32)),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: ThemeData.dark(),
+          home: Scaffold(
+            body: SizedBox.square(
+              dimension: 160,
+              child: SelectableImageCard(
+                isGenerating: true,
+                progress: 0.42,
+                currentImage: 1,
+                totalImages: 1,
+                streamPreview: preview,
+                imageWidth: 32,
+                imageHeight: 32,
+                enableSelection: false,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final indicator = tester.widget<CircularProgressIndicator>(
+      find.byKey(const ValueKey('stream-generation-progress-ring')),
+    );
+    final count = tester.widget<Text>(
+      find.byKey(const ValueKey('stream-generation-progress-count')),
+    );
+    final percent = tester.widget<Text>(
+      find.byKey(const ValueKey('stream-generation-progress-percent')),
+    );
+    expect(indicator.color, Colors.white);
+    expect(indicator.backgroundColor, Colors.white.withValues(alpha: 0.24));
+    expect(count.style?.color, Colors.white);
+    expect(percent.style?.color, Colors.white);
+    expect(percent.style?.shadows, isNotEmpty);
   });
 
   testWidgets('completed image cards use the shared hover scale', (
@@ -230,7 +319,9 @@ void main() {
   testWidgets(
     'generation preview context menu exposes history destination shortcuts',
     (tester) async {
-      final container = _createContainerWithPreviewImage();
+      final container = _createContainerWithPreviewImage(
+        watermarkEnabled: true,
+      );
       addTearDown(container.dispose);
 
       await tester.pumpWidget(_buildPreviewApp(container));
@@ -251,6 +342,27 @@ void main() {
       expect(find.text('图生图'), findsOneWidget);
       expect(find.text('风格迁移'), findsOneWidget);
       expect(find.text('精准参考'), findsOneWidget);
+      expect(find.text('创建水印副本…'), findsOneWidget);
+      expect(find.text('发送到智能体'), findsOneWidget);
+      expect(find.byType(ProContextMenu), findsOneWidget);
+      expect(
+        find.byType(PopupMenuItem<bool>, skipOffstage: false),
+        findsNothing,
+      );
+
+      final menu = tester.widget<ProContextMenu>(find.byType(ProContextMenu));
+      final itemIds = menu.items
+          .where((item) => !item.isDivider)
+          .map((item) => item.id)
+          .toList();
+      final addToAgentIndex = itemIds.indexOf(
+        ImageCardActionId.addToAgent.name,
+      );
+      final shareDiscordIndex = itemIds.indexOf(
+        ImageCardActionId.shareDiscord.name,
+      );
+      expect(addToAgentIndex, greaterThanOrEqualTo(0));
+      expect(shareDiscordIndex, addToAgentIndex + 1);
     },
   );
 
@@ -563,13 +675,25 @@ void main() {
 
 void _noop() {}
 
+class _EnabledWatermarkSettingsNotifier extends WatermarkSettingsNotifier {
+  @override
+  WatermarkSettingsState build() => const WatermarkSettingsState(
+    configuration: WatermarkSettings(enabled: true),
+  );
+}
+
 ProviderContainer _createContainerWithPreviewImage({
   ImageClipboardWriter? clipboardWriter,
+  bool watermarkEnabled = false,
 }) {
   final container = ProviderContainer(
     overrides: [
       if (clipboardWriter != null)
         imageClipboardWriterProvider.overrideWithValue(clipboardWriter),
+      if (watermarkEnabled)
+        watermarkSettingsProvider.overrideWith(
+          _EnabledWatermarkSettingsNotifier.new,
+        ),
     ],
   );
   final bytes = Uint8List.fromList(
@@ -627,6 +751,8 @@ Future<void> _openImageContextMenu(WidgetTester tester) async {
 Widget _buildCardApp({
   bool hoverEffectsEnabled = true,
   bool isFavorite = false,
+  bool isGenerating = false,
+  bool disableAnimations = false,
   bool enableSaveAction = true,
   bool enableCopyAction = true,
   String? statusBadgeLabel,
@@ -637,10 +763,33 @@ Widget _buildCardApp({
   VoidCallback? onImageToImage,
   VoidCallback? onVibeTransfer,
   VoidCallback? onPreciseReference,
+  VoidCallback? onAddToAgent,
   GlobalKey<NavigatorState>? navigatorKey,
 }) {
   final bytes = Uint8List.fromList(
     img.encodePng(img.Image(width: 32, height: 32)),
+  );
+
+  final card = SelectableImageCard(
+    imageBytes: bytes,
+    isGenerating: isGenerating,
+    currentImage: isGenerating ? 1 : null,
+    totalImages: isGenerating ? 2 : null,
+    imageWidth: 32,
+    imageHeight: 32,
+    enableSelection: false,
+    hoverEffectsEnabled: hoverEffectsEnabled,
+    enableSaveAction: enableSaveAction,
+    enableCopyAction: enableCopyAction,
+    statusBadgeLabel: statusBadgeLabel,
+    isFavorite: isFavorite,
+    onFavoriteToggle: onFavoriteToggle,
+    onInpaint: onInpaint,
+    onUpscale: onUpscale,
+    onReversePrompt: onReversePrompt,
+    onImageToImage: onImageToImage,
+    onVibeTransfer: onVibeTransfer,
+    onPreciseReference: onPreciseReference,
   );
 
   return ProviderScope(
@@ -649,26 +798,19 @@ Widget _buildCardApp({
       locale: const Locale('zh'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: 160,
-            height: 160,
-            child: SelectableImageCard(
-              imageBytes: bytes,
-              enableSelection: false,
-              hoverEffectsEnabled: hoverEffectsEnabled,
-              enableSaveAction: enableSaveAction,
-              enableCopyAction: enableCopyAction,
-              statusBadgeLabel: statusBadgeLabel,
-              isFavorite: isFavorite,
-              onFavoriteToggle: onFavoriteToggle,
-              onInpaint: onInpaint,
-              onUpscale: onUpscale,
-              onReversePrompt: onReversePrompt,
-              onImageToImage: onImageToImage,
-              onVibeTransfer: onVibeTransfer,
-              onPreciseReference: onPreciseReference,
+      home: MediaQuery(
+        data: MediaQueryData(disableAnimations: disableAnimations),
+        child: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 160,
+              height: 160,
+              child: onAddToAgent == null
+                  ? card
+                  : ImageCardActionScope(
+                      onAddToAgent: onAddToAgent,
+                      child: card,
+                    ),
             ),
           ),
         ),

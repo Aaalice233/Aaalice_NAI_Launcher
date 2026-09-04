@@ -11,35 +11,41 @@ import 'package:path/path.dart' as path;
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/database/database_providers.dart';
+import '../../../core/services/android_media_store_service.dart';
 import '../../../core/services/file_export_service.dart';
+import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/zip_utils.dart';
+import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../agent_chat/providers/agent_chat_notifier.dart';
-import '../../providers/collection_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
-import '../../providers/gallery_folder_provider.dart';
+import '../../providers/gallery_album_provider.dart';
+import '../../providers/gallery_category_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
+import '../../providers/watermark_settings_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../router/app_routes.dart';
+import '../watermark/watermark_editor_launcher.dart';
+import 'local_gallery_move_target.dart';
 import '../../services/image_workflow_launcher.dart';
+import '../../services/image_metadata_import_workflow.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../utils/fixed_tag_metadata_matcher.dart';
 import '../../utils/krita_send_helper.dart';
 import '../../utils/local_gallery_metadata_resolver.dart';
 import '../../utils/local_gallery_reference_factory.dart';
-import '../../utils/metadata_import_coordinator.dart';
 import '../../utils/precise_ref_library_import_helper.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
-import '../../widgets/collection_select_dialog.dart';
+import '../../widgets/gallery/album_select_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_detail/components/prompt_copy_dialog.dart';
 import '../../widgets/common/precise_reference_type_dialog.dart';
@@ -47,7 +53,79 @@ import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/discord_share/discord_share_dialog.dart';
 import '../../widgets/gallery/local_image_context_menu.dart';
 import '../../widgets/gallery/zip_export_metadata_dialog.dart';
-import '../../widgets/metadata/metadata_import_dialog.dart';
+
+Future<void> showLocalGalleryZipFailureDetails(
+  BuildContext context,
+  ZipCreationResult result,
+) {
+  final l10n = context.l10n;
+  return AdaptivePresenter.showPanel<void>(
+    context: context,
+    titleBuilder: (context) => Row(
+      children: [
+        Icon(
+          Icons.warning_amber_rounded,
+          color: Theme.of(context).colorScheme.tertiary,
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Text(l10n.localGallery_packPartialTitle)),
+      ],
+    ),
+    initialChildSize: 0.78,
+    minChildSize: 0.5,
+    sideSheetWidth: 600,
+    builder: (panelContext, scrollController) => ListView.builder(
+      key: const ValueKey('local-gallery-zip-failure-list'),
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      itemCount: result.failures.length + 2,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              l10n.localGallery_packedImagesWithFailures(
+                result.exportedCount,
+                result.failures.length,
+              ),
+            ),
+          );
+        }
+        if (index == result.failures.length + 1) {
+          return SafeArea(
+            top: false,
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                onPressed: () => Navigator.of(panelContext).pop(),
+                child: Text(l10n.common_close),
+              ),
+            ),
+          );
+        }
+        final failure = result.failures[index - 1];
+        return Padding(
+          padding: EdgeInsets.only(top: index == 1 ? 0 : 8, bottom: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (index > 1) const Divider(height: 8),
+              Text(
+                path.basename(failure.path),
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 4),
+              SelectableText(
+                failure.error,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
 
 @immutable
 class LocalGalleryImageAction {
@@ -78,6 +156,9 @@ class LocalGalleryActionCoordinator {
   final WidgetRef _ref;
   final BuildContext Function() _context;
   final bool Function() _mounted;
+
+  WatermarkDerivativeRegistry get _watermarkRegistry =>
+      WatermarkDerivativeRegistry(_ref.read(localStorageServiceProvider));
 
   Future<List<LocalImageRecord>> _selectedImages() async {
     final selectedIds = _ref
@@ -142,6 +223,7 @@ class LocalGalleryActionCoordinator {
         final file = File(image.path);
         if (await file.exists()) {
           await file.delete();
+          await _watermarkRegistry.remove(image.path);
           deletedCount++;
         }
       } catch (_) {
@@ -265,66 +347,7 @@ class LocalGalleryActionCoordinator {
 
   Future<void> _showZipPartialFailureDialog(ZipCreationResult result) async {
     if (!_mounted()) return;
-    final l10n = _context().l10n;
-    await showDialog<void>(
-      context: _context(),
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.warning_amber_rounded,
-          color: Theme.of(dialogContext).colorScheme.tertiary,
-        ),
-        title: Text(l10n.localGallery_packPartialTitle),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.localGallery_packedImagesWithFailures(
-                  result.exportedCount,
-                  result.failures.length,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 320),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: result.failures.length,
-                    separatorBuilder: (_, _) => const Divider(height: 16),
-                    itemBuilder: (context, index) {
-                      final failure = result.failures[index];
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            path.basename(failure.path),
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                          const SizedBox(height: 4),
-                          SelectableText(
-                            failure.error,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.common_close),
-          ),
-        ],
-      ),
-    );
+    await showLocalGalleryZipFailureDetails(_context(), result);
   }
 
   void editSelectedMetadata() {
@@ -337,44 +360,21 @@ class LocalGalleryActionCoordinator {
     }
   }
 
-  Future<void> moveSelectedToFolder() async {
+  Future<void> moveSelectedToCategory() async {
     final l10n = _context().l10n;
     final selectedImages = await _selectedImages();
     if (selectedImages.isEmpty || !_mounted()) return;
-    final folders = _ref.read(galleryFolderNotifierProvider).folders;
-    if (folders.isEmpty) {
-      AppToast.info(_context(), l10n.localGallery_noFoldersAvailable);
+    final categoryState = _ref.read(galleryCategoryNotifierProvider);
+    final moveTargets = buildLocalGalleryMoveTargets(categoryState.categories);
+    if (moveTargets.isEmpty) {
+      AppToast.info(_context(), l10n.localGallery_noCategoriesAvailable);
       return;
     }
-    final selectedFolder = await showDialog<String>(
+    final selectedCategoryId = await showLocalGalleryMoveTargetDialog(
       context: _context(),
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.localGallery_moveToFolder),
-        content: SizedBox(
-          width: 300,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: folders.length,
-            itemBuilder: (context, index) {
-              final folder = folders[index];
-              return ListTile(
-                leading: const Icon(Icons.folder),
-                title: Text(folder.name),
-                subtitle: Text(l10n.localGallery_imageCount(folder.imageCount)),
-                onTap: () => Navigator.of(dialogContext).pop(folder.path),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.common_cancel),
-          ),
-        ],
-      ),
+      targets: moveTargets,
     );
-    if (selectedFolder == null || !_mounted()) return;
+    if (selectedCategoryId == null || !_mounted()) return;
     final protected = await AssetProtectionGuard.confirmDangerousAction(
       context: _context(),
       ref: _ref,
@@ -386,11 +386,18 @@ class LocalGalleryActionCoordinator {
       icon: Icons.drive_file_move_outline,
     );
     if (!protected || !_mounted()) return;
-    final movedCount = await GalleryFolderRepository.instance
-        .moveImagesToFolder(
-          selectedImages.map((image) => image.path).toList(),
-          selectedFolder,
-        );
+    var movedCount = 0;
+    for (final image in selectedImages) {
+      final newPath = await _ref
+          .read(galleryCategoryNotifierProvider.notifier)
+          .moveImageToCategory(image.path, selectedCategoryId);
+      if (newPath == null) continue;
+      await _watermarkRegistry.relocatePath(
+        oldPath: image.path,
+        newPath: newPath,
+      );
+      movedCount++;
+    }
     if (!_mounted()) return;
     if (movedCount > 0) {
       AppToast.info(
@@ -399,41 +406,62 @@ class LocalGalleryActionCoordinator {
       );
       _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
       _ref.read(localGalleryNotifierProvider.notifier).refresh();
-      _ref.read(galleryFolderNotifierProvider.notifier).refresh();
+      // 物理移动改变了成员文件路径，立即刷新 sidecar 保持跨设备引用有效
+      unawaited(
+        _ref.read(galleryAlbumNotifierProvider.notifier).exportSidecarNow(),
+      );
     } else {
       AppToast.info(_context(), _context().l10n.localGallery_moveImagesFailed);
     }
   }
 
-  Future<void> addSelectedToCollection() async {
+  /// 把选中图片移出当前浏览的相簿（仅解除引用，不动物理文件）
+  Future<void> removeSelectedFromAlbum() async {
+    final albumId = _ref.read(galleryAlbumNotifierProvider).selectedAlbumId;
+    if (albumId == null || albumId == 'favorites') return;
     final selectedImages = await _selectedImages();
     if (selectedImages.isEmpty || !_mounted()) return;
-    final result = await CollectionSelectDialog.show(
-      _context(),
-      theme: Theme.of(_context()),
-    );
-    if (result == null) return;
+    final removed = await _ref
+        .read(galleryAlbumNotifierProvider.notifier)
+        .removeImagesByPaths(
+          albumId,
+          selectedImages.map((image) => image.path).toList(),
+        );
+    if (!_mounted()) return;
+    if (removed > 0) {
+      AppToast.info(
+        _context(),
+        _context().l10n.localGallery_removedFromAlbum(removed),
+      );
+      _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+    } else {
+      AppToast.info(_context(), _context().l10n.localGallery_albumNoMembers);
+    }
+  }
+
+  Future<void> addSelectedToAlbum() async {
+    final selectedImages = await _selectedImages();
+    if (selectedImages.isEmpty || !_mounted()) return;
+    final result = await AlbumSelectDialog.show(_context());
+    if (result == null || !_mounted()) return;
     final addedCount = await _ref
-        .read(collectionNotifierProvider.notifier)
-        .addImagesToCollection(
-          result.collectionId,
+        .read(galleryAlbumNotifierProvider.notifier)
+        .addImagesByPaths(
+          result.albumId,
           selectedImages.map((image) => image.path).toList(),
         );
     if (!_mounted()) return;
     if (addedCount > 0) {
       AppToast.success(
         _context(),
-        _context().l10n.localGallery_addedToCollection(
+        _context().l10n.localGallery_addedToAlbumWithName(
           addedCount,
-          result.collectionName,
+          result.albumName,
         ),
       );
       _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
     } else {
-      AppToast.info(
-        _context(),
-        _context().l10n.localGallery_addToCollectionFailed,
-      );
+      AppToast.info(_context(), _context().l10n.localGallery_albumAddFailed);
     }
   }
 
@@ -452,6 +480,13 @@ class LocalGalleryActionCoordinator {
           PlatformCapabilities.current.supportsKritaBridge &&
           _ref.read(kritaBridgeNotifierProvider).status ==
               KritaBridgeStatus.connected,
+      watermarkEnabled: _ref
+          .read(watermarkSettingsProvider)
+          .configuration
+          .enabled,
+      isWatermarkDerivative: WatermarkDerivativeRegistry(
+        _ref.read(localStorageServiceProvider),
+      ).isDerivative(record.path),
     );
     if (action == null || !_mounted()) return;
     await routeImageAction(
@@ -469,6 +504,8 @@ class LocalGalleryActionCoordinator {
     switch (request.action) {
       case LocalImageContextAction.addToAgent:
         await _addToAgent(record);
+      case LocalImageContextAction.moveToCategory:
+        await _moveImageToCategory(record);
       case LocalImageContextAction.sendToTextToImage:
       case LocalImageContextAction.importMetadata:
         await importImageMetadata(record);
@@ -488,10 +525,17 @@ class LocalGalleryActionCoordinator {
         await _sendToUpscale(record);
       case LocalImageContextAction.shareToDiscord:
         await _shareLocalImageToDiscord(record);
+      case LocalImageContextAction.createWatermark:
+        await WatermarkEditorLauncher.openForLocalPath(
+          context: _context(),
+          path: record.path,
+        );
       case LocalImageContextAction.copyPrompt:
         await _copyPrompt(record, availableMetadata);
       case LocalImageContextAction.copySeed:
         await _copySeed(record, availableMetadata);
+      case LocalImageContextAction.saveToSystemGallery:
+        await _saveToSystemGallery(record);
       case LocalImageContextAction.showInFolder:
         await _openFileInFolder(record.path);
       case LocalImageContextAction.delete:
@@ -528,6 +572,50 @@ class LocalGalleryActionCoordinator {
           _context().l10n.agentChat_addResourceFailed('$error'),
         );
       }
+    }
+  }
+
+  Future<void> _moveImageToCategory(LocalImageRecord record) async {
+    final categories = _ref.read(galleryCategoryNotifierProvider).categories;
+    final targets = buildLocalGalleryMoveTargets(categories);
+    if (targets.isEmpty) {
+      AppToast.info(
+        _context(),
+        _context().l10n.localGallery_noCategoriesAvailable,
+      );
+      return;
+    }
+    final targetId = await showLocalGalleryMoveTargetDialog(
+      context: _context(),
+      targets: targets,
+    );
+    if (targetId == null || !_mounted()) return;
+    final protected = await AssetProtectionGuard.confirmDangerousAction(
+      context: _context(),
+      ref: _ref,
+      title: _context().l10n.localGallery_confirmMoveImageTitle,
+      content: _context().l10n.localGallery_confirmMoveImageContent,
+      confirmText: _context().l10n.localGallery_confirmMove,
+      icon: Icons.drive_file_move_outline,
+    );
+    if (!protected || !_mounted()) return;
+    final newPath = await _ref
+        .read(galleryCategoryNotifierProvider.notifier)
+        .moveImageToCategory(record.path, targetId);
+    if (newPath == null) return;
+    await _watermarkRegistry.relocatePath(
+      oldPath: record.path,
+      newPath: newPath,
+    );
+    await _ref.read(localGalleryNotifierProvider.notifier).refresh(scan: false);
+    unawaited(
+      _ref.read(galleryAlbumNotifierProvider.notifier).exportSidecarNow(),
+    );
+    if (_mounted()) {
+      AppToast.success(
+        _context(),
+        _context().l10n.localGallery_imageMovedToCategory,
+      );
     }
   }
 
@@ -666,30 +754,11 @@ class LocalGalleryActionCoordinator {
         );
         return;
       }
-      final options = await MetadataImportDialog.show(
-        _context(),
-        metadata: metadata,
-      );
-      if (options == null || !_mounted()) return;
-      final appliedCount = await MetadataImportCoordinator.apply(
+      await ImageMetadataImportWorkflow.shared.run(
+        context: _context(),
         read: _ref.read,
         metadata: metadata,
-        options: options,
-        l10n: _context().l10n,
       );
-      if (!_mounted()) return;
-      if (appliedCount == 0) {
-        AppToast.warning(
-          _context(),
-          _context().l10n.metadataImport_noParamsSelected,
-        );
-        return;
-      }
-      AppToast.success(
-        _context(),
-        _context().l10n.metadataImport_appliedCount(appliedCount),
-      );
-      _context().go(AppRoutes.home);
     } catch (error, stackTrace) {
       AppLogger.e('导入图片元数据失败', error, stackTrace, 'LocalGallery');
       if (_mounted()) {
@@ -822,6 +891,39 @@ class LocalGalleryActionCoordinator {
     }
   }
 
+  Future<void> _saveToSystemGallery(LocalImageRecord record) async {
+    try {
+      final file = File(record.path);
+      if (!await file.exists()) {
+        _showMissingImage();
+        return;
+      }
+      await AndroidMediaStoreService.saveImageFromPath(
+        sourcePath: file.path,
+        fileName: path.basename(file.path),
+      );
+      if (_mounted()) {
+        AppToast.success(
+          _context(),
+          _context().l10n.image_savedToSystemGallery,
+        );
+      }
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to export local gallery image to system gallery',
+        error,
+        stackTrace,
+        'LocalGallery',
+      );
+      if (_mounted()) {
+        AppToast.error(
+          _context(),
+          _context().l10n.localGallery_saveToSystemGalleryFailed('$error'),
+        );
+      }
+    }
+  }
+
   Future<void> _openFileInFolder(String filePath) async {
     try {
       await FileExplorerUtils.revealFile(filePath);
@@ -864,6 +966,7 @@ class LocalGalleryActionCoordinator {
       final file = File(record.path);
       if (!await file.exists()) return;
       await file.delete();
+      await _watermarkRegistry.remove(record.path);
       await _ref.read(localGalleryNotifierProvider.notifier).refresh();
       if (_mounted()) {
         AppToast.success(_context(), _context().l10n.localGallery_imageDeleted);

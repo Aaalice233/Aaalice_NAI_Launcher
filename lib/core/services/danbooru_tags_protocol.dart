@@ -1,5 +1,7 @@
 import '../../data/models/cache/data_source_cache_meta.dart';
-import 'lazy_data_source_service.dart';
+
+typedef DataSourceProgressCallback =
+    void Function(double progress, String? message);
 
 const danbooruTagsBaseUrl = 'https://danbooru.donmai.us';
 const danbooruTagsEndpoint = '/tags.json';
@@ -7,38 +9,6 @@ const danbooruTagsPageSize = 1000;
 const danbooruTagsMaxPages = 200;
 const danbooruTagsConcurrentRequests = 2;
 const danbooruTagsRequestInterval = Duration(milliseconds: 500);
-
-const danbooruHotKeys = <String>{
-  '1girl',
-  'solo',
-  '1boy',
-  '2girls',
-  'multiple_girls',
-  '2boys',
-  'multiple_boys',
-  '3girls',
-  '1other',
-  '3boys',
-  'long_hair',
-  'short_hair',
-  'blonde_hair',
-  'brown_hair',
-  'black_hair',
-  'blue_eyes',
-  'red_eyes',
-  'green_eyes',
-  'brown_eyes',
-  'purple_eyes',
-  'looking_at_viewer',
-  'smile',
-  'open_mouth',
-  'blush',
-  'breasts',
-  'thighhighs',
-  'gloves',
-  'bow',
-  'ribbon',
-};
 
 class DanbooruCategoryThresholds {
   const DanbooruCategoryThresholds({

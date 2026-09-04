@@ -2,11 +2,15 @@ import 'dart:convert';
 
 import '../../../core/agent/agent.dart';
 import '../../../core/agent/harness/harness_messages.dart';
+import '../../../core/agent/harness/harness_types.dart';
+import '../../../core/agent/harness/skills.dart';
+import '../../../core/agent/private_data_guard.dart';
 import '../../../core/agent/resources/agent_chat_resource_draft_store.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../models/agent_chat_prompt_envelope.dart';
 import '../providers/agent_chat_state.dart';
 import 'agent_resource_resolver.dart';
 
@@ -199,10 +203,39 @@ class AgentChatDraftController {
     AgentChatResourceReference reference,
   ) => _createResourceResolver().resolve(reference);
 
-  HarnessCustomMessage resourcePromptMessage(
-    UserMessage userMessage,
-    List<AgentChatResourceReference> references,
-  ) {
+  /// 把只给模型看的前缀块包在用户消息前面：技能指令在前，资源清单在后。
+  HarnessCustomMessage promptEnvelope(
+    UserMessage userMessage, {
+    List<AgentChatResourceReference> references = const [],
+    HarnessSkill? skill,
+  }) {
+    final prefix = <UserContent>[];
+    if (skill != null) {
+      prefix.add(
+        UserTextContent(formatSkillInvocation(_redacted(skill), null)),
+      );
+    }
+    if (references.isNotEmpty) {
+      prefix.add(UserTextContent(_resourceReferenceBlock(references)));
+    }
+    return HarnessCustomMessage(
+      customType: agentPromptEnvelopeType,
+      display: true,
+      blockContent: [...prefix, ...userMessage.content],
+      details: {
+        'visibleContentOffset': prefix.length,
+        if (references.isNotEmpty)
+          'references': [
+            for (final reference in references)
+              AgentChatResourceReferenceCodec.encodeJsonMap(reference),
+          ],
+        if (skill != null) 'skill': {'name': skill.name},
+      },
+      timestamp: userMessage.timestamp,
+    );
+  }
+
+  String _resourceReferenceBlock(List<AgentChatResourceReference> references) {
     final unavailable = _readState().unavailableResourceKeys;
     final payload = {
       'schemaVersion': 1,
@@ -216,28 +249,21 @@ class AgentChatDraftController {
           },
       ],
     };
-    return HarnessCustomMessage(
-      customType: 'agentResourcePrompt',
-      display: true,
-      blockContent: [
-        UserTextContent(
-          '<agent-resource-references>\n${jsonEncode(payload)}\n'
-          '</agent-resource-references>\n'
-          'Resolve available references through their owning application '
-          'tools. Do not use references marked unavailable.',
-        ),
-        ...userMessage.content,
-      ],
-      details: {
-        'visibleContentOffset': 1,
-        'references': [
-          for (final reference in references)
-            AgentChatResourceReferenceCodec.encodeJsonMap(reference),
-        ],
-      },
-      timestamp: userMessage.timestamp,
-    );
+    return '<agent-resource-references>\n${jsonEncode(payload)}\n'
+        '</agent-resource-references>\n'
+        'Resolve available references through their owning application '
+        'tools. Do not use references marked unavailable.';
   }
+
+  /// 与 read_skill 一致地抹掉正文里的绝对路径；location 保持原样，模型要靠它
+  /// 解析技能目录下的相对引用。
+  HarnessSkill _redacted(HarnessSkill skill) => HarnessSkill(
+    name: skill.name,
+    description: skill.description,
+    content: PrivateDataGuard.redactAbsolutePaths(skill.content),
+    filePath: skill.filePath,
+    disableModelInvocation: skill.disableModelInvocation,
+  );
 
   Future<void> consumePendingResources(
     List<AgentChatResourceReference> consumed,

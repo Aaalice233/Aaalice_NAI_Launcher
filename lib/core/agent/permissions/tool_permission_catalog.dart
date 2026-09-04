@@ -114,7 +114,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     'get_generation_settings',
     'get_generation_status',
     'get_recent_images',
-    'preview_generated_image',
+    'inspect_images',
     'display_images',
     'inspect_generation_preparation',
     'get_manual_inpaint_draft',
@@ -125,16 +125,12 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     'read_skill_resource',
     'get_active_generation_references',
     'get_vibe_library_entry',
-    'preview_vibe_library_entry',
     'get_precise_reference_entry',
-    'preview_precise_reference_entry',
     'list_precise_reference_library',
     'list_vibe_library',
     'get_fixed_tag',
     'list_fixed_tag_categories',
     'get_tag_library_entry',
-    'preview_local_gallery_image',
-    'preview_online_gallery_media',
     'inspect_generation_queue',
     'inspect_generation_queue_task',
     'search_tags',
@@ -186,8 +182,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
       AgentPermissionDomain.vibeLibrary,
     String() when toolName.contains('precise_ref') =>
       AgentPermissionDomain.preciseRefLibrary,
-    String() when toolName.contains('manual_inpaint') =>
-      AgentPermissionDomain.inpaint,
+    String() when toolName.contains('inpaint') => AgentPermissionDomain.inpaint,
     'queue_image_task' ||
     'get_generation_status' => AgentPermissionDomain.generationQueue,
     String() when toolName.contains('generation_queue') =>
@@ -196,7 +191,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
         when toolName.contains('generation') ||
             toolName == 'generate_image' ||
             toolName == 'get_recent_images' ||
-            toolName == 'preview_generated_image' ||
+            toolName == 'inspect_images' ||
             toolName == 'display_images' ||
             toolName == 'interrogate_image' =>
       AgentPermissionDomain.generation,
@@ -238,6 +233,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     'navigate_application' ||
     'select_generated_image' ||
     'open_generation_image_workflow' ||
+    'load_inpaint_draft_into_panel' ||
     'copy_generated_image_to_clipboard' ||
     'send_generated_image_to_krita' => AgentPermissionOperation.execute,
     _ when isDelete => AgentPermissionOperation.delete,

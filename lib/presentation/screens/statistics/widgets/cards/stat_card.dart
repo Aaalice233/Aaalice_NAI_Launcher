@@ -32,7 +32,8 @@ class StatCard extends StatelessWidget {
     final number = int.tryParse(numberStr.replaceAll(',', '')) ?? 0;
 
     // Only animate if it's a pure number or number with percentage
-    final shouldAnimate = animate &&
+    final shouldAnimate =
+        animate &&
         (RegExp(r'^[\d,]+\.?\d*(?:\s*\(?\d+\.?\d*%?\)?)?$').hasMatch(value) ||
             RegExp(r'^[\d,]+\s*\(?\d+\.?\d*%?\)?$').hasMatch(value));
 
@@ -45,14 +46,6 @@ class StatCard extends StatelessWidget {
           // 深度层叠风格：使用更高对比度的彩色背景
           color: color.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(6),
-          // 添加轻微阴影增强层次感
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,7 +69,8 @@ class StatCard extends StatelessWidget {
                 ? AnimatedNumber(
                     targetValue: number,
                     suffix: suffix,
-                    style: theme.textTheme.titleLarge?.copyWith(
+                    style:
+                        theme.textTheme.titleLarge?.copyWith(
                           color: color,
                           fontWeight: FontWeight.bold,
                         ) ??
@@ -172,10 +166,7 @@ class LegendItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: theme.textTheme.bodySmall,
-            ),
+            Text(label, style: theme.textTheme.bodySmall),
           ],
         ),
       ),

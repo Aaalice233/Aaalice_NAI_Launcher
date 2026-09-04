@@ -16,7 +16,17 @@ class QualityTagsSelector extends ConsumerStatefulWidget {
   /// 当前选择的模型
   final String model;
 
-  const QualityTagsSelector({super.key, required this.model});
+  const QualityTagsSelector({
+    super.key,
+    required this.model,
+    this.compact = false,
+    this.iconOnly = false,
+    this.maxLabelWidth,
+  });
+
+  final bool compact;
+  final bool iconOnly;
+  final double? maxLabelWidth;
 
   @override
   ConsumerState<QualityTagsSelector> createState() =>
@@ -77,9 +87,14 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
             key: _buttonKey,
             link: _layerLink,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              constraints: const BoxConstraints(minHeight: 44),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 150),
+              constraints: BoxConstraints(minHeight: widget.compact ? 36 : 48),
+              padding: EdgeInsets.symmetric(
+                horizontal: widget.compact ? 8 : 10,
+                vertical: widget.compact ? 4 : 6,
+              ),
               decoration: BoxDecoration(
                 color: isEnabled
                     ? qualityColor.withValues(alpha: _isHovering ? 0.18 : 0.12)
@@ -100,25 +115,36 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
                         ? qualityColor
                         : theme.colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _getDisplayLabel(context, presetState, customEntries),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
+                  if (!widget.iconOnly) ...[
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: widget.maxLabelWidth ?? double.infinity,
+                      ),
+                      child: Text(
+                        _getDisplayLabel(context, presetState, customEntries),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isEnabled
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: isEnabled
+                              ? qualityColor
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.arrow_drop_down,
+                      size: 14,
                       color: isEnabled
                           ? qualityColor
                           : theme.colorScheme.onSurfaceVariant,
                     ),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    size: 14,
-                    color: isEnabled
-                        ? qualityColor
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -137,7 +163,10 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
         _buttonKey.currentContext!.findRenderObject() as RenderBox;
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
-    final Offset buttonPosition = button.localToGlobal(Offset.zero);
+    final Offset buttonPosition = button.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
     final Size buttonSize = button.size;
 
     // 菜单位置：按钮正下方，左边缘对齐
@@ -332,11 +361,9 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
   }
 
   Future<void> _showTagLibraryPicker() async {
-    final entry = await showDialog<TagLibraryEntry>(
-      context: context,
-      builder: (context) => TagLibraryPickerDialog(
-        title: context.l10n.qualityTags_selectFromLibrary,
-      ),
+    final entry = await TagLibraryPickerDialog.show(
+      context,
+      title: context.l10n.qualityTags_selectFromLibrary,
     );
     if (entry != null) {
       ref.read(qualityPresetNotifierProvider.notifier).setCustomEntry(entry.id);

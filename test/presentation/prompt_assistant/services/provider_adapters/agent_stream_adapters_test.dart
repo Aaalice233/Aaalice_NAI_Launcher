@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -12,6 +14,27 @@ import 'package:nai_launcher/presentation/prompt_assistant/services/provider_ada
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 
 void main() {
+  test('streaming HTTP errors preserve the provider response body', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _ErrorAdapter(
+        '{"error":{"message":"Thinking level LOW is not supported"}}',
+      );
+    addTearDown(dio.close);
+
+    final events = await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.geminiGenerateContent),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(
+      events.whereType<AgentWireError>().single.message,
+      contains('Thinking level LOW is not supported'),
+    );
+  });
+
   test(
     'OpenAI chat stream does not emit finish after an error event',
     () async {
@@ -332,12 +355,248 @@ void main() {
     });
   });
 
+  test('Gemini emits each SSE delta before the response completes', () async {
+    final adapter = _ControlledSseAdapter(
+      first:
+          'data: {"candidates":[{"content":{"parts":[{"text":"first"}]}}]}\n\n',
+      second:
+          'data: {"candidates":[{"content":{"parts":[{"text":"second"}]},"finishReason":"STOP"}]}\n\n',
+    );
+    final dio = Dio()..httpClientAdapter = adapter;
+    addTearDown(dio.close);
+    final iterator = StreamIterator(
+      const GeminiGenerateContentAdapter().completeAgent(
+        dio: dio,
+        request: _request(ProviderProtocol.geminiGenerateContent),
+        cancelToken: CancelToken(),
+      ),
+    );
+    addTearDown(iterator.cancel);
+
+    expect(await iterator.moveNext(), isTrue);
+    expect(iterator.current, isA<AgentWireTextDelta>());
+    expect((iterator.current as AgentWireTextDelta).delta, 'first');
+    expect(adapter.released, isFalse);
+
+    adapter.release();
+    final remaining = <AgentWireEvent>[];
+    while (await iterator.moveNext()) {
+      remaining.add(iterator.current);
+    }
+    expect(remaining.whereType<AgentWireTextDelta>().single.delta, 'second');
+    expect(remaining.whereType<AgentWireFinish>(), hasLength(1));
+  });
+
+  test('Gemini reports malformed SSE JSON as an error', () async {
+    final dio = Dio()..httpClientAdapter = _SseAdapter('data: {not-json}\n\n');
+    addTearDown(dio.close);
+
+    final events = await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.geminiGenerateContent),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(events.whereType<AgentWireError>(), hasLength(1));
+    expect(events.whereType<AgentWireFinish>(), isEmpty);
+    expect(
+      events.whereType<AgentWireError>().single.message,
+      contains('invalid JSON'),
+    );
+  });
+
+  test('Gemini maps cached and thinking tokens like Pi', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        'data: {"candidates":[{"content":{"parts":[{"text":"done"}]},'
+        '"finishReason":"STOP"}],"usageMetadata":{'
+        '"promptTokenCount":20,"cachedContentTokenCount":5,'
+        '"candidatesTokenCount":3,"thoughtsTokenCount":7,'
+        '"totalTokenCount":30}}\n\n',
+      );
+    addTearDown(dio.close);
+
+    final events = await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.geminiGenerateContent),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+    final usage = events.whereType<AgentWireFinish>().single.usage!;
+
+    expect(usage.input, 15);
+    expect(usage.cacheRead, 5);
+    expect(usage.output, 10);
+    expect(usage.totalTokens, 30);
+  });
+
+  test('Gemini sends full JSON Schema for numeric tool enums', () async {
+    final capture = _CaptureAdapter();
+    final dio = Dio(BaseOptions(receiveTimeout: const Duration(minutes: 2)))
+      ..httpClientAdapter = capture;
+    addTearDown(dio.close);
+
+    await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(
+            ProviderProtocol.geminiGenerateContent,
+            tools: const [
+              Tool(
+                name: 'set_numeric_value',
+                description: 'Set a numeric value',
+                parameters: {
+                  'type': 'object',
+                  'properties': {
+                    'value': {
+                      'type': 'integer',
+                      'enum': [0, 1, 2],
+                    },
+                  },
+                },
+              ),
+            ],
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(
+      capture.options!.uri.path,
+      endsWith('/models/model:streamGenerateContent'),
+    );
+    expect(capture.options!.uri.queryParameters['alt'], 'sse');
+    expect(capture.options!.receiveTimeout, Duration.zero);
+    final payload = capture.options!.data as Map<String, dynamic>;
+    expect(payload, contains('systemInstruction'));
+    expect(payload, isNot(contains('system_instruction')));
+    final declaration =
+        (((payload['tools'] as List).single as Map)['functionDeclarations']
+                    as List)
+                .single
+            as Map;
+    expect(declaration, isNot(contains('parameters')));
+    expect(
+      ((declaration['parametersJsonSchema'] as Map)['properties']
+          as Map)['value'],
+      {
+        'type': 'integer',
+        'enum': [0, 1, 2],
+      },
+    );
+  });
+
+  test(
+    'Gemini 3 preserves provider tool call IDs and replaces duplicates',
+    () async {
+      final dio = Dio()
+        ..httpClientAdapter = _SseAdapter(
+          'data: {"candidates":[{"content":{"parts":['
+          '{"functionCall":{"id":"server-call","name":"read","args":{}}},'
+          '{"functionCall":{"id":"server-call","name":"write","args":{}}}'
+          ']},"finishReason":"STOP"}]}\n\n',
+        );
+      addTearDown(dio.close);
+
+      final events = await const GeminiGenerateContentAdapter()
+          .completeAgent(
+            dio: dio,
+            request: _request(
+              ProviderProtocol.geminiGenerateContent,
+              model: 'gemini-3.7-flash',
+            ),
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      final calls = events.whereType<AgentWireToolCallDone>().toList();
+      expect(calls.first.id, 'server-call');
+      expect(calls.last.id, isNot('server-call'));
+    },
+  );
+
+  test('Gemini 3 replays paired tool IDs and Pi result envelopes', () async {
+    final capture = _CaptureAdapter();
+    final dio = Dio()..httpClientAdapter = capture;
+    addTearDown(dio.close);
+    final base = _request(
+      ProviderProtocol.geminiGenerateContent,
+      model: 'gemini-3.7-flash',
+    );
+    final longId = 'call invalid ${List.filled(80, 'x').join()}';
+
+    await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: AgentChatRequest(
+            sessionId: base.sessionId,
+            provider: base.provider,
+            model: base.model,
+            systemPrompt: base.systemPrompt,
+            messages: [
+              AssistantMessage(
+                content: [
+                  ToolCallContent(
+                    id: longId,
+                    name: 'read',
+                    arguments: const {},
+                  ),
+                ],
+                stopReason: StopReason.toolUse,
+                provider: base.provider.id,
+                model: base.model,
+              ),
+              ToolResultMessage(
+                toolCallId: longId,
+                toolName: 'read',
+                content: const [ToolResultTextContent('done')],
+                isError: false,
+              ),
+              ToolResultMessage(
+                toolCallId: 'failed-call',
+                toolName: 'write',
+                content: const [ToolResultTextContent('denied')],
+                isError: true,
+              ),
+            ],
+            tools: const [],
+            apiKey: null,
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final contents =
+        (capture.options!.data as Map<String, dynamic>)['contents'] as List;
+    final functionCall =
+        ((contents.first as Map)['parts'] as List).single as Map;
+    final responses = ((contents.last as Map)['parts'] as List).cast<Map>();
+    final normalizedId =
+        ((functionCall['functionCall'] as Map)['id'] as String);
+    expect(normalizedId, hasLength(64));
+    expect(normalizedId, matches(RegExp(r'^[a-zA-Z0-9_-]+$')));
+    expect((responses.first['functionResponse'] as Map), {
+      'name': 'read',
+      'response': {'output': 'done'},
+      'id': normalizedId,
+    });
+    expect((responses.last['functionResponse'] as Map), {
+      'name': 'write',
+      'response': {'error': 'denied'},
+      'id': 'failed-call',
+    });
+  });
+
   test('Gemini function call finishes the turn with toolUse', () async {
     final dio = Dio()
       ..httpClientAdapter = _SseAdapter(
         'data: {"candidates":[{"content":{"parts":['
         '{"functionCall":{"name":"read","args":{"path":"a.txt"}}}'
-        ']},"finishReason":"STOP"}]}\n\n',
+        ']}}]}\n\n'
+        'data: {"candidates":[{"finishReason":"STOP"}]}\n\n',
       );
     addTearDown(dio.close);
 
@@ -728,7 +987,7 @@ void main() {
         ProviderProtocol.openaiResponses => payload['instructions'],
         ProviderProtocol.anthropicMessages => payload['system'],
         ProviderProtocol.geminiGenerateContent =>
-          ((((payload['system_instruction'] as Map)['parts'] as List).single
+          ((((payload['systemInstruction'] as Map)['parts'] as List).single
               as Map)['text']),
       };
       expect(outboundPrompt, 'EXACT_OVERRIDE', reason: protocol.name);
@@ -742,7 +1001,9 @@ AgentChatRequest _request(
   ProviderProtocol protocol, {
   String? reasoning,
   String systemPrompt = 'system',
+  String model = 'model',
   bool includeTool = false,
+  List<Tool>? tools,
 }) {
   return AgentChatRequest(
     sessionId: 'session',
@@ -752,18 +1013,23 @@ AgentChatRequest _request(
       protocol: protocol,
       baseUrl: 'https://example.test',
     ),
-    model: 'model',
+    model: model,
     systemPrompt: systemPrompt,
     messages: [UserMessage.text('hello')],
-    tools: includeTool
-        ? const [
-            Tool(
-              name: 'exact_tool',
-              description: 'Structured tool definition',
-              parameters: {'type': 'object', 'properties': <String, dynamic>{}},
-            ),
-          ]
-        : const [],
+    tools:
+        tools ??
+        (includeTool
+            ? const [
+                Tool(
+                  name: 'exact_tool',
+                  description: 'Structured tool definition',
+                  parameters: {
+                    'type': 'object',
+                    'properties': <String, dynamic>{},
+                  },
+                ),
+              ]
+            : const []),
     apiKey: null,
     reasoning: reasoning,
   );
@@ -787,6 +1053,67 @@ class _SseAdapter implements HttpClientAdapter {
       200,
       headers: {
         Headers.contentTypeHeader: ['text/event-stream'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _ControlledSseAdapter implements HttpClientAdapter {
+  _ControlledSseAdapter({required this.first, required this.second});
+
+  final String first;
+  final String second;
+  final Completer<void> _release = Completer<void>();
+
+  bool get released => _release.isCompleted;
+
+  void release() => _release.complete();
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final stream = () async* {
+      yield Uint8List.fromList(utf8.encode(first));
+      await _release.future;
+      yield Uint8List.fromList(utf8.encode(second));
+    }();
+    return ResponseBody(
+      stream,
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['text/event-stream'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {
+    if (!_release.isCompleted) _release.complete();
+  }
+}
+
+class _ErrorAdapter implements HttpClientAdapter {
+  _ErrorAdapter(this.body);
+
+  final String body;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromString(
+      body,
+      400,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
       },
     );
   }

@@ -5,6 +5,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../data/services/alias_resolver_service.dart';
+import '../../../themes/prompt_semantic_colors.dart';
 import '../../../widgets/common/app_toast.dart';
 import 'prompt_tooltip_components.dart';
 
@@ -37,10 +38,19 @@ class PositivePromptTooltip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = theme.brightness == Brightness.dark;
+    final promptColors = theme.promptSemanticColors;
     final enabledCharacters = characters
         .where((character) => character.enabled && character.prompt.isNotEmpty)
         .toList();
     final effectivePrompt = _buildEffectivePrompt();
+    final hasComposition =
+        prefixes.isNotEmpty ||
+        userPrompt.trim().isNotEmpty ||
+        (qualityContent?.isNotEmpty ?? false) ||
+        enabledCharacters.isNotEmpty ||
+        suffixes.isNotEmpty;
+    var visibleSectionIndex = 0;
+    bool expandSection() => visibleSectionIndex++ < 2;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,57 +63,6 @@ class PositivePromptTooltip extends StatelessWidget {
           isDark: isDark,
         ),
         const SizedBox(height: 10),
-        if (prefixes.isNotEmpty) ...[
-          _section(
-            Icons.arrow_forward_rounded,
-            l10n.fixedTags_prefix,
-            theme.colorScheme.primary,
-            prefixes.map((tag) => _resolve(tag.content)).join(', '),
-            isDark,
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (userPrompt.trim().isNotEmpty) ...[
-          _section(
-            Icons.edit_rounded,
-            l10n.prompt_mainPositive,
-            theme.colorScheme.secondary,
-            _resolve(userPrompt.trim()),
-            isDark,
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (qualityContent?.isNotEmpty ?? false) ...[
-          _section(
-            Icons.star_rounded,
-            l10n.qualityTags_positive,
-            Colors.amber,
-            qualityContent!,
-            isDark,
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (enabledCharacters.isNotEmpty) ...[
-          TooltipCharacterSection(
-            theme: theme,
-            label: l10n.prompt_characterPrompts,
-            characters: enabledCharacters,
-            globalAiChoice: globalAiChoice,
-            isDark: isDark,
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (suffixes.isNotEmpty) ...[
-          _section(
-            Icons.arrow_back_rounded,
-            l10n.fixedTags_suffix,
-            theme.colorScheme.tertiary,
-            suffixes.map((tag) => _resolve(tag.content)).join(', '),
-            isDark,
-          ),
-          const SizedBox(height: 8),
-        ],
-        const _TooltipDivider(),
         _CopyableFinalPrompt(
           theme: theme,
           prompt: effectivePrompt,
@@ -115,23 +74,92 @@ class PositivePromptTooltip extends StatelessWidget {
           copyWhenEmpty: true,
           onCopy: onCopy,
         ),
+        if (hasComposition) ...[
+          const SizedBox(height: 10),
+          TooltipCompositionHeading(theme: theme),
+          const SizedBox(height: 6),
+        ],
+        if (prefixes.isNotEmpty) ...[
+          _section(
+            'positive-prefix',
+            Icons.arrow_forward_rounded,
+            l10n.fixedTags_prefix,
+            promptColors.positiveFixedTag,
+            prefixes.map((tag) => _resolve(tag.content)).join(', '),
+            isDark,
+            initiallyExpanded: expandSection(),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (userPrompt.trim().isNotEmpty) ...[
+          _section(
+            'positive-main',
+            Icons.edit_rounded,
+            l10n.prompt_mainPositive,
+            promptColors.mainPrompt,
+            _resolve(userPrompt.trim()),
+            isDark,
+            initiallyExpanded: expandSection(),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (qualityContent?.isNotEmpty ?? false) ...[
+          _section(
+            'positive-quality',
+            Icons.star_rounded,
+            l10n.qualityTags_positive,
+            promptColors.positiveQuality,
+            qualityContent!,
+            isDark,
+            initiallyExpanded: expandSection(),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (enabledCharacters.isNotEmpty) ...[
+          TooltipCharacterSection(
+            key: const ValueKey('prompt-composition-positive-characters'),
+            theme: theme,
+            label: l10n.prompt_characterPrompts,
+            characters: enabledCharacters,
+            globalAiChoice: globalAiChoice,
+            isDark: isDark,
+            initiallyExpanded: expandSection(),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (suffixes.isNotEmpty) ...[
+          _section(
+            'positive-suffix',
+            Icons.arrow_back_rounded,
+            l10n.fixedTags_suffix,
+            theme.colorScheme.secondary,
+            suffixes.map((tag) => _resolve(tag.content)).join(', '),
+            isDark,
+            initiallyExpanded: expandSection(),
+          ),
+          const SizedBox(height: 8),
+        ],
       ],
     );
   }
 
   TooltipSection _section(
+    String id,
     IconData icon,
     String label,
     Color color,
     String content,
-    bool isDark,
-  ) => TooltipSection(
+    bool isDark, {
+    required bool initiallyExpanded,
+  }) => TooltipSection(
+    key: ValueKey('prompt-composition-$id'),
     theme: theme,
     icon: icon,
     label: label,
     color: color,
     content: content,
     isDark: isDark,
+    initiallyExpanded: initiallyExpanded,
   );
 
   String _resolve(String value) => aliasResolver.resolveAliases(value);
@@ -185,7 +213,15 @@ class NegativePromptTooltip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = theme.brightness == Brightness.dark;
+    final promptColors = theme.promptSemanticColors;
     final effectivePrompt = _effectivePrompt();
+    final hasComposition =
+        ucPresetContent.isNotEmpty ||
+        prefixes.isNotEmpty ||
+        userNegativePrompt.trim().isNotEmpty ||
+        suffixes.isNotEmpty;
+    var visibleSectionIndex = 0;
+    bool expandSection() => visibleSectionIndex++ < 2;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,47 +234,6 @@ class NegativePromptTooltip extends StatelessWidget {
           isDark: isDark,
         ),
         const SizedBox(height: 10),
-        if (ucPresetContent.isNotEmpty) ...[
-          _section(
-            Icons.shield_rounded,
-            l10n.qualityTags_negative,
-            theme.colorScheme.error,
-            ucPresetContent,
-            isDark,
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (prefixes.isNotEmpty) ...[
-          _section(
-            Icons.arrow_forward_rounded,
-            l10n.prompt_negativeFixedTagPrefix,
-            theme.colorScheme.error,
-            prefixes.map((tag) => _resolve(tag.content)).join(', '),
-            isDark,
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (userNegativePrompt.trim().isNotEmpty) ...[
-          _section(
-            Icons.edit_rounded,
-            l10n.prompt_mainNegative,
-            theme.colorScheme.tertiary,
-            _resolve(userNegativePrompt.trim()),
-            isDark,
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (suffixes.isNotEmpty) ...[
-          _section(
-            Icons.arrow_back_rounded,
-            l10n.prompt_negativeFixedTagSuffix,
-            theme.colorScheme.tertiary,
-            suffixes.map((tag) => _resolve(tag.content)).join(', '),
-            isDark,
-          ),
-          const SizedBox(height: 8),
-        ],
-        const _TooltipDivider(),
         _CopyableFinalPrompt(
           theme: theme,
           prompt: effectivePrompt,
@@ -249,23 +244,80 @@ class NegativePromptTooltip extends StatelessWidget {
           backgroundEndColor: theme.colorScheme.surfaceContainerHighest,
           onCopy: onCopy,
         ),
+        if (hasComposition) ...[
+          const SizedBox(height: 10),
+          TooltipCompositionHeading(theme: theme),
+          const SizedBox(height: 6),
+        ],
+        if (ucPresetContent.isNotEmpty) ...[
+          _section(
+            'negative-uc-preset',
+            Icons.shield_rounded,
+            l10n.qualityTags_negative,
+            promptColors.negativeQuality,
+            ucPresetContent,
+            isDark,
+            initiallyExpanded: expandSection(),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (prefixes.isNotEmpty) ...[
+          _section(
+            'negative-prefix',
+            Icons.arrow_forward_rounded,
+            l10n.prompt_negativeFixedTagPrefix,
+            promptColors.negativeFixedTag,
+            prefixes.map((tag) => _resolve(tag.content)).join(', '),
+            isDark,
+            initiallyExpanded: expandSection(),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (userNegativePrompt.trim().isNotEmpty) ...[
+          _section(
+            'negative-main',
+            Icons.edit_rounded,
+            l10n.prompt_mainNegative,
+            promptColors.mainPrompt,
+            _resolve(userNegativePrompt.trim()),
+            isDark,
+            initiallyExpanded: expandSection(),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (suffixes.isNotEmpty) ...[
+          _section(
+            'negative-suffix',
+            Icons.arrow_back_rounded,
+            l10n.prompt_negativeFixedTagSuffix,
+            theme.colorScheme.tertiary,
+            suffixes.map((tag) => _resolve(tag.content)).join(', '),
+            isDark,
+            initiallyExpanded: expandSection(),
+          ),
+          const SizedBox(height: 8),
+        ],
       ],
     );
   }
 
   TooltipSection _section(
+    String id,
     IconData icon,
     String label,
     Color color,
     String content,
-    bool isDark,
-  ) => TooltipSection(
+    bool isDark, {
+    required bool initiallyExpanded,
+  }) => TooltipSection(
+    key: ValueKey('prompt-composition-$id'),
     theme: theme,
     icon: icon,
     label: label,
     color: color,
     content: content,
     isDark: isDark,
+    initiallyExpanded: initiallyExpanded,
   );
 
   String _resolve(String value) => aliasResolver.resolveAliases(value);
@@ -283,17 +335,6 @@ class NegativePromptTooltip extends StatelessWidget {
         .where((value) => value.isNotEmpty)
         .map(_resolve),
   ].join(', ');
-}
-
-class _TooltipDivider extends StatelessWidget {
-  const _TooltipDivider();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.symmetric(vertical: 6),
-    height: 1,
-    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
-  );
 }
 
 class _CopyableFinalPrompt extends StatelessWidget {

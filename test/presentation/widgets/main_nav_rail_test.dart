@@ -25,6 +25,11 @@ class _FakeAuthNotifier extends AuthNotifier {
   AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
 }
 
+class _AuthenticatedAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(status: AuthStatus.authenticated);
+}
+
 class _FakeAccountManagerNotifier extends AccountManagerNotifier {
   @override
   AccountManagerState build() => const AccountManagerState();
@@ -133,6 +138,14 @@ void main() {
     expect(tooltip.message, '智能体');
     expect(tooltip.verticalOffset, 24);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('main-nav-toggle')),
+      120,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('main-nav-secondary-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.tap(find.byKey(const Key('main-nav-toggle')));
     await tester.pumpAndSettle();
 
@@ -162,6 +175,22 @@ void main() {
       MainNavRail.collapsedWidth,
     );
     expect(_labelOpacity(tester, '画布'), 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('高侧栏下次级操作组锚定底部', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpAuthenticatedRail(tester);
+
+    final railBottom = tester
+        .getBottomRight(find.byKey(const Key('main-nav-rail')))
+        .dy;
+    final toggleBottom = tester
+        .getBottomRight(find.byKey(const Key('main-nav-toggle')))
+        .dy;
+    expect(toggleBottom, closeTo(railBottom - 6, 0.01));
     expect(tester.takeException(), isNull);
   });
 
@@ -199,6 +228,9 @@ void main() {
     await tester.pump();
 
     final collapsedIconCenter = tester.getCenter(find.byIcon(Icons.brush));
+    final anchoredToggleBottom = tester
+        .getBottomRight(find.byKey(const Key('main-nav-toggle')))
+        .dy;
     await tester.tap(find.byKey(const Key('main-nav-toggle')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 80));
@@ -210,7 +242,15 @@ void main() {
     );
     expect(_railContentWidth(tester), MainNavRail.expandedWidth);
     expect(tester.getCenter(find.byIcon(Icons.brush)), collapsedIconCenter);
+    expect(
+      tester.getBottomRight(find.byKey(const Key('main-nav-toggle'))).dy,
+      anchoredToggleBottom,
+    );
     final sharedLabelAnimation = _labelFade(tester, '画布').opacity;
+    final normalizedWidth =
+        (expandingWidth - MainNavRail.collapsedWidth) /
+        (MainNavRail.expandedWidth - MainNavRail.collapsedWidth);
+    expect(sharedLabelAnimation.value, lessThan(normalizedWidth));
     final sharedFadeCount = tester
         .widgetList<FadeTransition>(
           find.byType(FadeTransition, skipOffstage: false),
@@ -288,6 +328,14 @@ void main() {
     await tester.pump();
 
     final selectedBefore = tester.widget<Icon>(find.byIcon(Icons.folder)).color;
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('main-nav-toggle')),
+      120,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('main-nav-secondary-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.tap(find.byKey(const Key('main-nav-toggle')));
     await tester.pump();
 
@@ -300,6 +348,75 @@ void main() {
     verifyNever(() => navigationShell.goBranch(any()));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('320px、3x 字号、IME 与 SafeArea 下添加账号表单可滚动并正确返回', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final mediaQuery = ValueNotifier(
+      const MediaQueryData(
+        size: Size(320, 900),
+        padding: EdgeInsets.fromLTRB(12, 24, 12, 20),
+        viewPadding: EdgeInsets.fromLTRB(12, 24, 12, 20),
+      ),
+    );
+    addTearDown(mediaQuery.dispose);
+    await _pumpAuthenticatedRail(tester, mediaQuery: mediaQuery);
+    await _openAddAccountForm(tester);
+
+    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    expect(surface, findsOneWidget);
+    expect(find.byKey(const Key('main-nav-add-account-form')), findsOneWidget);
+    var rect = tester.getRect(surface);
+    expect(rect.left, greaterThanOrEqualTo(12));
+    expect(rect.top, greaterThanOrEqualTo(24));
+    expect(rect.right, lessThanOrEqualTo(308));
+    expect(rect.bottom, lessThanOrEqualTo(880));
+    expect(
+      tester.widget<ListView>(find.byType(ListView).last).controller,
+      isNotNull,
+    );
+    expect(tester.takeException(), isNull);
+
+    mediaQuery.value = mediaQuery.value.copyWith(
+      padding: const EdgeInsets.fromLTRB(12, 24, 12, 0),
+      viewInsets: const EdgeInsets.only(bottom: 260),
+      textScaler: const TextScaler.linear(3),
+    );
+    await tester.pumpAndSettle();
+
+    rect = tester.getRect(surface);
+    expect(rect.top, greaterThanOrEqualTo(24));
+    expect(rect.bottom, lessThanOrEqualTo(640));
+    expect(tester.takeException(), isNull);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(surface, findsNothing);
+  });
+
+  for (final width in <double>[700, 1000]) {
+    testWidgets('${width.toInt()}px 下添加账号表单保持有界', (tester) async {
+      await tester.binding.setSurfaceSize(Size(width, 760));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final mediaQuery = ValueNotifier(MediaQueryData(size: Size(width, 760)));
+      addTearDown(mediaQuery.dispose);
+      await _pumpAuthenticatedRail(tester, mediaQuery: mediaQuery);
+      await _openAddAccountForm(tester);
+
+      const surfaceKey = ValueKey('adaptive-centered-form');
+      final surface = find.byKey(surfaceKey);
+      expect(surface, findsOneWidget);
+      expect(tester.getSize(surface).width, lessThanOrEqualTo(450));
+      expect(tester.getSize(surface).width, lessThan(width));
+      expect(
+        find.byKey(const Key('main-nav-add-account-form')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('未认证时侧栏及账号菜单不显示本地保存身份', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 760));
@@ -344,6 +461,55 @@ void main() {
     expect(find.text('登录'), findsNWidgets(2));
     expect(find.text('添加账号'), findsNothing);
   });
+}
+
+Future<void> _pumpAuthenticatedRail(
+  WidgetTester tester, {
+  ValueNotifier<MediaQueryData>? mediaQuery,
+}) async {
+  final navigationShell = _MockNavigationShell();
+  final storage = _FakeMainNavStorage()..isExpanded = true;
+  when(() => navigationShell.currentIndex).thenReturn(0);
+
+  final rail = Scaffold(body: MainNavRail(navigationShell: navigationShell));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWith((ref) => storage),
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+        accountManagerNotifierProvider.overrideWith(
+          _FakeAccountManagerNotifier.new,
+        ),
+        queueExecutionNotifierProvider.overrideWith(
+          _FakeQueueExecutionNotifier.new,
+        ),
+        replicationQueueNotifierProvider.overrideWith(
+          _FakeReplicationQueueNotifier.new,
+        ),
+      ],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: mediaQuery == null
+            ? null
+            : (context, child) => ValueListenableBuilder<MediaQueryData>(
+                valueListenable: mediaQuery,
+                builder: (context, data, _) =>
+                    MediaQuery(data: data, child: child!),
+              ),
+        home: rail,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _openAddAccountForm(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('main-nav-account-menu-button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('添加账号'));
+  await tester.pumpAndSettle();
 }
 
 double _railWidth(WidgetTester tester) =>

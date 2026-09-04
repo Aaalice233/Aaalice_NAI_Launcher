@@ -8,6 +8,7 @@ import 'package:nai_launcher/core/agent/skill_archive_service.dart';
 import 'package:nai_launcher/core/agent/skill_catalog.dart';
 import 'package:nai_launcher/core/services/file_export_service.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/app_toast.dart';
 import '../../widgets/settings_card.dart';
@@ -192,58 +193,57 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
   Future<void> _export() async {
     final effective = ref.read(agentSettingsProvider).skills.effectiveEntries;
     final selected = <String>{};
-    final confirmed = await showDialog<bool>(
+    final confirmed = await AdaptivePresenter.showForm<bool>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          insetPadding: _responsiveDialogInsetPadding(context),
-          title: Text(context.l10n.agentSettings_exportSkillsTitle),
-          content: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: _safeDialogContentWidth(context, 480),
-              maxWidth: _safeDialogContentWidth(context, 480),
-              maxHeight: _safeDialogListHeight(context),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(context.l10n.agentSettings_exportPrivacy),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: effective.length,
-                    itemBuilder: (context, index) {
-                      final entry = effective[index];
-                      return CheckboxListTile(
-                        value: selected.contains(entry.id),
-                        title: Text(entry.id),
-                        subtitle: Text(entry.skill.description, maxLines: 2),
-                        onChanged: (value) => setDialogState(() {
-                          value == true
-                              ? selected.add(entry.id)
-                              : selected.remove(entry.id);
-                        }),
-                      );
-                    },
-                  ),
+      title: context.l10n.agentSettings_exportSkillsTitle,
+      sideSheetWidth: 560,
+      builder: (context, scrollController) => StatefulBuilder(
+        builder: (context, setFormState) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(context.l10n.agentSettings_exportPrivacy),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.builder(
+                  key: const ValueKey('skill-export-selection-list'),
+                  controller: scrollController,
+                  itemCount: effective.length,
+                  itemBuilder: (context, index) {
+                    final entry = effective[index];
+                    return CheckboxListTile(
+                      value: selected.contains(entry.id),
+                      title: Text(entry.id),
+                      subtitle: Text(entry.skill.description, maxLines: 2),
+                      onChanged: (value) => setFormState(() {
+                        value == true
+                            ? selected.add(entry.id)
+                            : selected.remove(entry.id);
+                      }),
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(context.l10n.common_cancel),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: selected.isEmpty
+                        ? null
+                        : () => Navigator.pop(context, true),
+                    child: Text(context.l10n.agentSettings_continueExport),
+                  ),
+                ],
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(context.l10n.common_cancel),
-            ),
-            FilledButton(
-              onPressed: selected.isEmpty
-                  ? null
-                  : () => Navigator.pop(context, true),
-              child: Text(context.l10n.agentSettings_continueExport),
-            ),
-          ],
         ),
       ),
     );
@@ -290,68 +290,8 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
         targetDirectory: target,
       );
       if (!mounted) return;
-      final replace = <String>{};
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (_) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            insetPadding: _responsiveDialogInsetPadding(context),
-            title: Text(context.l10n.agentSettings_confirmSkillsImport),
-            content: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: _safeDialogContentWidth(context, 520),
-                maxWidth: _safeDialogContentWidth(context, 520),
-                maxHeight: _safeDialogListHeight(context),
-              ),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: preview.items.length,
-                itemBuilder: (context, index) {
-                  final item = preview.items[index];
-                  final conflictText = !item.conflicts
-                      ? ''
-                      : item.canReplace
-                      ? context.l10n.agentSettings_skillConflictReplace
-                      : context.l10n.agentSettings_skillConflictUnsafe;
-                  return CheckboxListTile(
-                    value: item.canReplace && replace.contains(item.name),
-                    enabled: item.canReplace,
-                    onChanged: (value) => setDialogState(() {
-                      value == true
-                          ? replace.add(item.name)
-                          : replace.remove(item.name);
-                    }),
-                    title: Text(item.name),
-                    subtitle: Text(
-                      '${item.description}\n'
-                      '${context.l10n.agentSettings_skillArchiveStats(item.fileCount, item.totalBytes)}'
-                      '${conflictText.isNotEmpty ? '\n$conflictText' : ''}',
-                    ),
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text(context.l10n.common_cancel),
-              ),
-              FilledButton(
-                onPressed:
-                    preview.items.any(
-                      (item) =>
-                          (item.conflicts && !item.canReplace) ||
-                          (item.canReplace && !replace.contains(item.name)),
-                    )
-                    ? null
-                    : () => Navigator.pop(context, true),
-                child: Text(context.l10n.agentSettings_install),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (confirmed != true) return;
+      final replace = await SkillImportConflictForm.show(context, preview);
+      if (replace == null) return;
       await _archiveService.install(
         bytes: bytes,
         targetDirectory: target,
@@ -378,6 +318,86 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+class SkillImportConflictForm {
+  SkillImportConflictForm._();
+
+  static Future<Set<String>?> show(
+    BuildContext context,
+    SkillArchivePreview preview,
+  ) {
+    final replace = <String>{};
+    return AdaptivePresenter.showForm<Set<String>>(
+      context: context,
+      title: context.l10n.agentSettings_confirmSkillsImport,
+      sideSheetWidth: 600,
+      builder: (context, scrollController) => StatefulBuilder(
+        builder: (context, setFormState) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  key: const ValueKey('skill-import-conflict-list'),
+                  controller: scrollController,
+                  itemCount: preview.items.length,
+                  itemBuilder: (context, index) {
+                    final item = preview.items[index];
+                    final conflictText = !item.conflicts
+                        ? ''
+                        : item.canReplace
+                        ? context.l10n.agentSettings_skillConflictReplace
+                        : context.l10n.agentSettings_skillConflictUnsafe;
+                    return CheckboxListTile(
+                      value: item.canReplace && replace.contains(item.name),
+                      enabled: item.canReplace,
+                      onChanged: (value) => setFormState(() {
+                        value == true
+                            ? replace.add(item.name)
+                            : replace.remove(item.name);
+                      }),
+                      title: Text(item.name),
+                      subtitle: Text(
+                        '${item.description}\n'
+                        '${context.l10n.agentSettings_skillArchiveStats(item.fileCount, item.totalBytes)}'
+                        '${conflictText.isNotEmpty ? '\n$conflictText' : ''}',
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(context.l10n.common_cancel),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed:
+                        preview.items.any(
+                          (item) =>
+                              (item.conflicts && !item.canReplace) ||
+                              (item.canReplace && !replace.contains(item.name)),
+                        )
+                        ? null
+                        : () => Navigator.pop(context, Set.of(replace)),
+                    child: Text(context.l10n.agentSettings_install),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -504,18 +524,3 @@ String _skillSourceLabel(BuildContext context, SkillSource source) =>
       SkillSource.piUser => context.l10n.agentSettings_sourcePiUser,
       SkillSource.commonUser => context.l10n.agentSettings_sourceCommonUser,
     };
-
-EdgeInsets _responsiveDialogInsetPadding(BuildContext context) =>
-    MediaQuery.sizeOf(context).width <= 400
-    ? const EdgeInsets.symmetric(horizontal: 16, vertical: 24)
-    : const EdgeInsets.symmetric(horizontal: 40, vertical: 24);
-
-double _safeDialogListHeight(BuildContext context) =>
-    (MediaQuery.sizeOf(context).height * 0.55).clamp(160.0, 480.0);
-
-double _safeDialogContentWidth(BuildContext context, double maximum) {
-  final screenWidth = MediaQuery.sizeOf(context).width;
-  final outerInsets = screenWidth <= 400 ? 32.0 : 80.0;
-  const contentInsets = 48.0;
-  return (screenWidth - outerInsets - contentInsets).clamp(0.0, maximum);
-}

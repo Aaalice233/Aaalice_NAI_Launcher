@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../core/editor_state.dart';
 import '../../tools/tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';
@@ -44,9 +45,10 @@ class DesktopToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final minimumControlExtent = context.interactionPolicy.minimumControlExtent;
 
     return Container(
-      width: 48,
+      width: minimumControlExtent + 8,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -72,6 +74,7 @@ class DesktopToolbar extends StatelessWidget {
                               (tool) => _ToolButton(
                                 tool: tool,
                                 isSelected: tool.id == currentToolId,
+                                minimumExtent: minimumControlExtent,
                                 onTap: () => state.setTool(tool),
                               ),
                             )
@@ -90,18 +93,21 @@ class DesktopToolbar extends StatelessWidget {
                       return Column(
                         children: [
                           _ActionButton(
+                            minimumExtent: minimumControlExtent,
                             icon: Icons.undo,
                             tooltip: context.l10n.editor_shortcutUndo,
                             enabled: state.canUndo,
                             onTap: onUndo ?? () => state.undo(),
                           ),
                           _ActionButton(
+                            minimumExtent: minimumControlExtent,
                             icon: Icons.redo,
                             tooltip: context.l10n.editor_shortcutRedo,
                             enabled: state.canRedo,
                             onTap: onRedo ?? () => state.redo(),
                           ),
                           _ActionButton(
+                            minimumExtent: minimumControlExtent,
                             icon: Icons.delete_outline,
                             tooltip: onClear != null
                                 ? context.l10n.editor_resetMask
@@ -113,6 +119,7 @@ class DesktopToolbar extends StatelessWidget {
                           ),
                           if (onFillMask != null)
                             _ActionButton(
+                              minimumExtent: minimumControlExtent,
                               icon: Icons.format_color_fill,
                               tooltip: context.l10n.editor_fillClosedRegion,
                               enabled: canFillMask?.call() ?? false,
@@ -134,6 +141,7 @@ class DesktopToolbar extends StatelessWidget {
               return Column(
                 children: [
                   _ActionButton(
+                    minimumExtent: minimumControlExtent,
                     icon: Icons.zoom_in,
                     tooltip: context.l10n.editor_zoomIn,
                     onTap: () => state.canvasController.zoomIn(),
@@ -146,11 +154,13 @@ class DesktopToolbar extends StatelessWidget {
                     ),
                   ),
                   _ActionButton(
+                    minimumExtent: minimumControlExtent,
                     icon: Icons.zoom_out,
                     tooltip: context.l10n.editor_zoomOut,
                     onTap: () => state.canvasController.zoomOut(),
                   ),
                   _ActionButton(
+                    minimumExtent: minimumControlExtent,
                     icon: Icons.fit_screen,
                     tooltip: context.l10n.editor_fitToWindow,
                     onTap: () =>
@@ -173,10 +183,12 @@ class _ToolButton extends StatelessWidget {
   final EditorTool tool;
   final bool isSelected;
   final VoidCallback onTap;
+  final double minimumExtent;
 
   const _ToolButton({
     required this.tool,
     required this.isSelected,
+    required this.minimumExtent,
     required this.onTap,
   });
 
@@ -197,8 +209,8 @@ class _ToolButton extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(8),
             child: Container(
-              width: 40,
-              height: 40,
+              width: minimumExtent,
+              height: minimumExtent,
               alignment: Alignment.center,
               child: Icon(
                 tool.icon,
@@ -258,11 +270,13 @@ class _ActionButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback onTap;
   final bool enabled;
+  final double minimumExtent;
 
   const _ActionButton({
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    required this.minimumExtent,
     this.enabled = true,
   });
 
@@ -281,8 +295,8 @@ class _ActionButton extends StatelessWidget {
             onTap: enabled ? onTap : null,
             borderRadius: BorderRadius.circular(8),
             child: Container(
-              width: 40,
-              height: 40,
+              width: minimumExtent,
+              height: minimumExtent,
               alignment: Alignment.center,
               child: Icon(
                 icon,

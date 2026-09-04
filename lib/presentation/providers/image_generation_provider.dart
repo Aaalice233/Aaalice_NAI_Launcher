@@ -7,7 +7,9 @@ import 'package:image/image.dart' as img;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/model_capabilities.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/android_generation_foreground_service.dart';
+import '../../core/services/android_media_store_service.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/services/character_conversion_service.dart';
 import '../../core/utils/app_logger.dart';
@@ -22,6 +24,8 @@ import '../../core/utils/prompt_preset_resolution.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/models/image/image_stream_chunk.dart';
@@ -96,6 +100,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   final Map<String, _RememberedStreamPreview> _streamPreviews = {};
   final Set<String> _failedSnapshotKeys = {};
   ImageComparisonSource? _activeComparisonSource;
+  FixedTagUsageSnapshot? _activeFixedTagUsageSnapshot;
   bool _isDisposed = false;
   int _lifecycleEpoch = 0;
 
@@ -115,7 +120,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       final handle = _activeRun;
       if (coordinator != null && handle != null) coordinator.cancel(handle);
     });
-    Future.microtask(ensureGenerationHistoryRestored);
     return const ImageGenerationState();
   }
 
@@ -132,6 +136,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         addGalleryImages: gallery.addNewlySavedImages,
         refreshGallery: gallery.refresh,
         incrementStatistics: statistics.incrementImageCount,
+        publishToSystemGallery:
+            PlatformCapabilities.operatingSystem.supportsSystemGalleryExport
+            ? (sourcePath, fileName) async {
+                await AndroidMediaStoreService.saveImageFromPath(
+                  sourcePath: sourcePath,
+                  fileName: fileName,
+                  mimeType: 'image/png',
+                );
+              }
+            : null,
       ),
     );
   }
@@ -264,6 +278,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
+    GenerationFocusedSnapshot? focusedOverride,
   }) async {
     if (_isDisposed || _generationInvocationStarting || state.isGenerating) {
       return;
@@ -334,6 +349,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
       final preparation = _preparationService(
         preserveCharacterSnapshot: preserveCharacterSnapshot,
+        focusedOverride: focusedOverride,
       );
       late final GenerationPreparationResult prepared;
       try {
@@ -358,6 +374,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
       final runId = ++_runCounter;
       _activeRunId = runId;
+      _activeFixedTagUsageSnapshot = prepared.fixedTagUsageSnapshot;
       _streamPreviews.clear();
       _failedSnapshotKeys.clear();
       final coordinator = ImageGenerationCoordinator(
@@ -390,6 +407,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         _activeInvocationId = 0;
         _generationInvocationStarting = false;
         _activeComparisonSource = null;
+        _activeFixedTagUsageSnapshot = null;
       }
       if (!invocationSettled.isCompleted) {
         invocationSettled.complete();
@@ -428,6 +446,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   GenerationRequestPreparationService _preparationService({
     bool preserveCharacterSnapshot = false,
+    GenerationFocusedSnapshot? focusedOverride,
   }) {
     var queueExecuting = false;
     try {
@@ -449,6 +468,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           applyFixedPositiveTags: fixedTags.applyToPrompt,
           applyFixedNegativeTags: fixedTags.applyToNegativePrompt,
           resolvePresets: _resolvePromptPresets,
+          fixedTagUsageSnapshot: FixedTagUsageSnapshot.capture(
+            fixedTags.entries,
+          ),
         ),
         characters: GenerationCharacterPreparation(
           read: (_) {
@@ -461,7 +483,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           },
         ),
         focused: GenerationFocusedPreparation(
+          // 只有生成页会把聚焦状态存在 workflow 里；Agent 等其他提交方必须显式
+          // 传入，否则会继承上一张图残留的聚焦选区。
           read: () {
+            if (focusedOverride != null) return focusedOverride;
             final workflow = ref.read(imageWorkflowControllerProvider);
             return GenerationFocusedSnapshot(
               enabled: workflow.focusedInpaintEnabled,
@@ -572,6 +597,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
                 width: params.width,
                 height: params.height,
                 comparisonSource: _activeComparisonSource,
+                fixedTagUsageSnapshot: _activeFixedTagUsageSnapshot,
               ),
             )
             .toList();
@@ -701,6 +727,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         width: size.$1,
         height: size.$2,
         kind: GeneratedImageKind.failedStreamSnapshot,
+        fixedTagUsageSnapshot: _activeFixedTagUsageSnapshot,
         metadata: _metadataFromParams(
           preview.params,
           outputWidth: size.$1,
@@ -904,32 +931,45 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!_isCurrentLifecycle(epoch)) {
       return GenerationSaveResult(images, const []);
     }
-    final fixed = ref.read(fixedTagsNotifierProvider);
+    final fixedTagUsageSnapshot =
+        (images.isEmpty ? null : images.first.fixedTagUsageSnapshot) ??
+        FixedTagUsageSnapshot.capture(
+          ref.read(fixedTagsNotifierProvider).entries,
+        );
     final lifecycle = _lifecycle();
     final result = await lifecycle.saveImages(
       images,
       params,
       snapshot: GenerationSaveSnapshot(
-        fixedPrefixTags: fixed.enabledPrefixes
-            .sortedByOrder()
-            .map((entry) => entry.weightedContent)
-            .where((content) => content.isNotEmpty)
+        fixedPrefixTags: fixedTagUsageSnapshot
+            .entriesFor(
+              promptType: FixedTagPromptType.positive,
+              position: FixedTagPosition.prefix,
+            )
+            .map((entry) => entry.renderedContent)
             .toList(),
-        fixedSuffixTags: fixed.enabledSuffixes
-            .sortedByOrder()
-            .map((entry) => entry.weightedContent)
-            .where((content) => content.isNotEmpty)
+        fixedSuffixTags: fixedTagUsageSnapshot
+            .entriesFor(
+              promptType: FixedTagPromptType.positive,
+              position: FixedTagPosition.suffix,
+            )
+            .map((entry) => entry.renderedContent)
             .toList(),
-        fixedNegativePrefixTags: fixed.negativeEnabledPrefixes
-            .sortedByOrder()
-            .map((entry) => entry.weightedContent)
-            .where((content) => content.isNotEmpty)
+        fixedNegativePrefixTags: fixedTagUsageSnapshot
+            .entriesFor(
+              promptType: FixedTagPromptType.negative,
+              position: FixedTagPosition.prefix,
+            )
+            .map((entry) => entry.renderedContent)
             .toList(),
-        fixedNegativeSuffixTags: fixed.negativeEnabledSuffixes
-            .sortedByOrder()
-            .map((entry) => entry.weightedContent)
-            .where((content) => content.isNotEmpty)
+        fixedNegativeSuffixTags: fixedTagUsageSnapshot
+            .entriesFor(
+              promptType: FixedTagPromptType.negative,
+              position: FixedTagPosition.suffix,
+            )
+            .map((entry) => entry.renderedContent)
             .toList(),
+        fixedTagUsageSnapshot: fixedTagUsageSnapshot,
         useCoords: params.useCoords,
       ),
       directoryPath: directoryPath,
@@ -1103,6 +1143,35 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final comment = ImageSaveUtils.buildCommentJson(
       params: effective,
       actualSeed: effective.seed,
+      fixedTagUsageSnapshot: _activeFixedTagUsageSnapshot,
+      fixedPrefixTags: _activeFixedTagUsageSnapshot
+          ?.entriesFor(
+            promptType: FixedTagPromptType.positive,
+            position: FixedTagPosition.prefix,
+          )
+          .map((entry) => entry.renderedContent)
+          .toList(),
+      fixedSuffixTags: _activeFixedTagUsageSnapshot
+          ?.entriesFor(
+            promptType: FixedTagPromptType.positive,
+            position: FixedTagPosition.suffix,
+          )
+          .map((entry) => entry.renderedContent)
+          .toList(),
+      fixedNegativePrefixTags: _activeFixedTagUsageSnapshot
+          ?.entriesFor(
+            promptType: FixedTagPromptType.negative,
+            position: FixedTagPosition.prefix,
+          )
+          .map((entry) => entry.renderedContent)
+          .toList(),
+      fixedNegativeSuffixTags: _activeFixedTagUsageSnapshot
+          ?.entriesFor(
+            promptType: FixedTagPromptType.negative,
+            position: FixedTagPosition.suffix,
+          )
+          .map((entry) => entry.renderedContent)
+          .toList(),
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: effective.useCoords,

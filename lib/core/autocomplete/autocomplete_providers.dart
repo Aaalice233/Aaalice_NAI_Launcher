@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/services/alias_resolver_service.dart';
 import '../../presentation/prompt_assistant/services/prompt_assistant_service.dart';
 import '../database/services/service_providers.dart';
+import '../network/network_failure_diagnostics.dart';
 import 'autocomplete_cache_database.dart';
 import 'autocomplete_settings.dart';
 import 'cooccurrence_completion_source.dart';
@@ -52,7 +54,22 @@ final zhDictionaryServiceProvider = ChangeNotifierProvider<ZhDictionaryService>(
 final danbooruCompletionSourceProvider = Provider<DanbooruCompletionSource>((
   ref,
 ) {
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: 'https://danbooru.donmai.us',
+      connectTimeout: const Duration(seconds: 3),
+      receiveTimeout: const Duration(seconds: 3),
+      sendTimeout: const Duration(seconds: 3),
+      headers: const {
+        'Accept': 'application/json',
+        'User-Agent': 'Aaalice-NAI-Launcher/Autocomplete',
+      },
+    ),
+  );
+  addNetworkFailureDiagnostics(dio, scope: 'Danbooru autocomplete');
+  ref.onDispose(dio.close);
   return DanbooruCompletionSource(
+    dio: dio,
     cache: ref.watch(autocompleteCacheDatabaseProvider),
   );
 });

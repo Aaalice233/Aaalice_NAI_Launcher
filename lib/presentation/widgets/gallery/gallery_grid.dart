@@ -22,7 +22,7 @@ class ResponsiveLayout {
     final availableWidth = screenWidth - padding * 2;
     final columns = ((availableWidth + spacing) / (fixedCardWidth + spacing))
         .floor();
-    return columns.clamp(2, 8);
+    return columns.clamp(1, 8);
   }
 
   static double calculateGridWidth(int columns, {double spacing = 12}) {
@@ -40,12 +40,8 @@ class GalleryGrid extends StatefulWidget {
   final void Function(LocalImageRecord record, int index)? onTap;
   final void Function(LocalImageRecord record, int index)? onDoubleTap;
   final void Function(LocalImageRecord record, int index)? onLongPress;
-  final void Function(
-    LocalImageRecord record,
-    int index,
-    TapDownDetails details,
-  )?
-  onSecondaryTapDown;
+  final void Function(LocalImageRecord record, int index, TapUpDetails details)?
+  onSecondaryTapUp;
   final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
   final Future<void> Function(
     LocalImageRecord record,
@@ -67,7 +63,7 @@ class GalleryGrid extends StatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
-    this.onSecondaryTapDown,
+    this.onSecondaryTapUp,
     this.onFavoriteToggle,
     this.onSendAction,
     this.isKritaConnected = false,
@@ -157,28 +153,31 @@ class _GalleryGridState extends State<GalleryGrid> {
     return LayoutBuilder(
       builder: (context, constraints) {
         _viewportHeight = constraints.maxHeight;
-        final columns = widget.columns;
-        final gridWidth = ResponsiveLayout.calculateGridWidth(
-          columns,
-          spacing: widget.spacing,
-        );
-        final horizontalPadding = (constraints.maxWidth - gridWidth) / 2;
+        final minimumHorizontalPadding = widget.padding.left;
+        final availableWidth =
+            (constraints.maxWidth -
+                    minimumHorizontalPadding -
+                    widget.padding.right)
+                .clamp(0.0, double.infinity);
+        final maximumColumns =
+            ((availableWidth + widget.spacing) / (96 + widget.spacing))
+                .floor()
+                .clamp(1, 8);
+        final columns = widget.columns.clamp(1, maximumColumns);
+        final actualItemWidth =
+            (availableWidth - widget.spacing * (columns - 1)) / columns;
+        final actualItemHeight = actualItemWidth * itemHeight / itemWidth;
 
         return GridView.builder(
+          key: const PageStorageKey<String>('gallery-grid-scroll-view'),
           controller: _scrollController,
           primary: false,
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding.clamp(
-              widget.padding.left,
-              double.infinity,
-            ),
-            vertical: widget.padding.top,
-          ),
+          padding: widget.padding,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
             mainAxisSpacing: widget.spacing,
             crossAxisSpacing: widget.spacing,
-            childAspectRatio: itemWidth / itemHeight,
+            childAspectRatio: actualItemWidth / actualItemHeight,
           ),
           itemCount: widget.images.length,
           // 限制缓存范围，减少内存占用和重建开销
@@ -215,8 +214,8 @@ class _GalleryGridState extends State<GalleryGrid> {
                 child: _GalleryImageCard(
                   key: ValueKey(record.path),
                   record: record,
-                  width: itemWidth,
-                  height: itemHeight,
+                  width: actualItemWidth,
+                  height: actualItemHeight,
                   isSelected: isSelected,
                   isVisible: isVisible,
                   priority: priority,
@@ -226,14 +225,15 @@ class _GalleryGridState extends State<GalleryGrid> {
                       ? null
                       : () => widget.onDoubleTap!(record, index),
                   onLongPress: () => widget.onLongPress?.call(record, index),
-                  onSecondaryTapDown: (details) =>
-                      widget.onSecondaryTapDown?.call(record, index, details),
+                  onSecondaryTapUp: (details) =>
+                      widget.onSecondaryTapUp?.call(record, index, details),
                   onFavoriteToggle: widget.onFavoriteToggle != null
                       ? () => widget.onFavoriteToggle!(record, index)
                       : null,
                   onSendAction: widget.onSendAction != null
                       ? (action) => widget.onSendAction!(record, index, action)
                       : null,
+                  enableAddToAgent: widget.enableDrag,
                   isKritaConnected: widget.isKritaConnected,
                 ),
               ),
@@ -294,9 +294,10 @@ class _GalleryImageCard extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
-  final void Function(TapDownDetails)? onSecondaryTapDown;
+  final void Function(TapUpDetails)? onSecondaryTapUp;
   final VoidCallback? onFavoriteToggle;
   final Future<void> Function(LocalImageContextAction action)? onSendAction;
+  final bool enableAddToAgent;
   final bool isKritaConnected;
 
   const _GalleryImageCard({
@@ -311,9 +312,10 @@ class _GalleryImageCard extends StatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
-    this.onSecondaryTapDown,
+    this.onSecondaryTapUp,
     this.onFavoriteToggle,
     this.onSendAction,
+    this.enableAddToAgent = true,
     this.isKritaConnected = false,
   });
 
@@ -334,9 +336,10 @@ class _GalleryImageCardState extends State<_GalleryImageCard> {
       onTap: widget.onTap,
       onDoubleTap: widget.onDoubleTap,
       onLongPress: widget.onLongPress,
-      onSecondaryTapDown: widget.onSecondaryTapDown,
+      onSecondaryTapUp: widget.onSecondaryTapUp,
       onFavoriteToggle: widget.onFavoriteToggle,
       onSendAction: widget.onSendAction,
+      enableAddToAgent: widget.enableAddToAgent,
       isKritaConnected: widget.isKritaConnected,
       // 使用 dragWrapper 将拖拽功能注入到卡片内部
       // 解决 GestureDetector 与拖拽手势的冲突问题

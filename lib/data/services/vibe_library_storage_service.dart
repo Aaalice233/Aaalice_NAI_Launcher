@@ -61,6 +61,10 @@ class VibeLibraryStorageService {
 
   Future<void> init() => _repository.init();
   Future<void> close() => _repository.close();
+
+  /// 同步读取内存缓存的展示缩略图；未命中返回 null。
+  Uint8List? peekDisplayThumbnail(String id) => _displayCache.peekThumbnail(id);
+
   Future<Uint8List?> getDisplayThumbnail(String id) async {
     if (_repository is HiveVibeLibraryRepository &&
         !Hive.isBoxOpen(HiveVibeLibraryRepository.entriesBoxName) &&
@@ -73,6 +77,10 @@ class VibeLibraryStorageService {
     } catch (_) {
       return null;
     }
+  }
+
+  void cancelPendingDisplayThumbnailLoads() {
+    _displayCache.cancelPendingThumbnailLoads();
   }
 
   Future<VibeLibraryEntry?> findMatchingEntry(VibeReference vibe) =>

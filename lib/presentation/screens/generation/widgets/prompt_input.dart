@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
@@ -19,11 +19,12 @@ import 'prompt_input_editor.dart';
 import 'prompt_input_footer.dart';
 import 'prompt_input_models.dart';
 import 'prompt_input_toolbar.dart';
+import 'prompt_type_switch.dart';
 
-bool _isPromptAssistantVisible(WidgetRef ref) {
+bool _isPromptAssistantVisible(BuildContext context, WidgetRef ref) {
   final config = ref.watch(promptAssistantConfigProvider);
   return config.enabled &&
-      (!PlatformCapabilities.current.hasPrecisePointer ||
+      (!context.interactionPolicy.usesAnchoredMenus ||
           config.desktopOverlayEnabled);
 }
 
@@ -36,7 +37,9 @@ class PromptInputWidget extends ConsumerStatefulWidget {
     this.showMaximizeButton = true,
     this.autofocus = false,
     this.negativeModeNotifier,
+    this.controller,
     this.autoGrow = false,
+    this.active = true,
   });
 
   final bool compact;
@@ -45,7 +48,9 @@ class PromptInputWidget extends ConsumerStatefulWidget {
   final bool showMaximizeButton;
   final bool autofocus;
   final ValueNotifier<bool>? negativeModeNotifier;
+  final PromptInputController? controller;
   final bool autoGrow;
+  final bool active;
 
   @override
   ConsumerState<PromptInputWidget> createState() => _PromptInputWidgetState();
@@ -53,17 +58,23 @@ class PromptInputWidget extends ConsumerStatefulWidget {
 
 class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   late final PromptInputController _controller;
+  late final bool _ownsController;
   late final PromptInputCoordinator _coordinator;
+  final _editorKey = GlobalKey(debugLabel: 'generation-prompt-editor');
 
   @override
   void initState() {
     super.initState();
     final params = ref.read(generationParamsNotifierProvider);
-    _controller = PromptInputController(
-      prompt: params.prompt,
-      negativePrompt: params.negativePrompt,
-      negativeModeNotifier: widget.negativeModeNotifier,
-    )..addListener(_onControllerChanged);
+    _ownsController = widget.controller == null;
+    _controller =
+        widget.controller ??
+        PromptInputController(
+          prompt: params.prompt,
+          negativePrompt: params.negativePrompt,
+          negativeModeNotifier: widget.negativeModeNotifier,
+        );
+    _controller.addListener(_onControllerChanged);
     _coordinator = PromptInputCoordinator(
       ref: ref,
       controller: _controller,
@@ -81,18 +92,38 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   @override
   void didUpdateWidget(covariant PromptInputWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(
-      oldWidget.negativeModeNotifier,
-      widget.negativeModeNotifier,
-    )) {
+    assert(
+      identical(oldWidget.controller, widget.controller),
+      'PromptInputWidget.controller cannot change during the widget lifetime.',
+    );
+    if (_ownsController &&
+        !identical(
+          oldWidget.negativeModeNotifier,
+          widget.negativeModeNotifier,
+        )) {
       _controller.bindNegativeModeNotifier(widget.negativeModeNotifier);
+    }
+    if (oldWidget.active && !widget.active) {
+      _controller.promptFocusNode.unfocus();
+      _controller.negativeFocusNode.unfocus();
+    }
+    if (widget.active &&
+        widget.autofocus &&
+        (!oldWidget.active || !oldWidget.autofocus)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !widget.active) return;
+        final focusNode = _controller.isNegativeMode
+            ? _controller.negativeFocusNode
+            : _controller.promptFocusNode;
+        focusNode.requestFocus();
+      });
     }
   }
 
   @override
   void dispose() {
     _controller.removeListener(_onControllerChanged);
-    _controller.dispose();
+    if (_ownsController) _controller.dispose();
     super.dispose();
   }
 
@@ -157,7 +188,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       clearPrompt: _coordinator.clearPrompt,
       clearNegativePrompt: _coordinator.clearNegativePrompt,
       generateRandomPrompt: _coordinator.generateRandomPrompt,
-      showRandomModeSelector: _coordinator.showRandomModeSelector,
       openAssistantSettings: _coordinator.openAssistantSettings,
       showMobileCharacterManager: _coordinator.showMobileCharacterManager,
       toggleMaximize:
@@ -167,12 +197,14 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
     if (widget.compact) {
       return _CompactPromptInput(
+        editorKey: _editorKey,
         controller: _controller,
         commands: commands,
         viewData: viewData,
       );
     }
     return _FullPromptInput(
+      editorKey: _editorKey,
       controller: _controller,
       commands: commands,
       viewData: viewData,
@@ -182,11 +214,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
 class _FullPromptInput extends ConsumerWidget {
   const _FullPromptInput({
+    required this.editorKey,
     required this.controller,
     required this.commands,
     required this.viewData,
   });
 
+  final GlobalKey editorKey;
   final PromptInputController controller;
   final PromptInputCommands commands;
   final PromptInputViewData viewData;
@@ -197,7 +231,7 @@ class _FullPromptInput extends ConsumerWidget {
     final assistantSessionId = negative
         ? PromptHistorySessionIds.generationNegative
         : PromptHistorySessionIds.generationPrompt;
-    final assistantVisible = _isPromptAssistantVisible(ref);
+    final assistantVisible = _isPromptAssistantVisible(context, ref);
     final assistantExpanded =
         assistantVisible &&
         ref.watch(
@@ -206,33 +240,49 @@ class _FullPromptInput extends ConsumerWidget {
           ),
         );
     final editor = PromptInputEditor(
+      key: editorKey,
       controller: controller,
       commands: commands,
       viewData: viewData,
     );
-    final footer = PromptInputFooter(
-      target: negative
-          ? PromptTokenCountTarget.negative
-          : PromptTokenCountTarget.positive,
-      topPadding: 6,
-      assistant: assistantVisible
-          ? PromptAssistantOverlay(
-              sessionId: assistantSessionId,
-              controller: negative
-                  ? controller.negativeController
-                  : controller.promptController,
-              onChanged: negative
-                  ? commands.updateNegativePrompt
-                  : commands.updatePrompt,
-              onOpenSettings: commands.openAssistantSettings,
-              floatOverEditor: false,
-            )
-          : null,
-      assistantExpanded: assistantExpanded,
-      assistantToolbarHeight: assistantVisible
-          ? PromptAssistantOverlay.inlineToolbarHeight
-          : 0,
-    );
+    PromptInputFooter buildFooter({bool includeBottomActions = false}) =>
+        PromptInputFooter(
+          target: negative
+              ? PromptTokenCountTarget.negative
+              : PromptTokenCountTarget.positive,
+          topPadding: 6,
+          assistant: assistantVisible
+              ? PromptAssistantOverlay(
+                  sessionId: assistantSessionId,
+                  controller: negative
+                      ? controller.negativeController
+                      : controller.promptController,
+                  interactionPolicy: context.interactionPolicy,
+                  onChanged: negative
+                      ? commands.updateNegativePrompt
+                      : commands.updatePrompt,
+                  onOpenSettings: commands.openAssistantSettings,
+                  floatOverEditor: false,
+                )
+              : null,
+          assistantExpanded: assistantExpanded,
+          assistantToolbarHeight: assistantVisible
+              ? PromptAssistantOverlay.effectiveInlineToolbarHeight(
+                  context.interactionPolicy,
+                )
+              : 0,
+          assistantExpandedWidth: assistantVisible
+              ? PromptAssistantOverlay.expandedInlineToolbarWidth(
+                  context.interactionPolicy,
+                )
+              : 0,
+          leading: includeBottomActions
+              ? PromptInputBottomActions(
+                  controller: controller,
+                  commands: commands,
+                )
+              : null,
+        );
     return LayoutBuilder(
       builder: (context, constraints) {
         if (viewData.isMaximized && constraints.maxWidth < 600) {
@@ -242,21 +292,27 @@ class _FullPromptInput extends ConsumerWidget {
             viewData: viewData,
             mobileFullscreen: true,
             mobileEditor: editor,
-            mobileFooter: footer,
+            mobileFooter: buildFooter(),
           );
         }
         return Column(
           mainAxisSize: viewData.autoGrow ? MainAxisSize.min : MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            PromptInputToolbar(
-              controller: controller,
-              commands: commands,
-              viewData: viewData,
+            SizedBox(
+              width: constraints.maxWidth,
+              child: PromptInputToolbar(
+                controller: controller,
+                commands: commands,
+                viewData: viewData,
+              ),
             ),
             const SizedBox(height: 8),
-            if (viewData.autoGrow) editor else Expanded(child: editor),
-            footer,
+            Flexible(
+              fit: viewData.autoGrow ? FlexFit.loose : FlexFit.tight,
+              child: editor,
+            ),
+            buildFooter(includeBottomActions: true),
           ],
         );
       },
@@ -264,13 +320,102 @@ class _FullPromptInput extends ConsumerWidget {
   }
 }
 
+class _CompactPromptModeSwitch extends StatelessWidget {
+  const _CompactPromptModeSwitch({
+    required this.negative,
+    required this.positiveCount,
+    required this.negativeCount,
+    required this.onChanged,
+  });
+
+  final bool negative;
+  final int positiveCount;
+  final int negativeCount;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    Widget button({
+      required Key key,
+      required String label,
+      required int count,
+      required bool value,
+      required Color selectedColor,
+    }) {
+      final selected = negative == value;
+      return Expanded(
+        child: TextButton(
+          key: key,
+          onPressed: () => onChanged(value),
+          style: TextButton.styleFrom(
+            minimumSize: const Size(48, 48),
+            foregroundColor: selected ? selectedColor : colors.onSurfaceVariant,
+            backgroundColor: selected
+                ? selectedColor.withValues(alpha: 0.14)
+                : Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 5),
+              PromptTagCountBadge(
+                count: count,
+                selected: selected,
+                color: selectedColor,
+                compact: true,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ColoredBox(
+      color: colors.surfaceContainerHigh.withValues(alpha: 0.7),
+      child: Row(
+        children: [
+          button(
+            key: const ValueKey('generation_prompt_compact_positive_mode'),
+            label: context.l10n.prompt_positive,
+            count: positiveCount,
+            value: false,
+            selectedColor: colors.primary,
+          ),
+          const SizedBox(width: 6),
+          button(
+            key: const ValueKey('generation_prompt_compact_negative_mode'),
+            label: context.l10n.prompt_negative,
+            count: negativeCount,
+            value: true,
+            selectedColor: colors.error,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CompactPromptInput extends ConsumerWidget {
   const _CompactPromptInput({
+    required this.editorKey,
     required this.controller,
     required this.commands,
     required this.viewData,
   });
 
+  final GlobalKey editorKey;
   final PromptInputController controller;
   final PromptInputCommands commands;
   final PromptInputViewData viewData;
@@ -278,13 +423,31 @@ class _CompactPromptInput extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => LayoutBuilder(
     builder: (context, constraints) {
-      final assistantVisible = _isPromptAssistantVisible(ref);
+      final assistantVisible = _isPromptAssistantVisible(context, ref);
+      final negative = controller.isNegativeMode;
       final showFooter = constraints.maxHeight >= 112;
+      final showModeSwitch = constraints.maxHeight >= 180;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (showModeSwitch) ...[
+            ListenableBuilder(
+              listenable: Listenable.merge([
+                controller.promptController,
+                controller.negativeController,
+              ]),
+              builder: (context, _) => _CompactPromptModeSwitch(
+                negative: negative,
+                positiveCount: controller.promptCount,
+                negativeCount: controller.negativePromptCount,
+                onChanged: commands.setNegativeMode,
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
           Expanded(
             child: PromptInputEditor(
+              key: editorKey,
               controller: controller,
               commands: commands,
               viewData: viewData,
@@ -293,7 +456,9 @@ class _CompactPromptInput extends ConsumerWidget {
           ),
           if (showFooter)
             PromptInputFooter(
-              target: PromptTokenCountTarget.positive,
+              target: negative
+                  ? PromptTokenCountTarget.negative
+                  : PromptTokenCountTarget.positive,
               topPadding: 4,
               leading: Row(
                 key: const ValueKey('generation_prompt_compact_actions'),
@@ -305,25 +470,47 @@ class _CompactPromptInput extends ConsumerWidget {
                       tooltip: context.l10n.tooltip_fullscreenEdit,
                       onPressed: commands.toggleMaximize,
                     ),
-                  if (controller.promptController.text.isNotEmpty)
+                  if ((negative
+                          ? controller.negativeController
+                          : controller.promptController)
+                      .text
+                      .isNotEmpty)
                     IconButton(
                       icon: const Icon(Icons.clear, size: 20),
                       tooltip: context.l10n.common_clear,
-                      onPressed: commands.clearPrompt,
+                      onPressed: negative
+                          ? commands.clearNegativePrompt
+                          : commands.clearPrompt,
                     ),
                 ],
               ),
               assistant: assistantVisible
                   ? PromptAssistantOverlay(
-                      sessionId: PromptHistorySessionIds.generationPrompt,
-                      controller: controller.promptController,
-                      onChanged: commands.updatePrompt,
+                      sessionId: negative
+                          ? PromptHistorySessionIds.generationNegative
+                          : PromptHistorySessionIds.generationPrompt,
+                      controller: negative
+                          ? controller.negativeController
+                          : controller.promptController,
+                      interactionPolicy: context.interactionPolicy,
+                      onChanged: negative
+                          ? commands.updateNegativePrompt
+                          : commands.updatePrompt,
                       onOpenSettings: commands.openAssistantSettings,
                       floatOverEditor: false,
                       expandInPlace: false,
                     )
                   : null,
-              assistantToolbarHeight: assistantVisible ? 48 : 0,
+              assistantToolbarHeight: assistantVisible
+                  ? PromptAssistantOverlay.effectiveInlineToolbarHeight(
+                      context.interactionPolicy,
+                    )
+                  : 0,
+              assistantExpandedWidth: assistantVisible
+                  ? PromptAssistantOverlay.expandedInlineToolbarWidth(
+                      context.interactionPolicy,
+                    )
+                  : 0,
             ),
         ],
       );

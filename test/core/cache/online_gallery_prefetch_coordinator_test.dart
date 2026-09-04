@@ -27,7 +27,7 @@ Future<void> _waitUntil(bool Function() condition) async {
 }
 
 void main() {
-  test('limits active preloads to four', () async {
+  test('limits speculative preloads to four', () async {
     var active = 0;
     var maxActive = 0;
     final gates = <Completer<void>>[];
@@ -57,6 +57,56 @@ void main() {
     }
     expect(await Future.wait(futures), everyElement(isTrue));
     expect(maxActive, 4);
+  });
+
+  test('uses reserved capacity for visible thumbnails', () async {
+    var active = 0;
+    var maxActive = 0;
+    final gates = <Completer<void>>[];
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) {
+        active++;
+        if (active > maxActive) maxActive = active;
+        final gate = Completer<void>();
+        gates.add(gate);
+        return _operation(gate.future.whenComplete(() => active--));
+      },
+    );
+    addTearDown(coordinator.dispose);
+
+    final speculative = [
+      for (var index = 0; index < 8; index++)
+        coordinator.submit(
+          _request(index),
+          priority: GalleryImagePriority.lookahead,
+        ),
+    ];
+    expect(coordinator.activeCount, 4);
+    expect(coordinator.activeSpeculativeCount, 4);
+
+    final visible = [
+      for (var index = 8; index < 12; index++)
+        coordinator.submit(
+          _request(index),
+          priority: GalleryImagePriority.visible,
+        ),
+    ];
+    expect(coordinator.activeCount, 8);
+    expect(coordinator.activeSpeculativeCount, 4);
+    expect(maxActive, 8);
+
+    for (var index = 0; index < gates.length; index++) {
+      gates[index].complete();
+    }
+    await _waitUntil(() => gates.length == 12);
+    for (final gate in gates.skip(8)) {
+      gate.complete();
+    }
+    expect(
+      await Future.wait([...speculative, ...visible]),
+      everyElement(isTrue),
+    );
+    expect(maxActive, 8);
   });
 
   test('hover work overtakes queued lookahead work', () async {

@@ -65,7 +65,9 @@ class AgentResourceResolver {
     );
   }
 
-  Future<void> validateForDisplay(AgentChatResourceReference reference) async {
+  Future<void> validateImageResource(
+    AgentChatResourceReference reference,
+  ) async {
     if (reference.kind != AgentChatResourceKind.generatedImage) return;
     await _ref
         .read(imageGenerationNotifierProvider.notifier)
@@ -390,22 +392,26 @@ class AgentResourceResolver {
     );
   }
 
-  ResolvedAgentResource? _resolveTagLibrary(
+  Future<ResolvedAgentResource?> _resolveTagLibrary(
     AgentChatResourceReference reference,
-  ) {
+  ) async {
     final entry = _ref
         .read(tagLibraryPageNotifierProvider)
         .entries
         .where((value) => value.id == reference.resourceId)
         .firstOrNull;
     if (entry == null) return null;
+    final thumbnailPath = entry.thumbnail;
+    final thumbnailFile = thumbnailPath == null || thumbnailPath.isEmpty
+        ? null
+        : File(thumbnailPath);
+    final bytes = thumbnailFile != null && await thumbnailFile.exists()
+        ? await thumbnailFile.readAsBytes()
+        : null;
     return ResolvedAgentResource(
-      reference: AgentChatResourceReference(
-        kind: AgentChatResourceKind.tagLibraryEntry,
-        source: 'tag_library',
-        resourceId: entry.id,
-      ),
+      reference: reference,
       label: entry.name,
+      bytes: bytes,
       text: entry.content,
     );
   }

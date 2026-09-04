@@ -189,6 +189,8 @@ class NaiImageMetadataRawDecoder {
         fixedSuffixTags: parts['fixedSuffix'] ?? [],
         fixedNegativePrefixTags: parts['fixedNegativePrefix'] ?? [],
         fixedNegativeSuffixTags: parts['fixedNegativeSuffix'] ?? [],
+        fixedTagUsageData: _extractFixedTagUsageData(commentData),
+        hasRecordedFixedTagFields: _hasRecordedFixedTagFields(commentData),
         qualityTags: parts['qualityTags'] ?? [],
         characterInfos: characterInfos,
         characterUseCoords: characterUseCoords,
@@ -391,43 +393,25 @@ class NaiImageMetadataRawDecoder {
       parts['fixedNegativeSuffix'] = fixedNegativeSuffix.cast<String>();
     }
 
-    // 如果没有读取到，从 prompt 提取
-    final v4Prompt = commentData['v4_prompt'];
-    final promptStr = commentData['prompt'] as String? ?? '';
-
-    if (parts['fixedPrefix']!.isEmpty) {
-      if (v4Prompt is Map<String, dynamic>) {
-        final caption = v4Prompt['caption'];
-        if (caption is Map<String, dynamic>) {
-          // 支持 base_caption（NAI官方格式）和 main_caption（旧版）
-          final baseCaption =
-              caption['base_caption'] as String? ??
-              caption['main_caption'] as String? ??
-              '';
-          if (baseCaption.isNotEmpty) {
-            _mergeInferredPromptParts(parts, _extractPromptParts(baseCaption));
-            return parts;
-          }
-        }
-      }
-      if (promptStr.isNotEmpty) {
-        _mergeInferredPromptParts(parts, _extractPromptParts(promptStr));
-        return parts;
-      }
-    }
-
     return parts;
   }
 
-  static void _mergeInferredPromptParts(
-    Map<String, List<String>> target,
-    Map<String, List<String>> inferred,
+  static Map<String, dynamic>? _extractFixedTagUsageData(
+    Map<String, dynamic> commentData,
   ) {
-    for (final key in ['fixedPrefix', 'fixedSuffix', 'qualityTags']) {
-      if (target[key]?.isEmpty == true && inferred[key]?.isNotEmpty == true) {
-        target[key] = inferred[key]!;
-      }
-    }
+    final value = commentData['aaalice_fixed_tags'];
+    if (value is Map<String, dynamic>) return Map<String, dynamic>.from(value);
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  static bool _hasRecordedFixedTagFields(Map<String, dynamic> commentData) {
+    return const {
+      'fixed_prefix',
+      'fixed_suffix',
+      'fixed_negative_prefix',
+      'fixed_negative_suffix',
+    }.any(commentData.containsKey);
   }
 
   /// 提取角色提示词信息
@@ -992,83 +976,6 @@ class NaiImageMetadataRawDecoder {
 
     return null;
   }
-
-  // 常见的固定前缀词
-  static const _commonPrefixTags = [
-    'masterpiece',
-    'best quality',
-    'amazing quality',
-    'great quality',
-    'high quality',
-    'good quality',
-    'normal quality',
-    'low quality',
-    'worst quality',
-  ];
-
-  // 常见的质量/细节词
-  static const _commonQualityTags = [
-    'very aesthetic',
-    'aesthetic',
-    'highres',
-    'absurdres',
-    'incredibly absurdres',
-    'ultra-detailed',
-    'highly detailed',
-    'detailed',
-    '4k',
-    '8k',
-    'wallpaper',
-  ];
-
-  /// 从主提示词中提取各部分（固定前缀、后缀、质量词）
-  static Map<String, List<String>> _extractPromptParts(String prompt) {
-    final result = <String, List<String>>{
-      'fixedPrefix': [],
-      'fixedSuffix': [],
-      'fixedNegativePrefix': [],
-      'fixedNegativeSuffix': [],
-      'qualityTags': [],
-    };
-
-    if (prompt.isEmpty) return result;
-
-    final tags = NaiPromptParser.splitSegments(prompt);
-
-    // 识别固定前缀词（通常位于开头）
-    var prefixEnd = 0;
-    for (var i = 0; i < tags.length; i++) {
-      final tagLower = tags[i].toLowerCase();
-      if (_commonPrefixTags.any((p) => tagLower.contains(p))) {
-        prefixEnd = i + 1;
-      } else {
-        break;
-      }
-    }
-    if (prefixEnd > 0) {
-      result['fixedPrefix'] = tags.sublist(0, prefixEnd);
-    }
-
-    // 识别固定后缀词和质量词（通常位于结尾）
-    final suffixTags = <String>[];
-    final qualityTags = <String>[];
-
-    for (var i = tags.length - 1; i >= prefixEnd; i--) {
-      final tagLower = tags[i].toLowerCase();
-      if (_commonQualityTags.any((q) => tagLower.contains(q))) {
-        qualityTags.insert(0, tags[i]);
-      } else if (_commonPrefixTags.any((p) => tagLower.contains(p))) {
-        suffixTags.insert(0, tags[i]);
-      } else {
-        break;
-      }
-    }
-
-    result['fixedSuffix'] = suffixTags;
-    result['qualityTags'] = qualityTags;
-
-    return result;
-  }
 }
 
 class _PreciseReferenceMetadata {
@@ -1155,6 +1062,8 @@ class NaiImageMetadataFields {
     this.fixedNegativePrefixTags = const [],
     this.fixedNegativeSuffixTags = const [],
     this.transparentBackground,
+    this.fixedTagUsageData,
+    this.hasRecordedFixedTagFields = false,
   });
 
   final String prompt;
@@ -1197,4 +1106,6 @@ class NaiImageMetadataFields {
   final List<String> fixedNegativePrefixTags;
   final List<String> fixedNegativeSuffixTags;
   final bool? transparentBackground;
+  final Map<String, dynamic>? fixedTagUsageData;
+  final bool hasRecordedFixedTagFields;
 }

@@ -15,8 +15,13 @@ enum AppBranch {
 
 /// Branches whose widget state remains mounted while another branch is active.
 const Set<AppBranch> keptAliveAppBranches = {
+  AppBranch.generation,
   AppBranch.localGallery,
   AppBranch.onlineGallery,
+  AppBranch.settings,
+  AppBranch.promptConfig,
+  AppBranch.statistics,
+  AppBranch.tagLibrary,
   AppBranch.vibeLibrary,
   AppBranch.preciseRefLibrary,
 };

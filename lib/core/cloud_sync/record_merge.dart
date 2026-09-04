@@ -65,7 +65,8 @@ class CloudRecordMerger {
             final digest = sha256.convert([
               ...utf8.encode(
                 '${value.kind}|${value.binary}|${value.deleted}|'
-                '${value.payload?.sha256 ?? ''}|',
+                '${value.payload?.sha256 ?? ''}|'
+                '${value.tombstoneIdentity ?? ''}|',
               ),
             ]);
             return digest.toString().substring(0, 12);
@@ -117,6 +118,7 @@ class CloudRecordMerger {
               deleted: value.deleted,
               bytes: value.bytes,
               payload: value.bytes == null ? value.payload : null,
+              tombstoneIdentity: value.tombstoneIdentity,
             ),
           );
         }
@@ -125,14 +127,16 @@ class CloudRecordMerger {
             local.records[entry.key] ??
             remote.records[entry.key] ??
             base.records[entry.key];
+        // Resource chunks are owned by portable metadata. Their metadata
+        // tombstone removes the complete graph; independent chunk tombstones
+        // have no stable portable identity.
+        if (conflictCopier != null && previous?.kind == 'resource') continue;
         records.add(
           CloudSyncRecord(
             id: entry.key,
             kind: previous?.kind ?? 'record',
             binary: previous?.binary ?? false,
             deleted: true,
-            bytes: previous?.bytes,
-            payload: previous?.bytes == null ? previous?.payload : null,
           ),
         );
       }

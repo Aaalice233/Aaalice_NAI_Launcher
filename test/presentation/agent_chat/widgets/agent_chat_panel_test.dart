@@ -13,10 +13,12 @@ import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/network/web_access/web_access_models.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
@@ -43,6 +45,14 @@ void main() {
     await Hive.close();
     if (hiveDir.existsSync()) hiveDir.deleteSync(recursive: true);
   });
+
+  setUp(() {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+  });
+
+  tearDown(() => PlatformCapabilities.debugOverride = null);
 
   testWidgets('session selector is disabled during a session transition', (
     tester,
@@ -616,12 +626,21 @@ void main() {
       find.byKey(const ValueKey('agent-assistant-message-retry-3')),
       findsOneWidget,
     );
+    final transcript = find.byKey(
+      ValueKey(
+        'agent-chat-thread-${container.read(agentChatNotifierProvider).activeSessionId}',
+      ),
+    );
+    await tester.drag(transcript, const Offset(0, 300));
+    await tester.pump();
     expect(
       tester
-          .getSize(find.byKey(const ValueKey('agent-user-message-bubble-0')))
+          .getSize(find.byKey(const ValueKey('agent-user-message-bubble-2')))
           .width,
-      lessThan(100),
+      lessThan(300),
     );
+    await tester.drag(transcript, const Offset(0, -300));
+    await tester.pump();
 
     final latestMessage = find.byKey(const ValueKey('agent-user-message-2'));
     final actions = find.byKey(const ValueKey('agent-user-message-actions-2'));
@@ -783,20 +802,26 @@ void main() {
               textScaler: textScaler,
             ),
             child: Scaffold(
-              body: SizedBox(
-                width: width,
-                height: height,
-                child: AgentChatPanel(
-                  mobile: true,
-                  onClose: () => closed = true,
-                  onOpenSettings: () => settingsOpened = true,
-                  // Session picker scaling is covered by its own shared-widget
-                  // tests; keep this regression focused on the composer.
-                  mobileHeaderWrapper: (child) =>
-                      MediaQuery.withClampedTextScaling(
-                        maxScaleFactor: 1.6,
-                        child: child,
-                      ),
+              body: InteractionPolicyScope(
+                initialPolicy: const InteractionPolicy(
+                  modality: InteractionModality.touch,
+                  touchAvailable: true,
+                  precisePointerAvailable: false,
+                ),
+                child: SizedBox(
+                  width: width,
+                  height: height,
+                  child: AgentChatPanel(
+                    onClose: () => closed = true,
+                    onOpenSettings: () => settingsOpened = true,
+                    // Session picker scaling is covered by its own shared-widget
+                    // tests; keep this regression focused on the composer.
+                    mobileHeaderWrapper: (child) =>
+                        MediaQuery.withClampedTextScaling(
+                          maxScaleFactor: 1.6,
+                          child: child,
+                        ),
+                  ),
                 ),
               ),
             ),
@@ -815,14 +840,14 @@ void main() {
     await tester.pump();
     expect(
       tester
-          .getTopLeft(find.byKey(const ValueKey('agent-chat-mobile-header')))
+          .getTopLeft(find.byKey(const ValueKey('agent-chat-compact-header')))
           .dy,
       greaterThanOrEqualTo(24),
     );
 
     for (final key in [
-      'agent-chat-mobile-close',
-      'agent-chat-mobile-new-session',
+      'agent-chat-collapse',
+      'agent-chat-new-session',
       'agent-chat-session-selector',
       'agent-chat-open-settings',
     ]) {
@@ -859,7 +884,7 @@ void main() {
     }
     expect(
       tester.getSize(find.byKey(const ValueKey('agent-chat-context-target'))),
-      const Size.square(44),
+      const Size.square(48),
     );
 
     for (final width in const [320.0, 360.0, 412.0, 600.0]) {
@@ -882,18 +907,33 @@ void main() {
           const Size.square(48),
           reason: 'attachment target at width=$width, textScale=$scale',
         );
-        for (final key in [
-          'agent-chat-permission-mode',
-          'agent-chat-web-access-toggle',
-          'agent-chat-context-target',
-          'agent-chat-send',
-        ]) {
-          final size = tester.getSize(find.byKey(ValueKey(key)));
+        expect(
+          tester
+              .getSize(find.byKey(const ValueKey('agent-chat-send')))
+              .shortestSide,
+          greaterThanOrEqualTo(44),
+        );
+        final compactControls = find.byKey(
+          const ValueKey('agent-chat-compact-controls'),
+        );
+        if (compactControls.evaluate().isNotEmpty) {
           expect(
-            size.shortestSide,
+            tester.getSize(compactControls).shortestSide,
             greaterThanOrEqualTo(44),
-            reason: '$key target at width=$width, textScale=$scale',
           );
+        } else {
+          for (final key in [
+            'agent-chat-permission-mode',
+            'agent-chat-web-access-toggle',
+            'agent-chat-context-target',
+          ]) {
+            final size = tester.getSize(find.byKey(ValueKey(key)));
+            expect(
+              size.shortestSide,
+              greaterThanOrEqualTo(44),
+              reason: '$key target at width=$width, textScale=$scale',
+            );
+          }
         }
       }
     }
@@ -1012,7 +1052,7 @@ void main() {
       layoutError,
       isNull,
       reason:
-          'header=${tester.getSize(find.byKey(const ValueKey('agent-chat-mobile-header')))}, '
+          'header=${tester.getSize(find.byKey(const ValueKey('agent-chat-compact-header')))}, '
           'input=${tester.getSize(find.byKey(const ValueKey('agent-chat-input-container')))}',
     );
 
@@ -1029,7 +1069,7 @@ void main() {
       expect(find.byKey(const ValueKey('agent-chat-send')), findsOneWidget);
     }
 
-    await tester.tap(find.byKey(const ValueKey('agent-chat-mobile-close')));
+    await tester.tap(find.byKey(const ValueKey('agent-chat-collapse')));
     await tester.pump();
 
     expect(closed, isTrue);

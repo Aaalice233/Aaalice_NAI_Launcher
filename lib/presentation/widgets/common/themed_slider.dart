@@ -49,6 +49,7 @@ class ThemedSlider extends StatelessWidget {
         inactiveTrackColor: inactiveColor ?? colors.surfaceContainerHighest,
         thumbColor: thumbColor ?? activeColor ?? colors.primary,
         overlayColor: (activeColor ?? colors.primary).withValues(alpha: 0.12),
+        tickMarkShape: SliderTickMarkShape.noTickMark,
         thumbShape: RoundSliderThumbShape(
           enabledThumbRadius: thumbSize / 2,
           disabledThumbRadius: thumbSize / 2,

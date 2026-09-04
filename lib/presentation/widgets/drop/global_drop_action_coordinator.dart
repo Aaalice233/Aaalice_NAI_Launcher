@@ -18,6 +18,7 @@ import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
@@ -27,10 +28,9 @@ import '../../providers/vibe_library_provider.dart';
 import '../../router/app_routes.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../utils/internal_drag_protocol.dart';
-import '../../utils/metadata_import_coordinator.dart';
+import '../../services/image_metadata_import_workflow.dart';
 import '../../utils/precise_ref_library_import_helper.dart';
 import '../common/app_toast.dart';
-import '../metadata/metadata_import_dialog.dart';
 import 'dropped_image_inspector.dart';
 import 'image_destination_dialog.dart';
 import 'tag_library_drop_handler.dart';
@@ -45,6 +45,113 @@ Future<T> runWithVibeNameController<T>(
     return await action(controller);
   } finally {
     controller.dispose();
+  }
+}
+
+@visibleForTesting
+Future<String?> showVibeLibraryNamingForm({
+  required BuildContext context,
+  required List<VibeReference> vibes,
+  required String initialName,
+}) {
+  final l10n = context.l10n;
+  final isBundle = vibes.length > 1;
+  return AdaptivePresenter.showForm<String>(
+    context: context,
+    title: isBundle
+        ? '${l10n.vibe_saveToLibrary_saveAsBundle} (${vibes.length})'
+        : l10n.vibe_saveToLibrary_title,
+    sideSheetWidth: 520,
+    builder: (dialogContext, scrollController) => _VibeLibraryNamingForm(
+      vibes: vibes,
+      initialName: initialName,
+      scrollController: scrollController,
+    ),
+  );
+}
+
+class _VibeLibraryNamingForm extends StatefulWidget {
+  const _VibeLibraryNamingForm({
+    required this.vibes,
+    required this.initialName,
+    required this.scrollController,
+  });
+
+  final List<VibeReference> vibes;
+  final String initialName;
+  final ScrollController scrollController;
+
+  @override
+  State<_VibeLibraryNamingForm> createState() => _VibeLibraryNamingFormState();
+}
+
+class _VibeLibraryNamingFormState extends State<_VibeLibraryNamingForm> {
+  late final TextEditingController _nameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _nameController.text.trim();
+    if (name.isNotEmpty) Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final isBundle = widget.vibes.length > 1;
+    return ListView(
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(20),
+      children: [
+        if (isBundle) ...[
+          Text(
+            '${l10n.vibe_saveToLibrary_saveAsBundleDescription(widget.vibes.length)}:\n'
+            '${widget.vibes.map((vibe) => '• ${vibe.displayName}').join('\n')}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+        ],
+        TextField(
+          key: const ValueKey('drop-vibe-library-name-field'),
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: l10n.vibe_saveToLibrary_nameLabel,
+            hintText: l10n.vibe_saveToLibrary_nameHint,
+            border: const OutlineInputBorder(),
+          ),
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _submit(),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.common_cancel),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              key: const ValueKey('drop-vibe-library-save'),
+              onPressed: _submit,
+              child: Text(l10n.common_save),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 
@@ -71,11 +178,15 @@ class GlobalDropActionCoordinator {
     required this.context,
     required this.ref,
     DroppedImageInspector inspector = const DroppedImageInspector(),
+    this.openGenerationAfterAction = false,
+    this.respectCurrentRouteDropTarget = true,
   }) : _inspector = inspector;
 
   final BuildContext context;
   final WidgetRef ref;
   final DroppedImageInspector _inspector;
+  final bool openGenerationAfterAction;
+  final bool respectCurrentRouteDropTarget;
 
   static const Set<String> _plainImageExtensions = {
     '.png',
@@ -128,7 +239,8 @@ class GlobalDropActionCoordinator {
     final currentPath = GoRouter.of(
       context,
     ).routeInformationProvider.value.uri.path;
-    if (currentPath == AppRoutes.tagLibraryPage) {
+    if (respectCurrentRouteDropTarget &&
+        currentPath == AppRoutes.tagLibraryPage) {
       final originalBytes = await _resolveOriginalImageBytes(fileData);
       if (originalBytes == null || !context.mounted) return;
       await TagLibraryDropHandler.handle(
@@ -140,7 +252,8 @@ class GlobalDropActionCoordinator {
       return;
     }
 
-    if (currentPath == AppRoutes.preciseRefLibrary &&
+    if (respectCurrentRouteDropTarget &&
+        currentPath == AppRoutes.preciseRefLibrary &&
         _isPlainImageFile(fileName)) {
       final originalBytes = await _resolveOriginalImageBytes(fileData);
       if (originalBytes == null || !context.mounted) return;
@@ -178,7 +291,7 @@ class GlobalDropActionCoordinator {
       destinationBytes = originalBytes;
     }
 
-    await _handleDestination(
+    final actionCompleted = await _handleDestination(
       destination,
       fileName,
       destinationBytes,
@@ -188,6 +301,27 @@ class GlobalDropActionCoordinator {
       ref.read(generationParamsNotifierProvider.notifier),
       l10n,
     );
+    if (actionCompleted &&
+        openGenerationAfterAction &&
+        _isGenerationDestination(destination) &&
+        context.mounted) {
+      context.go(AppRoutes.home);
+    }
+  }
+
+  static bool _isGenerationDestination(ImageDestination destination) {
+    return switch (destination) {
+      ImageDestination.img2img ||
+      ImageDestination.reversePrompt ||
+      ImageDestination.vibeTransfer ||
+      ImageDestination.vibeTransferReuse ||
+      ImageDestination.vibeTransferRaw ||
+      ImageDestination.characterReference => true,
+      // The shared metadata workflow owns navigation after its second dialog.
+      ImageDestination.extractMetadata ||
+      ImageDestination.saveToVibeLibrary ||
+      ImageDestination.addToQueue => false,
+    };
   }
 
   static bool _isPlainImageFile(String fileName) {
@@ -206,7 +340,7 @@ class GlobalDropActionCoordinator {
     return bytes;
   }
 
-  Future<void> _handleDestination(
+  Future<bool> _handleDestination(
     ImageDestination destination,
     String fileName,
     Uint8List bytes,
@@ -219,16 +353,17 @@ class GlobalDropActionCoordinator {
     switch (destination) {
       case ImageDestination.img2img:
         await _handleImg2Img(bytes, l10n);
+        return true;
       case ImageDestination.reversePrompt:
         await _handleReversePrompt(fileName, bytes, l10n);
+        return true;
       case ImageDestination.vibeTransfer:
-        await _handleVibeTransfer(fileName, bytes, notifier, l10n);
+        return _handleVibeTransfer(fileName, bytes, notifier, l10n);
       case ImageDestination.vibeTransferReuse:
-        if (detectedVibe != null) {
-          await _handleVibeReuse(detectedVibe, notifier, l10n);
-        }
+        if (detectedVibe == null) return false;
+        return _handleVibeReuse(detectedVibe, notifier, l10n);
       case ImageDestination.vibeTransferRaw:
-        await _handleVibeTransfer(
+        return _handleVibeTransfer(
           fileName,
           bytes,
           notifier,
@@ -239,12 +374,15 @@ class GlobalDropActionCoordinator {
         if (detectedVibes.isNotEmpty) {
           await _handleSaveToVibeLibrary(detectedVibes, l10n);
         }
+        return false;
       case ImageDestination.characterReference:
         await _handleCharacterReference(bytes, notifier, l10n);
+        return true;
       case ImageDestination.extractMetadata:
-        await _handleExtractMetadata(detectedMetadata, bytes, l10n);
+        return _handleExtractMetadata(detectedMetadata, bytes, l10n);
       case ImageDestination.addToQueue:
         await _handleAddToQueue(detectedMetadata, bytes, l10n);
+        return false;
     }
   }
 
@@ -268,7 +406,7 @@ class GlobalDropActionCoordinator {
     }
   }
 
-  Future<void> _handleVibeTransfer(
+  Future<bool> _handleVibeTransfer(
     String fileName,
     Uint8List bytes,
     GenerationParamsNotifier notifier,
@@ -287,7 +425,7 @@ class GlobalDropActionCoordinator {
             context.l10n.toast_styleReferenceLimit(maxCount),
           );
         }
-        return;
+        return false;
       }
       for (final vibe in vibes) {
         final vibeToAdd = forceRaw && vibe.vibeEncoding.isNotEmpty
@@ -305,11 +443,13 @@ class GlobalDropActionCoordinator {
           _buildVibeMessage(currentCount, vibes.length, l10n),
         );
       }
+      return true;
     } catch (error) {
       if (kDebugMode) {
         AppLogger.d('Error parsing vibe file: $error', 'DropHandler');
       }
       _showError(error.toString());
+      return false;
     }
   }
 
@@ -326,7 +466,7 @@ class GlobalDropActionCoordinator {
         : l10n.drop_addedMultipleToVibe(addedCount);
   }
 
-  Future<void> _handleVibeReuse(
+  Future<bool> _handleVibeReuse(
     VibeReference vibe,
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
@@ -340,7 +480,7 @@ class GlobalDropActionCoordinator {
           context.l10n.toast_styleReferenceLimit(maxCount),
         );
       }
-      return;
+      return false;
     }
     notifier.addVibeReference(vibe);
     if (context.mounted) {
@@ -349,6 +489,7 @@ class GlobalDropActionCoordinator {
           : l10n.toast_addedPreencodedVibe;
       AppToast.success(context, message);
     }
+    return true;
   }
 
   Future<void> _handleSaveToVibeLibrary(
@@ -366,61 +507,12 @@ class GlobalDropActionCoordinator {
     }
 
     final isBundle = vibes.length > 1;
-    final dialogResult = await runWithVibeNameController(vibes.first.displayName, (
-      nameController,
-    ) async {
-      final result = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(
-            isBundle
-                ? '${l10n.vibe_saveToLibrary_saveAsBundle} (${vibes.length})'
-                : l10n.vibe_saveToLibrary_title,
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (isBundle)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    '${l10n.vibe_saveToLibrary_saveAsBundleDescription(vibes.length)}:\n'
-                    '${vibes.map((vibe) => '• ${vibe.displayName}').join('\n')}',
-                    style: Theme.of(dialogContext).textTheme.bodySmall,
-                  ),
-                ),
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: l10n.vibe_saveToLibrary_nameLabel,
-                  hintText: l10n.vibe_saveToLibrary_nameHint,
-                  border: const OutlineInputBorder(),
-                ),
-                autofocus: true,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(l10n.common_cancel),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameController.text.trim().isNotEmpty) {
-                  Navigator.of(dialogContext).pop(true);
-                }
-              },
-              child: Text(l10n.common_save),
-            ),
-          ],
-        ),
-      );
-      return (confirmed: result == true, name: nameController.text.trim());
-    });
-    if (!dialogResult.confirmed || !context.mounted) return;
-    final name = dialogResult.name;
+    final name = await showVibeLibraryNamingForm(
+      context: context,
+      vibes: vibes,
+      initialName: vibes.first.displayName,
+    );
+    if (name == null || !context.mounted) return;
 
     try {
       final storageService = ref.read(vibeLibraryStorageServiceProvider);
@@ -461,7 +553,7 @@ class GlobalDropActionCoordinator {
     }
   }
 
-  Future<void> _handleExtractMetadata(
+  Future<bool> _handleExtractMetadata(
     NaiImageMetadata? detectedMetadata,
     Uint8List bytes,
     AppLocalizations l10n,
@@ -474,34 +566,21 @@ class GlobalDropActionCoordinator {
         if (context.mounted) {
           AppToast.warning(context, l10n.metadataImport_noDataFound);
         }
-        return;
+        return false;
       }
-      if (!context.mounted) return;
-      final options = await MetadataImportDialog.show(
-        context,
-        metadata: metadata,
-      );
-      if (options == null || !context.mounted) return;
-      final appliedCount = await MetadataImportCoordinator.apply(
+      if (!context.mounted) return false;
+      final result = await ImageMetadataImportWorkflow.shared.run(
+        context: context,
         read: ref.read,
         metadata: metadata,
-        options: options,
-        l10n: context.l10n,
       );
-      if (!context.mounted) return;
-      if (appliedCount > 0) {
-        AppToast.success(
-          context,
-          l10n.metadataImport_appliedCount(appliedCount),
-        );
-      } else {
-        AppToast.warning(context, l10n.metadataImport_noParamsSelected);
-      }
+      return result == ImageMetadataImportResult.applied;
     } catch (error) {
       if (kDebugMode) {
         AppLogger.d('Error extracting metadata: $error', 'DropHandler');
       }
       _showError(l10n.toast_extractMetadataFailed(error.toString()));
+      return false;
     }
   }
 

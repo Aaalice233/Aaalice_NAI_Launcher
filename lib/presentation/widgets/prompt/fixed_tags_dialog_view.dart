@@ -1,17 +1,12 @@
-import 'dart:math' as math;
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/window_size_class.dart';
+import '../common/adaptive_dialog_frame.dart';
 import 'fixed_tags_columns.dart';
 import 'fixed_tags_dialog_chrome.dart';
 import 'fixed_tags_dialog_controller.dart';
 import 'fixed_tags_dialog_models.dart';
-
-const _collapsedWidth = 520.0;
-const _expandedWidth = 980.0;
-const _horizontalInset = 80.0;
 
 class FixedTagsDialogView extends StatelessWidget {
   const FixedTagsDialogView({
@@ -19,79 +14,58 @@ class FixedTagsDialogView extends StatelessWidget {
     required this.data,
     required this.commands,
     required this.controller,
+    this.presentationManaged = false,
   });
 
   final FixedTagsDialogViewData data;
   final FixedTagsDialogCommands commands;
   final FixedTagsDialogController controller;
+  final bool presentationManaged;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final screenSize = MediaQuery.sizeOf(context);
-    final isCompact = screenSize.width < 600;
-    final horizontalInset = isCompact ? 24.0 : _horizontalInset;
-    final availableWidth = math.max(0.0, screenSize.width - horizontalInset);
-    final targetWidth = isCompact
-        ? availableWidth
-        : data.state.negativePanelExpanded
-        ? _expandedWidth
-        : _collapsedWidth;
-    final dialogWidth = math.min(targetWidth, availableWidth);
-    final maxHeight = isCompact ? math.max(0.0, screenSize.height - 24) : 620.0;
-    return Dialog(
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 12 : 40,
-        vertical: isCompact ? 12 : 24,
-      ),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+    final presentationIsCompact = context.adaptiveWindow.isCompact;
+    final body = LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact =
+            WindowSizeClass.fromWidth(constraints.maxWidth).isCompact ||
+            MediaQuery.textScalerOf(context).scale(1) >= 2;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(presentationIsCompact ? 0 : 8),
           child: AnimatedContainer(
             key: const ValueKey('fixed-tags-dialog-surface'),
-            duration: const Duration(milliseconds: 220),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            width: dialogWidth,
-            constraints: BoxConstraints(
-              minWidth: dialogWidth,
-              maxWidth: dialogWidth,
-              maxHeight: maxHeight,
-            ),
             decoration: BoxDecoration(
-              color: isDark
-                  ? theme.colorScheme.surface.withValues(alpha: 0.85)
-                  : theme.colorScheme.surface.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
-                  blurRadius: 32,
-                  spreadRadius: -4,
-                  offset: const Offset(0, 16),
-                ),
-                if (isDark)
-                  BoxShadow(
-                    color: theme.colorScheme.secondary.withValues(alpha: 0.08),
-                    blurRadius: 48,
-                    spreadRadius: -8,
-                  ),
-              ],
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(
+                presentationIsCompact ? 0 : 8,
+              ),
+              boxShadow: presentationManaged
+                  ? const []
+                  : [
+                      BoxShadow(
+                        color: theme.colorScheme.shadow.withValues(
+                          alpha: isDark ? 0.32 : 0.14,
+                        ),
+                        blurRadius: 32,
+                        spreadRadius: -4,
+                        offset: const Offset(0, 16),
+                      ),
+                    ],
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 FixedTagsDialogHeader(
                   data: data,
                   commands: commands,
                   isCompact: isCompact,
-                  isDark: isDark,
                 ),
-                Flexible(
+                Expanded(
                   child:
                       data.state.entries.isEmpty &&
                           !data.state.negativePanelExpanded &&
@@ -102,7 +76,6 @@ class FixedTagsDialogView extends StatelessWidget {
                           commands: commands,
                           controller: controller,
                           isCompact: isCompact,
-                          isDark: isDark,
                         ),
                 ),
                 FixedTagsDialogFooter(
@@ -113,8 +86,27 @@ class FixedTagsDialogView extends StatelessWidget {
               ],
             ),
           ),
-        ),
+        );
+      },
+    );
+    if (presentationManaged) return body;
+
+    final content = AdaptiveDialogFrame(
+      maxWidth: presentationIsCompact ? double.infinity : 980,
+      maxHeight: presentationIsCompact ? double.infinity : 620,
+      reservedVerticalSpace: presentationIsCompact ? 0 : 48,
+      scaleReservedVerticalSpace: true,
+      horizontalMargin: presentationIsCompact ? 0 : 40,
+      child: body,
+    );
+    return Dialog(
+      insetPadding: EdgeInsets.all(presentationIsCompact ? 0 : 24),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(presentationIsCompact ? 0 : 8),
       ),
+      child: presentationIsCompact ? SafeArea(child: content) : content,
     );
   }
 }

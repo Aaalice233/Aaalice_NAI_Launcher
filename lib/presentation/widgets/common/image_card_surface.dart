@@ -2,10 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../themes/theme_extension.dart';
 import 'animated_favorite_button.dart';
+import 'card_action_buttons.dart';
 import 'decoded_memory_image.dart';
 import 'image_card_actions.dart';
 import 'image_card_controller.dart';
@@ -74,7 +75,8 @@ class ImageCardSurface extends StatelessWidget {
                 }
               }
             : null,
-        onSecondaryTapDown: capabilities.enableContextMenu
+        // 必须抬起后弹菜单：按住时 push 会合成 touch 取消事件，令 DraggableWidget 整批重建闪烁
+        onSecondaryTapUp: capabilities.enableContextMenu
             ? (details) => unawaited(onShowContextMenu(details.globalPosition))
             : null,
         child: ImageCardHoverMotion(
@@ -127,8 +129,10 @@ class ImageCardSurface extends StatelessWidget {
                     Positioned.fill(
                       child: TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0, end: 1),
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOut,
+                        duration: reducedMotion
+                            ? Duration.zero
+                            : motion.fastDuration,
+                        curve: motion.standardCurve,
                         builder: (context, glowIntensity, _) => AnimatedBuilder(
                           animation: controller.glossAnimation,
                           builder: (context, _) => ImageCardEffects(
@@ -230,13 +234,15 @@ class ImageCardSurface extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (PlatformCapabilities.current.hasTouchInput &&
+                  if (context.interactionPolicy.shouldExposeTouchAlternatives &&
+                      (!controller.isHovering ||
+                          context.interactionPolicy.prefersTouchPresentation) &&
                       capabilities.enableContextMenu &&
                       actions.isNotEmpty)
                     Positioned(
                       right: 8,
                       bottom: 8,
-                      child: IconButton.filledTonal(
+                      child: IconButton(
                         onPressed: () =>
                             unawaited(onShowContextMenu(Offset.zero)),
                         tooltip: context.l10n.common_moreActions,
@@ -244,6 +250,7 @@ class ImageCardSurface extends StatelessWidget {
                           width: 48,
                           height: 48,
                         ),
+                        style: ImageOverlayControlStyle.iconButton(extent: 48),
                         icon: const Icon(Icons.more_horiz_rounded),
                       ),
                     ),
@@ -266,10 +273,19 @@ class ImageCardHoverActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
+        key: const ValueKey('image-card-hover-action-bar-surface'),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.7),
+          color: ImageOverlayControlStyle.toolbarSurface,
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: ImageOverlayControlStyle.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Wrap(
           spacing: 6,
@@ -284,48 +300,46 @@ class ImageCardHoverActionBar extends StatelessWidget {
   }
 }
 
-class _HoverAction extends StatefulWidget {
+class _HoverAction extends StatelessWidget {
   const _HoverAction({required this.action});
   final ImageCardAction action;
 
   @override
-  State<_HoverAction> createState() => _HoverActionState();
-}
-
-class _HoverActionState extends State<_HoverAction> {
-  bool hovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return MouseRegion(
-      onEnter: (_) => setState(() => hovered = true),
-      onExit: (_) => setState(() => hovered = false),
-      child: Tooltip(
-        message: widget.action.label,
-        child: GestureDetector(
-          onTap: widget.action.invoke,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: widget.action.isPrimary
-                  ? (hovered ? primary : primary.withValues(alpha: 0.9))
-                  : (hovered
-                        ? Colors.white.withValues(alpha: 0.2)
-                        : Colors.transparent),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              widget.action.icon,
-              size: 20,
-              color: widget.action.isPrimary
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: hovered ? 1 : 0.8),
-            ),
-          ),
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final action = this.action;
+    return IconButton(
+      tooltip: action.label,
+      onPressed: action.invoke,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size.square(40)),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          final emphasized =
+              states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.focused) ||
+              states.contains(WidgetState.pressed);
+          if (action.isPrimary) {
+            return colors.primary.withValues(alpha: emphasized ? 1 : 0.9);
+          }
+          return emphasized
+              ? ImageOverlayControlStyle.foreground.withValues(alpha: 0.16)
+              : Colors.transparent;
+        }),
+        foregroundColor: WidgetStatePropertyAll(
+          action.isPrimary
+              ? colors.onPrimary
+              : ImageOverlayControlStyle.foreground,
         ),
       ),
+      icon: Icon(action.icon, size: 20),
     );
   }
 }
@@ -341,8 +355,10 @@ class _DragPreparationOverlay extends StatelessWidget {
       child: IgnorePointer(
         child: AnimatedOpacity(
           key: const ValueKey('drag-preparation-preview-overlay-opacity'),
-          duration: ImageCardController.dragPreparationOverlayFadeDuration,
-          curve: Curves.easeOutCubic,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : ImageCardController.dragPreparationOverlayFadeDuration,
+          curve: Theme.of(context).appTheme.standardCurve,
           opacity: data.dragPreparationReady ? 0 : 1,
           onEnd: controller.markPreparedIndexBadgeVisible,
           child: Stack(
@@ -355,7 +371,9 @@ class _DragPreparationOverlay extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withValues(alpha: 0.38),
+                      Theme.of(
+                        context,
+                      ).colorScheme.scrim.withValues(alpha: 0.38),
                     ],
                   ),
                 ),
@@ -366,15 +384,19 @@ class _DragPreparationOverlay extends StatelessWidget {
                 bottom: 8,
                 child: Row(
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                        key: ValueKey('drag-preparation-preview-progress-ring'),
+                        key: const ValueKey(
+                          'drag-preparation-preview-progress-ring',
+                        ),
                         value: ImageCardController.dragPreparationProgressValue,
                         strokeWidth: 2,
-                        backgroundColor: Color(0x33FFFFFF),
-                        color: Colors.white,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onInverseSurface.withValues(alpha: 0.2),
+                        color: Theme.of(context).colorScheme.onInverseSurface,
                       ),
                     ),
                     const Spacer(),
@@ -383,7 +405,10 @@ class _DragPreparationOverlay extends StatelessWidget {
                       key: const ValueKey(
                         'drag-preparation-preview-progress-percent',
                       ),
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onInverseSurface,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -409,15 +434,17 @@ class _StatusBadge extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 120),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.62),
+          color: Theme.of(
+            context,
+          ).colorScheme.inverseSurface.withValues(alpha: 0.82),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onInverseSurface,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
@@ -449,14 +476,14 @@ class _SelectionCheckbox extends StatelessWidget {
           (states) => BorderSide(
             color: states.contains(WidgetState.selected)
                 ? theme.colorScheme.primary
-                : Colors.white70,
+                : theme.colorScheme.onInverseSurface.withValues(alpha: 0.7),
             width: 1.5,
           ),
         ),
         fillColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? theme.colorScheme.primary
-              : Colors.black45,
+              : theme.colorScheme.inverseSurface.withValues(alpha: 0.72),
         ),
         checkColor: theme.colorScheme.onPrimary,
       ),

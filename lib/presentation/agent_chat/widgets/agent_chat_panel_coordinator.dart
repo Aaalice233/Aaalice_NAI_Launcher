@@ -7,10 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/token_count_format.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 
 import '../../agent_settings/providers/agent_settings_provider.dart';
@@ -18,6 +18,9 @@ import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapt
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
+import '../models/agent_chat_compaction_outcome.dart';
+import '../models/agent_chat_prompt_envelope.dart';
+import '../models/agent_chat_slash_command.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../services/agent_chat_session_controller.dart';
 import 'agent_chat_panel_controller.dart';
@@ -103,6 +106,21 @@ class AgentChatPanelCoordinator {
       _ref.read(agentChatNotifierProvider.notifier);
 
   Future<void> _send(BuildContext context, {bool followUp = false}) async {
+    // 菜单被 Esc 关掉后直接回车的兜底：整条输入就是一个会话命令时执行它，
+    // 而不是把 `/new` 当普通消息发出去。
+    final sessionAction = _controller.pendingImages.isEmpty
+        ? resolveSessionCommand(_controller.inputController.text.trim())
+        : null;
+    if (sessionAction != null) {
+      await _notifier.clearComposerText();
+      if (!_isMounted() || !context.mounted) return;
+      await _handleMoreAction(
+        context,
+        _ref.read(agentChatNotifierProvider),
+        sessionAction,
+      );
+      return;
+    }
     if (!await _notifier.validatePendingResourcesForSend()) {
       if (!context.mounted) return;
       AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
@@ -240,12 +258,7 @@ class AgentChatPanelCoordinator {
     Message sourceMessage,
     int messageIndex,
   ) async {
-    final lastUserIndex = state.messages.lastIndexWhere(
-      (candidate) =>
-          candidate is UserMessage ||
-          candidate is HarnessCustomMessage &&
-              candidate.customType == 'agentResourcePrompt',
-    );
+    final lastUserIndex = state.messages.lastIndexWhere(isVisualUserMessage);
     final safe =
         state.status != AgentChatRunStatus.running &&
         !state.sessionTransitioning &&
@@ -255,17 +268,13 @@ class AgentChatPanelCoordinator {
     if (!safe) return;
     final UserMessage message;
     final references = <AgentChatResourceReference>[];
+    final envelope = asAgentPromptEnvelope(sourceMessage);
     if (sourceMessage is UserMessage) {
       message = sourceMessage;
-    } else if (sourceMessage is HarnessCustomMessage &&
-        sourceMessage.customType == 'agentResourcePrompt') {
-      message = UserMessage(
-        content: sourceMessage.content.skip(1).toList(growable: false),
-        timestamp: sourceMessage.timestamp,
-      );
-      final encoded = sourceMessage.details is Map
-          ? (sourceMessage.details as Map)['references']
-          : null;
+    } else if (envelope != null) {
+      message = visibleUserMessage(sourceMessage)!;
+      final details = envelope.details;
+      final encoded = details is Map ? details['references'] : null;
       if (encoded is List) {
         for (final value in encoded) {
           if (value is Map) {
@@ -299,16 +308,10 @@ class AgentChatPanelCoordinator {
   Future<void> _editQueuedMessage(AgentQueuedMessage queued) async {
     final removed = await _notifier.removeQueuedMessage(queued);
     if (removed == null || !_isMounted()) return;
-    UserMessage? userMessage;
-    if (removed is UserMessage) {
-      userMessage = removed;
-    } else if (removed is HarnessCustomMessage &&
-        removed.customType == 'agentResourcePrompt') {
-      userMessage = UserMessage(
-        content: removed.content.skip(1).toList(growable: false),
-        timestamp: removed.timestamp,
-      );
-      final details = removed.details;
+    final userMessage = visibleUserMessage(removed);
+    final envelope = asAgentPromptEnvelope(removed);
+    if (envelope != null) {
+      final details = envelope.details;
       final references = details is Map ? details['references'] : null;
       if (references is List) {
         for (final value in references) {
@@ -400,15 +403,7 @@ class AgentChatPanelCoordinator {
   }
 
   void _showPickError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          width: 320,
-        ),
-      );
+    AppToast.error(context, message);
   }
 
   Future<void> _renameSession(BuildContext context, String sessionId) async {
@@ -458,9 +453,39 @@ class AgentChatPanelCoordinator {
       case AgentChatMoreAction.rename:
         await _renameSession(context, state.activeSessionId);
       case AgentChatMoreAction.compact:
-        await _notifier.compactNow();
+        final outcome = await _notifier.compactNow();
+        if (!_isMounted() || !context.mounted) return;
+        _reportCompaction(context, outcome);
       case AgentChatMoreAction.delete:
         await _deleteSession(context, state.activeSessionId);
+    }
+  }
+
+  /// 压缩不改变可见记录，没有提示用户就无从判断这次点击是否生效。
+  void _reportCompaction(
+    BuildContext context,
+    AgentChatCompactionOutcome outcome,
+  ) {
+    final l10n = context.l10n;
+    switch (outcome) {
+      case AgentChatCompactionDone(:final tokensBefore, :final tokensAfter):
+        AppToast.info(
+          context,
+          l10n.agentChat_compactDone(
+            formatTokenCount(tokensBefore),
+            formatTokenCount(tokensAfter),
+          ),
+        );
+      case AgentChatCompactionSkipped(:final reason):
+        AppToast.info(context, switch (reason) {
+          AgentChatCompactionSkipReason.busy => l10n.agentChat_compactBusy,
+          AgentChatCompactionSkipReason.unavailable =>
+            l10n.agentChat_compactUnavailable,
+          AgentChatCompactionSkipReason.nothingToCompact =>
+            l10n.agentChat_compactNotNeeded,
+        });
+      case AgentChatCompactionFailed(:final message):
+        AppToast.error(context, l10n.agentChat_compactFailed(message));
     }
   }
 }

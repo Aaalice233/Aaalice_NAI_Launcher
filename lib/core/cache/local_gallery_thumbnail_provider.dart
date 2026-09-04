@@ -151,9 +151,21 @@ class _LocalGalleryDecodeScheduler {
   final Queue<_LocalGalleryDecodeJob> _queue = Queue();
   final Map<LocalGalleryThumbnailKey, Set<_LocalGalleryDecodeJob>> _jobs = {};
   int _active = 0;
+  bool _appForeground = true;
+  bool _galleryVisible = true;
 
   int get activeDecodes => _active;
   int get queuedDecodes => _queue.length;
+
+  void setAppForeground(bool foreground) {
+    _appForeground = foreground;
+    if (foreground) _drain();
+  }
+
+  void setGalleryVisible(bool visible) {
+    _galleryVisible = visible;
+    if (visible) _drain();
+  }
 
   Future<ui.Codec> schedule(
     LocalGalleryThumbnailKey key,
@@ -180,6 +192,7 @@ class _LocalGalleryDecodeScheduler {
   }
 
   void _drain() {
+    if (!_appForeground || !_galleryVisible) return;
     while (_active < maximumConcurrentDecodes && _queue.isNotEmpty) {
       final job = _queue.removeFirst();
       if (job.cancelled) {
@@ -234,6 +247,14 @@ class _LocalGalleryDecodeScheduler {
 class LocalGalleryThumbnailProvider
     extends ImageProvider<LocalGalleryThumbnailKey> {
   static const int maximumDecodedDimension = 4096;
+
+  static void setAppForeground(bool foreground) {
+    _LocalGalleryDecodeScheduler.instance.setAppForeground(foreground);
+  }
+
+  static void setGalleryVisible(bool visible) {
+    _LocalGalleryDecodeScheduler.instance.setGalleryVisible(visible);
+  }
 
   const LocalGalleryThumbnailProvider({
     required this.source,

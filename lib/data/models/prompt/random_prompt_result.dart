@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../character/character_prompt.dart';
@@ -30,9 +28,6 @@ class RandomPromptResult with _$RandomPromptResult {
 
     /// 使用的随机种子
     int? seed,
-
-    /// 生成模式（官网/自定义）
-    @Default(RandomGenerationMode.naiOfficial) RandomGenerationMode mode,
   }) = _RandomPromptResult;
 
   factory RandomPromptResult.fromJson(Map<String, dynamic> json) =>
@@ -144,43 +139,4 @@ class GeneratedCharacter with _$GeneratedCharacter {
   factory GeneratedCharacter.male(String prompt) {
     return GeneratedCharacter(prompt: prompt, gender: CharacterGender.male);
   }
-}
-
-/// 随机生成模式
-enum RandomGenerationMode {
-  /// 官网模式（复刻 NovelAI 算法）
-  @JsonValue('nai_official')
-  naiOfficial,
-
-  /// 自定义模式（使用用户自定义预设）
-  @JsonValue('custom')
-  custom,
-
-  /// 混合模式（可部分自定义）
-  @JsonValue('hybrid')
-  hybrid,
-}
-
-/// RandomGenerationMode 扩展
-extension RandomGenerationModeX on RandomGenerationMode {
-  /// 获取图标
-  IconData get icon => switch (this) {
-    RandomGenerationMode.naiOfficial => Icons.auto_awesome,
-    RandomGenerationMode.custom => Icons.tune,
-    RandomGenerationMode.hybrid => Icons.merge_type,
-  };
-
-  /// 获取名称
-  String getName(AppLocalizations l10n) => switch (this) {
-    RandomGenerationMode.naiOfficial => l10n.randomMode_naiOfficial,
-    RandomGenerationMode.custom => l10n.randomMode_custom,
-    RandomGenerationMode.hybrid => l10n.randomMode_hybrid,
-  };
-
-  /// 获取描述
-  String getDescription(AppLocalizations l10n) => switch (this) {
-    RandomGenerationMode.naiOfficial => l10n.randomMode_naiOfficialDesc,
-    RandomGenerationMode.custom => l10n.randomMode_customDesc,
-    RandomGenerationMode.hybrid => l10n.randomMode_hybridDesc,
-  };
 }

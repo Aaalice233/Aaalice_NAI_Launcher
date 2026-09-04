@@ -361,6 +361,66 @@ void main() {
   });
 
   test(
+    'large sessions restore a bounded UI window without truncating context',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'agent-chat-history-window-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final repository = JsonlSessionRepo(directory);
+      final session = await repository.create(
+        const SessionCreateOptions(id: 'session'),
+      );
+      const total = AgentChatSessionController.recentHistoryEntryLimit + 12;
+      for (var index = 0; index < total; index++) {
+        await session.appendMessage(UserMessage.text('message $index'));
+      }
+
+      var state = const AgentChatState();
+      final localStorage = LocalStorageService();
+      final draftController = AgentChatDraftController(
+        resourceStore: AgentChatResourceDraftStore(
+          File('${directory.path}/drafts.json'),
+        ),
+        localStorage: localStorage,
+        readState: () => state,
+        writeState: (next) => state = next,
+        createResourceResolver: () => throw UnimplementedError(),
+        isMounted: () => true,
+      );
+      final controller = AgentChatSessionController(
+        repository: repository,
+        localStorage: localStorage,
+        draftController: draftController,
+        workspaceDir: directory.path,
+        buildAgent: () async => Agent(
+          AgentOptions(
+            streamFn: (model, context, [options]) => throw UnimplementedError(),
+          ),
+        ),
+        buildSystemPrompt: () async => '',
+        readState: () => state,
+        writeState: (next) => state = next,
+        isMounted: () => true,
+      );
+
+      await controller.activateSession('session');
+
+      expect(
+        state.messages,
+        hasLength(AgentChatSessionController.recentHistoryEntryLimit),
+      );
+      expect(state.hasEarlierTurns, isTrue);
+      expect(controller.agent!.state.messages, hasLength(total));
+
+      await controller.loadEarlierHistory();
+
+      expect(state.messages, hasLength(total));
+      expect(state.hasEarlierTurns, isFalse);
+    },
+  );
+
+  test(
     'rewind activation failure restores the branch and returns no checkpoint',
     () async {
       final directory = await Directory.systemTemp.createTemp(

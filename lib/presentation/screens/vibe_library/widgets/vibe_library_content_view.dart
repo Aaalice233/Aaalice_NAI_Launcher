@@ -25,10 +25,14 @@ import '../../../providers/vibe_library_selection_provider.dart';
 import '../../../router/app_routes.dart';
 import '../../../agent_chat/providers/agent_chat_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/frame_staggered_builder.dart';
 import '../../../widgets/common/pro_context_menu.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../widgets/common/library_classification_drag.dart';
 import '../../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'vibe_card.dart';
+import 'category/vibe_category_destination_panel.dart';
+import '../../../widgets/common/context_menu_anchor.dart';
 import 'vibe_detail_viewer.dart';
 import 'vibe_export_dialog.dart';
 import 'vibe_library_empty_view.dart';
@@ -57,6 +61,15 @@ class _VibeLibraryContentViewState
     extends ConsumerState<VibeLibraryContentView> {
   /// GridView 的 PageStorageKey，用于保持滚动位置
   static const String _vibeLibraryGridKey = 'vibe_library_3d_grid';
+  final FrameStaggerController _frameStaggerController =
+      FrameStaggerController();
+  bool _exportDialogLocked = false;
+
+  @override
+  void dispose() {
+    _frameStaggerController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +89,11 @@ class _VibeLibraryContentViewState
 
     // 加载中状态
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(
+          value: MediaQuery.disableAnimationsOf(context) ? 0.5 : null,
+        ),
+      );
     }
 
     // 空状态处理
@@ -115,65 +132,98 @@ class _VibeLibraryContentViewState
         crossAxisCount: widget.columns,
         mainAxisSpacing: vibeLibraryGridSpacing,
         crossAxisSpacing: vibeLibraryGridSpacing,
-        childAspectRatio: 1.0,
+        childAspectRatio: vibeCardAspectRatio,
       ),
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
         final isSelected = selectionState.selectedIds.contains(entry.id);
 
-        return AgentResourceDragSource(
-          reference: AgentChatResourceReference(
-            kind: AgentChatResourceKind.vibeLibraryEntry,
-            source: 'vibe_library',
-            resourceId: entry.id,
-            display: {'name': entry.displayName},
+        return FrameStaggeredChild(
+          key: ValueKey<String>('vibe-grid-${entry.id}'),
+          controller: _frameStaggerController,
+          placeholder: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          child: VibeCard(
-            entry: entry,
-            width: widget.itemWidth,
-            height: widget.itemWidth,
-            isSelected: isSelected,
-            showFavoriteIndicator: true,
-            onTap: () {
-              if (selectionState.isActive) {
-                ref
-                    .read(vibeLibrarySelectionNotifierProvider.notifier)
-                    .toggle(entry.id);
-              } else {
-                _showVibeDetail(context, entry);
-              }
-            },
-            onLongPress: () {
-              if (!selectionState.isActive) {
-                ref
-                    .read(vibeLibrarySelectionNotifierProvider.notifier)
-                    .enterAndSelect(entry.id);
-              }
-            },
-            onSecondaryTapDown: (details) {
-              _showContextMenu(context, entry, details.globalPosition);
-            },
-            onFavoriteToggle: () {
-              ref
-                  .read(vibeLibraryNotifierProvider.notifier)
-                  .toggleFavorite(entry.id);
-            },
-            onSendToGeneration: () async {
-              final physicalKeys =
-                  HardwareKeyboard.instance.physicalKeysPressed;
-              final isShiftPressed =
-                  physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
-                  physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
-              await _sendEntryToGeneration(context, entry, isShiftPressed);
-            },
-            onExport: () => unawaited(_exportSingleEntry(context, entry)),
-            onEdit: () => _showVibeDetail(context, entry),
-            onDelete: () => _deleteSingleEntry(context, entry),
+          child: AgentResourceDragSource(
+            enableAddToAgentMenu: false,
+            enableAddToAgentAction: !selectionState.isActive,
+            reference: AgentChatResourceReference(
+              kind: AgentChatResourceKind.vibeLibraryEntry,
+              source: 'vibe_library',
+              resourceId: entry.id,
+              display: {'name': entry.displayName},
+            ),
+            child: LibraryClassificationDragSource<VibeLibraryEntry>(
+              data: entry,
+              label: entry.displayName,
+              enabled: !selectionState.isActive,
+              child: VibeCard(
+                entry: entry,
+                width: widget.itemWidth,
+                height: computeVibeCardHeight(widget.itemWidth),
+                isSelected: isSelected,
+                showFavoriteIndicator: true,
+                onTap: () {
+                  if (selectionState.isActive) {
+                    ref
+                        .read(vibeLibrarySelectionNotifierProvider.notifier)
+                        .toggle(entry.id);
+                  } else {
+                    _showVibeDetail(context, entry);
+                  }
+                },
+                onLongPress: () {
+                  if (!selectionState.isActive) {
+                    ref
+                        .read(vibeLibrarySelectionNotifierProvider.notifier)
+                        .enterAndSelect(entry.id);
+                  }
+                },
+                onSecondaryTapUp: (details) {
+                  _showContextMenu(context, entry, details.globalPosition);
+                },
+                onFavoriteToggle: () {
+                  ref
+                      .read(vibeLibraryNotifierProvider.notifier)
+                      .toggleFavorite(entry.id);
+                },
+                onSendToGeneration: () async {
+                  final physicalKeys =
+                      HardwareKeyboard.instance.physicalKeysPressed;
+                  final isShiftPressed =
+                      physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
+                      physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
+                  await _sendEntryToGeneration(context, entry, isShiftPressed);
+                },
+                onExport: () => unawaited(_exportSingleEntry(context, entry)),
+                onEdit: () => _showVibeDetail(context, entry),
+                onClassify: () => _classifyEntry(entry),
+                onDelete: () => _deleteSingleEntry(context, entry),
+              ),
+            ),
           ),
         );
       },
     );
+  }
+
+  Future<void> _classifyEntry(VibeLibraryEntry entry) async {
+    final categories = ref.read(vibeLibraryCategoryNotifierProvider).categories;
+    final destination = await VibeCategoryDestinationPanel.show(
+      context,
+      categories: categories,
+    );
+    if (destination == null || !mounted) return;
+    await ref
+        .read(vibeLibraryNotifierProvider.notifier)
+        .updateEntryCategory(
+          entry.id,
+          destination.isEmpty ? null : destination,
+        );
   }
 
   /// 显示 Vibe 详情
@@ -633,6 +683,8 @@ class _VibeLibraryContentViewState
     BuildContext context,
     VibeLibraryEntry entry,
   ) async {
+    if (_exportDialogLocked) return;
+    _exportDialogLocked = true;
     final span = VibePerformanceDiagnostics.start(
       'content.exportSingleEntry',
       details: {'entryId': entry.id, 'isBundle': entry.isBundle},
@@ -651,12 +703,13 @@ class _VibeLibraryContentViewState
           .categories;
       categoryCount = categories.length;
 
-      showDialog<void>(
-        context: context,
-        builder: (context) =>
-            VibeExportDialog(entries: [actualEntry], categories: categories),
+      await VibeExportDialog.show(
+        context,
+        entries: [actualEntry],
+        categories: categories,
       );
     } finally {
+      _exportDialogLocked = false;
       span.finish(details: {'hydrated': hydrated, 'categories': categoryCount});
     }
   }
@@ -833,7 +886,8 @@ class _VibeLibraryContentViewState
   }
 }
 
-double computeVibeGridCacheExtent(double itemWidth) => itemWidth * 1.5;
+double computeVibeGridCacheExtent(double itemWidth) =>
+    computeVibeCardHeight(itemWidth) * 0.5;
 
 Future<VibeLibraryDetailData> resolveVibeDetailDataForOpen(
   VibeLibraryStorageService storage,
@@ -922,24 +976,26 @@ class _ContextMenuRoute extends PopupRoute {
       removeBottom: true,
       child: Builder(
         builder: (context) {
-          // 计算调整后的位置以保持菜单在屏幕边界内
-          final screenSize = MediaQuery.of(context).size;
+          // position 是窗口全局坐标；路由页面铺在最近 Overlay 上，
+          // 需换算到 overlay 局部坐标并按 overlay 尺寸收拢
+          final overlaySize = contextMenuOverlaySize(context);
+          final local = contextMenuLocalPosition(context, position);
           const menuWidth = 180.0;
           final menuHeight =
               items.where((i) => !i.isDivider).length * 36.0 +
               items.where((i) => i.isDivider).length * 1.0;
 
-          double left = position.dx;
-          double top = position.dy;
+          double left = local.dx;
+          double top = local.dy;
 
-          // 调整水平位置，如果菜单超出屏幕
-          if (left + menuWidth > screenSize.width) {
-            left = screenSize.width - menuWidth - 16;
+          // 调整水平位置，如果菜单超出 overlay
+          if (left + menuWidth > overlaySize.width) {
+            left = overlaySize.width - menuWidth - 16;
           }
 
-          // 调整垂直位置，如果菜单超出屏幕
-          if (top + menuHeight > screenSize.height) {
-            top = screenSize.height - menuHeight - 16;
+          // 调整垂直位置，如果菜单超出 overlay
+          if (top + menuHeight > overlaySize.height) {
+            top = overlaySize.height - menuHeight - 16;
           }
 
           return GestureDetector(

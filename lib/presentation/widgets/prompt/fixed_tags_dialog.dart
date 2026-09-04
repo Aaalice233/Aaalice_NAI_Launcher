@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import 'fixed_tags_dialog_controller.dart';
@@ -15,7 +16,18 @@ export 'fixed_tag_library_picker_dialog.dart' show FixedTagLibraryPickerDialog;
 /// 该 shell 只负责连接唯一业务 Provider 与对话框本地生命周期；展示、交互
 /// 编排和几何状态分别由 view、coordinator 与 controller 承担。
 class FixedTagsDialog extends ConsumerStatefulWidget {
-  const FixedTagsDialog({super.key});
+  const FixedTagsDialog({super.key, this.presentationManaged = false});
+
+  final bool presentationManaged;
+
+  static Future<void> show(BuildContext context) {
+    return AdaptivePresenter.showForm<void>(
+      context: context,
+      showHeader: false,
+      sideSheetWidth: 980,
+      builder: (_, __) => const FixedTagsDialog(presentationManaged: true),
+    );
+  }
 
   @override
   ConsumerState<FixedTagsDialog> createState() => _FixedTagsDialogState();
@@ -45,12 +57,13 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
       ),
     );
     final commands = FixedTagsDialogCoordinator(ref).commands(context);
-    return AnimatedBuilder(
-      animation: _controller,
+    return ListenableBuilder(
+      listenable: _controller,
       builder: (context, _) => FixedTagsDialogView(
         data: viewData,
         commands: commands,
         controller: _controller,
+        presentationManaged: widget.presentationManaged,
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/presentation/utils/fixed_tag_metadata_matcher.dart';
 
@@ -60,7 +61,7 @@ void main() {
     expect(result.fixedSuffixTags, [fragment]);
   });
 
-  test('keeps recorded fields and supplements additional current matches', () {
+  test('explicit recorded fields prevent additional inference', () {
     final libraryEntry = FixedTagEntry.create(
       name: 'new',
       content: 'new library value',
@@ -75,9 +76,50 @@ void main() {
       negativeEntries: const [],
     );
 
+    expect(result.fixedPrefixTags, equals(['recorded value']));
+  });
+
+  test('does not infer fixed tags from the middle of a negative prompt', () {
+    final prefix = FixedTagEntry.create(
+      name: 'prefix',
+      content: 'lowres',
+      promptType: FixedTagPromptType.negative,
+    );
+    final suffix = FixedTagEntry.create(
+      name: 'suffix',
+      content: 'bad quality',
+      position: FixedTagPosition.suffix,
+      promptType: FixedTagPromptType.negative,
+    );
+
+    final result = matchMetadataFixedTags(
+      metadata: const NaiImageMetadata(
+        negativePrompt: 'nsfw, lowres, bad quality, watermark',
+      ),
+      positiveEntries: const [],
+      negativeEntries: [prefix, suffix],
+    );
+
+    expect(result.fixedNegativePrefixTags, isEmpty);
+    expect(result.fixedNegativeSuffixTags, isEmpty);
+  });
+
+  test('marks only boundary occurrences of duplicate fixed tags', () {
     expect(
-      result.fixedPrefixTags,
-      equals(['recorded value', 'new library value']),
+      fixedPromptTagIndexes(
+        promptTags: const ['lowres', 'nsfw', 'lowres'],
+        prefixEntries: const ['lowres'],
+        suffixEntries: const [],
+      ),
+      {0},
+    );
+    expect(
+      fixedPromptTagIndexes(
+        promptTags: const ['lowres', 'nsfw', 'lowres'],
+        prefixEntries: const [],
+        suffixEntries: const ['lowres'],
+      ),
+      {2},
     );
   });
 }

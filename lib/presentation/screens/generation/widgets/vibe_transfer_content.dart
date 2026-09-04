@@ -296,7 +296,9 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
       },
       builder: (context, candidateData, rejectedData) {
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: _isDraggingOver
@@ -448,7 +450,9 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
         unawaited(_handleFileDrop(event));
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           border: _isFileDraggingOver
@@ -550,7 +554,9 @@ class _EmptyStateCardState extends State<_EmptyStateCard> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: _isHovered

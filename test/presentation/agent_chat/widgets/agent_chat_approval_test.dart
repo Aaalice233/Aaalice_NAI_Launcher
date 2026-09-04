@@ -30,12 +30,13 @@ void main() {
 
   AgentChatApprovalCard approval({
     Key? key,
+    String requestId = 'request-1',
     Map<String, dynamic>? args,
     int? estimatedAnlas = 12,
     ValueChanged<bool>? onResolve,
   }) {
     return AgentChatApprovalCard(
-      key: key,
+      key: key ?? ValueKey(requestId),
       toolName: 'submit_generation',
       args:
           args ??
@@ -45,7 +46,6 @@ void main() {
             'images': 1,
           },
       estimatedAnlas: estimatedAnlas,
-      touchOptimized: true,
       onResolve: onResolve ?? (_) {},
     );
   }
@@ -123,34 +123,31 @@ void main() {
     expect(find.textContaining(r'C:\Users\Alice'), findsNothing);
   });
 
-  testWidgets('submits a decision once and disables until request changes', (
-    tester,
-  ) async {
-    final decisions = <bool>[];
-    await tester.pumpWidget(
-      app(width: 360, child: approval(onResolve: decisions.add)),
-    );
+  testWidgets(
+    'same tool and arguments become actionable for a new request id',
+    (tester) async {
+      final decisions = <bool>[];
+      await tester.pumpWidget(
+        app(width: 360, child: approval(onResolve: decisions.add)),
+      );
 
-    final allow = find.byType(FilledButton);
-    await tester.tap(allow);
-    await tester.tap(allow);
-    await tester.pump();
-    expect(decisions, [isTrue]);
+      final allow = find.byType(FilledButton);
+      await tester.tap(allow);
+      await tester.tap(allow);
+      await tester.pump();
+      expect(decisions, [isTrue]);
 
-    await tester.pumpWidget(
-      app(
-        width: 360,
-        child: approval(
-          key: const ValueKey('authoritative-next-approval'),
-          args: {'prompt': 'authoritative next request'},
-          onResolve: decisions.add,
+      await tester.pumpWidget(
+        app(
+          width: 360,
+          child: approval(requestId: 'request-2', onResolve: decisions.add),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(OutlinedButton));
-    expect(decisions, [isTrue, isFalse]);
-  });
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(OutlinedButton));
+      expect(decisions, [isTrue, isFalse]);
+    },
+  );
 
   testWidgets('delete approvals retain irreversible-risk wording', (
     tester,
@@ -162,7 +159,6 @@ void main() {
           toolName: 'delete_tag_library_entry',
           args: const {'id': 'entry-1'},
           estimatedAnlas: null,
-          touchOptimized: true,
           onResolve: (_) {},
         ),
       ),

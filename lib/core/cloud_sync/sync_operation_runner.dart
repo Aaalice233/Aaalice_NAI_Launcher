@@ -3,22 +3,20 @@ import 'data_source.dart';
 import 'journal.dart';
 import 'models.dart';
 import 'operation.dart';
-import 'object_codec.dart';
 import 'snapshot_uploader.dart';
 import 'sync_types.dart';
+import 'telemetry_log.dart';
 
 class SyncOperationRunner {
   const SyncOperationRunner({
     required this.backend,
     required this.dataSource,
-    required this.codec,
     required this.journalStore,
     required this.now,
   });
 
   final CloudSyncBackend backend;
   final CloudSyncDataSource dataSource;
-  final CloudObjectCodec codec;
   final JournalStore journalStore;
   final DateTime Function() now;
 
@@ -27,13 +25,23 @@ class SyncOperationRunner {
     required JournalOperation operation,
     required String snapshotId,
     required CloudSyncSnapshotData target,
+    required CloudSyncSnapshotData? recoveryPoint,
     required String? expectedRevision,
     required bool uploadRequired,
-  }) async {
+  }) => journalStore.runExclusive(() async {
     if (await journalStore.read() != null) {
       throw StateError('A cloud sync operation is pending recovery.');
     }
-    await dataSource.stage(operationId, target);
+    final appliesLocally = operation != JournalOperation.uploadLocal;
+    if (appliesLocally != (recoveryPoint != null)) {
+      throw ArgumentError(
+        appliesLocally
+            ? 'A local recovery point is required.'
+            : 'Upload-only operations must not create a recovery point.',
+        'recoveryPoint',
+      );
+    }
+    await dataSource.stage(operationId, target, recoveryPoint: recoveryPoint);
     final fingerprint = await dataSource.stagedFingerprint(operationId);
     final journal = SyncJournal(
       operationId: operationId,
@@ -47,7 +55,7 @@ class SyncOperationRunner {
     );
     await journalStore.write(journal);
     return journal;
-  }
+  });
 
   Future<CloudSyncSnapshotData> run(
     SyncJournal journal, {
@@ -55,7 +63,18 @@ class SyncOperationRunner {
     required bool recovering,
     SyncProgressCallback? onProgress,
   }) async {
+    if (!identical(OperationToken.current, token)) {
+      return token.runInScope(
+        () => run(
+          journal,
+          token: token,
+          recovering: recovering,
+          onProgress: onProgress,
+        ),
+      );
+    }
     var current = journal;
+    var baseSaved = false;
     try {
       final target = await dataSource.readStaged(current.operationId);
       if (await dataSource.stagedFingerprint(current.operationId) !=
@@ -68,7 +87,6 @@ class SyncOperationRunner {
             await ResumableSnapshotUploader(
               backend: backend,
               dataSource: dataSource,
-              codec: codec,
               now: now,
             ).resume(
               journal: current,
@@ -83,6 +101,7 @@ class SyncOperationRunner {
           await dataSource.rollbackForRecovery(current.operationId);
         }
         if (current.phase != JournalPhase.savingBase) {
+          await _assertRemoteGuard(current);
           current = current.copyWith(
             phase: JournalPhase.applyStarted,
             now: now(),
@@ -91,29 +110,68 @@ class SyncOperationRunner {
           onProgress?.call(const SyncProgress(phase: SyncPhase.applying));
           await token.checkpoint();
           await dataSource.apply(current.operationId);
+          await _assertRemoteGuard(current);
         }
       }
       current = current.copyWith(phase: JournalPhase.savingBase, now: now());
       await journalStore.write(current);
+      onProgress?.call(const SyncProgress(phase: SyncPhase.saving));
       await dataSource.saveBase(target, current.snapshotId);
+      baseSaved = true;
       await _complete(current);
       onProgress?.call(const SyncProgress(phase: SyncPhase.completed));
       return target;
     } catch (error, stackTrace) {
       final durable = await journalStore.read() ?? current;
-      if (_mustRemainRecoverable(error, durable)) rethrow;
+      _logOperationFailure(error, durable);
+      if (baseSaved || _mustRemainRecoverable(error, durable)) rethrow;
       await _rollbackAndClean(durable, error, stackTrace, onProgress);
       rethrow;
+    }
+  }
+
+  Future<void> _assertRemoteGuard(SyncJournal journal) async {
+    final remote = await backend.readHead();
+    if (journal.uploadRequired) {
+      if (remote == null) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          'Remote HEAD disappeared before the local apply.',
+        );
+      }
+      final head = SnapshotHead.decode(remote.bytes);
+      if (head.snapshotId != journal.snapshotId ||
+          head.manifestSha256 != journal.manifestSha256) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          'Remote HEAD advanced before the local apply.',
+        );
+      }
+      return;
+    }
+    if (remote?.revision != journal.expectedRevision) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        'Remote HEAD advanced before the local apply.',
+      );
     }
   }
 
   Future<void> discardPending() async {
     final journal = await journalStore.read();
     if (journal == null) return;
+    if (journal.phase == JournalPhase.completed) {
+      await dataSource.completeOperation(journal.operationId);
+      await journalStore.delete();
+      return;
+    }
     if (journal.appliesLocally &&
         journal.phase.index >= JournalPhase.applyStarted.index &&
         journal.phase.index <= JournalPhase.savingBase.index) {
       await dataSource.rollbackForRecovery(journal.operationId);
+    }
+    if (journal.phase == JournalPhase.savingBase) {
+      await dataSource.restoreBaseForRecovery(journal.operationId);
     }
     await dataSource.rollback(journal.operationId);
     await journalStore.delete();
@@ -131,6 +189,9 @@ class SyncOperationRunner {
       return;
     }
     if (journal.phase == JournalPhase.rollbackStarted) {
+      if (journal.appliesLocally) {
+        await dataSource.rollbackForRecovery(journal.operationId);
+      }
       await dataSource.rollback(journal.operationId);
       await journalStore.delete();
       return;
@@ -166,6 +227,10 @@ class SyncOperationRunner {
     );
     await journalStore.write(rollback);
     try {
+      if (journal.appliesLocally &&
+          journal.phase.index >= JournalPhase.applyStarted.index) {
+        await dataSource.rollbackForRecovery(journal.operationId);
+      }
       await dataSource.rollback(journal.operationId);
       await journalStore.write(
         rollback.copyWith(phase: JournalPhase.completed, now: now()),
@@ -177,7 +242,19 @@ class SyncOperationRunner {
   }
 }
 
+void _logOperationFailure(Object error, SyncJournal journal) {
+  final details = error is CloudBackendException
+      ? 'kind=${error.kind.name}, status=${error.statusCode ?? 'none'}, '
+            'message=${error.message}'
+      : 'type=${error.runtimeType}';
+  logCloudSyncMetrics(
+    'Cloud sync operation failed: operation=${journal.operation.name}, '
+    'phase=${journal.phase.name}, $details',
+  );
+}
+
 bool _mustRemainRecoverable(Object error, SyncJournal journal) {
+  if (journal.phase == JournalPhase.completed) return true;
   if (error is CloudBackendException &&
       (error.kind == CloudBackendErrorKind.network ||
           error.kind == CloudBackendErrorKind.invalidResponse)) {
@@ -185,7 +262,8 @@ bool _mustRemainRecoverable(Object error, SyncJournal journal) {
   }
   if (error is OperationCancelledException &&
       journal.uploadRequired &&
-      (journal.phase == JournalPhase.applyStarted ||
+      (journal.phase == JournalPhase.committingHead ||
+          journal.phase == JournalPhase.applyStarted ||
           journal.phase == JournalPhase.savingBase)) {
     return true;
   }

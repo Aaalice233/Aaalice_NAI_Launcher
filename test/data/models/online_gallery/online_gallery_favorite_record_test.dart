@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/online_gallery/artist_chain.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
@@ -27,9 +28,19 @@ void main() {
     expect(restored.detail.media.last.prompt, 'media prompt');
     expect(restored.detail.media.last.negativePrompt, 'media negative');
     expect(restored.detail.media.last.metadata['frames'], 12);
+    expect(
+      restored.detail.media.first.promptMetadata?.characterInfos.single.centerX,
+      0.2,
+    );
+    expect(
+      restored.detail.media.first.promptMetadata?.characterInfos.single.centerY,
+      0.8,
+    );
     expect(restored.detail.prompt, 'main prompt');
     expect(restored.detail.negativePrompt, 'main negative');
     expect(restored.detail.characterPrompts.single.prompt, 'character prompt');
+    expect(restored.detail.characterPrompts.single.positionX, 0.25);
+    expect(restored.detail.characterPrompts.single.positionY, 0.75);
     expect(restored.detail.contributors.single.url, 'https://example.com/user');
     expect(restored.detail.rawSourceMetadata['detail'], isTrue);
   });
@@ -80,6 +91,18 @@ GalleryDetail _detail() {
     negativePrompt: 'cover negative',
     metadataFormat: 'nai',
     metadata: {'seed': 7},
+    promptMetadata: NaiImageMetadata(
+      prompt: 'cover prompt',
+      negativePrompt: 'cover negative',
+      characterInfos: [
+        CharacterPromptInfo(
+          prompt: 'cover character',
+          negativePrompt: 'cover character negative',
+          centerX: 0.2,
+          centerY: 0.8,
+        ),
+      ],
+    ),
   );
   final item = GalleryItem(
     id: 42,
@@ -162,6 +185,8 @@ GalleryDetail _detail() {
         label: 'Character',
         prompt: 'character prompt',
         negativePrompt: 'character negative',
+        positionX: 0.25,
+        positionY: 0.75,
       ),
     ],
     contributors: const [

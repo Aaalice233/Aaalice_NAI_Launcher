@@ -98,33 +98,6 @@ extension RandomConfigDisplayL10n on AppLocalizations {
 
   String presetDisplayName(RandomPreset preset) {
     if (!preset.isDefault) return preset.name;
-
-    return switch (preset.algorithmConfig.wordlistType) {
-      'legacy' => randomManager_defaultPresetLegacy,
-      'furry' => randomManager_defaultPresetFurry,
-      _ => randomManager_defaultPresetV4,
-    };
-  }
-
-  String? presetDisplayDescription(RandomPreset preset) {
-    if (!preset.isDefault) {
-      return _localizedKnownPresetDescription(preset.description);
-    }
-
-    return switch (preset.algorithmConfig.wordlistType) {
-      'legacy' => randomManager_defaultPresetLegacyDescription,
-      'furry' => randomManager_defaultPresetFurryDescription,
-      _ => randomManager_defaultPresetV4Description,
-    };
-  }
-
-  String? _localizedKnownPresetDescription(String? description) {
-    return switch (description) {
-      '基于 NAI 官网的随机算法配置' => randomManager_defaultPresetOfficialDescription,
-      '基于 NAI V4 模型的随机算法配置，支持多角色' => randomManager_defaultPresetV4Description,
-      '基于 NAI Legacy 模型的随机算法配置' => randomManager_defaultPresetLegacyDescription,
-      '基于 NAI Furry 模型的随机算法配置' => randomManager_defaultPresetFurryDescription,
-      _ => description,
-    };
+    return randomManager_defaultPreset;
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -14,96 +16,148 @@ class GalleryDetailMediaViewer extends StatelessWidget {
     required this.controller,
     required this.viewModel,
     required this.actions,
+    required this.actionRail,
   });
 
   final GalleryDetailController controller;
   final GalleryDetailViewModel viewModel;
   final GalleryDetailActions actions;
+  final Widget actionRail;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (viewModel.media.isEmpty) return _noImageState(theme);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final actionRailWidth = constraints.maxWidth < 600 ? 48.0 : 188.0;
+        final compactHeight = constraints.maxHeight < 220;
+        final actionRailVerticalInset = compactHeight ? 8.0 : 54.0;
+        const actionRailRight = 10.0;
+        if (viewModel.media.isEmpty) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              _noImageState(theme),
+              Positioned(
+                top: actionRailVerticalInset,
+                right: actionRailRight,
+                bottom: actionRailVerticalInset,
+                width: actionRailWidth,
+                child: _scrollableActionRail(),
+              ),
+            ],
+          );
+        }
 
-    return ColoredBox(
-      color: Colors.black,
-      child: Column(
-        children: [
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                PageView.builder(
-                  controller: controller.pageController,
-                  itemCount: viewModel.media.length,
-                  onPageChanged: actions.mediaPageChanged,
-                  itemBuilder: (context, index) =>
-                      _mediaPage(context, theme, viewModel.media[index], index),
-                ),
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: _darkOverlay(
-                    child: Text(
-                      viewModel.labels.imageCounter(
-                        viewModel.mediaIndex + 1,
-                        viewModel.media.length,
-                      ),
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: Colors.white,
-                        fontFeatures: const [FontFeature.tabularFigures()],
+        return ColoredBox(
+          color: Colors.black,
+          child: Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    PageView.builder(
+                      controller: controller.pageController,
+                      itemCount: viewModel.media.length,
+                      onPageChanged: actions.mediaPageChanged,
+                      itemBuilder: (context, index) => _mediaPage(
+                        context,
+                        theme,
+                        viewModel.media[index],
+                        index,
+                        constraints.maxWidth,
                       ),
                     ),
-                  ),
-                ),
-                Positioned(
-                  left: 12,
-                  bottom: 12,
-                  child: _darkOverlay(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.zoom_in,
-                          size: 15,
-                          color: Colors.white70,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          viewModel.labels.zoomHint,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: Colors.white70,
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: _darkOverlay(
+                        child: Text(
+                          viewModel.labels.imageCounter(
+                            viewModel.mediaIndex + 1,
+                            viewModel.media.length,
+                          ),
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: Colors.white,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-                if (_currentMediaFacts.isNotEmpty)
-                  Positioned(
-                    right: 12,
-                    bottom: 12,
-                    child: _darkOverlay(
-                      child: Text(
-                        _currentMediaFacts,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: Colors.white70,
-                          fontFeatures: const [FontFeature.tabularFigures()],
+                    Positioned(
+                      left: 12,
+                      bottom: 12,
+                      child: _darkOverlay(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.zoom_in,
+                              size: 15,
+                              color: Colors.white70,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              viewModel.labels.zoomHint,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                if (viewModel.mediaIndex > 0) _navigationButton(left: true),
-                if (viewModel.mediaIndex + 1 < viewModel.media.length)
-                  _navigationButton(left: false),
-              ],
-            ),
+                    if (_currentMediaFacts.isNotEmpty)
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: _darkOverlay(
+                          child: Text(
+                            _currentMediaFacts,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.white70,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (viewModel.mediaIndex > 0)
+                      _navigationButton(left: true, rightOffset: 0),
+                    if (viewModel.mediaIndex + 1 < viewModel.media.length)
+                      _navigationButton(
+                        left: false,
+                        rightOffset: actionRailRight + actionRailWidth + 8,
+                      ),
+                    Positioned(
+                      top: actionRailVerticalInset,
+                      right: actionRailRight,
+                      bottom: actionRailVerticalInset,
+                      width: actionRailWidth,
+                      child: _scrollableActionRail(),
+                    ),
+                  ],
+                ),
+              ),
+              if (viewModel.media.length > 1 && !compactHeight)
+                _thumbnailStrip(theme),
+            ],
           ),
-          if (viewModel.media.length > 1) _thumbnailStrip(theme),
-        ],
-      ),
+        );
+      },
     );
   }
+
+  Widget _scrollableActionRail() => LayoutBuilder(
+    builder: (context, constraints) => SingleChildScrollView(
+      child: SizedBox(
+        height: math.max(48, constraints.maxHeight),
+        child: actionRail,
+      ),
+    ),
+  );
 
   String get _currentMediaFacts {
     final media = viewModel.currentMedia;
@@ -122,6 +176,7 @@ class GalleryDetailMediaViewer extends StatelessWidget {
     ThemeData theme,
     GalleryMedia media,
     int index,
+    double availableWidth,
   ) {
     final capability = media.capability;
     if (capability.isVideo) {
@@ -146,7 +201,7 @@ class GalleryDetailMediaViewer extends StatelessWidget {
           httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
           memCacheWidth: GalleryImageSizing.detailViewportTargetWidth(
             MediaQuery.devicePixelRatioOf(context),
-            MediaQuery.sizeOf(context).width,
+            availableWidth,
           ),
           fit: BoxFit.contain,
           placeholder: (_, __) => const SizedBox(
@@ -163,42 +218,31 @@ class GalleryDetailMediaViewer extends StatelessWidget {
     );
   }
 
-  Widget _videoPlaceholder(ThemeData theme) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.play_circle_outline, color: Colors.white70, size: 54),
-        const SizedBox(height: 10),
-        Text(
-          viewModel.labels.noImageDescription,
-          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
-        ),
-      ],
+  Widget _videoPlaceholder(ThemeData theme) => _scrollablePlaceholder([
+    const Icon(Icons.play_circle_outline, color: Colors.white70, size: 54),
+    const SizedBox(height: 10),
+    Text(
+      viewModel.labels.noImageDescription,
+      textAlign: TextAlign.center,
+      style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
     ),
-  );
+  ]);
 
   Widget _imageError(ThemeData theme, GalleryMedia media) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(
-          Icons.broken_image_outlined,
-          color: Colors.white70,
-          size: 46,
-        ),
-        const SizedBox(height: 10),
-        Text(
-          viewModel.labels.imageLoadFailed,
-          style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
-        ),
-        const SizedBox(height: 10),
-        FilledButton.tonalIcon(
-          onPressed: () => actions.retryMedia(media),
-          icon: const Icon(Icons.refresh, size: 18),
-          label: Text(viewModel.labels.retry),
-        ),
-      ],
-    );
+    return _scrollablePlaceholder([
+      const Icon(Icons.broken_image_outlined, color: Colors.white70, size: 46),
+      const SizedBox(height: 10),
+      Text(
+        viewModel.labels.imageLoadFailed,
+        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+      ),
+      const SizedBox(height: 10),
+      FilledButton.tonalIcon(
+        onPressed: () => actions.retryMedia(media),
+        icon: const Icon(Icons.refresh, size: 18),
+        label: Text(viewModel.labels.retry),
+      ),
+    ]);
   }
 
   Widget _noImageState(ThemeData theme, {bool dark = false}) {
@@ -207,46 +251,61 @@ class GalleryDetailMediaViewer extends StatelessWidget {
         : theme.colorScheme.onSurfaceVariant;
     return ColoredBox(
       color: dark ? Colors.black : theme.colorScheme.surfaceContainerLow,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.image_not_supported_outlined,
-                size: 54,
-                color: foreground,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                viewModel.labels.noImage,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                viewModel.labels.noImageDescription,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall?.copyWith(color: foreground),
-              ),
-            ],
+      child: _scrollablePlaceholder([
+        Icon(Icons.image_not_supported_outlined, size: 54, color: foreground),
+        const SizedBox(height: 12),
+        Text(
+          viewModel.labels.noImage,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: foreground,
+            fontWeight: FontWeight.w600,
           ),
         ),
-      ),
+        const SizedBox(height: 6),
+        Text(
+          viewModel.labels.noImageDescription,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(color: foreground),
+        ),
+      ]),
     );
   }
 
-  Widget _navigationButton({required bool left}) {
+  Widget _scrollablePlaceholder(List<Widget> children) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minHeight = constraints.hasBoundedHeight
+            ? (constraints.maxHeight - 48).clamp(0.0, double.infinity)
+            : 0.0;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: children,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _navigationButton({required bool left, required double rightOffset}) {
     return Positioned(
       left: left ? 12 : null,
-      right: left ? null : 12,
+      right: left ? null : rightOffset,
       top: 0,
       bottom: 0,
       child: Center(
         child: IconButton.filled(
+          key: ValueKey(
+            left
+                ? 'gallery-detail-previous-media'
+                : 'gallery-detail-next-media',
+          ),
           onPressed: () =>
               actions.moveToMedia(viewModel.mediaIndex + (left ? -1 : 1)),
           tooltip: left

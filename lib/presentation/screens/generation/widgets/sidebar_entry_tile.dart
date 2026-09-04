@@ -1,14 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/thumbnail_display.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 typedef SidebarDragHandleBuilder = Widget Function(Widget child);
+
+enum _SidebarEntryAction { copy, edit, delete }
 
 /// 固定词侧边栏条目卡片。
 class SidebarEntryTile extends StatefulWidget {
@@ -43,6 +49,7 @@ class SidebarEntryTile extends StatefulWidget {
 
 class _SidebarEntryTileState extends State<SidebarEntryTile> {
   bool _isHovering = false;
+  bool _isFocused = false;
 
   @override
   Widget build(BuildContext context) {
@@ -65,13 +72,20 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
         : foreground;
 
     final tile = MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
+      onEnter: (_) {
+        if (context.interactionPolicy.precisePointerAvailable) {
+          setState(() => _isHovering = true);
+        }
+      },
       onExit: (_) => setState(() => _isHovering = false),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
+        onFocusChange: (focused) => setState(() => _isFocused = focused),
         onTap: widget.onToggle,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 120),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: _isHovering
@@ -163,11 +177,22 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
           const SizedBox(width: 6),
         ],
         Expanded(child: _buildDragRegion(_buildText(theme, foreground))),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 120),
-          child: _isHovering
-              ? _buildActions(theme)
-              : _buildWeightBadge(theme, key: const ValueKey('weight')),
+        SizedBox(
+          width: 72,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: AnimatedSwitcher(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 120),
+              child:
+                  _isHovering ||
+                      _isFocused ||
+                      _usesPersistentActionMenu(context)
+                  ? _buildActionAffordance(theme)
+                  : _buildWeightBadge(theme),
+            ),
+          ),
         ),
       ],
     );
@@ -197,13 +222,9 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerRight,
-          child: _isHovering
-              ? FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: _buildActions(theme),
-                )
-              : _buildWeightBadge(theme, key: const ValueKey('grid-weight')),
+          child: _isHovering || _isFocused || _usesPersistentActionMenu(context)
+              ? _buildActionAffordance(theme)
+              : _buildWeightBadge(theme),
         ),
       ],
     );
@@ -235,10 +256,11 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
           ),
         ),
         const SizedBox(height: 2),
-        Text(
+        TranslatedPromptText(
           entry.content,
+          selectable: false,
           maxLines: maxLines,
-          overflow: TextOverflow.ellipsis,
+          reserveTranslationSpace: widget.isListMode,
           style: theme.textTheme.bodySmall?.copyWith(color: secondaryColor),
         ),
         if (widget.categoryName != null && !widget.isListMode) ...[
@@ -272,9 +294,8 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
     );
   }
 
-  Widget _buildWeightBadge(ThemeData theme, {Key? key}) {
+  Widget _buildWeightBadge(ThemeData theme) {
     return Container(
-      key: key,
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface.withValues(alpha: 0.75),
@@ -290,7 +311,27 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
     );
   }
 
-  Widget _buildActions(ThemeData theme) {
+  bool _usesPersistentActionMenu(BuildContext context) =>
+      context.interactionPolicy.shouldExposeTouchAlternatives ||
+      MediaQuery.textScalerOf(context).scale(14) >= 20;
+
+  Widget _buildActionAffordance(ThemeData theme) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inlineActionsExtent =
+            _ActionButton.extent * _SidebarEntryAction.values.length;
+        final useMenu =
+            _usesPersistentActionMenu(context) ||
+            constraints.maxWidth < inlineActionsExtent;
+        return Align(
+          alignment: Alignment.centerRight,
+          child: useMenu ? _buildActionMenu(theme) : _buildInlineActions(theme),
+        );
+      },
+    );
+  }
+
+  Widget _buildInlineActions(ThemeData theme) {
     return Row(
       key: const ValueKey('actions'),
       mainAxisSize: MainAxisSize.min,
@@ -315,6 +356,60 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
     );
   }
 
+  Widget _buildActionMenu(ThemeData theme) {
+    return SizedBox.square(
+      dimension: context.interactionPolicy.minimumControlExtent,
+      child: PopupMenuButton<_SidebarEntryAction>(
+        key: const ValueKey('sidebar-entry-actions-menu'),
+        tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+        icon: const Icon(Icons.more_horiz_rounded, size: 20),
+        padding: EdgeInsets.zero,
+        onSelected: (action) {
+          switch (action) {
+            case _SidebarEntryAction.copy:
+              unawaited(_copyContent());
+              break;
+            case _SidebarEntryAction.edit:
+              widget.onEdit();
+              break;
+            case _SidebarEntryAction.delete:
+              widget.onDelete();
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: _SidebarEntryAction.copy,
+            child: ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: Text(context.l10n.common_copy),
+            ),
+          ),
+          PopupMenuItem(
+            value: _SidebarEntryAction.edit,
+            child: ListTile(
+              leading: const Icon(Icons.edit_rounded),
+              title: Text(context.l10n.common_edit),
+            ),
+          ),
+          PopupMenuItem(
+            value: _SidebarEntryAction.delete,
+            child: ListTile(
+              leading: Icon(
+                Icons.delete_outline_rounded,
+                color: theme.colorScheme.error,
+              ),
+              title: Text(
+                context.l10n.common_delete,
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _copyContent() async {
     await Clipboard.setData(ClipboardData(text: widget.entry.content));
     if (!mounted) return;
@@ -330,6 +425,8 @@ class _ActionButton extends StatelessWidget {
     this.color,
   });
 
+  static const extent = 21.0;
+
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
@@ -340,15 +437,17 @@ class _ActionButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       waitDuration: const Duration(milliseconds: 300),
-      child: InkResponse(
-        radius: 16,
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Icon(
-            icon,
-            size: 15,
-            color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+      child: SizedBox.square(
+        dimension: extent,
+        child: InkResponse(
+          radius: 16,
+          onTap: onPressed,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 15,
+              color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),

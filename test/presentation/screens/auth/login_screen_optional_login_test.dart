@@ -33,7 +33,12 @@ class _SavedAccountManagerNotifier extends AccountManagerNotifier {
   );
 }
 
-Widget _buildApp(GoRouter router, {AuthNotifier? authNotifier}) {
+Widget _buildApp(
+  GoRouter router, {
+  AuthNotifier? authNotifier,
+  TextScaler textScaler = TextScaler.noScaling,
+  EdgeInsets viewInsets = EdgeInsets.zero,
+}) {
   return ProviderScope(
     overrides: [
       authNotifierProvider.overrideWith(
@@ -48,6 +53,12 @@ Widget _buildApp(GoRouter router, {AuthNotifier? authNotifier}) {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: textScaler, viewInsets: viewInsets),
+        child: child!,
+      ),
     ),
   );
 }
@@ -91,6 +102,71 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('MAIN_SCREEN_OPENED'), findsOneWidget);
+  });
+
+  testWidgets('compact login remains scrollable with large text and IME', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(360, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final router = GoRouter(
+      initialLocation: '/login',
+      routes: [
+        _loginRoute(),
+        GoRoute(
+          path: '/',
+          name: 'home',
+          builder: (context, state) => const Scaffold(body: Text('HOME')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      _buildApp(
+        router,
+        textScaler: const TextScaler.linear(2),
+        viewInsets: const EdgeInsets.only(bottom: 280),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('login_scroll_view')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('auth-skip-login-button')));
+    await tester.pump();
+    expect(find.byKey(const Key('auth-skip-login-button')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('expanded login constrains the account content width', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final router = GoRouter(
+      initialLocation: '/login',
+      routes: [
+        _loginRoute(),
+        GoRoute(
+          path: '/',
+          name: 'home',
+          builder: (context, state) => const Scaffold(body: Text('HOME')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(_buildApp(router));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getSize(find.byType(Card).first).width,
+      lessThanOrEqualTo(550),
+    );
   });
 
   testWidgets('successful login returns to the screen that opened it', (
@@ -163,6 +239,8 @@ void main() {
     await tester.tap(find.text('OPEN_LOGIN'));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.byKey(const Key('auth-skip-login-button')));
+    await tester.pump();
     await tester.tap(find.byKey(const Key('auth-skip-login-button')));
     await tester.pumpAndSettle();
 

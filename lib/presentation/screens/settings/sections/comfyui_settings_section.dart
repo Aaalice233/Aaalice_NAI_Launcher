@@ -8,6 +8,7 @@ import '../../../utils/comfyui_workflow_l10n.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/workflow_import_wizard.dart';
@@ -341,32 +342,19 @@ class _ComfyUISettingsSectionState
   }
 
   Future<void> _confirmDeleteWorkflow(WorkflowTemplate template) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.settings_comfyUiDeleteWorkflowTitle),
-        content: Text(
-          context.l10n.settings_comfyUiDeleteWorkflowContent(
-            template.localizedName(context),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(context.l10n.common_delete),
-          ),
-        ],
+      title: context.l10n.settings_comfyUiDeleteWorkflowTitle,
+      content: context.l10n.settings_comfyUiDeleteWorkflowContent(
+        template.localizedName(context),
       ),
+      confirmText: context.l10n.common_delete,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       await ref
           .read(comfyUIWorkflowsProvider.notifier)
           .removeCustomTemplate(template.id);

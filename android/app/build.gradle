@@ -38,6 +38,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // flutter_appauth receives OneDrive callbacks through this fixed,
+        // non-secret scheme; the full redirect URI remains a dart-define.
+        manifestPlaceholders += [
+            appAuthRedirectScheme: "com.aaalice.nailauncher.oauth"
+        ]
     }
 
     signingConfigs {

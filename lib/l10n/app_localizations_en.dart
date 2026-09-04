@@ -399,11 +399,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.';
+      'The third-party site must be compatible with the NovelAI image-generation API; the token will be sent as a Bearer token. Sites without /user/subscription log in without subscription info.';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.';
+
+  @override
+  String get anlas_thirdPartyUnavailable =>
+      'This site does not provide Anlas balance info';
 
   @override
   String get auth_thirdPartyApiSiteRequired => 'Enter third-party API site URL';
@@ -470,6 +474,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI now requires a web safety check for email/password login. Please use a Persistent API Token instead.';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      'No NAI-compatible API found at this address. Make sure the API address is the site\'s service root URL.';
 
   @override
   String get auth_error_serverError => 'Server error';
@@ -711,6 +719,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'Off by default; enable only for troubleshooting. When enabled, logs are written to Documents/NAI_Launcher/logs. When disabled, log files are no longer created or written.';
 
   @override
+  String get settings_exportDiagnosticLogs => 'Export diagnostic logs';
+
+  @override
+  String get settings_exportDiagnosticLogsSubtitle =>
+      'Export recent logs and basic device details. Credentials and local paths are hidden automatically.';
+
+  @override
+  String get settings_exportDiagnosticLogsInProgress =>
+      'Exporting diagnostic logs';
+
+  @override
+  String get settings_exportDiagnosticLogsSuccess => 'Diagnostic logs exported';
+
+  @override
+  String get settings_exportDiagnosticLogsEmpty =>
+      'No logs to export. Enable logging and reproduce the issue first.';
+
+  @override
+  String get settings_exportDiagnosticLogsFailed =>
+      'Could not export diagnostic logs. Try again.';
+
+  @override
   String get settings_pathReset => 'Reset to default location';
 
   @override
@@ -881,6 +911,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_inputHint => 'Message the AI agent…';
 
   @override
+  String get agentChat_inputHintWithSlash =>
+      'Message the AI agent, / for skills…';
+
+  @override
+  String get agentChat_slashMenu => 'Skills and session commands';
+
+  @override
+  String get agentChat_slashSkills => 'Skills';
+
+  @override
+  String get agentChat_slashSession => 'Session';
+
+  @override
   String get agentChat_addAttachment => 'Add attachment or reference';
 
   @override
@@ -931,6 +974,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_disableWebAccess => 'Disable web access';
 
   @override
+  String get agentChat_webAccessLabel => 'Web access';
+
+  @override
+  String get agentChat_contextUsageLabel => 'Context';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return 'Unsupported image format: $fileName';
   }
@@ -943,6 +992,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_send => 'Send';
+
+  @override
+  String get agentChat_sendEmptyHint =>
+      'Enter a message or add an image to send';
+
+  @override
+  String get agentChat_sendUnavailableHint =>
+      'The AI assistant is not ready to send yet';
 
   @override
   String get agentChat_stop => 'Stop';
@@ -1069,6 +1126,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_toolRecentImages => 'View recent images';
 
   @override
+  String get agentChat_toolInspectImages => 'Inspect images';
+
+  @override
   String get agentChat_toolDisplayImages => 'Display images';
 
   @override
@@ -1083,6 +1143,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get agentChat_toolUpdateGenerationSettings =>
       'Update generation settings';
+
+  @override
+  String get agentChat_toolGetGenerationSourceImage =>
+      'View Image2Image source';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage =>
+      'Load Image2Image source';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage =>
+      'Clear Image2Image source';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings =>
+      'Adjust Image2Image strength';
 
   @override
   String get agentChat_toolPromptState => 'View prompt state';
@@ -1169,6 +1245,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_toolSubmitInpaint => 'Submit manual inpaint draft';
 
   @override
+  String get agentChat_toolCreateInpaintMask => 'Create inpaint mask';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => 'Expand canvas';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => 'Load inpaint draft into panel';
+
+  @override
   String get agentChat_manualInpaintTitle => 'Manual inpaint';
 
   @override
@@ -1178,7 +1263,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_resourceUnavailable => 'Unavailable';
 
   @override
-  String get agentChat_addResource => 'Add to Agent';
+  String get agentChat_addResource => 'Send to Agent';
 
   @override
   String get agentChat_resourceAdded => 'Added to the Agent composer';
@@ -1214,13 +1299,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_compacting => 'Compacting context…';
 
   @override
+  String agentChat_compactDone(String before, String after) {
+    return 'Context compacted: $before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded =>
+      'Context does not need compacting yet';
+
+  @override
+  String get agentChat_compactBusy =>
+      'Still responding — try compacting afterwards';
+
+  @override
+  String get agentChat_compactUnavailable =>
+      'Context usage unavailable, cannot compact';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return 'Failed to compact context: $error';
+  }
+
+  @override
   String get agentChat_requestFailed => 'Request failed. Please try again.';
 
   @override
   String get agentChat_errorDetails => 'Error details';
 
   @override
-  String get agentChat_model => 'Select model';
+  String get agentChat_modelLabel => 'Model';
+
+  @override
+  String get agentChat_modelPickerTitle => 'Select model';
+
+  @override
+  String get agentChat_searchModels => 'Search models';
+
+  @override
+  String get agentChat_searchModelsHint => 'Name, model ID, or provider';
+
+  @override
+  String get agentChat_clearModelSearch => 'Clear model search';
+
+  @override
+  String get agentChat_noModelResults => 'No models match this search.';
 
   @override
   String get agentChat_noModel => 'No model';
@@ -1455,6 +1577,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prompt_finalNegative => 'Final Effective Undesired Content';
+
+  @override
+  String get prompt_composition => 'Prompt Composition';
+
+  @override
+  String get prompt_expandFull => 'Expand full text';
+
+  @override
+  String get prompt_collapseFull => 'Collapse full text';
 
   @override
   String prompt_importedCharacters(int count) {
@@ -1821,6 +1952,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_directorRunning => 'Processing...';
+
+  @override
+  String get img2img_directorConfirmTitle => 'Confirm Anlas usage';
+
+  @override
+  String img2img_directorConfirmContent(Object tool, int cost) {
+    return 'Running $tool is estimated to cost $cost Anlas. Do you want to continue?';
+  }
 
   @override
   String get img2img_directorResult => 'Result';
@@ -3163,7 +3302,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_promptTagCategoriesTooltip =>
-      'Choose which tag categories are included when copying, sending, or adding to the queue';
+      'Choose which tag categories are included when sending or adding to the queue';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory =>
@@ -3680,25 +3819,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_codexNegativePrompt => 'Negative prompt';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => 'Negative Prompt';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => 'Character prompts';
 
   @override
   String get onlineGallery_codexNote => 'Notes';
-
-  @override
-  String get onlineGallery_codexCopyPositive => 'Copy positive';
-
-  @override
-  String get onlineGallery_codexCopyNegative => 'Copy negative';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => 'Copy this character';
-
-  @override
-  String get onlineGallery_codexCopyAll => 'Copy all';
 
   @override
   String get onlineGallery_codexSendToGeneration => 'Send to Generate';
@@ -3752,14 +3876,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_copyArtistChain => 'Copy artist chain';
 
   @override
-  String get onlineGallery_copyFullPrompt => 'Copy full Prompt';
+  String get onlineGallery_copyPrompt => 'Copy prompt';
 
   @override
-  String get onlineGallery_copyRawArtistFragments =>
-      'Copy original artist fragments';
+  String get onlineGallery_promptCopyDescription =>
+      'Choose the original prompt categories to copy. Positive and negative content is separated into plain-text blocks.';
 
   @override
-  String get onlineGallery_noArtistChain => 'No artist chain';
+  String get onlineGallery_promptCopyCategoryHint =>
+      'Copy tags from this source category';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint =>
+      'Copy the original content of this prompt field';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -3851,7 +3980,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'Download all images in this work';
 
   @override
-  String get onlineGallery_copyFullMetadata => 'Copy full metadata';
+  String get onlineGallery_copyAllTags => 'Copy all TAGs';
+
+  @override
+  String get onlineGallery_customCopyTags => 'Custom copy';
+
+  @override
+  String get promptCopy_exportTitle => 'Custom TAG copy';
+
+  @override
+  String get promptCopy_allPositive => 'All positive prompts';
+
+  @override
+  String get promptCopy_allNegative => 'All negative prompts';
+
+  @override
+  String get promptCopy_mainPositive => 'Main / global positive prompt';
+
+  @override
+  String get promptCopy_mainNegative => 'Main / global negative prompt';
+
+  @override
+  String get promptCopy_fixedPositive => 'Fixed positive prompts';
+
+  @override
+  String get promptCopy_fixedNegative => 'Fixed negative prompts';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return 'Character $index positive prompt';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return 'Character $index negative prompt';
+  }
 
   @override
   String get onlineGallery_gelbooruReadOnly => 'Read-only favorites';
@@ -4555,42 +4718,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomMode_title => 'Select Random Mode';
+  String get randomPrompt_unsupportedModel =>
+      'Official random wordlist unavailable';
 
   @override
-  String get randomMode_naiOfficial => 'Default';
-
-  @override
-  String get randomMode_custom => 'Custom Mode';
-
-  @override
-  String get randomMode_hybrid => 'Hybrid Mode';
-
-  @override
-  String get randomMode_naiOfficialDesc =>
-      'Automatically select the bundled random recipe for the current model';
-
-  @override
-  String get randomMode_customDesc =>
-      'Generate from the complete offline tag catalog and custom presets';
-
-  @override
-  String get randomMode_hybridDesc =>
-      'Combine the model-aware default recipe with the catalog extension';
-
-  @override
-  String get randomMode_naiIndicator => 'Default';
-
-  @override
-  String get randomMode_customIndicator => 'Custom';
-
-  @override
-  String get randomMode_unsupportedModel =>
-      'Default random mode is unavailable';
-
-  @override
-  String get randomMode_unsupportedModelHint =>
-      'No verified bundled random profile is available for the current model. Select a supported NovelAI model or use Custom mode.';
+  String get randomPrompt_unsupportedModelHint =>
+      'No matching official NovelAI random recipe is available for this model. Select a supported NovelAI model or use one of your custom presets.';
 
   @override
   String get naiMode_noTags => 'No tags';
@@ -4949,29 +5082,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => 'General Preset (V4/V5)';
-
-  @override
-  String get randomManager_defaultPresetLegacy => 'General Preset (Legacy)';
-
-  @override
-  String get randomManager_defaultPresetFurry => 'General Preset (Furry)';
-
-  @override
-  String get randomManager_defaultPresetV4Description =>
-      'Catalog extension preset for V4 and V5, with multi-character support';
-
-  @override
-  String get randomManager_defaultPresetLegacyDescription =>
-      'Random algorithm configuration based on the NAI Legacy model';
-
-  @override
-  String get randomManager_defaultPresetFurryDescription =>
-      'Random algorithm configuration based on the NAI Furry model';
-
-  @override
-  String get randomManager_defaultPresetOfficialDescription =>
-      'Random algorithm configuration based on the NAI official setup';
+  String get randomManager_defaultPreset => 'NovelAI Official Preset';
 
   @override
   String get randomManager_femaleClothing => 'Female Clothing';
@@ -5218,22 +5329,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_selectionMode => 'Selection Mode';
 
   @override
-  String get randomManager_previewGeneration => 'Preview Generation';
+  String get randomManager_previewGeneration => 'Output Preview';
 
   @override
   String get randomManager_generating => 'Generating';
 
   @override
-  String get randomManager_generate => 'Generate';
+  String get randomManager_generate => 'Generate Sample';
 
   @override
   String get randomManager_generationFailed => 'Generation Failed';
 
   @override
-  String get randomManager_copy => 'Copy';
+  String get randomManager_copy => 'Copy All';
 
   @override
-  String get randomManager_regenerate => 'Regenerate';
+  String get randomManager_regenerate => 'Generate Another';
 
   @override
   String get randomManager_copiedToClipboard => 'Copied to clipboard';
@@ -5252,8 +5363,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomManager_previewHint =>
-      'Click \"Generate\" to preview random tags';
+  String get randomManager_previewHint => 'No sample generated yet';
 
   @override
   String get randomManager_generateNow => 'Generate Now';
@@ -5394,9 +5504,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_editMetadata => 'Edit Tags';
 
   @override
-  String get localGallery_addToCollection => 'Collect';
-
-  @override
   String get localGallery_switchToGridView => 'Switch to grid view';
 
   @override
@@ -5514,7 +5621,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return 'This will move $count local image files to the target folder. Confirm this is not a mistake.';
+    return 'This will move $count local image files to the target category. Confirm this is not a mistake.';
   }
 
   @override
@@ -5628,6 +5735,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_sendToImg2Img => 'Send to Image2Image';
+
+  @override
+  String get localGallery_moreImageActions => 'More image actions';
 
   @override
   String get localGallery_sendToReversePrompt => 'Send to Reverse Prompt';
@@ -5959,11 +6069,81 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable =>
-      'No folders available, please create a folder first';
+  String get localGallery_noCategoriesAvailable =>
+      'No categories available, please create a category first';
 
   @override
-  String get localGallery_moveToFolder => 'Move to Folder';
+  String get localGallery_moveToCategory => 'Move to Category';
+
+  @override
+  String get localGallery_albumSectionTitle => 'Albums';
+
+  @override
+  String get localGallery_folderSectionTitle => 'Folders';
+
+  @override
+  String get localGallery_albumEmptyHint =>
+      'No albums yet. Create one with the button on the right.';
+
+  @override
+  String get localGallery_createAlbum => 'New Album';
+
+  @override
+  String get localGallery_createSubAlbum => 'New Sub-album';
+
+  @override
+  String get localGallery_moveAlbumToRoot => 'Move to Root';
+
+  @override
+  String get localGallery_moveAlbumUp => 'Move Up One Level';
+
+  @override
+  String get localGallery_moveCategoryUp => 'Move Up One Level';
+
+  @override
+  String get localGallery_createAlbumTitle => 'New Album';
+
+  @override
+  String get localGallery_createSubAlbumTitle => 'New Sub-album';
+
+  @override
+  String get localGallery_createAlbumHint => 'Enter album name';
+
+  @override
+  String get localGallery_deleteAlbumTitle => 'Delete Album';
+
+  @override
+  String get localGallery_deleteAlbumContent =>
+      'This deletes the album; image files are not affected and sub-albums are promoted to root.';
+
+  @override
+  String get localGallery_addedToAlbum => 'Added to album';
+
+  @override
+  String get localGallery_albumAddFailed => 'Failed to add to album';
+
+  @override
+  String get localGallery_albumSelectTitle => 'Add to Album';
+
+  @override
+  String get localGallery_addToAlbum => 'Add to Album';
+
+  @override
+  String get localGallery_removeFromAlbum => 'Remove from Album';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return 'Removed $count images';
+  }
+
+  @override
+  String get localGallery_albumNoMembers =>
+      'Selected images are not in this album';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return 'Added $count images to \'$name\'';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -5977,15 +6157,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => 'Failed to move images';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return 'Added $count images to collection \"$name\"';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed =>
-      'Failed to add images to collection';
 
   @override
   String get brushPreset_selectHint => 'Double tap to select this brush preset';
@@ -7893,6 +8064,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get metadataImport_fixedTags => 'Fixed Tags';
 
   @override
+  String get metadataImport_fixedSourceStructured =>
+      'Source: explicitly recorded by the image';
+
+  @override
+  String get metadataImport_fixedSourceLegacy => 'Source: legacy image fields';
+
+  @override
+  String get metadataImport_fixedSourceLibrary =>
+      'Source: exact match from the current fixed-tag library';
+
+  @override
+  String get metadataImport_fixedSourceUnknown =>
+      'Source: not recorded; cannot be determined';
+
+  @override
+  String get metadataImport_unknownFixedTagsHint =>
+      'This image does not record fixed tags. Choose how to handle the currently enabled fixed tags.';
+
+  @override
+  String get metadataImport_disableCurrentFixedTags =>
+      'Disable current fixed tags (recommended)';
+
+  @override
+  String get metadataImport_keepCurrentFixedTags =>
+      'Keep and stack with the image prompt';
+
+  @override
+  String metadataImport_imageVersionName(Object name) {
+    return '$name (image version)';
+  }
+
+  @override
   String metadataImport_fixedPrefix(Object text) {
     return 'Prefix: $text';
   }
@@ -7965,6 +8168,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String metadataImport_selectedCount(int count) {
     return '$count selected';
   }
+
+  @override
+  String get metadataImport_readImageMetadata => 'Read Image Metadata';
+
+  @override
+  String get metadataImport_readFailed => 'Couldn\'t read the selected image';
+
+  @override
+  String get metadataImport_processFailed =>
+      'Couldn\'t process the selected image';
 
   @override
   String get metadataImport_noDataFound => 'No NovelAI metadata found';
@@ -8294,11 +8507,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drop_addedToCharacterRef => 'Added to Precise Reference';
 
   @override
-  String get drop_extractMetadata => 'Extract Metadata';
+  String get drop_extractMetadata => 'Send to Text to Image';
 
   @override
   String get drop_extractMetadataSubtitle =>
-      'Read Prompt, Seed and other parameters from image';
+      'Choose prompts, fixed tags, and generation parameters to apply';
 
   @override
   String get drop_addToQueue => 'Add to Queue';
@@ -12476,6 +12689,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autocomplete_showTranslations => 'Show Chinese translations';
 
   @override
+  String get quickTranslate_show => 'Quick translation';
+
+  @override
+  String get quickTranslate_restore =>
+      'Restore the original prompt (preview edits will be discarded)';
+
+  @override
+  String get quickTranslate_previewSemantics =>
+      'Local Chinese translation preview. Edits here do not affect the original prompt.';
+
+  @override
+  String get quickTranslate_noMatches =>
+      'No translatable tags were found in the current content';
+
+  @override
+  String get quickTranslate_failed =>
+      'Quick translation failed. Check the translation dictionary and try again';
+
+  @override
+  String get quickTranslate_missingTitle => 'Translation dictionary required';
+
+  @override
+  String get quickTranslate_missingMessage =>
+      'Quick translation requires the ffdkj Simplified Chinese dictionary. Open Data & Cache settings and download it now?';
+
+  @override
+  String get quickTranslate_download => 'Open and download';
+
+  @override
   String get autocomplete_autoComma => 'Add a comma after insertion';
 
   @override
@@ -12823,7 +13065,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomManager_previewEmptyDescription =>
-      'Generate a sample to inspect the actual output of this recipe.';
+      'Generate a prompt sample to inspect the actual output of this recipe.';
 
   @override
   String get randomManager_category_composition => 'Composition';
@@ -12874,77 +13116,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_category_detail => 'Creative details';
 
   @override
-  String randomManager_sourceOfficial(String wordlist) {
-    return 'Official · $wordlist';
-  }
-
-  @override
-  String get randomManager_sourceCatalog => 'Custom · Catalog extension';
-
-  @override
-  String randomManager_sourceHybrid(String wordlist) {
-    return 'Hybrid · $wordlist + Catalog';
-  }
-
-  @override
-  String get randomManager_currentMode => 'Current mode';
-
-  @override
-  String get randomManager_officialWordlist =>
-      'Official wordlist for current model';
-
-  @override
-  String randomManager_officialWordlistCount(String wordlist, int count) {
-    return '$wordlist: $count raw records';
-  }
-
-  @override
-  String get randomManager_officialAsset => 'Complete official asset';
-
-  @override
-  String randomManager_officialAssetCount(int entries, int groups) {
-    return '$entries records in $groups source arrays';
-  }
-
-  @override
-  String get randomManager_sourceFile => 'Source file';
-
-  @override
-  String get randomManager_sourceSha256 => 'Source SHA-256';
-
-  @override
-  String get randomManager_catalogExtension => 'Catalog extension';
-
-  @override
-  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
-
-  @override
-  String get randomManager_wordlistFurryV3 => 'Furry V3';
-
-  @override
-  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
-
-  @override
-  String get randomManager_sourceDetails => 'Data source details';
-
-  @override
-  String get randomManager_sourceUrl => 'Source URL';
-
-  @override
-  String get randomManager_sourceCommit => 'Source commit';
-
-  @override
-  String get randomManager_sourceDate => 'Source date';
-
-  @override
-  String get randomManager_sourceLicense => 'License';
-
-  @override
-  String randomManager_catalogCounts(Object tags, Object aliases) {
-    return 'Complete catalog: $tags tags, $aliases aliases';
-  }
-
-  @override
   String get randomManager_libraryUnavailable => 'Random library unavailable';
 
   @override
@@ -12965,6 +13136,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get image_savedToSystemGallery => 'Saved to your photo gallery';
+
+  @override
+  String get localGallery_saveToSystemGallery => 'Save to photo gallery';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return 'Could not save to your photo gallery: $error';
+  }
 
   @override
   String image_savedAppOnly(Object error) {
@@ -13008,7 +13187,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_importLocalOnnxTaggerFiles =>
-      'Import ONNX model and label files';
+      'Import ONNX model, label files, or a ZIP archive';
 
   @override
   String settings_localOnnxFilesImported(int count) {
@@ -13077,6 +13256,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_saveConnection => 'Save connection';
 
   @override
+  String get cloudSync_operationInProgress =>
+      'Another cloud sync operation is in progress. Try again shortly.';
+
+  @override
   String get cloudSync_fillRequiredFields =>
       'Enter the required connection details for this provider.';
 
@@ -13091,7 +13274,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_chooseBackendDescription =>
-      'Choose a storage service you already use. Account details stay on this device.';
+      'Choose a destination, connect its account, then select what to sync. Credentials stay in this device\'s secure store.';
+
+  @override
+  String cloudSync_oauthDescription(String provider) {
+    return 'Connect a $provider account';
+  }
+
+  @override
+  String get cloudSync_oauthSystemBrowser =>
+      'Secure sign-in opens in your system browser; you never enter the provider password in this app.';
+
+  @override
+  String cloudSync_oauthUnavailable(String details) {
+    return 'This build is missing its OAuth release configuration, so the destination is unavailable. Send this diagnostic to the publisher:\n$details';
+  }
+
+  @override
+  String cloudSync_accountConnected(String provider) {
+    return '$provider connected';
+  }
+
+  @override
+  String get cloudSync_connectAccount => 'Connect account';
+
+  @override
+  String get cloudSync_changeAccount => 'Change account';
+
+  @override
+  String get cloudSync_connectedAccount => 'Connected account';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV URL';
@@ -13126,6 +13337,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_testFailed => 'Connection test failed';
+
+  @override
+  String get cloudSync_operationFailed => 'Cloud sync operation failed';
 
   @override
   String get cloudSync_manualBackupOnly => 'Manual push and pull only';
@@ -13196,6 +13410,62 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get cloudSync_errorAuthentication =>
+      'Your sign-in has expired. Connect the account again.';
+
+  @override
+  String get cloudSync_errorAuthorization =>
+      'This account cannot access the backup location.';
+
+  @override
+  String get cloudSync_errorNotFound =>
+      'The cloud backup folder or file could not be found.';
+
+  @override
+  String get cloudSync_errorConflict =>
+      'Cloud data changed on another device. Pull the latest data and try again.';
+
+  @override
+  String get cloudSync_errorQuota =>
+      'The cloud storage does not have enough free space.';
+
+  @override
+  String get cloudSync_errorRateLimited =>
+      'The storage service is receiving too many requests. Try again later.';
+
+  @override
+  String get cloudSync_errorRedirect =>
+      'The storage service redirected the request to an untrusted address, so the operation was stopped.';
+
+  @override
+  String get cloudSync_errorInvalidResponse =>
+      'The storage service returned data that could not be verified.';
+
+  @override
+  String get cloudSync_errorNetwork =>
+      'Could not reach cloud storage. Check your network and try again.';
+
+  @override
+  String get cloudSync_errorPreviewStale =>
+      'Data changed after the preview. Review the updated changes before continuing.';
+
+  @override
+  String get cloudSync_errorFormat =>
+      'The backup format or integrity check failed.';
+
+  @override
+  String get cloudSync_errorConfiguration =>
+      'The saved sync configuration could not be read.';
+
+  @override
+  String get cloudSync_errorState =>
+      'The sync state changed. Try the operation again.';
+
+  @override
+  String get cloudSync_errorUnknown =>
+      'Sync failed. Check the connection and try again.';
+
+  @override
   String get cloudSync_connectionDetails => 'Storage details';
 
   @override
@@ -13215,11 +13485,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_providerWarning => 'Storage service notice';
 
   @override
-  String get cloudSync_maintenanceWarning => 'Needs attention';
+  String get cloudSync_warningGoogleDriveWeakCas =>
+      'Google Drive cannot guarantee an atomic compare-and-swap for file contents, so this connection is limited to explicit manual push and pull.';
 
   @override
-  String get cloudSync_maintenanceWarningDescription =>
-      'Cloud storage could not be cleaned up automatically. Existing backups are unaffected, and the app will try again later.';
+  String get cloudSync_warningGithubPublicRepository =>
+      'This GitHub repository is public, so its backup contents are public. Use a private repository for private data.';
+
+  @override
+  String get cloudSync_warningWebDavWeakCas =>
+      'This server cannot guarantee safe conditional updates. Only manual backup is available, and a later write may replace the same HEAD.';
+
+  @override
+  String get cloudSync_warningWebDavUnverifiedCas =>
+      'The WebDAV connection passed read-only validation, but safe conditional writes have not been verified. Only manual push and pull are available.';
 
   @override
   String get cloudSync_githubHistoryRetention => 'About GitHub storage';
@@ -13273,10 +13552,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_progress => 'Progress';
 
   @override
+  String get cloudSync_metricsDetails => 'Technical details';
+
+  @override
+  String get cloudSync_metricsElapsed => 'Total time';
+
+  @override
+  String get cloudSync_metricsRequests => 'Service requests';
+
+  @override
+  String get cloudSync_metricsRead => 'Received';
+
+  @override
+  String get cloudSync_metricsWritten => 'Sent';
+
+  @override
+  String get cloudSync_metricsHashPasses => 'Integrity checks';
+
+  @override
+  String get cloudSync_metricsPayloadReads => 'Payload reads';
+
+  @override
+  String get cloudSync_metricsLocalRead => 'Read locally';
+
+  @override
+  String get cloudSync_metricsLocalWritten => 'Written locally';
+
+  @override
+  String get cloudSync_metricsFlushes => 'Disk flushes';
+
+  @override
   String get cloudSync_stage => 'Current step';
 
   @override
   String get cloudSync_objects => 'Items processed';
+
+  @override
+  String get cloudSync_reusedObjects => 'Unchanged items reused';
 
   @override
   String get cloudSync_bytes => 'Transferred';
@@ -13285,16 +13597,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_stagePreparing => 'Preparing';
 
   @override
+  String get cloudSync_stageScanning => 'Scanning selected data';
+
+  @override
+  String get cloudSync_stageHashing => 'Verifying local content';
+
+  @override
   String get cloudSync_stageDownloading => 'Downloading';
+
+  @override
+  String get cloudSync_stageVerifying => 'Verifying downloaded data';
 
   @override
   String get cloudSync_stageMerging => 'Organizing changes';
 
   @override
+  String get cloudSync_stageReusing => 'Reusing unchanged data';
+
+  @override
   String get cloudSync_stageUploading => 'Uploading';
 
   @override
+  String get cloudSync_stageCommitting => 'Publishing backup';
+
+  @override
   String get cloudSync_stageApplying => 'Saving changes';
+
+  @override
+  String get cloudSync_stageSaving => 'Saving recovery state';
+
+  @override
+  String get cloudSync_stageRetryWaiting => 'Waiting to retry';
 
   @override
   String get cloudSync_stageRollingBack => 'Restoring previous state';
@@ -13487,11 +13820,36 @@ class AppLocalizationsEn extends AppLocalizations {
       'Providers, API keys, and model discovery remain centrally managed in Integrations.';
 
   @override
+  String get agentSettings_manageProviders => 'Manage providers';
+
+  @override
   String get agentSettings_noModel =>
       'No chat model is available. Add a provider and discover models in Integrations first.';
 
   @override
   String get agentSettings_pendingMatch => 'pending match';
+
+  @override
+  String get agentSettings_contextWindow => 'Context window (tokens)';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return 'Leave empty to use the built-in value $value. Override it when a relay or custom deployment exposes a different window.';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      'This model is not in the built-in catalog, so its window cannot be detected. Without a value, context usage stays hidden and compaction is unavailable.';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => 'e.g. 128000';
+
+  @override
+  String get agentSettings_contextWindowReset => 'Restore the built-in value';
+
+  @override
+  String get agentSettings_contextWindowInvalid =>
+      'Enter a whole number between 1 and 20000000';
 
   @override
   String get agentSettings_toolPermission => 'Tool permissions';
@@ -13755,4 +14113,280 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_profileImported => 'Agent profile imported';
+
+  @override
+  String get settings_watermarkTitle => 'Watermark';
+
+  @override
+  String get settings_watermarkSubtitle =>
+      'Create local watermarked copies without changing the original';
+
+  @override
+  String get settings_watermarkEnable => 'Enable watermark tool';
+
+  @override
+  String get settings_watermarkPreserveMetadata =>
+      'Keep metadata in watermark copies';
+
+  @override
+  String get settings_watermarkPreserveMetadataHint =>
+      'Off removes PNG text, EXIF, NovelAI stealth data, prompts, and seeds. On safely writes supported source metadata into the new PNG.';
+
+  @override
+  String get settings_watermarkEditDefault => 'Edit default watermark';
+
+  @override
+  String get settings_watermarkCreateFromImage =>
+      'Choose an image and create a watermarked copy…';
+
+  @override
+  String get settings_watermarkLayoutByOrientation =>
+      'Remember layouts by image orientation';
+
+  @override
+  String get settings_watermarkLayoutByOrientationHint =>
+      'Share text and style, but keep separate portrait, square, and landscape placement.';
+
+  @override
+  String get settings_watermarkConfigMigrated =>
+      'Older watermark settings were migrated for review. Save to confirm the current default.';
+
+  @override
+  String get settings_watermarkConfigCorrupted =>
+      'The watermark settings could not be read. Safe defaults are shown; save to replace the damaged data.';
+
+  @override
+  String get watermark_actionCreate => 'Create watermarked copy…';
+
+  @override
+  String get watermark_actionRegenerate => 'Recreate watermarked copy…';
+
+  @override
+  String get watermark_actionDownloadCreate => 'Download and add watermark…';
+
+  @override
+  String get watermark_editorTitle => 'Watermark editor';
+
+  @override
+  String get watermark_textLayer => 'Text';
+
+  @override
+  String get watermark_logoLayer => 'Logo';
+
+  @override
+  String get watermark_enableLayer => 'Show layer';
+
+  @override
+  String get watermark_text => 'Watermark text';
+
+  @override
+  String get watermark_alignment => 'Text alignment';
+
+  @override
+  String get editor_colorHex => 'Hex color value';
+
+  @override
+  String get editor_colorSaturationBrightness =>
+      'Color saturation and brightness';
+
+  @override
+  String get editor_colorHue => 'Color hue';
+
+  @override
+  String get watermark_alignLeft => 'Align left';
+
+  @override
+  String get watermark_alignCenter => 'Align center';
+
+  @override
+  String get watermark_alignRight => 'Align right';
+
+  @override
+  String get watermark_font => 'Font';
+
+  @override
+  String get watermark_chooseLogo => 'Choose logo';
+
+  @override
+  String get watermark_replaceLogo => 'Replace logo';
+
+  @override
+  String get watermark_logoMissing =>
+      'The saved logo is missing. Choose it again before saving.';
+
+  @override
+  String get watermark_logoImportFailed =>
+      'The logo could not be imported. Choose a valid, static PNG, JPEG, or WebP image within the supported size.';
+
+  @override
+  String get watermark_opacity => 'Opacity';
+
+  @override
+  String get watermark_size => 'Size';
+
+  @override
+  String get watermark_letterSpacing => 'Letter spacing';
+
+  @override
+  String get watermark_stroke => 'Outline';
+
+  @override
+  String get watermark_shadow => 'Soft shadow';
+
+  @override
+  String get watermark_margin => 'Edge margin';
+
+  @override
+  String get watermark_anchor => 'Anchor';
+
+  @override
+  String get watermark_anchorTopLeft => 'Top left';
+
+  @override
+  String get watermark_anchorTopCenter => 'Top center';
+
+  @override
+  String get watermark_anchorTopRight => 'Top right';
+
+  @override
+  String get watermark_anchorCenterLeft => 'Center left';
+
+  @override
+  String get watermark_anchorCenter => 'Center';
+
+  @override
+  String get watermark_anchorCenterRight => 'Center right';
+
+  @override
+  String get watermark_anchorBottomLeft => 'Bottom left';
+
+  @override
+  String get watermark_anchorBottomCenter => 'Bottom center';
+
+  @override
+  String get watermark_anchorBottomRight => 'Bottom right';
+
+  @override
+  String get watermark_layerArrangement => 'Layer arrangement';
+
+  @override
+  String get watermark_arrangementIndependent => 'Independent';
+
+  @override
+  String get watermark_arrangementHorizontal => 'Group horizontally';
+
+  @override
+  String get watermark_arrangementVertical => 'Group vertically';
+
+  @override
+  String get watermark_zOrder => 'Bring selected layer forward';
+
+  @override
+  String get watermark_ratioOriginal => 'Original';
+
+  @override
+  String get watermark_ratioPortrait => 'Portrait';
+
+  @override
+  String get watermark_ratioSquare => 'Square';
+
+  @override
+  String get watermark_ratioLandscape => 'Landscape';
+
+  @override
+  String get watermark_layoutUniversal => 'Universal layout';
+
+  @override
+  String get watermark_layoutPortrait => 'Portrait layout';
+
+  @override
+  String get watermark_layoutSquare => 'Square layout';
+
+  @override
+  String get watermark_layoutLandscape => 'Landscape layout';
+
+  @override
+  String get watermark_metadataRemoved =>
+      'Metadata will be removed according to Safety & Sharing settings.';
+
+  @override
+  String get watermark_metadataPreserved =>
+      'Supported source metadata will be written into the new copy.';
+
+  @override
+  String get watermark_setDefault => 'Set as default';
+
+  @override
+  String get watermark_defaultSaved => 'Default watermark updated';
+
+  @override
+  String get watermark_saveCopy => 'Save copy';
+
+  @override
+  String get watermark_saving => 'Rendering full-resolution image…';
+
+  @override
+  String get watermark_saved => 'Watermarked copy saved';
+
+  @override
+  String get watermark_share => 'Share';
+
+  @override
+  String get watermark_open => 'Open';
+
+  @override
+  String get watermark_undo => 'Undo';
+
+  @override
+  String get watermark_reset => 'Reset';
+
+  @override
+  String get watermark_noLayer => 'Enable text or logo before saving.';
+
+  @override
+  String get watermark_cancelled => 'Watermark rendering cancelled';
+
+  @override
+  String watermark_failed(Object error) {
+    return 'Could not create watermark copy: $error';
+  }
+
+  @override
+  String get watermark_failedGeneric =>
+      'Could not create the watermarked copy. Check the image and try again.';
+
+  @override
+  String get watermark_systemGalleryExportFailed =>
+      'The copy was saved in Aaalice, but could not be added to the system gallery.';
+
+  @override
+  String get watermark_galleryRefreshFailed =>
+      'The copy was saved, but the gallery could not refresh. Reopen the gallery to retry.';
+
+  @override
+  String get watermark_sourceMissing =>
+      'The original image is missing. Choose it again to recreate the watermark.';
+
+  @override
+  String get watermark_chooseOriginal => 'Choose original image';
+
+  @override
+  String get watermark_dragHint =>
+      'Drag the selected layer. Arrow keys move precisely; hold Shift for larger steps.';
+
+  @override
+  String get watermark_moveLeft => 'Move layer left';
+
+  @override
+  String get watermark_moveRight => 'Move layer right';
+
+  @override
+  String get watermark_moveUp => 'Move layer up';
+
+  @override
+  String get watermark_moveDown => 'Move layer down';
+
+  @override
+  String get watermark_sourceLoadFailed =>
+      'This image could not be opened. Check that it is a valid, static PNG, JPEG, WebP, or BMP image, then try again.';
 }

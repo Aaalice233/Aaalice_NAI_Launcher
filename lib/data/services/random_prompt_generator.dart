@@ -155,11 +155,7 @@ class RandomPromptGenerator {
 
   /// 使用自定义预设生成（包装现有功能）
   RandomPromptResult generateCustom(String customPrompt, {int? seed}) {
-    return RandomPromptResult(
-      mainPrompt: customPrompt,
-      mode: RandomGenerationMode.custom,
-      seed: seed,
-    );
+    return RandomPromptResult(mainPrompt: customPrompt, seed: seed);
   }
 
   // ========== 从预设配置生成（Phase 1 新增） ==========
@@ -173,7 +169,6 @@ class RandomPromptGenerator {
     required RandomPreset preset,
     bool isV4Model = true,
     int? seed,
-    RandomGenerationMode mode = RandomGenerationMode.naiOfficial,
     DateTime? generationTime,
   }) async {
     await _sequentialService.init();
@@ -216,7 +211,6 @@ class RandomPromptGenerator {
         random,
         seed,
         tagOption,
-        mode,
         context,
       );
     }
@@ -228,7 +222,6 @@ class RandomPromptGenerator {
         random,
         seed,
         tagOption,
-        mode,
         context,
       );
     }
@@ -239,7 +232,6 @@ class RandomPromptGenerator {
       random,
       seed,
       tagOption,
-      mode,
       context,
     );
   }
@@ -277,7 +269,6 @@ class RandomPromptGenerator {
     Random random,
     int? seed,
     CharacterTagOption? tagOption,
-    RandomGenerationMode mode,
     RandomPresetGenerationContext context,
   ) async {
     final mainTags = <String>[];
@@ -359,7 +350,7 @@ class RandomPromptGenerator {
           )
           .toList(),
       seed: seed,
-    ).copyWith(mode: mode);
+    );
   }
 
   /// 从预设生成传统单提示词结果（非 V4 模型）
@@ -368,7 +359,6 @@ class RandomPromptGenerator {
     Random random,
     int? seed,
     CharacterTagOption? tagOption,
-    RandomGenerationMode mode,
     RandomPresetGenerationContext context,
   ) async {
     final allTags = <String>[];
@@ -395,7 +385,6 @@ class RandomPromptGenerator {
 
     return RandomPromptResult(
       mainPrompt: _stableUniquePrompt(allTags.join(', ')),
-      mode: mode,
       seed: seed,
     );
   }
@@ -406,7 +395,6 @@ class RandomPromptGenerator {
     Random random,
     int? seed,
     CharacterTagOption? tagOption,
-    RandomGenerationMode mode,
     RandomPresetGenerationContext context,
   ) async {
     final mainTags = <String>[];
@@ -430,7 +418,6 @@ class RandomPromptGenerator {
     return RandomPromptResult(
       mainPrompt: _stableUniquePrompt(mainTags.join(', ')),
       noHumans: true,
-      mode: mode,
       seed: seed,
     );
   }

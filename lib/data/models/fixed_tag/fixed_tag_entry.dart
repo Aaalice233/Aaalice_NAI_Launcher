@@ -57,6 +57,12 @@ class FixedTagEntry with _$FixedTagEntry {
     /// 如果不为 null，表示此固定词是从词库关联过来的
     String? sourceEntryId,
 
+    /// 导入的历史版本对应的原固定词 ID。
+    String? importedFromFixedTagId,
+
+    /// 历史版本对应的固定词快照指纹，用于避免重复创建。
+    String? importedSnapshotFingerprint,
+
     /// 排序顺序
     @Default(0) int sortOrder,
 
@@ -80,6 +86,8 @@ class FixedTagEntry with _$FixedTagEntry {
     FixedTagPromptType promptType = FixedTagPromptType.positive,
     String? categoryId,
     String? sourceEntryId, // 【新增】来源词库条目ID
+    String? importedFromFixedTagId,
+    String? importedSnapshotFingerprint,
     int sortOrder = 0,
   }) {
     final now = DateTime.now();
@@ -93,6 +101,8 @@ class FixedTagEntry with _$FixedTagEntry {
       promptType: promptType,
       categoryId: categoryId,
       sourceEntryId: sourceEntryId, // 【新增】
+      importedFromFixedTagId: importedFromFixedTagId,
+      importedSnapshotFingerprint: importedSnapshotFingerprint,
       sortOrder: sortOrder,
       createdAt: now,
       updatedAt: now,
@@ -177,6 +187,8 @@ class FixedTagEntry with _$FixedTagEntry {
     FixedTagPromptType? promptType,
     String? categoryId,
     String? sourceEntryId,
+    String? importedFromFixedTagId,
+    String? importedSnapshotFingerprint,
     int? sortOrder,
   }) {
     return copyWith(
@@ -188,6 +200,10 @@ class FixedTagEntry with _$FixedTagEntry {
       promptType: promptType ?? this.promptType,
       categoryId: categoryId ?? this.categoryId,
       sourceEntryId: sourceEntryId ?? this.sourceEntryId,
+      importedFromFixedTagId:
+          importedFromFixedTagId ?? this.importedFromFixedTagId,
+      importedSnapshotFingerprint:
+          importedSnapshotFingerprint ?? this.importedSnapshotFingerprint,
       sortOrder: sortOrder ?? this.sortOrder,
       updatedAt: DateTime.now(),
     );

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../widgets/common/context_menu_anchor.dart';
+import '../../../../widgets/common/library_classification_drag.dart';
+import '../../../../adaptive/interaction_policy.dart';
 
 enum _VibeCategoryAction { rename, addSubCategory, delete }
 
@@ -23,6 +25,7 @@ class VibeCategoryItem extends StatefulWidget {
   final void Function(String)? onRename;
   final VoidCallback? onDelete;
   final VoidCallback? onAddSubCategory;
+  final bool reserveExpansionSpace;
 
   const VibeCategoryItem({
     super.key,
@@ -39,6 +42,7 @@ class VibeCategoryItem extends StatefulWidget {
     this.onRename,
     this.onDelete,
     this.onAddSubCategory,
+    this.reserveExpansionSpace = true,
   });
 
   @override
@@ -87,7 +91,11 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final isAcceptingDrop = LibraryClassificationDropTargetStatus.isAcceptingOf(
+      context,
+    );
+    final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
+    const controlExtent = 48.0;
     // Preserve a usable label/action area for deeply nested imported trees.
     final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
 
@@ -102,11 +110,15 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
+                : isAcceptingDrop
+                ? theme.colorScheme.primary.withValues(alpha: 0.12)
                 : (_isHovering
                       ? theme.colorScheme.surfaceContainerHighest
                       : Colors.transparent),
@@ -116,14 +128,9 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: isTouch ? 48 : 0),
+              constraints: const BoxConstraints(minHeight: controlExtent),
               child: Padding(
-                padding: EdgeInsets.only(
-                  left: indent,
-                  right: isTouch ? 0 : 8,
-                  top: isTouch ? 0 : 8,
-                  bottom: isTouch ? 0 : 8,
-                ),
+                padding: EdgeInsets.only(left: indent, right: isTouch ? 0 : 8),
                 child: Row(
                   children: [
                     // 展开/折叠按钮
@@ -142,12 +149,12 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                         ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints.tightFor(
-                          width: 48,
-                          height: 48,
+                          width: controlExtent,
+                          height: controlExtent,
                         ),
                       )
-                    else
-                      const SizedBox(width: 48, height: 48),
+                    else if (widget.reserveExpansionSpace)
+                      const SizedBox.square(dimension: controlExtent),
 
                     // 图标
                     Icon(
@@ -209,7 +216,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                       Padding(
                         padding: const EdgeInsets.only(right: 4),
                         child: Icon(
-                          Icons.drag_indicator,
+                          Icons.edit_outlined,
                           size: 14,
                           color: theme.colorScheme.outline.withAlpha(128),
                         ),
@@ -287,12 +294,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
   void _showContextMenu(BuildContext context, Offset position) {
     showMenu(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: contextMenuAnchorAt(context, position),
       items: [
         if (widget.onRename != null)
           PopupMenuItem(

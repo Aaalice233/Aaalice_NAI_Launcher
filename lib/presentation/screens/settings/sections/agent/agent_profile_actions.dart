@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/agent/agent_profile_service.dart';
 import 'package:nai_launcher/core/services/file_export_service.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_prompt_draft_provider.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
@@ -83,57 +84,94 @@ class _AgentProfileActionsState extends ConsumerState<AgentProfileActions> {
         },
       );
       if (!mounted) return;
-      final confirmed = await showDialog<bool>(
+      final confirmed = await AdaptivePresenter.showForm<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          insetPadding: _responsiveDialogInsetPadding(context),
-          title: Text(context.l10n.agentSettings_confirmProfileImport),
-          content: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: _safeDialogContentWidth(context, 520),
-              maxWidth: _safeDialogContentWidth(context, 520),
-              maxHeight: _safeDialogListHeight(context),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(context.l10n.agentSettings_profilePrivacy),
-                  const SizedBox(height: 12),
-                  Text(
-                    preview.changes.isEmpty
-                        ? context.l10n.agentSettings_profileNoChanges
-                        : context.l10n.agentSettings_profileChanges(
-                            preview.changes
-                                .map((change) => _changeLabel(context, change))
-                                .join(context.l10n.agentSettings_listSeparator),
-                          ),
-                  ),
-                  if (preview.warnings.isNotEmpty) ...[
+        sideSheetWidth: 568,
+        title: context.l10n.agentSettings_confirmProfileImport,
+        builder: (context, scrollController) => LayoutBuilder(
+          builder: (context, constraints) => Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  key: const Key('agent-profile-import-review-list'),
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  children: [
+                    Text(context.l10n.agentSettings_profilePrivacy),
                     const SizedBox(height: 12),
                     Text(
-                      context.l10n.agentSettings_pendingPreferences,
-                      style: Theme.of(context).textTheme.titleSmall,
+                      preview.changes.isEmpty
+                          ? context.l10n.agentSettings_profileNoChanges
+                          : context.l10n.agentSettings_profileChanges(
+                              preview.changes
+                                  .map(
+                                    (change) => _changeLabel(context, change),
+                                  )
+                                  .join(
+                                    context.l10n.agentSettings_listSeparator,
+                                  ),
+                            ),
                     ),
-                    Text(context.l10n.agentSettings_profilePending),
-                    for (final warning in preview.warnings)
-                      Text('• ${_warningLabel(context, warning)}'),
+                    if (preview.warnings.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        context.l10n.agentSettings_pendingPreferences,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(context.l10n.agentSettings_profilePending),
+                      for (final warning in preview.warnings)
+                        Text('• ${_warningLabel(context, warning)}'),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
+              Divider(
+                height: 1,
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: constraints.maxHeight * 0.8,
+                ),
+                child: SingleChildScrollView(
+                  key: const Key('agent-profile-import-actions-scroll'),
+                  primary: false,
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: LayoutBuilder(
+                        builder: (context, actionConstraints) {
+                          final stackActions =
+                              actionConstraints.maxWidth < 360 ||
+                              MediaQuery.textScalerOf(context).scale(1) >= 2;
+                          final cancel = TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text(context.l10n.common_cancel),
+                          );
+                          final apply = FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: Text(context.l10n.agentSettings_apply),
+                          );
+                          if (stackActions) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [apply, cancel],
+                            );
+                          }
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [cancel, const SizedBox(width: 8), apply],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(context.l10n.common_cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(context.l10n.agentSettings_apply),
-            ),
-          ],
         ),
       );
       if (confirmed != true) return;
@@ -209,19 +247,4 @@ Set<String> availableAgentModelReferences(PromptAssistantConfigState config) {
           !model.isPlaceholder)
         '${model.providerId}/${model.name}',
   };
-}
-
-EdgeInsets _responsiveDialogInsetPadding(BuildContext context) =>
-    MediaQuery.sizeOf(context).width <= 400
-    ? const EdgeInsets.symmetric(horizontal: 16, vertical: 24)
-    : const EdgeInsets.symmetric(horizontal: 40, vertical: 24);
-
-double _safeDialogListHeight(BuildContext context) =>
-    (MediaQuery.sizeOf(context).height * 0.55).clamp(160.0, 480.0);
-
-double _safeDialogContentWidth(BuildContext context, double maximum) {
-  final screenWidth = MediaQuery.sizeOf(context).width;
-  final outerInsets = screenWidth <= 400 ? 32.0 : 80.0;
-  const contentInsets = 48.0;
-  return (screenWidth - outerInsets - contentInsets).clamp(0.0, maximum);
 }

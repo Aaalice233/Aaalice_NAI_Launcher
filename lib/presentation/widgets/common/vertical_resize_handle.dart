@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../adaptive/interaction_policy.dart';
+
 /// Reusable handle for resizing vertically stacked editor or panel regions.
 class VerticalResizeHandle extends StatefulWidget {
   const VerticalResizeHandle({
@@ -21,6 +23,12 @@ class _VerticalResizeHandleState extends State<VerticalResizeHandle> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final interactionPolicy = context.interactionPolicy;
+    final hitHeight =
+        interactionPolicy.prefersTouchPresentation &&
+            widget.height < interactionPolicy.minimumControlExtent
+        ? interactionPolicy.minimumControlExtent
+        : widget.height;
 
     return MouseRegion(
       cursor: SystemMouseCursors.resizeRow,
@@ -33,10 +41,12 @@ class _VerticalResizeHandleState extends State<VerticalResizeHandle> {
           if (delta != 0) widget.onDrag(delta);
         },
         child: SizedBox(
-          height: widget.height,
+          height: hitHeight,
           child: Center(
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 120),
               width: _hovered ? 72 : 48,
               height: _hovered ? 4 : 3,
               decoration: BoxDecoration(

@@ -7,7 +7,8 @@ import 'package:nai_launcher/core/agent/permissions/permissions.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/harness/env/dart_io_execution_env.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
-import 'package:nai_launcher/presentation/agent_chat/services/application_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/application_context_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/fixed_tags_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/gallery_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_image_favorite_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_image_workflow_service.dart';
@@ -15,9 +16,11 @@ import 'package:nai_launcher/presentation/agent_chat/services/generation_image_w
 import 'package:nai_launcher/presentation/agent_chat/services/generation_resource_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/image_resource_action_service.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/image_resource_action_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/image_presentation_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/queue_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/reference_library_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/tag_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/tag_library_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
@@ -28,9 +31,12 @@ void main() {
     addTearDown(container.dispose);
     final ref = container.read(_refProvider);
     final tools = <AgentTool>[
-      ...ApplicationToolbox(ref).tools(),
+      ...ApplicationContextToolbox(ref).tools(),
+      ...TagLibraryToolbox(ref).tools(),
+      ...FixedTagsToolbox(ref).tools(),
       ...GalleryToolbox(ref).tools(),
       ...ReferenceLibraryToolbox(ref, AgentResourceResolver(ref)).tools(),
+      ...ImagePresentationToolbox(AgentResourceResolver(ref)).tools(),
       ...QueueToolbox(ref, QueueControlRuntime()).tools(),
       ...TagToolbox(ref).tools(),
       ...GenerationResourceToolbox.withService(
@@ -75,9 +81,9 @@ void main() {
         'list_tag_library_entries',
         'create_tag_library_entry',
         'search_local_gallery',
-        'preview_local_gallery_image',
         'search_online_gallery',
-        'preview_online_gallery_media',
+        'inspect_images',
+        'display_images',
         'list_vibe_library',
         'create_vibe_library_entry',
         'apply_vibe_library_entry',
@@ -100,6 +106,16 @@ void main() {
         'send_generated_image_to_krita',
       ]),
     );
+    for (final oldPreviewTool in const [
+      'preview_local_gallery_image',
+      'preview_online_gallery_media',
+      'preview_generated_image',
+      'preview_vibe_library_entry',
+      'preview_precise_reference_entry',
+      'preview_tag_library_entry',
+    ]) {
+      expect(names, isNot(contains(oldPreviewTool)));
+    }
     for (final tool in tools) {
       expect(tool.parameters['type'], 'object', reason: tool.name);
       expect(

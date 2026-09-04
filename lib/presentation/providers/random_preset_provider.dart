@@ -9,13 +9,13 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/models/prompt/algorithm_config.dart';
 import '../../data/models/prompt/default_categories.dart';
+import '../../data/models/prompt/official_wordlist.dart';
 import '../../data/models/prompt/pool_mapping.dart';
 import '../../data/models/prompt/random_category.dart';
 import '../../data/models/prompt/random_preset.dart';
 import '../../data/models/prompt/random_tag_group.dart';
 import '../../data/models/prompt/tag_category.dart';
 import '../../data/models/prompt/tag_group_mapping.dart';
-import '../../data/services/wordlist_service.dart';
 import 'tag_library_provider.dart';
 
 part 'random_preset_provider.g.dart';
@@ -130,10 +130,24 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
       }
     }
 
-    // 确保有默认预设
-    if (!presets.any((p) => p.isDefault)) {
-      final defaultPreset = RandomPreset.defaultPreset();
-      presets.insert(0, defaultPreset);
+    // 默认项是官网 recipe 的只读入口，不再保留旧版词库模式或用户修改。
+    final storedSelectedId = _box.get(_selectedIdKey);
+    final storedDefaults = presets.where((preset) => preset.isDefault).toList();
+    final previousDefault = storedDefaults.firstOrNull;
+    final defaultPreset = RandomPreset.defaultPreset().copyWith(
+      createdAt: previousDefault?.createdAt,
+      updatedAt: previousDefault?.updatedAt,
+    );
+    final needsDefaultSave =
+        storedDefaults.length != 1 || previousDefault != defaultPreset;
+    for (final storedDefault in storedDefaults) {
+      presets.remove(storedDefault);
+      if (storedDefault.id != defaultPreset.id) {
+        await _deletePreset(storedDefault.id);
+      }
+    }
+    presets.insert(0, defaultPreset);
+    if (needsDefaultSave) {
       await _savePreset(defaultPreset);
     }
 
@@ -160,8 +174,18 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
       );
     });
 
-    // 获取上次选中的预设ID
-    final selectedId = _box.get(_selectedIdKey) ?? presets.first.id;
+    // 只恢复仍然存在的预设，避免删除或异常退出后留下失效选中项。
+    final normalizedStoredSelectedId =
+        storedDefaults.any((preset) => preset.id == storedSelectedId)
+        ? defaultPreset.id
+        : storedSelectedId;
+    final selectedId =
+        presets.any((preset) => preset.id == normalizedStoredSelectedId)
+        ? normalizedStoredSelectedId!
+        : presets.first.id;
+    if (storedSelectedId != selectedId) {
+      await _box.put(_selectedIdKey, selectedId);
+    }
 
     state = state.copyWith(
       presets: presets,
@@ -185,25 +209,6 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     await _ensureInitialized();
     state = state.copyWith(selectedPresetId: id);
     await _box.put(_selectedIdKey, id);
-  }
-
-  /// 更新词库版本
-  ///
-  /// 当用户切换模型版本时，更新默认预设以匹配新版本
-  Future<void> updateWordlistVersion(WordlistType version) async {
-    await _ensureInitialized();
-    // 找到默认预设
-    final defaultIndex = state.presets.indexWhere((p) => p.isDefault);
-    if (defaultIndex == -1) return;
-
-    // 创建新版本的默认预设
-    final newDefault = RandomPreset.defaultPreset(version: version);
-
-    final newPresets = [...state.presets];
-    newPresets[defaultIndex] = newDefault;
-
-    state = state.copyWith(presets: newPresets);
-    await _savePreset(newDefault);
   }
 
   /// 创建新预设
@@ -292,7 +297,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     );
 
     await _deletePreset(id);
-    if (newSelectedId != null && state.selectedPresetId != newSelectedId) {
+    if (newSelectedId != null) {
       await _box.put(_selectedIdKey, newSelectedId);
     }
   }
@@ -707,9 +712,10 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   }
 }
 
-/// 计算真实的标签数量（包括内置词库）
+/// 计算当前预设实际使用的数据条目数量。
 ///
-/// 这个 Provider 会从 TagLibrary 获取内置词库的标签数量
+/// 官网默认预设执行的是锁定的 NovelAI 官方 recipe，因此不能把仅供
+/// “基于默认预设”复制使用的 catalog 模板统计成官网词库。
 /// 性能优化：使用 select 只监听必要的数据变化
 @riverpod
 int presetTotalTagCount(Ref ref) {
@@ -718,6 +724,7 @@ int presetTotalTagCount(Ref ref) {
     randomPresetNotifierProvider.select((s) => s.selectedPreset),
   );
   if (preset == null) return 0;
+  if (preset.isDefault) return officialWordlistTotalEntryCount;
 
   final library = ref.watch(
     tagLibraryNotifierProvider.select((s) => s.library),

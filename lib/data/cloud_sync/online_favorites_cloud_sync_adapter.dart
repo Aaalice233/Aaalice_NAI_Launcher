@@ -35,6 +35,11 @@ class OnlineFavoritesCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   }
 
   @override
+  Map<String, Object?> tombstoneData(PortableSyncRecord record) => {
+    'stableKey': record.data['stableKey'],
+  };
+
+  @override
   void validateRecord(PortableSyncRecord record) {
     if (record.deleted) {
       final stableKey = record.data['stableKey'];

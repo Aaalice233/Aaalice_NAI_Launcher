@@ -20,6 +20,7 @@ import '../../../../core/utils/keyboard_modifier_utils.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../core/utils/zip_utils.dart';
 import '../../../../data/services/alias_resolver_service.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 
@@ -38,12 +39,14 @@ import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/draggable_memory_image.dart';
+import '../../../widgets/common/owned_scroll_controller.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
 import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../widgets/common/workspace_panel_header.dart';
 import '../services/generation_save_service.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
@@ -77,12 +80,18 @@ class _HistoryRowDescriptor {
 
 /// 历史面板组件
 class HistoryPanel extends ConsumerStatefulWidget {
-  const HistoryPanel({super.key, this.onClose, this.embedded = false});
+  const HistoryPanel({
+    super.key,
+    this.onClose,
+    this.embedded = false,
+    this.viewportOffset,
+  });
 
   final VoidCallback? onClose;
 
   /// 嵌入模式：隐藏自带标题行，由外层 Tab 栏承担标题职责。
   final bool embedded;
+  final OwnedViewportOffset? viewportOffset;
 
   @override
   ConsumerState<HistoryPanel> createState() => _HistoryPanelState();
@@ -104,7 +113,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   final Map<String, String?> _favoriteStatePaths = {};
   final Set<String> _favoriteStatusLoadingIds = {};
   final Set<String> _favoriteToggleLoadingIds = {};
-  final ScrollController _scrollController = ScrollController();
+  late final OwnedScrollController _scrollController;
   final Map<String, GlobalKey> _imageKeys = {};
   List<_HistoryRowDescriptor> _rowDescriptors = const [];
   ProviderSubscription<String?>? _selectionSubscription;
@@ -113,6 +122,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   @override
   void initState() {
     super.initState();
+    _scrollController = OwnedScrollController(viewport: widget.viewportOffset);
     _sharePreparationService.addListener(_handleSharePreparationChanged);
     _selectionSubscription = ref.listenManual(
       generationPreviewSelectionProvider,
@@ -212,12 +222,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     style: IconButton.styleFrom(
                       foregroundColor: theme.colorScheme.primary,
                     ),
-                    visualDensity: PlatformCapabilities.current.hasTouchInput
+                    visualDensity: context.interactionPolicy.touchAvailable
                         ? VisualDensity.standard
                         : VisualDensity.compact,
-                    constraints: PlatformCapabilities.current.hasTouchInput
-                        ? const BoxConstraints.tightFor(width: 48, height: 48)
-                        : const BoxConstraints(),
+                    constraints: BoxConstraints.tightFor(
+                      width: context.interactionPolicy.minimumControlExtent,
+                      height: context.interactionPolicy.minimumControlExtent,
+                    ),
                     padding: const EdgeInsets.all(8),
                   ),
                 if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
@@ -230,37 +241,32 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     style: IconButton.styleFrom(
                       foregroundColor: theme.colorScheme.error,
                     ),
-                    visualDensity: PlatformCapabilities.current.hasTouchInput
+                    visualDensity: context.interactionPolicy.touchAvailable
                         ? VisualDensity.standard
                         : VisualDensity.compact,
-                    constraints: PlatformCapabilities.current.hasTouchInput
-                        ? const BoxConstraints.tightFor(width: 48, height: 48)
-                        : const BoxConstraints(),
+                    constraints: BoxConstraints.tightFor(
+                      width: context.interactionPolicy.minimumControlExtent,
+                      height: context.interactionPolicy.minimumControlExtent,
+                    ),
                     padding: const EdgeInsets.all(8),
                   ),
               ],
             ),
           )
         else
-          Padding(
-            padding: const EdgeInsets.only(
-              left: 8,
-              right: 4,
-              top: 12,
-              bottom: 12,
-            ),
-            child: Row(
+          WorkspacePanelHeader(
+            leading: _buildCollapseButton(),
+            icon: Icons.history_rounded,
+            title: Row(
               children: [
-                // 折叠按钮
-                _buildCollapseButton(theme),
-                const SizedBox(width: 8),
                 Flexible(
                   child: Text(
                     context.l10n.generation_historyRecord,
-                    style: theme.textTheme.titleSmall?.copyWith(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (state.history.isNotEmpty ||
@@ -283,66 +289,57 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     ),
                   ),
                 ],
-                const Spacer(),
-                // 全选按钮
-                if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        final allImages = _getAllSelectableImages(state);
-                        if (_selectedIds.length == allImages.length) {
-                          _selectedIds.clear();
-                        } else {
-                          _selectedIds.clear();
-                          _selectedIds.addAll(allImages.map((img) => img.id));
-                        }
-                      });
-                    },
-                    icon: Icon(
-                      _selectedIds.length ==
-                              _getAllSelectableImages(state).length
-                          ? Icons.deselect
-                          : Icons.select_all,
-                      size: 20,
-                    ),
-                    tooltip:
-                        _selectedIds.length ==
-                            _getAllSelectableImages(state).length
-                        ? context.l10n.common_deselectAll
-                        : context.l10n.common_selectAll,
-                    style: IconButton.styleFrom(
-                      foregroundColor: theme.colorScheme.primary,
-                    ),
-                    visualDensity: PlatformCapabilities.current.hasTouchInput
-                        ? VisualDensity.standard
-                        : VisualDensity.compact,
-                    constraints: PlatformCapabilities.current.hasTouchInput
-                        ? const BoxConstraints.tightFor(width: 48, height: 48)
-                        : const BoxConstraints(),
-                    padding: const EdgeInsets.all(8),
-                  ),
-                if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
-                  IconButton(
-                    onPressed: () {
-                      _showClearDialog(context, ref);
-                    },
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    tooltip: context.l10n.common_clear,
-                    style: IconButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                    ),
-                    visualDensity: PlatformCapabilities.current.hasTouchInput
-                        ? VisualDensity.standard
-                        : VisualDensity.compact,
-                    constraints: PlatformCapabilities.current.hasTouchInput
-                        ? const BoxConstraints.tightFor(width: 48, height: 48)
-                        : const BoxConstraints(),
-                    padding: const EdgeInsets.all(8),
-                  ),
               ],
             ),
+            actions: [
+              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      final allImages = _getAllSelectableImages(state);
+                      if (_selectedIds.length == allImages.length) {
+                        _selectedIds.clear();
+                      } else {
+                        _selectedIds.clear();
+                        _selectedIds.addAll(allImages.map((img) => img.id));
+                      }
+                    });
+                  },
+                  icon: Icon(
+                    _selectedIds.length == _getAllSelectableImages(state).length
+                        ? Icons.deselect
+                        : Icons.select_all,
+                    size: 20,
+                  ),
+                  tooltip:
+                      _selectedIds.length ==
+                          _getAllSelectableImages(state).length
+                      ? context.l10n.common_deselectAll
+                      : context.l10n.common_selectAll,
+                  style: IconButton.styleFrom(
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                  constraints: BoxConstraints.tightFor(
+                    width: context.interactionPolicy.minimumControlExtent,
+                    height: context.interactionPolicy.minimumControlExtent,
+                  ),
+                ),
+              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
+                IconButton(
+                  onPressed: () => _showClearDialog(context, ref),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  tooltip: context.l10n.common_clear,
+                  style: IconButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                  ),
+                  constraints: BoxConstraints.tightFor(
+                    width: context.interactionPolicy.minimumControlExtent,
+                    height: context.interactionPolicy.minimumControlExtent,
+                  ),
+                ),
+            ],
           ),
-        const ThemedDivider(height: 1),
+        if (widget.embedded) const ThemedDivider(height: 1),
 
         // 历史列表
         Expanded(
@@ -364,38 +361,22 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     );
   }
 
-  Widget _buildCollapseButton(ThemeData theme) {
+  Widget _buildCollapseButton() {
     final onClose = widget.onClose;
-    if (onClose != null) {
-      return IconButton(
-        onPressed: onClose,
-        icon: const Icon(Icons.chevron_right_rounded),
-        tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-      );
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => ref
-            .read(layoutStateNotifierProvider.notifier)
-            .setRightPanelExpanded(false),
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(
-              alpha: 0.5,
-            ),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(
-            Icons.chevron_right,
-            size: 16,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
-        ),
+    return IconButton(
+      key: const ValueKey('generation-history-collapse'),
+      onPressed:
+          onClose ??
+          () => ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setRightPanelExpanded(false),
+      icon: const Icon(Icons.chevron_right),
+      tooltip: onClose != null
+          ? MaterialLocalizations.of(context).closeButtonTooltip
+          : context.l10n.common_collapse,
+      constraints: BoxConstraints.tightFor(
+        width: context.interactionPolicy.minimumControlExtent,
+        height: context.interactionPolicy.minimumControlExtent,
       ),
     );
   }
@@ -1501,6 +1482,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     ImageGenerationState state,
     ThemeData theme,
   ) {
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final minimumHeight = policyExtent < 44 ? 44.0 : policyExtent;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1519,7 +1502,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               label: Text(
                 '${context.l10n.common_pack} (${_selectedIds.length})',
               ),
-              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size(0, minimumHeight),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -1531,7 +1516,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               label: Text(
                 '${context.l10n.image_save} (${_selectedIds.length})',
               ),
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+              style: FilledButton.styleFrom(
+                minimumSize: Size(0, minimumHeight),
+              ),
             ),
           ),
         ],
@@ -1795,6 +1782,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       showSaveButton: image.canSave,
       showCopyButton: image.canSave,
       preserveOriginalBytesOnSave: image.preserveOriginalBytesOnSave,
+      fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,
     );
   }
 

@@ -8,6 +8,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_detail/components/selection_copy_shortcuts.dart';
 import '../../widgets/common/themed_divider.dart';
@@ -69,6 +70,9 @@ class ImageDestinationDialog extends ConsumerWidget {
   /// 是否为 Bundle（包含多个 Vibe）
   final bool isBundle;
 
+  /// 由自适应表单呈现器持有的主滚动控制器。
+  final ScrollController? scrollController;
+
   const ImageDestinationDialog({
     super.key,
     required this.imageBytes,
@@ -78,6 +82,7 @@ class ImageDestinationDialog extends ConsumerWidget {
     this.metadataParseError,
     this.detectedVibe,
     this.isBundle = false,
+    this.scrollController,
   });
 
   /// 显示对话框
@@ -91,10 +96,29 @@ class ImageDestinationDialog extends ConsumerWidget {
     VibeReference? detectedVibe,
     bool isBundle = false,
   }) {
-    return showDialog<ImageDestination>(
+    return AdaptivePresenter.showForm<ImageDestination>(
       context: context,
-      barrierColor: Colors.black54,
-      builder: (context) => ImageDestinationDialog(
+      sideSheetWidth: metadata == null ? 480 : 960,
+      titleBuilder: (panelContext) {
+        final theme = Theme.of(panelContext);
+        return Row(
+          children: [
+            Icon(Icons.image_search_outlined, color: theme.colorScheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                panelContext.l10n.drop_dialogTitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      builder: (panelContext, scrollController) => ImageDestinationDialog(
         imageBytes: imageBytes,
         fileName: fileName,
         showExtractMetadata: showExtractMetadata,
@@ -102,6 +126,7 @@ class ImageDestinationDialog extends ConsumerWidget {
         metadataParseError: metadataParseError,
         detectedVibe: detectedVibe,
         isBundle: isBundle,
+        scrollController: scrollController,
       ),
     );
   }
@@ -114,157 +139,128 @@ class ImageDestinationDialog extends ConsumerWidget {
       return _buildMetadataDialog(context, promptMetadata);
     }
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 标题
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      context.l10n.drop_dialogTitle,
-                      style: theme.textTheme.titleLarge,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: context.l10n.common_close,
+    return SingleChildScrollView(
+      controller: scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 图片预览
+          Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 200, maxHeight: 200),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 16),
-
-              // 图片预览
-              Center(
-                child: Container(
-                  constraints: const BoxConstraints(
-                    maxWidth: 200,
-                    maxHeight: 200,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(
+                  imageBytes,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 200,
+                      height: 200,
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        size: 64,
+                        color: theme.colorScheme.outline,
                       ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(
-                      imageBytes,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 200,
-                          height: 200,
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            size: 64,
-                            color: theme.colorScheme.outline,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
+            ),
+          ),
 
-              const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
-              if (metadataParseError != null) ...[
-                _buildMetadataParseFailure(context),
+          if (metadataParseError != null) ...[
+            _buildMetadataParseFailure(context),
+            const SizedBox(height: 16),
+          ],
+
+          // 选项按钮（垂直排列）
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Vibe 检测提示和选项
+              if (detectedVibe != null) ...[
+                _buildVibeDetectedCard(context),
+                const SizedBox(height: 16),
+                const ThemedDivider(height: 1),
                 const SizedBox(height: 16),
               ],
 
-              // 选项按钮（垂直排列）
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Vibe 检测提示和选项
-                  if (detectedVibe != null) ...[
-                    _buildVibeDetectedCard(context),
-                    const SizedBox(height: 16),
-                    const ThemedDivider(height: 1),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // 提取元数据选项（置顶，用主题色高亮）
-                  if (showExtractMetadata) ...[
-                    _DestinationButton(
-                      icon: Icons.data_object,
-                      label: context.l10n.drop_extractMetadata,
-                      subtitle: context.l10n.drop_extractMetadataSubtitle,
-                      isPrimary: true,
-                      onTap: () => Navigator.of(
-                        context,
-                      ).pop(ImageDestination.extractMetadata),
-                    ),
-                    const SizedBox(height: 12),
-                    Tooltip(
-                      message: context.l10n.drop_addToQueueSubtitle,
-                      child: _DestinationButton(
-                        icon: Icons.playlist_add,
-                        label: context.l10n.drop_addToQueue,
-                        subtitle: context.l10n.drop_addToQueueSubtitle,
-                        onTap: () => Navigator.of(
-                          context,
-                        ).pop(ImageDestination.addToQueue),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const ThemedDivider(height: 1),
-                    const SizedBox(height: 16),
-                  ],
-                  _DestinationButton(
-                    icon: Icons.manage_search_rounded,
-                    label: context.l10n.drop_reversePrompt,
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pop(ImageDestination.reversePrompt),
-                  ),
-                  const SizedBox(height: 12),
-                  _DestinationButton(
-                    icon: Icons.image_outlined,
-                    label: context.l10n.drop_img2img,
+              // 提取元数据选项（置顶，用主题色高亮）
+              if (showExtractMetadata) ...[
+                _DestinationButton(
+                  icon: Icons.data_object,
+                  label: context.l10n.drop_extractMetadata,
+                  subtitle: context.l10n.drop_extractMetadataSubtitle,
+                  isPrimary: true,
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(ImageDestination.extractMetadata),
+                ),
+                const SizedBox(height: 12),
+                Tooltip(
+                  message: context.l10n.drop_addToQueueSubtitle,
+                  child: _DestinationButton(
+                    icon: Icons.playlist_add,
+                    label: context.l10n.drop_addToQueue,
+                    subtitle: context.l10n.drop_addToQueueSubtitle,
                     onTap: () =>
-                        Navigator.of(context).pop(ImageDestination.img2img),
+                        Navigator.of(context).pop(ImageDestination.addToQueue),
                   ),
-                  const SizedBox(height: 12),
-                  // Vibe Transfer 按钮（如果没有检测到预编码 Vibe）
-                  if (detectedVibe == null)
-                    _DestinationButton(
-                      icon: Icons.auto_awesome,
-                      label: context.l10n.drop_vibeTransfer,
-                      onTap: () => Navigator.of(
-                        context,
-                      ).pop(ImageDestination.vibeTransfer),
-                    ),
-                  const SizedBox(height: 12),
-                  _DestinationButton(
-                    icon: Icons.person_outline,
-                    label: context.l10n.drop_characterReference,
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pop(ImageDestination.characterReference),
-                  ),
-                ],
+                ),
+                const SizedBox(height: 16),
+                const ThemedDivider(height: 1),
+                const SizedBox(height: 16),
+              ],
+              _DestinationButton(
+                icon: Icons.manage_search_rounded,
+                label: context.l10n.drop_reversePrompt,
+                onTap: () =>
+                    Navigator.of(context).pop(ImageDestination.reversePrompt),
+              ),
+              const SizedBox(height: 12),
+              _DestinationButton(
+                icon: Icons.image_outlined,
+                label: context.l10n.drop_img2img,
+                onTap: () =>
+                    Navigator.of(context).pop(ImageDestination.img2img),
+              ),
+              const SizedBox(height: 12),
+              // Vibe Transfer 按钮（如果没有检测到预编码 Vibe）
+              if (detectedVibe == null)
+                _DestinationButton(
+                  icon: Icons.auto_awesome,
+                  label: context.l10n.drop_vibeTransfer,
+                  onTap: () =>
+                      Navigator.of(context).pop(ImageDestination.vibeTransfer),
+                ),
+              const SizedBox(height: 12),
+              _DestinationButton(
+                icon: Icons.person_outline,
+                label: context.l10n.drop_characterReference,
+                onTap: () => Navigator.of(
+                  context,
+                ).pop(ImageDestination.characterReference),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -299,19 +295,7 @@ class ImageDestinationDialog extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 TextButton(
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text(context.l10n.drop_metadataErrorDetails),
-                      content: SelectableText(metadataParseError!),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(context.l10n.common_close),
-                        ),
-                      ],
-                    ),
-                  ),
+                  onPressed: () => _showMetadataErrorDetails(context),
                   child: Text(context.l10n.drop_metadataErrorDetails),
                 ),
               ],
@@ -322,111 +306,86 @@ class ImageDestinationDialog extends ConsumerWidget {
     );
   }
 
+  Future<void> _showMetadataErrorDetails(BuildContext context) {
+    return AdaptivePresenter.showForm<void>(
+      context: context,
+      title: context.l10n.drop_metadataErrorDetails,
+      sideSheetWidth: 600,
+      builder: (panelContext, scrollController) => ListView(
+        key: const ValueKey('metadata-error-details-scroll'),
+        controller: scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(20),
+        children: [
+          SelectableText(
+            metadataParseError!,
+            key: const ValueKey('metadata-error-details-text'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMetadataDialog(
     BuildContext context,
     NaiImageMetadata promptMetadata,
   ) {
-    final theme = Theme.of(context);
-    final viewport = MediaQuery.sizeOf(context);
-    final dialogWidth = math.min(1180.0, math.max(0.0, viewport.width - 48));
-    final dialogHeight = math.min(780.0, math.max(400.0, viewport.height - 48));
-
-    return Dialog(
-      insetPadding: const EdgeInsets.all(24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: dialogWidth,
-        height: dialogHeight,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final useActionRail = constraints.maxWidth >= 600;
+          if (!useActionRail) {
+            return SingleChildScrollView(
+              key: const ValueKey('drop-metadata-form-scroll'),
+              controller: scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.image_search_outlined,
-                    color: theme.colorScheme.primary,
+                  _buildMetadataContent(
+                    context,
+                    promptMetadata,
+                    scrollable: false,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      context.l10n.drop_dialogTitle,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: context.l10n.common_close,
-                  ),
+                  const SizedBox(height: 14),
+                  _buildMetadataActionPanel(context),
                 ],
               ),
-              const SizedBox(height: 14),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final useActionRail = constraints.maxWidth >= 600;
-                    if (!useActionRail) {
-                      return SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(
-                              height: math.max(
-                                420.0,
-                                constraints.maxHeight * 0.72,
-                              ),
-                              child: _buildMetadataContent(
-                                context,
-                                promptMetadata,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _buildMetadataActionPanel(context),
-                          ],
-                        ),
-                      );
-                    }
+            );
+          }
 
-                    final railWidth = constraints.maxWidth >= 900
-                        ? 220.0
-                        : 190.0;
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          key: const ValueKey('drop-metadata-content-pane'),
-                          child: _buildMetadataContent(context, promptMetadata),
-                        ),
-                        const SizedBox(width: 20),
-                        SizedBox(
-                          key: const ValueKey('drop-metadata-action-rail'),
-                          width: railWidth,
-                          child: _buildMetadataActionPanel(
-                            context,
-                            fillHeight: true,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+          final railWidth = constraints.maxWidth >= 900 ? 220.0 : 190.0;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                key: const ValueKey('drop-metadata-content-pane'),
+                child: _buildMetadataContent(
+                  context,
+                  promptMetadata,
+                  controller: scrollController,
                 ),
               ),
+              const SizedBox(width: 20),
+              SizedBox(
+                key: const ValueKey('drop-metadata-action-rail'),
+                width: railWidth,
+                child: _buildMetadataActionPanel(context, fillHeight: true),
+              ),
             ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildMetadataContent(
     BuildContext context,
-    NaiImageMetadata promptMetadata,
-  ) {
+    NaiImageMetadata promptMetadata, {
+    ScrollController? controller,
+    bool scrollable = true,
+  }) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final placeImageBesidePrompts = constraints.maxWidth >= 720;
@@ -440,33 +399,37 @@ class ImageDestinationDialog extends ConsumerWidget {
         );
         final promptPanel = _PromptMetadataPanel(metadata: promptMetadata);
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.only(right: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _MetadataSummary(metadata: promptMetadata),
-              const SizedBox(height: 14),
-              if (placeImageBesidePrompts)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(width: imageWidth, child: preview),
-                    const SizedBox(width: 18),
-                    Expanded(child: promptPanel),
-                  ],
-                )
-              else ...[
-                Center(child: preview),
-                const SizedBox(height: 16),
-                promptPanel,
-              ],
-              if (detectedVibe != null) ...[
-                const SizedBox(height: 16),
-                _buildVibeDetectedCard(context),
-              ],
+        final content = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MetadataSummary(metadata: promptMetadata),
+            const SizedBox(height: 14),
+            if (placeImageBesidePrompts)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: imageWidth, child: preview),
+                  const SizedBox(width: 18),
+                  Expanded(child: promptPanel),
+                ],
+              )
+            else ...[
+              Center(child: preview),
+              const SizedBox(height: 16),
+              promptPanel,
             ],
-          ),
+            if (detectedVibe != null) ...[
+              const SizedBox(height: 16),
+              _buildVibeDetectedCard(context),
+            ],
+          ],
+        );
+        if (!scrollable) return content;
+        return SingleChildScrollView(
+          controller: controller,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.only(right: 4),
+          child: content,
         );
       },
     );
@@ -563,10 +526,12 @@ class ImageDestinationDialog extends ConsumerWidget {
                 color: theme.colorScheme.primary,
               ),
               const SizedBox(width: 7),
-              Text(
-                context.l10n.drop_actions,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  context.l10n.drop_actions,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -1041,8 +1006,9 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
   late final TextEditingController _controller;
   final _focusNode = FocusNode();
   final _scrollController = ScrollController();
-  DateTime? _lastPointerDownAt;
+  Duration? _lastPointerDownAt;
   Offset? _lastPointerDownPosition;
+  PointerDeviceKind? _lastPointerKind;
   String _selectedText = '';
 
   @override
@@ -1081,19 +1047,29 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
   }
 
   void _handlePointerDown(PointerDownEvent event) {
-    if (event.kind != PointerDeviceKind.mouse || event.buttons != 1) return;
-    final now = DateTime.now();
+    final supportsDoubleTap = switch (event.kind) {
+      PointerDeviceKind.mouse ||
+      PointerDeviceKind.trackpad ||
+      PointerDeviceKind.touch ||
+      PointerDeviceKind.stylus ||
+      PointerDeviceKind.invertedStylus => true,
+      _ => false,
+    };
+    if (!supportsDoubleTap || event.buttons != kPrimaryButton) return;
+
     final previousTime = _lastPointerDownAt;
     final previousPosition = _lastPointerDownPosition;
-    final isDoubleClick =
+    final isDoubleTap =
         previousTime != null &&
-        now.difference(previousTime) <= kDoubleTapTimeout &&
+        event.timeStamp - previousTime <= kDoubleTapTimeout &&
         previousPosition != null &&
+        _lastPointerKind == event.kind &&
         (event.position - previousPosition).distance <= 24;
-    _lastPointerDownAt = now;
+    _lastPointerDownAt = event.timeStamp;
     _lastPointerDownPosition = event.position;
+    _lastPointerKind = event.kind;
 
-    if (!isDoubleClick) return;
+    if (!isDoubleTap) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _controller.text.isEmpty) return;
       final selection = _controller.selection;

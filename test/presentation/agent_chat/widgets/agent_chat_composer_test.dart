@@ -1,21 +1,27 @@
 import 'dart:convert';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/context_usage.dart';
+import 'package:nai_launcher/core/agent/harness/harness_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/windowing/agent_chat_shared_widgets.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_composer.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_controller.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_view_data.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
+import 'package:nai_launcher/presentation/themes/modules/color/palettes/grunge_palette.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -51,46 +57,182 @@ void main() {
     final settings = tester.getRect(
       find.byKey(const ValueKey('agent-chat-session-controls')),
     );
-    expect(input.top, lessThan(resources.top));
-    expect(resources.top, lessThan(actions.top));
+    expect(resources.top, lessThan(input.top));
+    expect(input.bottom, lessThanOrEqualTo(actions.top));
     expect(actions, settings);
 
-    final moreCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-more-actions')),
+    final controlsRect = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-message-actions')),
     );
-    final sendCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-send')),
+    for (final key in const [
+      'agent-chat-more-actions',
+      'agent-chat-model-selector',
+      'agent-chat-thinking-selector',
+      'agent-chat-permission-mode',
+      'agent-chat-web-access-toggle',
+      'agent-chat-send',
+    ]) {
+      expect(
+        controlsRect.contains(tester.getCenter(find.byKey(ValueKey(key)))),
+        isTrue,
+        reason: '$key must be initially visible inside the controls region',
+      );
+    }
+    expect(
+      find.byKey(const ValueKey('agent-chat-composer-status-row')),
+      findsOneWidget,
     );
-    expect(moreCenter.dx, lessThan(sendCenter.dx));
-    expect(moreCenter.dy, sendCenter.dy);
-
-    final modelCenter = tester.getCenter(
+    final model = tester.getRect(
       find.byKey(const ValueKey('agent-chat-model-selector')),
     );
-    final permissionCenter = tester.getCenter(
+    final thinking = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
+    );
+    final permission = tester.getRect(
       find.byKey(const ValueKey('agent-chat-permission-mode')),
     );
-    final webCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-web-access-toggle')),
-    );
-    final contextCenter = tester.getCenter(
-      find.byKey(const ValueKey('agent-chat-context-target')),
-    );
-    expect(modelCenter.dx, lessThan(permissionCenter.dx));
-    expect(permissionCenter.dx, lessThan(webCenter.dx));
-    expect(webCenter.dx, lessThan(contextCenter.dx));
+    expect(model.contains(thinking.center), isTrue);
+    expect(permission.center.dy, closeTo(model.center.dy, 0.01));
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
     );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('agent-chat-context-ring'))),
+      const Size.square(30),
+    );
+    expect(find.text('Ask'), findsNothing);
+    expect(find.text('Web access'), findsNothing);
     expect(find.text('23%'), findsOneWidget);
+
+    final surfaceFinder = find.byKey(
+      const ValueKey('agent-chat-composer-surface'),
+    );
+    for (final key in const [
+      'agent-chat-input',
+      'agent-chat-composer-expand',
+      'agent-chat-more-actions',
+      'agent-chat-model-selector',
+      'agent-chat-thinking-selector',
+      'agent-chat-permission-mode',
+      'agent-chat-web-access-toggle',
+      'agent-chat-send',
+    ]) {
+      expect(
+        find.descendant(of: surfaceFinder, matching: find.byKey(ValueKey(key))),
+        findsOneWidget,
+        reason: '$key must remain inside the composer surface',
+      );
+    }
+
+    final surface = tester.widget<Container>(surfaceFinder);
+    final decoration = surface.decoration! as BoxDecoration;
+    expect(decoration.borderRadius, BorderRadius.circular(18));
+    expect(decoration.border, isNull);
+    expect(
+      decoration.color,
+      isNot(Theme.of(tester.element(surfaceFinder)).colorScheme.surface),
+    );
+    expect(decoration.boxShadow, isNotEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'editor shares the composer surface and disabled send stays explicit',
+    (tester) async {
+      await _pumpComposer(tester, width: 520, mobile: false);
+
+      final input = tester.widget<TextField>(
+        find.byKey(const ValueKey('agent-chat-input')),
+      );
+      final decoration = input.decoration!;
+      expect(decoration.filled, isFalse);
+      expect(decoration.enabledBorder, InputBorder.none);
+      expect(decoration.focusedBorder, InputBorder.none);
+      expect(
+        find.byTooltip('Enter a message or add an image to send'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('dark composer stays visibly elevated above the chat canvas', (
+    tester,
+  ) async {
+    final colors = const GrungePalette().darkScheme;
+    await _pumpComposer(
+      tester,
+      width: 520,
+      mobile: false,
+      theme: ThemeData(colorScheme: colors),
+    );
 
     final surface = tester.widget<Container>(
       find.byKey(const ValueKey('agent-chat-composer-surface')),
     );
     final decoration = surface.decoration! as BoxDecoration;
-    expect(decoration.border, isNull);
-    expect(decoration.boxShadow, isNull);
+
+    expect(decoration.color, controlSurfaceColor(colors));
+    expect(
+      decoration.color!.computeLuminance(),
+      greaterThan(colors.surface.computeLuminance()),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('secondary composer controls stay flat at rest', (tester) async {
+    await _pumpComposer(tester, width: 520, mobile: false);
+
+    for (final key in const [
+      'agent-chat-composer-expand-surface',
+      'agent-chat-model-selector-surface',
+      'agent-chat-context-surface',
+      'agent-chat-send-surface',
+    ]) {
+      expect(
+        tester.widget<Material>(find.byKey(ValueKey(key))).color,
+        Colors.transparent,
+        reason: '$key should not create a nested resting surface',
+      );
+    }
+    for (final key in const [
+      'agent-chat-permission-surface',
+      'agent-chat-web-access-surface',
+    ]) {
+      final container = tester.widget<Container>(find.byKey(ValueKey(key)));
+      expect(
+        (container.decoration! as BoxDecoration).color,
+        Colors.transparent,
+        reason: '$key should not create a nested resting surface',
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('enabled web access keeps a selected tonal surface', (
+    tester,
+  ) async {
+    final colors = const GrungePalette().darkScheme;
+    await _pumpComposer(
+      tester,
+      width: 520,
+      mobile: false,
+      theme: ThemeData(colorScheme: colors),
+      agentSettings: const AgentSettingsState(
+        initialized: true,
+        settings: AgentSettings(chat: AgentChatConfig(webAccessEnabled: true)),
+      ),
+    );
+
+    final surface = tester.widget<Container>(
+      find.byKey(const ValueKey('agent-chat-web-access-surface')),
+    );
+    expect(
+      (surface.decoration! as BoxDecoration).color,
+      colors.primaryContainer.withValues(alpha: 0.42),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -112,16 +254,17 @@ void main() {
     final target = tester.getSize(
       find.byKey(const ValueKey('agent-chat-context-target')),
     );
-    expect(target, const Size.square(44));
+    expect(target.height, 48);
+    expect(target.width, 48);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('narrow desktop uses one toolbar and one context ring', (
+  testWidgets('narrow desktop keeps every control in one integrated row', (
     tester,
   ) async {
     await _pumpComposer(
       tester,
-      width: 320,
+      width: 520,
       mobile: false,
       state: _readyState.copyWith(
         contextUsage: const AgentContextUsage.unknown(contextWindow: 128000),
@@ -138,28 +281,49 @@ void main() {
     for (final key in const [
       'agent-chat-more-actions',
       'agent-chat-model-selector',
+      'agent-chat-thinking-selector',
       'agent-chat-permission-mode',
       'agent-chat-web-access-toggle',
-      'agent-chat-context-target',
       'agent-chat-send',
     ]) {
       expect(
-        tester.getCenter(find.byKey(ValueKey(key))).dy,
-        closeTo(toolbar.center.dy, 0.1),
+        toolbar.contains(tester.getCenter(find.byKey(ValueKey(key)))),
+        isTrue,
       );
     }
+    expect(
+      find.byKey(const ValueKey('agent-chat-composer-status-row')),
+      findsOneWidget,
+    );
     expect(find.text('—'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
     );
+    final contextTarget = tester.getSize(
+      find.byKey(const ValueKey('agent-chat-context-target')),
+    );
+    expect(contextTarget.width, 40);
+    final context = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-context-target')),
+    );
+    final model = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-model-selector')),
+    );
+    final thinking = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
+    );
+    expect(model.contains(thinking.center), isTrue);
+    expect(toolbar.contains(context.center), isTrue);
+    expect(context.center.dy, closeTo(model.center.dy, 0.01));
+    expect(toolbar.height, lessThanOrEqualTo(48));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('very narrow desktop splits controls without overflow', (
+  testWidgets('minimum desktop width keeps the integrated toolbar usable', (
     tester,
   ) async {
-    await _pumpComposer(tester, width: 265, mobile: false);
+    await _pumpComposer(tester, width: 320, mobile: false);
 
     final toolbar = tester.getRect(
       find.byKey(const ValueKey('agent-chat-message-actions')),
@@ -168,31 +332,35 @@ void main() {
       find.byKey(const ValueKey('agent-chat-session-controls')),
     );
     expect(toolbar, settings);
-    expect(toolbar.height, greaterThan(40));
-
+    expect(toolbar.height, greaterThanOrEqualTo(40));
+    expect(
+      find.byKey(const ValueKey('agent-chat-composer-status-row')),
+      findsOneWidget,
+    );
     final model = tester.getRect(
       find.byKey(const ValueKey('agent-chat-model-selector')),
     );
-    final permission = tester.getRect(
-      find.byKey(const ValueKey('agent-chat-permission-mode')),
+    final thinking = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
     );
-    expect(model.bottom, lessThanOrEqualTo(permission.top));
+    expect(model.contains(thinking.center), isTrue);
     for (final key in const [
       'agent-chat-more-actions',
       'agent-chat-model-selector',
+      'agent-chat-thinking-selector',
       'agent-chat-permission-mode',
       'agent-chat-web-access-toggle',
-      'agent-chat-context-target',
       'agent-chat-send',
     ]) {
-      final control = tester.getRect(find.byKey(ValueKey(key)));
-      expect(control.left, greaterThanOrEqualTo(toolbar.left));
-      expect(control.right, lessThanOrEqualTo(toolbar.right));
+      expect(
+        toolbar.contains(tester.getCenter(find.byKey(ValueKey(key)))),
+        isTrue,
+      );
     }
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('desktop model selector shows the complete model name', (
+  testWidgets('desktop configuration control combines model and reasoning', (
     tester,
   ) async {
     const modelName = 'deepseek-v4-flash-vision-exp';
@@ -227,24 +395,66 @@ void main() {
 
     await _pumpComposer(
       tester,
-      width: 520,
+      width: 840,
       mobile: false,
+      state: _readyState.copyWith(
+        availableThinkingLevels: const [
+          ThinkingLevel.off,
+          ThinkingLevel.low,
+          ThinkingLevel.high,
+          ThinkingLevel.max,
+        ],
+      ),
       config: config,
       agentSettings: agentSettings,
     );
 
     final selector = find.byKey(const ValueKey('agent-chat-model-selector'));
-    expect(find.text(modelName), findsOneWidget);
-    expect(tester.getSize(selector).width, greaterThan(164));
+    expect(find.textContaining(modelName), findsOneWidget);
+    final selectorWidth = tester.getSize(selector).width;
+    expect(selectorWidth, greaterThan(180));
+    final modelParagraph = tester.renderObject<RenderParagraph>(
+      find.text(modelName),
+    );
+    expect(modelParagraph.didExceedMaxLines, isTrue);
+    final thinking = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-thinking-selector')),
+    );
+    expect(tester.getRect(selector).contains(thinking.center), isTrue);
 
     await tester.tap(selector);
     await tester.pumpAndSettle();
 
-    expect(find.text(modelName), findsNWidgets(2));
-    final popup = tester.widget<PopupMenuButton<(String, String)>>(
-      find.byType(PopupMenuButton<(String, String)>),
+    expect(
+      find.byKey(const ValueKey('agent-chat-model-submenu')),
+      findsOneWidget,
     );
-    expect(popup.constraints?.minWidth, 320);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('adaptive-centered-form')))
+          .height,
+      lessThanOrEqualTo(480),
+    );
+    expect(
+      tester
+          .getTopLeft(find.byKey(const ValueKey('agent-chat-model-submenu')))
+          .dy,
+      lessThan(
+        tester
+            .getTopLeft(
+              find.byKey(const ValueKey('agent-chat-thinking-option-off')),
+            )
+            .dy,
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('agent-chat-model-submenu')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(modelName), findsNWidgets(2));
+    expect(
+      find.byKey(const ValueKey('agent-chat-model-search')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -270,46 +480,95 @@ void main() {
       find.byKey(const ValueKey('agent-chat-context-unavailable')),
       findsNothing,
     );
+    expect(
+      find.byKey(const ValueKey('agent-chat-context-loading-label')),
+      findsOneWidget,
+    );
     expect(find.text('Context usage unavailable'), findsNothing);
     expect(find.text('Compacting context…'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'composer remains overflow-free across mobile widths and scaling',
-    (tester) async {
-      for (final width in const [320.0, 360.0, 412.0, 600.0, 840.0]) {
-        for (final scale in const [1.0, 1.6, 2.0]) {
-          await _pumpComposer(
-            tester,
-            width: width,
-            textScaler: TextScaler.linear(scale),
-          );
+  testWidgets('composer keeps every entry reachable at 320/600 and 3x text', (
+    tester,
+  ) async {
+    for (final width in const [320.0, 600.0]) {
+      for (final scale in const [1.0, 3.0]) {
+        await _pumpComposer(
+          tester,
+          width: width,
+          textScaler: TextScaler.linear(scale),
+        );
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'overflow at width=$width, scale=$scale',
+        );
+        for (final key in const [
+          'agent-chat-more-actions',
+          'agent-chat-model-selector',
+          'agent-chat-thinking-selector',
+          'agent-chat-permission-mode',
+          'agent-chat-web-access-toggle',
+          'agent-chat-context-target',
+          'agent-chat-send',
+        ]) {
+          final finder = find.byKey(ValueKey(key));
+          expect(finder, findsOneWidget, reason: '$key at width=$width');
           expect(
-            tester.takeException(),
-            isNull,
-            reason: 'overflow at width=$width, scale=$scale',
+            tester.getRect(finder).isEmpty,
+            isFalse,
+            reason: '$key at width=$width, scale=$scale',
           );
-          for (final key in const [
-            'agent-chat-more-actions',
-            'agent-chat-permission-mode',
-            'agent-chat-web-access-toggle',
-            'agent-chat-context-target',
-            'agent-chat-send',
-          ]) {
-            final size = tester.getSize(find.byKey(ValueKey(key)));
+          if (key != 'agent-chat-thinking-selector') {
             expect(
-              size.shortestSide,
-              greaterThanOrEqualTo(44),
+              tester.getSize(finder).shortestSide,
+              greaterThanOrEqualTo(48),
               reason: '$key at width=$width, scale=$scale',
             );
           }
         }
       }
-    },
-  );
+    }
+  });
 
-  testWidgets('running composer exposes queue steering follow-up and stop', (
+  testWidgets('desktop composer stays compact and overflow-free', (
+    tester,
+  ) async {
+    for (final scale in const [1.0, 3.0]) {
+      await _pumpComposer(
+        tester,
+        width: 1180,
+        mobile: false,
+        textScaler: TextScaler.linear(scale),
+      );
+
+      final input = tester.getRect(_input);
+      final controls = tester.getRect(
+        find.byKey(const ValueKey('agent-chat-message-actions')),
+      );
+      final more = tester.getCenter(
+        find.byKey(const ValueKey('agent-chat-more-actions')),
+      );
+      final model = tester.getCenter(
+        find.byKey(const ValueKey('agent-chat-model-selector')),
+      );
+      expect(input.bottom, lessThanOrEqualTo(controls.top));
+      expect(controls.height, scale == 1 ? 42 : 60);
+      expect(more.dx, lessThan(model.dx));
+      expect(
+        find.byKey(const ValueKey('agent-chat-composer-controls-scroll')),
+        findsNothing,
+      );
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'desktop overflow at text scale $scale',
+      );
+    }
+  });
+
+  testWidgets('running composer uses the send position as the stop control', (
     tester,
   ) async {
     final queued = AgentQueuedMessage(
@@ -330,8 +589,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('agent-chat-queue')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('agent-chat-follow-up')), findsOneWidget);
-    expect(find.byKey(const ValueKey('agent-chat-stop')), findsOneWidget);
-    expect(find.bySemanticsLabel('Steer current work'), findsWidgets);
+    expect(find.byKey(const ValueKey('agent-chat-stop')), findsNothing);
+    expect(find.byKey(const ValueKey('agent-chat-send')), findsOneWidget);
+    expect(find.bySemanticsLabel('Stop'), findsOneWidget);
     expect(find.bySemanticsLabel('Continue after current task'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
@@ -387,9 +647,19 @@ void main() {
       onAttachCurrentCanvas: () async => attached++,
     );
 
-    await tester.tap(find.byKey(const ValueKey('agent-chat-more-actions')));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    await mouse.moveTo(
+      tester.getCenter(find.byKey(const ValueKey('agent-chat-more-actions'))),
+    );
+    await mouse.down(
+      tester.getCenter(find.byKey(const ValueKey('agent-chat-more-actions'))),
+    );
+    await mouse.up();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Current canvas'));
+    await mouse.moveTo(tester.getCenter(find.text('Current canvas')));
+    await mouse.down(tester.getCenter(find.text('Current canvas')));
+    await mouse.up();
     await tester.pumpAndSettle();
 
     expect(attached, 1);
@@ -563,28 +833,33 @@ void main() {
     }
   });
 
-  testWidgets('running editor keeps stop and expand targets separate', (
+  testWidgets('running stop reuses the send target outside the editor', (
     tester,
   ) async {
+    var stopped = false;
     await _pumpComposer(
       tester,
       width: 320,
       mobile: false,
       state: _readyState.copyWith(status: AgentChatRunStatus.running),
+      onStop: () => stopped = true,
     );
 
     final editor = tester.getRect(
       find.byKey(const ValueKey('agent-chat-composer-editor')),
     );
-    final stop = tester.getRect(find.byKey(const ValueKey('agent-chat-stop')));
+    final stop = tester.getRect(find.byKey(const ValueKey('agent-chat-send')));
     final expand = tester.getRect(
       find.byKey(const ValueKey('agent-chat-composer-expand')),
     );
     expect(stop.overlaps(expand), isFalse);
-    expect(stop.center.dy, closeTo(editor.center.dy, 0.01));
-    expect(expand.center.dy, closeTo(editor.center.dy, 0.01));
+    expect(stop.top, greaterThanOrEqualTo(editor.bottom));
+    expect(expand.top, closeTo(editor.top + 6, 0.01));
+    expect(expand.right, lessThanOrEqualTo(editor.right - 6));
+    expect(find.byKey(const ValueKey('agent-chat-stop')), findsNothing);
     expect(find.bySemanticsLabel('Stop'), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp('^Expand')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('agent-chat-send')));
+    expect(stopped, isTrue);
     expect(tester.takeException(), isNull);
   });
 
@@ -642,6 +917,182 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a slash at the start lists skills and session commands', (
+    tester,
+  ) async {
+    await _pumpComposer(tester, width: 412, state: _skilledState);
+
+    expect(_slashMenu, findsNothing);
+    await tester.enterText(_input, '/');
+    await tester.pump();
+
+    expect(_slashMenu, findsOneWidget);
+    expect(_inMenu('Skills'), findsOneWidget);
+    expect(_inMenu('/art-prompt'), findsOneWidget);
+    expect(_inMenu('/paperbanana'), findsOneWidget);
+    // Session commands follow the skills under their own heading; the list
+    // scrolls once the group exceeds the menu's height budget.
+    expect(_inMenu('Session'), findsOneWidget);
+    expect(_inMenu('/new'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the menu filters as the name is typed', (tester) async {
+    await _pumpComposer(tester, width: 412, state: _skilledState);
+
+    await tester.enterText(_input, '/art');
+    await tester.pump();
+    expect(_inMenu('/art-prompt'), findsOneWidget);
+    expect(_inMenu('/new'), findsNothing);
+
+    await tester.enterText(_input, '/zzz');
+    await tester.pump();
+    expect(_slashMenu, findsNothing);
+  });
+
+  testWidgets('a slash later in the message never opens the menu', (
+    tester,
+  ) async {
+    await _pumpComposer(tester, width: 412, state: _skilledState);
+
+    await tester.enterText(_input, 'read /art');
+    await tester.pump();
+    expect(_slashMenu, findsNothing);
+  });
+
+  testWidgets('arrow keys move the selection and Enter inserts the skill', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    var sends = 0;
+    await _pumpComposer(
+      tester,
+      width: 412,
+      state: _skilledState,
+      controller: controller,
+      onSend: () async => sends++,
+    );
+
+    // "paper" matches one command; "pa" would also hit "Compact context".
+    await tester.enterText(_input, '/paper');
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    // A single match wraps back to itself, and Enter accepts instead of sending.
+    expect(controller.inputController.text, '/paperbanana ');
+    expect(sends, 0);
+    expect(_slashMenu, findsNothing);
+  });
+
+  testWidgets('a session command runs at once and leaves no token behind', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    final actions = <AgentChatMoreAction>[];
+    var sends = 0;
+    await _pumpComposer(
+      tester,
+      width: 412,
+      state: _skilledState,
+      controller: controller,
+      onSend: () async => sends++,
+      onMoreAction: actions.add,
+    );
+
+    await tester.enterText(_input, '/new');
+    await tester.pump();
+    await tester.tap(_inMenu('/new'));
+    await tester.pump();
+
+    expect(actions, [AgentChatMoreAction.newSession]);
+    expect(controller.inputController.text, isEmpty);
+    expect(sends, 0);
+  });
+
+  testWidgets('Escape closes the menu and hands Enter back to send', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    var sends = 0;
+    await _pumpComposer(
+      tester,
+      width: 412,
+      state: _skilledState,
+      controller: controller,
+      onSend: () async => sends++,
+    );
+
+    await tester.enterText(_input, '/art');
+    await tester.pump();
+    expect(_slashMenu, findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(_slashMenu, findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(sends, 1);
+    expect(controller.inputController.text, '/art');
+  });
+
+  testWidgets('moving the caret back into the token reopens the menu', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    await _pumpComposer(
+      tester,
+      width: 412,
+      state: _skilledState,
+      controller: controller,
+    );
+
+    await tester.enterText(_input, '/art draw a cat');
+    await tester.pump();
+    expect(_slashMenu, findsNothing);
+
+    // A caret-only move leaves the draft text untouched, so the composer has
+    // to notice it on its own.
+    controller.inputController.selection = const TextSelection.collapsed(
+      offset: 4,
+    );
+    await tester.pump();
+    expect(_slashMenu, findsOneWidget);
+    expect(_inMenu('/art-prompt'), findsOneWidget);
+  });
+
+  testWidgets('the menu sits above the editor on desktop and mobile', (
+    tester,
+  ) async {
+    for (final (width, mobile) in [(412.0, true), (720.0, false)]) {
+      await _pumpComposer(
+        tester,
+        width: width,
+        mobile: mobile,
+        state: _skilledState,
+      );
+      await tester.enterText(_input, '/');
+      await tester.pump();
+
+      final menu = tester.getRect(_slashMenu);
+      final editor = tester.getRect(_input);
+      expect(
+        menu.bottom,
+        lessThanOrEqualTo(editor.top),
+        reason: 'width $width should keep the menu clear of the editor',
+      );
+      expect(menu.width, lessThanOrEqualTo(width));
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('message edit fills the composer and cancel restores its draft', (
     tester,
   ) async {
@@ -671,6 +1122,30 @@ void main() {
   });
 }
 
+final _input = find.byKey(const ValueKey('agent-chat-input'));
+final _slashMenu = find.byKey(const ValueKey('agent-chat-slash-menu'));
+
+/// The editor holds the same literal text, so menu assertions must be scoped.
+Finder _inMenu(String text) =>
+    find.descendant(of: _slashMenu, matching: find.text(text));
+
+final _skilledState = _readyState.copyWith(
+  skills: const [
+    HarnessSkill(
+      name: 'art-prompt',
+      description: 'Draw with Danbooru tags',
+      content: 'skill body',
+      filePath: '/skills/art-prompt/SKILL.md',
+    ),
+    HarnessSkill(
+      name: 'paperbanana',
+      description: 'Academic figures',
+      content: 'skill body',
+      filePath: '/skills/paperbanana/SKILL.md',
+    ),
+  ],
+);
+
 const _readyState = AgentChatState(
   initialized: true,
   routeReady: true,
@@ -686,16 +1161,20 @@ Future<void> _pumpComposer(
   AgentChatState state = _readyState,
   AgentChatPanelController? controller,
   Future<void> Function()? onSend,
+  VoidCallback? onStop,
   Future<void> Function()? onAttachCurrentCanvas,
+  void Function(AgentChatMoreAction action)? onMoreAction,
   AgentChatResourceReference? currentCanvasReference,
   PromptAssistantConfigState? config,
   AgentSettingsState? agentSettings,
   bool mobile = true,
+  ThemeData? theme,
 }) async {
   await tester.binding.setSurfaceSize(Size(width, height));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
+      theme: theme,
       locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -709,17 +1188,27 @@ Future<void> _pumpComposer(
           resizeToAvoidBottomInset: true,
           body: Align(
             alignment: Alignment.bottomCenter,
-            child: _ComposerHarness(
-              state: state,
-              width: width,
-              height: height - viewInsets.bottom,
-              controller: controller,
-              onSend: onSend,
-              onAttachCurrentCanvas: onAttachCurrentCanvas,
-              currentCanvasReference: currentCanvasReference,
-              config: config,
-              agentSettings: agentSettings,
-              mobile: mobile,
+            child: InteractionPolicyScope(
+              initialPolicy: InteractionPolicy(
+                modality: mobile
+                    ? InteractionModality.touch
+                    : InteractionModality.pointer,
+                touchAvailable: mobile,
+                precisePointerAvailable: !mobile,
+              ),
+              child: _ComposerHarness(
+                state: state,
+                width: width,
+                height: height - viewInsets.bottom,
+                controller: controller,
+                onSend: onSend,
+                onStop: onStop,
+                onAttachCurrentCanvas: onAttachCurrentCanvas,
+                onMoreAction: onMoreAction,
+                currentCanvasReference: currentCanvasReference,
+                config: config,
+                agentSettings: agentSettings,
+              ),
             ),
           ),
         ),
@@ -736,11 +1225,12 @@ class _ComposerHarness extends StatefulWidget {
     required this.height,
     this.controller,
     this.onSend,
+    this.onStop,
     this.onAttachCurrentCanvas,
+    this.onMoreAction,
     this.currentCanvasReference,
     this.config,
     this.agentSettings,
-    this.mobile = true,
   });
 
   final AgentChatState state;
@@ -748,11 +1238,12 @@ class _ComposerHarness extends StatefulWidget {
   final double height;
   final AgentChatPanelController? controller;
   final Future<void> Function()? onSend;
+  final VoidCallback? onStop;
   final Future<void> Function()? onAttachCurrentCanvas;
+  final void Function(AgentChatMoreAction action)? onMoreAction;
   final AgentChatResourceReference? currentCanvasReference;
   final PromptAssistantConfigState? config;
   final AgentSettingsState? agentSettings;
-  final bool mobile;
 
   @override
   State<_ComposerHarness> createState() => _ComposerHarnessState();
@@ -791,7 +1282,7 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
       selectSession: (_) async {},
       renameSession: (_) async {},
       deleteSession: (_) async {},
-      moreAction: (_) async {},
+      moreAction: (action) async => widget.onMoreAction?.call(action),
       selectModel: (_, _) async {},
       selectThinkingLevel: (_) async {},
       selectPermissionMode: (_) async {},
@@ -803,7 +1294,7 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
       resolveResourcePreview: (_) async => null,
       send: widget.onSend ?? () async {},
       sendFollowUp: () async {},
-      stop: () {},
+      stop: widget.onStop ?? () {},
       dismissError: () {},
       retryLastMessage: () async {},
       resolveApproval: (_, _) => true,
@@ -825,9 +1316,8 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
         agentSettings:
             widget.agentSettings ?? const AgentSettingsState(initialized: true),
         webAccess: const WebAccessConfigState(initialized: true),
-        mobile: widget.mobile,
         fullScreen: true,
-        compactMobile: widget.height < 480,
+        compactHeight: widget.height < 520,
         width: widget.width,
         height: widget.height,
         onClose: null,

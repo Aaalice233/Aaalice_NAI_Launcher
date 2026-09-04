@@ -79,6 +79,17 @@ class VibeLibraryState with _$VibeLibraryState {
           orElse: () => null,
         );
   int get favoriteCount => entries.where((entry) => entry.isFavorite).length;
+  Map<String, int> get categoryEntryCounts {
+    final counts = <String, int>{};
+    for (final entry in entries) {
+      final categoryId = entry.categoryId;
+      if (categoryId != null) {
+        counts.update(categoryId, (count) => count + 1, ifAbsent: () => 1);
+      }
+    }
+    return counts;
+  }
+
   Set<String> get allTags => {for (final entry in entries) ...entry.tags};
 }
 
@@ -101,6 +112,7 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
   VibeLibraryCommandService get _commands =>
       VibeLibraryCommandService(_storage);
   Future<void>? _activeLoad;
+  bool _hasLoaded = false;
 
   @override
   VibeLibraryState build() {
@@ -109,7 +121,7 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
   }
 
   Future<void> initialize() async {
-    if (state.entries.isNotEmpty || state.isInitializing) return;
+    if (_hasLoaded) return;
     await _load(isInitializing: true, showLoading: true);
   }
 
@@ -182,6 +194,7 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
         _storage.getDisplayEntries(),
         _storage.getAllCategories(),
       ]);
+      _hasLoaded = true;
       state = state.copyWith(
         entries: values[0] as List<VibeLibraryEntry>,
         categories: values[1] as List<VibeLibraryCategory>,

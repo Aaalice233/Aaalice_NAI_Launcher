@@ -63,6 +63,10 @@ class UpdateNoticeBanner extends ConsumerWidget {
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
+                    final textScale =
+                        MediaQuery.textScalerOf(context).scale(14) / 14;
+                    final compact =
+                        constraints.maxWidth < 520 || textScale > 1.3;
                     final icon = _NoticeIcon(
                       accent: accent,
                       isError: isError,
@@ -84,22 +88,26 @@ class UpdateNoticeBanner extends ConsumerWidget {
                     );
                     final titleText = Text(
                       title,
-                      maxLines: constraints.maxWidth < 520 ? 2 : 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: compact ? null : 1,
+                      overflow: compact
+                          ? TextOverflow.visible
+                          : TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     );
                     final subtitleText = Text(
                       subtitle,
-                      maxLines: constraints.maxWidth < 520 ? 3 : 2,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: compact ? null : 2,
+                      overflow: compact
+                          ? TextOverflow.visible
+                          : TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     );
 
-                    if (constraints.maxWidth < 520) {
+                    if (compact) {
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(14, 10, 8, 12),
                         child: Column(

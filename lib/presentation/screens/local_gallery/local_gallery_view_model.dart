@@ -39,7 +39,9 @@ class LocalGalleryViewModel {
     final contentWidth = maxWidth - (showPersistentCategories ? 250 : 0);
     const horizontalPadding = 24.0;
     const spacing = 12.0;
-    const minimumItemWidth = 160.0;
+    // 320px 仍保留双列触屏画廊；更宽布局继续使用桌面密度，避免
+    // 为了增加列数而让卡片在常规窗口中过小。
+    final minimumItemWidth = contentWidth < 360 ? 136.0 : 160.0;
     final availableGridWidth = (contentWidth - horizontalPadding).clamp(
       0.0,
       double.infinity,

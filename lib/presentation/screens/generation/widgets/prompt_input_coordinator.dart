@@ -6,14 +6,14 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
-import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/pending_prompt_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
 import '../../../widgets/character/mobile_character_manager_sheet.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/prompt/random_mode_selector.dart';
 import 'prompt_input_controller.dart';
 
 /// Coordinates prompt commands that span providers, navigation and editors.
@@ -247,57 +247,27 @@ class PromptInputCoordinator {
     if (!_mounted()) return;
     final context = _context();
     final message = error is UnsupportedRandomPromptModelException
-        ? context.l10n.randomMode_unsupportedModelHint
+        ? context.l10n.randomPrompt_unsupportedModelHint
         : context.l10n.tagLibrary_generateFailed(error.toString());
     AppToast.error(context, message);
   }
 
-  void showRandomModeSelector() {
-    if (_mounted()) RandomModeBottomSheet.show(_context());
-  }
-
   void openAssistantSettings() {
     if (!_mounted()) return;
-    showModalBottomSheet<void>(
-      context: _context(),
-      showDragHandle: true,
-      builder: (context) => Consumer(
-        builder: (context, ref, _) {
-          final config = ref.watch(promptAssistantConfigProvider);
-          final notifier = ref.read(promptAssistantConfigProvider.notifier);
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SwitchListTile(
-                  title: Text(context.l10n.promptAssistant_enableAssistant),
-                  value: config.enabled,
-                  onChanged: notifier.setEnabled,
-                ),
-                SwitchListTile(
-                  title: Text(context.l10n.promptAssistant_desktopOverlay),
-                  value: config.desktopOverlayEnabled,
-                  onChanged: notifier.setDesktopOverlayEnabled,
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+    PromptAssistantQuickSettings.show(_context());
   }
 
   Future<void> showMobileCharacterManager() async {
     if (!_mounted()) return;
     FocusManager.instance.primaryFocus?.unfocus();
     _ref.read(selectedCharacterIdProvider.notifier).clear();
-    await showModalBottomSheet<void>(
-      context: _context(),
-      useRootNavigator: true,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const MobileCharacterManagerSheet(),
+    final context = _context();
+    await AdaptivePresenter.showForm<void>(
+      context: context,
+      title: context.l10n.prompt_characterPrompts,
+      sideSheetWidth: 560,
+      builder: (context, scrollController) =>
+          MobileCharacterManagerSheet(scrollController: scrollController),
     );
     if (_mounted()) _ref.read(selectedCharacterIdProvider.notifier).clear();
   }

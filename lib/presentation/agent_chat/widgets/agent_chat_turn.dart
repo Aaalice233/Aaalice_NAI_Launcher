@@ -6,8 +6,8 @@ import 'package:flutter/services.dart';
 
 import '../../../core/agent/agent_media_display_policy.dart';
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../models/agent_chat_prompt_envelope.dart';
 import '../models/agent_chat_turn_timeline.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_tool_widgets.dart';
@@ -118,7 +118,7 @@ class AgentChatThreadModel {
           : messages.length;
       int? userIndex;
       for (var index = messageIndex; index < end; index++) {
-        if (_isVisualUserMessage(messages[index])) {
+        if (isVisualUserMessage(messages[index])) {
           userIndex = index;
           break;
         }
@@ -139,7 +139,7 @@ class AgentChatThreadModel {
     AgentChatTurnModel? legacyTurn;
     for (var index = messageIndex; index < messages.length; index++) {
       final message = messages[index];
-      if (_isVisualUserMessage(message)) {
+      if (isVisualUserMessage(message)) {
         legacyTurn = AgentChatTurnModel(
           ordinal: turns.length,
           userMessage: message,
@@ -157,11 +157,6 @@ class AgentChatThreadModel {
 
   final List<AgentChatTurnModel> turns;
 }
-
-bool _isVisualUserMessage(Message message) =>
-    message is UserMessage ||
-    message is HarnessCustomMessage &&
-        message.customType == 'agentResourcePrompt';
 
 class AgentChatTurnModel {
   AgentChatTurnModel({
@@ -187,16 +182,8 @@ class AgentChatTurnModel {
 
   String get preview {
     final message = userMessage;
-    if (message is UserMessage) return message.text.trim();
-    if (message is HarnessCustomMessage) {
-      return message.content
-          .skip(1)
-          .whereType<UserTextContent>()
-          .map((content) => content.text)
-          .join()
-          .trim();
-    }
-    return '';
+    if (message == null) return '';
+    return visibleUserMessage(message)?.text.trim() ?? '';
   }
 }
 
@@ -455,9 +442,14 @@ class _AgentChatWorkTrailState extends State<AgentChatWorkTrail> {
                     child: Row(
                       children: [
                         if (widget.running)
-                          const SizedBox.square(
+                          SizedBox.square(
                             dimension: 14,
-                            child: CircularProgressIndicator(strokeWidth: 1.7),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.7,
+                              value: MediaQuery.disableAnimationsOf(context)
+                                  ? 0.75
+                                  : null,
+                            ),
                           )
                         else
                           Icon(

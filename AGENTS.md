@@ -48,30 +48,30 @@ flutter analyze
 flutter build windows --release
 flutter build apk --release
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_nuget.ps1
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-dev-sessions/scripts/windows_runner.ps1
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-dev-sessions/scripts/android_runner.ps1 -EmulatorId Aaalice_API35
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Status
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Reload -Target All
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Restart -Target All
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-hot-reload/scripts/control.ps1 -Action Logs -Target All -Last 200
-pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-runtime-verify/scripts/android_verify.ps1 -Name <scenario> -HotReload -Action "tap:x,y","wait:500"
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-sessions/scripts/start.ps1 -Target All -EmulatorId Aaalice_API35
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Status
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Reload -Target All
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Restart -Target All
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Logs -Target All -Last 200
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Stop -Target All
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1 -Name <scenario> -HotReload -Action "tap:x,y","wait:500"
 ```
 
 Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 `flutter build macos --release`，产物位于 `build/macos/Build/Products/Release/Aaalice NAI Launcher.app`；本地 Keychain 反复授权时使用 `scripts/create_macos_dev_cert.sh` 与 `scripts/dev_run_macos_signed.sh debug`。Android 通用 APK 位于 `build/app/outputs/flutter-apk/app-release.apk`；推送 `v*` Tag 时由 `.github/workflows/release.yml` 构建并发布正式签名 APK，`.github/workflows/android-build.yml` 仅用于按需手动构建可安装 APK 与 SHA-256 Actions artifact。
 
-项目热重载与按需运行验收由 `.pi/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责通过 Orca 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 终端；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，随后按 Orca cursor 增量读取两端日志；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。Agent 不得另开第二个 `flutter run` 或 `flutter attach`，仓库 `scripts/` 下不再保留项目热重载入口。
+项目热重载与按需运行验收由 `.agents/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责让 Codex 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 独立 PowerShell 窗口；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，并读取两端控制台验证结果；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。不得依赖外部终端编排器，不得另开第二个 `flutter run`、`flutter attach` 或新的 Codex task。
 
 `build_runner` 不是常规测试或纯 Dart/UI 改动的默认验证步骤。只有改动了 Riverpod/Freezed/JSON/Drift 等生成输入，或开发 Runner 预检明确报告生成文件缺失/过期时才运行；针对性测试直接运行相关测试文件，不得为此先扫描全仓库生成代码。用户要求立即启动热重载时先执行会话状态检查和 Runner 预检，不得先跑测试或生成器；若预检阻塞且必须全量生成，应明确说明这是一次性环境准备及预计耗时，让命令完整结束后立即继续启动，不得称其为“最小验证”或反复中断重跑。生成命令中断后必须检查并恢复被删除但未重新生成的已有输出。
-
-为本项目创建 Orca worktree 会话时，用户未明确指定 Agent 则默认使用 `pi`；仅在用户明确要求时改用其他 Agent。
 
 普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。共享代码默认作用于 `All`，平台实现只作用于对应端。
 
 ### Windows 窗口稳定性
 
 - 主 Runner 必须在 `WM_SIZE` 和 `WM_WINDOWPOSCHANGED` 后排队重新对齐 Flutter child view；不得只依赖 `WM_SIZE`。否则外层主 HWND 恢复后，内部 `FLUTTERVIEW` 可能仍停在 Windows 最小化哨兵坐标 `-32000,-32000`，表现为旧画面冻结、按钮 hover 不消失、点击无响应或出现调整尺寸光标。
+- Flutter Windows 最小化发送零尺寸 metrics 是官方已知生命周期行为；顶层 `SIZE_MINIMIZED` 仍须通过 `HandleTopLevelWindowProc` 传递 `hidden` 生命周期，但主 Runner 不得把 iconic/零尺寸 client rect 转发给 child HWND。Flutter 壳层遇到临时无效 constraints 时必须保留同一 child element/state，并暂停 ticker、语义和交互；正常非最小化缩放仍须响应真实 constraints。
+- `windows/runner/` 是受 Git 管理的项目原生源码，`test`、`analyze`、`flutter clean`、`flutter build`、Release CI 和 Flutter SDK 升级不会用官方模板还原；若删除/重建平台工程或人工同步模板，必须保留项目的 child resize、accessibility 和生命周期定制，并运行静态契约测试。
 - 调试“窗口可见但无法操作”时必须分别检查顶层 `FLUTTER_RUNNER_WIN32_WINDOW` 与其 `FLUTTERVIEW` 子窗口的 rect、enabled、capture 和 hit-test；不能只根据 Flutter 日志或外层 HWND 状态判断。
-- 修改插件版本或 Windows C++ 后必须完整重建。Orca 会话显示 `running` 或留有 PID 不等于构建成功；应确认控制台出现原生构建成功/启动标记、真实 `nai_launcher` 进程存在，依赖变化时再核对插件 DLL 时间戳，然后才让用户复现。
+- 修改插件版本或 Windows C++ 后必须完整重建。独立窗口存在或 session marker 留有 PID 不等于构建成功；应确认控制台出现原生构建成功/启动标记、真实 `nai_launcher` 进程存在，依赖变化时再核对插件 DLL 时间戳，然后才让用户复现。
 - Windows 最小化会让窗口 constraints 短暂归零，响应式布局可能因此销毁并重建面板子树；滚动位置、是否跟随最新内容等必须跨 Widget/Controller 生命周期的 viewport 状态应由更高层稳定 owner 按会话保存。重建 ScrollController 时必须用保存值设置 `initialScrollOffset`，在首帧直接呈现原位置；不得先渲染默认位置再通过 post-frame `jumpTo` 恢复，否则会出现跳到底部后拉回的闪烁。
 
 用户明确要求自动化运行验收时，两个 runner 通过 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 启用仅限开发会话的 Flutter Driver extension，供官方 Dart and Flutter MCP server 在不抢占用户键鼠和桌面焦点的情况下截图、点击、输入、滚动与检查运行中 Flutter UI。禁止使用 Computer Use。稳定场景应固化为 `integration_test`；Android 系统界面场景使用 ADB。Android 项目 emulator 首次使用无 Quick Boot 快照、host GPU、无设备外框的干净启动，之后默认保留并复用暖机实例；复用前停止旧 App 并返回 Home，显式传 `-StopEmulatorOnExit` 时才跟随会话关闭。`-DeviceId` 仅用于明确复用外部设备。
@@ -92,6 +92,7 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 4. **及时拆方法和 Widget**：方法超过 50 行应检查职责，超过 100 行必须拆分；`build` 嵌套超过 3～4 层，或主体需要滚动才能读完时，抽取具名子 Widget，避免堆叠匿名 builder。
 5. **目录按功能聚合**：在既有 `core`、`data`、`presentation` 分层内按功能组织，例如 `features/auth/`、`features/home/`；禁止用单个 `widgets.dart`、`utils.dart` 收纳所有不相关实现。
 6. **克制使用 `part` / `part of`**：仅在必须共享私有成员或框架约定要求时使用；同一逻辑单元的 part 文件合并计算规模，不得用它把 800 行代码伪装成数个小文件。
+7. **保证 Riverpod 生命周期安全**：`ConsumerState.dispose` / `deactivate` 及 widget 已卸载后的异步回调不得读取 `ref`；销毁清理需要的 service/port 必须在 `initState` 等有效生命周期预先获取并保存稳定句柄，异步回写 UI 或 Provider 前检查 `mounted` 或对应请求世代，避免卸载阶段断言和旧响应污染。
 
 > 文件长不代表产出多；越长，越没人敢改。拆分的目标是让职责清楚、修改安全，而不是机械追求行数。
 
@@ -99,11 +100,23 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 新增持久化功能或设置时必须评估云同步：判断其数据是否应同步；若现有同步数据类型过于笼统、无法让用户独立控制，应细化或新增同步列表选项，并确定合理默认状态。同步方案还需验证跨版本、跨设备兼容，评估数据量及增长趋势，避免缓存、日志、索引、生成产物等使同步体积急剧膨胀；凭据和设备专属状态必须排除。
 
+OneDrive 与 Google Drive 云同步保持简单明文备份，不引入加密、解密、恢复密钥或 KEY 文件流程；功能发布前不保留未发布加密格式的兼容、迁移或分支。保存连接只保存和验证配置，不得自动上传、拉取或恢复待处理同步，所有数据传输必须由用户显式触发。
+
 ## UI 设计语言
 
 新增或修改界面必须遵循仓库根目录的 [`DESIGN.md`](DESIGN.md)。项目采用 Quiet Layered Utility（静谧层叠工具界面）：内容优先、无边框优先、细边框兜底，主要通过排版、留白和低对比色面建立层级。普通卡片、工具按钮、导航项与已填充控件不得默认添加完整描边；主题个性不得破坏统一的信息层级、交互状态、密度、响应式和可访问性规则。
 
 所有共享 UI 从设计阶段起必须同时覆盖 Windows/macOS 桌面端和 Android 手机、横屏、平板/大屏，不能先完成桌面版再以缩放、裁切或静默删减功能得到移动版。业务能力、字段语义、状态和操作结果保持跨端一致；导航容器、面板呈现和输入方式可按 constraints 与设备能力自适应。桌面端保留鼠标、触控板、键盘、hover、快捷键和上下文操作效率；移动端提供不依赖 hover/右键/外接键盘的触屏等价入口，并正确处理 `SafeArea`、系统返回、横竖屏、软键盘和系统手势区。共享业务组件、Provider、路由状态和操作命令必须复用，平台差异集中在导航壳层、capabilities/service 与 conditional import，不在页面散落 `Platform.isAndroid` 或复制业务流程。
+
+### 响应式与体验实施规则
+
+- 先明确用户主任务、首要信息和关键操作，再安排视觉层级；工具界面优先可扫描、低认知负担和高频操作效率，不用装饰抢占内容注意力。
+- 遵循“constraints 向下、size 向上、parent 定位”：页面级用共享 `WindowSizeClass`，局部重排用 `LayoutBuilder`；不得用平台名、设备型号或横竖屏标签推断可用空间。
+- 统一复用 `AdaptiveSlotLayout`、`AdaptiveContentBounds`、`AdaptivePresenter` 与 `InteractionPolicyScope`；能力层只描述“能否执行”，策略层决定“如何呈现”，不得在页面另建冲突断点。
+- Compact/Medium/Expanded/Wide 只改变导航、分栏、密度和呈现方式，不改变业务语义。窄屏可滚动、分层或换行，但不得裁切或静默隐藏功能；宽屏限制正文/表单阅读宽度，列表和网格使用惰性构建。
+- 触屏先保证关键操作显式可达且命中区不少于 44×44；桌面再保留 hover、右键、快捷键和焦点遍历作为加速器。断点切换不得丢失选择、输入、焦点、滚动位置或未提交状态。
+- 每个界面同时设计 loading、empty、error、disabled、success 与长文案/本地化状态；层级优先用排版、间距和低对比色面表达，强色只用于主操作、状态和风险。动效只解释状态变化，并遵循 Reduce Motion。
+- 新增或修改界面至少检查 `320/600/840/1180/1600` 宽度、`3x` 文本、短横屏、IME 与 `SafeArea`；Widget test 必须断言无 overflow、关键信息完整且全部操作可达，验证按“批量审查一次、集中修复、再确认一次”收敛。
 
 ## 在线画廊顶栏布局约束
 
@@ -129,7 +142,7 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 仅当用户明确要求 Agent 执行自动化运行验收时，使用本节流程；普通 UI 修改不默认启动真机、emulator、自动点击或截图验收。
 
-Android 系统界面快速回归使用 `.pi/skills/aaalice-runtime-verify/scripts/android_verify.ps1`：`-HotReload` 后约 1.2 秒开始操作，`-Foreground` 只把现有应用带回前台，`-Action` 接受 `tap:x,y`、`text:value`、`key:KEYCODE`、`swipe:x1,y1,x2,y2,duration` 和 `wait:milliseconds`。脚本会清理日志基线并保存截图、窗口树、Activity 状态和有界日志，发现 overflow、Flutter rendering exception 或原生崩溃时失败。
+Android 系统界面快速回归使用 `.agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1`：`-HotReload` 通过 `aaalice-hot-reload` 控制现有独立 Android 控制台，约 1.2 秒后开始操作；`-Foreground` 只把现有应用带回前台，`-Action` 接受 `tap:x,y`、`text:value`、`key:KEYCODE`、`swipe:x1,y1,x2,y2,duration` 和 `wait:milliseconds`。脚本会清理日志基线并保存截图、窗口树、Activity 状态和有界日志，发现 overflow、Flutter rendering exception 或原生崩溃时失败。
 
 运行时交互统一使用 `adb` CLI，并尽量在一条 PowerShell 命令中批量完成一个确定场景的点击、输入、等待、状态采集、截图和日志读取，避免逐个命令往返。操作前先用 `uiautomator dump` 和当前窗口信息确认页面、文本与控件边界；点击坐标必须来自本次设备的实际树或截图，不得把某一分辨率的坐标当作跨尺寸稳定选择器。常用命令包括 `adb shell input tap/text/keyevent/swipe`、`adb shell uiautomator dump`、`adb shell dumpsys window`、`adb exec-out screencap -p` 和 `adb logcat`。
 
@@ -141,53 +154,19 @@ Android 系统界面快速回归使用 `.pi/skills/aaalice-runtime-verify/script
 
 `AGENTS.md` 必须始终不超过 500 行，这是硬性限制；新增规则前先删重、归并和精炼现有内容，只保留当前有效且可执行的项目约定。其他文档也应围绕单一稳定主题，不持续堆放历史审计、迁移过程、重复示例或临时结论。除天然累积或机器生成的 `CHANGELOG.md`、第三方许可/来源清单、版本发布记录等材料外，Markdown 文档原则上控制在 500 行以内；仍需拆分时按稳定职责建立独立文档和明确索引，禁止为规避行数机械切片或复制内容。修改中英文用户文档时继续遵守双语同步要求。
 
-## 资源、生成文件与发布注意事项
+## 资源与生成文件注意事项
 
-`assets/databases/tag_catalog.db` 是唯一通过 Git LFS 管理并随应用提供的数据库，发布前应确认它是真实 SQLite 数据库而不是 LFS pointer。原始标签/翻译/共现 CSV 不得放回 `assets/`；`assets/translations/` 已废弃。`assets/data/` 和 `assets/images/` 会随 Flutter assets 打包，移动或重命名后需要同步检查 `pubspec.yaml`。发布前确认 `CHANGELOG.md`、`dist/release_notes_<tag>.md`、`pubspec.yaml` 版本号和 Windows release build。
+`assets/databases/tag_catalog.db` 是唯一通过 Git LFS 管理并随应用提供的数据库，校验或构建时必须确认它是真实 SQLite 数据库而不是 LFS pointer。原始标签/翻译/共现 CSV 不得放回 `assets/`；`assets/translations/` 已废弃。`assets/data/` 和 `assets/images/` 会随 Flutter assets 打包，移动或重命名后需要同步检查 `pubspec.yaml`。
 
 CI 与 Release checkout 不直接消耗 GitHub LFS 流量；`scripts/prepare_bundled_database.ps1` 从 `assets/databases/manifest.json` 锁定的独立 `autocomplete-data-tag-catalog-*` prerelease 下载同一份数据库，并在替换 LFS pointer 前校验固定 URL、大小、SQLite 文件头和 SHA-256。数据 release 不得设为 latest，数据库版本变化时必须同步更新 LFS 对象、manifest 与独立数据 release。
 
-随机词库维护两条独立且可验证的数据来源：官网模式使用 `tool/random_tag_library/source_lock.json` 固定的 NovelAI 前端副本可重复生成官方词库资产，必须完整保留原始记录、重复项、顺序、权重、条件与排除字段，但不得提交前端脚本副本；自定义/扩展模式继续只维护 `assets/data/random_tag_library.json` 中的声明式语义分类规则，候选标签来自完整的 `tag_catalog.db`。混合模式必须让两套来源真实生效。更新任一来源时同步更新 lock 中的源文件名称、大小、SHA-256、数组及分组计数、输出 schema/hash、catalog 来源与完整分类计数，并运行 `dart run tool/random_tag_library/verify_random_tag_library.dart`；校验未通过不得提交。
+随机词库维护两条独立且可验证的数据来源：只读默认预设使用 `tool/random_tag_library/source_lock.json` 固定的 NovelAI 前端副本可重复生成官方词库资产，必须完整保留原始记录、重复项、顺序、权重、条件与排除字段，但不得提交前端脚本副本；用户自定义预设只维护 `assets/data/random_tag_library.json` 中的声明式语义分类规则，候选标签来自完整的 `tag_catalog.db`。生成时两条来源按当前预设互斥，禁止把 catalog 内容注入默认预设或合并两套结果。更新任一来源时同步更新 lock 中的源文件名称、大小、SHA-256、数组及分组计数、输出 schema/hash、catalog 来源与完整分类计数，并运行 `dart run tool/random_tag_library/verify_random_tag_library.dart`；校验未通过不得提交。
 
 共现数据包只能通过 `tool/database/build_cooccurrence_only.dart` 从 `tool/database/cooccurrence_source_lock.json` 固定的完整源构建，产物写入 `tool/.tmp/cooccurrence/`，不得提交 `.db`、`.gz` 或源 CSV。完整构建必须通过哈希确定性、记录数、SQLite、查询计划、160 MiB 数据库和 80 MiB GZip 门槛；客户端只提交 `assets/data/cooccurrence_data_pack_manifest.json`。数据版本变化时手动运行 `.github/workflows/cooccurrence-data-pack.yml`，使用独立的 `autocomplete-data-cooccurrence-*` prerelease tag 发布，不得并入普通应用 Release 或设为 latest。
 
-## Changelog 与 Release Notes 规范
-
-`CHANGELOG.md` 是 GitHub Release notes 的“更新内容”来源。日常开发和普通代码修改不要逐次更新 Changelog；只在准备发布新版本时统一重写目标版本段落。
-
-发布前必须在代码全部提交后运行 `scripts/prepare_changelog_review.ps1`。脚本默认对比上一个可达的 `v*` tag 与当前 `HEAD`，并在 `tool/.tmp/changelog-review/` 生成提交/文件审查报告和完整 diff。必须同时阅读两份材料、按变更文件反向核对，不能只根据 commit 标题总结，然后把本版本全部用户可见变化整理进对应版本段落，例如 `## [1.0.0] - YYYY-MM-DD`。
-
-更新日志的差异审查、归类、撰写和完整性复核必须由当前主 Agent 亲自完成，禁止启动或委派任何子代理；这属于发布流程中的单一职责任务，不得为了并行分析而拆分。
-
-Changelog 条目遵守以下格式：
-
-- 每个 bullet 只描述一个功能主题或一个用户问题。
-- 同一功能的适用入口、交互方式和结果合并描述，不按操作细节机械拆分。
-- 不同功能或不同问题必须拆成多条，禁止为了减少行数强行塞进同一条。
-- 条目面向用户描述最终结果，不写类名、接口名或内部实现过程。
-- 同一新功能开发期间的内部修复合并到最终结果，不暴露用户从未使用过的中间状态。
-- 常用分类为 `### ✨ 新增`、`### 🛠 改进`、`### 🐛 修复`，只有确有必要时才增加 `### ⚠️ 注意`。
-- `CHANGELOG.md` 不写发布文件列表；安装包说明由 `scripts/generate_release_metadata.ps1` 自动生成。
-
-准备发布时需要检查：
-
-- 当前版本段落是否覆盖登录、更新、生成、画廊、词库、设置、启动、安装包等用户实际能感知到的变化。
-- bug 修复是否写成用户看到的问题和结果，例如“修复 Token 登录后无法获取会员状态”，而不是只写接口名或类名。
-- 新功能开发期间顺手修掉的问题，如果用户从未用过损坏版本，可以合并进新功能描述，不必拆成多条。
-- `CHANGELOG.md` 中不要重复自动生成的下载文件表；Release 页面会自动附带文件说明、校验文件和更新内容。
-
-## 发布流程
-
-1. 切换到 `main`，拉取最新代码，确认所有待发布修改均已提交且工作区干净。
-2. 更新 `pubspec.yaml` 版本号；tag 必须等于去掉 `+build` 后的版本，如 `1.0.0+17` 对应 `v1.0.0`。
-3. 运行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/prepare_changelog_review.ps1`，根据报告与完整 diff 重写版本日志并提交。
-4. 运行 `dart run tool/tag_catalog/verify_bundled_databases.dart`，确认 LFS 数据库是真实 SQLite 文件；按风险运行测试、分析和 release build。
-5. 创建并推送 `v*` tag。GitHub Actions `Release` workflow 会构建 Windows Setup、Windows Portable、macOS Portable 与签名 Android APK，并生成 `release_manifest.json`、`checksums.txt` 和 Release notes。
-6. Windows 本地打包使用 `scripts/package_windows_release.ps1`；签名使用 `scripts/sign_windows_binary.ps1`。Windows CI secrets 为 `WINDOWS_SIGNING_CERT_BASE64` 与 `WINDOWS_SIGNING_CERT_PASSWORD`。Android 正式发布必须配置 `ANDROID_SIGNING_KEYSTORE_BASE64`、`ANDROID_SIGNING_KEYSTORE_PASSWORD`、`ANDROID_SIGNING_KEY_ALIAS` 与 `ANDROID_SIGNING_KEY_PASSWORD`；缺少任一项时 Release workflow 必须失败，不得发布调试签名 APK。
-
 ## README 双语同步规范
 
-`README.md`（简体中文）与 `README.en-US.md`（English）只面向最终用户，保留产品简介、功能、界面、平台、下载安装、隐私、支持和致谢；构建命令、项目结构、开发约定、发布流程等维护者内容统一写在 `AGENTS.md`，不要再放回 README。
+`README.md`（简体中文）与 `README.en-US.md`（English）只面向最终用户，保留产品简介、功能、界面、平台、下载安装、隐私、支持和致谢；构建命令、项目结构和开发约定写在 `AGENTS.md`，版本发布流程写在项目级 `aaalice-launcher-release` skill，不要再放回 README。
 
 两份 README 内容必须保持同步：任一用户可见功能、平台支持、安装方式或隐私说明变化时，在同一提交中同时更新。两份文件顶部均保留语言切换链接；英文版只翻译中文版事实，不自行增删承诺。
 

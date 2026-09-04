@@ -78,13 +78,13 @@ class FixedTagsDialogCoordinator {
       libraryEntries: libraryEntries,
       fixedEntries: ref.read(fixedTagsNotifierProvider).entries,
     );
-    await showDialog<void>(
+    final selected = await FixedTagLibraryPickerDialog.show(
       context: context,
-      builder: (_) => FixedTagLibraryPickerDialog(
-        entries: entries,
-        onSelect: (entry) => _addFromLibrary(entry, promptType),
-      ),
+      entries: entries,
     );
+    if (selected != null) {
+      await _addFromLibrary(selected, promptType);
+    }
   }
 
   Future<void> _addFromLibrary(
@@ -110,12 +110,10 @@ class FixedTagsDialogCoordinator {
     FixedTagEntry? entry,
     FixedTagPromptType initialPromptType,
   ) async {
-    final result = await showDialog<FixedTagEntry>(
+    final result = await FixedTagEditDialog.show(
       context: context,
-      builder: (_) => FixedTagEditDialog(
-        entry: entry,
-        initialPromptType: initialPromptType,
-      ),
+      entry: entry,
+      initialPromptType: initialPromptType,
     );
     if (result == null) return;
     final notifier = ref.read(fixedTagsNotifierProvider.notifier);

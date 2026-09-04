@@ -40,7 +40,13 @@ void main() {
     List<String> disposedPanels, {
     Locale locale = const Locale('zh'),
     TargetPlatform targetPlatform = TargetPlatform.windows,
+    Size size = const Size(800, 600),
+    double textScale = 1,
   }) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     debugDefaultTargetPlatformOverride = targetPlatform;
     try {
       await tester.pumpWidget(
@@ -48,25 +54,33 @@ void main() {
           locale: locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
           home: Scaffold(
-            body: IntegrationsSettingsSection(
-              panelBuilders: [
-                (_) => _PanelProbe(
-                  key: _promptAssistantPanelKey,
-                  label: 'panel-prompt-assistant',
-                  onDispose: () => disposedPanels.add('prompt-assistant'),
-                ),
-                (_) => _PanelProbe(
-                  key: _comfyUiPanelKey,
-                  label: 'panel-comfyui',
-                  onDispose: () => disposedPanels.add('comfyui'),
-                ),
-                (_) => _PanelProbe(
-                  key: _kritaPanelKey,
-                  label: 'panel-krita',
-                  onDispose: () => disposedPanels.add('krita'),
-                ),
-              ],
+            body: SingleChildScrollView(
+              child: IntegrationsSettingsSection(
+                panelBuilders: [
+                  (_) => _PanelProbe(
+                    key: _promptAssistantPanelKey,
+                    label: 'panel-prompt-assistant',
+                    onDispose: () => disposedPanels.add('prompt-assistant'),
+                  ),
+                  (_) => _PanelProbe(
+                    key: _comfyUiPanelKey,
+                    label: 'panel-comfyui',
+                    onDispose: () => disposedPanels.add('comfyui'),
+                  ),
+                  (_) => _PanelProbe(
+                    key: _kritaPanelKey,
+                    label: 'panel-krita',
+                    onDispose: () => disposedPanels.add('krita'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -175,6 +189,21 @@ void main() {
     expectOnlyPanel(_promptAssistantPanelKey);
     expect(disposedPanels, isEmpty);
   });
+
+  for (final width in [320.0, 600.0, 840.0, 1600.0]) {
+    testWidgets('集成分段导航在 ${width.toInt()} 宽度可滚动且无溢出', (tester) async {
+      await pumpSection(
+        tester,
+        <String>[],
+        size: Size(width, 420),
+        textScale: width == 320 ? 3 : 1,
+      );
+
+      expect(find.byType(SegmentedButton<int>), findsOneWidget);
+      expect(find.byType(SingleChildScrollView), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   const expectedLabels = <String, List<String>>{
     'en': ['Prompt Assistant', 'ComfyUI', 'Krita'],

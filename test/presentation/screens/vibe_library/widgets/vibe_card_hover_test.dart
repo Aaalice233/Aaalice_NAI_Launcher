@@ -9,7 +9,10 @@ import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 
 void main() {
   test('悬浮大图按比例适配且不会随高窗口无限增高', () {
@@ -108,6 +111,179 @@ void main() {
       (resized.imageProvider as MemoryImage).bytes,
       same(highResolutionImage),
     );
+  });
+
+  testWidgets('Vibe 卡片悬浮操作复用图片卡片双列操作轨', (tester) async {
+    tester.view.physicalSize = const Size(400, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final thumbnail = _onePixelPng;
+    final entry = _entry(rawImageData: Uint8List.fromList(thumbnail));
+    final storage = _HoverStorage(entry, thumbnail);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: ImageCardActionScope(
+                onAddToAgent: () {},
+                child: VibeCard(
+                  entry: entry.toDisplayEntry(),
+                  width: 170,
+                  height: computeVibeCardHeight(170),
+                  onFavoriteToggle: () {},
+                  onSendToGeneration: () {},
+                  onExport: () {},
+                  onEdit: () {},
+                  onDelete: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cardFinder = find.byType(VibeCard);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(cardFinder));
+    await tester.pump();
+
+    final cardRect = tester.getRect(cardFinder);
+    expect(find.byType(CardActionButtons), findsOneWidget);
+    final actionKeys = [
+      for (final action in [
+        'favorite',
+        'agent',
+        'send',
+        'export',
+        'edit',
+        'delete',
+      ])
+        ValueKey('vibe-card-$action-${entry.id}'),
+    ];
+    final actionRects = [
+      for (final key in actionKeys) tester.getRect(find.byKey(key)),
+    ];
+
+    for (final rect in actionRects) {
+      expect(cardRect.contains(rect.topLeft), isTrue);
+      expect(cardRect.contains(rect.bottomRight), isTrue);
+    }
+    expect(actionRects.take(3).map((rect) => rect.left).toSet(), hasLength(1));
+    expect(actionRects.skip(3).map((rect) => rect.left).toSet(), hasLength(1));
+    expect(actionRects[3].left, greaterThan(actionRects[0].left));
+    expect(actionRects[0].top, closeTo(actionRects[3].top, 0.01));
+
+    final sendButton = tester.widget<IconButton>(
+      find.byKey(ValueKey('vibe-card-send-${entry.id}')),
+    );
+    final deleteButton = tester.widget<IconButton>(
+      find.byKey(ValueKey('vibe-card-delete-${entry.id}')),
+    );
+    expect(
+      sendButton.style!.backgroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.surface,
+    );
+    expect(
+      deleteButton.style!.backgroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.surface,
+    );
+    expect(sendButton.style!.shape!.resolve(const {}), isA<CircleBorder>());
+    expect(deleteButton.style!.shape!.resolve(const {}), isA<CircleBorder>());
+    expect(
+      sendButton.style!.foregroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.foreground,
+    );
+    expect(
+      deleteButton.style!.foregroundColor!.resolve(const {}),
+      Theme.of(tester.element(find.byIcon(Icons.delete))).colorScheme.error,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Vibe 卡片桌面与触屏操作均可发送到智能体', (tester) async {
+    var addCount = 0;
+    var classifyCount = 0;
+    final entry = _entry(rawImageData: _onePixelPng);
+    final storage = _HoverStorage(entry, _onePixelPng);
+
+    Future<void> pumpCard(InteractionPolicy policy) => tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: InteractionPolicyScope(
+          initialPolicy: policy,
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: ImageCardActionScope(
+                onAddToAgent: () => addCount++,
+                child: VibeCard(
+                  entry: entry.toDisplayEntry(),
+                  width: 180,
+                  onClassify: () => classifyCount++,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await pumpCard(
+      const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(VibeCard)));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.auto_awesome_outlined));
+    expect(addCount, 1);
+
+    await pumpCard(
+      const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+    );
+    await tester.tap(
+      find.byIcon(Icons.more_vert_rounded),
+      kind: PointerDeviceKind.touch,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发送到智能体'), kind: PointerDeviceKind.touch);
+    await tester.pumpAndSettle();
+    expect(addCount, 2);
+
+    await tester.tap(
+      find.byIcon(Icons.more_vert_rounded),
+      kind: PointerDeviceKind.touch,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('移动到分类'), kind: PointerDeviceKind.touch);
+    expect(classifyCount, 1);
   });
 }
 

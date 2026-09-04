@@ -5,15 +5,25 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
+import '../../adaptive/window_size_class.dart';
+import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
+import '../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import '../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../themes/core/input_surface_style.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../autocomplete/autocomplete.dart';
+import '../common/adaptive_dialog_frame.dart';
 import '../common/prefix_suffix_switch.dart';
 import '../common/themed_input.dart';
 import '../common/themed_slider.dart';
 import '../prompt/nai_syntax_controller.dart';
 import '../prompt/prompt_formatter_wrapper.dart';
+import '../prompt/quick_translate_prompt_field.dart';
 
 /// 固定词编辑对话框
 class FixedTagEditDialog extends ConsumerStatefulWidget {
@@ -25,7 +35,29 @@ class FixedTagEditDialog extends ConsumerStatefulWidget {
     super.key,
     this.entry,
     this.initialPromptType = FixedTagPromptType.positive,
+    this.presentationManaged = false,
   });
+
+  final bool presentationManaged;
+
+  static Future<FixedTagEntry?> show({
+    required BuildContext context,
+    FixedTagEntry? entry,
+    FixedTagPromptType initialPromptType = FixedTagPromptType.positive,
+  }) {
+    return AdaptivePresenter.showForm<FixedTagEntry>(
+      context: context,
+      title: entry == null
+          ? context.l10n.fixedTags_add
+          : context.l10n.fixedTags_edit,
+      sideSheetWidth: 860,
+      builder: (_, __) => FixedTagEditDialog(
+        entry: entry,
+        initialPromptType: initialPromptType,
+        presentationManaged: true,
+      ),
+    );
+  }
 
   @override
   ConsumerState<FixedTagEditDialog> createState() => _FixedTagEditDialogState();
@@ -38,6 +70,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   late FixedTagPromptType _promptType;
   late double _weight;
   late bool _enabled;
+  late final String _assistantSessionId;
   bool _saveToLibrary = false;
   String? _selectedCategoryId;
 
@@ -56,6 +89,9 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     _promptType = entry?.promptType ?? widget.initialPromptType;
     _weight = entry?.weight ?? 1.0;
     _enabled = entry?.enabled ?? true;
+    _assistantSessionId = PromptHistorySessionIds.fixedTag(
+      entry?.id ?? 'draft-${identityHashCode(this)}',
+    );
   }
 
   @override
@@ -79,32 +115,43 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
       ),
     );
 
-    final mediaSize = MediaQuery.sizeOf(context);
-    final isWide = mediaSize.width >= 760;
-    final dialogWidth = isWide
-        ? 860.0
-        : (mediaSize.width - 32).clamp(0.0, 560.0).toDouble();
-    final dialogHeight = (mediaSize.height - (isWide ? 48 : 32))
-        .clamp(0.0, 680.0)
-        .toDouble();
-
-    return Dialog(
-      insetPadding: EdgeInsets.all(isWide ? 24 : 16),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: SizedBox(
-        width: dialogWidth,
-        height: dialogHeight,
-        child: Column(
-          children: [
-            _buildHeader(theme),
-            Expanded(
-              child: isWide ? _buildWideBody(theme) : _buildNarrowBody(theme),
-            ),
-            _buildFooter(theme),
-          ],
+    final isCompact = context.adaptiveWindow.isCompact;
+    final body = Column(
+      children: [
+        if (!widget.presentationManaged) _buildHeader(theme),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final useTwoColumns =
+                  WindowSizeClass.fromWidth(
+                    constraints.maxWidth,
+                  ).isExpandedOrWider &&
+                  MediaQuery.textScalerOf(context).scale(1) < 2;
+              return useTwoColumns
+                  ? _buildWideBody(theme)
+                  : _buildNarrowBody(theme);
+            },
+          ),
         ),
+        _buildFooter(theme),
+      ],
+    );
+    if (widget.presentationManaged) return body;
+
+    final content = AdaptiveDialogFrame(
+      maxWidth: 860,
+      maxHeight: 680,
+      reservedVerticalSpace: isCompact ? 0 : 48,
+      horizontalMargin: isCompact ? 0 : 24,
+      child: body,
+    );
+    return Dialog(
+      insetPadding: EdgeInsets.all(isCompact ? 0 : 24),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isCompact ? 0 : 8),
       ),
+      child: isCompact ? SafeArea(child: content) : content,
     );
   }
 
@@ -120,15 +167,18 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
               color: theme.colorScheme.secondary,
             ),
             const SizedBox(width: 12),
-            Text(
-              _isEditing
-                  ? context.l10n.fixedTags_edit
-                  : context.l10n.fixedTags_add,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                _isEditing
+                    ? context.l10n.fixedTags_edit
+                    : context.l10n.fixedTags_add,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            const Spacer(),
             IconButton(
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.of(context).pop(),
@@ -214,19 +264,77 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           Expanded(child: promptEditor)
         else
           SizedBox(height: 280, child: promptEditor),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: Text(
-            context.l10n.fixedTags_syntaxHelp,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline,
-              fontSize: 12,
-            ),
-            maxLines: 2,
-          ),
-        ),
+        const SizedBox(height: 4),
+        _buildPromptFooter(theme),
       ],
+    );
+  }
+
+  Widget _buildPromptFooter(ThemeData theme) {
+    final interactionPolicy = context.interactionPolicy;
+    final assistantConfig = ref.watch(promptAssistantConfigProvider);
+    final assistantVisible =
+        assistantConfig.enabled &&
+        (!interactionPolicy.usesAnchoredMenus ||
+            assistantConfig.desktopOverlayEnabled);
+    final assistantExpanded =
+        assistantVisible &&
+        ref.watch(
+          promptAssistantStateProvider.select(
+            (states) => states[_assistantSessionId]?.expanded ?? false,
+          ),
+        );
+    final assistantToolbarHeight = assistantVisible
+        ? PromptAssistantOverlay.effectiveInlineToolbarHeight(interactionPolicy)
+        : 32.0;
+    final assistantIconOnly = interactionPolicy.prefersTouchPresentation;
+    final collapsedAssistantWidth = assistantIconOnly
+        ? assistantToolbarHeight
+        : PromptAssistantOverlay.collapsedInlineButtonWidth(
+            context,
+            context.l10n.promptAssistant_assistant,
+          );
+    final hint = Text(
+      context.l10n.fixedTags_syntaxHelp,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
+        fontSize: 12,
+      ),
+    );
+    final assistant = assistantVisible
+        ? PromptAssistantOverlay(
+            key: ValueKey('fixed-tag-prompt-assistant-$_assistantSessionId'),
+            sessionId: _assistantSessionId,
+            controller: _contentController,
+            interactionPolicy: interactionPolicy,
+            onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+            floatOverEditor: false,
+            iconOnly: assistantIconOnly,
+            stripFixedTagsFromInput: false,
+          )
+        : null;
+
+    return Container(
+      key: const ValueKey('fixed-tag-content-footer'),
+      width: double.infinity,
+      constraints: BoxConstraints(minHeight: assistantToolbarHeight),
+      padding: const EdgeInsets.only(left: 12, right: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          if (!assistantExpanded) Expanded(child: hint),
+          if (!assistantExpanded && assistant != null) const SizedBox(width: 8),
+          if (assistant != null)
+            assistantExpanded
+                ? Expanded(child: assistant)
+                : SizedBox(width: collapsedAssistantWidth, child: assistant),
+        ],
+      ),
     );
   }
 
@@ -260,7 +368,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   }
 
   Widget _buildPromptEditor() {
-    return PromptFormatterWrapper(
+    final promptEditor = PromptFormatterWrapper(
       controller: _contentController,
       focusNode: _contentFocusNode,
       enableAutoFormat: ref.watch(autoFormatPromptSettingsProvider),
@@ -275,28 +383,44 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           autoInsertComma: true,
         ),
         child: ThemedInput(
+          key: const ValueKey('fixed-tag-content-input'),
           controller: _contentController,
           focusNode: _contentFocusNode,
           decoration: InputDecoration(
             hintText: context.l10n.fixedTags_contentHint,
-            contentPadding: const EdgeInsets.all(12),
+            contentPadding: EdgeInsets.fromLTRB(
+              12,
+              12,
+              12,
+              QuickTranslatePromptField.contentBottomClearance(
+                context.interactionPolicy,
+              ),
+            ),
           ),
           maxLines: null,
           expands: true,
         ),
       ),
     );
+    return QuickTranslatePromptField(
+      controller: _contentController,
+      sourceFocusNode: _contentFocusNode,
+      child: promptEditor,
+    );
   }
 
   Widget _buildSettingsPane(ThemeData theme) {
+    final stackOptions = MediaQuery.textScalerOf(context).scale(1) >= 2;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(context.l10n.fixedTags_scope, style: theme.textTheme.labelLarge),
         const SizedBox(height: 8),
         SizedBox(
+          key: const ValueKey('fixed-tag-prompt-type-selector'),
           width: double.infinity,
           child: SegmentedButton<FixedTagPromptType>(
+            direction: stackOptions ? Axis.vertical : Axis.horizontal,
             segments: [
               ButtonSegment(
                 value: FixedTagPromptType.positive,
@@ -319,14 +443,36 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 8),
-        Center(
-          child: PrefixSuffixSwitch(
+        if (!stackOptions)
+          PrefixSuffixSwitch(
+            key: const ValueKey('fixed-tag-position-selector'),
             value: _position,
             onChanged: (value) => setState(() => _position = value),
             prefixLabel: context.l10n.fixedTags_prefix,
             suffixLabel: context.l10n.fixedTags_suffix,
+          )
+        else
+          SizedBox(
+            key: const ValueKey('fixed-tag-position-selector'),
+            width: double.infinity,
+            child: SegmentedButton<FixedTagPosition>(
+              direction: Axis.vertical,
+              segments: [
+                ButtonSegment(
+                  value: FixedTagPosition.prefix,
+                  label: Text(context.l10n.fixedTags_prefix),
+                ),
+                ButtonSegment(
+                  value: FixedTagPosition.suffix,
+                  label: Text(context.l10n.fixedTags_suffix),
+                ),
+              ],
+              selected: {_position},
+              onSelectionChanged: (selection) {
+                setState(() => _position = selection.first);
+              },
+            ),
           ),
-        ),
         const SizedBox(height: 20),
         _buildWeightControl(theme),
         const SizedBox(height: 12),
@@ -352,16 +498,17 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
 
   Widget _buildWeightControl(ThemeData theme) {
     return Column(
+      key: const ValueKey('fixed-tag-weight-control'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
+        LayoutBuilder(
+          builder: (context, _) {
+            final label = Text(
               context.l10n.fixedTags_weight,
               style: theme.textTheme.labelLarge,
-            ),
-            const Spacer(),
-            Container(
+            );
+            final value = Container(
+              key: const ValueKey('fixed-tag-weight-value'),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: theme.colorScheme.secondary.withValues(alpha: 0.1),
@@ -376,33 +523,67 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-            ),
-          ],
+            );
+            final stackLabel = MediaQuery.textScalerOf(context).scale(1) >= 2;
+            if (stackLabel) {
+              return Column(
+                key: const ValueKey('fixed-tag-weight-header'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [label, const SizedBox(height: 6), value],
+              );
+            }
+            return Row(
+              key: const ValueKey('fixed-tag-weight-header'),
+              children: [label, const Spacer(), value],
+            );
+          },
         ),
         const SizedBox(height: 4),
-        Row(
-          children: [
-            Text('0.5', style: theme.textTheme.bodySmall),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ThemedSlider(
-                value: _weight,
-                min: 0.5,
-                max: 2.0,
-                divisions: 30,
-                onChanged: (value) => setState(() => _weight = value),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text('2.0', style: theme.textTheme.bodySmall),
-            const SizedBox(width: 4),
-            IconButton(
+        LayoutBuilder(
+          builder: (context, _) {
+            final stackSlider = MediaQuery.textScalerOf(context).scale(1) >= 2;
+            final slider = ThemedSlider(
+              value: _weight,
+              min: 0.5,
+              max: 2.0,
+              divisions: 30,
+              onChanged: (value) => setState(() => _weight = value),
+            );
+            final reset = IconButton(
               icon: const Icon(Icons.refresh, size: 18),
               tooltip: context.l10n.fixedTags_resetWeight,
               onPressed: () => setState(() => _weight = 1.0),
               visualDensity: VisualDensity.compact,
-            ),
-          ],
+            );
+            if (stackSlider) {
+              return Column(
+                children: [
+                  SizedBox(width: double.infinity, child: slider),
+                  Row(
+                    children: [
+                      Text('0.5', style: theme.textTheme.bodySmall),
+                      const Spacer(),
+                      Text('2.0', style: theme.textTheme.bodySmall),
+                      const SizedBox(width: 4),
+                      reset,
+                    ],
+                  ),
+                ],
+              );
+            }
+            return Row(
+              key: const ValueKey('fixed-tag-weight-slider-row'),
+              children: [
+                Text('0.5', style: theme.textTheme.bodySmall),
+                const SizedBox(width: 8),
+                Expanded(child: slider),
+                const SizedBox(width: 8),
+                Text('2.0', style: theme.textTheme.bodySmall),
+                const SizedBox(width: 4),
+                reset,
+              ],
+            );
+          },
         ),
         if (_weight != 1.0) ...[
           const SizedBox(height: 4),
@@ -519,26 +700,38 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   }
 
   Widget _buildFooter(ThemeData theme) {
+    final cancel = TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: Text(context.l10n.common_cancel),
+    );
+    final save = ValueListenableBuilder<TextEditingValue>(
+      valueListenable: _contentController,
+      builder: (context, value, child) => FilledButton(
+        onPressed: value.text.trim().isNotEmpty ? _save : null,
+        child: Text(context.l10n.common_save),
+      ),
+    );
+
     return ColoredBox(
       color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.55),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.l10n.common_cancel),
-            ),
-            const SizedBox(width: 8),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: _contentController,
-              builder: (context, value, child) => FilledButton(
-                onPressed: value.text.trim().isNotEmpty ? _save : null,
-                child: Text(context.l10n.common_save),
-              ),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final stackActions =
+                MediaQuery.textScalerOf(context).scale(1) >= 2 ||
+                constraints.maxWidth < 280;
+            if (stackActions) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [save, const SizedBox(height: 8), cancel],
+              );
+            }
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [cancel, const SizedBox(width: 8), save],
+            );
+          },
         ),
       ),
     );

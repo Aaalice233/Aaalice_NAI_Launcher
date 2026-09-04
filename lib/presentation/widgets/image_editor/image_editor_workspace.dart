@@ -17,6 +17,7 @@ import '../../../core/utils/inpaint_outpaint_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/services/efficient_vit_sam_service.dart';
+import '../../adaptive/adaptive_layout.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../utils/internal_drag_protocol.dart';
@@ -604,7 +605,11 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     if (!_isInitialized) {
       return Scaffold(
         appBar: AppBar(title: Text(_editorTitle())),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator(
+            value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+          ),
+        ),
       );
     }
 
@@ -616,12 +621,18 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       child: _buildDroppedImageLayerRegion(
         LayoutBuilder(
           builder: (context, constraints) {
+            final sizeClass = AdaptiveBreakpoints.classifyWidth(
+              constraints.maxWidth,
+            );
+            final hasLargeText =
+                MediaQuery.textScalerOf(context).scale(14) > 20;
             final useDesktopLayout =
-                constraints.maxWidth > 900 &&
-                PlatformCapabilities.current.hasPrecisePointer;
+                sizeClass.isExpandedOrWider &&
+                constraints.maxHeight >= 480 &&
+                !hasLargeText;
             return useDesktopLayout
-                ? _buildDesktopLayout()
-                : _buildMobileLayout();
+                ? _buildDesktopLayout(availableWidth: constraints.maxWidth)
+                : _buildMobileLayout(availableWidth: constraints.maxWidth);
           },
         ),
       ),
@@ -784,8 +795,11 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
           context: context,
           barrierDismissible: false,
           useRootNavigator: true,
-          builder: (context) =>
-              const Center(child: CircularProgressIndicator()),
+          builder: (context) => Center(
+            child: CircularProgressIndicator(
+              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+            ),
+          ),
         ),
       );
 
@@ -2191,100 +2205,89 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   }
 
   Future<void> _showCompressionSheet() async {
-    await showModalBottomSheet<void>(
+    await AdaptivePresenter.showPanel<void>(
       context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) {
-            final plan = _compressionPlan;
-            if (plan == null) return const SizedBox.shrink();
-            final target = _activeCompressionTarget;
-            final index = plan
-                .indexOf(target)
-                .clamp(0, plan.targets.length - 1);
-            final theme = Theme.of(sheetContext);
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.l10n.editor_compressionTitle,
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      context.l10n.editor_compressionSizeSummary(
-                        plan.workWidth,
-                        plan.workHeight,
-                        target.width,
-                        target.height,
-                      ),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      target.isOriginal
-                          ? context.l10n.editor_compressionUncompressed
-                          : context.l10n.editor_compressionApplyOnDone,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    Slider(
-                      value: index.toDouble(),
-                      min: 0,
-                      max: plan.targets.length > 1
-                          ? (plan.targets.length - 1).toDouble()
-                          : 1,
-                      divisions: plan.targets.length > 1
-                          ? plan.targets.length - 1
-                          : null,
-                      label: '${target.width} x ${target.height}',
-                      onChanged: plan.canCompress
-                          ? (value) {
-                              _selectCompressionTarget(value.round());
-                              setSheetState(() {});
-                            }
-                          : null,
-                    ),
-                    Text(
-                      context.l10n.editor_compressionNormalSummary(
-                        plan.normalTarget.width,
-                        plan.normalTarget.height,
-                        plan.minimumTarget.width,
-                        plan.minimumTarget.height,
-                      ),
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    if (!plan.canCompress) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        context.l10n.editor_compressionUnavailable,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                    if (_compressionIsFocusLimited) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        context.l10n.editor_compressionFocusLimited,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.tertiary,
-                        ),
-                      ),
-                    ],
-                  ],
+      title: context.l10n.editor_compressionTitle,
+      initialChildSize: 0.62,
+      minChildSize: 0.42,
+      sideSheetWidth: 440,
+      builder: (panelContext, scrollController) => StatefulBuilder(
+        builder: (panelContext, setPanelState) {
+          final plan = _compressionPlan;
+          if (plan == null) return const SizedBox.shrink();
+          final target = _activeCompressionTarget;
+          final index = plan.indexOf(target).clamp(0, plan.targets.length - 1);
+          final theme = Theme.of(panelContext);
+          return ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            children: [
+              Text(
+                context.l10n.editor_compressionSizeSummary(
+                  plan.workWidth,
+                  plan.workHeight,
+                  target.width,
+                  target.height,
+                ),
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                target.isOriginal
+                    ? context.l10n.editor_compressionUncompressed
+                    : context.l10n.editor_compressionApplyOnDone,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            );
-          },
-        );
-      },
+              Slider(
+                value: index.toDouble(),
+                min: 0,
+                max: plan.targets.length > 1
+                    ? (plan.targets.length - 1).toDouble()
+                    : 1,
+                divisions: plan.targets.length > 1
+                    ? plan.targets.length - 1
+                    : null,
+                label: '${target.width} x ${target.height}',
+                onChanged: plan.canCompress
+                    ? (value) {
+                        _selectCompressionTarget(value.round());
+                        setPanelState(() {});
+                      }
+                    : null,
+              ),
+              Text(
+                context.l10n.editor_compressionNormalSummary(
+                  plan.normalTarget.width,
+                  plan.normalTarget.height,
+                  plan.minimumTarget.width,
+                  plan.minimumTarget.height,
+                ),
+                style: theme.textTheme.bodySmall,
+              ),
+              if (!plan.canCompress) ...[
+                const SizedBox(height: 8),
+                Text(
+                  context.l10n.editor_compressionUnavailable,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              if (_compressionIsFocusLimited) ...[
+                const SizedBox(height: 8),
+                Text(
+                  context.l10n.editor_compressionFocusLimited,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.tertiary,
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -2594,69 +2597,71 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   }
 
   /// 桌面端布局
-  Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout({required double availableWidth}) {
     return Scaffold(
-      body: Column(
-        children: [
-          // 顶部菜单栏
-          _buildDesktopMenuBar(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 顶部菜单栏
+            _buildDesktopMenuBar(availableWidth: availableWidth),
 
-          // 主体区域
-          Expanded(
-            child: Row(
-              children: [
-                // 左侧工具栏
-                DesktopToolbar(
-                  state: _state,
-                  onClear: _isInpaintMode ? _resetInpaintMask : null,
-                  onFillMask: _isInpaintMode
-                      ? _handleFillClosedMaskRegions
-                      : null,
-                  canFillMask: _isInpaintMode ? _hasMaskContent : null,
-                  allowedToolIds: _isInpaintMode
-                      ? ImageEditorWorkspaceState._inpaintToolIds
-                      : null,
-                ),
-
-                // 中间画布区域
-                Expanded(
-                  child: Column(
-                    children: [
-                      Expanded(child: _buildCanvasArea()),
-                      // 底部状态栏
-                      _buildStatusBar(),
-                    ],
+            // 主体区域
+            Expanded(
+              child: Row(
+                children: [
+                  // 左侧工具栏
+                  DesktopToolbar(
+                    state: _state,
+                    onClear: _isInpaintMode ? _resetInpaintMask : null,
+                    onFillMask: _isInpaintMode
+                        ? _handleFillClosedMaskRegions
+                        : null,
+                    canFillMask: _isInpaintMode ? _hasMaskContent : null,
+                    allowedToolIds: _isInpaintMode
+                        ? ImageEditorWorkspaceState._inpaintToolIds
+                        : null,
                   ),
-                ),
 
-                // 右侧面板
-                if (_showLayerPanel)
-                  SizedBox(
-                    width: 280,
+                  // 中间画布区域
+                  Expanded(
                     child: Column(
                       children: [
-                        // 图层面板
-                        Expanded(flex: 2, child: LayerPanel(state: _state)),
-                        const ThemedDivider(height: 1),
-                        // 工具设置面板
-                        Expanded(flex: 2, child: _buildToolSettingsPanel()),
-                        const ThemedDivider(height: 1),
-                        // 颜色面板
-                        if (!_isInpaintMode) ColorPanel(state: _state),
+                        Expanded(child: _buildCanvasArea()),
+                        // 底部状态栏
+                        _buildStatusBar(),
                       ],
                     ),
                   ),
-              ],
+
+                  // 右侧面板
+                  if (_showLayerPanel)
+                    SizedBox(
+                      width: 280,
+                      child: Column(
+                        children: [
+                          // 图层面板
+                          Expanded(flex: 2, child: LayerPanel(state: _state)),
+                          const ThemedDivider(height: 1),
+                          // 工具设置面板
+                          Expanded(flex: 2, child: _buildToolSettingsPanel()),
+                          const ThemedDivider(height: 1),
+                          // 颜色面板
+                          if (!_isInpaintMode) ColorPanel(state: _state),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   /// 移动端布局
-  Widget _buildMobileLayout() {
-    final compactActions = MediaQuery.sizeOf(context).width < 520;
+  Widget _buildMobileLayout({required double availableWidth}) {
+    final compactActions = availableWidth < 520;
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -2697,29 +2702,35 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // 画布区域
-          Expanded(child: _buildCanvasArea()),
+      body: SafeArea(
+        top: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) => Column(
+            children: [
+              // 画布区域
+              Expanded(child: _buildCanvasArea()),
 
-          // 工具设置（可折叠）
-          _buildMobileToolSettings(),
+              // 横屏短窗口保留画布主区域，设置面板仍可独立滚动。
+              _buildMobileToolSettings(
+                maxHeight: constraints.maxHeight < 420 ? 96 : 150,
+              ),
 
-          // 底部工具栏
-          SafeArea(
-            top: false,
-            child: MobileToolbar(
-              state: _state,
-              onClear: _isInpaintMode ? _resetInpaintMask : null,
-              onFillMask: _isInpaintMode ? _handleFillClosedMaskRegions : null,
-              canFillMask: _isInpaintMode ? _hasMaskContent : null,
-              onLayersPressed: _showMobileLayerSheet,
-              allowedToolIds: _isInpaintMode
-                  ? ImageEditorWorkspaceState._inpaintToolIds
-                  : null,
-            ),
+              // 底部工具栏
+              MobileToolbar(
+                state: _state,
+                onClear: _isInpaintMode ? _resetInpaintMask : null,
+                onFillMask: _isInpaintMode
+                    ? _handleFillClosedMaskRegions
+                    : null,
+                canFillMask: _isInpaintMode ? _hasMaskContent : null,
+                onLayersPressed: _showMobileLayerSheet,
+                allowedToolIds: _isInpaintMode
+                    ? ImageEditorWorkspaceState._inpaintToolIds
+                    : null,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2776,7 +2787,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   }
 
   /// 桌面端菜单栏
-  Widget _buildDesktopMenuBar() {
+  Widget _buildDesktopMenuBar({required double availableWidth}) {
     final theme = Theme.of(context);
 
     return Container(
@@ -2802,13 +2813,11 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
 
           const Spacer(),
 
-          _buildDesktopCompressionControl(
-            expanded: MediaQuery.sizeOf(context).width >= 1700,
-          ),
+          _buildDesktopCompressionControl(expanded: availableWidth >= 1700),
           const SizedBox(width: 4),
 
           if (!_isInpaintMode)
-            if (MediaQuery.sizeOf(context).width >= 1280)
+            if (availableWidth >= 1280)
               TextButton.icon(
                 icon: const Icon(Icons.tune_rounded, size: 18),
                 label: Text(context.l10n.editor_effects),
@@ -2841,7 +2850,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
             ),
 
           if (_isInpaintMode)
-            if (MediaQuery.sizeOf(context).width >= 1280)
+            if (availableWidth >= 1280)
               TextButton.icon(
                 icon: const Icon(Icons.open_in_full, size: 18),
                 label: Text(context.l10n.editor_shiftEdges),
@@ -3023,14 +3032,14 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
 
   /// 移动端工具设置
   /// 使用 toolChangeNotifier 实现细粒度监听
-  Widget _buildMobileToolSettings() {
+  Widget _buildMobileToolSettings({required double maxHeight}) {
     return ValueListenableBuilder<EditorTool?>(
       valueListenable: _state.toolChangeNotifier,
       builder: (context, tool, _) {
         if (tool == null) return const SizedBox.shrink();
 
         return Container(
-          constraints: const BoxConstraints(maxHeight: 150),
+          constraints: BoxConstraints(maxHeight: maxHeight),
           child: SingleChildScrollView(
             child: tool.buildSettingsPanel(context, _state),
           ),
@@ -3055,108 +3064,130 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   }
 
   /// 显示快捷键帮助
-  void _showShortcutHelp() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
+  void _showShortcutHelp() => _presentShortcutHelp(context);
+
+  static void debugShowShortcutHelpForContext(BuildContext context) {
+    _presentShortcutHelp(context);
+  }
+
+  static void _presentShortcutHelp(BuildContext context) {
+    unawaited(
+      AdaptivePresenter.showForm<void>(
+        context: context,
+        sideSheetWidth: 440,
+        titleBuilder: (panelContext) => Row(
           children: [
             const Icon(Icons.keyboard),
             const SizedBox(width: 8),
-            Text(context.l10n.editor_shortcutHelpTitle),
+            Expanded(
+              child: Text(
+                panelContext.l10n.editor_shortcutHelpTitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 500, maxWidth: 350),
-          child: SingleChildScrollView(
-            primary: true,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildShortcutSection(context.l10n.editor_shortcutPaintTools, [
-                  ('B', context.l10n.editor_toolBrush),
-                  ('E', context.l10n.editor_toolEraser),
-                  ('W', context.l10n.editor_toolMagicWand),
-                  ('P', context.l10n.editor_toolColorPicker),
-                  ('Alt', context.l10n.editor_shortcutTemporaryColorPicker),
-                ]),
-                _buildShortcutSection(
-                  context.l10n.editor_shortcutSelectionTools,
-                  [
-                    ('M', context.l10n.editor_shortcutRectSelection),
-                    ('U', context.l10n.editor_shortcutEllipseSelection),
-                    ('L', context.l10n.editor_shortcutLassoSelection),
-                  ],
-                ),
-                _buildShortcutSection(context.l10n.editor_shortcutCanvasView, [
-                  ('1', context.l10n.editor_shortcut100Zoom),
-                  ('2', context.l10n.editor_shortcutFitHeight),
-                  ('3', context.l10n.editor_shortcutFitWidth),
-                  ('4', context.l10n.editor_shortcutRotateLeft15),
-                  ('5', context.l10n.editor_shortcutResetRotation),
-                  ('6', context.l10n.editor_shortcutRotateRight15),
-                  ('F', context.l10n.editor_shortcutFlipHorizontal),
-                  ('R', context.l10n.editor_resetView),
-                  (context.l10n.editor_shortcutWheel, context.l10n.editor_zoom),
-                  ('Ctrl+0', context.l10n.editor_shortcut100Zoom),
-                  ('Ctrl++', context.l10n.editor_zoomIn),
-                  ('Ctrl+-', context.l10n.editor_zoomOut),
-                ]),
-                _buildShortcutSection(context.l10n.editor_shortcutBrushAdjust, [
-                  ('[', context.l10n.editor_shortcutBrushSmaller),
-                  (']', context.l10n.editor_shortcutBrushLarger),
-                  ('I', context.l10n.editor_shortcutOpacityLower),
-                  ('O', context.l10n.editor_shortcutOpacityHigher),
-                  ('Shift + Drag', context.l10n.editor_shortcutDragBrushSize),
-                ]),
-                _buildShortcutSection(context.l10n.editor_shortcutColors, [
-                  ('X', context.l10n.editor_shortcutSwapColors),
-                ]),
-                _buildShortcutSection(
-                  context.l10n.editor_shortcutCanvasActions,
-                  [
-                    ('Space + Drag', context.l10n.editor_shortcutPanCanvas),
-                    ('Middle Drag', context.l10n.editor_shortcutPanCanvas),
-                  ],
-                ),
-                _buildShortcutSection(
-                  context.l10n.editor_shortcutHistoryActions,
-                  [
-                    ('Ctrl+Z', context.l10n.editor_undo),
-                    ('Ctrl+Shift+Z', context.l10n.editor_redo),
-                    ('Ctrl+Y', context.l10n.editor_redo),
-                  ],
-                ),
-                _buildShortcutSection(
-                  context.l10n.editor_shortcutSelectionActions,
-                  [
-                    (
-                      'Delete',
-                      context.l10n.editor_shortcutClearSelectionContent,
-                    ),
-                    (
-                      'Backspace',
-                      context.l10n.editor_shortcutClearSelectionContent,
-                    ),
-                    ('Esc', context.l10n.editor_shortcutCancelCurrentAction),
-                  ],
-                ),
+        builder: (panelContext, scrollController) => ListView(
+          key: const ValueKey('image-editor-shortcut-help-scroll'),
+          controller: scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.all(20),
+          children: [
+            _buildShortcutSection(
+              panelContext,
+              context.l10n.editor_shortcutPaintTools,
+              [
+                ('B', context.l10n.editor_toolBrush),
+                ('E', context.l10n.editor_toolEraser),
+                ('W', context.l10n.editor_toolMagicWand),
+                ('P', context.l10n.editor_toolColorPicker),
+                ('Alt', context.l10n.editor_shortcutTemporaryColorPicker),
               ],
             ),
-          ),
+            _buildShortcutSection(
+              panelContext,
+              context.l10n.editor_shortcutSelectionTools,
+              [
+                ('M', context.l10n.editor_shortcutRectSelection),
+                ('U', context.l10n.editor_shortcutEllipseSelection),
+                ('L', context.l10n.editor_shortcutLassoSelection),
+              ],
+            ),
+            _buildShortcutSection(
+              panelContext,
+              context.l10n.editor_shortcutCanvasView,
+              [
+                ('1', context.l10n.editor_shortcut100Zoom),
+                ('2', context.l10n.editor_shortcutFitHeight),
+                ('3', context.l10n.editor_shortcutFitWidth),
+                ('4', context.l10n.editor_shortcutRotateLeft15),
+                ('5', context.l10n.editor_shortcutResetRotation),
+                ('6', context.l10n.editor_shortcutRotateRight15),
+                ('F', context.l10n.editor_shortcutFlipHorizontal),
+                ('R', context.l10n.editor_resetView),
+                (context.l10n.editor_shortcutWheel, context.l10n.editor_zoom),
+                ('Ctrl+0', context.l10n.editor_shortcut100Zoom),
+                ('Ctrl++', context.l10n.editor_zoomIn),
+                ('Ctrl+-', context.l10n.editor_zoomOut),
+              ],
+            ),
+            _buildShortcutSection(
+              panelContext,
+              context.l10n.editor_shortcutBrushAdjust,
+              [
+                ('[', context.l10n.editor_shortcutBrushSmaller),
+                (']', context.l10n.editor_shortcutBrushLarger),
+                ('I', context.l10n.editor_shortcutOpacityLower),
+                ('O', context.l10n.editor_shortcutOpacityHigher),
+                ('Shift + Drag', context.l10n.editor_shortcutDragBrushSize),
+              ],
+            ),
+            _buildShortcutSection(
+              panelContext,
+              context.l10n.editor_shortcutColors,
+              [('X', context.l10n.editor_shortcutSwapColors)],
+            ),
+            _buildShortcutSection(
+              panelContext,
+              context.l10n.editor_shortcutCanvasActions,
+              [
+                ('Space + Drag', context.l10n.editor_shortcutPanCanvas),
+                ('Middle Drag', context.l10n.editor_shortcutPanCanvas),
+              ],
+            ),
+            _buildShortcutSection(
+              panelContext,
+              context.l10n.editor_shortcutHistoryActions,
+              [
+                ('Ctrl+Z', context.l10n.editor_undo),
+                ('Ctrl+Shift+Z', context.l10n.editor_redo),
+                ('Ctrl+Y', context.l10n.editor_redo),
+              ],
+            ),
+            _buildShortcutSection(
+              panelContext,
+              context.l10n.editor_shortcutSelectionActions,
+              [
+                ('Delete', context.l10n.editor_shortcutClearSelectionContent),
+                (
+                  'Backspace',
+                  context.l10n.editor_shortcutClearSelectionContent,
+                ),
+                ('Esc', context.l10n.editor_shortcutCancelCurrentAction),
+              ],
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.common_close),
-          ),
-        ],
       ),
     );
   }
 
-  Widget _buildShortcutSection(String title, List<(String, String)> shortcuts) {
+  static Widget _buildShortcutSection(
+    BuildContext context,
+    String title,
+    List<(String, String)> shortcuts,
+  ) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -3192,7 +3223,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Text(s.$2, style: theme.textTheme.bodySmall),
+                  Expanded(child: Text(s.$2, style: theme.textTheme.bodySmall)),
                 ],
               ),
             ),

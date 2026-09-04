@@ -5,15 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/director/director_tool_type.dart';
+import '../../adaptive/adaptive_layout.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/director_tools_notifier.dart';
 import '../../providers/subscription_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/themed_confirm_dialog.dart';
 
 class DirectorToolsScreen extends ConsumerStatefulWidget {
-  const DirectorToolsScreen({
-    super.key,
-    required this.sourceImage,
-  });
+  const DirectorToolsScreen({super.key, required this.sourceImage});
 
   final Uint8List sourceImage;
 
@@ -24,8 +24,7 @@ class DirectorToolsScreen extends ConsumerStatefulWidget {
     return Navigator.push<Uint8List?>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            DirectorToolsScreen(sourceImage: sourceImage),
+        builder: (context) => DirectorToolsScreen(sourceImage: sourceImage),
       ),
     );
   }
@@ -43,9 +42,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     super.initState();
     _promptController = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(directorToolsNotifierProvider.notifier)
-          .init(widget.sourceImage);
+      ref.read(directorToolsNotifierProvider.notifier).init(widget.sourceImage);
     });
   }
 
@@ -59,7 +56,6 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(directorToolsNotifierProvider);
-    final isWide = MediaQuery.sizeOf(context).width > 900;
 
     ref.listen(directorToolsNotifierProvider, (prev, next) {
       if (prev?.prompt != next.prompt &&
@@ -68,52 +64,94 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.img2img_directorTools),
-        actions: [
-          if (state.result != null)
-            TextButton.icon(
-              onPressed: _applyAndReturn,
-              icon: const Icon(Icons.check, size: 18),
-              label: Text(context.l10n.img2img_directorApplyAsSource),
+    return LayoutBuilder(
+      builder: (context, screenConstraints) {
+        final compactActions = AdaptiveBreakpoints.classifyWidth(
+          screenConstraints.maxWidth,
+        ).isCompact;
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+              context.l10n.img2img_directorTools,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-        ],
-      ),
-      body: isWide
-          ? _buildDesktopLayout(theme, state)
-          : _buildMobileLayout(theme, state),
+            actions: [
+              if (state.result != null)
+                if (compactActions)
+                  IconButton(
+                    constraints: BoxConstraints.tightFor(
+                      width: context.interactionPolicy.minimumControlExtent,
+                      height: context.interactionPolicy.minimumControlExtent,
+                    ),
+                    onPressed: _applyAndReturn,
+                    tooltip: context.l10n.img2img_directorApplyAsSource,
+                    icon: const Icon(Icons.check),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: _applyAndReturn,
+                    icon: const Icon(Icons.check, size: 18),
+                    label: Text(context.l10n.img2img_directorApplyAsSource),
+                  ),
+            ],
+          ),
+          body: SafeArea(
+            top: false,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final textScale = MediaQuery.textScalerOf(context).scale(1);
+                final panelWidth = _sidePanelWidth(
+                  constraints.maxWidth,
+                  textScale,
+                );
+                final minimumImageWidth =
+                    360 + (textScale - 1).clamp(0, 2) * 48;
+                final useSidePanel =
+                    constraints.maxHeight >= 480 &&
+                    constraints.maxWidth - panelWidth - 1 >= minimumImageWidth;
+                return useSidePanel
+                    ? _buildSideBySideLayout(
+                        theme,
+                        state,
+                        panelWidth: panelWidth,
+                      )
+                    : _buildStackedLayout(theme, state);
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildDesktopLayout(ThemeData theme, DirectorToolsState state) {
+  double _sidePanelWidth(double availableWidth, double textScale) {
+    final scaleAllowance = (textScale - 1).clamp(0, 2) * 24;
+    return (availableWidth * 0.36 + scaleAllowance).clamp(320, 400);
+  }
+
+  Widget _buildSideBySideLayout(
+    ThemeData theme,
+    DirectorToolsState state, {
+    required double panelWidth,
+  }) {
     return Row(
+      key: const ValueKey('director-tools-side-by-side-layout'),
       children: [
-        Expanded(
-          flex: 3,
-          child: _buildImageArea(theme, state),
-        ),
+        Expanded(flex: 3, child: _buildImageArea(theme, state)),
         VerticalDivider(width: 1, color: theme.dividerColor),
-        SizedBox(
-          width: 360,
-          child: _buildControlPanel(theme, state),
-        ),
+        SizedBox(width: panelWidth, child: _buildControlPanel(theme, state)),
       ],
     );
   }
 
-  Widget _buildMobileLayout(ThemeData theme, DirectorToolsState state) {
+  Widget _buildStackedLayout(ThemeData theme, DirectorToolsState state) {
     return Column(
+      key: const ValueKey('director-tools-stacked-layout'),
       children: [
-        Expanded(
-          flex: 2,
-          child: _buildImageArea(theme, state),
-        ),
+        Expanded(flex: 2, child: _buildImageArea(theme, state)),
         Divider(height: 1, color: theme.dividerColor),
-        Expanded(
-          flex: 3,
-          child: _buildControlPanel(theme, state),
-        ),
+        Expanded(flex: 3, child: _buildControlPanel(theme, state)),
       ],
     );
   }
@@ -133,11 +171,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Image.memory(
-          source,
-          fit: BoxFit.contain,
-          gaplessPlayback: true,
-        ),
+        child: Image.memory(source, fit: BoxFit.contain, gaplessPlayback: true),
       ),
     );
   }
@@ -158,7 +192,10 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
                   children: [
                     Text(
                       context.l10n.img2img_directorSourceImage,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Flexible(
@@ -180,7 +217,10 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
                   children: [
                     Text(
                       context.l10n.img2img_directorResult,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Flexible(
@@ -321,10 +361,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     ];
   }
 
-  List<Widget> _buildEmotionOptions(
-    ThemeData theme,
-    DirectorToolsState state,
-  ) {
+  List<Widget> _buildEmotionOptions(ThemeData theme, DirectorToolsState state) {
     return [
       Row(
         children: [
@@ -393,7 +430,11 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
         Expanded(
           child: FilledButton.icon(
             onPressed:
-                state.isRunning ? null : () => _runTool(),
+                state.isRunning ||
+                    state.imageWidth <= 0 ||
+                    state.imageHeight <= 0
+                ? null
+                : () => _runTool(),
             icon: state.isRunning
                 ? const SizedBox(
                     width: 16,
@@ -406,9 +447,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
                   ? context.l10n.img2img_directorRunning
                   : context.l10n.img2img_directorRun(label),
             ),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 48),
-            ),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
           ),
         ),
         if (state.imageWidth > 0 && state.imageHeight > 0) ...[
@@ -458,13 +497,9 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () {
-              final notifier =
-                  ref.read(directorToolsNotifierProvider.notifier);
+              final notifier = ref.read(directorToolsNotifierProvider.notifier);
               notifier.applyResultAsSource();
-              AppToast.success(
-                context,
-                context.l10n.img2img_directorApplied,
-              );
+              AppToast.success(context, context.l10n.img2img_directorApplied);
             },
             icon: const Icon(Icons.swap_horiz, size: 18),
             label: Text(
@@ -479,6 +514,22 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
   }
 
   Future<void> _runTool() async {
+    final requestState = ref.read(directorToolsNotifierProvider);
+    final label = requestState.selectedTool.labelKey(context.l10n);
+    final cost = requestState.estimatedAnlasCost(
+      isOpus: ref.read(isOpusSubscriptionProvider),
+    );
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: context.l10n.img2img_directorConfirmTitle,
+      content: context.l10n.img2img_directorConfirmContent(label, cost),
+      confirmText: context.l10n.common_confirm,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.warning,
+      icon: Icons.toll_outlined,
+    );
+    if (!confirmed || !mounted) return;
+
     final notifier = ref.read(directorToolsNotifierProvider.notifier);
     await notifier.runTool();
 
@@ -540,13 +591,16 @@ class _ToolListTile extends StatelessWidget {
                     : theme.colorScheme.onSurface,
               ),
               const SizedBox(width: 12),
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: isSelected
-                      ? theme.colorScheme.onPrimaryContainer
-                      : theme.colorScheme.onSurface,
-                  fontWeight: isSelected ? FontWeight.w600 : null,
+              Expanded(
+                child: Text(
+                  label,
+                  softWrap: true,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isSelected
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.onSurface,
+                    fontWeight: isSelected ? FontWeight.w600 : null,
+                  ),
                 ),
               ),
             ],

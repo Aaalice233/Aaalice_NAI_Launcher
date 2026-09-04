@@ -16,13 +16,8 @@ void main() {
     });
   });
 
-  test('keep-alive branches use the semantic route contract', () {
-    expect(keptAliveAppBranches, {
-      AppBranch.localGallery,
-      AppBranch.onlineGallery,
-      AppBranch.vibeLibrary,
-      AppBranch.preciseRefLibrary,
-    });
+  test('every visited shell branch remains mounted', () {
+    expect(keptAliveAppBranches, AppBranch.values.toSet());
   });
 
   test(
@@ -50,6 +45,27 @@ void main() {
         mobileNavigationIndexForBranch(AppBranch.vibeLibrary.index),
         mobileMoreNavigationIndex,
       );
+      final moreBranches = AppBranch.values
+          .where((branch) => !mobileNavigationBranches.contains(branch))
+          .toList();
+      expect(
+        moreBranches,
+        unorderedEquals([
+          AppBranch.vibeLibrary,
+          AppBranch.preciseRefLibrary,
+          AppBranch.promptConfig,
+          AppBranch.statistics,
+          AppBranch.settings,
+        ]),
+      );
+      expect(
+        mobileNavigationBranches.toSet().intersection(moreBranches.toSet()),
+        isEmpty,
+      );
+      expect({
+        ...mobileNavigationBranches,
+        ...moreBranches,
+      }, AppBranch.values.toSet());
     },
   );
 }

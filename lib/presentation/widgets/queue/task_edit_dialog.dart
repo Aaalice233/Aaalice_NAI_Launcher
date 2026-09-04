@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/queue/replication_task.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../autocomplete/autocomplete_config.dart';
+import '../common/adaptive_dialog_frame.dart';
 import '../common/app_toast.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
 import '../prompt/prompt_formatter_wrapper.dart';
@@ -17,8 +20,45 @@ import 'queue_task_thumbnail.dart';
 /// 任务编辑对话框
 class TaskEditDialog extends ConsumerStatefulWidget {
   final ReplicationTask task;
+  final ScrollController? scrollController;
+  final bool? compactLayout;
 
-  const TaskEditDialog({super.key, required this.task});
+  const TaskEditDialog({
+    super.key,
+    required this.task,
+    this.scrollController,
+    this.compactLayout,
+  });
+
+  static Future<bool?> show({
+    required BuildContext context,
+    required ReplicationTask task,
+  }) {
+    final compactLayout = context.adaptiveWindow.isCompact;
+    return AdaptivePresenter.showForm<bool>(
+      context: context,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          const Icon(Icons.edit),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              panelContext.l10n.queue_editTask,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(panelContext).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      sideSheetWidth: 560,
+      builder: (panelContext, scrollController) => TaskEditDialog(
+        task: task,
+        scrollController: scrollController,
+        compactLayout: compactLayout,
+      ),
+    );
+  }
 
   @override
   ConsumerState<TaskEditDialog> createState() => _TaskEditDialogState();
@@ -48,97 +88,93 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
-    return Dialog(
-      child: Container(
-        width: 500,
-        constraints: const BoxConstraints(maxHeight: 720),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题栏
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Icon(Icons.edit),
-                  const SizedBox(width: 8),
-                  Text(l10n.queue_editTask, style: theme.textTheme.titleLarge),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-
-            const Divider(height: 1),
-
-            // 内容区域
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 缩略图预览
-                    if (widget.task.thumbnailUrl != null &&
-                        widget.task.thumbnailUrl!.isNotEmpty)
-                      Center(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: QueueTaskThumbnail(
-                            source: widget.task.thumbnailUrl!,
-                            width: 150,
-                            height: 150,
-                          ),
-                        ),
+    final content = SingleChildScrollView(
+      key: const Key('task-edit-dialog-scroll'),
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 内容区域
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 缩略图预览
+                if (widget.task.thumbnailUrl != null &&
+                    widget.task.thumbnailUrl!.isNotEmpty)
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: QueueTaskThumbnail(
+                        source: widget.task.thumbnailUrl!,
+                        width: 150,
+                        height: 150,
                       ),
+                    ),
+                  ),
 
-                    const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-                    // 提示词编辑器（只有正面提示词）
-                    _buildPromptEditor(context, theme, l10n),
+                // 提示词编辑器（只有正面提示词）
+                _buildPromptEditor(context, theme, l10n),
 
-                    const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-                    // 参数预览（可展开）
-                    _buildParametersSection(context, theme),
-                  ],
-                ),
-              ),
+                // 参数预览（可展开）
+                _buildParametersSection(context, theme),
+              ],
             ),
+          ),
 
-            const Divider(height: 1),
+          const Divider(height: 1),
 
-            // 操作按钮
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+          // 操作按钮在窄屏、大字号和短视口中自动换行并随内容滚动。
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  // 复制任务
                   TextButton.icon(
+                    key: const Key('task-edit-duplicate'),
                     onPressed: _duplicateTask,
                     icon: const Icon(Icons.copy),
                     label: Text(l10n.queue_duplicateTask),
                   ),
-                  const Spacer(),
                   TextButton(
+                    key: const Key('task-edit-cancel'),
                     onPressed: () => Navigator.pop(context),
                     child: Text(l10n.common_cancel),
                   ),
-                  const SizedBox(width: 8),
                   FilledButton(
+                    key: const Key('task-edit-save'),
                     onPressed: _saveTask,
                     child: Text(l10n.common_save),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+
+    if (widget.compactLayout ?? context.adaptiveWindow.isCompact) {
+      return content;
+    }
+
+    return AdaptiveDialogFrame(
+      maxWidth: 560,
+      maxHeight: 720,
+      reservedVerticalSpace: 80,
+      scaleReservedVerticalSpace: true,
+      horizontalMargin: 0,
+      child: content,
     );
   }
 
@@ -213,6 +249,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InkWell(
+          key: const Key('task-edit-parameters-toggle'),
           onTap: () => setState(() => _showParameters = !_showParameters),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
@@ -269,12 +306,36 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   Widget _buildParamRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-          Text(value),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stackValues =
+              constraints.maxWidth < 360 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.5;
+          final labelWidget = Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          );
+          final valueWidget = Text(
+            value,
+            textAlign: stackValues ? TextAlign.start : TextAlign.end,
+          );
+
+          if (stackValues) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [labelWidget, const SizedBox(height: 2), valueWidget],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              labelWidget,
+              const SizedBox(width: 12),
+              Expanded(child: valueWidget),
+            ],
+          );
+        },
       ),
     );
   }

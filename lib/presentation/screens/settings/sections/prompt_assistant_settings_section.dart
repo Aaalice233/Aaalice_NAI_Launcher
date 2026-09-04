@@ -5,9 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
+import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../widgets/common/searchable_model_picker.dart';
+import '../widgets/prompt_assistant_settings_forms.dart';
 import '../widgets/settings_card.dart';
 
 class PromptAssistantSettingsSection extends ConsumerWidget {
@@ -140,9 +144,25 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       providerId: providerId,
       taskType: taskType,
     );
-    final modelItems = models
-        .map((m) => DropdownMenuItem(value: m.name, child: Text(m.displayName)))
-        .toList();
+    final providerName = state.providers
+        .where((provider) => provider.id == providerId)
+        .map((provider) => provider.name)
+        .firstOrNull;
+    final modelOptions = models
+        .map(
+          (model) => ModelPickerOption(
+            id: model.name,
+            value: model.name,
+            title: model.displayName.trim().isEmpty
+                ? model.name
+                : model.displayName.trim(),
+            subtitle: model.displayName.trim() == model.name.trim()
+                ? (providerName ?? providerId)
+                : '${providerName ?? providerId} · ${model.name}',
+            searchTerms: [providerId],
+          ),
+        )
+        .toList(growable: false);
     final hasRealModel = models.any(
       (m) => m.name.trim().isNotEmpty && m.name.trim() != 'default-model',
     );
@@ -158,6 +178,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     return _buildTaskRouteCard(
       context: context,
       title: _assistantTaskLabel(context, taskType),
+      modelPickerKeyPrefix: 'prompt-route-${taskType.name}-model',
       providerValue: providerItems.any((item) => item.value == providerId)
           ? providerId
           : null,
@@ -186,8 +207,8 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         );
       },
       modelValue: modelValue,
-      modelItems: modelItems,
-      onModelChanged: modelItems.isEmpty
+      modelOptions: modelOptions,
+      onModelChanged: modelOptions.isEmpty
           ? null
           : (value) {
               if (value == null) return;
@@ -209,11 +230,12 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
   Widget _buildTaskRouteCard({
     required BuildContext context,
     required String title,
+    required String modelPickerKeyPrefix,
     required String? providerValue,
     required List<DropdownMenuItem<String>> providerItems,
     required ValueChanged<String?> onProviderChanged,
     required String? modelValue,
-    required List<DropdownMenuItem<String>> modelItems,
+    required List<ModelPickerOption<String>> modelOptions,
     required ValueChanged<String?>? onModelChanged,
   }) {
     final colors = Theme.of(context).colorScheme;
@@ -243,12 +265,18 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: modelValue,
-            isExpanded: true,
-            hint: Text(context.l10n.promptAssistant_noModelsPullFirst),
-            items: modelItems,
-            onChanged: onModelChanged,
+          SearchableModelPickerField<String>(
+            keyPrefix: modelPickerKeyPrefix,
+            pickerTitle: context.l10n.agentChat_modelPickerTitle,
+            searchLabel: context.l10n.agentChat_searchModels,
+            searchHint: context.l10n.agentChat_searchModelsHint,
+            clearSearchTooltip: context.l10n.agentChat_clearModelSearch,
+            emptyMessage: context.l10n.agentChat_noModelResults,
+            options: modelOptions,
+            selectedId: modelValue,
+            emptyLabel: context.l10n.promptAssistant_noModelsPullFirst,
+            enabled: onModelChanged != null,
+            onSelected: (value) => onModelChanged?.call(value),
             decoration: InputDecoration(
               labelText: context.l10n.promptAssistant_model,
               isDense: true,
@@ -348,7 +376,14 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: context.l10n.promptAssistant_deleteProvider,
-                  onPressed: () => notifier.deleteProvider(provider.id),
+                  onPressed: () async {
+                    final confirmed = await ThemedConfirmDialog.showDelete(
+                      context: context,
+                      itemName: provider.name,
+                    );
+                    if (!confirmed || !context.mounted) return;
+                    await notifier.deleteProvider(provider.id);
+                  },
                 ),
               ],
             );
@@ -494,175 +529,44 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigState state, {
     ProviderConfig? provider,
   }) async {
-    final nameController = TextEditingController(text: provider?.name ?? '');
-    final baseController = TextEditingController(text: provider?.baseUrl ?? '');
-    final keyController = TextEditingController();
-    var preset =
-        provider?.preset ??
-        (provider == null
-            ? ProviderPreset.openaiChat
-            : provider.protocol == ProviderProtocol.openaiResponses
-            ? ProviderPreset.openaiCompatibleResponses
-            : ProviderPreset.openaiCompatibleChat);
-    var allowImageInput =
-        provider?.allowImageInput ?? preset.defaultAllowImageInput;
-
-    void applyProtocol(ProviderPreset value) {
-      final previousPreset = preset;
-      final currentName = nameController.text.trim();
-      final currentBaseUrl = baseController.text.trim();
-      preset = value;
-      allowImageInput = value.defaultAllowImageInput;
-      if (provider == null) {
-        nameController.text = value.defaultName;
-        baseController.text = value.defaultBaseUrl;
-        return;
-      }
-      if (currentName.isEmpty || currentName == previousPreset.defaultName) {
-        nameController.text = value.defaultName;
-      }
-      if (currentBaseUrl.isEmpty ||
-          currentBaseUrl == previousPreset.defaultBaseUrl) {
-        baseController.text = value.defaultBaseUrl;
-      }
-    }
-
-    if (provider == null) {
-      applyProtocol(preset);
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              key: const ValueKey('prompt-assistant-provider-dialog'),
-              insetPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 24,
-              ),
-              titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              actionsPadding: const EdgeInsets.fromLTRB(12, 12, 20, 16),
-              title: Text(
-                provider == null
-                    ? context.l10n.promptAssistant_addProvider
-                    : context.l10n.promptAssistant_editProviderTitle,
-              ),
-              content: SizedBox(
-                width: 440,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: nameController,
-                        decoration: InputDecoration(
-                          labelText: context.l10n.promptAssistant_name,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<ProviderPreset>(
-                        initialValue: preset,
-                        isExpanded: true,
-                        items: ProviderPreset.values
-                            .map(
-                              (e) => DropdownMenuItem(
-                                value: e,
-                                child: Text(
-                                  e.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() => applyProtocol(value));
-                          }
-                        },
-                        decoration: InputDecoration(
-                          labelText: context.l10n.promptAssistant_protocol,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: baseController,
-                        decoration: const InputDecoration(
-                          labelText: 'Base URL',
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SwitchListTile(
-                        value: allowImageInput,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          context.l10n.promptAssistant_allowImageInput,
-                        ),
-                        subtitle: Text(
-                          context.l10n.promptAssistant_allowImageInputSubtitle,
-                        ),
-                        onChanged: (value) {
-                          setState(() => allowImageInput = value);
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: keyController,
-                        decoration: InputDecoration(
-                          labelText:
-                              context.l10n.promptAssistant_apiKeyLeaveEmpty,
-                        ),
-                        obscureText: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(context.l10n.common_save),
-                ),
-              ],
-            );
-          },
+    final result =
+        await AdaptivePresenter.showForm<PromptAssistantProviderFormResult>(
+          context: context,
+          sideSheetWidth: 520,
+          title: provider == null
+              ? context.l10n.promptAssistant_addProvider
+              : context.l10n.promptAssistant_editProviderTitle,
+          builder: (context, scrollController) => PromptAssistantProviderForm(
+            provider: provider,
+            scrollController: scrollController,
+          ),
         );
-      },
-    );
+    if (result == null) return;
 
-    if (confirmed != true) return;
-
-    final resolvedName = nameController.text.trim().isEmpty
-        ? preset.defaultName
-        : nameController.text.trim();
+    final resolvedName = result.name.isEmpty
+        ? result.preset.defaultName
+        : result.name;
     final resolvedId =
         provider?.id ??
         _uniqueProviderId(
           state,
-          _providerIdFromName(resolvedName, fallback: preset.defaultId),
+          _providerIdFromName(resolvedName, fallback: result.preset.defaultId),
         );
     final next = ProviderConfig(
       id: resolvedId,
       name: resolvedName,
-      type: preset.legacyType,
-      protocol: preset.defaultProtocol,
-      preset: preset,
-      baseUrl: baseController.text.trim(),
+      type: result.preset.legacyType,
+      protocol: result.preset.defaultProtocol,
+      preset: result.preset,
+      baseUrl: result.baseUrl,
       enabled: provider?.enabled ?? true,
-      allowImageInput: allowImageInput,
+      allowImageInput: result.allowImageInput,
     );
 
     await notifier.upsertProvider(next);
 
-    if (keyController.text.trim().isNotEmpty) {
-      await notifier.setProviderApiKey(resolvedId, keyController.text);
+    if (result.apiKey.trim().isNotEmpty) {
+      await notifier.setProviderApiKey(resolvedId, result.apiKey);
     }
 
     for (final taskType in AssistantTaskType.values) {
@@ -715,103 +619,32 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigNotifier notifier, {
     required ProviderConfig provider,
   }) async {
-    final baseController = TextEditingController(text: provider.baseUrl);
-    final keyController = TextEditingController();
-    var clearApiKey = false;
-    var allowImageInput = provider.allowImageInput;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(
-                context.l10n.promptAssistant_connectionTitle(provider.name),
-              ),
-              content: SizedBox(
-                width: 460,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: baseController,
-                      decoration: InputDecoration(
-                        labelText: 'Base URL',
-                        hintText: context.l10n.promptAssistant_baseUrlHint,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: keyController,
-                      decoration: InputDecoration(
-                        labelText:
-                            context.l10n.promptAssistant_apiKeyLeaveEmpty,
-                      ),
-                      obscureText: true,
-                    ),
-                    CheckboxListTile(
-                      value: clearApiKey,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        context.l10n.promptAssistant_clearCurrentApiKey,
-                      ),
-                      onChanged: (value) {
-                        setState(() => clearApiKey = value ?? false);
-                      },
-                    ),
-                    SwitchListTile(
-                      value: allowImageInput,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(context.l10n.promptAssistant_allowImageInput),
-                      subtitle: Text(
-                        provider.protocol.supportsImagePayload
-                            ? context
-                                  .l10n
-                                  .promptAssistant_protocolSupportsImagePayload
-                            : context
-                                  .l10n
-                                  .promptAssistant_protocolTextOnlyWarning,
-                      ),
-                      onChanged: (value) {
-                        setState(() => allowImageInput = value);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(context.l10n.common_save),
-                ),
-              ],
-            );
-          },
+    final result =
+        await AdaptivePresenter.showForm<PromptAssistantConnectionFormResult>(
+          context: context,
+          sideSheetWidth: 520,
+          title: context.l10n.promptAssistant_connectionTitle(provider.name),
+          builder: (context, scrollController) => PromptAssistantConnectionForm(
+            provider: provider,
+            scrollController: scrollController,
+          ),
         );
-      },
-    );
-
-    if (confirmed != true) return;
+    if (result == null) return;
 
     await notifier.upsertProvider(
       provider.copyWith(
-        baseUrl: baseController.text.trim(),
-        allowImageInput: allowImageInput,
+        baseUrl: result.baseUrl,
+        allowImageInput: result.allowImageInput,
       ),
     );
 
-    if (clearApiKey) {
+    if (result.clearApiKey) {
       await notifier.setProviderApiKey(provider.id, '');
       return;
     }
 
-    if (keyController.text.trim().isNotEmpty) {
-      await notifier.setProviderApiKey(provider.id, keyController.text);
+    if (result.apiKey.trim().isNotEmpty) {
+      await notifier.setProviderApiKey(provider.id, result.apiKey);
     }
   }
 
@@ -820,93 +653,30 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigNotifier notifier, {
     PromptRuleTemplate? rule,
   }) async {
-    final nameController = TextEditingController(text: rule?.name ?? '');
-    final contentController = TextEditingController(text: rule?.content ?? '');
     final newRuleName = context.l10n.promptAssistant_newRule;
-    var taskType = rule?.taskType ?? AssistantTaskType.llm;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(
-                rule == null
-                    ? context.l10n.promptAssistant_addRuleTitle
-                    : context.l10n.promptAssistant_editRuleTitle,
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_name,
-                      ),
-                    ),
-                    DropdownButtonFormField<AssistantTaskType>(
-                      initialValue: taskType,
-                      items: AssistantTaskType.values
-                          .where((value) => value != AssistantTaskType.chat)
-                          .map(
-                            (e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(_assistantTaskLabel(context, e)),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) setState(() => taskType = value);
-                      },
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_taskType,
-                      ),
-                    ),
-                    TextField(
-                      controller: contentController,
-                      maxLines: 6,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_ruleContent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                if (rule != null && !rule.isDefault)
-                  TextButton(
-                    onPressed: () async {
-                      await notifier.removeRule(rule.id);
-                      if (context.mounted) Navigator.pop(context, false);
-                    },
-                    child: Text(context.l10n.common_delete),
-                  ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(context.l10n.common_save),
-                ),
-              ],
-            );
-          },
+    final result =
+        await AdaptivePresenter.showForm<PromptAssistantRuleFormResult>(
+          context: context,
+          sideSheetWidth: 560,
+          title: rule == null
+              ? context.l10n.promptAssistant_addRuleTitle
+              : context.l10n.promptAssistant_editRuleTitle,
+          builder: (context, scrollController) => PromptAssistantRuleForm(
+            rule: rule,
+            scrollController: scrollController,
+          ),
         );
-      },
-    );
-
-    if (confirmed != true) return;
+    if (result == null) return;
+    if (result.deleted) {
+      await notifier.removeRule(rule!.id);
+      return;
+    }
 
     final next = PromptRuleTemplate(
       id: rule?.id ?? 'rule_${DateTime.now().millisecondsSinceEpoch}',
-      name: nameController.text.trim().isEmpty
-          ? newRuleName
-          : nameController.text.trim(),
-      taskType: taskType,
-      content: contentController.text.trim(),
+      name: result.name.isEmpty ? newRuleName : result.name,
+      taskType: result.taskType,
+      content: result.content,
       enabled: rule?.enabled ?? true,
       isDefault: rule?.isDefault ?? false,
       order: rule?.order ?? 100,

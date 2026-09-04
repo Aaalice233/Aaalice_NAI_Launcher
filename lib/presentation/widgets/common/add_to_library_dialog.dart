@@ -5,8 +5,10 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../data/models/prompt/tag_category.dart';
 import '../../../../data/models/prompt/weighted_tag.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/tag_library_provider.dart';
 import 'app_toast.dart';
+import 'translated_tag_text.dart';
 
 /// 添加到词库对话框
 ///
@@ -21,11 +23,15 @@ class AddToLibraryDialog extends ConsumerStatefulWidget {
   /// 来源标签（可选，用于分类）
   final String? sourceTag;
 
+  /// 由自适应展示层持有的滚动控制器。
+  final ScrollController? scrollController;
+
   const AddToLibraryDialog({
     super.key,
     required this.content,
     this.defaultName,
     this.sourceTag,
+    this.scrollController,
   });
 
   /// 显示对话框
@@ -35,12 +41,31 @@ class AddToLibraryDialog extends ConsumerStatefulWidget {
     String? defaultName,
     String? sourceTag,
   }) async {
-    final result = await showDialog<bool>(
+    final result = await AdaptivePresenter.showForm<bool>(
       context: context,
-      builder: (context) => AddToLibraryDialog(
+      sideSheetWidth: 520,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.library_add,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              panelContext.l10n.tagLibrary_addToLibrary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(panelContext).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      builder: (_, scrollController) => AddToLibraryDialog(
         content: content,
         defaultName: defaultName,
         sourceTag: sourceTag,
+        scrollController: scrollController,
       ),
     );
     return result ?? false;
@@ -239,157 +264,168 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return AlertDialog(
-      title: Row(
+    return SingleChildScrollView(
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.library_add, color: colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(l10n.tagLibrary_addToLibrary),
-        ],
-      ),
-      content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 内容预览
-              Text(
-                l10n.tagLibrary_contentPreview,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
+          Text(
+            l10n.tagLibrary_contentPreview,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _contentController.text,
+              key: const ValueKey('add-to-library-content'),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'monospace',
               ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            key: const ValueKey('add-to-library-name'),
+            controller: _nameController,
+            decoration: InputDecoration(
+              labelText: l10n.addGroup_displayNameLabel,
+              hintText: l10n.addToLibrary_displayNameHint,
+              prefixIcon: const Icon(Icons.label_outline),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () => _nameController.clear(),
+                tooltip: l10n.common_clear,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String?>(
+            key: const ValueKey('add-to-library-category'),
+            initialValue: _selectedCategoryId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: l10n.addGroup_targetCategoryLabel,
+              prefixIcon: const Icon(Icons.folder_outlined),
+            ),
+            items: [
+              DropdownMenuItem(
+                value: null,
                 child: Text(
-                  widget.content,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontFamily: 'monospace',
-                  ),
-                  maxLines: 3,
+                  l10n.tagLibrary_uncategorized,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // 显示名称
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: l10n.addGroup_displayNameLabel,
-                  hintText: l10n.addToLibrary_displayNameHint,
-                  prefixIcon: const Icon(Icons.label_outline),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () => _nameController.clear(),
-                    tooltip: l10n.common_clear,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // 目标分类
-              Consumer(
-                builder: (context, ref, child) {
-                  const categories = TagSubCategory.values;
-
-                  return DropdownButtonFormField<String?>(
-                    initialValue: _selectedCategoryId,
-                    decoration: InputDecoration(
-                      labelText: l10n.addGroup_targetCategoryLabel,
-                      prefixIcon: const Icon(Icons.folder_outlined),
+              ...TagSubCategory.values.map(
+                (category) => DropdownMenuItem(
+                  value: category.name,
+                  child: Text(
+                    TagSubCategoryHelper.getDisplayName(
+                      category,
+                      locale: l10n.localeName,
                     ),
-                    items: [
-                      DropdownMenuItem(
-                        value: null,
-                        child: Text(l10n.tagLibrary_uncategorized),
-                      ),
-                      ...categories.map((category) {
-                        return DropdownMenuItem(
-                          value: category.name,
-                          child: Text(
-                            TagSubCategoryHelper.getDisplayName(
-                              category,
-                              locale: l10n.localeName,
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _selectedCategoryId = value);
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // 标签
-              TextField(
-                controller: _tagController,
-                decoration: InputDecoration(
-                  labelText: l10n.tag_addTag,
-                  hintText: l10n.addToLibrary_tagHint,
-                  prefixIcon: const Icon(Icons.tag),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: _addTag,
-                    tooltip: l10n.tag_addTag,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                onSubmitted: (_) => _addTag(),
               ),
-              if (_tags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: _tags
-                      .map(
-                        (tag) => Chip(
-                          label: Text(tag, style: theme.textTheme.bodySmall),
-                          deleteIcon: const Icon(Icons.clear, size: 16),
-                          onDeleted: () => _removeTag(tag),
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
+            ],
+            onChanged: (value) => setState(() => _selectedCategoryId = value),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            key: const ValueKey('add-to-library-tags'),
+            controller: _tagController,
+            decoration: InputDecoration(
+              labelText: l10n.tag_addTag,
+              hintText: l10n.addToLibrary_tagHint,
+              prefixIcon: const Icon(Icons.tag),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: _addTag,
+                tooltip: l10n.tag_addTag,
+              ),
+            ),
+            onSubmitted: (_) => _addTag(),
+          ),
+          if (_tags.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _tags
+                  .map(
+                    (tag) => Chip(
+                      label: TranslatedTagText(
+                        tag,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      deleteIcon: const Icon(Icons.clear, size: 16),
+                      onDeleted: () => _removeTag(tag),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+          const SizedBox(height: 24),
+          Divider(height: 1, color: colorScheme.outlineVariant),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackActions =
+                  constraints.maxWidth < 280 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 2;
+              final cancel = TextButton(
+                onPressed: _isSaving
+                    ? null
+                    : () => Navigator.of(context).pop(false),
+                child: Text(l10n.common_cancel),
+              );
+              final save = FilledButton.icon(
+                onPressed: _isSaving ? null : _save,
+                icon: _isSaving
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          value: MediaQuery.disableAnimationsOf(context)
+                              ? 0.75
+                              : null,
+                          strokeWidth: 2,
                         ),
                       )
-                      .toList(),
-                ),
-              ],
-            ],
+                    : const Icon(Icons.save, size: 18),
+                label: Text(_isSaving ? l10n.common_saving : l10n.common_save),
+              );
+              if (stackActions) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [save, const SizedBox(height: 8), cancel],
+                );
+              }
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [cancel, const SizedBox(width: 8), save],
+              );
+            },
           ),
-        ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton.icon(
-          onPressed: _isSaving ? null : _save,
-          icon: _isSaving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.save, size: 18),
-          label: Text(_isSaving ? l10n.common_saving : l10n.common_save),
-        ),
-      ],
     );
   }
 }

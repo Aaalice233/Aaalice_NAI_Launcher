@@ -47,6 +47,9 @@ class UnifiedPromptConfig {
   /// 会弹出导入确认框，支持转换为 NAI 多角色格式。
   final bool enableComfyuiImport;
 
+  /// 是否显示基于本地 ffdkj 词库的快速翻译入口。
+  final bool enableQuickTranslation;
+
   // ==================== 外观选项 ====================
 
   /// 是否紧凑模式
@@ -94,6 +97,7 @@ class UnifiedPromptConfig {
     this.enableSdSyntaxAutoConvert = false,
     this.enableRegexReplace = true,
     this.enableComfyuiImport = false,
+    this.enableQuickTranslation = false,
     this.compact = false,
     this.readOnly = false,
     this.maxHeight,
@@ -114,6 +118,7 @@ class UnifiedPromptConfig {
     enableSyntaxHighlight: true,
     enableAutoFormat: true,
     enableSdSyntaxAutoConvert: false,
+    enableQuickTranslation: true,
     compact: false,
     readOnly: false,
     autocompleteConfig: AutocompleteConfig(
@@ -131,6 +136,7 @@ class UnifiedPromptConfig {
     enableSyntaxHighlight: true,
     enableAutoFormat: true,
     enableSdSyntaxAutoConvert: false,
+    enableQuickTranslation: true,
     compact: true,
     readOnly: false,
     autocompleteConfig: AutocompleteConfig(
@@ -149,6 +155,7 @@ class UnifiedPromptConfig {
     enableAutoFormat: true,
     enableSdSyntaxAutoConvert: false,
     enableComfyuiImport: true,
+    enableQuickTranslation: true,
     compact: false,
     readOnly: false,
     autocompleteConfig: AutocompleteConfig(
@@ -167,6 +174,7 @@ class UnifiedPromptConfig {
     bool? enableSdSyntaxAutoConvert,
     bool? enableRegexReplace,
     bool? enableComfyuiImport,
+    bool? enableQuickTranslation,
     bool? compact,
     bool? readOnly,
     double? maxHeight,
@@ -188,6 +196,8 @@ class UnifiedPromptConfig {
           enableSdSyntaxAutoConvert ?? this.enableSdSyntaxAutoConvert,
       enableRegexReplace: enableRegexReplace ?? this.enableRegexReplace,
       enableComfyuiImport: enableComfyuiImport ?? this.enableComfyuiImport,
+      enableQuickTranslation:
+          enableQuickTranslation ?? this.enableQuickTranslation,
       compact: compact ?? this.compact,
       readOnly: readOnly ?? this.readOnly,
       maxHeight: maxHeight ?? this.maxHeight,
@@ -211,6 +221,7 @@ class UnifiedPromptConfig {
         other.enableSdSyntaxAutoConvert == enableSdSyntaxAutoConvert &&
         other.enableRegexReplace == enableRegexReplace &&
         other.enableComfyuiImport == enableComfyuiImport &&
+        other.enableQuickTranslation == enableQuickTranslation &&
         other.compact == compact &&
         other.readOnly == readOnly &&
         other.maxHeight == maxHeight &&
@@ -230,6 +241,7 @@ class UnifiedPromptConfig {
       enableSdSyntaxAutoConvert,
       enableRegexReplace,
       enableComfyuiImport,
+      enableQuickTranslation,
       compact,
       readOnly,
       maxHeight,

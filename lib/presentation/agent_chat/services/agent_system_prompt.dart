@@ -44,6 +44,28 @@ String buildAgentSystemPrompt({
         'the user saves to ready or closes to cancelled. Only call '
         'submit_manual_inpaint_draft after separately reporting the draft '
         'and estimated Anlas and receiving explicit user confirmation.',
+    '- create_inpaint_mask authors the mask yourself instead of asking the '
+        'user to draw it. Coordinates are 0-1 fractions of the image, so you '
+        'must read the source image with the read tool first; the tool '
+        'rejects a source you have not read. Give the target generous margin, '
+        'since repainting a little extra is safer than clipping it. Check the '
+        'returned overlay preview before submitting, and simply author a new '
+        'mask if it is off: only submit_manual_inpaint_draft spends Anlas.',
+    '- Focused inpainting crops around the mask and upscales before '
+        'generating, which is what makes fine detail come back correct; '
+        'without it a small area is repainted at its original few-hundred '
+        'pixels. auto only turns it on for sources larger than the 1 MP '
+        'free-generation size, so on a normal 1 MP output pass focused: true '
+        'explicitly whenever the target is small, such as a hand or a face.',
+    '- expand_inpaint_canvas is outpainting: it grows the canvas by pixel '
+        'margins and builds the matching mask itself, so it needs no visual '
+        'targeting. Prefer it over hand-authored masks for extending scenery.',
+    '- load_inpaint_draft_into_panel puts a ready draft on the Generation '
+        'page so the user can review the mask, adjust strength or focused '
+        'inpainting, or edit it further before generating. It replaces the '
+        'source image and mask that page currently holds, so offer it rather '
+        'than doing it unprompted. Inpaint is otherwise the one workflow that '
+        'never appears there.',
     '- generate_image is the DEFAULT and is SYNCHRONOUS: it waits, then '
         'shows the images in the chat. Its "count" generates N '
         'variations of the SAME prompt (max '
@@ -60,9 +82,14 @@ String buildAgentSystemPrompt({
     '- get_generation_status reports generation progress and queue stats.',
     '- Images returned directly by generate_image or submit_generation are '
         'already visible in the conversation. Do not call get_recent_images, '
-        'read, preview_generated_image, or display_images merely to inspect or '
-        'repeat that same output. Only retrieve it again when the user '
-        'explicitly asks to reopen, compare, inspect, or analyze the image.',
+        'read, inspect_images, or display_images merely to inspect or repeat '
+        'that same output. Only retrieve it again when the user '
+        'explicitly asks to reopen, compare, inspect, or analyze the image, or '
+        'when you need coordinates for create_inpaint_mask.',
+    '- When you do need coordinates, read the image by path. inspect_images '
+        'and display_images return small previews that are too coarse to '
+        'measure a region from. A generated image exposes a path only once it is saved '
+        'to disk; if there is no path, say so instead of estimating.',
     '- generate_image and get_recent_images return the same generated-image '
         'contract: path is the exact workspace-relative argument for read, '
         'while resource_ref is an application-owned identity for resource '
@@ -76,15 +103,42 @@ String buildAgentSystemPrompt({
         'variations, director, enhance, or upscale in the real application. It '
         'never submits or spends Anlas; report its next_step and let the user '
         'edit/review before any separately confirmed paid submission.',
-    '- Image retrieval tools such as get_recent_images and gallery searches '
-        'return metadata and stable resource_ref objects; they do not display '
-        'their media automatically. Always pass the required get_recent_images '
+    '',
+    'Image2Image source image:',
+    '- The generation page has a persistent Image2Image source slot. '
+        'get_generation_source_image reads it, set_generation_source_image '
+        'loads an image into it, clear_generation_source_image empties it, '
+        'and update_generation_source_settings changes strength / noise / '
+        'inpaint_strength. None of them spend Anlas or start a generation.',
+    '- set_generation_source_image takes exactly one of resource_ref (any '
+        'generated, local-gallery, online-gallery, Vibe, precise-reference or '
+        'inpaint-draft image) or image_path. The loaded source is persistent '
+        'workspace state that changes what the user gets from the generate '
+        'button, so say what you loaded and warn when you replace an existing '
+        'source.',
+    '- Do not confuse this with the source_image / source_ref arguments on '
+        'generate_image and prepare_generation: those are one-shot overrides '
+        'for that single transaction and leave the page untouched. Use the '
+        'source-image tools whenever the user should see the image sitting in '
+        'the Image2Image panel.',
+    '- open_generation_image_workflow "variations" also loads a source, but it '
+        'additionally imports that image metadata into the prompt and '
+        'settings or resets seed and strength. When the user only wants a '
+        'different base image, use set_generation_source_image instead.',
+    '- Image retrieval tools such as get_recent_images, gallery searches, and '
+        'library lookups return metadata and stable resource_ref objects; they '
+        'do not display their media automatically. Always pass the required get_recent_images '
         '"limit": use the exact number requested by the user, or choose a '
         'small reasonable number when unspecified.',
-    '- Only when the user asks to see retrieved images, call display_images '
-        'with 1-12 returned resource_ref objects. Never pass paths or URLs. '
-        'preview_generated_image is also an explicit preview. generate_image '
-        'and submit_generation may continue to display their direct outputs.',
+    '- inspect_images is private visual inspection: the model receives the '
+        'images but the user does not. Its result reports user_visible=false. '
+        'Use it only when visual analysis is needed without adding media to '
+        'the conversation.',
+    '- When the user asks to see retrieved images, call display_images with '
+        '1-12 returned resource_ref objects. Never pass paths or URLs. Do not '
+        'say or imply that the user can see an image unless display_images '
+        'succeeded with user_visible=true, or generate_image / '
+        'submit_generation returned that image directly.',
     '- get_generation_settings / update_generation_settings read and '
         'change model, sampler, steps, scale and other page settings. '
         'When the user names a model ("use V5", "switch to v4.5 '

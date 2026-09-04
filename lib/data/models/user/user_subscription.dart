@@ -203,12 +203,19 @@ class SubscriptionState with _$SubscriptionState {
   const factory SubscriptionState.error(String message) =
       SubscriptionStateError;
 
+  /// 端点不提供订阅信息（部分第三方 NAI 兼容站点）
+  const factory SubscriptionState.unsupported() = SubscriptionStateUnsupported;
+
   /// 获取订阅信息（如果已加载）
   UserSubscription? get subscription =>
       maybeMap(loaded: (state) => state.subscription, orElse: () => null);
 
   /// 是否正在加载
   bool get isLoading => maybeMap(loading: (_) => true, orElse: () => false);
+
+  /// 端点是否不提供订阅信息
+  bool get isUnsupported =>
+      maybeMap(unsupported: (_) => true, orElse: () => false);
 
   /// 余额（如果已加载）
   int? get balance => subscription?.anlasBalance;

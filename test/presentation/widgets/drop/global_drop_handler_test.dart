@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/utils/internal_drag_protocol.dart';
 import 'package:nai_launcher/presentation/widgets/drop/global_drop_action_coordinator.dart';
@@ -70,6 +72,56 @@ void main() {
       );
 
       expect(() => controller!.addListener(() {}), throwsFlutterError);
+    });
+
+    testWidgets('vibe naming uses adaptive form and returns edited name', (
+      tester,
+    ) async {
+      String? savedName;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => FilledButton(
+                onPressed: () async {
+                  savedName = await showVibeLibraryNamingForm(
+                    context: context,
+                    vibes: const [
+                      VibeReference(
+                        displayName: '原名称',
+                        vibeEncoding: 'encoded',
+                      ),
+                    ],
+                    initialName: '原名称',
+                  );
+                },
+                child: const Text('打开命名'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('打开命名'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('adaptive-centered-form')),
+        findsOneWidget,
+      );
+      expect(find.byType(AlertDialog), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('drop-vibe-library-name-field')),
+        '新名称',
+      );
+      await tester.tap(find.byKey(const ValueKey('drop-vibe-library-save')));
+      await tester.pumpAndSettle();
+
+      expect(savedName, '新名称');
     });
 
     test('plain PNG has no importable dropped-image metadata', () async {

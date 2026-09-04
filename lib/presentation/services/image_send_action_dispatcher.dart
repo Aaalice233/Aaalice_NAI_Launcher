@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/services/android_media_store_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/utils/nai_resolution_adapter.dart';
@@ -14,16 +15,16 @@ import '../providers/fixed_tags_provider.dart';
 import '../providers/image_generation_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
 import '../router/app_routes.dart';
+import '../screens/watermark/watermark_editor_launcher.dart';
 import '../utils/fixed_tag_metadata_matcher.dart';
 import '../utils/krita_send_helper.dart';
 import '../utils/local_gallery_reference_factory.dart';
-import '../utils/metadata_import_coordinator.dart';
 import '../utils/precise_ref_library_import_helper.dart';
 import '../widgets/common/app_toast.dart';
 import '../widgets/common/precise_reference_type_dialog.dart';
 import '../widgets/discord_share/discord_share_dialog.dart';
 import '../widgets/gallery/local_image_context_menu.dart';
-import '../widgets/metadata/metadata_import_dialog.dart';
+import 'image_metadata_import_workflow.dart';
 import 'image_workflow_launcher.dart';
 
 /// Dispatches the reusable "send image to..." actions shared by image menus.
@@ -43,6 +44,7 @@ class ImageSendActionDispatcher {
 
       switch (action) {
         case LocalImageContextAction.addToAgent:
+        case LocalImageContextAction.moveToCategory:
           return;
         case LocalImageContextAction.sendToTextToImage:
         case LocalImageContextAction.importMetadata:
@@ -83,6 +85,14 @@ class ImageSendActionDispatcher {
           AppToast.info(context, context.l10n.gallery_upscalePanelLoaded);
         case LocalImageContextAction.shareToDiscord:
           await _shareToDiscord(context, ref, bytes, fileName);
+        case LocalImageContextAction.createWatermark:
+          await WatermarkEditorLauncher.open(
+            context: context,
+            sourceBytes: bytes,
+            sourceFileName: fileName,
+          );
+        case LocalImageContextAction.saveToSystemGallery:
+          await _saveToSystemGallery(context, bytes, fileName);
         case LocalImageContextAction.copyPrompt:
         case LocalImageContextAction.copySeed:
         case LocalImageContextAction.showInFolder:
@@ -102,38 +112,45 @@ class ImageSendActionDispatcher {
     }
   }
 
+  static Future<void> _saveToSystemGallery(
+    BuildContext context,
+    Uint8List bytes,
+    String fileName,
+  ) async {
+    try {
+      await AndroidMediaStoreService.saveImage(
+        bytes: bytes,
+        fileName: fileName,
+      );
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_savedToSystemGallery);
+      }
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to export image to system gallery',
+        error,
+        stackTrace,
+        'ImageSendAction',
+      );
+      if (context.mounted) {
+        AppToast.error(
+          context,
+          context.l10n.localGallery_saveToSystemGalleryFailed('$error'),
+        );
+      }
+    }
+  }
+
   static Future<void> _importMetadata(
     BuildContext context,
     WidgetRef ref,
     Uint8List bytes,
-  ) async {
-    final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
-    if (!context.mounted) return;
-    if (metadata == null || !metadata.hasData) {
-      AppToast.warning(context, context.l10n.metadataImport_noDataFound);
-      return;
-    }
-    final options = await MetadataImportDialog.show(
-      context,
-      metadata: metadata,
-    );
-    if (options == null || !context.mounted) return;
-    final appliedCount = await MetadataImportCoordinator.apply(
+  ) {
+    return ImageMetadataImportWorkflow.shared.run(
+      context: context,
       read: ref.read,
-      metadata: metadata,
-      options: options,
-      l10n: context.l10n,
+      bytes: bytes,
     );
-    if (!context.mounted) return;
-    if (appliedCount == 0) {
-      AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
-      return;
-    }
-    AppToast.success(
-      context,
-      context.l10n.metadataImport_appliedCount(appliedCount),
-    );
-    context.go(AppRoutes.home);
   }
 
   static void _sendToStyleTransfer(

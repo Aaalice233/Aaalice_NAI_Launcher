@@ -3,19 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/agent/agent_settings.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../agent_chat/services/agent_chat_model_capability.dart';
 import '../../../agent_settings/providers/agent_settings_provider.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/searchable_model_picker.dart';
 import '../../settings/widgets/settings_card.dart';
 import '../../settings/widgets/settings_page_layout.dart';
 import 'web_access_settings.dart';
 import 'agent/agent_profile_actions.dart';
+import 'agent/context_window_field.dart';
 import 'agent/skill_management_panel.dart';
 import 'agent/system_prompt_editor.dart';
 
 class AgentSettingsSection extends ConsumerStatefulWidget {
-  const AgentSettingsSection({super.key});
+  const AgentSettingsSection({super.key, this.onOpenIntegrations});
+
+  final VoidCallback? onOpenIntegrations;
 
   @override
   ConsumerState<AgentSettingsSection> createState() =>
@@ -95,7 +100,11 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
       description: context.l10n.agentSettings_subtitle,
       actions: const AgentProfileActions(),
       children: [
-        _ModelCard(settings: state.settings, promptConfig: promptConfig),
+        _ModelCard(
+          settings: state.settings,
+          promptConfig: promptConfig,
+          onOpenIntegrations: widget.onOpenIntegrations,
+        ),
         _ReadingPreferencesCard(settings: state.settings),
         _PermissionCard(settings: state.settings),
         _WebAccessCard(settings: state.settings),
@@ -109,14 +118,20 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
 }
 
 class _ModelCard extends ConsumerWidget {
-  const _ModelCard({required this.settings, required this.promptConfig});
+  const _ModelCard({
+    required this.settings,
+    required this.promptConfig,
+    required this.onOpenIntegrations,
+  });
 
   final AgentSettings settings;
   final PromptAssistantConfigState promptConfig;
+  final VoidCallback? onOpenIntegrations;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final available = <AgentModelReference>[];
+    final pickerOptions = <ModelPickerOption<AgentModelReference>>[];
     for (final provider in promptConfig.providers.where(
       (item) => item.enabled,
     )) {
@@ -126,63 +141,120 @@ class _ModelCard extends ConsumerWidget {
             item.forTask == AssistantTaskType.chat &&
             !item.isPlaceholder,
       )) {
-        available.add(
-          AgentModelReference(providerId: provider.id, model: model.name),
+        final reference = AgentModelReference(
+          providerId: provider.id,
+          model: model.name,
+        );
+        available.add(reference);
+        final displayName = model.displayName.trim().isEmpty
+            ? model.name
+            : model.displayName.trim();
+        pickerOptions.add(
+          ModelPickerOption(
+            id: _modelPickerId(reference),
+            value: reference,
+            title: displayName,
+            subtitle: displayName == model.name
+                ? provider.name
+                : '${provider.name} · ${model.name}',
+            searchTerms: [provider.id],
+          ),
         );
       }
     }
     final selected = settings.chat.modelReference;
     final isPending = selected.isConfigured && !available.contains(selected);
+    if (isPending) {
+      pickerOptions.insert(
+        0,
+        ModelPickerOption(
+          id: _modelPickerId(selected),
+          value: selected,
+          title: selected.model,
+          subtitle:
+              '${selected.providerId} · ${context.l10n.agentSettings_pendingMatch}',
+          searchTerms: [selected.providerId],
+        ),
+      );
+    }
+    final selectedOption = pickerOptions
+        .where((option) => option.id == _modelPickerId(selected))
+        .firstOrNull;
     return SettingsCard(
       title: context.l10n.agentSettings_chatModel,
       icon: Icons.smart_toy_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          DropdownButtonFormField<AgentModelReference>(
+          SearchableModelPickerField<AgentModelReference>(
             key: const ValueKey('agent-chat-model-routing'),
-            isExpanded: true,
-            initialValue: selected.isConfigured ? selected : null,
+            keyPrefix: 'agent-settings-model',
+            pickerTitle: context.l10n.agentChat_modelPickerTitle,
+            searchLabel: context.l10n.agentChat_searchModels,
+            searchHint: context.l10n.agentChat_searchModelsHint,
+            clearSearchTooltip: context.l10n.agentChat_clearModelSearch,
+            emptyMessage: context.l10n.agentChat_noModelResults,
+            options: pickerOptions,
+            selectedId: selected.isConfigured ? _modelPickerId(selected) : null,
+            selectedLabel: selectedOption == null
+                ? null
+                : '${_providerName(selected.providerId)} / '
+                      '${selectedOption.title}'
+                      '${isPending ? ' (${context.l10n.agentSettings_pendingMatch})' : ''}',
+            emptyLabel: context.l10n.agentSettings_noModel,
+            enabled: pickerOptions.isNotEmpty,
             decoration: InputDecoration(
               labelText: context.l10n.agentSettings_providerModel,
               helperText: context.l10n.agentSettings_modelManagedInIntegrations,
             ),
-            items: [
-              if (isPending)
-                DropdownMenuItem(
-                  value: selected,
-                  child: Text(
-                    '${selected.providerId} / ${selected.model} '
-                    '(${context.l10n.agentSettings_pendingMatch})',
-                  ),
-                ),
-              for (final reference in available)
-                DropdownMenuItem(
-                  value: reference,
-                  child: Text(
-                    '${_providerName(reference.providerId)} / ${reference.model}',
-                  ),
-                ),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                _reportAgentSettingFailure(
-                  context,
-                  ref
-                      .read(agentSettingsProvider.notifier)
-                      .setModelReference(value),
-                );
-              }
+            onSelected: (value) {
+              _reportAgentSettingFailure(
+                context,
+                ref
+                    .read(agentSettingsProvider.notifier)
+                    .setModelReference(value),
+              );
             },
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: const ValueKey('agent-settings-open-integrations'),
+              onPressed: onOpenIntegrations,
+              icon: const Icon(Icons.arrow_forward, size: 18),
+              label: Text(context.l10n.agentSettings_manageProviders),
+            ),
           ),
           if (available.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Text(context.l10n.agentSettings_noModel),
             ),
+          if (selected.isConfigured)
+            ContextWindowField(
+              providerId: selected.providerId,
+              model: selected.model,
+              catalogWindow: _catalogWindow(selected),
+              overrideWindow: settings.chat.contextWindowOverrideFor(
+                selected.providerId,
+                selected.model,
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  /// 只取目录推断值供占位显示，不含手填覆盖——否则提示会自我印证。
+  int _catalogWindow(AgentModelReference reference) {
+    final provider = promptConfig.providers
+        .where((item) => item.id == reference.providerId)
+        .firstOrNull;
+    if (provider == null) return 0;
+    return AgentChatModelCatalog.resolveProvider(
+      provider: provider,
+      model: reference.model,
+    ).contextWindow;
   }
 
   String _providerName(String id) =>
@@ -191,6 +263,9 @@ class _ModelCard extends ConsumerWidget {
           .map((provider) => provider.name)
           .firstOrNull ??
       id;
+
+  String _modelPickerId(AgentModelReference reference) =>
+      '${reference.providerId}\u0000${reference.model}';
 }
 
 class _ReadingPreferencesCard extends ConsumerWidget {
@@ -219,22 +294,25 @@ class _ReadingPreferencesCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SegmentedButton<double>(
-            key: const ValueKey('agent-reading-text-scale'),
-            segments: [
-              for (final scale in AgentChatConfig.supportedReadingTextScales)
-                ButtonSegment(
-                  value: scale,
-                  label: Text('${(scale * 100).round()}%'),
-                ),
-            ],
-            selected: {chat.readingTextScale},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) => _reportAgentSettingFailure(
-              context,
-              ref
-                  .read(agentSettingsProvider.notifier)
-                  .setReadingTextScale(selection.single),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<double>(
+              key: const ValueKey('agent-reading-text-scale'),
+              segments: [
+                for (final scale in AgentChatConfig.supportedReadingTextScales)
+                  ButtonSegment(
+                    value: scale,
+                    label: Text('${(scale * 100).round()}%'),
+                  ),
+              ],
+              selected: {chat.readingTextScale},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) => _reportAgentSettingFailure(
+                context,
+                ref
+                    .read(agentSettingsProvider.notifier)
+                    .setReadingTextScale(selection.single),
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -250,25 +328,28 @@ class _ReadingPreferencesCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SegmentedButton<AgentChatDensity>(
-            key: const ValueKey('agent-chat-density'),
-            segments: [
-              ButtonSegment(
-                value: AgentChatDensity.comfortable,
-                label: Text(context.l10n.agentSettings_densityComfortable),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<AgentChatDensity>(
+              key: const ValueKey('agent-chat-density'),
+              segments: [
+                ButtonSegment(
+                  value: AgentChatDensity.comfortable,
+                  label: Text(context.l10n.agentSettings_densityComfortable),
+                ),
+                ButtonSegment(
+                  value: AgentChatDensity.compact,
+                  label: Text(context.l10n.agentSettings_densityCompact),
+                ),
+              ],
+              selected: {chat.density},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) => _reportAgentSettingFailure(
+                context,
+                ref
+                    .read(agentSettingsProvider.notifier)
+                    .setChatDensity(selection.single),
               ),
-              ButtonSegment(
-                value: AgentChatDensity.compact,
-                label: Text(context.l10n.agentSettings_densityCompact),
-              ),
-            ],
-            selected: {chat.density},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) => _reportAgentSettingFailure(
-              context,
-              ref
-                  .read(agentSettingsProvider.notifier)
-                  .setChatDensity(selection.single),
             ),
           ),
         ],

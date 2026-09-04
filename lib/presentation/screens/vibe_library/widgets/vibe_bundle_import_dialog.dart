@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../widgets/common/adaptive_dialog_frame.dart';
 import '../../../widgets/common/editable_double_field.dart';
 
 enum BundleImportOption { keepAsBundle, split, importSelected }
@@ -28,6 +30,8 @@ class VibeBundleImportDialog extends StatefulWidget {
   final List<VibeReference>? vibeReferences;
   final List<Uint8List>? vibeThumbnails;
   final DateTime? createdAt;
+  final bool _presented;
+  final ScrollController? _scrollController;
 
   int get vibeCount => vibeNames.length;
 
@@ -38,7 +42,18 @@ class VibeBundleImportDialog extends StatefulWidget {
     this.vibeReferences,
     this.vibeThumbnails,
     this.createdAt,
-  });
+  }) : _presented = false,
+       _scrollController = null;
+
+  const VibeBundleImportDialog._presented({
+    required this.bundleName,
+    required this.vibeNames,
+    required this.vibeReferences,
+    required this.vibeThumbnails,
+    required this.createdAt,
+    required ScrollController scrollController,
+  }) : _presented = true,
+       _scrollController = scrollController;
 
   static Future<BundleImportResult?> show({
     required BuildContext context,
@@ -48,16 +63,34 @@ class VibeBundleImportDialog extends StatefulWidget {
     List<Uint8List>? vibeThumbnails,
     DateTime? createdAt,
   }) {
-    return showDialog<BundleImportResult>(
+    return AdaptivePresenter.showForm<BundleImportResult>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => VibeBundleImportDialog(
-        bundleName: bundleName,
-        vibeNames: vibeNames,
-        vibeReferences: vibeReferences,
-        vibeThumbnails: vibeThumbnails,
-        createdAt: createdAt,
+      titleBuilder: (dialogContext) => Row(
+        children: [
+          Icon(
+            Icons.folder_zip,
+            color: Theme.of(dialogContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              dialogContext.l10n.vibe_import_bundleTitle,
+              style: Theme.of(dialogContext).textTheme.titleLarge,
+            ),
+          ),
+        ],
       ),
+      sideSheetWidth: 500,
+      builder: (dialogContext, scrollController) =>
+          VibeBundleImportDialog._presented(
+            bundleName: bundleName,
+            vibeNames: vibeNames,
+            vibeReferences: vibeReferences,
+            vibeThumbnails: vibeThumbnails,
+            createdAt: createdAt,
+            scrollController: scrollController,
+          ),
     );
   }
 
@@ -166,45 +199,72 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final content = LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 380;
+        return SingleChildScrollView(
+          key: const Key('vibe-bundle-import-scroll'),
+          controller: widget._scrollController,
+          padding: EdgeInsets.all(compact ? 16 : 24),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: _buildContent(
+            Theme.of(context),
+            includeHeader: !widget._presented,
+            compact: compact,
+          ),
+        );
+      },
+    );
+
+    if (widget._presented) {
+      return content;
+    }
 
     return Dialog(
+      insetPadding: const EdgeInsets.all(12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 500,
-          minWidth: 400,
-          maxHeight: 850,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(theme),
-              const SizedBox(height: 20),
-              _buildBundleInfo(theme),
-              const SizedBox(height: 20),
-              _buildImportOptions(theme),
-              if (_hasConfigurableVibes) ...[
-                const SizedBox(height: 16),
-                _buildParameterHeader(theme),
-                const SizedBox(height: 12),
-                Flexible(child: _buildVibeParameterList(theme)),
-              ] else if (_selectedOption ==
-                  BundleImportOption.importSelected) ...[
-                const SizedBox(height: 16),
-                _buildSelectionHeader(theme),
-                const SizedBox(height: 12),
-                Flexible(child: _buildVibeSelectionList(theme)),
-              ],
-              const SizedBox(height: 20),
-              _buildFooter(theme),
-            ],
-          ),
-        ),
+      clipBehavior: Clip.antiAlias,
+      child: AdaptiveDialogFrame(
+        key: const Key('vibe-bundle-import-frame'),
+        maxWidth: 500,
+        maxHeight: 850,
+        reservedVerticalSpace: 0,
+        horizontalMargin: 0,
+        child: SafeArea(child: content),
       ),
+    );
+  }
+
+  Widget _buildContent(
+    ThemeData theme, {
+    required bool includeHeader,
+    required bool compact,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (includeHeader) ...[
+          _buildHeader(theme),
+          SizedBox(height: compact ? 16 : 20),
+        ],
+        _buildBundleInfo(theme),
+        SizedBox(height: compact ? 16 : 20),
+        _buildImportOptions(theme),
+        if (_hasConfigurableVibes) ...[
+          const SizedBox(height: 16),
+          _buildParameterHeader(theme),
+          const SizedBox(height: 12),
+          _buildVibeParameterList(theme),
+        ] else if (_selectedOption == BundleImportOption.importSelected) ...[
+          const SizedBox(height: 16),
+          _buildSelectionHeader(theme),
+          const SizedBox(height: 12),
+          _buildVibeSelectionList(theme),
+        ],
+        SizedBox(height: compact ? 16 : 20),
+        _buildFooter(theme),
+      ],
     );
   }
 
@@ -264,14 +324,15 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
             children: [
               _buildInfoChip(
                 theme,
                 icon: Icons.waves,
                 label: context.l10n.vibeLibrary_totalCount(widget.vibeCount),
               ),
-              const SizedBox(width: 12),
               if (widget.createdAt != null)
                 _buildInfoChip(
                   theme,
@@ -301,10 +362,12 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
         children: [
           Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          Flexible(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -434,7 +497,11 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     final allSelected = _selectedIndices.length == widget.vibeCount;
     final noneSelected = _selectedIndices.isEmpty;
 
-    return Row(
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 12,
+      runSpacing: 4,
       children: [
         Text(
           context.l10n.vibe_import_bundleSelectVibes,
@@ -442,14 +509,17 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        const Spacer(),
-        TextButton(
-          onPressed: allSelected ? null : _selectAll,
-          child: Text(context.l10n.common_selectAll),
-        ),
-        TextButton(
-          onPressed: noneSelected ? null : _selectNone,
-          child: Text(context.l10n.common_deselectAll),
+        Wrap(
+          children: [
+            TextButton(
+              onPressed: allSelected ? null : _selectAll,
+              child: Text(context.l10n.common_selectAll),
+            ),
+            TextButton(
+              onPressed: noneSelected ? null : _selectNone,
+              child: Text(context.l10n.common_deselectAll),
+            ),
+          ],
         ),
       ],
     );
@@ -460,28 +530,33 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     final allSelected = _selectedIndices.length == widget.vibeCount;
     final noneSelected = _selectedIndices.isEmpty;
 
-    return Row(
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 12,
+      runSpacing: 4,
       children: [
-        Expanded(
-          child: Text(
-            isSelectable
-                ? context.l10n.vibe_import_bundleSelectAndConfigureEachVibe
-                : context.l10n.vibe_import_bundleConfigureEachVibe,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+        Text(
+          isSelectable
+              ? context.l10n.vibe_import_bundleSelectAndConfigureEachVibe
+              : context.l10n.vibe_import_bundleConfigureEachVibe,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
         ),
-        if (isSelectable) ...[
-          TextButton(
-            onPressed: allSelected ? null : _selectAll,
-            child: Text(context.l10n.common_selectAll),
+        if (isSelectable)
+          Wrap(
+            children: [
+              TextButton(
+                onPressed: allSelected ? null : _selectAll,
+                child: Text(context.l10n.common_selectAll),
+              ),
+              TextButton(
+                onPressed: noneSelected ? null : _selectNone,
+                child: Text(context.l10n.common_deselectAll),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: noneSelected ? null : _selectNone,
-            child: Text(context.l10n.common_deselectAll),
-          ),
-        ],
       ],
     );
   }
@@ -527,7 +602,9 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     final opacity = isSelected ? 1.0 : 0.45;
 
     return AnimatedOpacity(
-      duration: const Duration(milliseconds: 160),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 160),
       opacity: opacity,
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -542,62 +619,115 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                 : theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (showSelection)
-              Checkbox(
-                value: _selectedIndices.contains(index),
-                onChanged: (_) => _toggleVibeSelection(index),
-                visualDensity: VisualDensity.compact,
-              ),
-            _buildParameterThumbnail(theme, index, thumbnail),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact =
+                constraints.maxWidth < 360 ||
+                MediaQuery.textScalerOf(context).scale(14) > 21;
+            final controls = _buildParameterControls(
+              theme,
+              index: index,
+              isSelected: isSelected,
+            );
+            final heading = Row(
+              children: [
+                if (showSelection)
+                  Checkbox(
+                    value: _selectedIndices.contains(index),
+                    onChanged: (_) => _toggleVibeSelection(index),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                _buildParameterThumbnail(theme, index, thumbnail),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
                     name,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
-                  _buildParamSlider(
-                    theme,
-                    label: context.l10n.vibe_strength,
-                    value: _strengthValues[index],
-                    min: VibeReference.minSliderStrength,
-                    max: VibeReference.maxSliderStrength,
-                    divisions: 99,
-                    unboundedInput: true,
-                    enabled: isSelected,
-                    onChanged: (value) {
-                      setState(() => _strengthValues[index] = value);
-                    },
+                ),
+              ],
+            );
+
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [heading, const SizedBox(height: 8), controls],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (showSelection)
+                  Checkbox(
+                    value: _selectedIndices.contains(index),
+                    onChanged: (_) => _toggleVibeSelection(index),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  const SizedBox(height: 6),
-                  _buildParamSlider(
-                    theme,
-                    label: context.l10n.vibe_infoExtracted,
-                    value: _infoExtractedValues[index],
-                    min: VibeReference.minInfoExtracted,
-                    max: VibeReference.maxInfoExtracted,
-                    divisions: 99,
-                    enabled: isSelected,
-                    onChanged: (value) {
-                      setState(() => _infoExtractedValues[index] = value);
-                    },
+                _buildParameterThumbnail(theme, index, thumbnail),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      controls,
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
       ),
+    );
+  }
+
+  Widget _buildParameterControls(
+    ThemeData theme, {
+    required int index,
+    required bool isSelected,
+  }) {
+    return Column(
+      children: [
+        _buildParamSlider(
+          theme,
+          label: context.l10n.vibe_strength,
+          value: _strengthValues[index],
+          min: VibeReference.minSliderStrength,
+          max: VibeReference.maxSliderStrength,
+          divisions: 99,
+          unboundedInput: true,
+          enabled: isSelected,
+          onChanged: (value) {
+            setState(() => _strengthValues[index] = value);
+          },
+        ),
+        const SizedBox(height: 6),
+        _buildParamSlider(
+          theme,
+          label: context.l10n.vibe_infoExtracted,
+          value: _infoExtractedValues[index],
+          min: VibeReference.minInfoExtracted,
+          max: VibeReference.maxInfoExtracted,
+          divisions: 99,
+          enabled: isSelected,
+          onChanged: (value) {
+            setState(() => _infoExtractedValues[index] = value);
+          },
+        ),
+      ],
     );
   }
 
@@ -647,39 +777,58 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     required ValueChanged<double> onChanged,
     bool unboundedInput = false,
   }) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 56,
-          child: Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Slider(
-            value: value.clamp(min, max).toDouble(),
-            min: min,
-            max: max,
-            divisions: divisions,
-            onChanged: enabled ? onChanged : null,
-          ),
-        ),
-        EditableDoubleField(
-          value: value,
-          min: unboundedInput ? null : min,
-          max: unboundedInput ? null : max,
-          decimals: 2,
-          width: 56,
-          enabled: enabled,
-          onChanged: onChanged,
-          textStyle: theme.textTheme.labelSmall?.copyWith(
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-      ],
+    final labelWidget = Text(
+      label,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+    final field = EditableDoubleField(
+      value: value,
+      min: unboundedInput ? null : min,
+      max: unboundedInput ? null : max,
+      decimals: 2,
+      width: 56,
+      enabled: enabled,
+      onChanged: onChanged,
+      textStyle: theme.textTheme.labelSmall?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+    final slider = Slider(
+      value: value.clamp(min, max).toDouble(),
+      min: min,
+      max: max,
+      divisions: divisions,
+      onChanged: enabled ? onChanged : null,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 300 ||
+            MediaQuery.textScalerOf(context).scale(14) > 21) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: labelWidget),
+                  const SizedBox(width: 8),
+                  field,
+                ],
+              ),
+              slider,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            SizedBox(width: 56, child: labelWidget),
+            Expanded(child: slider),
+            field,
+          ],
+        );
+      },
     );
   }
 
@@ -736,7 +885,9 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
         onTap: () => _toggleVibeSelection(index),
         borderRadius: BorderRadius.circular(12),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             border: Border.all(
               color: isSelected
@@ -888,8 +1039,11 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
         _selectedOption != BundleImportOption.importSelected ||
         _selectedIndices.isNotEmpty;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+    return Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         if (_selectedOption == BundleImportOption.importSelected) ...[
           Text(
@@ -901,10 +1055,8 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
               color: theme.colorScheme.outline,
             ),
           ),
-          const SizedBox(width: 16),
         ],
         TextButton(onPressed: _cancel, child: Text(context.l10n.common_cancel)),
-        const SizedBox(width: 8),
         FilledButton.icon(
           onPressed: canConfirm ? _confirm : null,
           icon: const Icon(Icons.download),

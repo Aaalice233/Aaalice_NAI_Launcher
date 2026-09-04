@@ -1,7 +1,7 @@
 name: nai_launcher
 description: NovelAI Universal Launcher - 跨平台第三方客户端
 publish_to: "none"
-version: 3.1.0+37
+version: 3.2.0+38
 
 environment:
   sdk: ">=3.10.7 <4.0.0"
@@ -32,7 +32,9 @@ dependencies:
   # Windows 系统代理支持
   win32_registry: ^1.1.3
 
-  # 本地存储
+  # OAuth / 本地安全存储
+  flutter_appauth: ^12.0.2
+  google_sign_in: ^7.2.0
   flutter_secure_storage: ^9.2.4
   hive: ^2.2.3
   hive_flutter: ^1.1.0
@@ -144,6 +146,8 @@ dev_dependencies:
   hive_generator: ^2.0.1
   # Mock 测试
   mocktail: ^1.0.3
+  # 指针设备检测器回归测试直接引用（与 super_drag_and_drop 同版本锁定）
+  super_native_extensions: ^0.9.1
   # 文件缓存测试
   file: ^7.0.1
   # 集成测试
@@ -173,3 +177,21 @@ flutter:
     - family: LXGW ZhenKai GB
       fonts:
         - asset: fonts/LXGWZhenKaiGB-Regular.ttf
+    - family: Great Vibes
+      fonts:
+        - asset: fonts/watermark/GreatVibes-Regular.ttf
+    - family: Caveat
+      fonts:
+        - asset: fonts/watermark/Caveat-VariableFont_wght.ttf
+    - family: Allura
+      fonts:
+        - asset: fonts/watermark/Allura-Regular.ttf
+    - family: Ma Shan Zheng
+      fonts:
+        - asset: fonts/watermark/MaShanZheng-Regular.ttf
+    - family: Zhi Mang Xing
+      fonts:
+        - asset: fonts/watermark/ZhiMangXing-Regular.ttf
+    - family: Long Cang
+      fonts:
+        - asset: fonts/watermark/LongCang-Regular.ttf

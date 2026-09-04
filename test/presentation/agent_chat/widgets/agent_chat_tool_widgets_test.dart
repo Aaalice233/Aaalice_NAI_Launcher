@@ -611,6 +611,65 @@ void main() {
     },
   );
 
+  testWidgets(
+    'network preview uses a full-screen route and respects compact insets',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 568));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final result = ToolResultMessage(
+        toolCallId: 'network-preview',
+        toolName: 'display_images',
+        content: const [
+          ToolResultImageContent(
+            ImageContent(
+              source: ImageSource.url(url: 'https://example.invalid/image.png'),
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: const MediaQueryData(
+                size: Size(320, 568),
+                devicePixelRatio: 3,
+                padding: EdgeInsets.only(top: 24, bottom: 16),
+                viewPadding: EdgeInsets.only(top: 24, bottom: 16),
+                viewInsets: EdgeInsets.only(bottom: 220),
+                disableAnimations: true,
+              ),
+              child: child!,
+            ),
+            home: Scaffold(body: AgentChatToolResultMedia(result: result)),
+          ),
+        ),
+      );
+
+      tester.widget<GestureDetector>(find.byType(GestureDetector)).onTap!();
+      await tester.pump();
+
+      final preview = find.byKey(const ValueKey('agent-network-image-preview'));
+      final close = find.byKey(
+        const ValueKey('agent-network-image-preview-close'),
+      );
+      expect(preview, findsOneWidget);
+      expect(close, findsOneWidget);
+      expect(find.byType(Dialog), findsNothing);
+      expect(tester.getSize(preview).width, 320);
+      expect(tester.getSize(preview).height, 308);
+      expect(tester.getCenter(close).dy, lessThan(568 - 220));
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(close);
+      await tester.pumpAndSettle();
+      expect(preview, findsNothing);
+    },
+  );
+
   testWidgets('tool group hides failure payload until explicitly expanded', (
     tester,
   ) async {

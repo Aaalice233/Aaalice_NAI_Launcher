@@ -11,6 +11,8 @@ import 'online_gallery_viewport_tracker.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/online_gallery/online_gallery_image_placeholder.dart';
 
+void _scheduleRevealImmediately(VoidCallback reveal) => reveal();
+
 /// Owns one gallery tile's visibility and detail request lifecycle.
 ///
 /// AI TAG items without a preview resolve their detail once when they first
@@ -31,6 +33,7 @@ class GalleryGridItem extends StatefulWidget {
     this.onTileBuild,
     this.onVisibilityTransition,
     this.onVisibilityDrivenRebuild,
+    this.scheduleReveal = _scheduleRevealImmediately,
     required this.viewportGeneration,
     required this.detailRequestScope,
     required this.loadDetail,
@@ -49,6 +52,7 @@ class GalleryGridItem extends StatefulWidget {
   final VoidCallback? onTileBuild;
   final VoidCallback? onVisibilityTransition;
   final VoidCallback? onVisibilityDrivenRebuild;
+  final void Function(VoidCallback reveal) scheduleReveal;
   final int viewportGeneration;
   final Object detailRequestScope;
   final Future<GalleryDetail> Function(
@@ -194,6 +198,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
         onGeometryMeasured: widget.onGeometryMeasured,
         onVisibilityTransition: widget.onVisibilityTransition,
         onVisibilityDrivenRebuild: widget.onVisibilityDrivenRebuild,
+        scheduleReveal: widget.scheduleReveal,
         builder: (context, hasBeenVisible, isScrolling, isVisible) {
           if (!hasBeenVisible) {
             return _buildDeferredCard(layoutAspectRatio);
@@ -208,13 +213,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
             );
           }
           if (_detailFuture == null) {
-            return const AspectRatio(
-              aspectRatio: 1,
-              child: ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(8)),
-                child: OnlineGalleryImagePlaceholder(loading: true),
-              ),
-            );
+            return _buildDeferredCard(layoutAspectRatio);
           }
           return FutureBuilder<GalleryDetail>(
             key: ValueKey((post.detailStableKey, widget.detailRequestScope)),
@@ -224,16 +223,13 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
                 final error = snapshot.error;
                 if (error is DioException &&
                     error.type == DioExceptionType.cancel) {
-                  return const AspectRatio(
-                    aspectRatio: 1,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.all(Radius.circular(8)),
-                      child: OnlineGalleryImagePlaceholder(loading: true),
-                    ),
-                  );
+                  return _buildDeferredCard(layoutAspectRatio);
                 }
-                return AspectRatio(
-                  aspectRatio: 1,
+                return SizedBox(
+                  height: (widget.itemWidth / layoutAspectRatio).clamp(
+                    80.0,
+                    widget.itemWidth * 2.5,
+                  ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerLow,
@@ -252,22 +248,12 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
               final detail = snapshot.data;
               final resolved = detail?.item;
               if (resolved == null) {
-                return const AspectRatio(
-                  aspectRatio: 1,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.all(Radius.circular(8)),
-                    child: OnlineGalleryImagePlaceholder(loading: true),
-                  ),
-                );
+                return _buildDeferredCard(layoutAspectRatio);
               }
-              final resolvedAspectRatio =
-                  resolved.width > 0 && resolved.height > 0
-                  ? resolved.width / resolved.height
-                  : layoutAspectRatio;
               return _buildResourceCard(
                 context,
                 resolved,
-                resolvedAspectRatio,
+                layoutAspectRatio,
                 loadMedia: hasBeenVisible,
                 mediaRequestActive: hasBeenVisible,
                 detail: detail,

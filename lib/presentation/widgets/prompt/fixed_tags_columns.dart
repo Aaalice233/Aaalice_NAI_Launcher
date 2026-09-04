@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
-import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../common/themed_input.dart';
@@ -22,14 +22,12 @@ class FixedTagsColumns extends StatelessWidget {
     required this.commands,
     required this.controller,
     required this.isCompact,
-    required this.isDark,
   });
 
   final FixedTagsDialogViewData data;
   final FixedTagsDialogCommands commands;
   final FixedTagsDialogController controller;
   final bool isCompact;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +83,16 @@ class FixedTagsColumns extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: fixedTagColumnGap),
+              VerticalDivider(
+                key: const ValueKey('fixed-tags-column-divider'),
+                width: fixedTagColumnGap,
+                thickness: 1,
+                indent: 12,
+                endIndent: 12,
+                color: Theme.of(
+                  context,
+                ).colorScheme.outlineVariant.withValues(alpha: 0.24),
+              ),
               Expanded(
                 child: FixedTagColumn(
                   config: _configFor(
@@ -162,7 +169,6 @@ class FixedTagsColumns extends StatelessWidget {
       controller: controller,
       commands: commands,
       data: data,
-      isDark: isDark,
       compact: compact,
     );
   }
@@ -182,7 +188,6 @@ class FixedTagColumnConfig {
     required this.controller,
     required this.commands,
     required this.data,
-    required this.isDark,
     required this.compact,
   });
 
@@ -197,7 +202,6 @@ class FixedTagColumnConfig {
   final FixedTagsDialogController controller;
   final FixedTagsDialogCommands commands;
   final FixedTagsDialogViewData data;
-  final bool isDark;
   final bool compact;
 
   bool get hasSearch => searchQuery.trim().isNotEmpty;
@@ -211,6 +215,11 @@ class FixedTagColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final interactionPolicy = context.interactionPolicy;
+    final controlExtent = interactionPolicy.minimumControlExtent;
+    final iconButtonLayoutExtent = interactionPolicy.touchAvailable
+        ? controlExtent
+        : controlExtent + 8;
     final totalText = config.hasSearch
         ? context.l10n.fixedTags_columnFilteredCount(
             config.enabledCount,
@@ -221,116 +230,154 @@ class FixedTagColumn extends StatelessWidget {
             config.enabledCount,
             config.allEntries.length,
           );
-    return Column(
-      children: [
+    final controls = <Widget>[
+      Padding(
+        padding: EdgeInsets.fromLTRB(12, config.compact ? 6 : 10, 12, 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${config.title} · $totalText',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (config.compact)
+              IconButton(
+                key: ValueKey(
+                  'fixed-tags-toggle-all-${config.promptType.name}',
+                ),
+                tooltip: _enableAllLabel(context),
+                visualDensity: interactionPolicy.touchAvailable
+                    ? VisualDensity.standard
+                    : VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints.tightFor(
+                  width: iconButtonLayoutExtent,
+                  height: iconButtonLayoutExtent,
+                ),
+                onPressed: _toggleAll,
+                icon: Icon(
+                  _enableAll
+                      ? Icons.toggle_on_outlined
+                      : Icons.toggle_off_outlined,
+                ),
+              )
+            else ...[
+              _ColumnActionButton(
+                icon: Icons.add_rounded,
+                label: context.l10n.fixedTags_new,
+                tooltip: context.l10n.fixedTags_newTarget(config.title),
+                onPressed: () =>
+                    config.commands.editEntry(null, config.promptType),
+              ),
+              const SizedBox(width: 4),
+              _ColumnActionButton(
+                icon: Icons.playlist_add_rounded,
+                label: context.l10n.fixedTags_library,
+                tooltip: context.l10n.fixedTags_addFromLibraryToTarget(
+                  config.title,
+                ),
+                onPressed: () =>
+                    config.commands.pickFromLibrary(config.promptType),
+              ),
+              const SizedBox(width: 4),
+              TextButton(
+                key: ValueKey(
+                  'fixed-tags-toggle-all-${config.promptType.name}',
+                ),
+                onPressed: _toggleAll,
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.standard,
+                  minimumSize: Size(0, controlExtent),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(_enableAllLabel(context)),
+              ),
+            ],
+          ],
+        ),
+      ),
+      if (config.compact) ...[
         Padding(
-          padding: EdgeInsets.fromLTRB(12, config.compact ? 6 : 10, 12, 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  '${config.title} · $totalText',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
+                child: FilledButton.tonalIcon(
+                  onPressed: () =>
+                      config.commands.editEntry(null, config.promptType),
+                  icon: const Icon(Icons.add_rounded, size: 17),
+                  label: Text(context.l10n.fixedTags_new),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () =>
+                      config.commands.pickFromLibrary(config.promptType),
+                  icon: const Icon(Icons.playlist_add_rounded, size: 17),
+                  label: Text(
+                    context.l10n.fixedTags_addFromLibrary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              if (config.compact)
-                IconButton(
-                  tooltip: _enableAllLabel(context),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: _toggleAll,
-                  icon: Icon(
-                    _enableAll
-                        ? Icons.toggle_on_outlined
-                        : Icons.toggle_off_outlined,
-                  ),
-                )
-              else ...[
-                _ColumnActionButton(
-                  icon: Icons.add_rounded,
-                  label: context.l10n.fixedTags_new,
-                  tooltip: context.l10n.fixedTags_newTarget(config.title),
-                  onPressed: () =>
-                      config.commands.editEntry(null, config.promptType),
-                ),
-                const SizedBox(width: 4),
-                _ColumnActionButton(
-                  icon: Icons.playlist_add_rounded,
-                  label: context.l10n.fixedTags_library,
-                  tooltip: context.l10n.fixedTags_addFromLibraryToTarget(
-                    config.title,
-                  ),
-                  onPressed: () =>
-                      config.commands.pickFromLibrary(config.promptType),
-                ),
-                const SizedBox(width: 4),
-                TextButton(
-                  onPressed: _toggleAll,
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  child: Text(_enableAllLabel(context)),
-                ),
-              ],
             ],
           ),
         ),
-        if (config.compact) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton.tonalIcon(
+        const SizedBox(height: 8),
+      ],
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: ThemedInput(
+          controller: config.searchController,
+          decoration: InputDecoration(
+            hintText: context.l10n.fixedTags_searchTarget(config.title),
+            prefixIcon: const Icon(Icons.search_rounded, size: 18),
+            suffixIcon: config.hasSearch
+                ? IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 16),
                     onPressed: () =>
-                        config.commands.editEntry(null, config.promptType),
-                    icon: const Icon(Icons.add_rounded, size: 17),
-                    label: Text(context.l10n.fixedTags_new),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextButton.icon(
-                    onPressed: () =>
-                        config.commands.pickFromLibrary(config.promptType),
-                    icon: const Icon(Icons.playlist_add_rounded, size: 17),
-                    label: Text(
-                      context.l10n.fixedTags_addFromLibrary,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                        config.controller.clearSearch(config.promptType),
+                  )
+                : null,
+            isDense: true,
           ),
-          const SizedBox(height: 8),
-        ],
+          onChanged: (value) =>
+              config.controller.setSearchQuery(config.promptType, value),
+        ),
+      ),
+      const SizedBox(height: 6),
+      if (config.compact && config.entries.isEmpty)
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: ThemedInput(
-            controller: config.searchController,
-            decoration: InputDecoration(
-              hintText: context.l10n.fixedTags_searchTarget(config.title),
-              prefixIcon: const Icon(Icons.search_rounded, size: 18),
-              suffixIcon: config.hasSearch
-                  ? IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 16),
-                      onPressed: () =>
-                          config.controller.clearSearch(config.promptType),
-                    )
-                  : null,
-              isDense: true,
-            ),
-            onChanged: (value) =>
-                config.controller.setSearchQuery(config.promptType, value),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Text(
+            config.hasSearch
+                ? context.l10n.fixedTags_noMatching
+                : context.l10n.fixedTags_emptyTarget(config.title),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: theme.colorScheme.outline),
           ),
         ),
-        const SizedBox(height: 6),
+    ];
+
+    if (config.compact) {
+      return _EntryList(
+        config: config,
+        showLinkAnchors: true,
+        header: Column(children: controls),
+      );
+    }
+
+    return Column(
+      children: [
+        ...controls,
         Expanded(
           child: config.entries.isEmpty
               ? Center(
@@ -362,9 +409,14 @@ class FixedTagColumn extends StatelessWidget {
 }
 
 class _EntryList extends StatelessWidget {
-  const _EntryList({required this.config, required this.showLinkAnchors});
+  const _EntryList({
+    required this.config,
+    required this.showLinkAnchors,
+    this.header,
+  });
   final FixedTagColumnConfig config;
   final bool showLinkAnchors;
+  final Widget? header;
 
   @override
   Widget build(BuildContext context) {
@@ -372,7 +424,6 @@ class _EntryList extends StatelessWidget {
       final tile = FixedTagEntryTile(
         entry: entry,
         index: index,
-        isDark: config.isDark,
         compact: config.compact,
         linkAnchor: showLinkAnchors
             ? FixedTagLinkAnchor(
@@ -391,10 +442,12 @@ class _EntryList extends StatelessWidget {
         entry,
         config.libraryEntries,
       );
-      final content = libraryEntry == null
+      final content =
+          libraryEntry == null ||
+              !context.interactionPolicy.precisePointerAvailable
           ? tile
           : TagLibraryEntryHoverPreview(entry: libraryEntry, child: tile);
-      if (PlatformCapabilities.current.hasTouchInput) {
+      if (!context.interactionPolicy.precisePointerAvailable) {
         return KeyedSubtree(key: ValueKey(entry.id), child: content);
       }
       return AgentResourceDragSource(
@@ -414,14 +467,19 @@ class _EntryList extends StatelessWidget {
         controller: config.scrollController,
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        itemCount: config.entries.length,
-        itemBuilder: (_, index) => tile(config.entries[index], index),
+        itemCount: config.entries.length + (header == null ? 0 : 1),
+        itemBuilder: (_, index) {
+          if (header != null && index == 0) return header!;
+          final entryIndex = index - (header == null ? 0 : 1);
+          return tile(config.entries[entryIndex], entryIndex);
+        },
       );
     }
     return ReorderableListView.builder(
       scrollController: config.scrollController,
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+      header: header,
       buildDefaultDragHandles: false,
       itemCount: config.entries.length,
       itemBuilder: (_, index) => tile(config.entries[index], index),

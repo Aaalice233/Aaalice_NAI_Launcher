@@ -6,18 +6,20 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../core/utils/nai_prompt_parser.dart';
 import '../../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../../../data/models/gallery/nai_prompt_export_codec.dart';
 import '../../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../providers/fixed_tags_provider.dart';
 import '../../../../utils/fixed_tag_metadata_matcher.dart';
 import '../../add_to_library_dialog.dart';
 import '../../app_toast.dart';
+import '../../prompt_copy_split_button.dart';
 import '../../save_as_preset_dialog.dart';
 import '../../save_vibe_dialog.dart';
 import '../../themed_divider.dart';
@@ -48,6 +50,9 @@ class DetailMetadataPanel extends ConsumerStatefulWidget {
   /// 嵌入移动端面板时由外层提供标题和关闭入口，不再显示折叠控件。
   final bool collapsible;
 
+  /// 宽度由外层分栏约束直接驱动，不在面板内部执行宽度补间。
+  final bool fillAvailableWidth;
+
   const DetailMetadataPanel({
     super.key,
     this.currentImage,
@@ -55,7 +60,8 @@ class DetailMetadataPanel extends ConsumerStatefulWidget {
     this.expandedWidth = 320,
     this.collapsedWidth = 40,
     this.collapsible = true,
-  });
+    this.fillAvailableWidth = false,
+  }) : assert(!fillAvailableWidth || !collapsible);
 
   @override
   ConsumerState<DetailMetadataPanel> createState() =>
@@ -244,8 +250,23 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    if (widget.fillAvailableWidth) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          bottomLeft: Radius.circular(16),
+        ),
+        child: ColoredBox(
+          color: colorScheme.surface.withValues(alpha: 0.96),
+          child: _buildExpandedPanel(theme),
+        ),
+      );
+    }
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       width: !widget.collapsible || _isExpanded
           ? widget.expandedWidth
@@ -261,9 +282,12 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
         // Windows Flutter 在大图预览 + 窗口焦点切换时对 BackdropFilter
         // 合成层存在原生崩溃风险；这里保留半透明面板，避免实时背景模糊。
         color: colorScheme.surface.withValues(alpha: 0.96),
-        // 使用 OverflowBox 允许子组件按固定宽度布局，避免动画过程中的溢出警告
+        // 宽度拖拽和折叠动画会让父级短暂保留上一帧约束。这里解除横向
+        // 最小约束，再由有限宽度的 SizedBox 决定内容宽度，避免新旧宽度
+        // 交叉时生成 minWidth > maxWidth 的非法约束。
         child: OverflowBox(
-          maxWidth: widget.expandedWidth,
+          minWidth: 0,
+          maxWidth: double.infinity,
           alignment: Alignment.topLeft,
           child: SizedBox(
             width: widget.expandedWidth,
@@ -338,6 +362,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
             child: CircularProgressIndicator(
               strokeWidth: 2,
               color: colorScheme.primary,
+              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
             ),
           ),
           const SizedBox(height: 16),
@@ -353,23 +378,31 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
   /// 构建无元数据状态
   Widget _buildNoMetadataState(ThemeData theme) {
     final colorScheme = theme.colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.info_outline,
-              size: 48,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 48,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    context.l10n.detail_noMetadata,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              context.l10n.detail_noMetadata,
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -581,14 +614,38 @@ class _MetadataContent extends StatelessWidget {
     final characterNegativeTags = resolvedMetadata.characterInfos
         .expand((character) => _extractTags(character.negativePrompt ?? ''))
         .toList();
-    final positiveTags = [
-      ..._extractTags(resolvedMetadata.prompt),
-      ...characterTags,
-    ];
-    final negativeTags = [
-      ..._extractTags(resolvedMetadata.displayNegativePrompt),
-      ...characterNegativeTags,
-    ];
+    final mainPositiveTags = _extractTags(resolvedMetadata.prompt);
+    final mainNegativeTags = _extractTags(
+      resolvedMetadata.displayNegativePrompt,
+    );
+    final positiveTags = [...mainPositiveTags, ...characterTags];
+    final negativeTags = [...mainNegativeTags, ...characterNegativeTags];
+    final fixedPositiveIndexes = fixedPromptTagIndexes(
+      promptTags: mainPositiveTags,
+      prefixEntries: resolvedMetadata.fixedPrefixTags,
+      suffixEntries: resolvedMetadata.fixedSuffixTags,
+    );
+    final fixedNegativeIndexes = fixedPromptTagIndexes(
+      promptTags: mainNegativeTags,
+      prefixEntries: resolvedMetadata.fixedNegativePrefixTags,
+      suffixEntries: resolvedMetadata.fixedNegativeSuffixTags,
+    );
+    final characterPositiveIndexes = {
+      for (
+        var index = mainPositiveTags.length;
+        index < positiveTags.length;
+        index++
+      )
+        index,
+    };
+    final characterNegativeIndexes = {
+      for (
+        var index = mainNegativeTags.length;
+        index < negativeTags.length;
+        index++
+      )
+        index,
+    };
     final positivePrompt = positiveTags.join(', ');
     final negativePrompt = negativeTags.join(', ');
 
@@ -607,6 +664,8 @@ class _MetadataContent extends StatelessWidget {
           onCopy: () => _copyPositivePrompt(context, resolvedMetadata),
           fixedTags: fixedTags,
           characterTags: characterTags,
+          fixedTagIndexes: fixedPositiveIndexes,
+          characterTagIndexes: characterPositiveIndexes,
         ),
         if (negativePrompt.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -621,6 +680,8 @@ class _MetadataContent extends StatelessWidget {
                 _showAddToLibraryDialog(context, negativePrompt),
             fixedTags: fixedNegativeTags,
             characterTags: characterNegativeTags,
+            fixedTagIndexes: fixedNegativeIndexes,
+            characterTagIndexes: characterNegativeIndexes,
             isNegative: true,
           ),
         ],
@@ -725,23 +786,29 @@ class _InfoSection extends StatelessWidget {
           children: [
             Icon(icon, size: 16, color: colorScheme.primary),
             const SizedBox(width: 6),
-            Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 10),
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: validChildren
                 .map(
                   (child) => Padding(
@@ -761,6 +828,8 @@ class _InfoSection extends StatelessWidget {
 
 /// 信息行
 class _InfoRow extends StatelessWidget {
+  static const _minimumSideBySideWidth = 220.0;
+
   final String label;
   final String value;
 
@@ -770,33 +839,43 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final labelWidget = Text(
+      label,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: colorScheme.onSurfaceVariant,
+        fontSize: 11,
+      ),
+    );
+    final valueWidget = SelectionCopyShortcuts(
+      child: SelectableText(
+        value,
+        style: theme.textTheme.bodySmall?.copyWith(
+          fontWeight: FontWeight.w500,
+          fontSize: 11,
+        ),
+      ),
+    );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 70,
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontSize: 11,
-            ),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Flexible(
-          child: SelectionCopyShortcuts(
-            child: SelectableText(
-              value,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w500,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked =
+            constraints.maxWidth < _minimumSideBySideWidth ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [labelWidget, const SizedBox(height: 2), valueWidget],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 70, child: labelWidget),
+            const SizedBox(width: 4),
+            Flexible(child: valueWidget),
+          ],
+        );
+      },
     );
   }
 }
@@ -809,8 +888,24 @@ class _ActionButtons extends StatelessWidget {
 
   Future<void> _copyPositivePrompt(BuildContext context) async {
     final prompt = await PromptCopyDialog.show(context, metadata: metadata);
-    if (prompt == null || !context.mounted) return;
+    if (!context.mounted) return;
+    await _writePrompt(context, prompt);
+  }
 
+  Future<void> _copyAllTags(BuildContext context) =>
+      _writePrompt(context, NaiPromptExportCodec.encode(metadata));
+
+  Future<void> _customCopyTags(BuildContext context) async {
+    final prompt = await PromptCopyDialog.showExport(
+      context,
+      metadata: metadata,
+    );
+    if (!context.mounted) return;
+    await _writePrompt(context, prompt);
+  }
+
+  Future<void> _writePrompt(BuildContext context, String? prompt) async {
+    if (prompt == null || prompt.trim().isEmpty || !context.mounted) return;
     await Clipboard.setData(ClipboardData(text: prompt));
     if (context.mounted) {
       AppToast.success(context, context.l10n.gallery_promptCopied);
@@ -828,12 +923,26 @@ class _ActionButtons extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _ActionButton(
-                  icon: Icons.copy,
-                  label: context.l10n.detail_copyLabel(
-                    context.l10n.prompt_positivePrompt,
-                  ),
-                  onPressed: () => _copyPositivePrompt(context),
+                child: PromptCopySplitButton(
+                  primaryLabel: context.l10n.onlineGallery_copyAllTags,
+                  menuTooltip: context.l10n.common_copy,
+                  onPressed: () => _copyAllTags(context),
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: () => _customCopyTags(context),
+                      leadingIcon: const Icon(Icons.tune, size: 18),
+                      child: Text(context.l10n.onlineGallery_customCopyTags),
+                    ),
+                    MenuItemButton(
+                      onPressed: () => _copyPositivePrompt(context),
+                      leadingIcon: const Icon(Icons.shield_outlined, size: 18),
+                      child: Text(
+                        context.l10n.detail_copyLabel(
+                          context.l10n.prompt_positivePrompt,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -906,9 +1015,11 @@ class _ActionButtonState extends State<_ActionButton> {
       child: GestureDetector(
         onTap: widget.onPressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           constraints: BoxConstraints(
-            minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 0,
+            minHeight: context.interactionPolicy.minimumControlExtent,
           ),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
@@ -928,13 +1039,18 @@ class _ActionButtonState extends State<_ActionButton> {
                     : colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
-              Text(
-                widget.label,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: _isHovered
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  widget.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: _isHovered
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],

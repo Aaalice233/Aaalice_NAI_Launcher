@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +9,9 @@ import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../providers/online_gallery_provider.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/online_gallery/online_gallery_hover_controller.dart';
+import 'online_gallery_masonry_layout.dart';
 import 'online_gallery_pagination_demand.dart';
 import 'online_gallery_viewport_tracker.dart';
 
@@ -17,6 +20,7 @@ import 'online_gallery_viewport_tracker.dart';
 /// current gallery query and loaded items.
 class OnlineGalleryScreenController extends ChangeNotifier {
   OnlineGalleryScreenController({required this.prefetchCoordinator}) {
+    scrollController = OwnedScrollController(viewport: _viewportOffset);
     _frameTimingsCallback = _recordFrameTimings;
     if (kDebugMode) {
       SchedulerBinding.instance.addTimingsCallback(_frameTimingsCallback);
@@ -33,18 +37,21 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   final popularSearchFocusNode = FocusNode();
   final popularPromptSearchFocusNode = FocusNode();
   final favoriteSearchFocusNode = FocusNode();
-  final scrollController = ScrollController();
+  final OwnedViewportOffset _viewportOffset = OwnedViewportOffset();
+  late final OwnedScrollController scrollController;
   final pageController = TextEditingController();
   final pageFocusNode = FocusNode();
   final hoverController = OnlineGalleryHoverController();
   final OnlineGalleryPrefetchCoordinator prefetchCoordinator;
   final dateRangeLayerLink = LayerLink();
-  final anchorRestoreKey = GlobalKey();
   final primarySearchRevealKey = GlobalKey();
   final viewportTracker = OnlineGalleryViewportTracker();
   final paginationDemand = OnlineGalleryPaginationDemand();
   final Map<String, GlobalKey> _pageAnchorKeys = <String, GlobalKey>{};
   final Set<String> pendingGalleryDetails = <String>{};
+  final ListQueue<VoidCallback> _cardRevealQueue = ListQueue<VoidCallback>();
+  bool _cardRevealScheduled = false;
+  bool _disposed = false;
 
   Timer? searchDebounceTimer;
   Timer? scrollStopTimer;
@@ -52,8 +59,6 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   Timer? idlePrefetchTimer;
   Timer? _pageFocusNotificationTimer;
   OverlayEntry? dateRangeOverlayEntry;
-  String? pendingAnchorStableKey;
-  double pendingAnchorLocalOffset = 0;
   double lastScrollOffset = 0;
   int scrollDirection = 1;
   int lookaheadItemCount = 12;
@@ -78,6 +83,13 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   bool randomReplacePending = false;
   bool branchVisible = true;
   int _scrollRestoreRevision = 0;
+  String? _viewportScope;
+  String? _viewportAnchorStableKey;
+  double _viewportAnchorLocalOffset = 0;
+  int? _viewportColumnCount;
+  double? _viewportItemWidth;
+  bool _viewportUnavailable = false;
+  bool _viewportRestoreRequested = false;
   late final TimingsCallback _frameTimingsCallback;
   bool _scrollTraceActive = false;
   int _scrollTraceSequence = 0;
@@ -299,9 +311,109 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   void resetViewportTracking() => viewportTracker.resetVisibleItems();
 
   int beginScrollRestore() => ++_scrollRestoreRevision;
-  void invalidateScrollRestore() => _scrollRestoreRevision++;
+  void invalidateScrollRestore() {
+    _scrollRestoreRevision++;
+    _viewportRestoreRequested = false;
+    scrollController.clearLayoutRestore();
+  }
+
   bool isCurrentScrollRestore(int revision) =>
       revision == _scrollRestoreRevision;
+
+  void stageViewportRestore({required String scope, required ModeCache cache}) {
+    beginScrollRestore();
+    _viewportScope = scope;
+    _viewportOffset.replace(cache.scrollOffset);
+    _viewportAnchorStableKey = cache.anchorStableKey;
+    _viewportAnchorLocalOffset = cache.anchorLocalOffset;
+    _viewportRestoreRequested = true;
+  }
+
+  bool get viewportAvailable => !_viewportUnavailable;
+
+  void markViewportUnavailable({
+    required String scope,
+    required List<GalleryItem> posts,
+  }) {
+    if (_viewportUnavailable) return;
+    if (!_viewportRestoreRequested && _viewportScope == scope) {
+      captureViewport(scope: scope, posts: posts);
+    }
+    _viewportUnavailable = true;
+    idlePrefetchTimer?.cancel();
+    scrollStopTimer?.cancel();
+    prefetchResumeTimer?.cancel();
+    paginationDemand.settleScroll();
+    setScrolling(false);
+    hoverController.dismiss();
+    prefetchCoordinator.setPageVisible(false);
+  }
+
+  void captureViewport({
+    required String scope,
+    required List<GalleryItem> posts,
+  }) {
+    if (!scrollController.hasClients) return;
+    final position = scrollController.position;
+    if (!OwnedViewportOffset.hasUsableViewport(position)) return;
+    _viewportScope = scope;
+    _viewportOffset.record(position);
+    final anchor = viewportTracker.resolveLeadingAnchor(
+      posts: posts,
+      metrics: position,
+    );
+    if (anchor == null) return;
+    _viewportAnchorStableKey = anchor.item.stableKey;
+    _viewportAnchorLocalOffset = position.pixels - anchor.leadingScrollOffset;
+  }
+
+  void prepareGridViewport({
+    required String scope,
+    required ModeCache cache,
+    required List<GalleryItem> posts,
+    required OnlineGalleryMasonryLayoutSnapshot layout,
+    required int columnCount,
+    required double itemWidth,
+  }) {
+    final scopeChanged = _viewportScope != scope;
+    if (scopeChanged) {
+      _viewportScope = scope;
+      _viewportOffset.replace(cache.scrollOffset);
+      _viewportAnchorStableKey = cache.anchorStableKey;
+      _viewportAnchorLocalOffset = cache.anchorLocalOffset;
+    }
+    final geometryChanged =
+        _viewportColumnCount != null &&
+        (_viewportColumnCount != columnCount ||
+            (_viewportItemWidth! - itemWidth).abs() >= 0.5);
+    if (geometryChanged && !scopeChanged) {
+      captureViewport(scope: scope, posts: posts);
+    }
+    final shouldRestore =
+        scopeChanged ||
+        geometryChanged ||
+        _viewportUnavailable ||
+        _viewportRestoreRequested;
+    _viewportColumnCount = columnCount;
+    _viewportItemWidth = itemWidth;
+    _viewportUnavailable = false;
+    prefetchCoordinator.setPageVisible(branchVisible);
+    _viewportRestoreRequested = false;
+    if (!shouldRestore) return;
+
+    var target = _viewportOffset.pixels;
+    final stableKey = _viewportAnchorStableKey;
+    if (stableKey != null) {
+      final index = viewportTracker.indexOfStableKey(posts, stableKey);
+      if (index != null && index < layout.childCount) {
+        target =
+            12 +
+            layout.placementFor(index).scrollOffset +
+            _viewportAnchorLocalOffset;
+      }
+    }
+    scrollController.restoreDuringLayout(target);
+  }
 
   bool updateLookaheadMetrics({
     required double viewportHeight,
@@ -354,6 +466,29 @@ class OnlineGalleryScreenController extends ChangeNotifier {
     });
   }
 
+  void scheduleCardReveal(VoidCallback reveal) {
+    if (_disposed) return;
+    _cardRevealQueue.addLast(reveal);
+    _scheduleCardRevealFrame();
+  }
+
+  void _scheduleCardRevealFrame() {
+    if (_cardRevealScheduled || _cardRevealQueue.isEmpty || _disposed) return;
+    _cardRevealScheduled = true;
+    SchedulerBinding.instance.scheduleFrame();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _cardRevealScheduled = false;
+      if (_disposed) return;
+      for (var index = 0; index < 2 && _cardRevealQueue.isNotEmpty; index++) {
+        _cardRevealQueue.removeFirst()();
+      }
+      if (_cardRevealQueue.isNotEmpty) {
+        SchedulerBinding.instance.scheduleFrame();
+        _scheduleCardRevealFrame();
+      }
+    });
+  }
+
   void cancelTimers() {
     searchDebounceTimer?.cancel();
     scrollStopTimer?.cancel();
@@ -364,6 +499,8 @@ class OnlineGalleryScreenController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    _cardRevealQueue.clear();
     if (kDebugMode) {
       SchedulerBinding.instance.removeTimingsCallback(_frameTimingsCallback);
     }

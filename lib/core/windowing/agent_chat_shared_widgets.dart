@@ -4,11 +4,35 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 
+import '../../presentation/adaptive/interaction_policy.dart';
+
 /// Shared sizing contract for the embedded and detached composer editors.
 abstract final class AgentChatComposerLayout {
   static const defaultMinLines = 2;
   static const defaultMobileMaxLines = 6;
   static const defaultDesktopMaxLines = 8;
+
+  static int collapsedEditorMinLines({
+    required double availableHeight,
+    required double textScale,
+    required bool touchOptimized,
+  }) =>
+      touchOptimized &&
+          (availableHeight < 400 || (availableHeight < 500 && textScale > 1.4))
+      ? 1
+      : defaultMinLines;
+
+  static int collapsedEditorMaxLines({
+    required double availableHeight,
+    required double textScale,
+    required bool touchOptimized,
+  }) {
+    if (touchOptimized &&
+        (availableHeight < 400 || (availableHeight < 500 && textScale > 1.4))) {
+      return 1;
+    }
+    return touchOptimized ? defaultMobileMaxLines : defaultDesktopMaxLines;
+  }
 
   static double expandedEditorHeight({
     required double availableHeight,
@@ -56,23 +80,33 @@ class AgentChatComposerExpandButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = expanded ? collapseLabel : expandLabel;
-    final size = touchOptimized ? 44.0 : 40.0;
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final size = touchOptimized
+        ? policyExtent.clamp(48.0, double.infinity).toDouble()
+        : policyExtent;
     return Semantics(
       button: true,
       toggled: expanded,
       label: label,
       child: Tooltip(
         message: label,
-        child: IconButton(
-          onPressed: onPressed,
-          icon: Icon(
-            expanded
-                ? Icons.close_fullscreen_rounded
-                : Icons.open_in_full_rounded,
+        child: Material(
+          key: const ValueKey('agent-chat-composer-expand-surface'),
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          clipBehavior: Clip.antiAlias,
+          child: IconButton(
+            onPressed: onPressed,
+            icon: Icon(
+              expanded
+                  ? Icons.close_fullscreen_rounded
+                  : Icons.open_in_full_rounded,
+            ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            iconSize: touchOptimized ? 20 : 18,
+            padding: EdgeInsets.zero,
+            constraints: BoxConstraints.tightFor(width: size, height: size),
           ),
-          iconSize: touchOptimized ? 19 : 17,
-          padding: EdgeInsets.zero,
-          constraints: BoxConstraints.tightFor(width: size, height: size),
         ),
       ),
     );
@@ -248,6 +282,10 @@ class _AgentToolDetailSurfaceState extends State<AgentToolDetailSurface> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final interactionPolicy = context.interactionPolicy;
+    final copyButtonExtent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
+        : 40.0;
     return Container(
       margin: widget.margin,
       decoration: BoxDecoration(
@@ -294,121 +332,16 @@ class _AgentToolDetailSurfaceState extends State<AgentToolDetailSurface> {
                 key: const ValueKey('agent-tool-detail-copy'),
                 tooltip: widget.copyTooltip,
                 visualDensity: VisualDensity.compact,
+                constraints: BoxConstraints.tightFor(
+                  width: copyButtonExtent,
+                  height: copyButtonExtent,
+                ),
                 iconSize: 16,
                 onPressed: widget.onCopy,
                 icon: const Icon(Icons.copy_all_outlined),
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// Persistent, low-emphasis context-window status shared by both clients.
-class AgentChatContextIndicator extends StatelessWidget {
-  const AgentChatContextIndicator({
-    super.key,
-    required this.usedTokens,
-    required this.contextWindow,
-    required this.usageLabel,
-    required this.unavailableLabel,
-    required this.compactingLabel,
-    this.compacting = false,
-    this.touchOptimized = false,
-    this.onPressed,
-  });
-
-  final int? usedTokens;
-  final int? contextWindow;
-  final String usageLabel;
-  final String unavailableLabel;
-  final String compactingLabel;
-  final bool compacting;
-  final bool touchOptimized;
-  final VoidCallback? onPressed;
-
-  bool get _available =>
-      usedTokens != null &&
-      usedTokens! > 0 &&
-      contextWindow != null &&
-      contextWindow! > 0;
-
-  int? get _percent => _available
-      ? (usedTokens! / contextWindow! * 100).clamp(0, 999).round()
-      : null;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final percent = _percent;
-    final label = compacting
-        ? compactingLabel
-        : _available
-        ? usageLabel
-        : unavailableLabel;
-
-    return Semantics(
-      key: const ValueKey('agent-chat-context-indicator'),
-      button: onPressed != null,
-      label: label,
-      value: percent == null ? null : '$percent%',
-      child: Tooltip(
-        message: label,
-        child: Material(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.42,
-          ),
-          borderRadius: BorderRadius.circular(10),
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: touchOptimized ? 12 : 8,
-                vertical: touchOptimized ? 8 : 6,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.data_usage_outlined,
-                    size: 17,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 6),
-                  if (touchOptimized)
-                    Text(
-                      compacting
-                          ? '…'
-                          : percent == null
-                          ? '—'
-                          : '$percent%',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    )
-                  else
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 118),
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        softWrap: false,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

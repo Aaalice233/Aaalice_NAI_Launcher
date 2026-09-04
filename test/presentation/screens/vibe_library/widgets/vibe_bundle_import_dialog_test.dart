@@ -87,13 +87,114 @@ void main() {
       findsNothing,
     );
   });
+
+  for (final scenario in [
+    const _Scenario('320x568', textScale: 1, keyboardHeight: 0),
+    const _Scenario('320x568 at 3x text', textScale: 3, keyboardHeight: 0),
+    const _Scenario('320x568 with IME', textScale: 1, keyboardHeight: 240),
+  ]) {
+    testWidgets('${scenario.name} keeps bundle import action reachable', (
+      tester,
+    ) async {
+      final view =
+          TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+      view.physicalSize = const Size(320, 568);
+      view.viewInsets = FakeViewPadding(bottom: scenario.keyboardHeight);
+      addTearDown(view.resetViewInsets);
+
+      await tester.pumpWidget(
+        _wrap(
+          const VibeBundleImportDialog(
+            bundleName: 'compact.naiv4vibebundle',
+            vibeNames: ['Vibe A', 'Vibe B'],
+            vibeReferences: [
+              VibeReference(displayName: 'Vibe A', vibeEncoding: 'encoded-a'),
+              VibeReference(displayName: 'Vibe B', vibeEncoding: 'encoded-b'),
+            ],
+          ),
+          textScale: scenario.textScale,
+          keyboardHeight: scenario.keyboardHeight,
+        ),
+      );
+      await tester.pump();
+
+      final frame = tester.getRect(
+        find.byKey(const Key('vibe-bundle-import-frame')),
+      );
+      expect(frame.left, greaterThanOrEqualTo(0));
+      expect(frame.right, lessThanOrEqualTo(320));
+      expect(frame.bottom, lessThanOrEqualTo(568 - scenario.keyboardHeight));
+      await tester.ensureVisible(find.text('导入'));
+      await tester.pump();
+      expect(find.text('导入'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('adaptive presentation preserves bundle result', (tester) async {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    view.physicalSize = const Size(320, 568);
+    BundleImportResult? result;
+    await tester.pumpWidget(
+      _wrap(
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async {
+              result = await VibeBundleImportDialog.show(
+                context: context,
+                bundleName: 'bundle',
+                vibeNames: const ['A', 'B'],
+              );
+            },
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('选择要导入的 Vibe'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('导入'));
+    await tester.tap(find.text('导入'));
+    await tester.pumpAndSettle();
+
+    expect(result?.option, BundleImportOption.importSelected);
+    expect(result?.selectedIndices, [0, 1]);
+    expect(tester.takeException(), isNull);
+  });
 }
 
-Widget _wrap(Widget child) {
+class _Scenario {
+  const _Scenario(
+    this.name, {
+    required this.textScale,
+    required this.keyboardHeight,
+  });
+
+  final String name;
+  final double textScale;
+  final double keyboardHeight;
+}
+
+Widget _wrap(Widget child, {double textScale = 1, double keyboardHeight = 0}) {
   return MaterialApp(
     locale: const Locale('zh'),
     supportedLocales: AppLocalizations.supportedLocales,
     localizationsDelegates: AppLocalizations.localizationsDelegates,
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: TextScaler.linear(textScale),
+        viewInsets: EdgeInsets.only(bottom: keyboardHeight),
+      ),
+      child: child!,
+    ),
     home: Scaffold(body: Center(child: child)),
   );
 }

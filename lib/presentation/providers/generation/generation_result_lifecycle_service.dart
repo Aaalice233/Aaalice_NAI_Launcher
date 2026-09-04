@@ -2,10 +2,13 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:path/path.dart' as p;
+
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../services/generation_history_storage_service.dart';
 import 'generation_models.dart';
@@ -17,6 +20,7 @@ class GenerationResultLifecycleDependencies {
     required this.addGalleryImages,
     required this.refreshGallery,
     required this.incrementStatistics,
+    this.publishToSystemGallery,
   });
 
   final GenerationHistoryStorageService historyStorage;
@@ -24,6 +28,8 @@ class GenerationResultLifecycleDependencies {
   final Future<int> Function(List<String> paths) addGalleryImages;
   final Future<void> Function() refreshGallery;
   final Future<void> Function(int count) incrementStatistics;
+  final Future<void> Function(String sourcePath, String fileName)?
+  publishToSystemGallery;
 }
 
 class GenerationSaveSnapshot {
@@ -32,6 +38,7 @@ class GenerationSaveSnapshot {
     this.fixedSuffixTags = const [],
     this.fixedNegativePrefixTags = const [],
     this.fixedNegativeSuffixTags = const [],
+    this.fixedTagUsageSnapshot,
     this.useCoords = false,
   });
 
@@ -39,14 +46,20 @@ class GenerationSaveSnapshot {
   final List<String> fixedSuffixTags;
   final List<String> fixedNegativePrefixTags;
   final List<String> fixedNegativeSuffixTags;
+  final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
   final bool useCoords;
 }
 
 class GenerationSaveResult {
-  const GenerationSaveResult(this.images, this.savedPaths);
+  const GenerationSaveResult(
+    this.images,
+    this.savedPaths, {
+    this.systemGalleryExportFailureCount = 0,
+  });
 
   final List<GeneratedImage> images;
   final List<String> savedPaths;
+  final int systemGalleryExportFailureCount;
 }
 
 class ExternalImagePreparationResult {
@@ -171,6 +184,7 @@ class GenerationResultLifecycleService {
 
     final updated = <GeneratedImage>[];
     final paths = <String>[];
+    var systemGalleryExportFailureCount = 0;
     for (final image in images) {
       try {
         final hasMetadata = ImageSaveUtils.hasEmbeddedNovelAiMetadata(
@@ -186,8 +200,15 @@ class GenerationResultLifecycleService {
             actualSeed = Random().nextInt(4294967295);
           }
         }
-        final bytes = image.preserveOriginalBytesOnSave || hasMetadata
+        final fixedTagUsageSnapshot =
+            image.fixedTagUsageSnapshot ?? snapshot.fixedTagUsageSnapshot;
+        final bytes = image.preserveOriginalBytesOnSave
             ? image.bytes
+            : hasMetadata && fixedTagUsageSnapshot != null
+            ? await ImageSaveUtils.mergeFixedTagUsageMetadata(
+                imageBytes: image.bytes,
+                snapshot: fixedTagUsageSnapshot,
+              )
             : await ImageSaveUtils.rebuildImageBytesWithMetadata(
                 imageBytes: image.bytes,
                 params: params.copyWith(
@@ -199,6 +220,7 @@ class GenerationResultLifecycleService {
                 fixedSuffixTags: snapshot.fixedSuffixTags,
                 fixedNegativePrefixTags: snapshot.fixedNegativePrefixTags,
                 fixedNegativeSuffixTags: snapshot.fixedNegativeSuffixTags,
+                fixedTagUsageSnapshot: fixedTagUsageSnapshot,
                 charCaptions: charCaptions,
                 charNegCaptions: charNegCaptions,
                 useCoords: snapshot.useCoords,
@@ -211,6 +233,15 @@ class GenerationResultLifecycleService {
         );
         paths.add(path);
         updated.add(image.copyWithFilePath(path));
+        final publishToSystemGallery = dependencies.publishToSystemGallery;
+        if (publishToSystemGallery != null) {
+          try {
+            await publishToSystemGallery(path, p.basename(path));
+          } catch (error, stackTrace) {
+            systemGalleryExportFailureCount++;
+            AppLogger.e('自动保存到系统相册失败', error, stackTrace);
+          }
+        }
       } catch (error, stackTrace) {
         AppLogger.e('自动保存图像失败', error, stackTrace);
         updated.add(image);
@@ -233,7 +264,11 @@ class GenerationResultLifecycleService {
       }
       preloadMetadata(updated.where((image) => image.filePath != null));
     }
-    return GenerationSaveResult(updated, paths);
+    return GenerationSaveResult(
+      updated,
+      paths,
+      systemGalleryExportFailureCount: systemGalleryExportFailureCount,
+    );
   }
 
   void preloadMetadata(Iterable<GeneratedImage> images) {

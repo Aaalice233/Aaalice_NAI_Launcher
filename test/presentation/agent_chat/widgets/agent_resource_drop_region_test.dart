@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_resource_drop_region.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 void main() {
@@ -43,6 +46,44 @@ void main() {
     expect(decoded.kind, AgentChatResourceKind.onlineGalleryMedia);
     expect(decoded.source, 'danbooru');
     expect(decoded.resourceId, '1');
+    expect(decoded.mediaId, 'cover-1');
+  });
+
+  testWidgets('drag source exposes the card Agent action scope', (
+    tester,
+  ) async {
+    ImageCardActionScope? scope;
+    await tester.pumpWidget(
+      _app(
+        child: Builder(
+          builder: (context) {
+            scope = ImageCardActionScope.maybeOf(context);
+            return const ColoredBox(color: Colors.blue);
+          },
+        ),
+      ),
+    );
+
+    expect(scope, isNotNull);
+  });
+
+  testWidgets('drag source can hide the card Agent action in selection mode', (
+    tester,
+  ) async {
+    ImageCardActionScope? scope;
+    await tester.pumpWidget(
+      _app(
+        enableAddToAgentAction: false,
+        child: Builder(
+          builder: (context) {
+            scope = ImageCardActionScope.maybeOf(context);
+            return const ColoredBox(color: Colors.blue);
+          },
+        ),
+      ),
+    );
+
+    expect(scope, isNull);
   });
 
   testWidgets('parent layout changes preserve the card state', (tester) async {
@@ -71,6 +112,36 @@ void main() {
     expect(disposals, 0);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('drag source can defer its context menu to the child', (
+    tester,
+  ) async {
+    var childMenuCalls = 0;
+    await tester.pumpWidget(
+      _app(
+        enableAddToAgentMenu: false,
+        child: GestureDetector(
+          key: const ValueKey('child-context-menu'),
+          behavior: HitTestBehavior.opaque,
+          onSecondaryTapDown: (_) => childMenuCalls++,
+          child: const ColoredBox(color: Colors.blue),
+        ),
+      ),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('child-context-menu'))),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(childMenuCalls, 1);
+    expect(find.byType(PopupMenuItem<bool>, skipOffstage: false), findsNothing);
+  });
 }
 
 Widget _manySourcesApp() {
@@ -96,9 +167,17 @@ Widget _manySourcesApp() {
   );
 }
 
-Widget _app({double width = 100, Widget? child}) {
+Widget _app({
+  double width = 100,
+  Widget? child,
+  bool enableAddToAgentMenu = true,
+  bool enableAddToAgentAction = true,
+}) {
   return ProviderScope(
     child: MaterialApp(
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: Scaffold(
         body: Align(
           alignment: Alignment.topLeft,
@@ -106,10 +185,13 @@ Widget _app({double width = 100, Widget? child}) {
             width: width,
             height: 100,
             child: AgentResourceDragSource(
+              enableAddToAgentMenu: enableAddToAgentMenu,
+              enableAddToAgentAction: enableAddToAgentAction,
               reference: AgentChatResourceReference(
                 kind: AgentChatResourceKind.onlineGalleryMedia,
                 source: 'danbooru',
                 resourceId: '1',
+                mediaId: 'cover-1',
               ),
               child: child ?? const ColoredBox(color: Colors.blue),
             ),

@@ -25,6 +25,8 @@ import '../../../data/models/agent/agent_settings.dart';
 import '../../../data/models/inpaint/inpaint_draft.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../models/agent_chat_compaction_outcome.dart';
+import '../models/agent_chat_slash_syntax.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/models/agent_protocol.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
@@ -59,7 +61,7 @@ typedef AgentWireCompletion =
 
 final agentChatNotifierProvider =
     StateNotifierProvider<AgentChatNotifier, AgentChatState>((ref) {
-      return AgentChatNotifier(ref);
+      return AgentChatNotifier(ref, initializeImmediately: false);
     });
 
 /// 聊天 agent 编排层：
@@ -77,6 +79,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     AgentWireCompletion? completeRequest,
     Map<String, String>? skillEnvironment,
     Future<Directory?> Function()? imageProjectDirectoryResolver,
+    bool initializeImmediately = true,
   }) : _providedSupportDir = supportDir,
        _providedWorkspaceDir = workspaceDir,
        _providedSessionRepo = sessionRepo,
@@ -106,7 +109,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         unawaited(refreshPendingResourceAvailability());
       });
     }
-    _initializing = _init(presetSkills: presetSkills);
+    _presetSkills = presetSkills;
+    if (initializeImmediately) {
+      ensureInitialized();
+    }
   }
 
   final Ref _ref;
@@ -116,6 +122,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   final AgentWireCompletion? _completeRequest;
   final Map<String, String>? _skillEnvironment;
   final Future<Directory?> Function()? _imageProjectDirectoryResolver;
+  late final List<HarnessSkill>? _presetSkills;
   late Directory _supportDir;
   late Directory _workspaceDir;
   late AgentChatDraftController _draftController;
@@ -131,7 +138,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   final GenerationPreparationRuntime _generationPreparationRuntime =
       GenerationPreparationRuntime();
   final QueueControlRuntime _queueControlRuntime = QueueControlRuntime();
-  late final Future<void> _initializing;
+  Future<void>? _initializing;
   bool _usesPresetSkills = false;
   bool _runtimeReady = false;
   Future<void> _settingsRefresh = Future<void>.value();
@@ -145,6 +152,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   LocalStorageService get _local => _ref.read(localStorageServiceProvider);
   AgentChatSessionController get _sessionController => _sessionControllerValue!;
+  Future<void> get whenInitialized => ensureInitialized();
+
+  Future<void> ensureInitialized() =>
+      _initializing ??= _init(presetSkills: _presetSkills);
 
   Future<void> _init({List<HarnessSkill>? presetSkills}) async {
     final providedSupportDir = _providedSupportDir;
@@ -306,7 +317,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         initialTools: _buildTools(fullAccess: fullAccess),
         convertToLlm: (messages) async => harnessConvertToLlm(messages),
         transformContext: (messages, signal) async =>
-            await _maybeCompactContext(messages, signal) ?? messages,
+            (await _compactContext(messages, signal)).messages,
         beforeToolCall: _beforeToolCall,
         toolExecution: ToolExecutionMode.sequential,
       ),
@@ -411,6 +422,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<int> reloadSkills() async {
+    await ensureInitialized();
     if (!_usesPresetSkills) {
       await _loadSkillsFromDisk(
         skillEnabledOverrides: _activeAgentSettings?.skillEnabledOverrides,
@@ -479,23 +491,34 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   /// 代理 compaction：上下文超阈值时折叠旧消息为摘要消息
   /// （消息空间实现。
   /// [force] 为 true 时跳过 token 阈值检查，供用户手动压缩。
-  Future<List<AgentMessage>?> _maybeCompactContext(
+  Future<({List<AgentMessage> messages, AgentChatCompactionOutcome outcome})>
+  _compactContext(
     List<AgentMessage> messages,
     AbortSignal? signal, {
     bool force = false,
   }) async {
+    ({List<AgentMessage> messages, AgentChatCompactionOutcome outcome}) skip(
+      AgentChatCompactionSkipReason reason,
+    ) => (messages: messages, outcome: AgentChatCompactionSkipped(reason));
+
     try {
       final route = _activeRoute ?? _routeCache ?? _resolveRoute();
       final session = _sessionController.session;
-      if (route == null || session == null || messages.length <= 8) {
-        return messages;
+      if (route == null || session == null) {
+        return skip(AgentChatCompactionSkipReason.unavailable);
       }
       final contextWindow = _modelCapability(route).model.contextWindow;
-      if (contextWindow <= 0) return messages;
-      final estimate = estimateContextTokens(messages);
+      if (contextWindow <= 0) {
+        return skip(AgentChatCompactionSkipReason.unavailable);
+      }
       const settings = defaultCompactionSettings;
+      // 自动压缩不值得为极短会话去查询整条分支；手动触发由下面的真实谓词判定。
+      if (!force && messages.length <= 8) {
+        return skip(AgentChatCompactionSkipReason.nothingToCompact);
+      }
+      final estimate = estimateContextTokens(messages);
       if (!force && !shouldCompact(estimate.tokens, contextWindow, settings)) {
-        return messages;
+        return skip(AgentChatCompactionSkipReason.nothingToCompact);
       }
 
       state = state.copyWith(compacting: true);
@@ -506,9 +529,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       );
       final prep = prepareCompaction(entries, settings);
       final preparation = prep.valueOrNull;
-      if (preparation == null) {
+      // prepareCompaction 对「全部历史都在保留窗口内」仍返回一份空 preparation，
+      // 而 compact 会拿空列表去请求摘要并用结果覆盖上下文，必须在此挡掉。
+      if (preparation == null || !_hasSummarizableHistory(preparation)) {
         state = state.copyWith(compacting: false);
-        return messages;
+        return skip(AgentChatCompactionSkipReason.nothingToCompact);
       }
       final result = await compact(
         preparation,
@@ -525,7 +550,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       final compactResult = result.valueOrNull;
       state = state.copyWith(compacting: false);
       if (compactResult == null) {
-        return messages;
+        final error = result.errorOrNull;
+        return (
+          messages: messages,
+          outcome: AgentChatCompactionFailed(
+            error == null ? '' : error.message,
+          ),
+        );
       }
 
       final entry =
@@ -558,23 +589,35 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         _sessionController.totalUsage =
             _sessionController.totalUsage + compactResult.usage!;
       }
+      final contextUsage = resolveAgentContextUsage(
+        compressed,
+        contextWindow: contextWindow,
+      );
       state = state.copyWith(
         messages: List.of(compressed),
         totalUsage: _sessionController.totalUsage,
         lastRequestUsage: compactResult.usage,
         clearLastRequestUsage: compactResult.usage == null,
-        contextUsage: resolveAgentContextUsage(
-          compressed,
-          contextWindow: contextWindow,
+        contextUsage: contextUsage,
+      );
+      return (
+        messages: messages,
+        outcome: AgentChatCompactionDone(
+          tokensBefore: compactResult.tokensBefore,
+          tokensAfter: contextUsage.tokens ?? compactResult.tokensBefore,
         ),
       );
-      return messages;
     } catch (e) {
       AppLogger.w('agent compaction skipped: $e', 'AgentChat');
       state = state.copyWith(compacting: false);
-      return messages;
+      return (messages: messages, outcome: AgentChatCompactionFailed('$e'));
     }
   }
+
+  /// compaction 是否真有历史要折叠。
+  bool _hasSummarizableHistory(CompactionPreparation preparation) =>
+      preparation.messagesToSummarize.isNotEmpty ||
+      (preparation.isSplitTurn && preparation.turnPrefixMessages.isNotEmpty);
 
   /// completeSimple：经 StreamFn 收敛的一次性调用。
   Future<AssistantMessage> _completeSimple(
@@ -596,7 +639,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       if (route == null) {
         return _errorStream('No LLM provider configured for chat.');
       }
-      final capability = AgentChatModelCapability.resolve(route.$1, route.$2);
+      final capability = _modelCapability(route);
       final request = AgentChatRequest(
         sessionId: 'agent_chat',
         provider: route.$1,
@@ -709,10 +752,19 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   AgentChatModelCapability _modelCapability(
     (ProviderConfig, String, String?)? route,
   ) {
-    return route == null
-        ? AgentChatModelCapability.unavailable
-        : AgentChatModelCapability.resolve(route.$1, route.$2);
+    if (route == null) return AgentChatModelCapability.unavailable;
+    return AgentChatModelCapability.resolve(
+      route.$1,
+      route.$2,
+      contextWindowOverride: _contextWindowOverride(route),
+    );
   }
+
+  int? _contextWindowOverride((ProviderConfig, String, String?) route) => _ref
+      .read(agentSettingsProvider)
+      .settings
+      .chat
+      .contextWindowOverrideFor(route.$1.id, route.$2);
 
   Future<String> _buildSystemPrompt({
     String? customInstructionsOverride,
@@ -759,7 +811,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     String? customInstructions,
     AgentSystemPromptMode? mode,
   }) async {
-    await _initializing;
+    await ensureInitialized();
     await _settingsRefresh;
     final previewSkills = _usesPresetSkills
         ? _skills.values
@@ -869,7 +921,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> addPendingResource(AgentChatResourceReference reference) async {
-    await _initializing;
+    await ensureInitialized();
     await _draftController.addPendingResource(reference);
   }
 
@@ -924,11 +976,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   Future<ResolvedAgentResource?> resolveResourcePreview(
     AgentChatResourceReference reference,
   ) async {
-    await _initializing;
+    await ensureInitialized();
     return _draftController.resolveResourcePreview(reference);
   }
 
   Future<void> newSession() async {
+    await ensureInitialized();
     final inheritedThinkingLevel = state.thinkingLevel;
     await _sessionController.newSession();
     _refreshRoute();
@@ -939,6 +992,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> switchSession(String sessionId) async {
+    await ensureInitialized();
     await _sessionController.switchSession(sessionId);
     _refreshRoute();
   }
@@ -947,18 +1001,27 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   ///
   /// 原条目仍保留在会话树中，只移动 main lane 指针；后续发送会从回退点
   /// 建立新分支，与 `/rewind` 的语义一致。
-  Future<UserMessage?> rewindLastUserMessage() =>
-      _sessionController.rewindLastUserMessage();
+  Future<UserMessage?> rewindLastUserMessage() async {
+    await ensureInitialized();
+    return _sessionController.rewindLastUserMessage();
+  }
 
-  Future<void> loadEarlierHistory() => _sessionController.loadEarlierHistory();
+  Future<void> loadEarlierHistory() async {
+    await ensureInitialized();
+    return _sessionController.loadEarlierHistory();
+  }
 
   /// 删除指定会话；删除当前会话时自动切到最近剩余会话（无则新建）。
-  Future<void> deleteSession(String sessionId) =>
-      _sessionController.deleteSession(sessionId);
+  Future<void> deleteSession(String sessionId) async {
+    await ensureInitialized();
+    return _sessionController.deleteSession(sessionId);
+  }
 
   /// 重命名会话（持久化 name 记录，列表即时刷新）。
-  Future<void> renameSession(String sessionId, String name) =>
-      _sessionController.renameSession(sessionId, name);
+  Future<void> renameSession(String sessionId, String name) async {
+    await ensureInitialized();
+    return _sessionController.renameSession(sessionId, name);
+  }
 
   /// 切换聊天模型：写入 chat 任务路由并持久化，随后刷新本地路由缓存。
   Future<void> selectChatModel(String providerId, String model) async {
@@ -1017,7 +1080,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   Future<bool> prepareEditedSend() async {
     if (state.sessionTransitioning || _runActive) return false;
-    await _initializing;
+    await ensureInitialized();
     if (state.sessionTransitioning || _runActive) return false;
     if (!await validatePendingResourcesForSend()) return false;
     await _settingsRefresh;
@@ -1026,12 +1089,30 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     return state.routeReady && _sessionController.agent != null;
   }
 
-  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind() =>
-      _sessionController.beginRewindLastUserMessage();
+  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind() async {
+    await ensureInitialized();
+    return _sessionController.beginRewindLastUserMessage();
+  }
 
   Future<void> restoreEditedMessageRewind(
     AgentChatRewindCheckpoint checkpoint,
-  ) => _sessionController.restoreRewindCheckpoint(checkpoint);
+  ) async {
+    await ensureInitialized();
+    return _sessionController.restoreRewindCheckpoint(checkpoint);
+  }
+
+  /// 开头 `/名称` 命中的已启用技能。解析放在发送这一刻，才能保证用的是与
+  /// 当前工具注册表同一份 `_skills`；重试重发同一条文本时也会重新命中。
+  HarnessSkill? _invokedSkill(UserMessage message) {
+    final token = parseLeadingSlashToken(message.text);
+    if (token == null) return null;
+    // 键是技能目录名的原始大小写，菜单也原样插入，所以两边都折叠后再比。
+    final wanted = token.name.toLowerCase();
+    for (final entry in _skills.entries) {
+      if (entry.key.toLowerCase() == wanted) return entry.value;
+    }
+    return null;
+  }
 
   Future<bool> _sendMessage(
     UserMessage message, {
@@ -1041,7 +1122,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (state.sessionTransitioning) {
       return false;
     }
-    await _initializing;
+    await ensureInitialized();
     final previousDispatch = _sendDispatch;
     final dispatchDone = Completer<void>();
     _sendDispatch = dispatchDone.future;
@@ -1068,9 +1149,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       final attachedResources = List<AgentChatResourceReference>.of(
         state.pendingResources,
       );
-      final promptMessage = attachedResources.isEmpty
+      final invokedSkill = _invokedSkill(message);
+      final promptMessage = attachedResources.isEmpty && invokedSkill == null
           ? message
-          : _draftController.resourcePromptMessage(message, attachedResources);
+          : _draftController.promptEnvelope(
+              message,
+              references: attachedResources,
+              skill: invokedSkill,
+            );
 
       if (_runActive) {
         await _sessionController.acceptQueuedPrompt(
@@ -1283,20 +1369,23 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   /// 手动 compaction。
-  Future<void> compactNow() async {
+  Future<AgentChatCompactionOutcome> compactNow() async {
     final agent = _sessionController.agent;
     if (agent == null || state.status == AgentChatRunStatus.running) {
-      return;
+      return const AgentChatCompactionSkipped(
+        AgentChatCompactionSkipReason.busy,
+      );
     }
-    final compressed = await _maybeCompactContext(
+    final result = await _compactContext(
       List.of(agent.state.messages),
       null,
       force: true,
     );
-    if (compressed != null) {
-      agent.state.messages = List.of(compressed);
-      state = state.copyWith(messages: List.of(compressed));
+    if (result.outcome is AgentChatCompactionDone) {
+      agent.state.messages = List.of(result.messages);
+      state = state.copyWith(messages: List.of(result.messages));
     }
+    return result.outcome;
   }
 
   Future<void> _handleEvent(AgentEvent event, AbortSignal signal) =>

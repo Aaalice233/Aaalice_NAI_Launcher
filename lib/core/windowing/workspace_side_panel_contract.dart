@@ -5,6 +5,7 @@
 /// the primary workspace, with an absolute ceiling suitable for readable text.
 abstract final class WorkspaceSidePanelContract {
   static const double standardWidth = 520;
+  static const double preferredFormWidth = 560;
   static const double maximumWidth = 960;
   static const double wideWorkspaceFraction = 0.38;
 
@@ -18,8 +19,11 @@ abstract final class WorkspaceSidePanelContract {
         .toDouble();
   }
 
-  static double overlayWidth(double workspaceWidth) =>
-      maximumFor(workspaceWidth);
+  static double overlayWidth(double workspaceWidth, {double? preferredWidth}) {
+    final maximum = maximumFor(workspaceWidth);
+    if (preferredWidth == null) return maximum;
+    return preferredWidth.clamp(0, maximum).toDouble();
+  }
 
   static double constrainedWorkspaceWidth({
     required double workspaceWidth,

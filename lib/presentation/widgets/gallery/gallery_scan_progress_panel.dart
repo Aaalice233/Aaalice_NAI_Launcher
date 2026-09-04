@@ -91,6 +91,7 @@ class GalleryScanProgressPanel extends ConsumerWidget {
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
+                  value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
                   valueColor: AlwaysStoppedAnimation<Color>(
                     theme.colorScheme.primary,
                   ),
@@ -125,7 +126,7 @@ class GalleryScanProgressPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           // 彩色分段进度条
-          _buildSegmentedProgressBar(theme, scanState),
+          _buildSegmentedProgressBar(context, theme, scanState),
           const SizedBox(height: 6),
           // 进度条图例
           _buildProgressLegend(context, theme, scanState),
@@ -326,6 +327,7 @@ class GalleryScanProgressPanel extends ConsumerWidget {
   /// - 红色：扫描错误
   /// - 灰色/默认：待处理
   Widget _buildSegmentedProgressBar(
+    BuildContext context,
     ThemeData theme,
     ScanProgressState scanState,
   ) {
@@ -337,7 +339,7 @@ class GalleryScanProgressPanel extends ConsumerWidget {
       return ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: LinearProgressIndicator(
-          value: null, // 不确定进度
+          value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
           minHeight: 8,
           backgroundColor: theme.colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
@@ -475,6 +477,9 @@ class GalleryScanProgressPanel extends ConsumerWidget {
   }
 }
 
+@visibleForTesting
+Widget buildGalleryAnimatedStripesForTesting() => const _AnimatedStripes();
+
 /// 动画条纹效果（表示处理中）
 class _AnimatedStripes extends StatefulWidget {
   const _AnimatedStripes();
@@ -486,6 +491,7 @@ class _AnimatedStripes extends StatefulWidget {
 class _AnimatedStripesState extends State<_AnimatedStripes>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -493,7 +499,23 @@ class _AnimatedStripesState extends State<_AnimatedStripes>
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 1;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override

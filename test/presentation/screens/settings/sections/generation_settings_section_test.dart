@@ -205,6 +205,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('320–1600 宽度和 3x 文本下表单无布局溢出', (tester) async {
+    final storage = _MemoryLocalStorageService();
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    for (final width in const [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 1200));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(3)),
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                padding: EdgeInsets.all(12),
+                child: GenerationSettingsSection(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('重试次数'), findsOneWidget);
+      expect(find.text('重试间隔'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+    }
+  });
+
   testWidgets('音效开关关闭时隐藏自定义音效入口', (tester) async {
     final storage = _MemoryLocalStorageService();
     await tester.binding.setSurfaceSize(const Size(1000, 1600));

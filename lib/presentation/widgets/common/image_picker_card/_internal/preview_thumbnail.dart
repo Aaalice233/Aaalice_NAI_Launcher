@@ -66,7 +66,7 @@ class PreviewThumbnail extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             // 加载中显示占位符
-            return _buildLoadingPlaceholder(theme);
+            return _buildLoadingPlaceholder(context, theme);
           }
 
           if (snapshot.data == true) {
@@ -111,7 +111,7 @@ class PreviewThumbnail extends StatelessWidget {
   }
 
   /// 构建加载中的占位符
-  Widget _buildLoadingPlaceholder(ThemeData theme) {
+  Widget _buildLoadingPlaceholder(BuildContext context, ThemeData theme) {
     return Container(
       width: size,
       height: size,
@@ -119,12 +119,14 @@ class PreviewThumbnail extends StatelessWidget {
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
-      child: SizedBox(
-        width: size * 0.3,
-        height: size * 0.3,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+      child: Center(
+        child: SizedBox.square(
+          dimension: size * 0.3,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+          ),
         ),
       ),
     );

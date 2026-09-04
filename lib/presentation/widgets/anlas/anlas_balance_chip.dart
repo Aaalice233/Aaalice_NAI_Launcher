@@ -24,7 +24,7 @@ class AnlasBalanceChip extends ConsumerWidget {
 
     return subscriptionState.map(
       initial: (_) => _buildPlaceholder(theme, compact),
-      loading: (_) => _buildLoading(theme, compact),
+      loading: (_) => _buildLoading(context, theme, compact),
       loaded: (state) => _buildLoaded(
         context,
         ref,
@@ -34,6 +34,10 @@ class AnlasBalanceChip extends ConsumerWidget {
         compact,
       ),
       error: (state) => _buildError(context, ref, theme, compact),
+      unsupported: (_) => Tooltip(
+        message: context.l10n.anlas_thirdPartyUnavailable,
+        child: _buildPlaceholder(theme, compact),
+      ),
     );
   }
 
@@ -58,7 +62,7 @@ class AnlasBalanceChip extends ConsumerWidget {
     );
   }
 
-  Widget _buildLoading(ThemeData theme, bool compact) {
+  Widget _buildLoading(BuildContext context, ThemeData theme, bool compact) {
     return _ChipContainer(
       compact: compact,
       child: Row(
@@ -68,6 +72,7 @@ class AnlasBalanceChip extends ConsumerWidget {
             width: compact ? 12 : 16,
             height: compact ? 12 : 16,
             child: CircularProgressIndicator(
+              value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
               strokeWidth: 2,
               color: theme.colorScheme.primary,
             ),

@@ -67,7 +67,16 @@ void main() {
 
     final capability = await backend.testCapability();
     expect(capability.mode, CloudBackendMode.manualBackupOnly);
-    expect(capability.warnings.join(' '), contains('手动备份'));
+    expect(capability.warnings, [CloudBackendWarning.webDavWeakCas]);
+    expect(backend.maxConcurrentObjectUploads, 1);
+    final propfindsBeforeInventory = adapter.requests
+        .where((request) => request.method == 'PROPFIND')
+        .length;
+    expect(await backend.findExistingObjects(const {'candidate': 1}), isEmpty);
+    expect(
+      adapter.requests.where((request) => request.method == 'PROPFIND'),
+      hasLength(propfindsBeforeInventory),
+    );
 
     for (final id in ['first', 'second']) {
       final object = Uint8List.fromList(utf8.encode('object-$id'));
@@ -201,5 +210,6 @@ WebDavCloudSyncBackend _backend(RecordingAdapter adapter) =>
       baseUri: Uri.parse('https://dav.example/sync/'),
       username: 'alice',
       password: 'secret',
+      namespace: 'aaalice-sync',
       dio: Dio()..httpClientAdapter = adapter,
     );

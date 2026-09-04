@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/services/prompt_token_counter_service.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
 
@@ -176,11 +177,18 @@ void main() {
         child: const MaterialApp(
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: Scaffold(
-            body: SizedBox(
-              width: 360,
-              height: 220,
-              child: PromptInputWidget(compact: true),
+          home: InteractionPolicyScope(
+            initialPolicy: InteractionPolicy(
+              modality: InteractionModality.touch,
+              touchAvailable: true,
+              precisePointerAvailable: false,
+            ),
+            child: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 220,
+                child: PromptInputWidget(compact: true),
+              ),
             ),
           ),
         ),

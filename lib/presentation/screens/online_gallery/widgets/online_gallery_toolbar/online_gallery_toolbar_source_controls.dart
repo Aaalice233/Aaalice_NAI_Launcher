@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/services/date_formatting_service.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../../../data/services/gelbooru_auth_service.dart';
 import '../../../../../data/services/online_gallery/quick_tag_cloud_access.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../providers/online_gallery_blacklist_provider.dart';
 import '../../../../providers/online_gallery_output_filter_provider.dart';
 import '../../../../providers/online_gallery_prompt_tag_settings_provider.dart';
@@ -64,7 +64,16 @@ class OnlineGalleryToolbarSourceControls {
   }) =>
       _buildGalleryPolicyControls(theme, sourceId: sourceId, compact: compact);
 
-  Future<void> showSourceFilters() => _showSourceFilters();
+  Future<void> showSourceFilters({bool includeGlobalPolicy = false}) =>
+      _showSourceFilters(includeGlobalPolicy: includeGlobalPolicy);
+
+  void showBlacklist() => showOnlineGalleryBlacklistDialog(
+    context,
+    ref,
+    sourceId: _activeSource(state),
+  );
+
+  void showOutputFilter() => showOnlineGalleryOutputFilterDialog(context);
 
   Widget buildSecondaryControls(ThemeData theme, {bool wrapControls = false}) =>
       _buildSecondaryControls(theme, state, wrapControls: wrapControls);
@@ -96,7 +105,7 @@ class OnlineGalleryToolbarSourceControls {
                 ? theme.colorScheme.onPrimaryContainer
                 : theme.colorScheme.onSurfaceVariant,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            visualDensity: PlatformCapabilities.current.isMobile
+            visualDensity: context.interactionPolicy.prefersTouchPresentation
                 ? VisualDensity.standard
                 : VisualDensity.compact,
           ),
@@ -237,7 +246,7 @@ class OnlineGalleryToolbarSourceControls {
           child: Chip(
             avatar: Icon(icon, size: 16),
             label: Text(label),
-            visualDensity: PlatformCapabilities.current.isMobile
+            visualDensity: context.interactionPolicy.prefersTouchPresentation
                 ? VisualDensity.standard
                 : VisualDensity.compact,
           ),
@@ -248,8 +257,8 @@ class OnlineGalleryToolbarSourceControls {
         child: Semantics(
           label: '$label. $tooltip',
           child: Container(
-            width: galleryToolbarControlHeight,
-            height: galleryToolbarControlHeight,
+            width: galleryToolbarControlHeightFor(context),
+            height: galleryToolbarControlHeightFor(context),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest.withValues(
                 alpha: 0.4,
@@ -320,7 +329,7 @@ class OnlineGalleryToolbarSourceControls {
           alpha: 0.4,
         ),
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
-        visualDensity: PlatformCapabilities.current.isMobile
+        visualDensity: context.interactionPolicy.prefersTouchPresentation
             ? VisualDensity.standard
             : VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -370,8 +379,10 @@ class OnlineGalleryToolbarSourceControls {
     );
   }
 
-  Future<void> _showSourceFilters() =>
-      OnlineGalleryToolbarDialogs(bindings).showSourceFilters();
+  Future<void> _showSourceFilters({required bool includeGlobalPolicy}) =>
+      OnlineGalleryToolbarDialogs(
+        bindings,
+      ).showSourceFilters(includeGlobalPolicy: includeGlobalPolicy);
 
   Widget _buildSecondaryControls(
     ThemeData theme,
@@ -508,7 +519,7 @@ class OnlineGalleryToolbarSourceControls {
                     prompt: '',
                   ),
             icon: const Icon(Icons.refresh_rounded, size: 17),
-            visualDensity: PlatformCapabilities.current.isMobile
+            visualDensity: context.interactionPolicy.prefersTouchPresentation
                 ? VisualDensity.standard
                 : VisualDensity.compact,
           ),
@@ -541,77 +552,8 @@ class OnlineGalleryToolbarSourceControls {
     }
   }
 
-  Widget _buildPromptTagCategorySelector(ThemeData theme) {
-    final settings = ref.watch(onlineGalleryPromptTagSettingsProvider);
-    final selectedCount = settings.categories.length;
-
-    String labelFor(OnlineGalleryPromptTagCategory category) {
-      return switch (category) {
-        OnlineGalleryPromptTagCategory.general =>
-          context.l10n.tagCategory_general,
-        OnlineGalleryPromptTagCategory.character =>
-          context.l10n.tagCategory_character,
-        OnlineGalleryPromptTagCategory.copyright =>
-          context.l10n.tagCategory_copyright,
-        OnlineGalleryPromptTagCategory.artist =>
-          context.l10n.tagCategory_artist,
-        OnlineGalleryPromptTagCategory.meta => context.l10n.tagCategory_meta,
-      };
-    }
-
-    return MenuAnchor(
-      alignmentOffset: const Offset(0, 6),
-      menuChildren: [
-        MenuItemButton(
-          onPressed: null,
-          leadingIcon: const Icon(Icons.sell_outlined, size: 18),
-          child: Text(context.l10n.onlineGallery_promptTagCategories),
-        ),
-        const Divider(height: 1),
-        for (final category in OnlineGalleryPromptTagCategory.values)
-          CheckboxMenuButton(
-            value: settings.categories.contains(category),
-            closeOnActivate: false,
-            onChanged: (selected) async {
-              if (selected == null) return;
-              final changed = await ref
-                  .read(onlineGalleryPromptTagSettingsProvider.notifier)
-                  .setCategory(category, selected);
-              if (!changed && context.mounted) {
-                AppToast.info(
-                  context,
-                  context.l10n.onlineGallery_keepOnePromptTagCategory,
-                );
-              }
-            },
-            child: Text(labelFor(category)),
-          ),
-      ],
-      builder: (context, controller, child) {
-        return Tooltip(
-          message: context.l10n.onlineGallery_promptTagCategoriesTooltip,
-          child: TextButton.icon(
-            onPressed: () {
-              controller.isOpen ? controller.close() : controller.open();
-            },
-            icon: const Icon(Icons.sell_outlined, size: 17),
-            label: Text(
-              '${context.l10n.onlineGallery_promptTagCategories} · $selectedCount',
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.onSurfaceVariant,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.4),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              visualDensity: PlatformCapabilities.current.isMobile
-                  ? VisualDensity.standard
-                  : VisualDensity.compact,
-            ),
-          ),
-        );
-      },
-    );
-  }
+  Widget _buildPromptTagCategorySelector(ThemeData theme) =>
+      _PromptTagCategorySelector(theme: theme);
 
   Widget _buildAiTagTimeRangeDropdown(OnlineGalleryState state) {
     final ranges = state.aiTagConfig?.timeRanges ?? const {'all': 'All'};
@@ -680,7 +622,7 @@ class OnlineGalleryToolbarSourceControls {
                   alpha: 0.4,
                 ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          visualDensity: PlatformCapabilities.current.isMobile
+          visualDensity: context.interactionPolicy.prefersTouchPresentation
               ? VisualDensity.standard
               : VisualDensity.compact,
         ),
@@ -690,4 +632,110 @@ class OnlineGalleryToolbarSourceControls {
 
   void _toggleDateRangePopup(OnlineGalleryState state) =>
       OnlineGalleryToolbarDialogs(bindings).toggleDateRangePopup();
+}
+
+class _PromptTagCategorySelector extends ConsumerStatefulWidget {
+  const _PromptTagCategorySelector({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  ConsumerState<_PromptTagCategorySelector> createState() =>
+      _PromptTagCategorySelectorState();
+}
+
+class _PromptTagCategorySelectorState
+    extends ConsumerState<_PromptTagCategorySelector> {
+  final MenuController _menuController = MenuController();
+
+  String _labelFor(OnlineGalleryPromptTagCategory category) {
+    return switch (category) {
+      OnlineGalleryPromptTagCategory.general =>
+        context.l10n.tagCategory_general,
+      OnlineGalleryPromptTagCategory.character =>
+        context.l10n.tagCategory_character,
+      OnlineGalleryPromptTagCategory.copyright =>
+        context.l10n.tagCategory_copyright,
+      OnlineGalleryPromptTagCategory.artist => context.l10n.tagCategory_artist,
+      OnlineGalleryPromptTagCategory.meta => context.l10n.tagCategory_meta,
+    };
+  }
+
+  Future<void> _setCategory(
+    OnlineGalleryPromptTagCategory category,
+    bool? selected,
+  ) async {
+    if (selected == null) return;
+    final changed = await ref
+        .read(onlineGalleryPromptTagSettingsProvider.notifier)
+        .setCategory(category, selected);
+    if (!mounted) return;
+    if (!changed) {
+      AppToast.info(
+        context,
+        context.l10n.onlineGallery_keepOnePromptTagCategory,
+      );
+      return;
+    }
+    if (_menuController.isOpen) {
+      // MenuAnchor caches an opened menu's children. Recreate the overlay after
+      // the provider rebuild so its checkboxes display the new values at once.
+      _menuController.close();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _menuController.open();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(onlineGalleryPromptTagSettingsProvider);
+    final theme = widget.theme;
+    return MenuAnchor(
+      controller: _menuController,
+      alignmentOffset: const Offset(0, 6),
+      menuChildren: [
+        MenuItemButton(
+          onPressed: null,
+          leadingIcon: const Icon(Icons.sell_outlined, size: 18),
+          child: Text(context.l10n.onlineGallery_promptTagCategories),
+        ),
+        const Divider(height: 1),
+        for (final category in OnlineGalleryPromptTagCategory.values)
+          CheckboxMenuButton(
+            key: ValueKey(
+              'online-gallery-prompt-tag-category-${category.name}',
+            ),
+            value: settings.categories.contains(category),
+            closeOnActivate: false,
+            onChanged: (selected) => _setCategory(category, selected),
+            child: Text(_labelFor(category)),
+          ),
+      ],
+      builder: (context, controller, child) {
+        return Tooltip(
+          message: context.l10n.onlineGallery_promptTagCategoriesTooltip,
+          child: TextButton.icon(
+            key: const ValueKey('online-gallery-prompt-tag-categories'),
+            onPressed: () {
+              controller.isOpen ? controller.close() : controller.open();
+            },
+            icon: const Icon(Icons.sell_outlined, size: 17),
+            label: Text(
+              '${context.l10n.onlineGallery_promptTagCategories} · ${settings.categories.length}',
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurfaceVariant,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              visualDensity: context.interactionPolicy.prefersTouchPresentation
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

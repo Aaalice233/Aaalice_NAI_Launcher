@@ -1,5 +1,3 @@
-// 数据源缓存元数据模型
-
 /// 自动刷新间隔
 enum AutoRefreshInterval {
   days7(7, '7天', '7 days'),
@@ -13,10 +11,8 @@ enum AutoRefreshInterval {
 
   const AutoRefreshInterval(this.days, this.displayNameZh, this.displayNameEn);
 
-  /// 显示名称（简化版，默认使用中文）
   String get displayName => displayNameZh;
 
-  /// 根据天数获取枚举值
   static AutoRefreshInterval fromDays(int days) {
     return AutoRefreshInterval.values.firstWhere(
       (e) => e.days == days,
@@ -24,7 +20,6 @@ enum AutoRefreshInterval {
     );
   }
 
-  /// 检查是否需要刷新
   bool shouldRefresh(DateTime? lastUpdate) {
     if (this == AutoRefreshInterval.never) return false;
     if (lastUpdate == null) return true;
@@ -33,7 +28,6 @@ enum AutoRefreshInterval {
     return daysSinceUpdate >= days;
   }
 }
-
 /// 热度档位预设
 enum TagHotPreset {
   all(0, '全部', 'All'),
@@ -50,10 +44,8 @@ enum TagHotPreset {
 
   const TagHotPreset(this.threshold, this.displayNameZh, this.displayNameEn);
 
-  /// 显示名称（简化版，默认使用中文）
   String get displayName => displayNameZh;
 
-  /// 根据阈值获取枚举值
   static TagHotPreset fromThreshold(int threshold) {
     return TagHotPreset.values.firstWhere(
       (e) => e.threshold == threshold,
@@ -61,7 +53,6 @@ enum TagHotPreset {
     );
   }
 
-  /// 判断是否为自定义档位
   bool get isCustom => this == TagHotPreset.custom;
 }
 

@@ -5,7 +5,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/core/theme_modules.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
@@ -39,7 +38,6 @@ class ThemeComposer {
   /// match the fallback scheme to avoid assertion errors.
   ThemeData buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final hasTouchInput = PlatformCapabilities.current.hasTouchInput;
 
     // Get the appropriate color scheme and effective brightness
     ColorScheme colorScheme;
@@ -75,14 +73,15 @@ class ThemeComposer {
       // Icon theme - ensures icons have good visibility by default
       // Uses onSurface for proper contrast on surface backgrounds
       iconTheme: IconThemeData(color: colorScheme.onSurface, size: 24),
-      iconButtonTheme: hasTouchInput
-          ? const IconButtonThemeData(
-              style: ButtonStyle(
-                minimumSize: WidgetStatePropertyAll(Size.square(48)),
-              ),
-            )
-          : null,
+      iconButtonTheme: const IconButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: WidgetStatePropertyAll(Size.square(48)),
+        ),
+      ),
       materialTapTargetSize: MaterialTapTargetSize.padded,
+      sliderTheme: SliderThemeData(
+        tickMarkShape: SliderTickMarkShape.noTickMark,
+      ),
 
       // Apply divider module colors to Flutter's built-in divider
       dividerColor: colorScheme.onSurface.withValues(alpha: 0.08),
@@ -198,7 +197,7 @@ class ThemeComposer {
           backgroundColor: WidgetStatePropertyAll(
             colorScheme.surfaceContainerHigh,
           ),
-          elevation: const WidgetStatePropertyAll(0), // 使用自定义阴影
+          elevation: const WidgetStatePropertyAll(8),
           shadowColor: WidgetStatePropertyAll(
             Colors.black.withValues(alpha: 0.15),
           ),
@@ -389,6 +388,8 @@ class _ModularPageTransitionBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+
     final curvedAnimation = CurvedAnimation(
       parent: animation,
       curve: motion.enterCurve,

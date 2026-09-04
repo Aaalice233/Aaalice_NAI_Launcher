@@ -9,6 +9,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/online_gallery/quick_tag_cloud_codex.dart';
 import '../../../data/services/danbooru_auth_service.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
@@ -80,10 +81,18 @@ class _OnlineGalleryContentPresenter {
         GalleryViewMode.favorites => state.favoritesSourceId,
       };
 
-  void _showGelbooruCredentialsDialog(BuildContext context) {
-    showDialog<void>(
+  Future<void> _showGelbooruCredentialsDialog(BuildContext context) {
+    return AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (_) => const GelbooruCredentialsDialog(),
+      title: context.l10n.gelbooru_configureTitle,
+      initialChildSize: 0.86,
+      minChildSize: 0.58,
+      maxChildSize: 0.96,
+      sideSheetWidth: 480,
+      builder: (_, scrollController) => GelbooruCredentialsDialog(
+        embedded: true,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -316,14 +325,13 @@ class _OnlineGalleryContentPresenter {
           (state.randomEnabled ? state.randomSession.cache : state.currentCache)
               .isPageBoundaryStart(index)
           ? _controller.pageAnchorKey(post.stableKey)
-          : post.stableKey == _controller.pendingAnchorStableKey
-          ? _controller.anchorRestoreKey
           : null,
       onVisibilityChanged: _scrollCoordinator.handleCardVisibility,
       onGeometryMeasured: _controller.recordGeometryRead,
       onTileBuild: _controller.recordTileBuild,
       onVisibilityTransition: _controller.recordVisibilityTransition,
       onVisibilityDrivenRebuild: _controller.recordVisibilityDrivenRebuild,
+      scheduleReveal: _controller.scheduleCardReveal,
       viewportGeneration: _controller.viewportGeneration,
       detailRequestScope: (
         state.currentCacheKey,
@@ -457,14 +465,7 @@ class _OnlineGalleryContentPresenter {
               : null,
           selectionMode: selectionState.$1,
           isSelected: selectionState.$2,
-          canSelect:
-              projection.positivePrompt.trim().isNotEmpty ||
-              projection.negativePrompt.trim().isNotEmpty ||
-              projection.characterPrompts.any(
-                (character) =>
-                    character.prompt.trim().isNotEmpty ||
-                    character.negativePrompt.trim().isNotEmpty,
-              ),
+          canSelect: projection.hasUsableOutput,
           tagPrompt: projection.positivePrompt,
           promptOverride: projection.positivePrompt,
           negativePromptOverride: projection.negativePrompt.trim().isEmpty

@@ -21,7 +21,7 @@ import 'cooccurrence_data_pack_protocol.dart';
 const cooccurrenceDataPackManifestAsset =
     'assets/data/cooccurrence_data_pack_manifest.json';
 
-/// Compatibility facade and Riverpod orchestrator for the optional data pack.
+/// Manages the optional co-occurrence data pack.
 class CooccurrenceDataPackService
     extends StateNotifier<CooccurrenceDataPackState> {
   CooccurrenceDataPackService({

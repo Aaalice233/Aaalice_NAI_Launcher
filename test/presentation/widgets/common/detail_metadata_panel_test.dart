@@ -124,6 +124,72 @@ void main() {
     },
   );
 
+  testWidgets('copy all TAGs writes the complete local prompt export', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? clipboardText;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          clipboardText = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final image = img.Image(width: 1, height: 1);
+    final detail = GeneratedImageDetailData(
+      imageBytes: Uint8List.fromList(img.encodePng(image)),
+      metadata: const NaiImageMetadata(
+        prompt: '{{1girl}}, blue hair',
+        negativePrompt: '[lowres]',
+        characterInfos: [
+          CharacterPromptInfo(prompt: 'red hair', negativePrompt: 'bad hands'),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DetailMetadataPanel(currentImage: detail, expandedWidth: 360),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final copyAll = find.text('复制全部 TAG');
+    await tester.ensureVisible(copyAll);
+    await tester.tap(copyAll);
+    await tester.pump();
+
+    expect(
+      clipboardText,
+      startsWith(
+        'positive: {{1girl}}, blue hair | red hair\n'
+        'negative: [lowres] | bad hands',
+      ),
+    );
+    expect(clipboardText, isNot('{}'));
+    await tester.pump(const Duration(seconds: 3));
+  });
+
   testWidgets('keeps a comma inside nested weights as one detail chip', (
     tester,
   ) async {
@@ -157,12 +223,51 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final section = tester.widget<PromptSection>(find.byType(PromptSection));
+    final section = tester
+        .widgetList<PromptSection>(find.byType(PromptSection))
+        .first;
     expect(section.tags, const [fragment, 'city']);
     expect(section.fixedTags, contains(fragment));
     expect(find.textContaining(fragment), findsOneWidget);
     expect(find.text('{{{blue_eyes'), findsNothing);
     expect(find.text('long_hair}}}'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('marks only the fixed occurrence when a negative tag repeats', (
+    tester,
+  ) async {
+    final image = img.Image(width: 1, height: 1);
+    final detail = GeneratedImageDetailData(
+      imageBytes: Uint8List.fromList(img.encodePng(image)),
+      metadata: const NaiImageMetadata(
+        negativePrompt: 'lowres, nsfw, lowres',
+        fixedNegativePrefixTags: ['lowres'],
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DetailMetadataPanel(currentImage: detail, expandedWidth: 600),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final section = tester
+        .widgetList<PromptSection>(find.byType(PromptSection))
+        .singleWhere((section) => section.isNegative);
+    await tester.tap(find.text(section.title));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.push_pin), findsOneWidget);
+    expect(find.text('lowres'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 

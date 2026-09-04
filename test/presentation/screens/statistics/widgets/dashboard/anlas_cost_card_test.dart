@@ -64,6 +64,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('anlas-period-custom')));
     await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
+    expect(find.byType(AlertDialog), findsNothing);
     await tester.enterText(
       find.byKey(const ValueKey('anlas-custom-days-field')),
       '10',

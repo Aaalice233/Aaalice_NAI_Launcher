@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/window_size_class.dart';
+import '../../themes/core/layered_surface_style.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
+import '../../widgets/common/themed_confirm_dialog.dart';
 import '../cloud_sync/cloud_sync_screen.dart';
 import 'sections/account_settings_section.dart';
 import 'sections/appearance_settings_section.dart';
@@ -50,7 +53,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late SettingsSection _selectedSection;
-  final _contentScrollController = ScrollController();
+  final _contentScrollController = OwnedScrollController();
   bool _isContentScrolled = false;
   bool _showCompactDetail = false;
   int _externalSectionRevision = 0;
@@ -109,7 +112,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.smart_toy_outlined,
         selectedIcon: Icons.smart_toy,
         label: context.l10n.settings_agent,
-        widget: const AgentSettingsSection(),
+        widget: AgentSettingsSection(
+          onOpenIntegrations: () => _onSectionSelected(
+            SettingsSection.integrations,
+            showCompactDetail: true,
+          ),
+        ),
       ),
       _SettingsSection(
         id: SettingsSection.storage,
@@ -191,6 +199,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() {
       _selectedSection = section;
       _showCompactDetail = showCompactDetail;
+      _contentScrollController.viewport.replace(0);
+      _contentScrollController.clearLayoutRestore();
       if (_contentScrollController.hasClients) {
         _contentScrollController.jumpTo(0);
       }
@@ -216,24 +226,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final existing = _discardConfirmation;
     if (existing != null) return existing;
     final confirmation = () async {
-      final discard = await showDialog<bool>(
+      final discard = await ThemedConfirmDialog.show(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text(context.l10n.agentSettings_discardPromptTitle),
-          content: Text(context.l10n.agentSettings_discardPromptBody),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(context.l10n.agentSettings_keepEditing),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(context.l10n.agentSettings_discardChanges),
-            ),
-          ],
-        ),
+        title: context.l10n.agentSettings_discardPromptTitle,
+        content: context.l10n.agentSettings_discardPromptBody,
+        confirmText: context.l10n.agentSettings_discardChanges,
+        cancelText: context.l10n.agentSettings_keepEditing,
+        type: ThemedConfirmDialogType.warning,
+        icon: Icons.warning_amber_rounded,
       );
-      if (discard == true) {
+      if (discard) {
         ref.read(agentPromptDraftProvider.notifier).discard();
         return true;
       }
@@ -276,18 +278,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             if (mounted) Navigator.of(this.context).maybePop();
           },
           child: Scaffold(
-            appBar: AppBar(
-              title: Text(context.l10n.settings_title),
-              backgroundColor: _isContentScrolled
-                  ? theme.colorScheme.surfaceContainerHighest
-                  : null,
-              surfaceTintColor: Colors.transparent,
-            ),
+            appBar: _buildAppBar(context, theme),
             body: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildNavigationRail(context, sizeClass.isExpanded, sections),
-                const VerticalDivider(thickness: 1, width: 1),
+                _buildNavigationRail(context, sizeClass.isWide, sections),
                 Expanded(
                   child: _buildSectionContent(
                     sections[selectedIndex].widget,
@@ -323,15 +318,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (!didPop) await _returnToCompactSettingsList();
       },
       child: Scaffold(
-        appBar: AppBar(
+        appBar: _buildAppBar(
+          context,
+          theme,
           leading: _showCompactDetail
               ? BackButton(onPressed: _returnToCompactSettingsList)
               : null,
-          title: Text(context.l10n.settings_title),
-          backgroundColor: _isContentScrolled
-              ? theme.colorScheme.surfaceContainerHighest
-              : null,
-          surfaceTintColor: Colors.transparent,
         ),
         body: AnimatedSwitcher(
           duration: MediaQuery.disableAnimationsOf(context)
@@ -351,26 +343,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   key: const ValueKey('settings-section-list'),
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
                   itemCount: sections.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 4),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final section = sections[index];
-                    return ListTile(
-                      minTileHeight: 56,
-                      leading: Icon(section.icon),
-                      title: Text(section.label),
-                      trailing: const Icon(Icons.chevron_right),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      onTap: () => _onSectionSelected(
-                        section.id,
-                        showCompactDetail: true,
+                    return Material(
+                      key: ValueKey('settings-section-material-${section.id}'),
+                      type: MaterialType.transparency,
+                      child: ListTile(
+                        minTileHeight: 56,
+                        tileColor: sectionSurfaceColor(theme.colorScheme),
+                        leading: Icon(section.icon),
+                        title: Text(section.label),
+                        trailing: const Icon(Icons.chevron_right),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onTap: () => _onSectionSelected(
+                          section.id,
+                          showCompactDetail: true,
+                        ),
                       ),
                     );
                   },
                 ),
         ),
       ),
+    );
+  }
+
+  AppBar _buildAppBar(
+    BuildContext context,
+    ThemeData theme, {
+    Widget? leading,
+  }) {
+    return AppBar(
+      key: const ValueKey('settings-tonal-app-bar'),
+      leading: leading,
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.settings_outlined,
+            size: 22,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 10),
+          Flexible(child: Text(context.l10n.settings_title)),
+        ],
+      ),
+      backgroundColor: _isContentScrolled
+          ? controlSurfaceColor(theme.colorScheme)
+          : sectionSurfaceColor(theme.colorScheme),
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
     );
   }
 
@@ -407,7 +432,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       onDestinationSelected: (index) => _onSectionSelected(sections[index].id),
       extended: isExtended,
       minExtendedWidth: 180,
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: Colors.transparent,
       selectedIconTheme: IconThemeData(color: theme.colorScheme.primary),
       // 必须从 textTheme 派生：NavigationRail 对这两项是整体替换而非合并，
       // 传裸 TextStyle 会把默认的 labelMedium 连同用户字体一起顶掉。
@@ -430,16 +455,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }).toList(),
     );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final contentHeight = sections.length * 56.0;
-        final railHeight = constraints.maxHeight > contentHeight
-            ? constraints.maxHeight
-            : contentHeight;
-        return SingleChildScrollView(
-          child: SizedBox(height: railHeight, child: buildRail()),
-        );
-      },
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Container(
+        key: const ValueKey('settings-navigation-tonal-surface'),
+        decoration: BoxDecoration(
+          color: sectionSurfaceColor(theme.colorScheme),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final contentHeight = sections.length * 56.0;
+            final railHeight = constraints.maxHeight > contentHeight
+                ? constraints.maxHeight
+                : contentHeight;
+            return SingleChildScrollView(
+              child: SizedBox(height: railHeight, child: buildRail()),
+            );
+          },
+        ),
+      ),
     );
   }
 }

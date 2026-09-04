@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/autocomplete/autocomplete_settings.dart';
 import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/autocomplete/zh_dictionary_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/completion_overlay.dart';
 
 void main() {
@@ -148,11 +149,11 @@ void main() {
     },
   );
 
-  testWidgets('phone layout keeps tag details readable in two rows', (
+  testWidgets('Windows mixed input uses local 320px popup constraints', (
     tester,
   ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    tester.view.physicalSize = const Size(360, 800);
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    tester.view.physicalSize = const Size(1000, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
       debugDefaultTargetPlatformOverride = null;
@@ -167,51 +168,58 @@ void main() {
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 360,
-              child: CompletionOverlay(
-                state: const CompletionState(
-                  query: CompletionQuery(
-                    fullText: 'character_',
-                    cursorPosition: 10,
-                    token: 'character_',
-                    replacementRange: TextReplacementRange(start: 0, end: 10),
-                    existingTags: {},
-                    limit: 20,
-                    locale: 'zh-CN',
-                  ),
-                  candidates: [
-                    CompletionCandidate(
-                      canonicalTag: 'extremely_long_character_name',
-                      category: TagCategory.character,
-                      postCount: 125000,
-                      translation: '很长的角色中文翻译',
-                      matchKind: CompletionMatchKind.englishPrefix,
-                      sources: {
-                        CompletionSourceKind.base,
-                        CompletionSourceKind.zhDictionary,
-                        CompletionSourceKind.danbooruApi,
-                      },
+        home: InteractionPolicyScope(
+          initialPolicy: const InteractionPolicy(
+            modality: InteractionModality.touch,
+            touchAvailable: true,
+            precisePointerAvailable: true,
+          ),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 320,
+                child: CompletionOverlay(
+                  state: const CompletionState(
+                    query: CompletionQuery(
+                      fullText: 'character_',
+                      cursorPosition: 10,
+                      token: 'character_',
+                      replacementRange: TextReplacementRange(start: 0, end: 10),
+                      existingTags: {},
+                      limit: 20,
+                      locale: 'zh-CN',
                     ),
-                  ],
+                    candidates: [
+                      CompletionCandidate(
+                        canonicalTag: 'extremely_long_character_name',
+                        category: TagCategory.character,
+                        postCount: 125000,
+                        translation: '很长的角色中文翻译',
+                        matchKind: CompletionMatchKind.englishPrefix,
+                        sources: {
+                          CompletionSourceKind.base,
+                          CompletionSourceKind.zhDictionary,
+                          CompletionSourceKind.danbooruApi,
+                        },
+                      ),
+                    ],
+                  ),
+                  selectedIndex: 0,
+                  maxHeight: 320,
+                  scrollController: scrollController,
+                  settings: const AutocompleteSettings(),
+                  dictionaryState: const ZhDictionaryState(
+                    isInstalled: true,
+                    tagCount: 200000,
+                  ),
+                  showAliases: true,
+                  showTranslations: true,
+                  showCategory: true,
+                  showCount: true,
+                  onSelected: (_) {},
+                  onClose: () {},
+                  onOpenSettings: () {},
                 ),
-                selectedIndex: 0,
-                maxHeight: 320,
-                scrollController: scrollController,
-                settings: const AutocompleteSettings(),
-                dictionaryState: const ZhDictionaryState(
-                  isInstalled: true,
-                  tagCount: 200000,
-                ),
-                showAliases: true,
-                showTranslations: true,
-                showCategory: true,
-                showCount: true,
-                onSelected: (_) {},
-                onClose: () {},
-                onOpenSettings: () {},
               ),
             ),
           ),
@@ -252,6 +260,86 @@ void main() {
     );
     expect((surface.decoration as BoxDecoration).border, isNotNull);
     expect(tester.takeException(), isNull);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('mixed input leaves a 600px popup in non-compact layout', (
+    tester,
+  ) async {
+    final scrollController = ScrollController();
+    addTearDown(scrollController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: InteractionPolicyScope(
+          initialPolicy: const InteractionPolicy(
+            modality: InteractionModality.touch,
+            touchAvailable: true,
+            precisePointerAvailable: true,
+          ),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 600,
+                child: CompletionOverlay(
+                  state: const CompletionState(),
+                  selectedIndex: 0,
+                  maxHeight: 240,
+                  scrollController: scrollController,
+                  settings: const AutocompleteSettings(),
+                  dictionaryState: const ZhDictionaryState(),
+                  showAliases: true,
+                  showTranslations: true,
+                  showCategory: true,
+                  showCount: true,
+                  onSelected: (_) {},
+                  onClose: () {},
+                  onOpenSettings: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final surface = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+    );
+    expect((surface.decoration as BoxDecoration).border, isNull);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('autocomplete-popup-close'))),
+      const Size(48, 48),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Android mouse keeps precise-pointer density', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    late double candidateExtent;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InteractionPolicyScope(
+          initialPolicy: const InteractionPolicy(
+            modality: InteractionModality.pointer,
+            touchAvailable: false,
+            precisePointerAvailable: true,
+          ),
+          child: Builder(
+            builder: (context) {
+              candidateExtent = effectiveAutocompleteCandidateExtent(context);
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(candidateExtent, autocompleteCandidateExtent);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -450,6 +538,74 @@ void main() {
 
     expect(find.text('blue_archive_0000'), findsNothing);
     expect(find.text('blue_archive_0999'), findsOneWidget);
+  });
+
+  testWidgets('adapts to 300px width and large text without overflow', (
+    tester,
+  ) async {
+    final scrollController = ScrollController();
+    addTearDown(scrollController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(300, 500),
+              textScaler: TextScaler.linear(2),
+            ),
+            child: SizedBox(
+              width: 300,
+              child: CompletionOverlay(
+                state: const CompletionState(
+                  query: CompletionQuery(
+                    fullText: 'extremely_long_query',
+                    cursorPosition: 20,
+                    token: 'extremely_long_query',
+                    replacementRange: TextReplacementRange(start: 0, end: 20),
+                    existingTags: {},
+                    limit: 20,
+                    locale: 'zh-CN',
+                  ),
+                  candidates: [
+                    CompletionCandidate(
+                      canonicalTag: 'extremely_long_completion_candidate_name',
+                      category: TagCategory.general,
+                      postCount: 125000,
+                      translation: '很长的候选标签翻译文本',
+                      matchKind: CompletionMatchKind.englishPrefix,
+                      sources: {CompletionSourceKind.base},
+                    ),
+                  ],
+                ),
+                selectedIndex: 0,
+                maxHeight: 360,
+                scrollController: scrollController,
+                settings: const AutocompleteSettings(),
+                dictionaryState: const ZhDictionaryState(),
+                showAliases: true,
+                showTranslations: true,
+                showCategory: true,
+                showCount: true,
+                onSelected: (_) {},
+                onClose: () {},
+                onOpenSettings: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final surface = tester.getRect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+    );
+    expect(surface.width, lessThanOrEqualTo(300));
+    expect(find.byType(Scrollable), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('shows live loading and failure states without hiding results', (

@@ -5,6 +5,9 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
+import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
+import '../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
@@ -38,6 +41,7 @@ class ImageSaveUtils {
     List<String>? fixedSuffixTags,
     List<String>? fixedNegativePrefixTags,
     List<String>? fixedNegativeSuffixTags,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -92,17 +96,24 @@ class ImageSaveUtils {
         'upscale': {'declared_blur_sigma': E2eUpscale.declaredBlurSigma},
     };
 
-    if (fixedPrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_prefix'] = fixedPrefixTags;
+    if (fixedTagUsageSnapshot != null) {
+      commentJson['aaalice_fixed_tags'] = fixedTagUsageSnapshot.toJson();
     }
-    if (fixedSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_suffix'] = fixedSuffixTags;
+    if (fixedTagUsageSnapshot != null || fixedPrefixTags?.isNotEmpty == true) {
+      commentJson['fixed_prefix'] = fixedPrefixTags ?? const <String>[];
     }
-    if (fixedNegativePrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_prefix'] = fixedNegativePrefixTags;
+    if (fixedTagUsageSnapshot != null || fixedSuffixTags?.isNotEmpty == true) {
+      commentJson['fixed_suffix'] = fixedSuffixTags ?? const <String>[];
     }
-    if (fixedNegativeSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_suffix'] = fixedNegativeSuffixTags;
+    if (fixedTagUsageSnapshot != null ||
+        fixedNegativePrefixTags?.isNotEmpty == true) {
+      commentJson['fixed_negative_prefix'] =
+          fixedNegativePrefixTags ?? const <String>[];
+    }
+    if (fixedTagUsageSnapshot != null ||
+        fixedNegativeSuffixTags?.isNotEmpty == true) {
+      commentJson['fixed_negative_suffix'] =
+          fixedNegativeSuffixTags ?? const <String>[];
     }
 
     // V4多角色提示词
@@ -192,6 +203,7 @@ class ImageSaveUtils {
     List<String>? fixedSuffixTags,
     List<String>? fixedNegativePrefixTags,
     List<String>? fixedNegativeSuffixTags,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -223,6 +235,7 @@ class ImageSaveUtils {
       fixedSuffixTags: fixedSuffixTags,
       fixedNegativePrefixTags: fixedNegativePrefixTags,
       fixedNegativeSuffixTags: fixedNegativeSuffixTags,
+      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,
@@ -251,6 +264,58 @@ class ImageSaveUtils {
     );
   }
 
+  /// Adds Launcher fixed-tag provenance without replacing existing NAI fields.
+  static Future<Uint8List> mergeFixedTagUsageMetadata({
+    required Uint8List imageBytes,
+    required FixedTagUsageSnapshot snapshot,
+    bool useStealth = false,
+  }) async {
+    final existing = _extractEmbeddedPngMetadata(imageBytes);
+    if (existing?.commentJson == null) return imageBytes;
+    final commentJson = <String, dynamic>{
+      ...existing!.commentJson,
+      'aaalice_fixed_tags': snapshot.toJson(),
+      'fixed_prefix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.positive,
+        FixedTagPosition.prefix,
+      ),
+      'fixed_suffix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.positive,
+        FixedTagPosition.suffix,
+      ),
+      'fixed_negative_prefix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.negative,
+        FixedTagPosition.prefix,
+      ),
+      'fixed_negative_suffix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.negative,
+        FixedTagPosition.suffix,
+      ),
+    };
+    return _embedNaiAlignedMetadata(
+      imageBytes: imageBytes,
+      commentJson: commentJson,
+      description: existing.description,
+      source: existing.source,
+      software: existing.software,
+      useStealth: useStealth,
+    );
+  }
+
+  static List<String> _fixedTagContents(
+    FixedTagUsageSnapshot snapshot,
+    FixedTagPromptType promptType,
+    FixedTagPosition position,
+  ) => snapshot
+      .entriesFor(promptType: promptType, position: position)
+      .map((entry) => entry.renderedContent)
+      .where((content) => content.isNotEmpty)
+      .toList(growable: false);
+
   /// 保存图像并嵌入完整元数据
   ///
   /// [imageBytes] - 图像字节数据
@@ -276,6 +341,7 @@ class ImageSaveUtils {
     List<String>? fixedSuffixTags,
     List<String>? fixedNegativePrefixTags,
     List<String>? fixedNegativeSuffixTags,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -290,6 +356,7 @@ class ImageSaveUtils {
       fixedSuffixTags: fixedSuffixTags,
       fixedNegativePrefixTags: fixedNegativePrefixTags,
       fixedNegativeSuffixTags: fixedNegativeSuffixTags,
+      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,
@@ -608,11 +675,12 @@ class ImageSaveUtils {
     return null;
   }
 
-  /// 原子保存图片到日期分类目录：<根目录>/yyyy-MM-dd/HH-mm-ss-<seed>.png
+  /// 原子保存图片到日期分类目录：<根目录>/yyyy-MM-dd/<文件名>.png
   ///
   /// 所有图库保存入口必须走这里：路径选择、独占防冲突、写入、
   /// 失败清理都在一个方法内完成，调用方无需感知占位文件。
-  /// - [seed] 为 null 或小于 0（未确定）时用毫秒时间戳代替，保证文件名唯一
+  /// - [preferredFileName] 存在时使用清理后的文件名；适用于水印等派生副本
+  /// - 否则 [seed] 为 null 或小于 0 时用毫秒时间戳代替，保证文件名唯一
   /// - 独占创建原子保留路径，并发保存不会拿到同一路径后相互覆盖
   /// - 写入失败时删除占位文件后重新抛出，不留空 PNG 进图库扫描
   /// - 仅名称冲突（候选已存在）才追加 -2、-3 序号；目录只读、磁盘满等
@@ -621,6 +689,7 @@ class ImageSaveUtils {
     required String rootPath,
     required Uint8List bytes,
     int? seed,
+    String? preferredFileName,
     DateTime? now,
   }) async {
     final time = now ?? DateTime.now();
@@ -630,11 +699,18 @@ class ImageSaveUtils {
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
+    final preferredStem = preferredFileName == null
+        ? ''
+        : p
+              .basenameWithoutExtension(p.basename(preferredFileName))
+              .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
+              .trim();
     final seedPart = (seed != null && seed >= 0)
         ? '$seed'
         : '${time.millisecondsSinceEpoch}';
-    final baseName =
-        '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
+    final baseName = preferredStem.isNotEmpty
+        ? preferredStem
+        : '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
     var candidate = p.join(dir.path, '$baseName.png');
     var suffix = 2;
     File file;

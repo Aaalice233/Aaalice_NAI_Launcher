@@ -9,6 +9,9 @@ import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/l10n/app_localizations_en.dart';
@@ -231,5 +234,265 @@ void main() {
     expect(appliedCount, 2);
     expect(params.model, ImageModels.animeDiffusionV45Full);
     expect(params.scale, 5.5);
+  });
+
+  test('structured fixed tags replace the enabled scope', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(fixedTagsNotifierProvider.notifier);
+    final old = await notifier.addEntry(
+      name: 'current',
+      content: 'current tag',
+    );
+    final target = await notifier.addEntry(
+      name: 'recorded',
+      content: 'recorded tag',
+      enabled: false,
+    );
+    final snapshot = FixedTagUsageSnapshot(
+      entries: [FixedTagUsageEntry.fromFixedTag(target, order: 0)],
+    );
+    final metadata = NaiImageMetadata(
+      prompt: 'recorded tag, subject',
+      fixedPrefixTags: const ['recorded tag'],
+      fixedTagUsageData: snapshot.toJson(),
+    );
+
+    await MetadataImportCoordinator.apply(
+      read: container.read,
+      metadata: metadata,
+      options: const MetadataImportOptions(
+        importNegativePrompt: false,
+        importFixedSuffix: false,
+        importQualityTags: false,
+        importCharacterPrompts: false,
+        importVibeReferences: false,
+        importPreciseReferences: false,
+      ),
+      l10n: AppLocalizationsEn(),
+    );
+
+    final entries = container.read(fixedTagsNotifierProvider).entries;
+    expect(entries.singleWhere((entry) => entry.id == old.id).enabled, isFalse);
+    expect(
+      entries.singleWhere((entry) => entry.id == target.id).enabled,
+      isTrue,
+    );
+  });
+
+  test('导入负向固定词时只把剩余内容写入负面提示词', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final fixedTags = container.read(fixedTagsNotifierProvider.notifier);
+    final negativeFixed = await fixedTags.addEntry(
+      name: 'negative fixed',
+      content: 'lowres, bad anatomy',
+      promptType: FixedTagPromptType.negative,
+      enabled: false,
+    );
+    final snapshot = FixedTagUsageSnapshot(
+      entries: [FixedTagUsageEntry.fromFixedTag(negativeFixed, order: 0)],
+    );
+    final metadata = NaiImageMetadata(
+      prompt: '1girl, blue eyes',
+      negativePrompt: 'lowres, bad anatomy, watermark',
+      fixedNegativePrefixTags: const ['lowres, bad anatomy'],
+      fixedTagUsageData: snapshot.toJson(),
+    );
+
+    await MetadataImportCoordinator.apply(
+      read: container.read,
+      metadata: metadata,
+      options: const MetadataImportOptions(
+        importFixedPrefix: false,
+        importFixedSuffix: false,
+        importFixedNegativeSuffix: false,
+        importQualityTags: false,
+        importCharacterPrompts: false,
+        importVibeReferences: false,
+        importPreciseReferences: false,
+      ),
+      l10n: AppLocalizationsEn(),
+    );
+
+    final params = container.read(generationParamsNotifierProvider);
+    final restoredFixed = container
+        .read(fixedTagsNotifierProvider)
+        .entries
+        .singleWhere((entry) => entry.id == negativeFixed.id);
+    expect(params.prompt, '1girl, blue eyes');
+    expect(params.negativePrompt, 'watermark');
+    expect(restoredFixed.enabled, isTrue);
+  });
+
+  test('fixed-tag restoration changes only the four selected scopes', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(fixedTagsNotifierProvider.notifier);
+    final positivePrefix = await notifier.addEntry(
+      name: 'positive prefix',
+      content: 'old positive prefix',
+    );
+    final positiveSuffix = await notifier.addEntry(
+      name: 'positive suffix',
+      content: 'old positive suffix',
+      position: FixedTagPosition.suffix,
+    );
+    final negativePrefix = await notifier.addEntry(
+      name: 'negative prefix',
+      content: 'old negative prefix',
+      promptType: FixedTagPromptType.negative,
+    );
+    final negativeSuffix = await notifier.addEntry(
+      name: 'negative suffix',
+      content: 'old negative suffix',
+      position: FixedTagPosition.suffix,
+      promptType: FixedTagPromptType.negative,
+    );
+    const snapshot = FixedTagUsageSnapshot(
+      entries: [
+        FixedTagUsageEntry(
+          name: 'image prefix',
+          content: 'image positive prefix',
+          weight: 1,
+          renderedContent: 'image positive prefix',
+          position: FixedTagPosition.prefix,
+          promptType: FixedTagPromptType.positive,
+          order: 0,
+        ),
+      ],
+    );
+
+    await MetadataImportCoordinator.apply(
+      read: container.read,
+      metadata: NaiImageMetadata(
+        prompt: 'image positive prefix, subject',
+        fixedPrefixTags: const ['image positive prefix'],
+        fixedTagUsageData: snapshot.toJson(),
+      ),
+      options: const MetadataImportOptions(
+        importPrompt: false,
+        importNegativePrompt: false,
+        importFixedPrefix: true,
+        importFixedSuffix: false,
+        importFixedNegativePrefix: false,
+        importFixedNegativeSuffix: true,
+        importQualityTags: false,
+        importCharacterPrompts: false,
+        importVibeReferences: false,
+        importPreciseReferences: false,
+      ),
+      l10n: AppLocalizationsEn(),
+    );
+
+    final entries = container.read(fixedTagsNotifierProvider).entries;
+    bool enabled(String id) =>
+        entries.singleWhere((entry) => entry.id == id).enabled;
+    expect(enabled(positivePrefix.id), isFalse);
+    expect(enabled(positiveSuffix.id), isTrue);
+    expect(enabled(negativePrefix.id), isTrue);
+    expect(enabled(negativeSuffix.id), isFalse);
+    expect(
+      entries
+          .singleWhere((entry) => entry.content == 'image positive prefix')
+          .enabled,
+      isTrue,
+    );
+  });
+
+  test('changed fixed tag id creates and reuses an image version', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(fixedTagsNotifierProvider.notifier);
+    final current = await notifier.addEntry(name: 'A', content: 'best quality');
+    final sameContentEntry = await notifier.addEntry(
+      name: 'B',
+      content: 'masterpiece',
+      enabled: false,
+    );
+    final snapshot = FixedTagUsageSnapshot(
+      entries: [
+        FixedTagUsageEntry(
+          fixedTagId: current.id,
+          name: 'A',
+          content: 'masterpiece',
+          weight: 1,
+          renderedContent: 'masterpiece',
+          position: FixedTagPosition.prefix,
+          promptType: FixedTagPromptType.positive,
+          order: 0,
+        ),
+      ],
+    );
+    final metadata = NaiImageMetadata(
+      prompt: 'masterpiece, subject',
+      fixedPrefixTags: const ['masterpiece'],
+      fixedTagUsageData: snapshot.toJson(),
+    );
+    const options = MetadataImportOptions(
+      importNegativePrompt: false,
+      importFixedSuffix: false,
+      importQualityTags: false,
+      importCharacterPrompts: false,
+      importVibeReferences: false,
+      importPreciseReferences: false,
+    );
+
+    for (var i = 0; i < 2; i++) {
+      await MetadataImportCoordinator.apply(
+        read: container.read,
+        metadata: metadata,
+        options: options,
+        l10n: AppLocalizationsEn(),
+      );
+    }
+
+    final entries = container.read(fixedTagsNotifierProvider).entries;
+    expect(entries, hasLength(3));
+    expect(
+      entries.singleWhere((entry) => entry.id == current.id).content,
+      'best quality',
+    );
+    final historical = entries.singleWhere(
+      (entry) => entry.importedFromFixedTagId == current.id,
+    );
+    expect(historical.content, 'masterpiece');
+    expect(historical.enabled, isTrue);
+    expect(
+      entries.singleWhere((entry) => entry.id == sameContentEntry.id).enabled,
+      isFalse,
+    );
+  });
+
+  test('unknown legacy prompt asks policy through options', () async {
+    Future<bool> apply(UnknownFixedTagPolicy policy) async {
+      await Hive.box(StorageKeys.settingsBox).clear();
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final entry = await container
+          .read(fixedTagsNotifierProvider.notifier)
+          .addEntry(name: 'current', content: 'current tag');
+      await MetadataImportCoordinator.apply(
+        read: container.read,
+        metadata: const NaiImageMetadata(prompt: 'shared subject'),
+        options: MetadataImportOptions(
+          importNegativePrompt: false,
+          importQualityTags: false,
+          importCharacterPrompts: false,
+          importVibeReferences: false,
+          importPreciseReferences: false,
+          unknownFixedTagPolicy: policy,
+        ),
+        l10n: AppLocalizationsEn(),
+      );
+      return container
+          .read(fixedTagsNotifierProvider)
+          .entries
+          .singleWhere((candidate) => candidate.id == entry.id)
+          .enabled;
+    }
+
+    expect(await apply(UnknownFixedTagPolicy.disableCurrent), isFalse);
+    expect(await apply(UnknownFixedTagPolicy.keepCurrent), isTrue);
   });
 }

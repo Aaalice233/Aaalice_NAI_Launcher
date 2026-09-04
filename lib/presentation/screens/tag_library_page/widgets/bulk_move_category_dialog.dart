@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/tag_library_category.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/window_size_class.dart';
+import '../../../widgets/common/adaptive_dialog_frame.dart';
 
 /// 批量转移分类对话框
 class BulkMoveCategoryDialog extends StatelessWidget {
@@ -14,75 +17,164 @@ class BulkMoveCategoryDialog extends StatelessWidget {
     this.currentCategoryId,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  /// 显示自适应分类选择面；选择分类时返回分类 ID，取消或返回时返回 null。
+  static Future<String?> show(
+    BuildContext context, {
+    required List<TagLibraryCategory> categories,
+    String? currentCategoryId,
+  }) {
+    return AdaptivePresenter.showForm<String>(
+      context: context,
+      titleBuilder: _buildTitle,
+      sideSheetWidth: 440,
+      builder: (panelContext, scrollController) => _BulkMoveCategoryContent(
+        categories: categories,
+        currentCategoryId: currentCategoryId,
+        scrollController: scrollController,
+      ),
+    );
+  }
 
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.drive_file_move_outline, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(context.l10n.tagLibrary_moveToCategoryTitle),
-        ],
-      ),
-      content: SizedBox(
-        width: 320,
-        height: 400,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              context.l10n.tagLibrary_selectTargetCategory,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListView(
-                  padding: const EdgeInsets.all(8),
-                  children: [
-                    // 根目录选项
-                    _CategoryTile(
-                      id: null,
-                      name: context.l10n.tagLibrary_rootCategory,
-                      isSelected: currentCategoryId == null,
-                      onTap: () => Navigator.of(context).pop(null),
-                      depth: 0,
-                    ),
-                    const Divider(height: 1, indent: 8, endIndent: 8),
-                    // 分类树
-                    ..._buildCategoryTree(context, null),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(context.l10n.common_cancel),
+  static Widget _buildTitle(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(Icons.drive_file_move_outline, color: theme.colorScheme.primary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            context.l10n.tagLibrary_moveToCategoryTitle,
+            style: theme.textTheme.titleLarge,
+          ),
         ),
       ],
     );
   }
 
-  /// 递归构建分类树
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: AdaptiveDialogFrame(
+        maxWidth: 440,
+        maxHeight: 560,
+        reservedVerticalSpace: 32,
+        horizontalMargin: 16,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 8, 4),
+              child: Row(
+                children: [
+                  Expanded(child: _buildTitle(context)),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).closeButtonTooltip,
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: _BulkMoveCategoryContent(
+                categories: categories,
+                currentCategoryId: currentCategoryId,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BulkMoveCategoryContent extends StatelessWidget {
+  const _BulkMoveCategoryContent({
+    required this.categories,
+    required this.currentCategoryId,
+    this.scrollController,
+  });
+
+  final List<TagLibraryCategory> categories;
+  final String? currentCategoryId;
+  final ScrollController? scrollController;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isCompact = context.adaptiveWindow.isCompact;
+
+    return AdaptiveDialogFrame(
+      key: const ValueKey('bulk-move-category-dialog-frame'),
+      maxWidth: 440,
+      maxHeight: isCompact ? double.infinity : 560,
+      reservedVerticalSpace: 0,
+      horizontalMargin: 0,
+      child: ListView(
+        key: const ValueKey('bulk-move-category-list'),
+        controller: scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              context.l10n.tagLibrary_selectTargetCategory,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  _CategoryTile(
+                    id: null,
+                    name: context.l10n.tagLibrary_rootCategory,
+                    isSelected: currentCategoryId == null,
+                    onTap: () => Navigator.of(context).pop(''),
+                    depth: 0,
+                  ),
+                  const Divider(height: 1, indent: 8, endIndent: 8),
+                  ..._buildCategoryTree(context, null),
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  child: Text(context.l10n.common_cancel),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _buildCategoryTree(
     BuildContext context,
     String? parentId, {
     int depth = 0,
   }) {
     final result = <Widget>[];
-
     final children = categories.where((c) => c.parentId == parentId).toList()
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
@@ -96,8 +188,6 @@ class BulkMoveCategoryDialog extends StatelessWidget {
           depth: depth,
         ),
       );
-
-      // 递归添加子分类
       result.addAll(_buildCategoryTree(context, category.id, depth: depth + 1));
     }
 

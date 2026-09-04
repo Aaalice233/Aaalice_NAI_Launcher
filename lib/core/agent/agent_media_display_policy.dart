@@ -1,10 +1,16 @@
-/// Tools whose image output is an explicit part of the chat transcript.
-const Set<String> agentExplicitMediaToolNames = {
-  'display_images',
-  'preview_generated_image',
-  'generate_image',
-  'submit_generation',
+enum AgentToolMediaPresentation { none, modelOnly, conversation }
+
+/// Product-level presentation rules for tool media in persisted transcripts.
+const Map<String, AgentToolMediaPresentation> agentToolMediaPresentation = {
+  'inspect_images': AgentToolMediaPresentation.modelOnly,
+  'display_images': AgentToolMediaPresentation.conversation,
+  'generate_image': AgentToolMediaPresentation.conversation,
+  'submit_generation': AgentToolMediaPresentation.conversation,
+
+  // Historical conversations used this tool as an explicit display action.
+  'preview_generated_image': AgentToolMediaPresentation.conversation,
 };
 
 bool agentToolDisplaysMedia(String toolName) =>
-    agentExplicitMediaToolNames.contains(toolName);
+    agentToolMediaPresentation[toolName] ==
+    AgentToolMediaPresentation.conversation;

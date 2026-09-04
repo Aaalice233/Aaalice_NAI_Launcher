@@ -3,16 +3,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/bulk_operation_provider.dart';
+import '../../providers/gallery_album_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../widgets/app_branch_visibility.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
+import '../../widgets/gallery/gallery_sidebar.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
 import '../../widgets/gallery/local_gallery_toolbar.dart';
 import '../../widgets/grouped_grid_view.dart' show GroupedGridViewState;
@@ -34,6 +38,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       GlobalKey<GroupedGridViewState>();
   late final LocalGalleryActionCoordinator _actions;
   late final LocalGalleryScreenController _controller;
+  bool? _branchVisible;
 
   @override
   void initState() {
@@ -53,7 +58,17 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = AppBranchVisibility.of(context);
+    if (_branchVisible == visible) return;
+    _branchVisible = visible;
+    LocalGalleryThumbnailProvider.setGalleryVisible(visible);
+  }
+
+  @override
   void dispose() {
+    LocalGalleryThumbnailProvider.setGalleryVisible(false);
     _controller.dispose();
     super.dispose();
   }
@@ -134,47 +149,51 @@ class _LocalGalleryShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gallery = viewModel.gallery;
     return Scaffold(
-      body: Row(
-        children: [
-          if (viewModel.showPersistentCategories)
-            controller.buildCategoryPanel(
-              galleryState: gallery,
-              categoryState: viewModel.categories,
-            ),
-          Expanded(
-            child: Column(
-              children: [
-                _buildToolbar(context, ref),
-                Expanded(child: _buildBody(context, ref)),
-                if (!gallery.isIndexing &&
-                    gallery.filteredFiles.isNotEmpty &&
-                    gallery.totalPages > 0)
-                  PaginationBar(
-                    currentPage: gallery.currentPage,
-                    totalPages: gallery.totalPages,
-                    totalItems: gallery.filteredCount,
-                    itemsPerPage: gallery.pageSize,
-                    onPageChanged: (page) => ref
-                        .read(localGalleryNotifierProvider.notifier)
-                        .loadPage(page),
-                    onItemsPerPageChanged: (size) => ref
-                        .read(localGalleryNotifierProvider.notifier)
-                        .setPageSize(size),
-                    showItemsPerPage: true,
-                    showTotalInfo: true,
-                    compact: viewModel.contentWidth < 680,
-                  ),
-              ],
-            ),
-          ),
-        ],
+      body: GalleryCollectionWorkspace(
+        toolbar: _buildToolbar(context, ref),
+        sidebar: viewModel.showPersistentCategories
+            ? controller.buildCategoryPanel(
+                galleryState: gallery,
+                categoryState: viewModel.categories,
+                albumState: ref.watch(galleryAlbumNotifierProvider),
+              )
+            : null,
+        body: _buildBody(context, ref),
+        footer:
+            !gallery.isIndexing &&
+                gallery.filteredFiles.isNotEmpty &&
+                gallery.totalPages > 0
+            ? PaginationBar(
+                currentPage: gallery.currentPage,
+                totalPages: gallery.totalPages,
+                totalItems: gallery.filteredCount,
+                itemsPerPage: gallery.pageSize,
+                onPageChanged: (page) => ref
+                    .read(localGalleryNotifierProvider.notifier)
+                    .loadPage(page),
+                onItemsPerPageChanged: (size) => ref
+                    .read(localGalleryNotifierProvider.notifier)
+                    .setPageSize(size),
+                showItemsPerPage: true,
+                showTotalInfo: true,
+                compact: viewModel.contentWidth < 680,
+                tonalCard: true,
+              )
+            : null,
       ),
     );
   }
 
   Widget _buildToolbar(BuildContext context, WidgetRef ref) {
     final bulk = viewModel.bulkOperation;
+    // 浏览具体相簿（非全部/收藏）时才提供“移出相簿”入口
+    final selectedAlbumId = ref.watch(
+      galleryAlbumNotifierProvider.select((value) => value.selectedAlbumId),
+    );
+    final browsingAlbum =
+        selectedAlbumId != null && selectedAlbumId != 'favorites';
     return LocalGalleryToolbar(
+      showPageTitle: true,
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
       onEnterSelectionMode: () =>
@@ -184,13 +203,14 @@ class _LocalGalleryShell extends ConsumerWidget {
       onUndo: bulk.canUndo ? actions.undo : null,
       onRedo: bulk.canRedo ? actions.redo : null,
       groupedGridViewKey: groupedGridViewKey,
-      onAddToCollection: actions.addSelectedToCollection,
+      onAddToAlbum: actions.addSelectedToAlbum,
+      onRemoveFromAlbum: browsingAlbum ? actions.removeSelectedFromAlbum : null,
       onDeleteSelected: actions.deleteSelectedImages,
       onPackSelected: viewModel.isPackingImages
           ? null
           : () => unawaited(controller.runPacking(actions.packSelectedImages)),
       onEditMetadata: actions.editSelectedMetadata,
-      onMoveToFolder: actions.moveSelectedToFolder,
+      onMoveToCategory: actions.moveSelectedToCategory,
       showCategoryPanel: viewModel.showPersistentCategories,
       onToggleCategoryPanel: viewModel.usePersistentCategories
           ? controller.toggleCategoryPanel

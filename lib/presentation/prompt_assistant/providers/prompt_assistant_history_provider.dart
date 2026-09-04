@@ -11,6 +11,8 @@ class PromptHistorySessionIds {
 
   static String characterNegative(String characterId) =>
       'generation_character_${characterId}_negative';
+
+  static String fixedTag(String entryId) => 'fixed_tag_${entryId}_prompt';
 }
 
 class PromptHistoryStack {

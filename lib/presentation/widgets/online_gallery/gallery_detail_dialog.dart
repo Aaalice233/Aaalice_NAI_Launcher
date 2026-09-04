@@ -26,25 +26,19 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
     this.canToggleFavorite = true,
     required this.labels,
     required this.onCopyPrompt,
-    required this.onCopyNegativePrompt,
-    required this.onCopyCharacter,
-    required this.onCopyAll,
     required this.onToggleFavorite,
     required this.onOpenSource,
     required this.onSendToGenerate,
     required this.onAddToQueue,
     required this.onDownloadCurrentOriginal,
     required this.onTagSearch,
+    this.onDownloadAndWatermark,
     required this.onBlacklistChanged,
-    this.onCopyMetadata,
     this.onDownloadAll,
     this.onSendToReverse,
-    this.onCopyArtistChain,
-    this.onCopyFullPrompt,
-    this.onCopyRawArtistFragments,
-    this.hasArtistChain,
     this.isOutputFiltered,
     this.prefetchCoordinator,
+    this.embedded = false,
   });
 
   final GalleryItem item;
@@ -54,26 +48,20 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
   final bool canUseGenerationActions;
   final bool canToggleFavorite;
   final GalleryDetailDialogLabels labels;
-  final VoidCallback onCopyPrompt;
-  final VoidCallback onCopyNegativePrompt;
-  final void Function(GalleryCharacterPrompt character) onCopyCharacter;
-  final VoidCallback onCopyAll;
+  final void Function(GalleryMedia? media) onCopyPrompt;
   final Future<bool> Function() onToggleFavorite;
   final VoidCallback onOpenSource;
-  final VoidCallback onSendToGenerate;
-  final Future<void> Function() onAddToQueue;
+  final void Function(GalleryMedia? media) onSendToGenerate;
+  final Future<void> Function(GalleryMedia? media) onAddToQueue;
   final Future<void> Function(GalleryMedia media) onDownloadCurrentOriginal;
+  final Future<void> Function(GalleryMedia media)? onDownloadAndWatermark;
   final ValueChanged<String> onTagSearch;
   final VoidCallback onBlacklistChanged;
-  final void Function(GalleryMedia media)? onCopyMetadata;
   final Future<void> Function(List<GalleryMedia> media)? onDownloadAll;
   final Future<void> Function(GalleryMedia media)? onSendToReverse;
-  final void Function(GalleryMedia media)? onCopyArtistChain;
-  final void Function(GalleryMedia media)? onCopyFullPrompt;
-  final void Function(GalleryMedia media)? onCopyRawArtistFragments;
-  final bool Function(GalleryMedia media)? hasArtistChain;
   final bool Function(String tag)? isOutputFiltered;
   final OnlineGalleryPrefetchCoordinator? prefetchCoordinator;
+  final bool embedded;
 
   @override
   ConsumerState<GalleryDetailDialog> createState() =>
@@ -156,6 +144,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
       canUseGenerationActions: widget.canUseGenerationActions,
       queueActionPending: _controller.queueActionPending,
       downloadActionPending: _controller.downloadActionPending,
+      reverseActionPending: _controller.reverseActionPending,
       canToggleFavorite: widget.canToggleFavorite,
       isOutputFiltered: outputFilter,
     );
@@ -167,29 +156,31 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
       toggleFavorite: () => _controller.toggleFavorite(widget.onToggleFavorite),
       openSource: widget.onOpenSource,
       copyPrompt: widget.onCopyPrompt,
-      copyNegativePrompt: widget.onCopyNegativePrompt,
-      copyCharacter: widget.onCopyCharacter,
-      copyAll: widget.onCopyAll,
       sendToGenerate: widget.onSendToGenerate,
-      addToQueue: () => _controller.addToQueue(widget.onAddToQueue),
+      addToQueue: (media) =>
+          _controller.addToQueue(() => widget.onAddToQueue(media)),
       downloadCurrentOriginal: (media) =>
           _controller.download(() => widget.onDownloadCurrentOriginal(media)),
+      downloadAndWatermark: widget.onDownloadAndWatermark == null
+          ? null
+          : (media) => _controller.download(
+              () => widget.onDownloadAndWatermark!(media),
+            ),
       searchTag: _searchTag,
       showTagMenu: _showTagMenu,
-      copyMetadata: widget.onCopyMetadata,
       downloadAll: widget.onDownloadAll == null
           ? null
           : (media) => _controller.download(() => widget.onDownloadAll!(media)),
-      sendToReverse: widget.onSendToReverse,
-      copyArtistChain: widget.onCopyArtistChain,
-      copyFullPrompt: widget.onCopyFullPrompt,
-      copyRawArtistFragments: widget.onCopyRawArtistFragments,
-      hasArtistChain: widget.hasArtistChain,
+      sendToReverse: widget.onSendToReverse == null
+          ? null
+          : (media) =>
+                _controller.sendToReverse(() => widget.onSendToReverse!(media)),
     );
     return GalleryDetailDialogView(
       controller: _controller,
       viewModel: viewModel,
       actions: actions,
+      embedded: widget.embedded,
     );
   }
 
@@ -199,7 +190,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     widget.onTagSearch(query);
   }
 
-  Future<void> _showTagMenu(String tag, TapDownDetails details) async {
+  Future<void> _showTagMenu(String tag, TapUpDetails details) async {
     final action = await showOnlineGalleryTagContextMenu(
       context: context,
       ref: ref,

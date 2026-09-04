@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../tag_chip.dart';
 
 @immutable
@@ -28,7 +28,7 @@ class GalleryDetailTagSection extends StatelessWidget {
     required this.normalTooltip,
     required this.filteredTooltip,
     required this.onTagTap,
-    required this.onTagSecondaryTapDown,
+    required this.onTagSecondaryTapUp,
     this.sectionLabel = '',
     this.onCopySection,
     this.sectionCopyTooltip = '',
@@ -42,7 +42,7 @@ class GalleryDetailTagSection extends StatelessWidget {
   final String normalTooltip;
   final String filteredTooltip;
   final ValueChanged<String> onTagTap;
-  final void Function(String tag, TapDownDetails details) onTagSecondaryTapDown;
+  final void Function(String tag, TapUpDetails details) onTagSecondaryTapUp;
 
   @override
   Widget build(BuildContext context) {
@@ -73,8 +73,8 @@ class GalleryDetailTagSection extends StatelessWidget {
                       ? filteredTooltip
                       : normalTooltip,
                   onTap: () => onTagTap(tag),
-                  onSecondaryTapDown: (details) =>
-                      onTagSecondaryTapDown(tag, details),
+                  onSecondaryTapUp: (details) =>
+                      onTagSecondaryTapUp(tag, details),
                 ),
             ],
           ),
@@ -152,13 +152,18 @@ class _CopyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final interactionPolicy = context.interactionPolicy;
+    final controlExtent = interactionPolicy.minimumControlExtent;
     return SizedBox.square(
-      dimension: 48,
+      dimension: controlExtent,
       child: IconButton(
         onPressed: onPressed,
         padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-        visualDensity: PlatformCapabilities.current.hasTouchInput
+        constraints: BoxConstraints.tightFor(
+          width: controlExtent,
+          height: controlExtent,
+        ),
+        visualDensity: interactionPolicy.touchAvailable
             ? VisualDensity.standard
             : VisualDensity.compact,
         tooltip: tooltip,

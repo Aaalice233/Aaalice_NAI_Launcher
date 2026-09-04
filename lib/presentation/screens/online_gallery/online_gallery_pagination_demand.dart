@@ -28,7 +28,6 @@ class OnlineGalleryPaginationDemand {
   bool _queuedDemand = false;
   String? _scopeKey;
   String? _requestCursor;
-  double _requestRunwayPixels = 0;
   int _generation = 0;
   int? _activeRequestToken;
 
@@ -92,7 +91,6 @@ class OnlineGalleryPaginationDemand {
     _queuedDemand = false;
     _requestCursor = cursor;
     _requestStartedAt = _now();
-    _requestRunwayPixels = loadAheadDistance(viewportDimension);
     _activeRequestToken = ++_generation;
     return _activeRequestToken;
   }
@@ -144,15 +142,10 @@ class OnlineGalleryPaginationDemand {
     required double spacing,
     required int pageSize,
   }) {
-    final minimum = viewportDimension * _minimumRunwayViewports;
-    final maximum = viewportDimension * _maximumRunwayViewports;
-    final runway = (_requestRunwayPixels > 0 ? _requestRunwayPixels : minimum)
-        .clamp(minimum, maximum);
+    assert(pageSize > 0);
     final rowExtent = math.max(1.0, itemWidth + spacing);
-    final rows = math.max(1, (runway / rowExtent).ceil());
-    final maximumSlots =
-        math.max(1, (maximum / rowExtent).ceil()) * columnCount;
-    return math.min(maximumSlots, math.max(pageSize, rows * columnCount));
+    final visibleRows = math.max(1, (viewportDimension / rowExtent).ceil());
+    return visibleRows * columnCount;
   }
 
   void resetScope(String scopeKey) {
@@ -163,7 +156,6 @@ class OnlineGalleryPaginationDemand {
     _queuedDemand = false;
     _requestStartedAt = null;
     _requestCursor = null;
-    _requestRunwayPixels = 0;
     _lastScrollAt = null;
     _lastScrollOffset = null;
     _pixelsPerSecond = 0;

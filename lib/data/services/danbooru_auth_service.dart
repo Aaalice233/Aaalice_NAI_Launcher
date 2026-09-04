@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/network/network_failure_diagnostics.dart';
 import '../../core/storage/secure_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../datasources/remote/danbooru_api_service.dart';
@@ -99,22 +100,32 @@ class DanbooruCredentialVerifier {
   Future<(DanbooruUser?, bool isNetworkError)> verify(
     DanbooruCredentials credentials,
   ) async {
-    final apiService = DanbooruApiService(
-      Dio(
-        BaseOptions(
-          connectTimeout: const Duration(seconds: 15),
-          receiveTimeout: const Duration(seconds: 15),
-          sendTimeout: const Duration(seconds: 15),
-        ),
-      ),
-    );
-    return apiService.verifyCredentialsWithErrorType(credentials);
+    final dio = _createDanbooruAuthDio();
+    try {
+      return await DanbooruApiService(
+        dio,
+      ).verifyCredentialsWithErrorType(credentials);
+    } finally {
+      dio.close();
+    }
   }
 }
 
 @Riverpod(keepAlive: true)
 DanbooruCredentialVerifier danbooruCredentialVerifier(Ref ref) {
   return const DanbooruCredentialVerifier();
+}
+
+Dio _createDanbooruAuthDio() {
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 15),
+    ),
+  );
+  addNetworkFailureDiagnostics(dio, scope: 'Danbooru authentication');
+  return dio;
 }
 
 /// Danbooru 认证服务

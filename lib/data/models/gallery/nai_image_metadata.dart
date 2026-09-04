@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
 import '../image/image_params.dart';
+import '../fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../vibe/vibe_reference.dart';
 import 'nai_image_metadata_raw_decoder.dart';
 import 'nai_metadata_prompt_projection.dart';
@@ -173,9 +174,26 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
     /// 透明背景开关（V5 起，comment 里的 tag_hint_transparent_background）
     @HiveField(38) bool? transparentBackground,
+
+    /// Launcher 写入的版本化固定词使用快照。
+    @HiveField(40) Map<String, dynamic>? fixedTagUsageData,
+
+    /// Comment 中是否明确出现过旧版 fixed_* 字段，包括空列表。
+    @HiveField(41, defaultValue: false)
+    @Default(false)
+    bool hasRecordedFixedTagFields,
   }) = _NaiImageMetadata;
 
   const NaiImageMetadata._();
+
+  FixedTagUsageSnapshot? get fixedTagUsageSnapshot {
+    final data = fixedTagUsageData;
+    if (data == null) return null;
+    return FixedTagUsageSnapshot.fromJson(data);
+  }
+
+  bool get hasExplicitFixedTagMetadata =>
+      fixedTagUsageData != null || hasRecordedFixedTagFields;
 
   /// 从 PNG Source 字段解析出的可用模型 ID。
   String? get sourceModel =>
@@ -238,6 +256,10 @@ class NaiImageMetadata with _$NaiImageMetadata {
         fixedNegativeSuffixTags: base.fixedNegativeSuffixTags.isEmpty
             ? reparsed.fixedNegativeSuffixTags
             : base.fixedNegativeSuffixTags,
+        fixedTagUsageData: base.fixedTagUsageData ?? reparsed.fixedTagUsageData,
+        hasRecordedFixedTagFields:
+            base.hasRecordedFixedTagFields ||
+            reparsed.hasRecordedFixedTagFields,
         qualityTags: base.qualityTags.isEmpty
             ? reparsed.qualityTags
             : base.qualityTags,
@@ -369,6 +391,8 @@ NaiImageMetadata _metadataFromFields(NaiImageMetadataFields fields) =>
       fixedNegativePrefixTags: fields.fixedNegativePrefixTags,
       fixedNegativeSuffixTags: fields.fixedNegativeSuffixTags,
       transparentBackground: fields.transparentBackground,
+      fixedTagUsageData: fields.fixedTagUsageData,
+      hasRecordedFixedTagFields: fields.hasRecordedFixedTagFields,
     );
 
 bool _rawJsonMayContainUpgrade(String raw) {
@@ -388,6 +412,7 @@ bool _rawJsonMayContainUpgrade(String raw) {
     'fixed_suffix',
     'fixed_negative_prefix',
     'fixed_negative_suffix',
+    'aaalice_fixed_tags',
     'v4_prompt',
     'char_captions',
   ];

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/windowing/workspace_side_panel_contract.dart';
 import '../agent_chat/widgets/agent_chat_panel.dart';
+import '../themes/theme_extension.dart';
 import '../widgets/queue/queue_management_page.dart';
 
 /// Shell 级持久面板。单一状态所有者保证智能体与队列不会重叠。
@@ -71,115 +72,100 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final isVisible = widget.activePanel != null;
     final showingAgent = _displayedPanel == ShellPanel.agent;
-    final hiddenOffset = widget.desktop
-        ? const Offset(1, 0)
-        : const Offset(0, 1);
-    final duration = reduceMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 220);
+    final duration = reduceMotion ? Duration.zero : theme.appTheme.fastDuration;
+    final motionCurve = theme.appTheme.standardCurve;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(
           children: [
-            if (isVisible)
+            if (isVisible && !widget.desktop)
               Positioned.fill(
                 child: GestureDetector(
                   key: const ValueKey('shell-panel-scrim'),
                   behavior: HitTestBehavior.opaque,
                   onTap: widget.onClose,
                   child: ColoredBox(
-                    color: theme.colorScheme.scrim.withValues(
-                      alpha: widget.desktop ? 0.28 : 0.36,
-                    ),
+                    color: theme.colorScheme.scrim.withValues(alpha: 0.36),
                   ),
                 ),
               ),
-            TweenAnimationBuilder<Offset>(
-              tween: Tween(
-                begin: hiddenOffset,
-                end: isVisible ? Offset.zero : hiddenOffset,
-              ),
+            AnimatedOpacity(
+              key: const ValueKey('shell-panel-visibility-transition'),
+              opacity: isVisible ? 1 : 0,
               duration: duration,
-              curve: Curves.easeOutCubic,
-              builder: (context, offset, panel) {
-                final hidden = widget.desktop
-                    ? offset.dx >= 0.5
-                    : offset.dy >= 0.5;
-                return ExcludeSemantics(
-                  excluding: hidden,
-                  child: IgnorePointer(
-                    ignoring: hidden,
-                    child: FractionalTranslation(
-                      translation: offset,
-                      child: panel,
-                    ),
-                  ),
-                );
-              },
-              child: Align(
-                alignment: widget.desktop
-                    ? Alignment.centerRight
-                    : Alignment.bottomCenter,
-                child: AnimatedContainer(
-                  key: const ValueKey('shell-panel-surface'),
-                  duration: duration,
-                  curve: Curves.easeOutCubic,
-                  width: widget.desktop
-                      ? showingAgent
-                            ? WorkspaceSidePanelContract.overlayWidth(
-                                constraints.maxWidth,
+              curve: motionCurve,
+              child: ExcludeSemantics(
+                excluding: !isVisible,
+                child: IgnorePointer(
+                  ignoring: !isVisible,
+                  child: Align(
+                    alignment: widget.desktop
+                        ? Alignment.centerRight
+                        : Alignment.bottomCenter,
+                    child: SizedBox(
+                      key: const ValueKey('shell-panel-surface'),
+                      width: widget.desktop
+                          ? showingAgent
+                                ? WorkspaceSidePanelContract.overlayWidth(
+                                    constraints.maxWidth,
+                                  )
+                                : 460.0
+                                      .clamp(0, constraints.maxWidth)
+                                      .toDouble()
+                          : constraints.maxWidth,
+                      height: widget.desktop
+                          ? constraints.maxHeight
+                          : constraints.maxHeight *
+                                (showingAgent ? 0.94 : 0.85),
+                      child: Material(
+                        color: showingAgent
+                            ? theme.colorScheme.surfaceContainerHigh
+                            : theme.scaffoldBackgroundColor,
+                        elevation: 18,
+                        shadowColor: theme.shadowColor.withValues(alpha: 0.28),
+                        borderRadius: widget.desktop
+                            ? const BorderRadius.horizontal(
+                                left: Radius.circular(18),
                               )
-                            : 460.0.clamp(0, constraints.maxWidth).toDouble()
-                      : constraints.maxWidth,
-                  height: widget.desktop
-                      ? constraints.maxHeight
-                      : constraints.maxHeight * (showingAgent ? 0.94 : 0.85),
-                  child: Material(
-                    color: showingAgent
-                        ? theme.colorScheme.surfaceContainerHigh
-                        : theme.scaffoldBackgroundColor,
-                    elevation: 18,
-                    shadowColor: Colors.black.withValues(alpha: 0.28),
-                    borderRadius: widget.desktop
-                        ? const BorderRadius.horizontal(
-                            left: Radius.circular(18),
-                          )
-                        : const BorderRadius.vertical(top: Radius.circular(22)),
-                    clipBehavior: Clip.antiAlias,
-                    child: SafeArea(
-                      top: false,
-                      child: FocusScope(
-                        node: _panelFocusScopeNode,
-                        canRequestFocus: isVisible,
-                        descendantsAreFocusable: isVisible,
-                        child: FocusTraversalGroup(
-                          child: IndexedStack(
-                            index: showingAgent ? 1 : 0,
-                            children: [
-                              KeyedSubtree(
-                                key: const ValueKey('queue-shell-panel'),
-                                child: QueueManagementPage(
-                                  onClose: widget.onClose,
-                                  onQueueStarted: widget.onQueueStarted,
-                                ),
+                            : const BorderRadius.vertical(
+                                top: Radius.circular(22),
                               ),
-                              KeyedSubtree(
-                                key: const ValueKey('agent-shell-panel'),
-                                child: _hasOpenedAgent
-                                    ? AgentChatPanel(
-                                        key: const ValueKey(
-                                          'agent-drawer-chat-panel',
-                                        ),
-                                        mobile: !widget.desktop,
-                                        fullScreen: !widget.desktop,
-                                        onClose: widget.onClose,
-                                        onOpenSettings:
-                                            widget.onOpenAgentSettings,
-                                      )
-                                    : const SizedBox.shrink(),
+                        clipBehavior: Clip.antiAlias,
+                        child: SafeArea(
+                          top: false,
+                          child: FocusScope(
+                            node: _panelFocusScopeNode,
+                            canRequestFocus: isVisible,
+                            descendantsAreFocusable: isVisible,
+                            child: FocusTraversalGroup(
+                              child: IndexedStack(
+                                index: showingAgent ? 1 : 0,
+                                children: [
+                                  KeyedSubtree(
+                                    key: const ValueKey('queue-shell-panel'),
+                                    child: QueueManagementPage(
+                                      onClose: widget.onClose,
+                                      onQueueStarted: widget.onQueueStarted,
+                                    ),
+                                  ),
+                                  KeyedSubtree(
+                                    key: const ValueKey('agent-shell-panel'),
+                                    child: _hasOpenedAgent
+                                        ? AgentChatPanel(
+                                            key: const ValueKey(
+                                              'agent-drawer-chat-panel',
+                                            ),
+                                            fullScreen: !widget.desktop,
+                                            onClose: widget.onClose,
+                                            onOpenSettings:
+                                                widget.onOpenAgentSettings,
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),

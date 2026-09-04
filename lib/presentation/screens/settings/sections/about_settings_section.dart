@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_version.dart';
 import '../../../../core/constants/community_links.dart';
+import '../../../../core/services/diagnostic_log_export_service.dart';
 import '../../../../core/services/update_check_service.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/utils/app_logger.dart';
@@ -25,6 +26,8 @@ class AboutSettingsSection extends ConsumerStatefulWidget {
 }
 
 class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
+  bool _isExportingLogs = false;
+
   @override
   Widget build(BuildContext context) {
     final updateState = ref.watch(updateStateProvider);
@@ -62,6 +65,30 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
                     setState(() {});
                   }
                 },
+              ),
+              ListTile(
+                key: const ValueKey('export-diagnostic-logs'),
+                leading: const Icon(Icons.file_download_outlined),
+                title: Text(context.l10n.settings_exportDiagnosticLogs),
+                subtitle: Text(
+                  context.l10n.settings_exportDiagnosticLogsSubtitle,
+                ),
+                trailing: _isExportingLogs
+                    ? Semantics(
+                        liveRegion: true,
+                        label: context
+                            .l10n
+                            .settings_exportDiagnosticLogsInProgress,
+                        child: const ExcludeSemantics(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.chevron_right),
+                onTap: _isExportingLogs ? null : _exportDiagnosticLogs,
               ),
             ],
           ),
@@ -162,6 +189,48 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
         ),
       ],
     );
+  }
+
+  Future<void> _exportDiagnosticLogs() async {
+    setState(() => _isExportingLogs = true);
+    try {
+      final result = await ref
+          .read(diagnosticLogExportServiceProvider)
+          .export(dialogTitle: context.l10n.settings_exportDiagnosticLogs);
+      if (!mounted || result.status == DiagnosticLogExportStatus.cancelled) {
+        return;
+      }
+      final message = switch (result.status) {
+        DiagnosticLogExportStatus.exported =>
+          context.l10n.settings_exportDiagnosticLogsSuccess,
+        DiagnosticLogExportStatus.noLogs =>
+          context.l10n.settings_exportDiagnosticLogsEmpty,
+        DiagnosticLogExportStatus.cancelled => null,
+      };
+      if (message != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } on Object catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to export diagnostic logs',
+        error,
+        stackTrace,
+        'Diagnostics',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.settings_exportDiagnosticLogsFailed),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExportingLogs = false);
+      }
+    }
   }
 
   /// 格式化上次检查时间

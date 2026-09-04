@@ -42,10 +42,10 @@ String buildCharacterPanelSummary(
   return l10n.character_summaryMore(enabled.length, name, enabled.length - 1);
 }
 
-/// 官网布局左栏的角色二级菜单。
+/// 桌面提示词侧栏的角色二级菜单。
 ///
-/// 标题与反推等工作台面板复用同一壳层；角色业务状态始终由 Provider 持有，
-/// 折叠只影响展示，不改变生成参数。
+/// 经典模式与官网式布局复用同一纵向编辑结构，角色状态始终由 Provider
+/// 持有；折叠只影响展示，不改变生成参数。
 class InlineCharacterSection extends ConsumerWidget {
   const InlineCharacterSection({super.key});
 
@@ -83,10 +83,11 @@ class InlineCharacterSection extends ConsumerWidget {
       ),
       hasData: characters.isNotEmpty,
       headerActions: const [AddCharacterButtons(compact: true)],
-      centerHeaderActions: true,
+      alignHeaderActionsAfterTitle: true,
       collapsedHoverPreviewBuilder: characters.isEmpty
           ? null
           : (context) => CharacterTooltipContent(config: config),
+      collapsedHoverPreviewInteractive: true,
       childBuilder: (context) => _CharacterPanelContent(characters: characters),
     );
   }

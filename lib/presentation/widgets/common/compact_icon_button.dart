@@ -88,9 +88,12 @@ class CompactIconButton extends StatelessWidget {
     );
 
     final iconWidget = isLoading
-        ? const SizedBox.square(
+        ? SizedBox.square(
             dimension: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: CircularProgressIndicator(
+              value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
+              strokeWidth: 2,
+            ),
           )
         : Icon(icon, size: 18);
 

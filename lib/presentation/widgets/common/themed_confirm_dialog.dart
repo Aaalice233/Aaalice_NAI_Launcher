@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import 'adaptive_dialog_frame.dart';
 
 /// 确认对话框类型
 enum ThemedConfirmDialogType {
@@ -75,13 +77,34 @@ class ThemedConfirmDialog extends StatelessWidget {
     IconData? icon,
   }) async {
     final l10n = context.l10n;
+    final resolvedConfirmText = confirmText ?? l10n.common_confirm;
+    final resolvedCancelText = type == ThemedConfirmDialogType.info
+        ? null
+        : cancelText ?? l10n.common_cancel;
+    final view = View.of(context);
+    final windowWidth = view.physicalSize.width / view.devicePixelRatio;
+    if (windowWidth < 600) {
+      final result = await AdaptivePresenter.showForm<bool>(
+        context: context,
+        titleBuilder: (context) =>
+            _CompactConfirmTitle(title: title, type: type, icon: icon),
+        builder: (context, scrollController) => _CompactConfirmBody(
+          content: content,
+          confirmText: resolvedConfirmText,
+          cancelText: resolvedCancelText,
+          type: type,
+          scrollController: scrollController,
+        ),
+      );
+      return result ?? false;
+    }
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => ThemedConfirmDialog(
         title: title,
         content: content,
-        confirmText: confirmText ?? l10n.common_confirm,
-        cancelText: cancelText ?? l10n.common_cancel,
+        confirmText: resolvedConfirmText,
+        cancelText: resolvedCancelText,
         type: type,
         icon: icon,
       ),
@@ -140,43 +163,46 @@ class ThemedConfirmDialog extends StatelessWidget {
     String? confirmText,
     IconData? icon,
   }) async {
-    final l10n = context.l10n;
-    final result = await showDialog<bool>(
+    return show(
       context: context,
-      builder: (ctx) => ThemedConfirmDialog(
-        title: title,
-        content: content,
-        confirmText: confirmText ?? l10n.common_gotIt,
-        cancelText: null,
-        type: ThemedConfirmDialogType.info,
-        icon: icon ?? Icons.info_outline,
-      ),
+      title: title,
+      content: content,
+      confirmText: confirmText ?? context.l10n.common_gotIt,
+      cancelText: null,
+      type: ThemedConfirmDialogType.info,
+      icon: icon ?? Icons.info_outline,
     );
-    return result ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // 根据类型确定颜色
-    final Color accentColor;
-    switch (type) {
-      case ThemedConfirmDialogType.danger:
-        accentColor = theme.colorScheme.error;
-      case ThemedConfirmDialogType.warning:
-        accentColor = Colors.orange;
-      case ThemedConfirmDialogType.info:
-        accentColor = theme.colorScheme.primary;
-      case ThemedConfirmDialogType.normal:
-        accentColor = theme.colorScheme.primary;
-    }
+    final colors = theme.colorScheme;
+    final accentColor = switch (type) {
+      ThemedConfirmDialogType.danger => colors.error,
+      ThemedConfirmDialogType.warning => colors.tertiary,
+      ThemedConfirmDialogType.info ||
+      ThemedConfirmDialogType.normal => colors.primary,
+    };
+    final actionMaxWidth = MediaQuery.sizeOf(context).width - 80;
+    final (Color?, Color?) confirmColors = switch (type) {
+      ThemedConfirmDialogType.danger => (
+        colors.errorContainer,
+        colors.onErrorContainer,
+      ),
+      ThemedConfirmDialogType.warning => (
+        colors.tertiaryContainer,
+        colors.onTertiaryContainer,
+      ),
+      ThemedConfirmDialogType.info ||
+      ThemedConfirmDialogType.normal => (null, null),
+    };
 
     return AlertDialog(
+      scrollable: true,
       backgroundColor: theme.colorScheme.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       title: Row(
         children: [
           if (icon != null) ...[
@@ -194,11 +220,19 @@ class ThemedConfirmDialog extends StatelessWidget {
           ),
         ],
       ),
-      content: Text(
-        content,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          height: 1.5,
+      content: AdaptiveDialogFrame(
+        maxWidth: 420,
+        maxHeight: 240,
+        reservedVerticalSpace: 120,
+        scaleReservedVerticalSpace: true,
+        child: SingleChildScrollView(
+          child: Text(
+            content,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.5,
+            ),
+          ),
         ),
       ),
       actions: [
@@ -206,8 +240,12 @@ class ThemedConfirmDialog extends StatelessWidget {
         if (cancelText != null && type != ThemedConfirmDialogType.info)
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
+            style: TextButton.styleFrom(
+              maximumSize: Size(actionMaxWidth, double.infinity),
+            ),
             child: Text(
               cancelText!,
+              textAlign: TextAlign.center,
               style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
@@ -215,18 +253,116 @@ class ThemedConfirmDialog extends StatelessWidget {
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
           style: FilledButton.styleFrom(
-            backgroundColor: type == ThemedConfirmDialogType.danger ||
-                    type == ThemedConfirmDialogType.warning
-                ? accentColor
-                : null,
-            foregroundColor: type == ThemedConfirmDialogType.danger ||
-                    type == ThemedConfirmDialogType.warning
-                ? theme.colorScheme.onError
-                : null,
+            backgroundColor: confirmColors.$1,
+            foregroundColor: confirmColors.$2,
+            maximumSize: Size(actionMaxWidth, double.infinity),
           ),
-          child: Text(confirmText),
+          child: Text(confirmText, textAlign: TextAlign.center),
         ),
       ],
+    );
+  }
+}
+
+class _CompactConfirmTitle extends StatelessWidget {
+  const _CompactConfirmTitle({
+    required this.title,
+    required this.type,
+    required this.icon,
+  });
+
+  final String title;
+  final ThemedConfirmDialogType type;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final accentColor = switch (type) {
+      ThemedConfirmDialogType.danger => colors.error,
+      ThemedConfirmDialogType.warning => colors.tertiary,
+      ThemedConfirmDialogType.info ||
+      ThemedConfirmDialogType.normal => colors.primary,
+    };
+    return Row(
+      children: [
+        if (icon != null) ...[
+          Icon(icon, color: accentColor),
+          const SizedBox(width: 12),
+        ],
+        Expanded(child: Text(title)),
+      ],
+    );
+  }
+}
+
+class _CompactConfirmBody extends StatelessWidget {
+  const _CompactConfirmBody({
+    required this.content,
+    required this.confirmText,
+    required this.cancelText,
+    required this.type,
+    required this.scrollController,
+  });
+
+  final String content;
+  final String confirmText;
+  final String? cancelText;
+  final ThemedConfirmDialogType type;
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final (Color?, Color?) confirmColors = switch (type) {
+      ThemedConfirmDialogType.danger => (
+        colors.errorContainer,
+        colors.onErrorContainer,
+      ),
+      ThemedConfirmDialogType.warning => (
+        colors.tertiaryContainer,
+        colors.onTertiaryContainer,
+      ),
+      ThemedConfirmDialogType.info ||
+      ThemedConfirmDialogType.normal => (null, null),
+    };
+    return SingleChildScrollView(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            content,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colors.onSurfaceVariant,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (cancelText != null)
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(cancelText!, textAlign: TextAlign.center),
+                ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: confirmColors.$1,
+                  foregroundColor: confirmColors.$2,
+                ),
+                child: Text(confirmText, textAlign: TextAlign.center),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

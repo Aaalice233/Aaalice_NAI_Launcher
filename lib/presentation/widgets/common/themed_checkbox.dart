@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
+import '../../adaptive/interaction_policy.dart';
 
 /// 项目统一复选框。
 ///
@@ -27,17 +31,21 @@ class ThemedCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final minimumExtent = context.interactionPolicy.minimumControlExtent;
+    final targetExtent = math.max(size, minimumExtent);
+
     return SizedBox.square(
-      dimension: size,
-      child: FittedBox(
-        child: Checkbox(
-          value: tristate ? value : (value ?? false),
-          onChanged: enabled ? onChanged : null,
-          tristate: tristate,
-          activeColor: activeColor,
-          checkColor: checkColor,
-          side: borderColor == null ? null : BorderSide(color: borderColor!),
-        ),
+      dimension: targetExtent,
+      child: Checkbox(
+        value: tristate ? value : (value ?? false),
+        onChanged: enabled ? onChanged : null,
+        tristate: tristate,
+        activeColor: activeColor,
+        checkColor: checkColor,
+        side: borderColor == null ? null : BorderSide(color: borderColor!),
+        materialTapTargetSize: minimumExtent >= 48
+            ? MaterialTapTargetSize.padded
+            : MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }

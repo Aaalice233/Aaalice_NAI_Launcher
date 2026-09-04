@@ -9,6 +9,20 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Path.GetRelativePath needs .NET Core 2.0+, so Windows PowerShell 5.1 has no
+# such method. Callers always pass a descendant, making a prefix cut exact.
+function Get-PathRelativeTo {
+  param([string]$BasePath, [string]$FullPath)
+
+  $separator = [IO.Path]::DirectorySeparatorChar
+  $base = [IO.Path]::GetFullPath($BasePath).TrimEnd($separator)
+  $full = [IO.Path]::GetFullPath($FullPath)
+  if (-not $full.StartsWith($base + $separator, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "'$FullPath' is not inside '$BasePath'."
+  }
+  return $full.Substring($base.Length + 1)
+}
+
 function ConvertTo-PortablePath {
   param([string]$Path)
 
@@ -104,7 +118,7 @@ if ($PSCmdlet.ParameterSetName -eq 'Directory') {
 
   $entriesByPath = @{}
   foreach ($file in Get-ChildItem -LiteralPath $resolvedDirectory -File -Recurse) {
-    $relativePath = [IO.Path]::GetRelativePath($resolvedDirectory, $file.FullName)
+    $relativePath = Get-PathRelativeTo $resolvedDirectory $file.FullName
     $normalized = ConvertTo-PortablePath $relativePath
     if ($entriesByPath.ContainsKey($normalized)) {
       throw "Portable package directory contains a duplicate path: $normalized"

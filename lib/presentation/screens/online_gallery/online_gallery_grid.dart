@@ -6,7 +6,6 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../providers/online_gallery_provider.dart';
-import '../../widgets/online_gallery/online_gallery_image_placeholder.dart';
 import 'online_gallery_masonry_layout.dart';
 import 'online_gallery_screen_controller.dart';
 
@@ -25,6 +24,8 @@ typedef OnlineGalleryVisibilityItemBuilder =
       bool isScrolling,
       bool isVisible,
     );
+
+void _revealImmediately(VoidCallback reveal) => reveal();
 
 typedef OnlineGalleryGridFooterBuilder =
     Widget Function(BuildContext context, double itemWidth, int columnCount);
@@ -91,9 +92,24 @@ class OnlineGalleryGrid extends StatelessWidget {
           0.0,
           double.infinity,
         );
-        final columnCount = ((availableWidth + spacing) / (160 + spacing))
-            .floor()
-            .clamp(1, 8);
+        final viewportScope = state.randomEnabled
+            ? 'random:${state.randomSession.scopeKey}'
+            : state.currentCacheKey;
+        final activeCache = state.randomEnabled
+            ? state.randomSession.cache
+            : state.currentCache;
+        if (availableWidth <= 0 || constraints.maxHeight <= 0) {
+          controller.markViewportUnavailable(
+            scope: viewportScope,
+            posts: state.posts,
+          );
+          return const SizedBox.shrink();
+        }
+        const minimumTileWidth = 140.0;
+        final columnCount =
+            ((availableWidth + spacing) / (minimumTileWidth + spacing))
+                .floor()
+                .clamp(1, 8);
         final itemWidth =
             (availableWidth - (columnCount - 1) * spacing) / columnCount;
         final viewportHeight = controller.scrollController.hasClients
@@ -103,9 +119,6 @@ class OnlineGalleryGrid extends StatelessWidget {
         final storageScope = state.randomEnabled
             ? 'random:${state.randomSession.scopeKey}'
             : 'normal';
-        final activeCache = state.randomEnabled
-            ? state.randomSession.cache
-            : state.currentCache;
         final showFooterBeforeRunway = activeCache.appendErrorCode != null;
         final placeholderCount = showFooterBeforeRunway
             ? 0
@@ -143,6 +156,14 @@ class OnlineGalleryGrid extends StatelessWidget {
           maxScrollExtent: masonryLayout.maxScrollExtent,
           elapsed: layoutStopwatch?.elapsed ?? Duration.zero,
         );
+        controller.prepareGridViewport(
+          scope: viewportScope,
+          cache: activeCache,
+          posts: state.posts,
+          layout: masonryLayout,
+          columnCount: columnCount,
+          itemWidth: itemWidth,
+        );
         final slotKeyPrefix =
             'gallery-slot:$storageScope:${state.currentCacheKey}:';
         int? findSlotIndex(Key key) {
@@ -171,9 +192,7 @@ class OnlineGalleryGrid extends StatelessWidget {
         }
 
         return CustomScrollView(
-          key: PageStorageKey<String>(
-            'online_gallery_$storageScope:${state.currentCacheKey}',
-          ),
+          key: ValueKey<String>('online-gallery-scroll:$viewportScope'),
           controller: controller.scrollController,
           scrollCacheExtent: ScrollCacheExtent.pixels(
             OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),
@@ -216,9 +235,11 @@ class OnlineGalleryPendingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: itemWidth,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: const OnlineGalleryImagePlaceholder(loading: true),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }
@@ -234,6 +255,7 @@ class OnlineGalleryVisibilityDrivenItem extends StatefulWidget {
     this.onGeometryMeasured,
     this.onVisibilityTransition,
     this.onVisibilityDrivenRebuild,
+    this.scheduleReveal = _revealImmediately,
     required this.builder,
   });
 
@@ -249,6 +271,7 @@ class OnlineGalleryVisibilityDrivenItem extends StatefulWidget {
   final ValueChanged<Duration>? onGeometryMeasured;
   final VoidCallback? onVisibilityTransition;
   final VoidCallback? onVisibilityDrivenRebuild;
+  final void Function(VoidCallback reveal) scheduleReveal;
   final OnlineGalleryVisibilityItemBuilder builder;
 
   @override
@@ -263,6 +286,7 @@ class OnlineGalleryVisibilityDrivenItemState
   bool _isVisible = false;
   late bool _isScrolling;
   bool _listensForScrolling = false;
+  bool _revealQueued = false;
 
   @override
   void initState() {
@@ -302,10 +326,24 @@ class OnlineGalleryVisibilityDrivenItemState
     _isScrolling = value;
     if (_hasBeenVisible || !mounted) return;
     if (!value && _isVisible) {
+      _queueReveal();
+    }
+  }
+
+  void _queueReveal() {
+    if (_hasBeenVisible || _revealQueued || !mounted) return;
+    _revealQueued = true;
+    widget.scheduleReveal(() {
+      _revealQueued = false;
+      if (!mounted || _hasBeenVisible) return;
+      if (!_isVisible || _isScrolling) {
+        _startListeningForScrolling();
+        return;
+      }
       _stopListeningForScrolling();
       widget.onVisibilityDrivenRebuild?.call();
       setState(() => _hasBeenVisible = true);
-    }
+    });
   }
 
   @override
@@ -351,9 +389,7 @@ class OnlineGalleryVisibilityDrivenItemState
         _isVisible = visible;
         widget.onVisibilityTransition?.call();
         if (visible && !_hasBeenVisible && !_isScrolling && mounted) {
-          _stopListeningForScrolling();
-          widget.onVisibilityDrivenRebuild?.call();
-          setState(() => _hasBeenVisible = true);
+          _queueReveal();
         }
       },
       child: widget.builder(context, _hasBeenVisible, _isScrolling, _isVisible),

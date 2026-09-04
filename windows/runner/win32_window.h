@@ -72,6 +72,10 @@ class Win32Window {
   // Called when Destroy is called.
   virtual void OnDestroy();
 
+  // Re-emits the current child size so Flutter refreshes both the physical
+  // surface extent and the per-monitor pixel ratio after a hot reload.
+  void SynchronizeChildContentMetrics();
+
  private:
   friend class WindowClassRegistrar;
 
@@ -103,6 +107,8 @@ class Win32Window {
   // window handle for hosted content.
   HWND child_content_ = nullptr;
   bool child_resize_pending_ = false;
+  RECT last_valid_client_rect_{};
+  bool has_last_valid_client_rect_ = false;
 };
 
 #endif  // RUNNER_WIN32_WINDOW_H_

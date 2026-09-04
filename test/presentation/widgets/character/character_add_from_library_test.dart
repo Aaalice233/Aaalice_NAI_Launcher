@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -77,8 +78,61 @@ void main() {
     await openLibraryMenuItem(tester);
 
     expect(find.byType(TagLibraryPickerDialog), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
+    expect(find.byType(Dialog), findsNothing);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('wide toolbar character tooltip keeps a compact preview width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final characterNotifier = _TestCharacterPromptNotifier(
+      const CharacterPromptConfig(
+        characters: [
+          CharacterPrompt(
+            id: 'char-1',
+            name: 'Alice',
+            prompt: 'girl, red hair',
+          ),
+          CharacterPrompt(id: 'char-2', name: 'Bob', prompt: 'boy, blue hair'),
+        ],
+      ),
+    );
+    await tester.pumpWidget(
+      buildTestApp(
+        const Align(
+          alignment: Alignment.bottomCenter,
+          child: CharacterPromptButton(),
+        ),
+        overrides: [
+          characterPromptNotifierProvider.overrideWith(() => characterNotifier),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = find.byType(CharacterPromptButton);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(button));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+
+    final preview = find.byKey(const Key('character-hover-preview'));
+    expect(preview, findsOneWidget);
+    expect(tester.getSize(preview).width, lessThanOrEqualTo(380));
+    expect(tester.getSize(preview).width, lessThan(1920 / 2));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('classic character row opens the library picker', (tester) async {
@@ -164,10 +218,14 @@ class _TestTagLibraryPageNotifier extends TagLibraryPageNotifier {
 }
 
 class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
+  _TestCharacterPromptNotifier([this.initial = const CharacterPromptConfig()]);
+
+  final CharacterPromptConfig initial;
+
   CharacterPromptConfig get current => state;
 
   @override
-  CharacterPromptConfig build() => const CharacterPromptConfig();
+  CharacterPromptConfig build() => initial;
 
   @override
   void addCharacter(

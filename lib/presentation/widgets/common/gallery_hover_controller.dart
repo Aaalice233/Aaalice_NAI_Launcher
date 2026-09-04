@@ -30,6 +30,7 @@ class GalleryHoverController with WidgetsBindingObserver {
     required WidgetBuilder builder,
     VoidCallback? onIntent,
     VoidCallback? onDismissIntent,
+    bool allowPointerInteraction = false,
     Duration delay = const Duration(milliseconds: 280),
   }) {
     dismiss();
@@ -65,6 +66,7 @@ class GalleryHoverController with WidgetsBindingObserver {
           }
           return Positioned.fill(
             child: IgnorePointer(
+              ignoring: !allowPointerInteraction,
               child: CompositedTransformFollower(
                 link: layerLink,
                 showWhenUnlinked: false,

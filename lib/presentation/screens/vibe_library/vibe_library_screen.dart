@@ -30,6 +30,8 @@ import 'vibe_library_commands.dart';
 import 'vibe_library_screen_controller.dart';
 import 'vibe_library_workspace.dart';
 import 'widgets/category/vibe_category_tree_view.dart';
+import 'widgets/category/vibe_category_destination_panel.dart';
+export 'widgets/category/vibe_category_destination_panel.dart';
 import 'widgets/menus/vibe_import_menu.dart';
 import 'widgets/vibe_export_dialog_advanced.dart';
 
@@ -165,14 +167,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         unawaited(_showCategoryPanel());
       case SelectCategoryCommand(:final categoryId):
         _selectCategory(categoryId);
-      case CreateCategoryCommand(:final parentId):
-        unawaited(_createCategory(parentId));
+      case CreateCategoryCommand():
+        unawaited(_createCategory());
       case RenameCategoryCommand(:final categoryId, :final name):
         unawaited(categories.renameCategory(categoryId, name));
       case DeleteCategoryCommand(:final categoryId):
         unawaited(_deleteCategory(categoryId));
-      case MoveCategoryCommand(:final categoryId, :final parentId):
-        unawaited(categories.moveCategory(categoryId, parentId));
       case EnterSelectionModeCommand():
         selection.enter();
       case ExitSelectionModeCommand():
@@ -188,10 +188,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         unawaited(library.setSortOrder(order));
       case ChangePageSizeCommand(:final size):
         unawaited(library.setPageSize(size));
-      case PreviousPageCommand():
-        unawaited(library.loadPreviousPage());
-      case NextPageCommand():
-        unawaited(library.loadNextPage());
+      case ChangePageCommand(:final page):
+        unawaited(library.loadPage(page));
       case SendSelectionToGenerationCommand():
         unawaited(_sendSelection());
       case MoveSelectionCommand():
@@ -204,6 +202,17 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         unawaited(_markEncodingModel());
       case DeleteSelectionCommand():
         unawaited(_deleteSelection());
+      case ClassifyVibeEntryCommand(:final entryId, :final categoryId):
+        unawaited(library.updateEntryCategory(entryId, categoryId));
+      case FavoriteVibeEntryCommand(:final entryId):
+        final entry = ref
+            .read(vibeLibraryNotifierProvider)
+            .entries
+            .cast<VibeLibraryEntry?>()
+            .firstWhere((item) => item?.id == entryId, orElse: () => null);
+        if (entry != null && !entry.isFavorite) {
+          unawaited(library.toggleFavorite(entryId));
+        }
     }
   }
 
@@ -228,6 +237,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           categories: categories.categories,
           totalEntryCount: library.entries.length,
           favoriteCount: library.favoriteCount,
+          categoryEntryCounts: library.categoryEntryCounts,
           selectedCategoryId: categories.selectedCategoryId,
           onCategorySelected: (id) {
             _selectCategory(id);
@@ -237,22 +247,17 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
               .read(vibeLibraryCategoryNotifierProvider.notifier)
               .renameCategory(id, name),
           onCategoryDelete: _deleteCategory,
-          onAddSubCategory: (id) => _createCategory(id),
-          onCategoryMove: (id, parent) => panelRef
-              .read(vibeLibraryCategoryNotifierProvider.notifier)
-              .moveCategory(id, parent),
+          onCreateCategory: _createCategory,
         );
       },
     ),
   );
 
-  Future<void> _createCategory(String? parentId) async {
+  Future<void> _createCategory() async {
     final name = await _controller.runDialogLocked(
       () => ThemedInputDialog.show(
         context: context,
-        title: parentId == null
-            ? context.l10n.vibeLibrary_createCategoryTitle
-            : context.l10n.vibeLibrary_createSubCategoryTitle,
+        title: context.l10n.vibeLibrary_createCategoryTitle,
         hintText: context.l10n.vibeLibrary_categoryNameHint,
         confirmText: context.l10n.vibeLibrary_createCategoryConfirm,
         cancelText: context.l10n.common_cancel,
@@ -261,7 +266,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     if (name?.isNotEmpty == true && mounted) {
       await ref
           .read(vibeLibraryCategoryNotifierProvider.notifier)
-          .createCategory(name!, parentId: parentId);
+          .createCategory(name!);
     }
   }
 
@@ -300,23 +305,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       return;
     }
     final destination = await _controller.runDialogLocked(
-      () => showDialog<String?>(
-        context: context,
-        builder: (context) => SimpleDialog(
-          title: Text(context.l10n.vibeLibrary_moveToCategory),
-          children: [
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, ''),
-              child: Text(context.l10n.vibeLibrary_uncategorized),
-            ),
-            for (final category in categories)
-              SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, category.id),
-                child: Text(category.name),
-              ),
-          ],
-        ),
-      ),
+      () => VibeCategoryDestinationPanel.show(context, categories: categories),
     );
     if (destination == null || !mounted) return;
     final count = await ref
@@ -423,18 +412,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
   Future<void> _showVibeLimitDialog(String message) {
     return _controller.runDialogLocked(
-      () => showDialog<void>(
+      () => ThemedConfirmDialog.showInfo(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text(context.l10n.vibeLibrary_tooManyTitle),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.l10n.common_ok),
-            ),
-          ],
-        ),
+        title: context.l10n.vibeLibrary_tooManyTitle,
+        content: message,
+        confirmText: context.l10n.common_ok,
+        icon: Icons.info_outline,
       ),
     );
   }
@@ -482,8 +465,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }
 
   void _showImportMenu(Offset position) {
-    Navigator.of(context).push(
-      ImportMenu(
+    unawaited(
+      context.showImportMenu(
         position: position,
         items: [
           ProMenuItem(
@@ -505,7 +488,6 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             onTap: _imports.importClipboard,
           ),
         ],
-        onSelect: (_) {},
       ),
     );
   }
@@ -535,10 +517,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         : source;
     if (selected.isEmpty || !mounted) return;
     await _controller.runDialogLocked(
-      () => showDialog<void>(
-        context: context,
-        builder: (_) => VibeExportDialogAdvanced(entries: selected),
-      ),
+      () => VibeExportDialogAdvanced.show(context, entries: selected),
     );
   }
 }

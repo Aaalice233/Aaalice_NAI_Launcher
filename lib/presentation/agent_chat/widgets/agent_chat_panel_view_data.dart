@@ -16,9 +16,8 @@ class AgentChatPanelViewData {
     required this.config,
     required this.agentSettings,
     required this.webAccess,
-    required this.mobile,
     required this.fullScreen,
-    required this.compactMobile,
+    required this.compactHeight,
     required this.width,
     required this.height,
     required this.onClose,
@@ -31,9 +30,8 @@ class AgentChatPanelViewData {
   final PromptAssistantConfigState config;
   final AgentSettingsState agentSettings;
   final WebAccessConfigState webAccess;
-  final bool mobile;
   final bool fullScreen;
-  final bool compactMobile;
+  final bool compactHeight;
   final double width;
   final double height;
   final VoidCallback? onClose;
@@ -46,7 +44,6 @@ class AgentChatPanelViewData {
       AgentChatLayoutContract.widthClassFor(width);
   bool get compactWidth => widthClass == AgentChatWidthClass.compact;
   bool get stackComposerControls =>
-      mobile ||
       AgentChatLayoutContract.stackComposerControls(width, running: running);
   double get userBubbleMaxWidth =>
       AgentChatLayoutContract.userBubbleMaxWidth(width);

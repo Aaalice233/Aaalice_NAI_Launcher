@@ -1,30 +1,42 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
+import '../operation.dart';
+import '../telemetry.dart';
+import 'backend_http.dart';
+import 'cloud_namespace.dart';
+import 'cloud_object_inventory_verifier.dart';
+import 'cloud_object_naming.dart';
 import 'cloud_sync_backend.dart';
 import 'github_api_client.dart';
 import 'github_backend_support.dart';
 
 class GitHubCloudSyncBackend
-    implements CloudSyncBackend, CloudKeyEnvelopeBackend {
+    implements
+        CloudSyncBackend,
+        CloudObjectInventoryBackend,
+        ConcurrentCloudObjectUploadBackend {
   GitHubCloudSyncBackend({
     required this.owner,
     required this.repository,
     required this.branch,
     required String token,
-    this.namespace = 'aaalice-sync',
+    this.namespace = defaultCloudSyncV3Namespace,
     Dio? dio,
     Uri? apiBaseUri,
+    BackendHttpSleeper? sleeper,
   }) : _api = GitHubApiClient(
          owner: owner,
          repository: repository,
          branch: branch,
          token: token,
-         dio: dio,
+         dio: _withTelemetry(dio),
          apiBaseUri: apiBaseUri,
+         sleeper: sleeper,
        ) {
     for (final value in [owner, repository, branch]) {
       if (value.trim().isEmpty) throw ArgumentError('GitHub 配置不能为空');
@@ -34,12 +46,28 @@ class GitHubCloudSyncBackend
 
   static const int _blobLimit = 100 * 1024 * 1024;
 
+  static Dio _withTelemetry(Dio? dio) {
+    final client = dio ?? Dio();
+    if (!client.interceptors.any(
+      (interceptor) => interceptor is _GitHubTelemetryInterceptor,
+    )) {
+      client.interceptors.add(const _GitHubTelemetryInterceptor());
+    }
+    return client;
+  }
+
   final String owner;
   final String repository;
   final String branch;
   final String namespace;
   final GitHubApiClient _api;
+  _StagingSession? _view;
   _StagingSession? _staging;
+  Future<_StagingSession>? _stagingLoad;
+  final Map<String, String> _verifiedObjectRevisions = {};
+
+  @override
+  int get maxConcurrentObjectUploads => 4;
 
   String get _root => namespace.replaceAll(RegExp(r'^/+|/+$'), '');
 
@@ -54,86 +82,131 @@ class GitHubCloudSyncBackend
         statusCode: 403,
       );
     }
-    await _api.ensureBranch(repository, _root);
     final isPrivate = repository['private'] == true;
     return CloudBackendCapability(
       mode: CloudBackendMode.bidirectional,
       message: 'GitHub 连接正常，可以推送和拉取备份。',
       supportsHistory: true,
       supportsDelete: true,
-      warnings: [if (!isPrivate) '当前 GitHub 仓库是公开仓库，备份内容会公开；建议改用私有仓库。'],
+      warnings: [if (!isPrivate) CloudBackendWarning.githubPublicRepository],
     );
   }
 
   @override
   Future<CloudHeadRead?> readHead() async {
-    final branchSha = await _api.branchSha();
-    final result = await _api.readPath(
+    _staging = null;
+    final view = await _refreshView();
+    final result = await _readFromView(
+      view,
       '$_root/HEAD.json',
-      ref: branchSha,
       maxBytes: maxCloudHeadResponseBytes,
     );
     if (result == null) return null;
     return CloudHeadRead(
       bytes: result.bytes,
-      revision: '${result.revision}:$branchSha',
+      revision: '${result.revision}:${view.base.commit}',
     );
   }
 
   @override
-  Future<CloudObjectRead?> readKeyEnvelope() =>
-      _api.readPath('$_root/KEY.json', maxBytes: maxCloudKeyResponseBytes);
-
-  @override
-  Future<CloudCommitResult> commitKeyEnvelope(
-    Uint8List bytes, {
-    required String? expectedRevision,
-  }) async {
-    _checkProtocolSize(bytes, maxCloudKeyResponseBytes);
-    final current = await _api.readPath(
-      '$_root/KEY.json',
-      maxBytes: maxCloudKeyResponseBytes,
-    );
-    if ((expectedRevision == null && current != null) ||
-        (expectedRevision != null && current?.revision != expectedRevision)) {
-      throw const CloudBackendException(
-        CloudBackendErrorKind.conflict,
-        '远端 KEY 已被其他设备更新，请重新读取后重试。',
-      );
-    }
-    final response = await _api.jsonRequest(
-      'PUT',
-      _api.contents('$_root/KEY.json', forWrite: true),
-      action: '提交 KEY',
-      accepted: const {200, 201},
-      data: {
-        'message': 'cloud-sync: update KEY',
-        'content': base64Encode(bytes),
-        'branch': branch,
-        if (current != null) 'sha': current.revision,
-      },
-    );
-    return CloudCommitResult(
-      revision: GitHubBackendSupport.contentSha(response),
-    );
-  }
-
-  @override
-  Future<CloudObjectRead?> readObject(String objectId) {
+  Future<CloudObjectRead?> readObject(String objectId) async {
     GitHubBackendSupport.validateId(objectId);
-    return _api.readPath(
+    final view = await _currentView();
+    final read = await _readFromView(
+      view,
       '$_root/objects/$objectId',
       maxBytes: maxCloudObjectResponseBytes,
     );
+    if (read != null &&
+        CloudObjectNaming.isContentAddressedId(objectId) &&
+        _hashBytes(read.bytes) != objectId) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        'GitHub 不可变对象内容与对象标识不一致。',
+      );
+    }
+    if (read != null && CloudObjectNaming.isContentAddressedId(objectId)) {
+      _verifiedObjectRevisions[objectId] = read.revision;
+    }
+    return read;
   }
 
   @override
-  Future<CloudObjectRead?> readSnapshotManifest(String snapshotId) {
+  Future<CloudObjectRead?> readSnapshotManifest(String snapshotId) async {
     GitHubBackendSupport.validateId(snapshotId);
-    return _api.readPath(
+    final view = await _currentView();
+    return _readFromView(
+      view,
       '$_root/snapshots/$snapshotId.json',
       maxBytes: maxCloudManifestResponseBytes,
     );
+  }
+
+  @override
+  Future<CloudObjectInventoryResult> findExistingObjects(
+    Map<String, int> expectedObjects, {
+    Map<String, String> trustedRevisions = const {},
+    OperationToken? token,
+    CloudObjectInventoryProgressCallback? onProgress,
+  }) async {
+    for (final entry in expectedObjects.entries) {
+      GitHubBackendSupport.validateId(entry.key);
+      if (entry.value < 0 || !RegExp(r'^[a-f0-9]{64}$').hasMatch(entry.key)) {
+        throw ArgumentError('GitHub 对象清单包含无效的 SHA256 或大小');
+      }
+    }
+    final session = await _stagingSession();
+    final candidates = <CloudObjectInventoryCandidate>[];
+    final blobsByObjectId = <String, String>{};
+    for (final entry in expectedObjects.entries) {
+      final remote = session.inventory['$_root/objects/${entry.key}'];
+      if (remote == null) continue;
+      if (remote.size != entry.value) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          'GitHub 已存在大小不一致的不可变对象。',
+        );
+      }
+      blobsByObjectId[entry.key] = remote.sha;
+      candidates.add(
+        CloudObjectInventoryCandidate(
+          objectId: entry.key,
+          size: entry.value,
+          revision: remote.sha,
+          verificationRevision: 'github:$owner/$repository:${remote.sha}',
+        ),
+      );
+    }
+    final effectiveTrustedRevisions = {...trustedRevisions};
+    for (final candidate in candidates) {
+      final inMemory = _verifiedObjectRevisions[candidate.objectId];
+      if (inMemory == candidate.revision ||
+          inMemory == candidate.verificationRevision) {
+        effectiveTrustedRevisions[candidate.objectId] =
+            candidate.verificationRevision;
+      }
+    }
+    final result = await verifyCloudObjectInventory(
+      candidates: candidates,
+      trustedRevisions: effectiveTrustedRevisions,
+      maxConcurrentItems: maxConcurrentObjectUploads,
+      token: token,
+      onProgress: onProgress,
+      verify: (candidate) async {
+        final read = await _api.readBlob(
+          blobsByObjectId[candidate.objectId]!,
+          maxBytes: maxCloudObjectResponseBytes,
+        );
+        if (_hashBytes(read.bytes) != candidate.objectId) {
+          throw const CloudBackendException(
+            CloudBackendErrorKind.conflict,
+            'GitHub 已存在内容不一致的不可变对象。',
+          );
+        }
+      },
+    );
+    _verifiedObjectRevisions.addAll(result.verifiedRevisions);
+    return result;
   }
 
   @override
@@ -141,6 +214,7 @@ class GitHubCloudSyncBackend
     String objectId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   }) {
     GitHubBackendSupport.validateId(objectId);
     return _stageImmutable(
@@ -148,6 +222,7 @@ class GitHubCloudSyncBackend
       bytes,
       sha256,
       maxBytes: maxCloudObjectResponseBytes,
+      payloadVerified: payloadVerified,
     );
   }
 
@@ -156,6 +231,7 @@ class GitHubCloudSyncBackend
     String snapshotId,
     Uint8List bytes, {
     required String sha256,
+    bool payloadVerified = false,
   }) {
     GitHubBackendSupport.validateId(snapshotId);
     return _stageImmutable(
@@ -163,6 +239,7 @@ class GitHubCloudSyncBackend
       bytes,
       sha256,
       maxBytes: maxCloudManifestResponseBytes,
+      payloadVerified: payloadVerified,
     );
   }
 
@@ -171,16 +248,26 @@ class GitHubCloudSyncBackend
     Uint8List bytes,
     String expectedHash, {
     required int maxBytes,
+    required bool payloadVerified,
   }) async {
     _checkProtocolSize(bytes, maxBytes);
+    if (!payloadVerified && _hashBytes(bytes) != expectedHash) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        '上传内容与声明的 SHA-256 不一致。',
+      );
+    }
     final session = await _stagingSession();
-    final existing = await _api.readPath(
-      path,
-      ref: session.base.commit,
-      maxBytes: maxCloudObjectResponseBytes,
-    );
-    if (existing != null) {
-      if (sha256.convert(existing.bytes).toString() == expectedHash) {
+    final existingEntry = session.inventory[path];
+    if (existingEntry != null) {
+      final existing = await _api.readBlob(
+        existingEntry.sha,
+        maxBytes: maxBytes,
+      );
+      if (_hashBytes(existing.bytes) == expectedHash) {
+        if (path.startsWith('$_root/objects/')) {
+          _verifiedObjectRevisions[expectedHash] = existing.revision;
+        }
         return CloudCommitResult(revision: existing.revision);
       }
       throw const CloudBackendException(
@@ -196,6 +283,9 @@ class GitHubCloudSyncBackend
       );
     }
     session.entries[path] = blobSha;
+    if (path.startsWith('$_root/objects/')) {
+      _verifiedObjectRevisions[expectedHash] = blobSha;
+    }
     return CloudCommitResult(revision: blobSha);
   }
 
@@ -206,15 +296,18 @@ class GitHubCloudSyncBackend
   }) async {
     _checkProtocolSize(bytes, maxCloudHeadResponseBytes);
     final session = await _stagingSession();
-    final current = await _api.readPath(
+    final current = await _readFromView(
+      session,
       '$_root/HEAD.json',
-      ref: session.base.commit,
       maxBytes: maxCloudHeadResponseBytes,
     );
     final expected = _HeadRevision.parse(expectedRevision);
     if ((expected == null && current != null) ||
-        (expected != null && current?.revision != expected.file)) {
+        (expected != null &&
+            (current?.revision != expected.file ||
+                session.base.commit != expected.commit))) {
       _staging = null;
+      _view = null;
       throw const CloudBackendException(
         CloudBackendErrorKind.conflict,
         '远端 HEAD 或分支已被其他提交更新，请重新读取后重试。',
@@ -231,39 +324,66 @@ class GitHubCloudSyncBackend
       return CloudCommitResult(revision: '$headBlob:$commitSha');
     } finally {
       _staging = null;
+      _view = null;
     }
   }
 
   Future<_StagingSession> _stagingSession() async {
     final existing = _staging;
     if (existing != null) return existing;
-    return _staging = _StagingSession(await _api.readTreeBase());
+    final pending = _stagingLoad;
+    if (pending != null) return pending;
+    late final Future<_StagingSession> loading;
+    loading = () async {
+      final view = await _currentView();
+      return _staging ??= _StagingSession(view.base, view.inventory);
+    }();
+    _stagingLoad = loading;
+    try {
+      return await loading;
+    } finally {
+      if (identical(_stagingLoad, loading)) _stagingLoad = null;
+    }
+  }
+
+  Future<_StagingSession> _currentView() async {
+    final existing = _view;
+    if (existing != null) return existing;
+    return _refreshView();
+  }
+
+  Future<_StagingSession> _refreshView() async {
+    final base = await _api.readTreeBase();
+    final inventory = await _api.readRecursiveTree(base.tree);
+    return _view = _StagingSession(base, inventory);
+  }
+
+  Future<CloudObjectRead?> _readFromView(
+    _StagingSession view,
+    String path, {
+    required int maxBytes,
+  }) {
+    final entry = view.inventory[path];
+    if (entry == null) return Future.value();
+    if (entry.size > maxBytes) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub blob 超过允许的下载大小。',
+      );
+    }
+    return _api.readBlob(entry.sha, maxBytes: maxBytes);
   }
 
   @override
   Future<List<String>> listSnapshotIds({int limit = 20}) async {
     if (limit <= 0) return const [];
-    final response = await _api.request(
-      'GET',
-      _api.contents('$_root/snapshots'),
-      action: '读取快照历史',
-      allowNotFound: true,
-    );
-    if (response == null) return const [];
-    final decoded = _api.decodeJson(response);
-    if (decoded is! List) {
-      throw const CloudBackendException(
-        CloudBackendErrorKind.invalidResponse,
-        'GitHub 快照目录响应格式无效。',
-      );
-    }
+    final view = await _refreshView();
+    final prefix = '$_root/snapshots/';
     final ids =
-        decoded
-            .whereType<Map>()
-            .map((item) => item['name'])
-            .whereType<String>()
-            .where((name) => name.endsWith('.json'))
-            .map((name) => name.substring(0, name.length - 5))
+        view.inventory.keys
+            .where((path) => path.startsWith(prefix) && path.endsWith('.json'))
+            .map((path) => path.substring(prefix.length, path.length - 5))
+            .where((id) => id.isNotEmpty && !id.contains('/'))
             .toList()
           ..sort((a, b) => b.compareTo(a));
     return ids.take(limit).toList(growable: false);
@@ -271,21 +391,21 @@ class GitHubCloudSyncBackend
 
   @override
   Future<void> deleteNamespace() async {
-    final base = await _api.readTreeBase();
-    final existing = await _api.request(
-      'GET',
-      _api.contents(_root, ref: base.commit),
-      action: '读取同步 namespace',
-      allowNotFound: true,
-    );
-    if (existing == null) return;
-    final retained = await _api.topLevelEntriesExcluding(base.tree, _root);
+    final view = await _refreshView();
+    if (!view.inventory.keys.any(
+      (path) => path == _root || path.startsWith('$_root/'),
+    )) {
+      _verifiedObjectRevisions.clear();
+      return;
+    }
     await _api.commitTree(
-      base: base,
-      entries: retained,
+      base: view.base,
+      entries: [
+        {'path': _root, 'mode': '040000', 'type': 'tree', 'sha': null},
+      ],
       message: 'cloud-sync: delete namespace',
-      includeBaseTree: false,
     );
+    _verifiedObjectRevisions.clear();
   }
 
   static List<Map<String, Object?>> _blobEntries(
@@ -294,6 +414,11 @@ class GitHubCloudSyncBackend
     for (final entry in values.entries)
       {'path': entry.key, 'mode': '100644', 'type': 'blob', 'sha': entry.value},
   ];
+
+  static String _hashBytes(List<int> bytes) {
+    CloudSyncTelemetry.recordHashPass();
+    return sha256.convert(bytes).toString();
+  }
 
   static void _checkProtocolSize(Uint8List bytes, int maxBytes) {
     GitHubBackendSupport.checkContentsSize(bytes, _blobLimit);
@@ -306,17 +431,112 @@ class GitHubCloudSyncBackend
   }
 }
 
+class _GitHubTelemetryInterceptor extends Interceptor {
+  const _GitHubTelemetryInterceptor();
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    final body = response.data;
+    if (body is ResponseBody) {
+      body.stream = _recordingStream(
+        body.stream,
+        bytesWritten: _requestBodyBytes(response.requestOptions.data),
+      );
+    } else {
+      CloudSyncTelemetry.recordRequest(
+        bytesRead: _responseBodyBytes(body),
+        bytesWritten: _requestBodyBytes(response.requestOptions.data),
+      );
+    }
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException error, ErrorInterceptorHandler handler) {
+    CloudSyncTelemetry.recordRequest(
+      bytesRead: _responseBodyBytes(error.response?.data),
+      bytesWritten: _requestBodyBytes(error.requestOptions.data),
+    );
+    handler.next(error);
+  }
+
+  static Stream<Uint8List> _recordingStream(
+    Stream<Uint8List> source, {
+    required int bytesWritten,
+  }) {
+    late StreamController<Uint8List> controller;
+    StreamSubscription<Uint8List>? subscription;
+    var bytesRead = 0;
+    var recorded = false;
+
+    void record() {
+      if (recorded) return;
+      recorded = true;
+      CloudSyncTelemetry.recordRequest(
+        bytesRead: bytesRead,
+        bytesWritten: bytesWritten,
+      );
+    }
+
+    controller = StreamController<Uint8List>(
+      sync: true,
+      onListen: () {
+        subscription = source.listen(
+          (chunk) {
+            bytesRead += chunk.length;
+            controller.add(chunk);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            record();
+            controller.addError(error, stackTrace);
+          },
+          onDone: () {
+            record();
+            controller.close();
+          },
+        );
+      },
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () async {
+        await subscription?.cancel();
+        record();
+      },
+    );
+    return controller.stream;
+  }
+
+  static int _requestBodyBytes(Object? data) => switch (data) {
+    null => 0,
+    final Uint8List bytes => bytes.length,
+    final List<int> bytes => bytes.length,
+    final String text => utf8.encode(text).length,
+    _ => 0,
+  };
+
+  static int _responseBodyBytes(Object? data) => switch (data) {
+    null => 0,
+    ResponseBody _ => 0,
+    final Uint8List bytes => bytes.length,
+    final List<int> bytes => bytes.length,
+    final String text => utf8.encode(text).length,
+    _ => 0,
+  };
+}
+
 class _StagingSession {
-  _StagingSession(this.base);
+  _StagingSession(this.base, this.inventory);
 
   final GitHubTreeBase base;
+  final Map<String, GitHubTreeEntry> inventory;
   final Map<String, String> entries = {};
 }
 
 class _HeadRevision {
-  const _HeadRevision(this.file);
+  const _HeadRevision(this.file, this.commit);
 
   final String file;
+  final String commit;
 
   static _HeadRevision? parse(String? value) {
     if (value == null) return null;
@@ -327,6 +547,9 @@ class _HeadRevision {
         'HEAD revision 格式无效，请重新读取远端状态。',
       );
     }
-    return _HeadRevision(value.substring(0, separator));
+    return _HeadRevision(
+      value.substring(0, separator),
+      value.substring(separator + 1),
+    );
   }
 }

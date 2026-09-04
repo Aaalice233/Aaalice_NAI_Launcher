@@ -4,7 +4,9 @@ import 'dart:convert';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:synchronized/synchronized.dart';
 
+import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/gallery/gallery_category.dart';
@@ -16,6 +18,7 @@ class GalleryCategoryRepository {
       GalleryCategoryRepository._();
 
   final _localStorage = LocalStorageService();
+  final _categorySaveLock = Lock();
 
   static const _categoriesFileName = '.gallery_categories.json';
   static const _suppressedCategoriesFileName =
@@ -51,37 +54,90 @@ class GalleryCategoryRepository {
   }
 
   Future<List<GalleryCategory>> loadCategories() async {
+    final filePath = await _getCategoriesFilePath();
+    if (filePath == null) return [];
+
+    final file = File(filePath);
+    final backupFile = File('$filePath.bak');
     try {
-      final filePath = await _getCategoriesFilePath();
-      if (filePath == null) return [];
+      if (await file.exists()) {
+        try {
+          final categories = await _readCategories(file);
+          await _deleteIfPresent(backupFile);
+          return categories;
+        } catch (primaryError) {
+          if (!await backupFile.exists()) rethrow;
+          final categories = await _readCategories(backupFile);
+          await backupFile.copy(file.path);
+          await _deleteIfPresent(backupFile);
+          AppLogger.w('分类配置损坏，已从备份恢复: $primaryError');
+          return categories;
+        }
+      }
+      if (!await backupFile.exists()) return [];
 
-      final file = File(filePath);
-      if (!await file.exists()) return [];
-
-      final jsonList = jsonDecode(await file.readAsString()) as List;
-      return jsonList
-          .map((j) => GalleryCategory.fromJson(j as Map<String, dynamic>))
-          .toList();
+      final categories = await _readCategories(backupFile);
+      await backupFile.copy(file.path);
+      await _deleteIfPresent(backupFile);
+      AppLogger.w('分类配置提交中断，已从备份恢复');
+      return categories;
     } catch (e) {
       AppLogger.e('加载分类配置失败', e);
       return [];
     }
   }
 
+  Future<List<GalleryCategory>> _readCategories(File file) async {
+    final jsonList = jsonDecode(await file.readAsString()) as List;
+    return jsonList
+        .map((json) => GalleryCategory.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
   /// 保存所有分类
-  Future<bool> saveCategories(List<GalleryCategory> categories) async {
-    try {
+  Future<bool> saveCategories(List<GalleryCategory> categories) {
+    return _categorySaveLock.synchronized(() async {
       final filePath = await _getCategoriesFilePath();
       if (filePath == null) return false;
 
       final file = File(filePath);
-      final jsonList = categories.map((c) => c.toJson()).toList();
-      await file.writeAsString(jsonEncode(jsonList));
+      final temporaryFile = File('$filePath.tmp');
+      final backupFile = File('$filePath.bak');
+      var committed = false;
+      try {
+        if (!await file.parent.exists()) {
+          await file.parent.create(recursive: true);
+        }
+        final jsonList = categories.map((c) => c.toJson()).toList();
+        await temporaryFile.writeAsString(jsonEncode(jsonList), flush: true);
+        if (await file.exists()) {
+          await file.copy(backupFile.path);
+        }
+        await temporaryFile.rename(file.path);
+        committed = true;
+        await _deleteIfPresent(backupFile);
+        return true;
+      } catch (e) {
+        if (!committed && await backupFile.exists() && !await file.exists()) {
+          try {
+            await backupFile.rename(file.path);
+          } catch (restoreError) {
+            AppLogger.e('恢复分类配置备份失败', restoreError);
+          }
+        }
+        AppLogger.e('保存分类配置失败', e);
+        return false;
+      } finally {
+        await _deleteIfPresent(temporaryFile);
+      }
+    });
+  }
 
-      return true;
+  Future<void> _deleteIfPresent(File file) async {
+    try {
+      if (await file.exists()) await file.delete();
     } catch (e) {
-      AppLogger.e('保存分类配置失败', e);
-      return false;
+      AppLogger.w('清理分类配置临时文件失败: ${file.path}: $e');
     }
   }
 
@@ -116,12 +172,13 @@ class GalleryCategoryRepository {
         await parent.create(recursive: true);
       }
 
-      final normalized = paths
-          .map(_normalizeCategoryPath)
-          .where((path) => path.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
+      final normalized =
+          paths
+              .map(_normalizeCategoryPath)
+              .where((path) => path.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
 
       if (normalized.isEmpty) {
         if (await file.exists()) {
@@ -215,8 +272,9 @@ class GalleryCategoryRepository {
     if (await dir.exists()) {
       final suppressedPaths = await _loadSuppressedFolderPaths();
       if (suppressedPaths.contains(_normalizeCategoryPath(relativePath))) {
-        final siblings =
-            existingCategories.where((c) => c.parentId == parentId);
+        final siblings = existingCategories.where(
+          (c) => c.parentId == parentId,
+        );
         final category = GalleryCategory.create(
           name: name,
           folderPath: relativePath,
@@ -342,7 +400,7 @@ class GalleryCategoryRepository {
     final (newRelativePath, newAbsolutePath) = newParentId == null
         ? (
             p.basename(category.folderPath),
-            p.join(rootPath, p.basename(category.folderPath))
+            p.join(rootPath, p.basename(category.folderPath)),
           )
         : _buildMovePaths(rootPath, category, newParentId, allCategories);
 
@@ -392,8 +450,10 @@ class GalleryCategoryRepository {
       AppLogger.e('目标父分类不存在: $newParentId');
       return ('', '');
     }
-    final relativePath =
-        p.join(newParent.folderPath, p.basename(category.folderPath));
+    final relativePath = p.join(
+      newParent.folderPath,
+      p.basename(category.folderPath),
+    );
     return (relativePath, p.join(rootPath, relativePath));
   }
 
@@ -466,17 +526,41 @@ class GalleryCategoryRepository {
       if (await File(targetPath).exists()) {
         final baseName = p.basenameWithoutExtension(fileName);
         final ext = p.extension(fileName);
-        targetPath = p.join(
-          targetDir,
-          '${baseName}_${DateTime.now().millisecondsSinceEpoch}$ext',
-        );
+        final conflictStem =
+            '${baseName}_${DateTime.now().millisecondsSinceEpoch}';
+        targetPath = p.join(targetDir, '$conflictStem$ext');
+        var suffix = 2;
+        while (await File(targetPath).exists()) {
+          targetPath = p.join(targetDir, '$conflictStem-$suffix$ext');
+          suffix++;
+        }
       }
 
       await file.rename(targetPath);
+
+      // 物理移动后同步库内路径（保留行 id），使收藏、标签、相簿成员
+      // 等按 image_id 关联的数据在移动后仍然有效
+      await _syncDatabasePath(imagePath, targetPath);
       return targetPath;
     } catch (e) {
       AppLogger.e('移动图片失败: $imagePath', e);
       return null;
+    }
+  }
+
+  Future<void> _syncDatabasePath(String oldPath, String newPath) async {
+    try {
+      final dataSource = GalleryDataSource();
+      final imageId = await dataSource.getImageIdByPath(oldPath);
+      if (imageId == null) return;
+      await dataSource.updateFilePath(
+        imageId,
+        newPath,
+        newFileName: p.basename(newPath),
+      );
+    } catch (e) {
+      // 同步失败不阻断移动本身；下次全量扫描会按新路径重新入库
+      AppLogger.w('移动后同步数据库路径失败: $oldPath -> $newPath ($e)');
     }
   }
 
@@ -653,11 +737,13 @@ class GalleryCategoryRepository {
   }) async {
     int count = 0;
     try {
-      await for (final entity in Directory(folderPath)
-          .list(recursive: recursive, followLinks: false)) {
+      await for (final entity in Directory(
+        folderPath,
+      ).list(recursive: recursive, followLinks: false)) {
         if (entity is File &&
-            _supportedExtensions
-                .contains(p.extension(entity.path).toLowerCase())) {
+            _supportedExtensions.contains(
+              p.extension(entity.path).toLowerCase(),
+            )) {
           count++;
         }
       }

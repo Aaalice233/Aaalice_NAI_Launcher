@@ -69,6 +69,10 @@ void main() {
         'generate_image',
         'queue_image_task',
         'get_generation_status',
+        'get_generation_source_image',
+        'set_generation_source_image',
+        'clear_generation_source_image',
+        'update_generation_source_settings',
       ]),
     );
   });
@@ -1193,6 +1197,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
+    GenerationFocusedSnapshot? focusedOverride,
   }) async {
     generateCalls++;
     batchSize = batchSizeOverride;

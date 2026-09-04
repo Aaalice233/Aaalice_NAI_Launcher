@@ -35,7 +35,7 @@ void main() {
     );
   });
 
-  test('generateFromPreset preserves explicit result mode', () async {
+  test('generateFromPreset returns tags from the selected preset', () async {
     final preset = _preset([
       _category(
         id: 'scene',
@@ -46,13 +46,8 @@ void main() {
       ),
     ]);
 
-    final result = await generator.generateFromPreset(
-      preset: preset,
-      seed: 1,
-      mode: RandomGenerationMode.custom,
-    );
+    final result = await generator.generateFromPreset(preset: preset, seed: 1);
 
-    expect(result.mode, RandomGenerationMode.custom);
     expect(result.mainPrompt, contains('city'));
   });
 

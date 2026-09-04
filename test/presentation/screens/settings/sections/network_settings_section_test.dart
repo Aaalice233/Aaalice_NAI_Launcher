@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/proxy_settings_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/network_settings_section.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 void main() {
   testWidgets(
@@ -41,6 +42,54 @@ void main() {
       expect(find.textContaining('系统代理或手动代理'), findsOneWidget);
     },
   );
+
+  testWidgets('手动代理表单在 320–1600 宽度和 3x 文本下无溢出', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in const [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      final storage = _MemoryLocalStorageService({
+        StorageKeys.proxyEnabled: true,
+        StorageKeys.proxyMode: 'manual',
+        StorageKeys.proxyManualHost: '127.0.0.1',
+        StorageKeys.proxyManualPort: 7890,
+      });
+      await tester.binding.setSurfaceSize(Size(width, 900));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+            detectedSystemProxyProvider.overrideWith((ref) => null),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(3)),
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                padding: EdgeInsets.all(12),
+                child: NetworkSettingsSection(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(ThemedInput), findsNWidgets(2));
+      expect(
+        tester
+            .widgetList<ThemedInput>(find.byType(ThemedInput))
+            .map((input) => input.textInputAction),
+        containsAll(const [TextInputAction.next, TextInputAction.done]),
+      );
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+    }
+  });
 }
 
 class _MemoryLocalStorageService extends LocalStorageService {

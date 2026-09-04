@@ -402,20 +402,6 @@ class LocalStorageService {
     await setSetting(StorageKeys.generationStreamPreviewEnabled, value);
   }
 
-  /// 获取随机生成算法模式
-  String getRandomGenerationMode() {
-    return getSetting<String>(
-          StorageKeys.randomGenerationMode,
-          defaultValue: 'nai_official',
-        ) ??
-        'nai_official';
-  }
-
-  /// 保存随机生成算法模式
-  Future<void> setRandomGenerationMode(String value) async {
-    await setSetting(StorageKeys.randomGenerationMode, value);
-  }
-
   /// 获取每次请求生成的图片数量 (默认1，最大4)
   int getImagesPerRequest() {
     return getSetting<int>(StorageKeys.imagesPerRequest, defaultValue: 1) ?? 1;

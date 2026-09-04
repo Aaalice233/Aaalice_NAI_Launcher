@@ -4,19 +4,10 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart' as crypto;
 
 const cloudSyncProtocol = 'aaalice-cloud-sync';
-const cloudSyncSchemaVersion = 1;
-const cloudSyncPlainSnapshotVersion = 2;
-
-enum CloudSnapshotEncoding { encrypted, plain }
+const cloudSyncSchemaVersion = 2;
 
 /// Hard limit for each object sent to or received from a backend.
 const maxCloudObjectBytes = 4 * 1024 * 1024;
-
-/// Legacy encrypted snapshots reserve a 12-byte nonce and 16-byte tag.
-const cloudObjectEncryptionOverhead = 28;
-const maxCloudEncryptedClearObjectBytes =
-    maxCloudObjectBytes - cloudObjectEncryptionOverhead;
-const maxCloudClearObjectBytes = maxCloudEncryptedClearObjectBytes;
 
 class CloudFormatException implements Exception {
   const CloudFormatException(this.message);
@@ -25,51 +16,111 @@ class CloudFormatException implements Exception {
   String toString() => 'CloudFormatException: $message';
 }
 
-class SnapshotObject {
-  SnapshotObject({
-    required this.id,
+class SnapshotRecordRef {
+  SnapshotRecordRef({
+    required this.recordId,
     required this.kind,
-    required this.size,
-    required this.sha256,
+    required this.binary,
+    required this.deleted,
+    this.objectId,
+    this.size,
+    this.tombstoneIdentity,
   }) {
-    _requireIdentity(id, 'id');
+    _requireRecordIdentity(recordId);
     _requireIdentity(kind, 'kind');
-    if (size < 0 || size > maxCloudObjectBytes) {
-      throw const CloudFormatException('object size is outside allowed range');
+    if (deleted) {
+      if (objectId != null || size != null) {
+        throw const CloudFormatException(
+          'tombstone must not reference an object',
+        );
+      }
+      if (tombstoneIdentity != null &&
+          (tombstoneIdentity!.isEmpty ||
+              tombstoneIdentity!.length > 64 * 1024)) {
+        throw const CloudFormatException('tombstone identity is invalid');
+      }
+    } else {
+      if (tombstoneIdentity != null) {
+        throw const CloudFormatException(
+          'live record must not contain tombstone identity',
+        );
+      }
+      if (objectId == null || size == null) {
+        throw const CloudFormatException(
+          'live record must reference an object',
+        );
+      }
+      _requireSha(objectId!);
+      if (size! < 0 || size! > maxCloudObjectBytes) {
+        throw const CloudFormatException(
+          'object size is outside allowed range',
+        );
+      }
     }
-    _requireSha(sha256);
   }
 
-  final String id;
+  final String recordId;
   final String kind;
-  final int size;
-  final String sha256;
+  final bool binary;
+  final bool deleted;
+  final String? objectId;
+  final int? size;
+  final String? tombstoneIdentity;
 
-  factory SnapshotObject.fromJson(Object? value) {
-    final json = _strictMap(value, {'id', 'kind', 'size', 'sha256'});
-    return SnapshotObject(
-      id: _string(json, 'id'),
+  factory SnapshotRecordRef.fromJson(Object? value) {
+    final json = _strictMap(value, {
+      'recordId',
+      'kind',
+      'binary',
+      'deleted',
+      'objectId',
+      'size',
+      'tombstoneIdentity',
+    });
+    final binary = json['binary'];
+    final deleted = json['deleted'];
+    final objectId = json['objectId'];
+    final size = json['size'];
+    final tombstoneIdentity = json['tombstoneIdentity'];
+    if (binary is! bool ||
+        deleted is! bool ||
+        (objectId != null && objectId is! String) ||
+        (size != null && size is! int) ||
+        (tombstoneIdentity != null && tombstoneIdentity is! String)) {
+      throw const CloudFormatException('invalid record reference schema');
+    }
+    return SnapshotRecordRef(
+      recordId: _string(json, 'recordId'),
       kind: _string(json, 'kind'),
-      size: _integer(json, 'size'),
-      sha256: _string(json, 'sha256'),
+      binary: binary,
+      deleted: deleted,
+      objectId: objectId as String?,
+      size: size as int?,
+      tombstoneIdentity: tombstoneIdentity as String?,
     );
   }
 
-  Map<String, Object> toJson() => {
-    'id': id,
+  Map<String, Object?> toJson() => {
+    'recordId': recordId,
     'kind': kind,
+    'binary': binary,
+    'deleted': deleted,
+    'objectId': objectId,
     'size': size,
-    'sha256': sha256,
+    'tombstoneIdentity': tombstoneIdentity,
   };
 
-  void verify(List<int> bytes) {
+  void verifyObject(List<int> bytes) {
+    if (deleted || objectId == null || size == null) {
+      throw const CloudFormatException('tombstone has no object');
+    }
     if (bytes.length != size) {
       throw CloudFormatException(
-        'object $id size mismatch: expected $size, got ${bytes.length}',
+        'object $objectId size mismatch: expected $size, got ${bytes.length}',
       );
     }
-    if (crypto.sha256.convert(bytes).toString() != sha256) {
-      throw CloudFormatException('object $id SHA-256 mismatch');
+    if (crypto.sha256.convert(bytes).toString() != objectId) {
+      throw CloudFormatException('object $objectId SHA-256 mismatch');
     }
   }
 }
@@ -78,25 +129,28 @@ class SnapshotManifest {
   SnapshotManifest({
     required this.snapshotId,
     required this.createdAt,
-    required List<SnapshotObject> objects,
-    this.encoding = CloudSnapshotEncoding.encrypted,
-    int? version,
-  }) : version = version ?? _versionForEncoding(encoding),
-       objects = UnmodifiableListView(List.of(objects)) {
-    if (this.version != _versionForEncoding(encoding)) {
+    required List<SnapshotRecordRef> records,
+    this.version = cloudSyncSchemaVersion,
+  }) : records = UnmodifiableListView(List.of(records)) {
+    if (version != cloudSyncSchemaVersion) {
       throw const CloudFormatException('unsupported manifest version');
     }
     _requireIdentity(snapshotId, 'snapshotId');
-    if (objects.map((object) => object.id).toSet().length != objects.length) {
-      throw const CloudFormatException('duplicate object id');
+    if (records.map((record) => record.recordId).toSet().length !=
+        records.length) {
+      throw const CloudFormatException('duplicate record id');
+    }
+    for (var index = 1; index < records.length; index++) {
+      if (records[index - 1].recordId.compareTo(records[index].recordId) >= 0) {
+        throw const CloudFormatException('manifest records are not canonical');
+      }
     }
   }
 
   final int version;
-  final CloudSnapshotEncoding encoding;
   final String snapshotId;
   final DateTime createdAt;
-  final List<SnapshotObject> objects;
+  final List<SnapshotRecordRef> records;
 
   factory SnapshotManifest.decode(List<int> bytes) {
     if (bytes.length > 1024 * 1024) {
@@ -115,30 +169,29 @@ class SnapshotManifest {
     if (value is! Map<String, dynamic>) {
       throw const CloudFormatException('expected JSON object');
     }
-    final version = value['version'];
-    final keys = version == cloudSyncPlainSnapshotVersion
-        ? {'version', 'encoding', 'snapshotId', 'createdAt', 'objects'}
-        : {'version', 'snapshotId', 'createdAt', 'objects'};
-    final json = _strictMap(value, keys);
-    final rawObjects = json['objects'];
-    if (rawObjects is! List) {
-      throw const CloudFormatException('objects must be an array');
+    final json = _strictMap(value, {
+      'version',
+      'snapshotId',
+      'createdAt',
+      'records',
+    });
+    final rawRecords = json['records'];
+    if (rawRecords is! List) {
+      throw const CloudFormatException('records must be an array');
     }
     return SnapshotManifest(
       version: _integer(json, 'version'),
-      encoding: _encoding(json, version),
       snapshotId: _string(json, 'snapshotId'),
       createdAt: _date(json, 'createdAt'),
-      objects: rawObjects.map(SnapshotObject.fromJson).toList(),
+      records: rawRecords.map(SnapshotRecordRef.fromJson).toList(),
     );
   }
 
   Map<String, Object> toJson() => {
     'version': version,
-    if (version == cloudSyncPlainSnapshotVersion) 'encoding': encoding.name,
     'snapshotId': snapshotId,
     'createdAt': createdAt.toUtc().toIso8601String(),
-    'objects': objects.map((object) => object.toJson()).toList(),
+    'records': records.map((record) => record.toJson()).toList(),
   };
 
   List<int> encode() => utf8.encode(jsonEncode(toJson()));
@@ -149,10 +202,9 @@ class SnapshotHead {
     required this.snapshotId,
     required this.manifestSha256,
     required this.updatedAt,
-    this.encoding = CloudSnapshotEncoding.encrypted,
-    int? version,
-  }) : version = version ?? _versionForEncoding(encoding) {
-    if (this.version != _versionForEncoding(encoding)) {
+    this.version = cloudSyncSchemaVersion,
+  }) {
+    if (version != cloudSyncSchemaVersion) {
       throw const CloudFormatException('unsupported head version');
     }
     _requireIdentity(snapshotId, 'snapshotId');
@@ -160,7 +212,6 @@ class SnapshotHead {
   }
 
   final int version;
-  final CloudSnapshotEncoding encoding;
   final String snapshotId;
   final String manifestSha256;
   final DateTime updatedAt;
@@ -182,14 +233,14 @@ class SnapshotHead {
     if (value is! Map<String, dynamic>) {
       throw const CloudFormatException('expected JSON object');
     }
-    final version = value['version'];
-    final keys = version == cloudSyncPlainSnapshotVersion
-        ? {'version', 'encoding', 'snapshotId', 'manifestSha256', 'updatedAt'}
-        : {'version', 'snapshotId', 'manifestSha256', 'updatedAt'};
-    final json = _strictMap(value, keys);
+    final json = _strictMap(value, {
+      'version',
+      'snapshotId',
+      'manifestSha256',
+      'updatedAt',
+    });
     return SnapshotHead(
       version: _integer(json, 'version'),
-      encoding: _encoding(json, version),
       snapshotId: _string(json, 'snapshotId'),
       manifestSha256: _string(json, 'manifestSha256'),
       updatedAt: _date(json, 'updatedAt'),
@@ -198,7 +249,6 @@ class SnapshotHead {
 
   Map<String, Object> toJson() => {
     'version': version,
-    if (version == cloudSyncPlainSnapshotVersion) 'encoding': encoding.name,
     'snapshotId': snapshotId,
     'manifestSha256': manifestSha256,
     'updatedAt': updatedAt.toUtc().toIso8601String(),
@@ -211,21 +261,6 @@ class SnapshotHead {
       throw const CloudFormatException('manifest SHA-256 mismatch');
     }
   }
-}
-
-int _versionForEncoding(CloudSnapshotEncoding encoding) => switch (encoding) {
-  CloudSnapshotEncoding.encrypted => cloudSyncSchemaVersion,
-  CloudSnapshotEncoding.plain => cloudSyncPlainSnapshotVersion,
-};
-
-CloudSnapshotEncoding _encoding(Map<String, Object?> json, Object? version) {
-  if (version == cloudSyncSchemaVersion) {
-    return CloudSnapshotEncoding.encrypted;
-  }
-  if (version != cloudSyncPlainSnapshotVersion || json['encoding'] != 'plain') {
-    throw const CloudFormatException('unsupported snapshot encoding');
-  }
-  return CloudSnapshotEncoding.plain;
 }
 
 Map<String, Object?> strictJsonMap(Object? value, Set<String> keys) =>
@@ -266,6 +301,12 @@ DateTime _date(Map<String, Object?> json, String key) {
 void _requireIdentity(String value, String field) {
   if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$').hasMatch(value)) {
     throw CloudFormatException('invalid $field');
+  }
+}
+
+void _requireRecordIdentity(String value) {
+  if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,65534}$').hasMatch(value)) {
+    throw const CloudFormatException('invalid recordId');
   }
 }
 

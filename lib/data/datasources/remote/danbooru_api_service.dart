@@ -10,6 +10,7 @@ import '../../models/online_gallery/danbooru_post.dart';
 import '../../models/online_gallery/gallery_blacklist.dart';
 import '../../models/tag/danbooru_tag.dart';
 import '../../models/tag/tag_suggestion.dart';
+import '../../../core/network/network_failure_diagnostics.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../services/danbooru_auth_service.dart';
 
@@ -725,6 +726,8 @@ DanbooruApiService danbooruApiService(Ref ref) {
       sendTimeout: const Duration(seconds: 15),
     ),
   );
+  addNetworkFailureDiagnostics(dio, scope: 'Danbooru API');
+  ref.onDispose(dio.close);
 
   final service = DanbooruApiService(dio);
 

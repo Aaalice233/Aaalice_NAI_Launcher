@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../common/themed_switch.dart';
 import 'fixed_tags_dialog_models.dart';
@@ -13,13 +14,11 @@ class FixedTagsDialogHeader extends StatelessWidget {
     required this.data,
     required this.commands,
     required this.isCompact,
-    required this.isDark,
   });
 
   final FixedTagsDialogViewData data;
   final FixedTagsDialogCommands commands;
   final bool isCompact;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
@@ -37,21 +36,13 @@ class FixedTagsDialogHeader extends StatelessWidget {
     }
     final theme = Theme.of(context);
     return Container(
+      key: const ValueKey('fixed-tags-dialog-header'),
       padding: const EdgeInsets.fromLTRB(20, 18, 12, 14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.secondary.withValues(alpha: isDark ? 0.08 : 0.05),
-            Colors.transparent,
-          ],
-        ),
+        color: theme.colorScheme.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.06),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
           ),
         ),
       ),
@@ -60,76 +51,47 @@ class FixedTagsDialogHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  theme.colorScheme.secondary.withValues(alpha: 0.2),
-                  theme.colorScheme.secondary.withValues(alpha: 0.1),
-                ],
+              color: theme.colorScheme.secondaryContainer.withValues(
+                alpha: 0.5,
               ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.secondary.withValues(alpha: 0.15),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               Icons.push_pin_rounded,
-              color: theme.colorScheme.secondary,
+              color: theme.colorScheme.onSecondaryContainer,
               size: 20,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   context.l10n.fixedTags_manage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.3,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 if (totalCount > 0) ...[
                   const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: enabledCount > 0
-                              ? theme.colorScheme.secondary.withValues(
-                                  alpha: 0.15,
-                                )
-                              : theme.colorScheme.outline.withValues(
-                                  alpha: 0.1,
-                                ),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '${context.l10n.fixedTags_enabledCount(enabledCount.toString(), totalCount.toString())} · ${context.l10n.fixedTags_linkCount(data.state.links.length)}',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: enabledCount > 0
-                                ? theme.colorScheme.secondary
-                                : theme.colorScheme.outline,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    '${context.l10n.fixedTags_enabledCount(enabledCount.toString(), totalCount.toString())} · ${context.l10n.fixedTags_linkCount(data.state.links.length)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ],
             ),
           ),
+          const SizedBox(width: 12),
           TextButton.icon(
             onPressed: commands.toggleNegativePanel,
             icon: Icon(
@@ -158,33 +120,44 @@ class FixedTagsDialogHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           if (totalCount > 0) ...[
-            ThemedSwitch(
-              value: enabledCount == totalCount,
-              onChanged: commands.setAllEnabled,
-              scale: 0.85,
+            Row(
+              key: const ValueKey('fixed-tags-global-toggle'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  enabledCount == totalCount
+                      ? context.l10n.fixedTags_disableAll
+                      : context.l10n.fixedTags_enableAll,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Tooltip(
+                  message: enabledCount == totalCount
+                      ? context.l10n.fixedTags_disableAll
+                      : context.l10n.fixedTags_enableAll,
+                  child: ThemedSwitch(
+                    value: enabledCount == totalCount,
+                    onChanged: commands.setAllEnabled,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 8),
           ],
-          Tooltip(
-            message: MaterialLocalizations.of(context).closeButtonTooltip,
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: commands.close,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 20,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
+          IconButton(
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            constraints: BoxConstraints.tightFor(
+              width: context.interactionPolicy.minimumControlExtent,
+              height: context.interactionPolicy.minimumControlExtent,
+            ),
+            onPressed: commands.close,
+            icon: Icon(
+              Icons.close_rounded,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -209,12 +182,13 @@ class _CompactHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
+      key: const ValueKey('fixed-tags-dialog-header'),
       padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
           ),
         ),
       ),
@@ -237,6 +211,7 @@ class _CompactHeader extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   context.l10n.fixedTags_manage,
@@ -325,11 +300,12 @@ class FixedTagsDialogFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
+      key: const ValueKey('fixed-tags-dialog-footer'),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
           ),
         ),
       ),

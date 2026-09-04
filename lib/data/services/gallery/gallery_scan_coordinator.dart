@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../repositories/gallery_folder_repository.dart';
+import 'gallery_album_sidecar_service.dart';
 import 'gallery_stream_scanner.dart';
 import 'local_gallery_repository.dart';
 import 'scan_state_manager.dart';
@@ -104,29 +105,31 @@ class GalleryScanCoordinator {
   }) async {
     final files = await _repository.findGalleryFiles();
     await onFilesLoaded(files);
-    if (!shouldRunRefreshIndexScan(
+    if (shouldRunRefreshIndexScan(
       scanRequested: scan,
       isBackgroundScanning: _isBackgroundScanning,
     )) {
+      final countChanged = files.length != previousCount;
+      if (countChanged && (files.length - previousCount).abs() > 100) {
+        AppLogger.i(
+          'File count changed significantly '
+              '($previousCount -> ${files.length}), performing full scan',
+          'LocalGalleryService',
+        );
+        await _performScan(files, full: true);
+      } else {
+        await _performScan(files, full: false);
+      }
+    } else {
       AppLogger.d(
         'Refresh updated file list without starting index scan: '
             'scanRequested=$scan, backgroundScanning=$_isBackgroundScanning',
         'LocalGalleryService',
       );
-      return;
     }
 
-    final countChanged = files.length != previousCount;
-    if (countChanged && (files.length - previousCount).abs() > 100) {
-      AppLogger.i(
-        'File count changed significantly '
-            '($previousCount -> ${files.length}), performing full scan',
-        'LocalGalleryService',
-      );
-      await _performScan(files, full: true);
-    } else {
-      await _performScan(files, full: false);
-    }
+    // 云恢复可能发生在启动扫描之后；每次刷新都重试已可解析的成员。
+    await _rebindAlbumPendingPaths();
   }
 
   Future<void> _initializeIndexInBackground(List<File> files) async {
@@ -179,6 +182,7 @@ class GalleryScanCoordinator {
         'Background index initialization completed',
         'LocalGalleryService',
       );
+      await _rebindAlbumPendingPaths();
     } catch (error, stackTrace) {
       AppLogger.e(
         'Background index initialization failed',
@@ -195,6 +199,42 @@ class GalleryScanCoordinator {
       );
     } finally {
       _isBackgroundScanning = false;
+    }
+  }
+
+  /// 索引就绪后补绑相簿 pending 成员（sidecar / 云同步导入时图库
+  /// 尚未完成扫描的相对路径引用）。失败不影响扫描主流程。
+  Future<void> _rebindAlbumPendingPaths() async {
+    try {
+      final rootPath = await GalleryFolderRepository.instance.getRootPath();
+      if (rootPath == null || rootPath.isEmpty) return;
+
+      final remaining = await _dataSource.albums.rebindPendingPaths(
+        resolve: (relativePaths) async {
+          final absolutePaths = [
+            for (final relativePath in relativePaths)
+              GalleryAlbumSidecarService.toAbsolutePath(rootPath, relativePath),
+          ];
+          final idMap = await _dataSource.getImageIdsByPaths(absolutePaths);
+          return {
+            for (var i = 0; i < relativePaths.length; i++)
+              relativePaths[i]: idMap[absolutePaths[i]],
+          };
+        },
+      );
+      if (remaining > 0) {
+        AppLogger.i(
+          'Album pending rebind finished with  unresolved paths',
+          'LocalGalleryService',
+        );
+      }
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Album pending rebind failed',
+        error,
+        stackTrace,
+        'LocalGalleryService',
+      );
     }
   }
 

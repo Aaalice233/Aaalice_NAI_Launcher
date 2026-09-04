@@ -20,7 +20,6 @@ import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/comfyui/workflow_template_manager.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
-import 'package:nai_launcher/core/services/danbooru_tags_lazy_service.dart';
 import 'package:nai_launcher/core/shortcuts/default_shortcuts.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -70,9 +69,6 @@ import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_aware_widge
 
 class _MockDio extends Mock implements Dio {}
 
-class _MockDanbooruTagsLazyService extends Mock
-    implements DanbooruTagsLazyService {}
-
 class _MockLocalStorageService extends Mock implements LocalStorageService {}
 
 /// 简单的 Widget 测试示例
@@ -116,7 +112,6 @@ void main() {
 
     testWidgets('AppBootstrapEffects 监听 provider 变化时不重建子树', (tester) async {
       final anlasWatcherProvider = StateProvider<int>((ref) => 0);
-      final backgroundRefreshProvider = StateProvider<int>((ref) => 0);
       final kritaBridgeProvider = StateProvider<int>((ref) => 0);
       final cooccurrenceDataPackProvider = StateProvider<int>((ref) => 0);
       var buildCount = 0;
@@ -126,7 +121,6 @@ void main() {
           child: MaterialApp(
             home: AppBootstrapEffects(
               anlasWatcher: anlasWatcherProvider,
-              backgroundRefresh: backgroundRefreshProvider,
               kritaBridge: kritaBridgeProvider,
               cooccurrenceDataPack: cooccurrenceDataPackProvider,
               cloudSyncLifecycle: () async {},
@@ -146,14 +140,11 @@ void main() {
       );
 
       expect(container.exists(anlasWatcherProvider), isTrue);
-      expect(container.exists(backgroundRefreshProvider), isTrue);
       expect(container.exists(kritaBridgeProvider), isTrue);
       expect(container.exists(cooccurrenceDataPackProvider), isTrue);
       expect(buildCount, 1);
 
       container.read(anlasWatcherProvider.notifier).state = 1;
-      await tester.pump();
-      container.read(backgroundRefreshProvider.notifier).state = 1;
       await tester.pump();
       container.read(kritaBridgeProvider.notifier).state = 1;
       await tester.pump();
@@ -171,7 +162,6 @@ void main() {
           child: MaterialApp(
             home: AppBootstrapEffects(
               anlasWatcher: inert,
-              backgroundRefresh: inert,
               kritaBridge: inert,
               cooccurrenceDataPack: inert,
               cloudSyncLifecycle: () async {
@@ -199,7 +189,6 @@ void main() {
           child: MaterialApp(
             home: AppBootstrapEffects(
               anlasWatcher: inert,
-              backgroundRefresh: inert,
               kritaBridge: inert,
               cooccurrenceDataPack: inert,
               cloudSyncLifecycle: () async {
@@ -606,28 +595,12 @@ void main() {
     ) async {
       final controller = TextEditingController();
       final focusNode = FocusNode();
-      final service = _MockDanbooruTagsLazyService();
       addTearDown(controller.dispose);
       addTearDown(focusNode.dispose);
-
-      when(
-        () => service.searchTags(
-          any(),
-          category: any(named: 'category'),
-          limit: any(named: 'limit'),
-        ),
-      ).thenAnswer(
-        (_) async => const [
-          LocalTag(tag: 'raiden_shogun', category: 4, count: 1000),
-        ],
-      );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            danbooruTagsLazyServiceProvider.overrideWith((ref) async {
-              return service;
-            }),
             autocompleteLocalSourcesProvider.overrideWithValue(const [
               _FakeCompletionSource(),
             ]),
@@ -2196,7 +2169,8 @@ void main() {
           'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
         );
         expect(options.headers?['x-goog-api-key'], 'key');
-        expect(payload['system_instruction'], isA<Map>());
+        expect(options.receiveTimeout, Duration.zero);
+        expect(payload['systemInstruction'], isA<Map>());
         return Response<dynamic>(
           data: const {
             'candidates': [

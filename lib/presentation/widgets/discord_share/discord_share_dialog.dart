@@ -12,6 +12,7 @@ import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/discord_share_service.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../common/app_toast.dart';
 
@@ -23,6 +24,7 @@ class DiscordShareDialog extends ConsumerStatefulWidget {
     required this.metadata,
     this.width,
     this.height,
+    this.scrollController,
   });
 
   final Uint8List imageBytes;
@@ -30,6 +32,7 @@ class DiscordShareDialog extends ConsumerStatefulWidget {
   final NaiImageMetadata? metadata;
   final int? width;
   final int? height;
+  final ScrollController? scrollController;
 
   static Future<bool?> show(
     BuildContext context, {
@@ -39,15 +42,64 @@ class DiscordShareDialog extends ConsumerStatefulWidget {
     int? width,
     int? height,
   }) {
-    return showDialog<bool>(
+    return AdaptivePresenter.showForm<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => DiscordShareDialog(
+      sideSheetWidth: 920,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFF5865F2).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Icon(
+              Icons.send_rounded,
+              color: Color(0xFF5865F2),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  panelContext.l10n.discordShare_title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    panelContext,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                if (MediaQuery.textScalerOf(panelContext).scale(1) < 2) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    panelContext.l10n.discordShare_subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(panelContext).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(
+                        panelContext,
+                      ).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+      builder: (panelContext, scrollController) => DiscordShareDialog(
         imageBytes: imageBytes,
         fileName: fileName,
         metadata: metadata,
         width: width,
         height: height,
+        scrollController: scrollController,
       ),
     );
   }
@@ -389,78 +441,18 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    return Dialog(
-      clipBehavior: Clip.antiAlias,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 920, maxHeight: 760),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildHeader(theme),
-            const Divider(height: 1),
-            Flexible(
-              child: _initializing
-                  ? const Center(child: CircularProgressIndicator())
-                  : _session == null
-                  ? _buildVerificationState(theme)
-                  : _buildEditor(theme),
-            ),
-            if (_session != null) ...[
-              const Divider(height: 1),
-              _buildActions(colors),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 15, 12, 14),
-      child: Row(
+    return Material(
+      color: Colors.transparent,
+      child: Column(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFF5865F2).withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(
-              Icons.send_rounded,
-              color: Color(0xFF5865F2),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.discordShare_title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  context.l10n.discordShare_subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
+            child: _initializing
+                ? const Center(child: CircularProgressIndicator())
+                : _session == null
+                ? _buildVerificationState(theme)
+                : _buildEditor(theme),
           ),
-          IconButton(
-            onPressed: _sending ? null : () => Navigator.of(context).pop(),
-            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-            icon: const Icon(Icons.close),
-          ),
+          if (_session != null) ...[const Divider(height: 1), _buildActions()],
         ],
       ),
     );
@@ -480,9 +472,12 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
     final description = _joinRequired
         ? context.l10n.discordShare_joinDescription
         : context.l10n.discordShare_verifyDescription;
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
+    return SingleChildScrollView(
+      key: const ValueKey('discord-share-scroll'),
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(32),
+      child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 470),
           child: Column(
@@ -523,33 +518,37 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
               ],
               const SizedBox(height: 24),
               if (_joinRequired) ...[
-                FilledButton.icon(
+                FilledButton(
                   onPressed: _openCommunity,
-                  icon: const Icon(Icons.group_add_outlined),
-                  label: Text(context.l10n.discordShare_joinServer),
+                  child: _buildVerificationButtonContent(
+                    icon: const Icon(Icons.group_add_outlined),
+                    label: context.l10n.discordShare_joinServer,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                TextButton.icon(
+                TextButton(
                   onPressed: _authenticating ? null : _authenticate,
-                  icon: _authenticating
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh, size: 18),
-                  label: Text(context.l10n.discordShare_retryVerification),
+                  child: _buildVerificationButtonContent(
+                    icon: _authenticating
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh, size: 18),
+                    label: context.l10n.discordShare_retryVerification,
+                  ),
                 ),
               ] else
-                FilledButton.icon(
+                FilledButton(
                   onPressed: _authenticating ? null : _authenticate,
-                  icon: _authenticating
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.open_in_browser, size: 18),
-                  label: Text(
-                    _authenticating
+                  child: _buildVerificationButtonContent(
+                    icon: _authenticating
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.open_in_browser, size: 18),
+                    label: _authenticating
                         ? context.l10n.discordShare_verifying
                         : context.l10n.discordShare_verifyButton,
                   ),
@@ -571,6 +570,22 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
     );
   }
 
+  Widget _buildVerificationButtonContent({
+    required Widget icon,
+    required String label,
+  }) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 4,
+      children: [
+        icon,
+        Text(label, textAlign: TextAlign.center),
+      ],
+    );
+  }
+
   Widget _buildEditor(ThemeData theme) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -578,6 +593,9 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
         final preview = _buildImagePreview(theme, compact: compact);
         final form = _buildShareForm(theme);
         return SingleChildScrollView(
+          key: const ValueKey('discord-share-scroll'),
+          controller: widget.scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.all(20),
           child: compact
               ? Column(
@@ -804,17 +822,18 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
     );
   }
 
-  Widget _buildActions(ColorScheme colors) {
+  Widget _buildActions() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-      child: Row(
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          const Spacer(),
           TextButton(
             onPressed: _sending ? null : () => Navigator.of(context).pop(),
             child: Text(context.l10n.common_cancel),
           ),
-          const SizedBox(width: 8),
           FilledButton.icon(
             onPressed:
                 _sending ||

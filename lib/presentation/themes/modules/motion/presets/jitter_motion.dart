@@ -16,13 +16,13 @@ class JitterMotion extends BaseMotionModule {
   @override
   Duration get slowDuration => const Duration(milliseconds: 300);
 
-  // Bouncy curves for playful feel
+  // Keep the preset brisk without moving controls past their final geometry.
   @override
-  Curve get enterCurve => Curves.elasticOut;
+  Curve get enterCurve => Curves.easeOutCubic;
 
   @override
-  Curve get exitCurve => Curves.easeIn;
+  Curve get exitCurve => Curves.easeInCubic;
 
   @override
-  Curve get standardCurve => Curves.bounceOut;
+  Curve get standardCurve => Curves.easeInOutCubic;
 }

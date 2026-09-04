@@ -82,6 +82,26 @@ void main() {
     expect(await File('${directory.path}/journal.json.part').exists(), isFalse);
   });
 
+  test('journal object checkpoint is a canonical sorted set', () {
+    final high = List.filled(64, 'f').join();
+    final low = List.filled(64, '0').join();
+    expect(
+      () => SyncJournal(
+        operationId: 'operation',
+        operation: JournalOperation.uploadLocal,
+        phase: JournalPhase.uploadingObjects,
+        updatedAt: DateTime.utc(2025),
+        snapshotId: 'snapshot',
+        targetFingerprint:
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        expectedRevision: null,
+        uploadRequired: true,
+        completedObjectIds: [high, low],
+      ),
+      throwsA(isA<CloudFormatException>()),
+    );
+  });
+
   test('legacy and unknown journal values are rejected, never guessed', () {
     expect(
       () => SyncJournal.fromJson({

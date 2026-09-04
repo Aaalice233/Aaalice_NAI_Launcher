@@ -39,6 +39,15 @@ class FixedTagsDialogController extends ChangeNotifier {
       ? positiveListController
       : negativeListController;
 
+  double scrollOffsetFor(FixedTagPromptType promptType) {
+    final positions = listControllerFor(promptType).positions;
+    if (positions.isEmpty) return 0;
+    // A responsive rebuild can briefly keep the outgoing list attached while
+    // mounting its replacement. The newest position belongs to the incoming
+    // layout; reading ScrollController.offset would assert during that frame.
+    return positions.last.pixels;
+  }
+
   void setSearchQuery(FixedTagPromptType promptType, String value) {
     if (promptType == FixedTagPromptType.positive) {
       positiveSearchQuery = value;

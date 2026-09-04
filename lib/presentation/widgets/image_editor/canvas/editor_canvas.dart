@@ -34,6 +34,7 @@ class _EditorCanvasState extends State<EditorCanvas>
 
   /// 选区动画控制器
   late AnimationController _selectionAnimationController;
+  bool _disableSelectionAnimations = true;
 
   /// 焦点节点
   final FocusNode _focusNode = FocusNode();
@@ -56,18 +57,28 @@ class _EditorCanvasState extends State<EditorCanvas>
       duration: const Duration(milliseconds: 500),
     );
     widget.state.renderNotifier.addListener(_syncSelectionAnimation);
-    _syncSelectionAnimation();
 
     // 添加硬件键盘监听（优先级高于 IME，解决中文输入法下快捷键失效问题）
     HardwareKeyboard.instance.addHandler(_inputHandler.handleHardwareKey);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableSelectionAnimations == disableAnimations) return;
+    _disableSelectionAnimations = disableAnimations;
+    _syncSelectionAnimation();
+  }
+
   void _syncSelectionAnimation() {
     final hasSelection =
         widget.state.previewPath != null || widget.state.selectionPath != null;
-    if (hasSelection && !_selectionAnimationController.isAnimating) {
-      _selectionAnimationController.repeat();
-    } else if (!hasSelection && _selectionAnimationController.isAnimating) {
+    if (hasSelection && !_disableSelectionAnimations) {
+      if (!_selectionAnimationController.isAnimating) {
+        _selectionAnimationController.repeat();
+      }
+    } else if (_selectionAnimationController.isAnimating) {
       _selectionAnimationController.stop();
     }
   }
@@ -124,11 +135,9 @@ class _EditorCanvasState extends State<EditorCanvas>
                 // renderNotifier 由 CustomPainter 内部监听
                 return ValueListenableBuilder<String?>(
                   valueListenable: widget.state.toolNotifier,
-                  builder: (context, toolId, _) {
+                  builder: (context, _, __) {
                     // Alt 模式或拾色器工具时都显示拾色器界面
-                    final isColorPicker =
-                        toolId == 'color_picker' ||
-                        _inputHandler.keyboard.isAltPressed;
+                    final isColorPicker = _inputHandler.isColorPickerActive;
                     final cursorPosition = _inputHandler.cursorPosition;
 
                     return ClipRect(
@@ -178,16 +187,16 @@ class _EditorCanvasState extends State<EditorCanvas>
                             ),
                           ),
 
-                          // 光标绘制 - 高频更新，不使用 RepaintBoundary
+                          // 光标绘制 - 独立重绘区域（每次指针移动都重绘，
+                          // 不隔离会连带整幅图层重绘，willChange 也会污染整块画布的光栅缓存）
                           // Alt 模式下不显示笔刷光标（显示系统精确光标）
                           if (cursorPosition != null && !isColorPicker)
                             Positioned.fill(
-                              child: CustomPaint(
-                                painter: CursorPainter(
-                                  state: widget.state,
-                                  cursorPosition: cursorPosition,
+                              child: RepaintBoundary(
+                                child: CustomPaint(
+                                  painter: CursorPainter(state: widget.state),
+                                  willChange: true,
                                 ),
-                                willChange: true,
                               ),
                             ),
 
@@ -227,6 +236,8 @@ class _EditorCanvasState extends State<EditorCanvas>
 
   void _handlePointerUp(PointerUpEvent event) {
     if (_suppressedPointers.remove(event.pointer)) {
+      // down 被抑制但 GestureDetector 仍收到了整段手势，这里必须补回状态出口
+      _inputHandler.cancelTransientGestures();
       return;
     }
 
@@ -235,6 +246,7 @@ class _EditorCanvasState extends State<EditorCanvas>
 
   void _handlePointerCancel(PointerCancelEvent event) {
     if (_suppressedPointers.remove(event.pointer)) {
+      _inputHandler.cancelTransientGestures();
       return;
     }
     _inputHandler.handlePointerCancel(event);

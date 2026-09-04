@@ -7,11 +7,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/storage/local_storage_service.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../providers/watermark_settings_provider.dart';
 import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
 import '../common/app_toast.dart';
@@ -30,11 +34,12 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
-  final void Function(TapDownDetails)? onSecondaryTapDown;
+  final void Function(TapUpDetails)? onSecondaryTapUp;
   final bool isSelected;
   final bool showFavoriteIndicator;
   final VoidCallback? onFavoriteToggle;
   final Future<void> Function(LocalImageContextAction action)? onSendAction;
+  final bool enableAddToAgent;
   final bool isKritaConnected;
   final bool isVisible;
   final int priority;
@@ -51,11 +56,12 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
-    this.onSecondaryTapDown,
+    this.onSecondaryTapUp,
     this.isSelected = false,
     this.showFavoriteIndicator = true,
     this.onFavoriteToggle,
     this.onSendAction,
+    this.enableAddToAgent = true,
     this.isKritaConnected = false,
     this.isVisible = false,
     this.priority = 5,
@@ -217,7 +223,8 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final theme = Theme.of(context);
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = theme.colorScheme;
-    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final interactionPolicy = context.interactionPolicy;
+    final isTouch = interactionPolicy.touchAvailable;
     final aspectRatio = widget.width / cardHeight;
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
@@ -230,7 +237,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       onTapCancel: _handleCardTapCancel,
       onDoubleTap: widget.onDoubleTap,
       onLongPress: widget.onLongPress,
-      onSecondaryTapDown: widget.onSecondaryTapDown,
+      onSecondaryTapUp: widget.onSecondaryTapUp,
       child: ImageCardHoverMotion(
         hovered: _isHovered,
         enabled: interactive,
@@ -267,13 +274,13 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                 Positioned(
                   key: const ValueKey('local-image-card-actions'),
                   top: 4,
-                  right: buttonDirection == Axis.vertical || isTouch ? 4 : null,
+                  right: 4,
                   left: buttonDirection == Axis.horizontal && !isTouch
                       ? 4
                       : null,
                   child: isTouch
                       ? _buildTouchActionMenu()
-                      : _buildActionButtons(buttonDirection),
+                      : _buildActionButtons(buttonDirection, cardHeight),
                 ),
                 if (widget.isSelected)
                   Positioned(
@@ -357,6 +364,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 color: Colors.grey[600],
+                value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
               ),
             ),
             const SizedBox(height: 8),
@@ -393,7 +401,10 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
               ),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: Size.zero,
+                minimumSize: Size(
+                  0,
+                  context.interactionPolicy.minimumControlExtent,
+                ),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
@@ -440,6 +451,19 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   }
 
   Widget _buildTouchActionMenu() {
+    final watermarkEnabled =
+        widget.onSendAction != null &&
+        ref.watch(
+          watermarkSettingsProvider.select(
+            (state) => state.configuration.enabled,
+          ),
+        );
+    final isWatermarkDerivative =
+        watermarkEnabled &&
+        WatermarkDerivativeRegistry(
+          ref.read(localStorageServiceProvider),
+        ).isDerivative(widget.record.path);
+
     PopupMenuItem<Object> item({
       required Object value,
       required IconData icon,
@@ -493,11 +517,38 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                     : context.l10n.common_favorite,
                 color: widget.record.isFavorite ? Colors.redAccent : null,
               ),
+            if (widget.onSendAction != null &&
+                PlatformCapabilities.current.supportsSystemGalleryExport)
+              item(
+                value: LocalImageContextAction.saveToSystemGallery,
+                icon: Icons.save_alt_rounded,
+                label: context.l10n.localGallery_saveToSystemGallery,
+              ),
             item(
               value: _LocalCardAction.copyImage,
               icon: Icons.copy,
               label: context.l10n.shortcut_action_copy_image,
             ),
+            if (widget.onSendAction != null && widget.enableAddToAgent)
+              item(
+                value: LocalImageContextAction.addToAgent,
+                icon: Icons.auto_awesome_outlined,
+                label: context.l10n.agentChat_addResource,
+              ),
+            if (widget.onSendAction != null)
+              item(
+                value: LocalImageContextAction.moveToCategory,
+                icon: Icons.drive_file_move_outline,
+                label: context.l10n.localGallery_moveToCategory,
+              ),
+            if (watermarkEnabled)
+              item(
+                value: LocalImageContextAction.createWatermark,
+                icon: Icons.branding_watermark_outlined,
+                label: isWatermarkDerivative
+                    ? context.l10n.watermark_actionRegenerate
+                    : context.l10n.watermark_actionCreate,
+              ),
             if (widget.onSendAction != null) ...[
               const PopupMenuDivider(),
               ...LocalImageContextMenu.buildSendEntries(
@@ -523,7 +574,72 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     );
   }
 
-  Widget _buildActionButtons(Axis direction) {
+  Widget _buildActionButtons(Axis direction, double cardHeight) {
+    final buttons = <CardActionButtonConfig>[
+      if (widget.onFavoriteToggle != null)
+        CardActionButtonConfig(
+          icon: widget.record.isFavorite
+              ? Icons.favorite
+              : Icons.favorite_border,
+          tooltip: widget.record.isFavorite
+              ? context.l10n.common_unfavorite
+              : context.l10n.common_favorite,
+          iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
+          onPressed: widget.onFavoriteToggle!,
+        ),
+      if (widget.onSendAction != null && widget.enableAddToAgent)
+        CardActionButtonConfig(
+          icon: Icons.auto_awesome_outlined,
+          tooltip: context.l10n.agentChat_addResource,
+          onPressed: () => unawaited(
+            widget.onSendAction!(LocalImageContextAction.addToAgent),
+          ),
+        ),
+      CardActionButtonConfig(
+        icon: Icons.copy,
+        tooltip: context.l10n.shortcut_action_copy_image,
+        isLoading: _isCopyingImage,
+        onPressed: _copyImageToClipboard,
+      ),
+      if (widget.onSendAction != null) ...[
+        CardActionButtonConfig(
+          icon: Icons.text_snippet_outlined,
+          tooltip: context.l10n.localGallery_copyPrompt,
+          onPressed: () => unawaited(
+            widget.onSendAction!(LocalImageContextAction.copyPrompt),
+          ),
+        ),
+        CardActionButtonConfig(
+          icon: Icons.delete_outline,
+          tooltip: context.l10n.common_delete,
+          onPressed: () =>
+              unawaited(widget.onSendAction!(LocalImageContextAction.delete)),
+        ),
+        CardActionButtonConfig(
+          icon: Icons.send,
+          tooltip: context.l10n.localGallery_moreImageActions,
+          onPressed: () => unawaited(_showSendMenu(context)),
+        ),
+      ],
+    ];
+    final buttonStride = context.interactionPolicy.minimumControlExtent + 4;
+    final availableMainAxisExtent = direction == Axis.horizontal
+        ? widget.width
+        : cardHeight;
+    final maximumButtonsPerRun = direction == Axis.vertical
+        ? 3
+        : buttons.length;
+    final buttonsPerRun = ((availableMainAxisExtent + 4) / buttonStride)
+        .floor()
+        .clamp(1, maximumButtonsPerRun);
+    final runs = <List<CardActionButtonConfig>>[
+      for (var start = 0; start < buttons.length; start += buttonsPerRun)
+        buttons.sublist(
+          start,
+          (start + buttonsPerRun).clamp(0, buttons.length),
+        ),
+    ];
+
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => _suppressCardTap = true,
@@ -531,48 +647,21 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         scheduleMicrotask(() => _suppressCardTap = false);
       },
       onPointerCancel: (_) => _suppressCardTap = false,
-      child: CardActionButtons(
-        visible: _isHovered || _isFocused,
-        direction: direction,
-        buttons: [
-          if (widget.onFavoriteToggle != null)
-            CardActionButtonConfig(
-              icon: widget.record.isFavorite
-                  ? Icons.favorite
-                  : Icons.favorite_border,
-              tooltip: widget.record.isFavorite
-                  ? context.l10n.common_unfavorite
-                  : context.l10n.common_favorite,
-              iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
-              onPressed: widget.onFavoriteToggle!,
+      child: Flex(
+        direction: direction == Axis.horizontal
+            ? Axis.vertical
+            : Axis.horizontal,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: direction == Axis.vertical
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
+        children: [
+          for (final run in runs)
+            CardActionButtons(
+              visible: _isHovered || _isFocused,
+              direction: direction,
+              buttons: run,
             ),
-          CardActionButtonConfig(
-            icon: Icons.copy,
-            tooltip: context.l10n.shortcut_action_copy_image,
-            isLoading: _isCopyingImage,
-            onPressed: _copyImageToClipboard,
-          ),
-          if (widget.onSendAction != null) ...[
-            CardActionButtonConfig(
-              icon: Icons.text_snippet_outlined,
-              tooltip: context.l10n.localGallery_copyPrompt,
-              onPressed: () => unawaited(
-                widget.onSendAction!(LocalImageContextAction.copyPrompt),
-              ),
-            ),
-            CardActionButtonConfig(
-              icon: Icons.delete_outline,
-              tooltip: context.l10n.common_delete,
-              onPressed: () => unawaited(
-                widget.onSendAction!(LocalImageContextAction.delete),
-              ),
-            ),
-            CardActionButtonConfig(
-              icon: Icons.send,
-              tooltip: context.l10n.detail_sendToImg2Img,
-              onPressed: () => unawaited(_showSendMenu(context)),
-            ),
-          ],
         ],
       ),
     );
@@ -589,10 +678,20 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
 
     if (left < 8) left = offset.dx + button.size.width + 8;
 
+    final watermarkEnabled = ref.read(
+      watermarkSettingsProvider.select((state) => state.configuration.enabled),
+    );
+    final isWatermarkDerivative =
+        watermarkEnabled &&
+        WatermarkDerivativeRegistry(
+          ref.read(localStorageServiceProvider),
+        ).isDerivative(widget.record.path);
     final action = await LocalImageContextMenu.showSendActions(
       context,
       position: Offset(left, top),
       isKritaConnected: widget.isKritaConnected,
+      watermarkEnabled: watermarkEnabled,
+      isWatermarkDerivative: isWatermarkDerivative,
     );
     if (action == null || !mounted) return;
 

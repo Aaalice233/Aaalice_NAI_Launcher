@@ -8,10 +8,13 @@ import 'package:window_manager/window_manager.dart';
 
 import 'core/autocomplete/cooccurrence_data_pack_provider.dart';
 import 'core/cache/gallery_cache_manager.dart';
+import 'core/cache/local_gallery_thumbnail_provider.dart';
 import 'core/utils/app_logger.dart';
 import 'core/platform/platform_capabilities.dart';
 import 'core/services/desktop_app_shutdown_service.dart';
+import 'core/services/interactive_work_gate.dart';
 import 'core/shortcuts/default_shortcuts.dart';
+import 'presentation/adaptive/interaction_policy.dart';
 import 'presentation/adaptive/window_size_class.dart';
 import 'presentation/router/app_router_config.dart';
 import 'presentation/router/app_routes.dart';
@@ -20,7 +23,6 @@ import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/font_provider.dart';
 import 'presentation/providers/font_scale_provider.dart';
 import 'presentation/providers/locale_provider.dart';
-import 'presentation/providers/background_refresh_provider.dart';
 import 'presentation/providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import 'presentation/providers/krita/krita_bridge_notifier.dart';
 import 'presentation/providers/image_generation_provider.dart';
@@ -38,7 +40,6 @@ import 'presentation/widgets/shortcuts/shortcut_help_dialog.dart';
 class AppBootstrapEffects extends ConsumerStatefulWidget {
   final Widget child;
   final ProviderListenable<dynamic>? anlasWatcher;
-  final ProviderListenable<dynamic>? backgroundRefresh;
   final ProviderListenable<dynamic>? kritaBridge;
   final ProviderListenable<dynamic>? cooccurrenceDataPack;
   final Future<void> Function()? cloudSyncLifecycle;
@@ -47,7 +48,6 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
     super.key,
     required this.child,
     this.anlasWatcher,
-    this.backgroundRefresh,
     this.kritaBridge,
     this.cooccurrenceDataPack,
     this.cloudSyncLifecycle,
@@ -61,7 +61,6 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
 class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     with WidgetsBindingObserver {
   ProviderSubscription<dynamic>? _anlasWatcherSubscription;
-  ProviderSubscription<dynamic>? _backgroundRefreshSubscription;
   ProviderSubscription<dynamic>? _kritaBridgeSubscription;
   ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
   bool _queuePausedForBackground = false;
@@ -77,41 +76,94 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
         widget.anlasWatcher ?? anlasBalanceWatcherProvider,
         (_, __) {},
       );
-      _backgroundRefreshSubscription = ref.listenManual(
-        widget.backgroundRefresh ?? backgroundRefreshNotifierProvider,
-        (_, __) {},
-      );
-      if (widget.kritaBridge != null ||
-          PlatformCapabilities.current.supportsKritaBridge) {
-        _kritaBridgeSubscription = ref.listenManual(
-          widget.kritaBridge ?? kritaBridgeNotifierProvider,
-          (_, __) {},
-        );
+      final usesTestOverrides =
+          widget.kritaBridge != null || widget.cooccurrenceDataPack != null;
+      if (usesTestOverrides) {
+        _mountInjectedEffects();
+      } else {
+        unawaited(_mountProductionIdleEffects());
       }
-      _cooccurrenceDataPackSubscription = ref.listenManual(
-        widget.cooccurrenceDataPack ?? cooccurrenceDataPackStartupProvider,
-        (_, __) {},
+      unawaited(
+        _restoreCloudBackupConnection(
+          minimumDelay: const Duration(seconds: 10),
+        ),
       );
-      unawaited(_restoreCloudBackupConnection());
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final isForeground =
-        state == AppLifecycleState.resumed ||
-        state == AppLifecycleState.inactive;
+    final isForeground = state == AppLifecycleState.resumed;
     ref
         .read(subscriptionNotifierProvider.notifier)
         .setAppForeground(isForeground);
+    LocalGalleryThumbnailProvider.setAppForeground(isForeground);
 
     if (state == AppLifecycleState.resumed) {
+      InteractiveWorkGate.instance.markInteraction();
       unawaited(_resumeQueueAfterBackground());
       unawaited(_restoreCloudBackupConnection());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       unawaited(_persistAndPauseForBackground());
+    }
+  }
+
+  void _mountInjectedEffects() {
+    if (widget.kritaBridge != null ||
+        PlatformCapabilities.current.supportsKritaBridge) {
+      _kritaBridgeSubscription = ref.listenManual(
+        widget.kritaBridge ?? kritaBridgeNotifierProvider,
+        (_, __) {},
+      );
+    }
+    _cooccurrenceDataPackSubscription = ref.listenManual(
+      widget.cooccurrenceDataPack ?? cooccurrenceDataPackStartupProvider,
+      (_, __) {},
+    );
+  }
+
+  Future<void> _mountProductionIdleEffects() async {
+    await _runProductionIdleEffect(
+      'Krita bridge',
+      minimumDelay: const Duration(seconds: 10),
+      action: () async {
+        if (!mounted || !PlatformCapabilities.current.supportsKritaBridge) {
+          return;
+        }
+        _kritaBridgeSubscription = ref.listenManual(
+          kritaBridgeNotifierProvider,
+          (_, __) {},
+        );
+      },
+    );
+    await _runProductionIdleEffect(
+      'co-occurrence data pack',
+      action: () async {
+        if (!mounted) return;
+        _cooccurrenceDataPackSubscription = ref.listenManual(
+          cooccurrenceDataPackStartupProvider,
+          (_, __) {},
+        );
+        await ref.read(cooccurrenceDataPackStartupProvider.future);
+      },
+    );
+  }
+
+  Future<void> _runProductionIdleEffect(
+    String name, {
+    Duration minimumDelay = Duration.zero,
+    required Future<void> Function() action,
+  }) async {
+    try {
+      await InteractiveWorkGate.instance.runWhenIdle(
+        minimumDelay: minimumDelay,
+        priority: InteractiveWorkPriority.maintenance,
+        action: action,
+      );
+    } catch (error, stackTrace) {
+      AppLogger.e('$name initialization failed', error, stackTrace, 'Startup');
     }
   }
 
@@ -139,16 +191,27 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     await ref.read(queueExecutionNotifierProvider.notifier).resume();
   }
 
-  Future<void> _restoreCloudBackupConnection() async {
+  Future<void> _restoreCloudBackupConnection({
+    Duration minimumDelay = Duration.zero,
+  }) async {
     if (_cloudSyncLifecycleRunning) return;
     _cloudSyncLifecycleRunning = true;
     try {
       final override = widget.cloudSyncLifecycle;
       if (override != null) {
         await override();
-      } else {
-        await ref.read(cloudSyncApplicationServiceProvider).restorePersisted();
+        return;
       }
+
+      await InteractiveWorkGate.instance.runWhenIdle(
+        minimumDelay: minimumDelay,
+        action: () async {
+          if (!mounted) return;
+          await ref
+              .read(cloudSyncApplicationServiceProvider)
+              .restorePersisted();
+        },
+      );
     } catch (error) {
       AppLogger.w(
         'Cloud backup connection restore failed: $error',
@@ -178,14 +241,14 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _anlasWatcherSubscription?.close();
-    _backgroundRefreshSubscription?.close();
     _kritaBridgeSubscription?.close();
     _cooccurrenceDataPackSubscription?.close();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) =>
+      InteractiveActivityObserver(child: widget.child);
 }
 
 /// NAI Launcher 主应用
@@ -312,8 +375,13 @@ class NAILauncherApp extends ConsumerWidget {
                 data: mediaQuery.copyWith(
                   textScaler: TextScaler.linear(effectiveScale),
                 ),
-                child: DesktopWindowFrame(
-                  child: LargestDisplayFeatureSubScreen(child: child!),
+                child: InteractionPolicyScope(
+                  initialPolicy: PlatformCapabilities.current.isMobile
+                      ? InteractionPolicy.touchFirst
+                      : InteractionPolicy.neutral,
+                  child: DesktopWindowFrame(
+                    child: LargestDisplayFeatureSubScreen(child: child!),
+                  ),
                 ),
               ),
             );

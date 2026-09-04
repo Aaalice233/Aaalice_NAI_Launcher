@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -6,9 +8,35 @@ import '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../widgets/common/app_toast.dart';
 import '../providers/agent_chat_notifier.dart';
+import '../../widgets/common/context_menu_anchor.dart';
+import '../../widgets/common/image_card_actions.dart';
 
 export '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
+
+Future<void> addAgentResourceToComposer({
+  required BuildContext context,
+  required WidgetRef ref,
+  required AgentChatResourceReference reference,
+}) async {
+  if (!context.mounted) return;
+  try {
+    await ref
+        .read(agentChatNotifierProvider.notifier)
+        .addPendingResource(reference);
+    if (context.mounted) {
+      AppToast.success(context, context.l10n.agentChat_resourceAdded);
+    }
+  } on Object catch (error) {
+    if (context.mounted) {
+      AppToast.error(
+        context,
+        context.l10n.agentChat_addResourceFailed('$error'),
+      );
+    }
+  }
+}
 
 Future<void> showAddAgentResourceMenu({
   required BuildContext context,
@@ -18,12 +46,7 @@ Future<void> showAddAgentResourceMenu({
 }) async {
   final selected = await showMenu<bool>(
     context: context,
-    position: RelativeRect.fromLTRB(
-      position.dx,
-      position.dy,
-      position.dx + 1,
-      position.dy + 1,
-    ),
+    position: contextMenuAnchorAt(context, position),
     items: [
       PopupMenuItem<bool>(
         value: true,
@@ -38,24 +61,11 @@ Future<void> showAddAgentResourceMenu({
     ],
   );
   if (selected != true || !context.mounted) return;
-  try {
-    await ref
-        .read(agentChatNotifierProvider.notifier)
-        .addPendingResource(reference);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.agentChat_resourceAdded)),
-      );
-    }
-  } on Object catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.agentChat_addResourceFailed('$error')),
-        ),
-      );
-    }
-  }
+  await addAgentResourceToComposer(
+    context: context,
+    ref: ref,
+    reference: reference,
+  );
 }
 
 class AgentResourceDropRegion extends StatelessWidget {
@@ -92,15 +102,19 @@ class AgentResourceDragSource extends ConsumerWidget {
     super.key,
     required this.reference,
     required this.child,
+    this.enableAddToAgentMenu = true,
+    this.enableAddToAgentAction = true,
   });
 
   final AgentChatResourceReference reference;
   final Widget child;
+  final bool enableAddToAgentMenu;
+  final bool enableAddToAgentAction;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reference = this.reference;
-    return DragItemWidget(
+    final dragSource = DragItemWidget(
       allowedOperations: () => [DropOperation.copy],
       dragItemProvider: (_) async {
         final item = DragItem(
@@ -113,14 +127,29 @@ class AgentResourceDragSource extends ConsumerWidget {
       },
       child: GestureDetector(
         behavior: HitTestBehavior.deferToChild,
-        onSecondaryTapDown: (details) => showAddAgentResourceMenu(
-          context: context,
-          ref: ref,
-          position: details.globalPosition,
-          reference: reference,
-        ),
+        // 必须抬起后弹菜单：按住时 push 会合成 touch 取消事件，令 DraggableWidget 整批重建闪烁
+        onSecondaryTapUp: enableAddToAgentMenu
+            ? (details) => showAddAgentResourceMenu(
+                context: context,
+                ref: ref,
+                position: details.globalPosition,
+                reference: reference,
+              )
+            : null,
         child: DraggableWidget(child: child),
       ),
+    );
+    if (!enableAddToAgentAction) return dragSource;
+
+    return ImageCardActionScope(
+      onAddToAgent: () => unawaited(
+        addAgentResourceToComposer(
+          context: context,
+          ref: ref,
+          reference: reference,
+        ),
+      ),
+      child: dragSource,
     );
   }
 }

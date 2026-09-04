@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_card.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
 
 void main() {
@@ -150,5 +151,44 @@ void main() {
     await tester.pump();
     expect(find.byKey(previewKey), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('触屏更多菜单可以点击移动到分类', (tester) async {
+    var classifyCount = 0;
+    final entry = TagLibraryEntry(
+      id: 'touch-entry',
+      name: '触屏词条',
+      content: '1girl',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: InteractionPolicyScope(
+          initialPolicy: const InteractionPolicy(
+            modality: InteractionModality.touch,
+            touchAvailable: true,
+            precisePointerAvailable: false,
+          ),
+          child: Scaffold(
+            body: EntryCard(
+              entry: entry,
+              onTap: () {},
+              onDelete: () {},
+              onToggleFavorite: () {},
+              onClassify: () => classifyCount++,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('移动到分类'));
+    expect(classifyCount, 1);
   });
 }

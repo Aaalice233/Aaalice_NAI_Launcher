@@ -8,7 +8,9 @@ import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../presentation/providers/vibe_library_provider.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 import 'vibe_card.dart';
 
 const int _topTagEntrySampleLimit = 40;
@@ -143,12 +145,21 @@ class VibeSelectorDialog extends ConsumerStatefulWidget {
   /// 标题
   final String? title;
 
+  final ScrollController? _scrollController;
+
   const VibeSelectorDialog({
     super.key,
     this.initialSelectedIds = const {},
     this.showReplaceOption = true,
     this.title,
-  });
+  }) : _scrollController = null;
+
+  const VibeSelectorDialog._presented({
+    required this.initialSelectedIds,
+    required this.showReplaceOption,
+    required this.title,
+    required ScrollController scrollController,
+  }) : _scrollController = scrollController;
 
   /// 显示对话框的便捷方法
   static Future<VibeSelectionResult?> show({
@@ -165,17 +176,25 @@ class VibeSelectorDialog extends ConsumerStatefulWidget {
       },
     );
     var openSpanFinished = false;
-    return showDialog<VibeSelectionResult>(
+    return AdaptivePresenter.showForm<VibeSelectionResult>(
       context: context,
-      builder: (context) {
+      titleBuilder: (panelContext) => Text(
+        title ?? panelContext.l10n.vibe_selector_title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(panelContext).textTheme.titleLarge,
+      ),
+      sideSheetWidth: 900,
+      builder: (panelContext, scrollController) {
         if (!openSpanFinished) {
           openSpanFinished = true;
           span.finish(details: const {'builderReady': true});
         }
-        return VibeSelectorDialog(
+        return VibeSelectorDialog._presented(
           initialSelectedIds: initialSelectedIds,
           showReplaceOption: showReplaceOption,
           title: title,
+          scrollController: scrollController,
         );
       },
     );
@@ -464,72 +483,64 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900, maxHeight: 800),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 600;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            isCompact ? 16 : 24,
+            isCompact ? 12 : 20,
+            isCompact ? 16 : 24,
+            isCompact ? 12 : 20,
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(theme),
-              const SizedBox(height: 16),
               _buildSearchBar(theme),
               const SizedBox(height: 12),
               _buildFilterToolbar(theme),
-              const SizedBox(height: 16),
+              if (_selectedIds.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _buildSelectionCount(theme),
+              ],
+              SizedBox(height: isCompact ? 12 : 16),
               if (_isLoading)
-                const Expanded(
-                  child: Center(child: CircularProgressIndicator()),
+                Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value: MediaQuery.disableAnimationsOf(context)
+                          ? 0.5
+                          : null,
+                    ),
+                  ),
                 )
               else if (_allEntries.isEmpty)
                 _buildEmptyState(theme)
               else
                 Expanded(child: _buildContent(theme)),
-              const SizedBox(height: 16),
+              SizedBox(height: isCompact ? 12 : 16),
               _buildFooter(theme),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
-    return Row(
-      children: [
-        Icon(Icons.style_outlined, color: theme.colorScheme.primary),
-        const SizedBox(width: 12),
-        Text(
-          widget.title ?? context.l10n.vibe_selector_title,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+  Widget _buildSelectionCount(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        context.l10n.vibeSelectorItemsCount(_selectedIds.length),
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onPrimaryContainer,
+          fontWeight: FontWeight.w600,
         ),
-        const Spacer(),
-        if (_selectedIds.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              context.l10n.vibeSelectorItemsCount(_selectedIds.length),
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        const SizedBox(width: 12),
-        IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ],
+      ),
     );
   }
 
@@ -577,7 +588,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         ],
       ),
       padding: EdgeInsets.zero,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
     final sourceFilter = _buildSourceTypeFilter(theme);
     final tagFilters = _topTags.map((tag) {
@@ -587,9 +597,8 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         child: FilterChip(
           selected: isSelected,
           onSelected: (_) => _toggleTag(tag),
-          label: Text(tag),
+          label: TranslatedTagText(tag),
           padding: EdgeInsets.zero,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       );
     }).toList();
@@ -601,8 +610,8 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
       ),
     );
 
-    return SizedBox(
-      height: 40,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 40),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth < 600) {
@@ -712,7 +721,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
               : context.l10n.vibeSelectorFilterSourceAll,
         ),
         padding: EdgeInsets.zero,
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
@@ -754,7 +762,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         ),
         label: Text(sortLabelMap[_sortOrder]!),
         padding: EdgeInsets.zero,
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
@@ -773,9 +780,11 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         const double spacing = 12;
         final crossAxisCount =
             ((availableWidth + spacing) / (itemWidth + spacing)).floor();
-        final columnCount = crossAxisCount.clamp(3, 6); // 最少3列，最多6列
+        final columnCount = crossAxisCount.clamp(1, 6);
 
         return CustomScrollView(
+          controller: widget._scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           slivers: [
             // 最近使用区域
             if (_searchQuery.isEmpty &&
@@ -795,37 +804,55 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
             ],
 
             // "全部 Vibe" 标题行
-            SliverToBoxAdapter(
-              child: Row(
-                children: [
-                  Text(
-                    _searchQuery.isEmpty
-                        ? context.l10n.vibeLibrary_title
-                        : context.l10n.search_results,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: _selectAll,
-                    icon: const Icon(Icons.select_all, size: 18),
-                    label: Text(context.l10n.selectAll),
-                  ),
-                  TextButton.icon(
-                    onPressed: _clearSelection,
-                    icon: const Icon(Icons.deselect, size: 18),
-                    label: Text(context.l10n.clearSelection),
-                  ),
-                ],
-              ),
-            ),
+            SliverToBoxAdapter(child: _buildGridHeader(theme)),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
             // 网格内容 - 按 entry 类型分组
             ..._buildSliverGrids(columnCount),
           ],
         );
+      },
+    );
+  }
+
+  Widget _buildGridHeader(ThemeData theme) {
+    final title = Text(
+      _searchQuery.isEmpty
+          ? context.l10n.vibeLibrary_title
+          : context.l10n.search_results,
+      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+    );
+    final actions = [
+      TextButton.icon(
+        onPressed: _selectAll,
+        icon: const Icon(Icons.select_all, size: 18),
+        label: Text(context.l10n.selectAll),
+      ),
+      TextButton.icon(
+        onPressed: _clearSelection,
+        icon: const Icon(Icons.deselect, size: 18),
+        label: Text(context.l10n.clearSelection),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useStackedActions =
+            constraints.maxWidth < 520 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 2;
+        if (useStackedActions) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              title,
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Wrap(alignment: WrapAlignment.end, children: actions),
+              ),
+            ],
+          );
+        }
+        return Row(children: [title, const Spacer(), ...actions]);
       },
     );
   }
@@ -844,7 +871,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     return SliverGrid.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columnCount,
-        childAspectRatio: 0.8, // 稍微调整宽高比，让卡片更紧凑
+        childAspectRatio: vibeCardAspectRatio,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
@@ -853,11 +880,22 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         final entry = entries[index];
         final isSelected = _selectedIds.contains(entry.id);
 
-        if (entry.isBundle) {
-          return _buildBundleCardCompact(entry, isSelected);
-        } else {
-          return _buildCompactVibeCard(entry, isSelected);
-        }
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (entry.isBundle) {
+              return _buildBundleCardCompact(
+                entry,
+                isSelected,
+                constraints.biggest,
+              );
+            }
+            return _buildCompactVibeCard(
+              entry,
+              isSelected,
+              constraints.biggest,
+            );
+          },
+        );
       },
     );
   }
@@ -961,23 +999,31 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
   }
 
   // 紧凑全图卡片 - 复用 VibeCard
-  Widget _buildCompactVibeCard(VibeLibraryEntry entry, bool isSelected) {
+  Widget _buildCompactVibeCard(
+    VibeLibraryEntry entry,
+    bool isSelected,
+    Size size,
+  ) {
     return VibeCard(
       entry: entry,
-      width: 140,
-      height: 175, // 0.8 aspect ratio
+      width: size.width,
+      height: size.height,
       isSelected: isSelected,
-      showFavoriteIndicator: false, // 选择器中不显示收藏按钮
+      showFavoriteIndicator: false,
       onTap: () => _toggleSelection(entry.id),
     );
   }
 
   // Bundle 紧凑卡片 - 复用 VibeCard
-  Widget _buildBundleCardCompact(VibeLibraryEntry entry, bool isSelected) {
+  Widget _buildBundleCardCompact(
+    VibeLibraryEntry entry,
+    bool isSelected,
+    Size size,
+  ) {
     return VibeCard(
       entry: entry,
-      width: 140,
-      height: 175,
+      width: size.width,
+      height: size.height,
       isSelected: isSelected,
       showFavoriteIndicator: false,
       onTap: () => _toggleBundleSelection(entry),
@@ -1047,53 +1093,76 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
   }
 
   Widget _buildFooter(ThemeData theme) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (widget.showReplaceOption && _selectedIds.isNotEmpty) ...[
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useStackedFooter =
+            constraints.maxWidth < 420 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 2;
+        final replaceControl = SegmentedButton<bool>(
+          direction: useStackedFooter ? Axis.vertical : Axis.horizontal,
+          segments: [
+            ButtonSegment(
+              value: false,
+              label: Text(context.l10n.addToCurrent),
+              icon: const Icon(Icons.add),
+            ),
+            ButtonSegment(
+              value: true,
+              label: Text(context.l10n.replaceExisting),
+              icon: const Icon(Icons.swap_horiz),
+            ),
+          ],
+          selected: {_isReplaceMode},
+          onSelectionChanged: (selected) =>
+              setState(() => _isReplaceMode = selected.first),
+        );
+        final cancelButton = TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.l10n.common_cancel),
+        );
+        final confirmButton = FilledButton(
+          onPressed: _selectedIds.isNotEmpty ? _confirmSelection : null,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: SegmentedButton<bool>(
-                  segments: [
-                    ButtonSegment(
-                      value: false,
-                      label: Text(context.l10n.addToCurrent),
-                      icon: const Icon(Icons.add),
-                    ),
-                    ButtonSegment(
-                      value: true,
-                      label: Text(context.l10n.replaceExisting),
-                      icon: const Icon(Icons.swap_horiz),
-                    ),
-                  ],
-                  selected: {_isReplaceMode},
-                  onSelectionChanged: (selected) =>
-                      setState(() => _isReplaceMode = selected.first),
+              const Icon(Icons.check),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  '${context.l10n.confirmSelection} (${_selectedIds.length})',
+                  textAlign: TextAlign.center,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-        ],
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        );
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.l10n.common_cancel),
-            ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              onPressed: _selectedIds.isNotEmpty ? _confirmSelection : null,
-              icon: const Icon(Icons.check),
-              label: Text(
-                '${context.l10n.confirmSelection} (${_selectedIds.length})',
+            if (widget.showReplaceOption && _selectedIds.isNotEmpty) ...[
+              SizedBox(width: double.infinity, child: replaceControl),
+              const SizedBox(height: 12),
+            ],
+            if (useStackedFooter) ...[
+              SizedBox(width: double.infinity, child: confirmButton),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: cancelButton,
               ),
-            ),
+            ] else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  cancelButton,
+                  const SizedBox(width: 8),
+                  confirmButton,
+                ],
+              ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }

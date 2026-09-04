@@ -161,12 +161,33 @@ class _GenericGalleryContentViewState<T>
   final Set<int> _visibleIndices = {};
   late final AnimationController _emptyStateController;
   late final Animation<double> _emptyStateAnimation;
+  bool _motionPreferenceInitialized = false;
+  bool _disableAnimations = false;
 
   @override
   void initState() {
     super.initState();
     _initSkeletonDelay();
     _initEmptyStateAnimation();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_motionPreferenceInitialized &&
+        _disableAnimations == disableAnimations) {
+      return;
+    }
+    final isFirstUpdate = !_motionPreferenceInitialized;
+    _motionPreferenceInitialized = true;
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _emptyStateController.stop();
+      _emptyStateController.value = 1;
+    } else if (isFirstUpdate) {
+      _emptyStateController.forward();
+    }
   }
 
   @override
@@ -195,7 +216,6 @@ class _GenericGalleryContentViewState<T>
       parent: _emptyStateController,
       curve: Curves.easeOut,
     );
-    _emptyStateController.forward();
   }
 
   void _initSkeletonDelay() {
@@ -236,6 +256,7 @@ class _GenericGalleryContentViewState<T>
   }
 
   Widget _buildAnimatedEmptyState(Widget child) {
+    if (_disableAnimations) return child;
     return FadeTransition(
       opacity: _emptyStateAnimation,
       child: AnimatedBuilder(
@@ -310,7 +331,7 @@ class _GenericGalleryContentViewState<T>
                 widget.onEnterSelection?.call(record as T);
               }
             },
-            onSecondaryTapDown: widget.onContextMenu != null
+            onSecondaryTapUp: widget.onContextMenu != null
                 ? (details) =>
                       widget.onContextMenu!(record as T, details.globalPosition)
                 : null,
@@ -320,6 +341,7 @@ class _GenericGalleryContentViewState<T>
             onSendAction: widget.onSendAction != null
                 ? (action) => widget.onSendAction!(record, action)
                 : null,
+            enableAddToAgent: !selectionState.isActive,
             isKritaConnected: widget.isKritaConnected,
           ),
         );
@@ -371,6 +393,7 @@ class _GenericGalleryContentViewState<T>
       duration: const Duration(milliseconds: 200),
       child: GridView.builder(
         key: const PageStorageKey<String>('gallery_grid_loading'),
+        padding: const EdgeInsets.all(12),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: widget.columns,
           mainAxisSpacing: 12,
@@ -409,7 +432,7 @@ class _GenericGalleryContentViewState<T>
       images: _convertToLocalImageRecords(state.currentImages),
       columns: widget.columns,
       spacing: 12,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       selectedIndices: selectionState.isActive ? selectedIndices : null,
       enableDrag: !selectionState.isActive,
       onTap: (record, index) {
@@ -438,7 +461,7 @@ class _GenericGalleryContentViewState<T>
           widget.onLongPress?.call(state.currentImages[index], index);
         }
       },
-      onSecondaryTapDown: (record, index, details) {
+      onSecondaryTapUp: (record, index, details) {
         widget.onContextMenu?.call(
           state.currentImages[index],
           details.globalPosition,
@@ -573,7 +596,7 @@ class LocalGalleryContentView extends ConsumerWidget {
         showThumbnails: images.length > 1,
         callbacks: ImageDetailCallbacks(
           onReuseMetadata: onReuseMetadata != null
-              ? (data, _) =>
+              ? (data) async =>
                     onReuseMetadata?.call((data as LocalImageDetailData).record)
               : null,
           onFavoriteToggle: (data) => ref
@@ -640,6 +663,7 @@ class LocalGalleryContentView extends ConsumerWidget {
         onSendAction: onSendAction != null
             ? (action) => onSendAction!(record, action)
             : null,
+        enableAddToAgent: !config.selectionMode,
         isKritaConnected: isKritaConnected,
       ),
       onSelectionToggle: (record) => ref

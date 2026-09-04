@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/generation/generated_image_metadata_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/preview_transparency_provider.dart';
@@ -26,6 +27,13 @@ class PreviewInfoBar extends ConsumerWidget {
 
   static const double barHeight = 44;
 
+  static double heightFor(BuildContext context) {
+    final scaledLine = MediaQuery.textScalerOf(context).scale(14) + 20;
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final minimumHeight = policyExtent < barHeight ? barHeight : policyExtent;
+    return scaledLine < minimumHeight ? minimumHeight : scaledLine;
+  }
+
   /// 低于该宽度就收起分辨率胶囊（官网在窄容器下同样隐藏它）
   static const double _resolutionMinWidth = 300;
   static const double _comparisonResolutionMinWidth = 400;
@@ -39,7 +47,7 @@ class PreviewInfoBar extends ConsumerWidget {
         ?.seed;
 
     return SizedBox(
-      height: barHeight,
+      height: heightFor(context),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final resolutionMinWidth = onComparisonChanged == null
@@ -49,7 +57,8 @@ class PreviewInfoBar extends ConsumerWidget {
               !constraints.maxWidth.isFinite ||
               constraints.maxWidth >= resolutionMinWidth;
 
-          return ClipRect(
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -79,7 +88,7 @@ class PreviewInfoBar extends ConsumerWidget {
                 ],
                 if (seed != null && seed >= 0) ...[
                   const SizedBox(width: 6),
-                  Flexible(child: _SeedPill(seed: seed)),
+                  _SeedPill(seed: seed),
                 ],
               ],
             ),
@@ -107,6 +116,8 @@ class _InfoPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final interactiveMinimumHeight = policyExtent < 44 ? 44.0 : policyExtent;
 
     Widget pill = Material(
       color: selected
@@ -117,7 +128,9 @@ class _InfoPill extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 44),
+          constraints: BoxConstraints(
+            minHeight: onTap == null ? 44 : interactiveMinimumHeight,
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             // widthFactor 让胶囊按内容收窄：种子胶囊在 Flexible 里拿到的是有界宽度，
@@ -250,6 +263,10 @@ class _TransparencyBackgroundButtonState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final minimumControlExtent = policyExtent < PreviewInfoBar.barHeight
+        ? PreviewInfoBar.barHeight
+        : policyExtent;
     // 只在浮层打开时高亮，平时与两侧胶囊保持同一套底色
     final selected = _controller.isShowing;
 
@@ -292,9 +309,11 @@ class _TransparencyBackgroundButtonState
               onTap: () {
                 setState(() => _controller.toggle());
               },
-              child: SizedBox(
-                width: PreviewInfoBar.barHeight,
-                height: PreviewInfoBar.barHeight,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: minimumControlExtent,
+                  minHeight: minimumControlExtent,
+                ),
                 child: Center(
                   child: TransparencyBackgroundIcon(
                     size: 16,
@@ -434,6 +453,10 @@ class _TransparencyBackgroundPanelState
                   color:
                       TransparencyBackgrounds.parseCustomColor(style) ??
                       const Color(0xFF808080),
+                  hexLabel: context.l10n.editor_colorHex,
+                  saturationBrightnessLabel:
+                      context.l10n.editor_colorSaturationBrightness,
+                  hueLabel: context.l10n.editor_colorHue,
                   onColorChanged: (color) => notifier.setStyle(
                     TransparencyBackgrounds.encodeCustomColor(color),
                   ),

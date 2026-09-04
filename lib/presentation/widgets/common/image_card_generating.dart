@@ -4,11 +4,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../data/models/image/image_stream_chunk.dart';
-
+import '../../themes/theme_extension.dart';
 import 'decoded_memory_image.dart';
 import 'image_card_controller.dart';
 import 'image_card_focused_preview.dart';
 import 'image_card_models.dart';
+
+const _streamProgressForeground = Colors.white;
 
 class ImageCardGenerating extends StatelessWidget {
   const ImageCardGenerating({
@@ -24,8 +26,11 @@ class ImageCardGenerating extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasPreview = data.streamPreview?.isNotEmpty == true;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
     return AnimatedBuilder(
-      animation: controller.glowAnimation ?? const AlwaysStoppedAnimation(0.06),
+      animation: reducedMotion
+          ? const AlwaysStoppedAnimation(0.06)
+          : controller.glowAnimation ?? const AlwaysStoppedAnimation(0.06),
       builder: (context, child) => Container(
         decoration: BoxDecoration(
           color: hasPreview ? null : theme.colorScheme.surface,
@@ -41,11 +46,11 @@ class ImageCardGenerating extends StatelessWidget {
         ),
         child: child,
       ),
-      child: hasPreview ? _preview(theme) : _loading(theme),
+      child: hasPreview ? _preview(context) : _loading(context, theme),
     );
   }
 
-  Widget _preview(ThemeData theme) {
+  Widget _preview(BuildContext context) {
     final progress = data.progress ?? 0;
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -60,7 +65,7 @@ class ImageCardGenerating extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  Colors.black.withValues(alpha: 0.4),
+                  Colors.black.withValues(alpha: 0.55),
                 ],
               ),
             ),
@@ -75,20 +80,32 @@ class ImageCardGenerating extends StatelessWidget {
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    value: progress > 0 ? progress : null,
+                    key: const ValueKey('stream-generation-progress-ring'),
+                    value: progress > 0
+                        ? progress
+                        : MediaQuery.disableAnimationsOf(context)
+                        ? 0.72
+                        : null,
                     strokeWidth: 2,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    color: Colors.white,
+                    backgroundColor: _streamProgressForeground.withValues(
+                      alpha: 0.24,
+                    ),
+                    color: _streamProgressForeground,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '${data.currentImage ?? 0}/${data.totalImages ?? 0}',
-                  style: _progressStyle,
+                  key: const ValueKey('stream-generation-progress-count'),
+                  style: _progressStyle(),
                 ),
                 const Spacer(),
                 if (progress > 0)
-                  Text('${(progress * 100).toInt()}%', style: _progressStyle),
+                  Text(
+                    '${(progress * 100).toInt()}%',
+                    key: const ValueKey('stream-generation-progress-percent'),
+                    style: _progressStyle(),
+                  ),
               ],
             ),
           ),
@@ -152,7 +169,7 @@ class ImageCardGenerating extends StatelessWidget {
     );
   }
 
-  Widget _loading(ThemeData theme) {
+  Widget _loading(BuildContext context, ThemeData theme) {
     final progress = data.progress ?? 0;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -167,7 +184,11 @@ class ImageCardGenerating extends StatelessWidget {
                 width: 52,
                 height: 52,
                 child: CircularProgressIndicator(
-                  value: progress > 0 ? progress : null,
+                  value: progress > 0
+                      ? progress
+                      : MediaQuery.disableAnimationsOf(context)
+                      ? 0.72
+                      : null,
                   strokeWidth: 2.5,
                   backgroundColor: theme.colorScheme.primary.withValues(
                     alpha: 0.1,
@@ -190,7 +211,9 @@ class ImageCardGenerating extends StatelessWidget {
           textBaseline: TextBaseline.alphabetic,
           children: [
             AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : theme.appTheme.fastDuration,
               child: Text(
                 '${data.currentImage ?? 0}',
                 key: ValueKey(data.currentImage ?? 0),
@@ -228,11 +251,13 @@ class ImageCardGenerating extends StatelessWidget {
     );
   }
 
-  static const _progressStyle = TextStyle(
-    color: Colors.white,
+  TextStyle _progressStyle() => const TextStyle(
+    color: _streamProgressForeground,
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+    shadows: [
+      Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 1)),
+    ],
   );
 }
 

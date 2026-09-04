@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../data/models/fixed_tag/fixed_tag_link.dart';
 import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
@@ -620,6 +621,84 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
 
     AppLogger.d('Added fixed tag: ${entry.displayName}', 'FixedTagsProvider');
     return entry;
+  }
+
+  /// Atomically restores the enabled entries for the selected prompt scopes.
+  Future<void> restoreUsageSnapshot({
+    required FixedTagUsageSnapshot snapshot,
+    required Set<FixedTagScope> scopes,
+    required String Function(String name) buildImageVersionName,
+  }) async {
+    if (scopes.isEmpty) return;
+
+    final now = DateTime.now();
+    final fingerprint = snapshot.fingerprint;
+    final nextEntries = [
+      for (final entry in state.entries)
+        if (scopes.contains(FixedTagScope(entry.promptType, entry.position)) &&
+            entry.enabled)
+          entry.copyWith(enabled: false, updatedAt: now)
+        else
+          entry,
+    ];
+
+    for (final usage in snapshot.entries) {
+      final scope = FixedTagScope(usage.promptType, usage.position);
+      if (!scopes.contains(scope) || usage.content.trim().isEmpty) continue;
+
+      final originalIndex = usage.fixedTagId == null
+          ? -1
+          : nextEntries.indexWhere((entry) => entry.id == usage.fixedTagId);
+      final hasChangedOriginal =
+          originalIndex >= 0 &&
+          !_matchesUsage(nextEntries[originalIndex], usage);
+      var index = hasChangedOriginal ? -1 : originalIndex;
+      if (hasChangedOriginal) {
+        index = nextEntries.indexWhere(
+          (entry) =>
+              entry.importedFromFixedTagId == usage.fixedTagId &&
+              entry.importedSnapshotFingerprint == fingerprint &&
+              _matchesUsage(entry, usage),
+        );
+      }
+      if (index < 0 && !hasChangedOriginal) {
+        index = nextEntries.indexWhere((entry) => _matchesUsage(entry, usage));
+      }
+
+      if (index >= 0) {
+        nextEntries[index] = nextEntries[index].copyWith(
+          enabled: true,
+          updatedAt: now,
+        );
+        continue;
+      }
+
+      nextEntries.add(
+        FixedTagEntry.create(
+          name: hasChangedOriginal
+              ? buildImageVersionName(usage.name)
+              : usage.name,
+          content: usage.content,
+          weight: usage.weight,
+          position: usage.position,
+          promptType: usage.promptType,
+          enabled: true,
+          importedFromFixedTagId: hasChangedOriginal ? usage.fixedTagId : null,
+          importedSnapshotFingerprint: hasChangedOriginal ? fingerprint : null,
+          sortOrder: nextEntries.length,
+        ),
+      );
+    }
+
+    _commitState(state.copyWith(entries: nextEntries));
+    await _saveEntries();
+  }
+
+  static bool _matchesUsage(FixedTagEntry entry, FixedTagUsageEntry usage) {
+    return entry.promptType == usage.promptType &&
+        entry.position == usage.position &&
+        entry.content.trim() == usage.content.trim() &&
+        (entry.weight - usage.weight).abs() < 0.000001;
   }
 
   /// 更新固定词

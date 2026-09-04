@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/cache/online_gallery_prefetch_coordinator.dart
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:nai_launcher/presentation/screens/online_gallery/gallery_grid_item.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_grid.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_masonry_layout.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen_controller.dart';
@@ -213,6 +214,115 @@ void main() {
     );
     expect(builtIndices.length, lessThan(400));
   });
+
+  testWidgets(
+    'resolved AI TAG ratio cannot change its precomputed masonry slot',
+    (tester) async {
+      final previousUpdateInterval =
+          VisibilityDetectorController.instance.updateInterval;
+      VisibilityDetectorController.instance.updateInterval = Duration.zero;
+      addTearDown(
+        () => VisibilityDetectorController.instance.updateInterval =
+            previousUpdateInterval,
+      );
+      final controller = OnlineGalleryScreenController(
+        prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+          preloader: (_) =>
+              GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+        ),
+      );
+      addTearDown(controller.dispose);
+      const initial = GalleryItem(
+        id: 1,
+        workId: 'ai-tag-ratio',
+        sourceId: GallerySourceId.aiTag,
+        width: 800,
+        height: 400,
+      );
+      final resolved = initial.copyWith(
+        imageWidth: 400,
+        imageHeight: 800,
+        previewFileUrl: 'https://example.test/resolved.jpg',
+      );
+      final ratios = <double>[];
+      GalleryItem? cardItem;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 224,
+              height: 500,
+              child: OnlineGalleryGrid(
+                state: const OnlineGalleryState(
+                  searchCache: ModeCache(posts: [initial], hasMore: false),
+                ),
+                controller: controller,
+                itemBuilder: (context, index, itemWidth, columnCount) =>
+                    GalleryGridItem(
+                      post: initial,
+                      index: index,
+                      itemWidth: itemWidth,
+                      columnCount: columnCount,
+                      scrolling: controller.scrolling,
+                      anchorKey: null,
+                      onVisibilityChanged: (_) {},
+                      viewportGeneration: 0,
+                      detailRequestScope: 1,
+                      loadDetail:
+                          (
+                            _, {
+                            required priority,
+                            forceRefresh = false,
+                          }) async =>
+                              GalleryDetail(item: resolved, media: const []),
+                      buildCard:
+                          (
+                            context,
+                            item,
+                            width, {
+                            required layoutAspectRatio,
+                            required loadMedia,
+                            required mediaRequestActive,
+                            detail,
+                          }) {
+                            ratios.add(layoutAspectRatio);
+                            cardItem = item;
+                            return SizedBox(
+                              key: const ValueKey('resolved-ai-tag-card'),
+                              height: width / layoutAspectRatio,
+                            );
+                          },
+                    ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final detector = tester.widget<VisibilityDetector>(
+        find.byType(VisibilityDetector),
+      );
+      detector.onVisibilityChanged?.call(
+        VisibilityInfo(
+          key: detector.key!,
+          size: const Size(200, 100),
+          visibleBounds: const Rect.fromLTWH(0, 0, 200, 100),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(ratios.last, 2);
+      expect(cardItem?.width, 400);
+      expect(cardItem?.height, 800);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('resolved-ai-tag-card'))),
+        const Size(200, 100),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   test('precomputed masonry finds only geometry intersecting an offset', () {
     final snapshot = OnlineGalleryMasonryLayoutSnapshot(
@@ -652,6 +762,9 @@ void main() {
         );
       }
 
+      await tester.pumpWidget(subject(width: 320, height: 640));
+      expect(builtColumnCount, 2);
+
       await tester.pumpWidget(subject(width: 360, height: 640));
       expect(builtColumnCount, 2);
 
@@ -665,4 +778,174 @@ void main() {
       expect(builtColumnCount, 8);
     },
   );
+
+  testWidgets(
+    'restores a page seven anchor through zero constraints and column changes',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1400, 1000);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final controller = OnlineGalleryScreenController(
+        prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+          preloader: (_) =>
+              GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+        ),
+      );
+      addTearDown(controller.dispose);
+      final items = List.generate(
+        7 * 60,
+        (index) => GalleryItem(
+          id: index,
+          workId: 'page-seven-$index',
+          sourceId: GallerySourceId.danbooru,
+          width: 100 + index % 5 * 20,
+          height: 100 + index % 7 * 15,
+        ),
+      );
+      const anchorIndex = 365;
+      const localOffset = 18.0;
+      final state = OnlineGalleryState(
+        searchCache: ModeCache(
+          posts: items,
+          page: 7,
+          hasMore: false,
+          scrollOffset: 12000,
+          anchorStableKey: items[anchorIndex].stableKey,
+          anchorLocalOffset: localOffset,
+        ),
+      );
+
+      double expectedOffset(double width) {
+        const spacing = 6.0;
+        final availableWidth = width - 24;
+        final columns = ((availableWidth + spacing) / (140 + spacing))
+            .floor()
+            .clamp(1, 8);
+        final itemWidth = (availableWidth - (columns - 1) * spacing) / columns;
+        final layout = OnlineGalleryMasonryLayoutSnapshot(
+          aspectRatios: [for (final item in items) item.width / item.height],
+          placeholderCount: 0,
+          columnCount: columns,
+          itemWidth: itemWidth,
+          mainAxisSpacing: spacing,
+          crossAxisSpacing: spacing,
+        );
+        return 12 + layout.placementFor(anchorIndex).scrollOffset + localOffset;
+      }
+
+      Widget subject(double width, double height) => MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: OnlineGalleryGrid(
+                state: state,
+                controller: controller,
+                itemBuilder: (_, __, ___, ____) => const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(subject(840, 700));
+      expect(
+        controller.scrollController.offset,
+        closeTo(expectedOffset(840), 1),
+      );
+
+      final retainedOffset = controller.scrollController.offset;
+      await tester.pumpWidget(subject(840, 0));
+      expect(controller.scrollController.hasClients, isFalse);
+
+      await tester.pumpWidget(subject(840, 700));
+      expect(controller.scrollController.offset, closeTo(retainedOffset, 1));
+
+      await tester.pumpWidget(subject(1180, 700));
+      expect(
+        controller.scrollController.offset,
+        closeTo(expectedOffset(1180), 1),
+      );
+      expect(state.currentCache.page, 7);
+      expect(state.posts, hasLength(420));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('keeps viewport snapshots isolated by browsing scope', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(840, 700);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = OnlineGalleryScreenController(
+      prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+      ),
+    );
+    addTearDown(controller.dispose);
+    final items = List.generate(
+      180,
+      (index) => GalleryItem(
+        id: index,
+        workId: 'scope-$index',
+        sourceId: GallerySourceId.danbooru,
+        width: 1,
+        height: 1,
+      ),
+    );
+
+    OnlineGalleryState scopedState(String query, int anchorIndex) =>
+        OnlineGalleryState(
+          searchQuery: query,
+          searchCache: ModeCache(
+            posts: items,
+            page: 3,
+            hasMore: false,
+            anchorStableKey: items[anchorIndex].stableKey,
+            anchorLocalOffset: 10,
+          ),
+        );
+
+    Widget subject(OnlineGalleryState state, {double height = 700}) =>
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: height,
+              child: OnlineGalleryGrid(
+                state: state,
+                controller: controller,
+                itemBuilder: (_, __, ___, ____) => const SizedBox.expand(),
+              ),
+            ),
+          ),
+        );
+
+    final first = scopedState('first', 80);
+    final second = scopedState('second', 140);
+    await tester.pumpWidget(subject(first));
+    final firstOffset = controller.scrollController.offset;
+    controller.stageViewportRestore(
+      scope: second.currentCacheKey,
+      cache: second.currentCache,
+    );
+    await tester.pumpWidget(subject(second, height: 0));
+    await tester.pumpWidget(subject(second));
+    final secondOffset = controller.scrollController.offset;
+    expect(secondOffset, greaterThan(firstOffset));
+
+    controller.stageViewportRestore(
+      scope: first.currentCacheKey,
+      cache: first.currentCache,
+    );
+    await tester.pumpWidget(subject(first));
+    expect(controller.scrollController.offset, closeTo(firstOffset, 1));
+    expect(first.currentCache.page, 3);
+    expect(second.currentCache.page, 3);
+  });
 }

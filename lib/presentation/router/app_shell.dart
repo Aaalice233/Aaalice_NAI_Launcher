@@ -1,9 +1,15 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/platform/platform_capabilities.dart';
+import '../../core/services/interactive_work_gate.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
+import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../adaptive/window_size_class.dart';
 import '../providers/auth_provider.dart';
@@ -24,8 +30,8 @@ export 'shell_panels_overlay.dart' show ShellPanel, shellPanelProvider;
 
 /// 主布局 Shell - 包含导航 (StatefulShellRoute 版本)
 ///
-/// 使用混合保活策略：画廊、Vibe 库和精准参考库分支使用 Offstage
-/// 保活，其他分支离开时销毁。
+/// 已访问分支统一保留 Element/Navigator 状态；隐藏分支通过 TickerMode
+/// 与 AppBranchVisibility 暂停动画和主动后台工作。
 class MainShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
   final List<Widget> children;
@@ -42,14 +48,34 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   int? _previousIndex;
+  final Set<int> _visitedBranchIndices = <int>{};
   bool _authPromptVisible = false;
+  final GlobalKey _contentKey = GlobalKey(debugLabel: 'main-shell-content');
+  final GlobalKey _panelOverlayKey = GlobalKey(
+    debugLabel: 'main-shell-panel-overlay',
+  );
   final Map<int, bool> _branchCanHandlePop = <int, bool>{};
   ProviderSubscription<AuthPromptRequest?>? _authPromptSubscription;
+  late final TimingsCallback _frameTimingsCallback;
+  Timer? _navigationTraceTimer;
+  int? _tracedBranchIndex;
+  int _tracedFrameCount = 0;
+  int _slowFrameCount = 0;
+  int _firstBuildMicros = 0;
+  int _firstTotalMicros = 0;
+  int _maxBuildMicros = 0;
+  int _maxRasterMicros = 0;
+  int _maxTotalMicros = 0;
 
   @override
   void initState() {
     super.initState();
     _previousIndex = widget.navigationShell.currentIndex;
+    _visitedBranchIndices.add(widget.navigationShell.currentIndex);
+    _frameTimingsCallback = _recordNavigationFrameTimings;
+    if (kDebugMode) {
+      SchedulerBinding.instance.addTimingsCallback(_frameTimingsCallback);
+    }
     _authPromptSubscription = ref.listenManual<AuthPromptRequest?>(
       authPromptRequestProvider,
       (previous, next) {
@@ -60,10 +86,24 @@ class _MainShellState extends ConsumerState<MainShell> {
       },
       fireImmediately: true,
     );
+    if (kDebugMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _beginNavigationTrace(
+            widget.navigationShell.currentIndex,
+            duration: const Duration(seconds: 4),
+          );
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    _navigationTraceTimer?.cancel();
+    if (kDebugMode) {
+      SchedulerBinding.instance.removeTimingsCallback(_frameTimingsCallback);
+    }
     _authPromptSubscription?.close();
     super.dispose();
   }
@@ -72,6 +112,10 @@ class _MainShellState extends ConsumerState<MainShell> {
   void didUpdateWidget(MainShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     final currentIndex = widget.navigationShell.currentIndex;
+    if (_previousIndex != currentIndex) {
+      _visitedBranchIndices.add(currentIndex);
+      _beginNavigationTrace(currentIndex);
+    }
 
     if (_previousIndex == AppBranch.generation.index &&
         currentIndex != AppBranch.generation.index) {
@@ -86,6 +130,75 @@ class _MainShellState extends ConsumerState<MainShell> {
     _previousIndex = currentIndex;
   }
 
+  void _beginNavigationTrace(
+    int branchIndex, {
+    Duration duration = const Duration(milliseconds: 350),
+  }) {
+    InteractiveWorkGate.instance.markInteraction();
+    if (!kDebugMode) return;
+    // Rapid navigation replaces the sample instead of synchronously printing
+    // the previous one from the next branch's build frame.
+    _navigationTraceTimer?.cancel();
+    _navigationTraceTimer = null;
+    _tracedBranchIndex = branchIndex;
+    _tracedFrameCount = 0;
+    _slowFrameCount = 0;
+    _firstBuildMicros = 0;
+    _firstTotalMicros = 0;
+    _maxBuildMicros = 0;
+    _maxRasterMicros = 0;
+    _maxTotalMicros = 0;
+    _navigationTraceTimer = Timer(duration, _finishNavigationTrace);
+  }
+
+  void _recordNavigationFrameTimings(List<FrameTiming> timings) {
+    if (_tracedBranchIndex == null) return;
+    for (final timing in timings) {
+      _tracedFrameCount++;
+      final buildMicros = timing.buildDuration.inMicroseconds;
+      final rasterMicros = timing.rasterDuration.inMicroseconds;
+      final totalMicros = timing.totalSpan.inMicroseconds;
+      if (_tracedFrameCount == 1) {
+        _firstBuildMicros = buildMicros;
+        _firstTotalMicros = totalMicros;
+      }
+      if (totalMicros > 16667) _slowFrameCount++;
+      if (totalMicros > 80000) {
+        final branch = AppBranch.values[_tracedBranchIndex!];
+        AppLogger.w(
+          'Slow navigation frame ${branch.name}: '
+              'sequence=$_tracedFrameCount '
+              'build=${(buildMicros / 1000).toStringAsFixed(2)}ms '
+              'raster=${(rasterMicros / 1000).toStringAsFixed(2)}ms '
+              'total=${(totalMicros / 1000).toStringAsFixed(2)}ms',
+          'NavigationPerformance',
+        );
+      }
+      if (buildMicros > _maxBuildMicros) _maxBuildMicros = buildMicros;
+      if (rasterMicros > _maxRasterMicros) _maxRasterMicros = rasterMicros;
+      if (totalMicros > _maxTotalMicros) _maxTotalMicros = totalMicros;
+    }
+  }
+
+  void _finishNavigationTrace() {
+    final branchIndex = _tracedBranchIndex;
+    if (branchIndex == null) return;
+    _navigationTraceTimer?.cancel();
+    _navigationTraceTimer = null;
+    _tracedBranchIndex = null;
+    final branch = AppBranch.values[branchIndex];
+    AppLogger.i(
+      'Branch navigation ${branch.name}: frames=$_tracedFrameCount, '
+          'slow=$_slowFrameCount, '
+          'firstBuild=${(_firstBuildMicros / 1000).toStringAsFixed(2)}ms, '
+          'firstTotal=${(_firstTotalMicros / 1000).toStringAsFixed(2)}ms, '
+          'maxBuild=${(_maxBuildMicros / 1000).toStringAsFixed(2)}ms, '
+          'maxRaster=${(_maxRasterMicros / 1000).toStringAsFixed(2)}ms, '
+          'maxTotal=${(_maxTotalMicros / 1000).toStringAsFixed(2)}ms',
+      'NavigationPerformance',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentIndex = widget.navigationShell.currentIndex;
@@ -96,21 +209,17 @@ class _MainShellState extends ConsumerState<MainShell> {
         final index = entry.key;
         final child = entry.value;
         final isActive = index == currentIndex;
-        final branch = AppBranch.values[index];
         final branchNavigator =
             widget.navigationShell.route.branches[index].navigatorKey;
 
-        Widget branchContent;
-        if (keptAliveAppBranches.contains(branch)) {
-          branchContent = AppBranchVisibility(
-            isVisible: isActive,
-            child: TickerMode(enabled: isActive, child: child),
-          );
-        } else if (!isActive) {
-          branchContent = const SizedBox.shrink();
-        } else {
-          branchContent = AppBranchVisibility(isVisible: true, child: child);
-        }
+        // 只在首次访问时挂载分支，避免启动时构建全部页面；挂载后始终
+        // 保留 Element/Navigator/滚动状态，隐藏时暂停动画及后台工作。
+        final branchContent = _visitedBranchIndices.contains(index)
+            ? AppBranchVisibility(
+                isVisible: isActive,
+                child: TickerMode(enabled: isActive, child: child),
+              )
+            : const SizedBox.shrink();
 
         // 分支根页面中的 PopScope 不能直接接收根 Router 的系统返回。
         // 由 Shell 把当前分支的返回能力提升到根路由，再交还对应 Navigator。
@@ -149,20 +258,29 @@ class _MainShellState extends ConsumerState<MainShell> {
       },
     };
 
-    final shortcutEnabledContent = ShortcutAwareWidget(
-      contextType: ShortcutContext.global,
-      shortcuts: globalShortcuts,
-      autofocus: true,
-      child: dropEnabledContent,
+    final shortcutEnabledContent = KeyedSubtree(
+      key: _contentKey,
+      child: ShortcutAwareWidget(
+        contextType: ShortcutContext.global,
+        shortcuts: globalShortcuts,
+        autofocus: true,
+        child: dropEnabledContent,
+      ),
     );
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
-        if (!sizeClass.isCompact) {
+        final mediaQuery = MediaQuery.of(context);
+        final safeUsableWidth =
+            (constraints.maxWidth - mediaQuery.padding.horizontal)
+                .clamp(0.0, double.infinity)
+                .toDouble();
+        final sizeClass = WindowSizeClass.fromWidth(safeUsableWidth);
+        if (sizeClass.isExpandedOrWider) {
           return DesktopShell(
             navigationShell: widget.navigationShell,
             content: shortcutEnabledContent,
+            panelOverlayKey: _panelOverlayKey,
           );
         }
 
@@ -170,6 +288,7 @@ class _MainShellState extends ConsumerState<MainShell> {
           navigationShell: widget.navigationShell,
           branchCanHandlePop: _branchCanHandlePop[currentIndex] ?? false,
           content: shortcutEnabledContent,
+          panelOverlayKey: _panelOverlayKey,
         );
       },
     );

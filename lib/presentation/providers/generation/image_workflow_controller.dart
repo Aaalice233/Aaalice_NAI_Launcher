@@ -391,8 +391,8 @@ class ImageWorkflowState {
     this.sourceImageHeight,
     this.baseWidth,
     this.baseHeight,
-    this.baseStrength,
-    this.baseNoise,
+    this.enhanceEntryStrength,
+    this.enhanceEntryNoise,
     this.enhance = const EnhanceWorkflowSettings(),
     this.upscale = const UpscaleWorkflowSettings(),
     this.isPanelExpanded = false,
@@ -409,8 +409,10 @@ class ImageWorkflowState {
   final int? sourceImageHeight;
   final int? baseWidth;
   final int? baseHeight;
-  final double? baseStrength;
-  final double? baseNoise;
+
+  // 只在进入增强时拍照：增强是唯一覆盖 strength/noise 的模式，提前拍会回写用户之后改的值
+  final double? enhanceEntryStrength;
+  final double? enhanceEntryNoise;
   final EnhanceWorkflowSettings enhance;
   final UpscaleWorkflowSettings upscale;
   final bool isPanelExpanded;
@@ -431,8 +433,8 @@ class ImageWorkflowState {
     int? sourceImageHeight,
     int? baseWidth,
     int? baseHeight,
-    double? baseStrength,
-    double? baseNoise,
+    double? enhanceEntryStrength,
+    double? enhanceEntryNoise,
     EnhanceWorkflowSettings? enhance,
     UpscaleWorkflowSettings? upscale,
     bool? isPanelExpanded,
@@ -442,6 +444,7 @@ class ImageWorkflowState {
     Rect? focusedSelectionRect,
     bool clearSourceSize = false,
     bool clearBaseSnapshot = false,
+    bool clearEnhanceEntryParams = false,
     bool clearFocusedSelectionRect = false,
   }) {
     return ImageWorkflowState(
@@ -458,10 +461,12 @@ class ImageWorkflowState {
           : (sourceImageHeight ?? this.sourceImageHeight),
       baseWidth: clearBaseSnapshot ? null : (baseWidth ?? this.baseWidth),
       baseHeight: clearBaseSnapshot ? null : (baseHeight ?? this.baseHeight),
-      baseStrength: clearBaseSnapshot
+      enhanceEntryStrength: clearBaseSnapshot || clearEnhanceEntryParams
           ? null
-          : (baseStrength ?? this.baseStrength),
-      baseNoise: clearBaseSnapshot ? null : (baseNoise ?? this.baseNoise),
+          : (enhanceEntryStrength ?? this.enhanceEntryStrength),
+      enhanceEntryNoise: clearBaseSnapshot || clearEnhanceEntryParams
+          ? null
+          : (enhanceEntryNoise ?? this.enhanceEntryNoise),
       enhance: enhance ?? this.enhance,
       upscale: upscale ?? this.upscale,
       isPanelExpanded: isPanelExpanded ?? this.isPanelExpanded,
@@ -1055,11 +1060,11 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     switch (state.mode) {
       case ImageWorkflowMode.enhance:
-        _ensureBaseSnapshot();
+        _ensureBaseSizeSnapshot();
         _applyEnhanceToParams();
         break;
       case ImageWorkflowMode.upscale:
-        _ensureBaseSnapshot();
+        _ensureBaseSizeSnapshot();
         _applySourceSizeToParams();
         break;
       case ImageWorkflowMode.inpaint:
@@ -1075,7 +1080,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         _paramsNotifier.updateAction(ImageGenerationAction.img2img);
         break;
       case ImageWorkflowMode.base:
-        _ensureBaseSnapshot();
+        _ensureBaseSizeSnapshot();
         _applySourceSizeToParams();
         _paramsNotifier.updateAction(ImageGenerationAction.img2img);
         break;
@@ -1132,7 +1137,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _restoreBaseParams();
     }
 
-    _ensureBaseSnapshot();
+    _ensureBaseSizeSnapshot();
     state = state.copyWith(
       mode: ImageWorkflowMode.upscale,
       isPanelExpanded: true,
@@ -1149,18 +1154,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       return;
     }
 
-    _restoreBaseParams();
-    state = state.copyWith(
-      mode: ImageWorkflowMode.base,
-      isOutpaint: false,
-      clearBaseSnapshot: true,
-    );
-    _paramsNotifier.updateIsOutpaint(false);
-    _paramsNotifier.updateAction(
-      _params.sourceImage != null
-          ? ImageGenerationAction.img2img
-          : ImageGenerationAction.generate,
-    );
+    enterBaseMode(clearMask: false);
   }
 
   void updateUpscaleComfyScale(double scale) {
@@ -1367,7 +1361,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       }
     }
 
-    _ensureBaseSnapshot();
+    _ensureBaseSizeSnapshot();
 
     final actualSourceWidth = hasReplacementSource
         ? (importInfo?.originalWidth ?? sourceWidth)
@@ -1427,7 +1421,8 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _restoreBaseParams();
     }
 
-    _ensureBaseSnapshot();
+    _ensureBaseSizeSnapshot();
+    _captureEnhanceEntryParams();
     state = state.copyWith(
       mode: ImageWorkflowMode.enhance,
       isPanelExpanded: true,
@@ -1443,18 +1438,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       return;
     }
 
-    _restoreBaseParams();
-    state = state.copyWith(
-      mode: ImageWorkflowMode.base,
-      isOutpaint: false,
-      clearBaseSnapshot: true,
-    );
-    _paramsNotifier.updateIsOutpaint(false);
-    _paramsNotifier.updateAction(
-      _params.sourceImage != null
-          ? ImageGenerationAction.img2img
-          : ImageGenerationAction.generate,
-    );
+    enterBaseMode(clearMask: false);
   }
 
   void enterInpaintMode() {
@@ -1469,7 +1453,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _restoreBaseParams();
     }
 
-    _ensureBaseSnapshot();
+    _ensureBaseSizeSnapshot();
     state = state.copyWith(
       mode: ImageWorkflowMode.inpaint,
       isPanelExpanded: true,
@@ -1481,6 +1465,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _syncInpaintRequestState();
   }
 
+  /// 离开任一模式回到 base 的唯一实现：退出增强/超分都委托到这里，避免两条路径给出不同尺寸。
   void enterBaseMode({bool clearMask = true}) {
     final shouldRestoreBaseSnapshot =
         state.mode == ImageWorkflowMode.enhance ||
@@ -1592,19 +1577,22 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _applyEnhanceToParams();
   }
 
-  void _ensureBaseSnapshot() {
-    if (state.baseWidth != null &&
-        state.baseHeight != null &&
-        state.baseStrength != null &&
-        state.baseNoise != null) {
+  /// 尺寸在载入源图时就被源图尺寸覆盖，因此各模式共用一份、清空源图时还原。
+  void _ensureBaseSizeSnapshot() {
+    if (state.baseWidth != null && state.baseHeight != null) {
       return;
     }
 
     state = state.copyWith(
       baseWidth: _params.width,
       baseHeight: _params.height,
-      baseStrength: _params.strength,
-      baseNoise: _params.noise,
+    );
+  }
+
+  void _captureEnhanceEntryParams() {
+    state = state.copyWith(
+      enhanceEntryStrength: _params.strength,
+      enhanceEntryNoise: _params.noise,
     );
   }
 
@@ -1620,11 +1608,17 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         persist: false,
       );
     }
-    if (state.baseStrength != null) {
-      _paramsNotifier.updateStrength(state.baseStrength!);
+    final entryStrength = state.enhanceEntryStrength;
+    final entryNoise = state.enhanceEntryNoise;
+    if (entryStrength != null) {
+      _paramsNotifier.updateStrength(entryStrength);
     }
-    if (state.baseNoise != null) {
-      _paramsNotifier.updateNoise(state.baseNoise!);
+    if (entryNoise != null) {
+      _paramsNotifier.updateNoise(entryNoise);
+    }
+    // 回写即消费：留着会在后续转场里二次覆盖用户改过的值
+    if (entryStrength != null || entryNoise != null) {
+      state = state.copyWith(clearEnhanceEntryParams: true);
     }
   }
 

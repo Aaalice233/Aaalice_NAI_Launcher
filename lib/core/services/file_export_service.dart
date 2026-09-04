@@ -56,7 +56,7 @@ class FileExportService {
     );
     if (outputPath == null) return null;
     final normalizedPath = _ensureExtension(outputPath, allowedExtensions);
-    await File(normalizedPath).writeAsBytes(bytes, flush: true);
+    await _writeAtomically(normalizedPath, bytes);
     return normalizedPath;
   }
 
@@ -107,7 +107,7 @@ class FileExportService {
     if (p.equals(source.absolute.path, File(normalizedPath).absolute.path)) {
       return normalizedPath;
     }
-    await source.copy(normalizedPath);
+    await _copyAtomically(source, normalizedPath);
     return normalizedPath;
   }
 
@@ -147,7 +147,7 @@ class FileExportService {
     }
 
     final outputPath = await _createUniqueFilePath(directory, fileName);
-    await File(outputPath).writeAsBytes(bytes, flush: true);
+    await _writeAtomically(outputPath, bytes);
     return outputPath;
   }
 
@@ -191,7 +191,7 @@ class FileExportService {
     }
 
     final outputPath = await _createUniqueFilePath(directory, fileName);
-    await source.copy(outputPath);
+    await _copyAtomically(source, outputPath);
     return outputPath;
   }
 
@@ -254,6 +254,61 @@ class FileExportService {
       return outputPath;
     }
     return '$outputPath.${allowedExtensions.first}';
+  }
+
+  static Future<void> _copyAtomically(File source, String outputPath) async {
+    final target = File(outputPath);
+    await target.parent.create(recursive: true);
+    final suffix = DateTime.now().microsecondsSinceEpoch;
+    final temporary = File('${target.path}.$suffix.tmp');
+    final backup = File('${target.path}.$suffix.bak');
+    var backupCreated = false;
+    try {
+      await source.openRead().pipe(temporary.openWrite());
+      if (await target.exists()) {
+        await target.rename(backup.path);
+        backupCreated = true;
+      }
+      await temporary.rename(target.path);
+      if (backupCreated && await backup.exists()) await backup.delete();
+    } on Object {
+      if (backupCreated && !await target.exists() && await backup.exists()) {
+        await backup.rename(target.path);
+      }
+      rethrow;
+    } finally {
+      if (await temporary.exists()) await temporary.delete();
+      if (await backup.exists() && await target.exists()) await backup.delete();
+    }
+  }
+
+  static Future<void> _writeAtomically(
+    String outputPath,
+    Uint8List bytes,
+  ) async {
+    final target = File(outputPath);
+    await target.parent.create(recursive: true);
+    final suffix = DateTime.now().microsecondsSinceEpoch;
+    final temporary = File('${target.path}.$suffix.tmp');
+    final backup = File('${target.path}.$suffix.bak');
+    var backupCreated = false;
+    try {
+      await temporary.writeAsBytes(bytes, flush: true);
+      if (await target.exists()) {
+        await target.rename(backup.path);
+        backupCreated = true;
+      }
+      await temporary.rename(target.path);
+      if (backupCreated && await backup.exists()) await backup.delete();
+    } on Object {
+      if (backupCreated && !await target.exists() && await backup.exists()) {
+        await backup.rename(target.path);
+      }
+      rethrow;
+    } finally {
+      if (await temporary.exists()) await temporary.delete();
+      if (await backup.exists() && await target.exists()) await backup.delete();
+    }
   }
 
   static Future<String> _createUniqueFilePath(

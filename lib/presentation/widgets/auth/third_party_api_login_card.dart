@@ -155,10 +155,13 @@ class _ThirdPartyApiLoginCardState
           FilledButton.icon(
             onPressed: authState.isLoading ? null : _handleLogin,
             icon: authState.isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(
+                      value: MediaQuery.disableAnimationsOf(context)
+                          ? 0.75
+                          : null,
                       strokeWidth: 2,
                       color: Colors.white,
                     ),
@@ -287,6 +290,8 @@ class _ThirdPartyApiLoginCardState
       AuthErrorCode.tokenInvalid => context.l10n.auth_tokenInvalid,
       AuthErrorCode.credentialsLoginUnavailable =>
         context.l10n.auth_error_credentialsLoginUnavailable,
+      AuthErrorCode.endpointIncompatible =>
+        context.l10n.auth_error_endpointIncompatible,
       AuthErrorCode.serverError => context.l10n.auth_error_serverError,
       AuthErrorCode.unknown || null => context.l10n.auth_error_unknown,
     };

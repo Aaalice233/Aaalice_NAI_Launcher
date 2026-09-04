@@ -56,6 +56,11 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
+    expect(find.byType(Dialog), findsNothing);
     final dialogContext = tester.element(find.byType(ImageDestinationDialog));
     final l10n = AppLocalizations.of(dialogContext)!;
     final reversePromptFinder = find.text(l10n.drop_reversePrompt);
@@ -234,76 +239,275 @@ void main() {
 
     expect(find.text('Metadata could not be parsed'), findsOneWidget);
     expect(find.text('View error details'), findsOneWidget);
-    expect(find.text('Extract Metadata'), findsNothing);
+    expect(find.text('Send to Text to Image'), findsNothing);
     expect(find.text('Image2Image'), findsOneWidget);
   });
 
-  testWidgets('metadata menu has no overflow at required desktop widths', (
-    tester,
-  ) async {
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-    const metadata = NaiImageMetadata(
-      prompt:
-          'masterpiece, best quality, 1.2::detailed eyes::, '
-          '[artist:foo, watercolor style], night street, cinematic lighting',
-      negativePrompt: 'lowres, bad anatomy, extra fingers, text, watermark',
-      width: 832,
-      height: 1216,
-      steps: 28,
-      scale: 5,
-      seed: 123456,
-      source: 'NovelAI Diffusion V4.5',
+  for (final scenario in <({Size size, double scale, double keyboard})>[
+    (size: const Size(320, 900), scale: 3, keyboard: 240),
+    (size: const Size(1600, 900), scale: 1, keyboard: 0),
+  ]) {
+    testWidgets(
+      'variable metadata errors use adaptive details at ${scenario.size}',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = scenario.size;
+        addTearDown(tester.view.reset);
+        final error = List.generate(
+          80,
+          (index) => 'metadata failure line $index: invalid payload value',
+        ).join('\n');
+
+        await _openMetadataDialog(
+          tester,
+          metadata: null,
+          metadataParseError: error,
+          textScale: scenario.scale,
+          keyboardHeight: scenario.keyboard,
+          padding: const EdgeInsets.only(top: 20, bottom: 16),
+        );
+        final details = find.text('View error details');
+        await tester.scrollUntilVisible(
+          details,
+          120,
+          scrollable: find.descendant(
+            of: find.byType(ImageDestinationDialog),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tester.tap(details);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(
+          find.byKey(const ValueKey('metadata-error-details-text')),
+          findsOneWidget,
+        );
+        final detailsScrollable = find
+            .descendant(
+              of: find.byKey(const ValueKey('metadata-error-details-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        final scrollPosition = tester
+            .state<ScrollableState>(detailsScrollable)
+            .position;
+        expect(scrollPosition.maxScrollExtent, greaterThan(0));
+        final presentationKey = scenario.size.width < 600
+            ? const ValueKey('adaptive-full-screen-form')
+            : const ValueKey('adaptive-centered-form');
+        expect(find.byKey(presentationKey), findsNWidgets(2));
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(find.byTooltip('Close').last);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('metadata-error-details-text')),
+          findsNothing,
+        );
+        expect(find.byType(ImageDestinationDialog), findsOneWidget);
+      },
     );
+  }
 
-    for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
-      tester.view.physicalSize = Size(width, 900);
+  for (final scenario in <({Size size, double scale, double keyboard})>[
+    (size: const Size(320, 800), scale: 1, keyboard: 0),
+    (size: const Size(320, 900), scale: 3, keyboard: 0),
+    (size: const Size(1600, 900), scale: 1, keyboard: 0),
+    (size: const Size(700, 360), scale: 1, keyboard: 0),
+    (size: const Size(320, 800), scale: 1, keyboard: 300),
+  ]) {
+    testWidgets('error and destinations stay reachable at ${scenario.size}', (
+      tester,
+    ) async {
       tester.view.devicePixelRatio = 1;
-      await _openMetadataDialog(tester, metadata: metadata);
+      tester.view.physicalSize = scenario.size;
+      addTearDown(tester.view.reset);
 
-      final contentPane = find.byKey(
-        const ValueKey('drop-metadata-content-pane'),
+      await _openMetadataDialog(
+        tester,
+        metadata: null,
+        metadataParseError: 'Invalid metadata payload',
+        textScale: scenario.scale,
+        keyboardHeight: scenario.keyboard,
       );
-      final actionRail = find.byKey(
-        const ValueKey('drop-metadata-action-rail'),
-      );
-      expect(find.byKey(const ValueKey('drop-positive-prompt-card')), findsOne);
-      expect(find.byKey(const ValueKey('drop-negative-prompt-card')), findsOne);
-      expect(contentPane, findsOneWidget);
-      expect(actionRail, findsOneWidget);
-      expect(
-        tester.getTopRight(contentPane).dx,
-        lessThan(tester.getTopLeft(actionRail).dx),
-      );
-      expect(
-        tester.getSize(_promptFieldFinder('drop-positive-prompt-card')).height,
-        greaterThanOrEqualTo(170),
-      );
-      expect(find.text('Actions'), findsOneWidget);
-      expect(find.text('Extract Metadata'), findsOneWidget);
-      expect(find.text('Reverse Prompt'), findsOneWidget);
-      expect(
-        tester.getTopLeft(find.text('Extract Metadata')).dy,
-        lessThan(tester.getTopLeft(find.text('Reverse Prompt')).dy),
-      );
-      expect(tester.takeException(), isNull, reason: 'width=$width');
 
-      if (width == 700) {
-        final characterReference = find.text('Precise Reference');
-        await tester.ensureVisible(characterReference);
-        await tester.pumpAndSettle();
-        expect(characterReference.hitTestable(), findsOneWidget);
-        await tester.tap(characterReference);
-        await tester.pumpAndSettle();
-        expect(find.byType(ImageDestinationDialog), findsNothing);
-      } else {
+      final target = find.text('Precise Reference');
+      await tester.scrollUntilVisible(
+        target,
+        120,
+        scrollable: find.descendant(
+          of: find.byType(ImageDestinationDialog),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      expect(find.text('Metadata could not be parsed'), findsOneWidget);
+      expect(target.hitTestable(), findsOneWidget);
+      final availableHeight = scenario.size.height - scenario.keyboard;
+      final presentation = scenario.size.width < 600 || availableHeight < 560
+          ? find.byKey(const ValueKey('adaptive-full-screen-form'))
+          : find.byKey(const ValueKey('adaptive-centered-form'));
+      expect(presentation, findsOneWidget);
+      expect(
+        tester.getRect(presentation).height,
+        lessThanOrEqualTo(scenario.size.height - scenario.keyboard),
+      );
+      expect(find.byType(Dialog), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'metadata form uses bounded adaptive presentation on wide panes',
+    (tester) async {
+      addTearDown(tester.view.reset);
+      const metadata = NaiImageMetadata(
+        prompt:
+            'masterpiece, best quality, 1.2::detailed eyes::, '
+            '[artist:foo, watercolor style], night street, cinematic lighting',
+        negativePrompt: 'lowres, bad anatomy, extra fingers, text, watermark',
+        width: 832,
+        height: 1216,
+        steps: 28,
+        scale: 5,
+        seed: 123456,
+        source: 'NovelAI Diffusion V4.5',
+      );
+
+      for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        await _openMetadataDialog(tester, metadata: metadata);
+
+        final presentation = find.byKey(
+          const ValueKey('adaptive-centered-form'),
+        );
+        expect(presentation, findsOneWidget);
+        expect(tester.getSize(presentation).width, lessThan(width));
+        expect(find.byType(Dialog), findsNothing);
+        expect(
+          find.byKey(const ValueKey('drop-positive-prompt-card')),
+          findsOne,
+        );
+        expect(
+          find.byKey(const ValueKey('drop-negative-prompt-card')),
+          findsOne,
+        );
+        expect(find.text('Actions'), findsOneWidget);
+        expect(find.text('Send to Text to Image'), findsOneWidget);
+        expect(find.text('Reverse Prompt'), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text('Send to Text to Image')).dy,
+          lessThan(tester.getTopLeft(find.text('Reverse Prompt')).dy),
+        );
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+
         await tester.tap(find.byTooltip('Close').first);
         await tester.pumpAndSettle();
       }
-    }
+    },
+  );
+
+  testWidgets(
+    'compact metadata form survives 320px, 3x text, IME and safe area',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(320, 1000);
+      addTearDown(tester.view.reset);
+
+      await _openMetadataDialog(
+        tester,
+        metadata: const NaiImageMetadata(
+          prompt: 'masterpiece, detailed eyes',
+          negativePrompt: 'lowres, bad anatomy',
+        ),
+        textScale: 3,
+        keyboardHeight: 300,
+        padding: const EdgeInsets.only(top: 24, bottom: 20),
+      );
+
+      final presentation = find.byKey(
+        const ValueKey('adaptive-full-screen-form'),
+      );
+      expect(presentation, findsOneWidget);
+      expect(find.byType(Dialog), findsNothing);
+      expect(tester.getTopLeft(presentation).dy, greaterThanOrEqualTo(24));
+      expect(tester.getBottomRight(presentation).dy, lessThanOrEqualTo(680));
+
+      final target = find.text('Precise Reference');
+      await tester.scrollUntilVisible(
+        target,
+        180,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const ValueKey('drop-metadata-form-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(target.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('metadata adaptive form preserves destination result', (
+    tester,
+  ) async {
+    ImageDestination? selected;
+    await _openMetadataDialog(
+      tester,
+      metadata: const NaiImageMetadata(prompt: 'masterpiece'),
+      onResult: (result) => selected = result,
+    );
+
+    final extract = find.text('Send to Text to Image');
+    await tester.ensureVisible(extract);
+    await tester.tap(extract);
+    await tester.pumpAndSettle();
+
+    expect(selected, ImageDestination.extractMetadata);
+    expect(find.byType(ImageDestinationDialog), findsNothing);
   });
+
+  for (final pointerKind in <PointerDeviceKind>[
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+  ]) {
+    testWidgets(
+      'double tap selects a complete prompt segment with $pointerKind',
+      (tester) async {
+        const prompt = 'alpha, [artist:foo, watercolor]';
+        await _openMetadataDialog(
+          tester,
+          metadata: const NaiImageMetadata(prompt: prompt),
+        );
+
+        final promptField = _promptFieldFinder('drop-positive-prompt-card');
+        await tester.ensureVisible(promptField);
+        await tester.pumpAndSettle();
+        final position = tester.getCenter(promptField);
+
+        final firstTap = await tester.startGesture(position, kind: pointerKind);
+        await firstTap.up();
+        await tester.pump(const Duration(milliseconds: 50));
+        final secondTap = await tester.startGesture(
+          position,
+          kind: pointerKind,
+        );
+        await secondTap.up();
+        await tester.pump();
+
+        final controller = _promptController(
+          tester,
+          'drop-positive-prompt-card',
+        );
+        expect(
+          controller.selection.textInside(controller.text),
+          '[artist:foo, watercolor]',
+        );
+      },
+    );
+  }
 
   test(
     'double-click segment range respects nested punctuation and weights',
@@ -332,6 +536,10 @@ Future<void> _openMetadataDialog(
   required NaiImageMetadata? metadata,
   String? metadataParseError,
   List<TagLibraryEntry> libraryEntries = const [],
+  double textScale = 1,
+  double keyboardHeight = 0,
+  EdgeInsets padding = EdgeInsets.zero,
+  ValueChanged<ImageDestination?>? onResult,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -350,17 +558,29 @@ Future<void> _openMetadataDialog(
         locale: const Locale('en'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+            padding: padding,
+            viewPadding: padding,
+            viewInsets: EdgeInsets.only(bottom: keyboardHeight),
+          ),
+          child: child!,
+        ),
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
-              onPressed: () => ImageDestinationDialog.show(
-                context,
-                imageBytes: _transparentPngBytes,
-                fileName: 'metadata.png',
-                showExtractMetadata: metadata != null,
-                metadata: metadata,
-                metadataParseError: metadataParseError,
-              ),
+              onPressed: () async {
+                final result = await ImageDestinationDialog.show(
+                  context,
+                  imageBytes: _transparentPngBytes,
+                  fileName: 'metadata.png',
+                  showExtractMetadata: metadata != null,
+                  metadata: metadata,
+                  metadataParseError: metadataParseError,
+                );
+                onResult?.call(result);
+              },
               child: const Text('Open metadata'),
             ),
           ),

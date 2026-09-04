@@ -50,6 +50,8 @@ class _CustomRadarChartState extends State<CustomRadarChart>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool _entranceStarted = false;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -62,7 +64,24 @@ class _CustomRadarChartState extends State<CustomRadarChart>
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
-    _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 1;
+      _entranceStarted = true;
+    } else if (!_entranceStarted) {
+      _entranceStarted = true;
+      _controller.forward();
+    }
   }
 
   @override
@@ -104,9 +123,7 @@ class _CustomRadarChartState extends State<CustomRadarChart>
                   animationValue: _animation.value,
                 ),
                 child: widget.showLabels
-                    ? Stack(
-                        children: _buildLabels(theme, center, radius + 25),
-                      )
+                    ? Stack(children: _buildLabels(theme, center, radius + 25))
                     : null,
               ),
             );

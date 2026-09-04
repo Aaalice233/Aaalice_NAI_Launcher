@@ -382,11 +382,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      '第三方站点需兼容 NovelAI 的 /user/subscription 与图像生成相关 API；Token 将按 Bearer 方式发送。';
+      '第三方站点需兼容 NovelAI 图像生成 API；Token 将按 Bearer 方式发送。未实现 /user/subscription 的站点将跳过订阅信息。';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       '如果第三方站点不支持流式生成，请前往「设置 > 生成 > 图像输出」，关闭「流式预览」后再生成。';
+
+  @override
+  String get anlas_thirdPartyUnavailable => '当前站点不提供 Anlas 余额信息';
 
   @override
   String get auth_thirdPartyApiSiteRequired => '请输入第三方 API 站点地址';
@@ -452,6 +455,10 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI 官网账号密码登录需要网页安全验证，客户端无法完成，请改用 Persistent API Token。';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      '该地址下未发现 NAI 兼容接口，请确认 API 地址是站点提供的服务根地址';
 
   @override
   String get auth_error_serverError => '服务器错误';
@@ -685,6 +692,25 @@ class AppLocalizationsZh extends AppLocalizations {
       '默认关闭；仅在排查问题时开启。开启后会写入 Documents/NAI_Launcher/logs，关闭后不再创建或写入日志文件。';
 
   @override
+  String get settings_exportDiagnosticLogs => '导出诊断日志';
+
+  @override
+  String get settings_exportDiagnosticLogsSubtitle =>
+      '导出最近日志和基础设备信息；会自动隐藏凭据与本地路径。';
+
+  @override
+  String get settings_exportDiagnosticLogsInProgress => '正在导出诊断日志';
+
+  @override
+  String get settings_exportDiagnosticLogsSuccess => '诊断日志已导出';
+
+  @override
+  String get settings_exportDiagnosticLogsEmpty => '暂无可导出的日志，请先开启日志记录并复现问题';
+
+  @override
+  String get settings_exportDiagnosticLogsFailed => '诊断日志导出失败，请重试';
+
+  @override
   String get settings_pathReset => '已重置为默认路径';
 
   @override
@@ -853,6 +879,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_inputHint => '给 AI 助手发消息…';
 
   @override
+  String get agentChat_inputHintWithSlash => '给 AI 助手发消息，输入 / 引用技能…';
+
+  @override
+  String get agentChat_slashMenu => '技能与会话命令';
+
+  @override
+  String get agentChat_slashSkills => '技能';
+
+  @override
+  String get agentChat_slashSession => '会话';
+
+  @override
   String get agentChat_addAttachment => '添加附件或引用';
 
   @override
@@ -903,6 +941,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_disableWebAccess => '关闭联网';
 
   @override
+  String get agentChat_webAccessLabel => '联网';
+
+  @override
+  String get agentChat_contextUsageLabel => '上下文';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支持的图片格式：$fileName';
   }
@@ -915,6 +959,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_send => '发送';
+
+  @override
+  String get agentChat_sendEmptyHint => '输入消息或添加图片后即可发送';
+
+  @override
+  String get agentChat_sendUnavailableHint => 'AI 助手尚未准备好发送消息';
 
   @override
   String get agentChat_stop => '停止';
@@ -1041,6 +1091,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_toolRecentImages => '查看最近图片';
 
   @override
+  String get agentChat_toolInspectImages => '检查图片';
+
+  @override
   String get agentChat_toolDisplayImages => '展示图片';
 
   @override
@@ -1054,6 +1107,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_toolUpdateGenerationSettings => '更新生成设置';
+
+  @override
+  String get agentChat_toolGetGenerationSourceImage => '查看图生图源图';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage => '载入图生图源图';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage => '清除图生图源图';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings => '调整图生图强度';
 
   @override
   String get agentChat_toolPromptState => '查看提示词状态';
@@ -1140,6 +1205,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_toolSubmitInpaint => '提交局部重绘任务';
 
   @override
+  String get agentChat_toolCreateInpaintMask => '创建重绘蒙版';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => '扩展画布';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => '装载重绘草稿到面板';
+
+  @override
   String get agentChat_manualInpaintTitle => '手动局部重绘';
 
   @override
@@ -1149,7 +1223,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_resourceUnavailable => '资源不可用';
 
   @override
-  String get agentChat_addResource => '添加到 Agent';
+  String get agentChat_addResource => '发送到智能体';
 
   @override
   String get agentChat_resourceAdded => '已添加到 Agent 输入区';
@@ -1183,13 +1257,47 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_compacting => '正在压缩上下文…';
 
   @override
+  String agentChat_compactDone(String before, String after) {
+    return '已压缩上下文：$before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded => '当前上下文无需压缩';
+
+  @override
+  String get agentChat_compactBusy => '正在生成回复，请稍后再压缩';
+
+  @override
+  String get agentChat_compactUnavailable => '上下文用量不可用，无法压缩';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return '压缩上下文失败：$error';
+  }
+
+  @override
   String get agentChat_requestFailed => '请求失败，请重试。';
 
   @override
   String get agentChat_errorDetails => '错误详情';
 
   @override
-  String get agentChat_model => '选择模型';
+  String get agentChat_modelLabel => '模型';
+
+  @override
+  String get agentChat_modelPickerTitle => '选择模型';
+
+  @override
+  String get agentChat_searchModels => '搜索模型';
+
+  @override
+  String get agentChat_searchModelsHint => '模型名称、ID 或提供商';
+
+  @override
+  String get agentChat_clearModelSearch => '清除模型搜索';
+
+  @override
+  String get agentChat_noModelResults => '没有符合搜索条件的模型。';
 
   @override
   String get agentChat_noModel => '未配置模型';
@@ -1413,6 +1521,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get prompt_finalNegative => '最终生效负面词';
+
+  @override
+  String get prompt_composition => '提示词构成';
+
+  @override
+  String get prompt_expandFull => '展开全文';
+
+  @override
+  String get prompt_collapseFull => '收起全文';
 
   @override
   String prompt_importedCharacters(int count) {
@@ -1761,6 +1878,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get img2img_directorRunning => '正在处理...';
+
+  @override
+  String get img2img_directorConfirmTitle => '确认 Anlas 消耗';
+
+  @override
+  String img2img_directorConfirmContent(Object tool, int cost) {
+    return '运行$tool预计消耗 $cost Anlas，是否继续？';
+  }
 
   @override
   String get img2img_directorResult => '处理结果';
@@ -3053,7 +3178,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_promptTagCategories => '提示词类别';
 
   @override
-  String get onlineGallery_promptTagCategoriesTooltip => '选择复制、发送或加入队列时包含的标签类别';
+  String get onlineGallery_promptTagCategoriesTooltip => '选择发送或加入队列时包含的标签类别';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一个提示词类别';
@@ -3539,25 +3664,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_codexNegativePrompt => '负向提示词';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => '负面提示词';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => '角色提示词';
 
   @override
   String get onlineGallery_codexNote => '备注';
-
-  @override
-  String get onlineGallery_codexCopyPositive => '复制正向';
-
-  @override
-  String get onlineGallery_codexCopyNegative => '复制负向';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => '复制此角色';
-
-  @override
-  String get onlineGallery_codexCopyAll => '复制全部';
 
   @override
   String get onlineGallery_codexSendToGeneration => '带入生成页';
@@ -3606,13 +3716,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_copyArtistChain => '复制画师串';
 
   @override
-  String get onlineGallery_copyFullPrompt => '复制完整 Prompt';
+  String get onlineGallery_copyPrompt => '复制提示词';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '复制原始画师片段';
+  String get onlineGallery_promptCopyDescription =>
+      '选择要复制的原始提示词类别。正向与负向内容会以纯文本块分隔。';
 
   @override
-  String get onlineGallery_noArtistChain => '无可复制画师串';
+  String get onlineGallery_promptCopyCategoryHint => '按来源提供的标签类别复制';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => '复制该提示词字段的原始内容';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -3692,7 +3806,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_downloadAllMedia => '下载作品全部图片';
 
   @override
-  String get onlineGallery_copyFullMetadata => '复制完整元数据';
+  String get onlineGallery_copyAllTags => '复制全部 TAG';
+
+  @override
+  String get onlineGallery_customCopyTags => '自定义复制';
+
+  @override
+  String get promptCopy_exportTitle => '自定义复制 TAG';
+
+  @override
+  String get promptCopy_allPositive => '全部正面提示词';
+
+  @override
+  String get promptCopy_allNegative => '全部负面提示词';
+
+  @override
+  String get promptCopy_mainPositive => '主 / 全局正面提示词';
+
+  @override
+  String get promptCopy_mainNegative => '主 / 全局负面提示词';
+
+  @override
+  String get promptCopy_fixedPositive => '固定正面提示词';
+
+  @override
+  String get promptCopy_fixedNegative => '固定负面提示词';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return '角色 $index 正面提示词';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return '角色 $index 负面提示词';
+  }
 
   @override
   String get onlineGallery_gelbooruReadOnly => '只读收藏';
@@ -4367,38 +4515,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get randomMode_title => '选择随机模式';
+  String get randomPrompt_unsupportedModel => '当前模型不支持官网随机词库';
 
   @override
-  String get randomMode_naiOfficial => '默认';
-
-  @override
-  String get randomMode_custom => '自定义模式';
-
-  @override
-  String get randomMode_hybrid => '混合模式';
-
-  @override
-  String get randomMode_naiOfficialDesc => '按当前模型自动选择内置随机方案';
-
-  @override
-  String get randomMode_customDesc => '使用完整离线标签 catalog 与自定义预设生成';
-
-  @override
-  String get randomMode_hybridDesc => '同时使用模型感知的默认方案与 catalog 扩展';
-
-  @override
-  String get randomMode_naiIndicator => '默认';
-
-  @override
-  String get randomMode_customIndicator => '自定义';
-
-  @override
-  String get randomMode_unsupportedModel => '当前模型不支持默认随机模式';
-
-  @override
-  String get randomMode_unsupportedModelHint =>
-      '当前模型没有可验证的内置随机方案。请选择受支持的 NovelAI 模型，或改用自定义模式。';
+  String get randomPrompt_unsupportedModelHint =>
+      '当前模型没有对应的 NovelAI 官网随机方案。请选择受支持的 NovelAI 模型，或使用自己的自定义预设。';
 
   @override
   String get naiMode_noTags => '暂无标签';
@@ -4746,29 +4867,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => '通用预设 (V4/V5)';
-
-  @override
-  String get randomManager_defaultPresetLegacy => '通用预设 (Legacy)';
-
-  @override
-  String get randomManager_defaultPresetFurry => '通用预设 (Furry)';
-
-  @override
-  String get randomManager_defaultPresetV4Description =>
-      '适用于 V4/V5 的 catalog 扩展预设，支持多角色';
-
-  @override
-  String get randomManager_defaultPresetLegacyDescription =>
-      '基于 NAI Legacy 模型的随机算法配置';
-
-  @override
-  String get randomManager_defaultPresetFurryDescription =>
-      '基于 NAI Furry 模型的随机算法配置';
-
-  @override
-  String get randomManager_defaultPresetOfficialDescription =>
-      '基于 NAI 官网的随机算法配置';
+  String get randomManager_defaultPreset => 'NovelAI 官网预设';
 
   @override
   String get randomManager_femaleClothing => '女性服装';
@@ -5003,22 +5102,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_selectionMode => '选择模式';
 
   @override
-  String get randomManager_previewGeneration => '预览生成';
+  String get randomManager_previewGeneration => '输出预览';
 
   @override
   String get randomManager_generating => '生成中';
 
   @override
-  String get randomManager_generate => '生成';
+  String get randomManager_generate => '生成样例';
 
   @override
   String get randomManager_generationFailed => '生成失败';
 
   @override
-  String get randomManager_copy => '复制';
+  String get randomManager_copy => '复制全部';
 
   @override
-  String get randomManager_regenerate => '重新生成';
+  String get randomManager_regenerate => '换一个样例';
 
   @override
   String get randomManager_copiedToClipboard => '已复制到剪贴板';
@@ -5037,7 +5136,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get randomManager_previewHint => '点击\"生成\"预览随机标签';
+  String get randomManager_previewHint => '尚未生成样例';
 
   @override
   String get randomManager_generateNow => '立即生成';
@@ -5175,9 +5274,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_editMetadata => '编辑标签';
 
   @override
-  String get localGallery_addToCollection => '收藏';
-
-  @override
   String get localGallery_switchToGridView => '切换到网格视图';
 
   @override
@@ -5287,7 +5383,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return '将移动 $count 张本地图片文件到目标文件夹。请确认不是误操作。';
+    return '将移动 $count 张本地图片文件到目标分类。请确认不是误操作。';
   }
 
   @override
@@ -5398,6 +5494,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_sendToImg2Img => '发送到图生图';
+
+  @override
+  String get localGallery_moreImageActions => '更多图片操作';
 
   @override
   String get localGallery_sendToReversePrompt => '发送到反推';
@@ -5725,10 +5824,77 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable => '暂无可用文件夹，请先创建文件夹';
+  String get localGallery_noCategoriesAvailable => '暂无可用分类，请先创建分类';
 
   @override
-  String get localGallery_moveToFolder => '移动到文件夹';
+  String get localGallery_moveToCategory => '移动到分类';
+
+  @override
+  String get localGallery_albumSectionTitle => '相簿';
+
+  @override
+  String get localGallery_folderSectionTitle => '文件夹';
+
+  @override
+  String get localGallery_albumEmptyHint => '还没有相簿，点击右侧按钮创建';
+
+  @override
+  String get localGallery_createAlbum => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbum => '新建子相簿';
+
+  @override
+  String get localGallery_moveAlbumToRoot => '移到根级';
+
+  @override
+  String get localGallery_moveAlbumUp => '移到上一级';
+
+  @override
+  String get localGallery_moveCategoryUp => '移到上一级';
+
+  @override
+  String get localGallery_createAlbumTitle => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbumTitle => '新建子相簿';
+
+  @override
+  String get localGallery_createAlbumHint => '输入相簿名称';
+
+  @override
+  String get localGallery_deleteAlbumTitle => '删除相簿';
+
+  @override
+  String get localGallery_deleteAlbumContent => '将删除该相簿（图片文件不受影响），子相簿会提升到根级。';
+
+  @override
+  String get localGallery_addedToAlbum => '已加入相簿';
+
+  @override
+  String get localGallery_albumAddFailed => '加入相簿失败';
+
+  @override
+  String get localGallery_albumSelectTitle => '加入相簿';
+
+  @override
+  String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String get localGallery_removeFromAlbum => '移出相簿';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return '已移出 $count 张图片';
+  }
+
+  @override
+  String get localGallery_albumNoMembers => '所选图片不在此相簿中';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '已将 $count 张图片加入「$name」';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -5742,14 +5908,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => '移动图片失败';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '已添加 $count 张图片到集合「$name」';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '添加图片到集合失败';
 
   @override
   String get brushPreset_selectHint => '双击选择此笔刷预设';
@@ -7594,6 +7752,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataImport_fixedTags => '固定词';
 
   @override
+  String get metadataImport_fixedSourceStructured => '来源：图片明确记录';
+
+  @override
+  String get metadataImport_fixedSourceLegacy => '来源：旧版图片字段';
+
+  @override
+  String get metadataImport_fixedSourceLibrary => '来源：根据当前固定词库严格匹配';
+
+  @override
+  String get metadataImport_fixedSourceUnknown => '来源：图片未记录，无法确认';
+
+  @override
+  String get metadataImport_unknownFixedTagsHint =>
+      '图片没有记录固定词。请选择如何处理当前已启用的固定词。';
+
+  @override
+  String get metadataImport_disableCurrentFixedTags => '关闭当前固定词（推荐）';
+
+  @override
+  String get metadataImport_keepCurrentFixedTags => '保留并与图片提示词叠加';
+
+  @override
+  String metadataImport_imageVersionName(Object name) {
+    return '$name（图像版本）';
+  }
+
+  @override
   String metadataImport_fixedPrefix(Object text) {
     return '前缀: $text';
   }
@@ -7666,6 +7851,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String metadataImport_selectedCount(int count) {
     return '已选择 $count 项';
   }
+
+  @override
+  String get metadataImport_readImageMetadata => '读取图片元数据';
+
+  @override
+  String get metadataImport_readFailed => '无法读取所选图片';
+
+  @override
+  String get metadataImport_processFailed => '无法处理所选图片';
 
   @override
   String get metadataImport_noDataFound => '未找到 NovelAI 元数据';
@@ -7992,10 +8186,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get drop_addedToCharacterRef => '已添加到精准参考';
 
   @override
-  String get drop_extractMetadata => '提取元数据';
+  String get drop_extractMetadata => '发送到文生图';
 
   @override
-  String get drop_extractMetadataSubtitle => '读取图片中的 Prompt、Seed 等参数';
+  String get drop_extractMetadataSubtitle => '选择要套用的提示词、固定词和生成参数';
 
   @override
   String get drop_addToQueue => '加入队列';
@@ -11973,6 +12167,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autocomplete_showTranslations => '显示中文汉化';
 
   @override
+  String get quickTranslate_show => '快速翻译';
+
+  @override
+  String get quickTranslate_restore => '还原原提示词（预览中的修改将被丢弃）';
+
+  @override
+  String get quickTranslate_previewSemantics => '本地汉化预览。此处修改不会影响原提示词。';
+
+  @override
+  String get quickTranslate_noMatches => '当前内容中没有找到可汉化的标签';
+
+  @override
+  String get quickTranslate_failed => '快速翻译失败，请检查汉化词库后重试';
+
+  @override
+  String get quickTranslate_missingTitle => '需要汉化词库';
+
+  @override
+  String get quickTranslate_missingMessage =>
+      '快速翻译需要 ffdkj 简体中文汉化库。是否前往数据与缓存设置并立即下载？';
+
+  @override
+  String get quickTranslate_download => '前往并下载';
+
+  @override
   String get autocomplete_autoComma => '插入后自动添加逗号';
 
   @override
@@ -12290,7 +12509,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_inspectorSubtitle => '调整当前预设的角色分布与全局输出行为';
 
   @override
-  String get randomManager_previewEmptyDescription => '生成一次样例，检查当前配方的实际输出。';
+  String get randomManager_previewEmptyDescription => '生成一组提示词样例，检查当前配方的实际输出。';
 
   @override
   String get randomManager_category_composition => '构图';
@@ -12341,76 +12560,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_category_detail => '创意细节';
 
   @override
-  String randomManager_sourceOfficial(String wordlist) {
-    return '官网 · $wordlist';
-  }
-
-  @override
-  String get randomManager_sourceCatalog => '自定义 · Catalog 扩展';
-
-  @override
-  String randomManager_sourceHybrid(String wordlist) {
-    return '混合 · $wordlist + Catalog';
-  }
-
-  @override
-  String get randomManager_currentMode => '当前模式';
-
-  @override
-  String get randomManager_officialWordlist => '当前模型官网词库';
-
-  @override
-  String randomManager_officialWordlistCount(String wordlist, int count) {
-    return '$wordlist：$count 条原始记录';
-  }
-
-  @override
-  String get randomManager_officialAsset => '完整官网资产';
-
-  @override
-  String randomManager_officialAssetCount(int entries, int groups) {
-    return '$entries 条记录，$groups 个原始数组';
-  }
-
-  @override
-  String get randomManager_sourceFile => '来源文件';
-
-  @override
-  String get randomManager_sourceSha256 => '来源 SHA-256';
-
-  @override
-  String get randomManager_catalogExtension => 'Catalog 扩展';
-
-  @override
-  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
-
-  @override
-  String get randomManager_wordlistFurryV3 => 'Furry V3';
-
-  @override
-  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
-
-  @override
-  String get randomManager_sourceDetails => '数据来源详情';
-
-  @override
-  String get randomManager_sourceUrl => '来源 URL';
-
-  @override
-  String get randomManager_sourceCommit => '来源提交';
-
-  @override
-  String get randomManager_sourceDate => '来源日期';
-
-  @override
-  String get randomManager_sourceLicense => '许可证';
-
-  @override
-  String randomManager_catalogCounts(Object tags, Object aliases) {
-    return '完整 catalog：$tags 个标签，$aliases 个别名';
-  }
-
-  @override
   String get randomManager_libraryUnavailable => '随机词库无法使用';
 
   @override
@@ -12430,6 +12579,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get image_savedToSystemGallery => '已保存到系统相册';
+
+  @override
+  String get localGallery_saveToSystemGallery => '保存到系统相册';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return '无法保存到系统相册：$error';
+  }
 
   @override
   String image_savedAppOnly(Object error) {
@@ -12468,7 +12625,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_androidManagedStorage => '由系统安全管理；导出时可选择保存位置';
 
   @override
-  String get settings_importLocalOnnxTaggerFiles => '导入 ONNX 模型及标签文件';
+  String get settings_importLocalOnnxTaggerFiles => '导入 ONNX 模型、标签文件或 ZIP 压缩包';
 
   @override
   String settings_localOnnxFilesImported(int count) {
@@ -12533,6 +12690,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_saveConnection => '保存连接';
 
   @override
+  String get cloudSync_operationInProgress => '另一项云同步操作正在进行，请稍后重试。';
+
+  @override
   String get cloudSync_fillRequiredFields => '请填写当前服务商的必填连接信息。';
 
   @override
@@ -12545,7 +12705,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_chooseBackend => '备份到哪里';
 
   @override
-  String get cloudSync_chooseBackendDescription => '选择你已有的存储服务。账号信息只保存在此设备。';
+  String get cloudSync_chooseBackendDescription =>
+      '先选择同步目的地，再连接账号并选择要同步的内容。凭据只保存在设备安全存储中。';
+
+  @override
+  String cloudSync_oauthDescription(String provider) {
+    return '连接 $provider 账号';
+  }
+
+  @override
+  String get cloudSync_oauthSystemBrowser => '将使用系统浏览器安全登录；无需在应用中输入密码。';
+
+  @override
+  String cloudSync_oauthUnavailable(String details) {
+    return '此版本缺少 OAuth 发布配置，暂时无法连接。请向发布者提供以下诊断：\n$details';
+  }
+
+  @override
+  String cloudSync_accountConnected(String provider) {
+    return '已连接 $provider';
+  }
+
+  @override
+  String get cloudSync_connectAccount => '连接账号';
+
+  @override
+  String get cloudSync_changeAccount => '更换账号';
+
+  @override
+  String get cloudSync_connectedAccount => '已连接账号';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV 地址';
@@ -12580,6 +12768,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSync_testFailed => '连接测试失败';
+
+  @override
+  String get cloudSync_operationFailed => '云同步操作失败';
 
   @override
   String get cloudSync_manualBackupOnly => '只支持手动推送与拉取';
@@ -12649,6 +12840,48 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get cloudSync_errorAuthentication => '登录状态已过期，请重新连接账号。';
+
+  @override
+  String get cloudSync_errorAuthorization => '当前账号无权访问备份位置。';
+
+  @override
+  String get cloudSync_errorNotFound => '未找到云端备份目录或文件。';
+
+  @override
+  String get cloudSync_errorConflict => '云端数据已被其他设备更新，请先拉取最新数据再重试。';
+
+  @override
+  String get cloudSync_errorQuota => '云存储空间不足。';
+
+  @override
+  String get cloudSync_errorRateLimited => '云存储请求过于频繁，请稍后重试。';
+
+  @override
+  String get cloudSync_errorRedirect => '服务商将请求重定向到不受信任的地址，操作已停止。';
+
+  @override
+  String get cloudSync_errorInvalidResponse => '服务商返回了无法验证的数据。';
+
+  @override
+  String get cloudSync_errorNetwork => '无法连接云存储，请检查网络后重试。';
+
+  @override
+  String get cloudSync_errorPreviewStale => '预览后数据发生了变化，请重新查看变化后再继续。';
+
+  @override
+  String get cloudSync_errorFormat => '备份格式或完整性校验失败。';
+
+  @override
+  String get cloudSync_errorConfiguration => '保存的同步配置无法读取。';
+
+  @override
+  String get cloudSync_errorState => '同步状态已变化，请重试当前操作。';
+
+  @override
+  String get cloudSync_errorUnknown => '同步失败，请检查连接后重试。';
+
+  @override
   String get cloudSync_connectionDetails => '存储信息';
 
   @override
@@ -12667,11 +12900,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_providerWarning => '存储服务提示';
 
   @override
-  String get cloudSync_maintenanceWarning => '需要注意';
+  String get cloudSync_warningGoogleDriveWeakCas =>
+      'Google Drive 无法保证文件内容的原子条件更新，因此此连接仅支持显式手动推送与拉取。';
 
   @override
-  String get cloudSync_maintenanceWarningDescription =>
-      '云端空间暂时无法自动整理。现有备份不受影响，稍后会自动重试。';
+  String get cloudSync_warningGithubPublicRepository =>
+      '当前 GitHub 仓库是公开仓库，备份内容也会公开。私密数据请改用私有仓库。';
+
+  @override
+  String get cloudSync_warningWebDavWeakCas =>
+      '此服务器无法保证安全的条件更新。当前仅支持手动备份，后续写入可能替换同一个 HEAD。';
+
+  @override
+  String get cloudSync_warningWebDavUnverifiedCas =>
+      'WebDAV 连接已通过只读验证，但尚未验证安全的条件写入。当前仅支持手动推送与拉取。';
 
   @override
   String get cloudSync_githubHistoryRetention => 'GitHub 空间说明';
@@ -12725,10 +12967,43 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_progress => '传输进度';
 
   @override
+  String get cloudSync_metricsDetails => '技术详情';
+
+  @override
+  String get cloudSync_metricsElapsed => '总耗时';
+
+  @override
+  String get cloudSync_metricsRequests => '服务请求';
+
+  @override
+  String get cloudSync_metricsRead => '已接收';
+
+  @override
+  String get cloudSync_metricsWritten => '已发送';
+
+  @override
+  String get cloudSync_metricsHashPasses => '完整性校验';
+
+  @override
+  String get cloudSync_metricsPayloadReads => '数据读取次数';
+
+  @override
+  String get cloudSync_metricsLocalRead => '本地读取';
+
+  @override
+  String get cloudSync_metricsLocalWritten => '本地写入';
+
+  @override
+  String get cloudSync_metricsFlushes => '磁盘刷新';
+
+  @override
   String get cloudSync_stage => '当前进度';
 
   @override
   String get cloudSync_objects => '已处理';
+
+  @override
+  String get cloudSync_reusedObjects => '已复用未变化项';
 
   @override
   String get cloudSync_bytes => '已传输';
@@ -12737,16 +13012,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_stagePreparing => '正在准备';
 
   @override
+  String get cloudSync_stageScanning => '正在扫描所选数据';
+
+  @override
+  String get cloudSync_stageHashing => '正在校验本地内容';
+
+  @override
   String get cloudSync_stageDownloading => '正在下载';
+
+  @override
+  String get cloudSync_stageVerifying => '正在校验下载内容';
 
   @override
   String get cloudSync_stageMerging => '正在整理两端内容';
 
   @override
+  String get cloudSync_stageReusing => '正在复用未变化内容';
+
+  @override
   String get cloudSync_stageUploading => '正在上传';
 
   @override
+  String get cloudSync_stageCommitting => '正在发布备份';
+
+  @override
   String get cloudSync_stageApplying => '正在保存更改';
+
+  @override
+  String get cloudSync_stageSaving => '正在保存恢复状态';
+
+  @override
+  String get cloudSync_stageRetryWaiting => '等待重试';
 
   @override
   String get cloudSync_stageRollingBack => '正在恢复原状';
@@ -12927,10 +13223,34 @@ class AppLocalizationsZh extends AppLocalizations {
       '供应商、API Key 与模型发现仍在“集成”中统一管理。';
 
   @override
+  String get agentSettings_manageProviders => '管理服务商';
+
+  @override
   String get agentSettings_noModel => '没有可用聊天模型。请先在“集成”中添加供应商并发现模型。';
 
   @override
   String get agentSettings_pendingMatch => '待匹配';
+
+  @override
+  String get agentSettings_contextWindow => '上下文窗口（token）';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return '留空使用内置值 $value。第三方中转站或自定义部署的实际窗口不同时，在此填写覆盖。';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      '内置目录未收录该模型，无法自动判断窗口。不填写则无法显示上下文用量，也无法压缩上下文。';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => '例如 128000';
+
+  @override
+  String get agentSettings_contextWindowReset => '恢复为内置值';
+
+  @override
+  String get agentSettings_contextWindowInvalid => '请填写 1 到 20000000 之间的整数';
 
   @override
   String get agentSettings_toolPermission => '工具权限';
@@ -13184,6 +13504,269 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentSettings_profileImported => '智能体配置已导入';
+
+  @override
+  String get settings_watermarkTitle => '水印';
+
+  @override
+  String get settings_watermarkSubtitle => '完全在本地创建水印副本，不改动原图';
+
+  @override
+  String get settings_watermarkEnable => '启用水印工具';
+
+  @override
+  String get settings_watermarkPreserveMetadata => '水印副本保留元数据';
+
+  @override
+  String get settings_watermarkPreserveMetadataHint =>
+      '关闭时清除 PNG 文本、EXIF、NovelAI 隐写数据、提示词和种子；开启时把原图中受支持的元数据安全写入新 PNG。';
+
+  @override
+  String get settings_watermarkEditDefault => '编辑默认水印';
+
+  @override
+  String get settings_watermarkCreateFromImage => '选择图片并创建水印副本…';
+
+  @override
+  String get settings_watermarkLayoutByOrientation => '按图片方向分别记忆布局';
+
+  @override
+  String get settings_watermarkLayoutByOrientationHint =>
+      '文字和样式共用，竖图、方图与横图分别保存位置。';
+
+  @override
+  String get settings_watermarkConfigMigrated => '旧版水印配置已迁移供检查，请保存以确认当前默认方案。';
+
+  @override
+  String get settings_watermarkConfigCorrupted =>
+      '水印配置无法读取，当前显示安全默认值；保存后才会替换损坏数据。';
+
+  @override
+  String get watermark_actionCreate => '创建水印副本…';
+
+  @override
+  String get watermark_actionRegenerate => '重新生成水印副本…';
+
+  @override
+  String get watermark_actionDownloadCreate => '下载并添加水印…';
+
+  @override
+  String get watermark_editorTitle => '水印编辑器';
+
+  @override
+  String get watermark_textLayer => '文字';
+
+  @override
+  String get watermark_logoLayer => 'Logo';
+
+  @override
+  String get watermark_enableLayer => '显示图层';
+
+  @override
+  String get watermark_text => '水印文字';
+
+  @override
+  String get watermark_alignment => '文字对齐';
+
+  @override
+  String get editor_colorHex => '十六进制颜色值';
+
+  @override
+  String get editor_colorSaturationBrightness => '颜色饱和度与明度';
+
+  @override
+  String get editor_colorHue => '颜色色相';
+
+  @override
+  String get watermark_alignLeft => '左对齐';
+
+  @override
+  String get watermark_alignCenter => '居中对齐';
+
+  @override
+  String get watermark_alignRight => '右对齐';
+
+  @override
+  String get watermark_font => '字体';
+
+  @override
+  String get watermark_chooseLogo => '选择 Logo';
+
+  @override
+  String get watermark_replaceLogo => '更换 Logo';
+
+  @override
+  String get watermark_logoMissing => '已保存的 Logo 缺失，请重新选择后再保存。';
+
+  @override
+  String get watermark_logoImportFailed =>
+      '无法导入 Logo。请选择尺寸受支持且有效的静态 PNG、JPEG 或 WebP 图片。';
+
+  @override
+  String get watermark_opacity => '透明度';
+
+  @override
+  String get watermark_size => '大小';
+
+  @override
+  String get watermark_letterSpacing => '字间距';
+
+  @override
+  String get watermark_stroke => '描边';
+
+  @override
+  String get watermark_shadow => '柔和阴影';
+
+  @override
+  String get watermark_margin => '边距';
+
+  @override
+  String get watermark_anchor => '位置锚点';
+
+  @override
+  String get watermark_anchorTopLeft => '左上';
+
+  @override
+  String get watermark_anchorTopCenter => '顶部居中';
+
+  @override
+  String get watermark_anchorTopRight => '右上';
+
+  @override
+  String get watermark_anchorCenterLeft => '左侧居中';
+
+  @override
+  String get watermark_anchorCenter => '画布中心';
+
+  @override
+  String get watermark_anchorCenterRight => '右侧居中';
+
+  @override
+  String get watermark_anchorBottomLeft => '左下';
+
+  @override
+  String get watermark_anchorBottomCenter => '底部居中';
+
+  @override
+  String get watermark_anchorBottomRight => '右下';
+
+  @override
+  String get watermark_layerArrangement => '图层排列';
+
+  @override
+  String get watermark_arrangementIndependent => '独立';
+
+  @override
+  String get watermark_arrangementHorizontal => '横向组合';
+
+  @override
+  String get watermark_arrangementVertical => '纵向组合';
+
+  @override
+  String get watermark_zOrder => '将所选图层置于上层';
+
+  @override
+  String get watermark_ratioOriginal => '原图';
+
+  @override
+  String get watermark_ratioPortrait => '竖图';
+
+  @override
+  String get watermark_ratioSquare => '方图';
+
+  @override
+  String get watermark_ratioLandscape => '横图';
+
+  @override
+  String get watermark_layoutUniversal => '通用布局';
+
+  @override
+  String get watermark_layoutPortrait => '竖图布局';
+
+  @override
+  String get watermark_layoutSquare => '方图布局';
+
+  @override
+  String get watermark_layoutLandscape => '横图布局';
+
+  @override
+  String get watermark_metadataRemoved => '将按“安全与分享”设置清除副本元数据。';
+
+  @override
+  String get watermark_metadataPreserved => '会把原图中受支持的元数据写入新副本。';
+
+  @override
+  String get watermark_setDefault => '设为默认';
+
+  @override
+  String get watermark_defaultSaved => '默认水印已更新';
+
+  @override
+  String get watermark_saveCopy => '保存副本';
+
+  @override
+  String get watermark_saving => '正在渲染原始分辨率图片…';
+
+  @override
+  String get watermark_saved => '水印副本已保存';
+
+  @override
+  String get watermark_share => '分享';
+
+  @override
+  String get watermark_open => '打开';
+
+  @override
+  String get watermark_undo => '撤销';
+
+  @override
+  String get watermark_reset => '重置';
+
+  @override
+  String get watermark_noLayer => '保存前请启用文字或 Logo。';
+
+  @override
+  String get watermark_cancelled => '已取消水印渲染';
+
+  @override
+  String watermark_failed(Object error) {
+    return '无法创建水印副本：$error';
+  }
+
+  @override
+  String get watermark_failedGeneric => '无法创建水印副本，请检查图片后重试。';
+
+  @override
+  String get watermark_systemGalleryExportFailed =>
+      '副本已保存在 Aaalice 中，但未能添加到系统图库。';
+
+  @override
+  String get watermark_galleryRefreshFailed => '副本已保存，但图库未能刷新；重新打开图库即可重试。';
+
+  @override
+  String get watermark_sourceMissing => '找不到原图，请重新选择原图后再生成水印。';
+
+  @override
+  String get watermark_chooseOriginal => '选择原图';
+
+  @override
+  String get watermark_dragHint => '拖动所选图层；方向键可精细移动，按住 Shift 可加大步长。';
+
+  @override
+  String get watermark_moveLeft => '向左移动图层';
+
+  @override
+  String get watermark_moveRight => '向右移动图层';
+
+  @override
+  String get watermark_moveUp => '向上移动图层';
+
+  @override
+  String get watermark_moveDown => '向下移动图层';
+
+  @override
+  String get watermark_sourceLoadFailed =>
+      '无法打开此图片。请确认文件是有效的静态 PNG、JPEG、WebP 或 BMP 图片后重试。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -13564,11 +14147,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      '第三方站點需相容 NovelAI 的 /user/subscription 與影象生成相關 API；Token 將按 Bearer 方式傳送。';
+      '第三方站點需相容 NovelAI 影像生成 API；Token 將按 Bearer 方式傳送。未實作 /user/subscription 的站點將略過訂閱資訊。';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       '若第三方站點不支援串流生成，請前往「設定 > 生成 > 影象輸出」，關閉「串流預覽」後再生成。';
+
+  @override
+  String get anlas_thirdPartyUnavailable => '目前站點不提供 Anlas 餘額資訊';
 
   @override
   String get auth_thirdPartyApiSiteRequired => '請輸入第三方 API 站點地址';
@@ -13634,6 +14220,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI 官網賬號密碼登入需要網頁安全驗證，客戶端無法完成，請改用 Persistent API Token。';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      '該地址下未發現 NAI 相容介面，請確認 API 地址是站點提供的服務根地址';
 
   @override
   String get auth_error_serverError => '伺服器錯誤';
@@ -13867,6 +14457,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '預設關閉；僅在排查問題時開啟。開啟後會寫入 Documents/NAI_Launcher/logs，關閉後不再建立或寫入日誌檔案。';
 
   @override
+  String get settings_exportDiagnosticLogs => '匯出診斷日誌';
+
+  @override
+  String get settings_exportDiagnosticLogsSubtitle =>
+      '匯出最近日誌和基本裝置資訊；會自動隱藏憑證與本機路徑。';
+
+  @override
+  String get settings_exportDiagnosticLogsInProgress => '正在匯出診斷日誌';
+
+  @override
+  String get settings_exportDiagnosticLogsSuccess => '診斷日誌已匯出';
+
+  @override
+  String get settings_exportDiagnosticLogsEmpty => '暫無可匯出的日誌，請先開啟日誌記錄並重現問題';
+
+  @override
+  String get settings_exportDiagnosticLogsFailed => '診斷日誌匯出失敗，請重試';
+
+  @override
   String get settings_pathReset => '已重置為預設路徑';
 
   @override
@@ -14035,6 +14644,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_inputHint => '給 AI 助手傳送訊息…';
 
   @override
+  String get agentChat_inputHintWithSlash => '給 AI 助手傳送訊息，輸入 / 引用技能…';
+
+  @override
+  String get agentChat_slashMenu => '技能與工作階段指令';
+
+  @override
+  String get agentChat_slashSkills => '技能';
+
+  @override
+  String get agentChat_slashSession => '工作階段';
+
+  @override
   String get agentChat_addAttachment => '新增附件或引用';
 
   @override
@@ -14085,6 +14706,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_disableWebAccess => '關閉聯網';
 
   @override
+  String get agentChat_webAccessLabel => '聯網';
+
+  @override
+  String get agentChat_contextUsageLabel => '上下文';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支援的圖片格式：$fileName';
   }
@@ -14097,6 +14724,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_send => '傳送';
+
+  @override
+  String get agentChat_sendEmptyHint => '輸入訊息或加入圖片後即可傳送';
+
+  @override
+  String get agentChat_sendUnavailableHint => 'AI 助手尚未準備好傳送訊息';
 
   @override
   String get agentChat_stop => '停止';
@@ -14223,6 +14856,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_toolRecentImages => '檢視最近圖片';
 
   @override
+  String get agentChat_toolInspectImages => '檢查圖片';
+
+  @override
   String get agentChat_toolDisplayImages => '展示圖片';
 
   @override
@@ -14236,6 +14872,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolUpdateGenerationSettings => '更新生成設定';
+
+  @override
+  String get agentChat_toolGetGenerationSourceImage => '檢視圖生圖來源圖';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage => '載入圖生圖來源圖';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage => '清除圖生圖來源圖';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings => '調整圖生圖強度';
 
   @override
   String get agentChat_toolPromptState => '檢視提示詞狀態';
@@ -14322,6 +14970,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_toolSubmitInpaint => '提交局部重繪任務';
 
   @override
+  String get agentChat_toolCreateInpaintMask => '建立重繪遮罩';
+
+  @override
+  String get agentChat_toolExpandInpaintCanvas => '擴展畫布';
+
+  @override
+  String get agentChat_toolLoadInpaintPanel => '載入重繪草稿到面板';
+
+  @override
   String get agentChat_manualInpaintTitle => '手動局部重繪';
 
   @override
@@ -14331,7 +14988,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_resourceUnavailable => '資源不可用';
 
   @override
-  String get agentChat_addResource => '新增至 Agent';
+  String get agentChat_addResource => '傳送至智慧體';
 
   @override
   String get agentChat_resourceAdded => '已新增至 Agent 輸入區';
@@ -14365,13 +15022,47 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_compacting => '正在壓縮上下文…';
 
   @override
+  String agentChat_compactDone(String before, String after) {
+    return '已壓縮上下文：$before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded => '目前上下文無需壓縮';
+
+  @override
+  String get agentChat_compactBusy => '正在產生回覆，請稍後再壓縮';
+
+  @override
+  String get agentChat_compactUnavailable => '上下文用量不可用，無法壓縮';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return '壓縮上下文失敗：$error';
+  }
+
+  @override
   String get agentChat_requestFailed => '請求失敗，請重試。';
 
   @override
   String get agentChat_errorDetails => '錯誤詳情';
 
   @override
-  String get agentChat_model => '選擇模型';
+  String get agentChat_modelLabel => '模型';
+
+  @override
+  String get agentChat_modelPickerTitle => '選擇模型';
+
+  @override
+  String get agentChat_searchModels => '搜尋模型';
+
+  @override
+  String get agentChat_searchModelsHint => '模型名稱、ID 或提供者';
+
+  @override
+  String get agentChat_clearModelSearch => '清除模型搜尋';
+
+  @override
+  String get agentChat_noModelResults => '沒有符合搜尋條件的模型。';
 
   @override
   String get agentChat_noModel => '未配置模型';
@@ -14595,6 +15286,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get prompt_finalNegative => '最終生效負面詞';
+
+  @override
+  String get prompt_composition => '提示詞構成';
+
+  @override
+  String get prompt_expandFull => '展開全文';
+
+  @override
+  String get prompt_collapseFull => '收起全文';
 
   @override
   String prompt_importedCharacters(int count) {
@@ -14943,6 +15643,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get img2img_directorRunning => '正在處理...';
+
+  @override
+  String get img2img_directorConfirmTitle => '確認 Anlas 消耗';
+
+  @override
+  String img2img_directorConfirmContent(Object tool, int cost) {
+    return '執行$tool預計消耗 $cost Anlas，是否繼續？';
+  }
 
   @override
   String get img2img_directorResult => '處理結果';
@@ -16235,7 +16943,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_promptTagCategories => '提示詞類別';
 
   @override
-  String get onlineGallery_promptTagCategoriesTooltip => '選擇複製、傳送或加入佇列時包含的標籤類別';
+  String get onlineGallery_promptTagCategoriesTooltip => '選擇傳送或加入佇列時包含的標籤類別';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一個提示詞類別';
@@ -16721,25 +17429,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_codexNegativePrompt => '負向提示詞';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => '負面提示詞';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => '角色提示詞';
 
   @override
   String get onlineGallery_codexNote => '備註';
-
-  @override
-  String get onlineGallery_codexCopyPositive => '複製正向';
-
-  @override
-  String get onlineGallery_codexCopyNegative => '複製負向';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => '複製此角色';
-
-  @override
-  String get onlineGallery_codexCopyAll => '複製全部';
 
   @override
   String get onlineGallery_codexSendToGeneration => '帶入生成頁';
@@ -16788,13 +17481,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_copyArtistChain => '複製畫師串';
 
   @override
-  String get onlineGallery_copyFullPrompt => '複製完整 Prompt';
+  String get onlineGallery_copyPrompt => '複製提示詞';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '複製原始畫師片段';
+  String get onlineGallery_promptCopyDescription =>
+      '選擇要複製的原始提示詞類別。正向與負向內容會以純文字區塊分隔。';
 
   @override
-  String get onlineGallery_noArtistChain => '無可複製畫師串';
+  String get onlineGallery_promptCopyCategoryHint => '按來源提供的標籤類別複製';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => '複製該提示詞欄位的原始內容';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -16874,7 +17571,41 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_downloadAllMedia => '下載作品全部圖片';
 
   @override
-  String get onlineGallery_copyFullMetadata => '複製完整後設資料';
+  String get onlineGallery_copyAllTags => '複製全部 TAG';
+
+  @override
+  String get onlineGallery_customCopyTags => '自訂複製';
+
+  @override
+  String get promptCopy_exportTitle => '自訂複製 TAG';
+
+  @override
+  String get promptCopy_allPositive => '全部正面提示詞';
+
+  @override
+  String get promptCopy_allNegative => '全部負面提示詞';
+
+  @override
+  String get promptCopy_mainPositive => '主 / 全域正面提示詞';
+
+  @override
+  String get promptCopy_mainNegative => '主 / 全域負面提示詞';
+
+  @override
+  String get promptCopy_fixedPositive => '固定正面提示詞';
+
+  @override
+  String get promptCopy_fixedNegative => '固定負面提示詞';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return '角色 $index 正面提示詞';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return '角色 $index 負面提示詞';
+  }
 
   @override
   String get onlineGallery_gelbooruReadOnly => '只讀收藏';
@@ -17549,38 +18280,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get randomMode_title => '選擇隨機模式';
+  String get randomPrompt_unsupportedModel => '目前模型不支援官網隨機詞庫';
 
   @override
-  String get randomMode_naiOfficial => '預設';
-
-  @override
-  String get randomMode_custom => '自定義模式';
-
-  @override
-  String get randomMode_hybrid => '混合模式';
-
-  @override
-  String get randomMode_naiOfficialDesc => '按目前模型自動選擇內建隨機方案';
-
-  @override
-  String get randomMode_customDesc => '使用完整離線標籤 catalog 與自定義預設生成';
-
-  @override
-  String get randomMode_hybridDesc => '同時使用模型感知的預設方案與 catalog 擴展';
-
-  @override
-  String get randomMode_naiIndicator => '預設';
-
-  @override
-  String get randomMode_customIndicator => '自定義';
-
-  @override
-  String get randomMode_unsupportedModel => '目前模型不支援預設隨機模式';
-
-  @override
-  String get randomMode_unsupportedModelHint =>
-      '目前模型沒有可驗證的內建隨機方案。請選擇支援的 NovelAI 模型，或改用自定義模式。';
+  String get randomPrompt_unsupportedModelHint =>
+      '目前模型沒有對應的 NovelAI 官網隨機方案。請選擇支援的 NovelAI 模型，或使用自己的自訂預設。';
 
   @override
   String get naiMode_noTags => '暫無標籤';
@@ -17928,29 +18632,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => '通用預設 (V4/V5)';
-
-  @override
-  String get randomManager_defaultPresetLegacy => '通用預設 (Legacy)';
-
-  @override
-  String get randomManager_defaultPresetFurry => '通用預設 (Furry)';
-
-  @override
-  String get randomManager_defaultPresetV4Description =>
-      '適用於 V4/V5 的 catalog 擴展預設，支援多角色';
-
-  @override
-  String get randomManager_defaultPresetLegacyDescription =>
-      '基於 NAI Legacy 模型的隨機演算法配置';
-
-  @override
-  String get randomManager_defaultPresetFurryDescription =>
-      '基於 NAI Furry 模型的隨機演算法配置';
-
-  @override
-  String get randomManager_defaultPresetOfficialDescription =>
-      '基於 NAI 官網的隨機演算法配置';
+  String get randomManager_defaultPreset => 'NovelAI 官網預設';
 
   @override
   String get randomManager_femaleClothing => '女性服裝';
@@ -18185,22 +18867,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_selectionMode => '選擇模式';
 
   @override
-  String get randomManager_previewGeneration => '預覽生成';
+  String get randomManager_previewGeneration => '輸出預覽';
 
   @override
   String get randomManager_generating => '生成中';
 
   @override
-  String get randomManager_generate => '生成';
+  String get randomManager_generate => '生成範例';
 
   @override
   String get randomManager_generationFailed => '生成失敗';
 
   @override
-  String get randomManager_copy => '複製';
+  String get randomManager_copy => '複製全部';
 
   @override
-  String get randomManager_regenerate => '重新生成';
+  String get randomManager_regenerate => '換一個範例';
 
   @override
   String get randomManager_copiedToClipboard => '已複製到剪貼簿';
@@ -18219,7 +18901,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get randomManager_previewHint => '點選\"生成\"預覽隨機標籤';
+  String get randomManager_previewHint => '尚未生成範例';
 
   @override
   String get randomManager_generateNow => '立即生成';
@@ -18357,9 +19039,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_editMetadata => '編輯標籤';
 
   @override
-  String get localGallery_addToCollection => '收藏';
-
-  @override
   String get localGallery_switchToGridView => '切換到網格檢視';
 
   @override
@@ -18469,7 +19148,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return '將移動 $count 張本地圖片檔案到目標資料夾。請確認不是誤操作。';
+    return '將移動 $count 張本地圖片檔案到目標分類。請確認不是誤操作。';
   }
 
   @override
@@ -18580,6 +19259,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_sendToImg2Img => '傳送到圖生圖';
+
+  @override
+  String get localGallery_moreImageActions => '更多圖片操作';
 
   @override
   String get localGallery_sendToReversePrompt => '傳送到反推';
@@ -18907,10 +19589,77 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get localGallery_noFoldersAvailable => '暫無可用資料夾，請先建立資料夾';
+  String get localGallery_noCategoriesAvailable => '暫無可用分類，請先建立分類';
 
   @override
-  String get localGallery_moveToFolder => '移動到資料夾';
+  String get localGallery_moveToCategory => '移動到分類';
+
+  @override
+  String get localGallery_albumSectionTitle => '相簿';
+
+  @override
+  String get localGallery_folderSectionTitle => '資料夾';
+
+  @override
+  String get localGallery_albumEmptyHint => '還沒有相簿，點擊右側按鈕建立';
+
+  @override
+  String get localGallery_createAlbum => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbum => '新建子相簿';
+
+  @override
+  String get localGallery_moveAlbumToRoot => '移到根級';
+
+  @override
+  String get localGallery_moveAlbumUp => '移到上一級';
+
+  @override
+  String get localGallery_moveCategoryUp => '移到上一級';
+
+  @override
+  String get localGallery_createAlbumTitle => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbumTitle => '新建子相簿';
+
+  @override
+  String get localGallery_createAlbumHint => '輸入相簿名稱';
+
+  @override
+  String get localGallery_deleteAlbumTitle => '刪除相簿';
+
+  @override
+  String get localGallery_deleteAlbumContent => '將刪除該相簿（圖片檔案不受影響），子相簿會提升到根級。';
+
+  @override
+  String get localGallery_addedToAlbum => '已加入相簿';
+
+  @override
+  String get localGallery_albumAddFailed => '加入相簿失敗';
+
+  @override
+  String get localGallery_albumSelectTitle => '加入相簿';
+
+  @override
+  String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String get localGallery_removeFromAlbum => '移出相簿';
+
+  @override
+  String localGallery_removedFromAlbum(Object count) {
+    return '已移出 $count 張圖片';
+  }
+
+  @override
+  String get localGallery_albumNoMembers => '所選圖片不在此相簿中';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '已將 $count 張圖片加入「$name」';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -18924,14 +19673,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_moveImagesFailed => '移動圖片失敗';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '已新增 $count 張圖片到集合「$name」';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '新增圖片到集合失敗';
 
   @override
   String get brushPreset_selectHint => '雙擊選擇此筆刷預設';
@@ -20776,6 +21517,33 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get metadataImport_fixedTags => '固定詞';
 
   @override
+  String get metadataImport_fixedSourceStructured => '來源：圖片明確記錄';
+
+  @override
+  String get metadataImport_fixedSourceLegacy => '來源：舊版圖片欄位';
+
+  @override
+  String get metadataImport_fixedSourceLibrary => '來源：根據目前固定詞庫嚴格匹配';
+
+  @override
+  String get metadataImport_fixedSourceUnknown => '來源：圖片未記錄，無法確認';
+
+  @override
+  String get metadataImport_unknownFixedTagsHint =>
+      '圖片沒有記錄固定詞。請選擇如何處理目前已啟用的固定詞。';
+
+  @override
+  String get metadataImport_disableCurrentFixedTags => '關閉目前固定詞（推薦）';
+
+  @override
+  String get metadataImport_keepCurrentFixedTags => '保留並與圖片提示詞疊加';
+
+  @override
+  String metadataImport_imageVersionName(Object name) {
+    return '$name（圖片版本）';
+  }
+
+  @override
   String metadataImport_fixedPrefix(Object text) {
     return '字首: $text';
   }
@@ -20848,6 +21616,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String metadataImport_selectedCount(int count) {
     return '已選擇 $count 項';
   }
+
+  @override
+  String get metadataImport_readImageMetadata => '讀取圖片後設資料';
+
+  @override
+  String get metadataImport_readFailed => '無法讀取所選圖片';
+
+  @override
+  String get metadataImport_processFailed => '無法處理所選圖片';
 
   @override
   String get metadataImport_noDataFound => '未找到 NovelAI 後設資料';
@@ -21174,10 +21951,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get drop_addedToCharacterRef => '已新增到精準參考';
 
   @override
-  String get drop_extractMetadata => '提取後設資料';
+  String get drop_extractMetadata => '傳送到文生圖';
 
   @override
-  String get drop_extractMetadataSubtitle => '讀取圖片中的 Prompt、Seed 等引數';
+  String get drop_extractMetadataSubtitle => '選擇要套用的提示詞、固定詞和生成引數';
 
   @override
   String get drop_addToQueue => '加入佇列';
@@ -25155,6 +25932,31 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get autocomplete_showTranslations => '顯示中文漢化';
 
   @override
+  String get quickTranslate_show => '快速翻譯';
+
+  @override
+  String get quickTranslate_restore => '還原原提示詞（預覽中的修改將被捨棄）';
+
+  @override
+  String get quickTranslate_previewSemantics => '本機漢化預覽。在此修改不會影響原提示詞。';
+
+  @override
+  String get quickTranslate_noMatches => '目前內容中沒有找到可漢化的標籤';
+
+  @override
+  String get quickTranslate_failed => '快速翻譯失敗，請檢查漢化詞庫後重試';
+
+  @override
+  String get quickTranslate_missingTitle => '需要漢化詞庫';
+
+  @override
+  String get quickTranslate_missingMessage =>
+      '快速翻譯需要 ffdkj 簡體中文漢化庫。是否前往資料與快取設定並立即下載？';
+
+  @override
+  String get quickTranslate_download => '前往並下載';
+
+  @override
   String get autocomplete_autoComma => '插入後自動新增逗號';
 
   @override
@@ -25472,7 +26274,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_inspectorSubtitle => '調整目前預設的角色分佈與全域輸出行為';
 
   @override
-  String get randomManager_previewEmptyDescription => '生成一次範例，檢查目前配方的實際輸出。';
+  String get randomManager_previewEmptyDescription => '生成一組提示詞範例，檢查目前配方的實際輸出。';
 
   @override
   String get randomManager_category_composition => '構圖';
@@ -25523,76 +26325,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_category_detail => '創意細節';
 
   @override
-  String randomManager_sourceOfficial(String wordlist) {
-    return '官網 · $wordlist';
-  }
-
-  @override
-  String get randomManager_sourceCatalog => '自訂 · Catalog 擴充';
-
-  @override
-  String randomManager_sourceHybrid(String wordlist) {
-    return '混合 · $wordlist + Catalog';
-  }
-
-  @override
-  String get randomManager_currentMode => '目前模式';
-
-  @override
-  String get randomManager_officialWordlist => '目前模型官網詞庫';
-
-  @override
-  String randomManager_officialWordlistCount(String wordlist, int count) {
-    return '$wordlist：$count 條原始記錄';
-  }
-
-  @override
-  String get randomManager_officialAsset => '完整官網資產';
-
-  @override
-  String randomManager_officialAssetCount(int entries, int groups) {
-    return '$entries 條記錄，$groups 個原始陣列';
-  }
-
-  @override
-  String get randomManager_sourceFile => '來源檔案';
-
-  @override
-  String get randomManager_sourceSha256 => '來源 SHA-256';
-
-  @override
-  String get randomManager_catalogExtension => 'Catalog 擴充';
-
-  @override
-  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
-
-  @override
-  String get randomManager_wordlistFurryV3 => 'Furry V3';
-
-  @override
-  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
-
-  @override
-  String get randomManager_sourceDetails => '資料來源詳情';
-
-  @override
-  String get randomManager_sourceUrl => '來源 URL';
-
-  @override
-  String get randomManager_sourceCommit => '來源提交';
-
-  @override
-  String get randomManager_sourceDate => '來源日期';
-
-  @override
-  String get randomManager_sourceLicense => '授權條款';
-
-  @override
-  String randomManager_catalogCounts(Object tags, Object aliases) {
-    return '完整 catalog：$tags 個標籤，$aliases 個別名';
-  }
-
-  @override
   String get randomManager_libraryUnavailable => '隨機詞庫無法使用';
 
   @override
@@ -25612,6 +26344,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get image_savedToSystemGallery => '已儲存到系統相簿';
+
+  @override
+  String get localGallery_saveToSystemGallery => '儲存到系統相簿';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return '無法儲存到系統相簿：$error';
+  }
 
   @override
   String image_savedAppOnly(Object error) {
@@ -25650,7 +26390,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_androidManagedStorage => '由系統安全管理；匯出時可選擇儲存位置';
 
   @override
-  String get settings_importLocalOnnxTaggerFiles => '匯入 ONNX 模型及標籤檔案';
+  String get settings_importLocalOnnxTaggerFiles => '匯入 ONNX 模型、標籤檔案或 ZIP 壓縮檔';
 
   @override
   String settings_localOnnxFilesImported(int count) {
@@ -25716,6 +26456,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_saveConnection => '儲存連線';
 
   @override
+  String get cloudSync_operationInProgress => '另一項雲端同步操作正在進行，請稍後再試。';
+
+  @override
   String get cloudSync_fillRequiredFields => '請填寫目前服務商的必填連線資訊。';
 
   @override
@@ -25728,7 +26471,35 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_chooseBackend => '備份到哪裡';
 
   @override
-  String get cloudSync_chooseBackendDescription => '選擇你已有的儲存服務。帳號資訊只儲存在此裝置。';
+  String get cloudSync_chooseBackendDescription =>
+      '先選擇同步目的地，再連線帳號並選擇要同步的內容。憑證只會儲存在裝置的安全儲存區。';
+
+  @override
+  String cloudSync_oauthDescription(String provider) {
+    return '連線 $provider 帳號';
+  }
+
+  @override
+  String get cloudSync_oauthSystemBrowser => '將使用系統瀏覽器安全登入；無需在應用程式中輸入密碼。';
+
+  @override
+  String cloudSync_oauthUnavailable(String details) {
+    return '此版本缺少 OAuth 發佈設定，暫時無法連線。請向發佈者提供以下診斷：\n$details';
+  }
+
+  @override
+  String cloudSync_accountConnected(String provider) {
+    return '已連線 $provider';
+  }
+
+  @override
+  String get cloudSync_connectAccount => '連線帳號';
+
+  @override
+  String get cloudSync_changeAccount => '更換帳號';
+
+  @override
+  String get cloudSync_connectedAccount => '已連線帳號';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV 位址';
@@ -25763,6 +26534,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_testFailed => '連線測試失敗';
+
+  @override
+  String get cloudSync_operationFailed => '雲端同步操作失敗';
 
   @override
   String get cloudSync_manualBackupOnly => '只支援手動推送與拉取';
@@ -25832,6 +26606,48 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get cloudSync_errorAuthentication => '登入狀態已過期，請重新連接帳號。';
+
+  @override
+  String get cloudSync_errorAuthorization => '目前帳號無權存取備份位置。';
+
+  @override
+  String get cloudSync_errorNotFound => '找不到雲端備份目錄或檔案。';
+
+  @override
+  String get cloudSync_errorConflict => '雲端資料已被其他裝置更新，請先拉取最新資料再重試。';
+
+  @override
+  String get cloudSync_errorQuota => '雲端儲存空間不足。';
+
+  @override
+  String get cloudSync_errorRateLimited => '雲端儲存要求過於頻繁，請稍後重試。';
+
+  @override
+  String get cloudSync_errorRedirect => '服務商將要求重新導向至不受信任的位址，操作已停止。';
+
+  @override
+  String get cloudSync_errorInvalidResponse => '服務商傳回了無法驗證的資料。';
+
+  @override
+  String get cloudSync_errorNetwork => '無法連接雲端儲存，請檢查網路後重試。';
+
+  @override
+  String get cloudSync_errorPreviewStale => '預覽後資料已變更，請重新查看變更後再繼續。';
+
+  @override
+  String get cloudSync_errorFormat => '備份格式或完整性驗證失敗。';
+
+  @override
+  String get cloudSync_errorConfiguration => '無法讀取已儲存的同步設定。';
+
+  @override
+  String get cloudSync_errorState => '同步狀態已變更，請重試目前操作。';
+
+  @override
+  String get cloudSync_errorUnknown => '同步失敗，請檢查連線後重試。';
+
+  @override
   String get cloudSync_connectionDetails => '儲存資訊';
 
   @override
@@ -25850,11 +26666,20 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_providerWarning => '儲存服務提示';
 
   @override
-  String get cloudSync_maintenanceWarning => '需要注意';
+  String get cloudSync_warningGoogleDriveWeakCas =>
+      'Google Drive 無法保證檔案內容的原子條件更新，因此此連線僅支援明確的手動推送與拉取。';
 
   @override
-  String get cloudSync_maintenanceWarningDescription =>
-      '雲端空間暫時無法自動整理。現有備份不受影響，稍後會自動重試。';
+  String get cloudSync_warningGithubPublicRepository =>
+      '目前的 GitHub 儲存庫是公開儲存庫，備份內容也會公開。私密資料請改用私人儲存庫。';
+
+  @override
+  String get cloudSync_warningWebDavWeakCas =>
+      '此伺服器無法保證安全的條件更新。目前僅支援手動備份，後續寫入可能取代同一個 HEAD。';
+
+  @override
+  String get cloudSync_warningWebDavUnverifiedCas =>
+      'WebDAV 連線已通過唯讀驗證，但尚未驗證安全的條件寫入。目前僅支援手動推送與拉取。';
 
   @override
   String get cloudSync_githubHistoryRetention => 'GitHub 空間說明';
@@ -25908,10 +26733,43 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_progress => '傳輸進度';
 
   @override
+  String get cloudSync_metricsDetails => '技術詳情';
+
+  @override
+  String get cloudSync_metricsElapsed => '總耗時';
+
+  @override
+  String get cloudSync_metricsRequests => '服務要求';
+
+  @override
+  String get cloudSync_metricsRead => '已接收';
+
+  @override
+  String get cloudSync_metricsWritten => '已傳送';
+
+  @override
+  String get cloudSync_metricsHashPasses => '完整性驗證';
+
+  @override
+  String get cloudSync_metricsPayloadReads => '資料讀取次數';
+
+  @override
+  String get cloudSync_metricsLocalRead => '本機讀取';
+
+  @override
+  String get cloudSync_metricsLocalWritten => '本機寫入';
+
+  @override
+  String get cloudSync_metricsFlushes => '磁碟刷新';
+
+  @override
   String get cloudSync_stage => '目前進度';
 
   @override
   String get cloudSync_objects => '已處理';
+
+  @override
+  String get cloudSync_reusedObjects => '已重用未變更項目';
 
   @override
   String get cloudSync_bytes => '已傳輸';
@@ -25920,16 +26778,37 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_stagePreparing => '正在準備';
 
   @override
+  String get cloudSync_stageScanning => '正在掃描所選資料';
+
+  @override
+  String get cloudSync_stageHashing => '正在驗證本機內容';
+
+  @override
   String get cloudSync_stageDownloading => '正在下載';
+
+  @override
+  String get cloudSync_stageVerifying => '正在驗證下載內容';
 
   @override
   String get cloudSync_stageMerging => '正在整理兩端內容';
 
   @override
+  String get cloudSync_stageReusing => '正在重用未變更內容';
+
+  @override
   String get cloudSync_stageUploading => '正在上傳';
 
   @override
+  String get cloudSync_stageCommitting => '正在發佈備份';
+
+  @override
   String get cloudSync_stageApplying => '正在儲存變更';
+
+  @override
+  String get cloudSync_stageSaving => '正在儲存復原狀態';
+
+  @override
+  String get cloudSync_stageRetryWaiting => '等待重試';
 
   @override
   String get cloudSync_stageRollingBack => '正在恢復原狀';
@@ -26110,10 +26989,34 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '供應商、API Key 與模型探索仍在「整合」中統一管理。';
 
   @override
+  String get agentSettings_manageProviders => '管理供應商';
+
+  @override
   String get agentSettings_noModel => '沒有可用聊天模型。請先在「整合」中新增供應商並探索模型。';
 
   @override
   String get agentSettings_pendingMatch => '待配對';
+
+  @override
+  String get agentSettings_contextWindow => '上下文視窗（token）';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return '留空則使用內建值 $value。第三方中轉站或自訂部署的實際視窗不同時，可在此填寫覆寫。';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      '內建目錄未收錄此模型，無法自動判斷視窗。未填寫則無法顯示上下文用量，也無法壓縮上下文。';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => '例如 128000';
+
+  @override
+  String get agentSettings_contextWindowReset => '還原為內建值';
+
+  @override
+  String get agentSettings_contextWindowInvalid => '請填寫 1 到 20000000 之間的整數';
 
   @override
   String get agentSettings_toolPermission => '工具權限';
@@ -26367,4 +27270,267 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_profileImported => '智慧體設定已匯入';
+
+  @override
+  String get settings_watermarkTitle => '浮水印';
+
+  @override
+  String get settings_watermarkSubtitle => '完全在本機建立浮水印副本，不修改原圖';
+
+  @override
+  String get settings_watermarkEnable => '啟用浮水印工具';
+
+  @override
+  String get settings_watermarkPreserveMetadata => '浮水印副本保留中繼資料';
+
+  @override
+  String get settings_watermarkPreserveMetadataHint =>
+      '關閉時清除 PNG 文字、EXIF、NovelAI 隱寫資料、提示詞和種子；開啟時把原圖中支援的中繼資料安全寫入新 PNG。';
+
+  @override
+  String get settings_watermarkEditDefault => '編輯預設浮水印';
+
+  @override
+  String get settings_watermarkCreateFromImage => '選擇圖片並建立浮水印副本…';
+
+  @override
+  String get settings_watermarkLayoutByOrientation => '依圖片方向分別記憶版面';
+
+  @override
+  String get settings_watermarkLayoutByOrientationHint =>
+      '文字和樣式共用，直向、方形與橫向圖片分別儲存位置。';
+
+  @override
+  String get settings_watermarkConfigMigrated => '舊版浮水印設定已遷移供檢查，請儲存以確認目前預設方案。';
+
+  @override
+  String get settings_watermarkConfigCorrupted =>
+      '浮水印設定無法讀取，目前顯示安全預設值；儲存後才會取代損壞資料。';
+
+  @override
+  String get watermark_actionCreate => '建立浮水印副本…';
+
+  @override
+  String get watermark_actionRegenerate => '重新產生浮水印副本…';
+
+  @override
+  String get watermark_actionDownloadCreate => '下載並加入浮水印…';
+
+  @override
+  String get watermark_editorTitle => '浮水印編輯器';
+
+  @override
+  String get watermark_textLayer => '文字';
+
+  @override
+  String get watermark_logoLayer => 'Logo';
+
+  @override
+  String get watermark_enableLayer => '顯示圖層';
+
+  @override
+  String get watermark_text => '浮水印文字';
+
+  @override
+  String get watermark_alignment => '文字對齊';
+
+  @override
+  String get editor_colorHex => '十六進位顏色值';
+
+  @override
+  String get editor_colorSaturationBrightness => '顏色飽和度與明度';
+
+  @override
+  String get editor_colorHue => '顏色色相';
+
+  @override
+  String get watermark_alignLeft => '靠左對齊';
+
+  @override
+  String get watermark_alignCenter => '置中對齊';
+
+  @override
+  String get watermark_alignRight => '靠右對齊';
+
+  @override
+  String get watermark_font => '字型';
+
+  @override
+  String get watermark_chooseLogo => '選擇 Logo';
+
+  @override
+  String get watermark_replaceLogo => '更換 Logo';
+
+  @override
+  String get watermark_logoMissing => '已儲存的 Logo 遺失，請重新選擇後再儲存。';
+
+  @override
+  String get watermark_logoImportFailed =>
+      '無法匯入 Logo。請選擇尺寸受支援且有效的靜態 PNG、JPEG 或 WebP 圖片。';
+
+  @override
+  String get watermark_opacity => '透明度';
+
+  @override
+  String get watermark_size => '大小';
+
+  @override
+  String get watermark_letterSpacing => '字距';
+
+  @override
+  String get watermark_stroke => '描邊';
+
+  @override
+  String get watermark_shadow => '柔和陰影';
+
+  @override
+  String get watermark_margin => '邊距';
+
+  @override
+  String get watermark_anchor => '位置錨點';
+
+  @override
+  String get watermark_anchorTopLeft => '左上';
+
+  @override
+  String get watermark_anchorTopCenter => '頂部置中';
+
+  @override
+  String get watermark_anchorTopRight => '右上';
+
+  @override
+  String get watermark_anchorCenterLeft => '左側置中';
+
+  @override
+  String get watermark_anchorCenter => '畫布中央';
+
+  @override
+  String get watermark_anchorCenterRight => '右側置中';
+
+  @override
+  String get watermark_anchorBottomLeft => '左下';
+
+  @override
+  String get watermark_anchorBottomCenter => '底部置中';
+
+  @override
+  String get watermark_anchorBottomRight => '右下';
+
+  @override
+  String get watermark_layerArrangement => '圖層排列';
+
+  @override
+  String get watermark_arrangementIndependent => '獨立';
+
+  @override
+  String get watermark_arrangementHorizontal => '橫向組合';
+
+  @override
+  String get watermark_arrangementVertical => '縱向組合';
+
+  @override
+  String get watermark_zOrder => '將所選圖層移到上層';
+
+  @override
+  String get watermark_ratioOriginal => '原圖';
+
+  @override
+  String get watermark_ratioPortrait => '直向';
+
+  @override
+  String get watermark_ratioSquare => '方形';
+
+  @override
+  String get watermark_ratioLandscape => '橫向';
+
+  @override
+  String get watermark_layoutUniversal => '通用版面';
+
+  @override
+  String get watermark_layoutPortrait => '直向版面';
+
+  @override
+  String get watermark_layoutSquare => '方形版面';
+
+  @override
+  String get watermark_layoutLandscape => '橫向版面';
+
+  @override
+  String get watermark_metadataRemoved => '將依「安全性與分享」設定清除副本中繼資料。';
+
+  @override
+  String get watermark_metadataPreserved => '會把原圖中支援的中繼資料寫入新副本。';
+
+  @override
+  String get watermark_setDefault => '設為預設';
+
+  @override
+  String get watermark_defaultSaved => '預設浮水印已更新';
+
+  @override
+  String get watermark_saveCopy => '儲存副本';
+
+  @override
+  String get watermark_saving => '正在渲染原始解析度圖片…';
+
+  @override
+  String get watermark_saved => '浮水印副本已儲存';
+
+  @override
+  String get watermark_share => '分享';
+
+  @override
+  String get watermark_open => '開啟';
+
+  @override
+  String get watermark_undo => '復原';
+
+  @override
+  String get watermark_reset => '重設';
+
+  @override
+  String get watermark_noLayer => '儲存前請啟用文字或 Logo。';
+
+  @override
+  String get watermark_cancelled => '已取消浮水印渲染';
+
+  @override
+  String watermark_failed(Object error) {
+    return '無法建立浮水印副本：$error';
+  }
+
+  @override
+  String get watermark_failedGeneric => '無法建立浮水印副本，請檢查圖片後再試一次。';
+
+  @override
+  String get watermark_systemGalleryExportFailed =>
+      '副本已儲存在 Aaalice 中，但無法加入系統圖庫。';
+
+  @override
+  String get watermark_galleryRefreshFailed => '副本已儲存，但圖庫無法重新整理；重新開啟圖庫即可重試。';
+
+  @override
+  String get watermark_sourceMissing => '找不到原圖，請重新選擇原圖後再產生浮水印。';
+
+  @override
+  String get watermark_chooseOriginal => '選擇原圖';
+
+  @override
+  String get watermark_dragHint => '拖曳所選圖層；方向鍵可精細移動，按住 Shift 可加大步長。';
+
+  @override
+  String get watermark_moveLeft => '向左移動圖層';
+
+  @override
+  String get watermark_moveRight => '向右移動圖層';
+
+  @override
+  String get watermark_moveUp => '向上移動圖層';
+
+  @override
+  String get watermark_moveDown => '向下移動圖層';
+
+  @override
+  String get watermark_sourceLoadFailed =>
+      '無法開啟此圖片。請確認檔案是有效的靜態 PNG、JPEG、WebP 或 BMP 圖片後再試一次。';
 }

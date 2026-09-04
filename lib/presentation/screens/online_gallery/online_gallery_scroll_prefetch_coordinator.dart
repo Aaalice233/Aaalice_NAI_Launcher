@@ -9,6 +9,7 @@ import '../../../core/cache/online_gallery_detail_coordinator.dart';
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
+import '../../adaptive/window_size_class.dart';
 import '../../providers/online_gallery_provider.dart';
 import 'online_gallery_masonry_layout.dart';
 import 'online_gallery_screen_controller.dart';
@@ -91,9 +92,17 @@ class OnlineGalleryScrollPrefetchCoordinator {
   }
 
   void onScroll() {
-    if (!controller.branchVisible) return;
+    if (!controller.branchVisible || !controller.scrollController.hasClients) {
+      return;
+    }
+    final position = controller.scrollController.position;
+    if (!position.hasContentDimensions ||
+        position.viewportDimension <= 0 ||
+        !position.pixels.isFinite) {
+      return;
+    }
     final callbackStopwatch = kDebugMode ? (Stopwatch()..start()) : null;
-    final offset = controller.scrollController.offset;
+    final offset = position.pixels;
     if (offset != controller.lastScrollOffset) {
       controller.paginationDemand.recordScroll(offset);
       final startedScrolling = !controller.isScrolling;
@@ -116,6 +125,11 @@ class OnlineGalleryScrollPrefetchCoordinator {
       controller.scrollStopTimer?.cancel();
       controller.scrollStopTimer = Timer(scrollIdleDelay, () {
         if (!isMounted() || !controller.branchVisible) return;
+        final state = readState();
+        controller.captureViewport(
+          scope: _paginationScope(state),
+          posts: state.posts,
+        );
         controller.paginationDemand.settleScroll();
         controller.setScrolling(false);
         _scheduleVisiblePageUpdate();
@@ -161,7 +175,11 @@ class OnlineGalleryScrollPrefetchCoordinator {
   }
 
   void _requestNextIfNeeded() {
-    if (!isMounted() || !controller.branchVisible) return;
+    if (!isMounted() ||
+        !controller.branchVisible ||
+        !controller.viewportAvailable) {
+      return;
+    }
     final state = readState();
     final cache = state.randomEnabled
         ? state.randomSession.cache
@@ -169,6 +187,10 @@ class OnlineGalleryScrollPrefetchCoordinator {
     final position = controller.scrollController.hasClients
         ? controller.scrollController.position
         : null;
+    if (position != null &&
+        (!position.hasContentDimensions || position.viewportDimension <= 0)) {
+      return;
+    }
     final needsMore =
         state.posts.isEmpty ||
         _isNearLoadedEdge(state) ||
@@ -191,7 +213,8 @@ class OnlineGalleryScrollPrefetchCoordinator {
       scopeKey: scope,
       cursor: cache.nextCursor,
       viewportDimension:
-          position?.viewportDimension ?? MediaQuery.sizeOf(context).height,
+          position?.viewportDimension ??
+          context.adaptiveWindow.unobscuredSize.height,
     );
     if (requestToken == null) return;
     if (kDebugMode) {
@@ -242,6 +265,13 @@ class OnlineGalleryScrollPrefetchCoordinator {
     if (!controller.scrollController.hasClients) return;
     final state = readState();
     final position = controller.scrollController.position;
+    if (!position.hasContentDimensions ||
+        position.viewportDimension <= 0 ||
+        !position.pixels.isFinite) {
+      return;
+    }
+    final scope = _paginationScope(state);
+    controller.captureViewport(scope: scope, posts: state.posts);
     final anchor = controller.viewportTracker.resolveLeadingAnchor(
       posts: state.posts,
       metrics: position,
@@ -256,45 +286,10 @@ class OnlineGalleryScrollPrefetchCoordinator {
   }
 
   void restoreScrollOffset(ModeCache cache) {
-    final revision = controller.beginScrollRestore();
-    final scope = _paginationScope(readState());
-    final anchorStableKey = cache.anchorStableKey;
-    final anchorLocalOffset = cache.anchorLocalOffset;
-    controller.pendingAnchorStableKey = anchorStableKey;
-    controller.pendingAnchorLocalOffset = anchorLocalOffset;
-
-    bool isCurrent() =>
-        isMounted() &&
-        controller.isCurrentScrollRestore(revision) &&
-        _paginationScope(readState()) == scope;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!isCurrent() || !controller.scrollController.hasClients) return;
-      final position = controller.scrollController.position;
-      controller.scrollController.jumpTo(
-        cache.scrollOffset.clamp(
-          position.minScrollExtent,
-          position.maxScrollExtent,
-        ),
-      );
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!isCurrent() ||
-            controller.pendingAnchorStableKey != anchorStableKey) {
-          return;
-        }
-        final anchorContext = controller.anchorRestoreKey.currentContext;
-        if (anchorContext == null) return;
-        await Scrollable.ensureVisible(anchorContext, duration: Duration.zero);
-        if (!isCurrent() || !controller.scrollController.hasClients) return;
-        final current = controller.scrollController.offset;
-        controller.scrollController.jumpTo(
-          (current + anchorLocalOffset).clamp(
-            controller.scrollController.position.minScrollExtent,
-            controller.scrollController.position.maxScrollExtent,
-          ),
-        );
-      });
-    });
+    controller.stageViewportRestore(
+      scope: _paginationScope(readState()),
+      cache: cache,
+    );
   }
 
   void beginPageJump() {
@@ -327,7 +322,7 @@ class OnlineGalleryScrollPrefetchCoordinator {
     }
 
     final viewportWidth =
-        context.size?.width ?? MediaQuery.sizeOf(context).width;
+        context.size?.width ?? context.adaptiveWindow.safeUsableSize.width;
     const horizontalPadding = 24.0;
     const spacing = 6.0;
     final availableWidth = (viewportWidth - horizontalPadding).clamp(

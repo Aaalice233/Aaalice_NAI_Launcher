@@ -36,6 +36,7 @@ class CloudSyncSecuritySection extends ConsumerWidget {
                       context.l10n.cloudSync_deleteRemoteNamespace,
                       context.l10n.cloudSync_deleteRemoteConfirm,
                       port.deleteRemoteNamespace,
+                      destructive: true,
                     ),
             ),
           ListTile(
@@ -63,11 +64,13 @@ class CloudSyncSecuritySection extends ConsumerWidget {
     BuildContext context,
     String title,
     String message,
-    Future<void> Function() action,
-  ) async {
+    Future<void> Function() action, {
+    bool destructive = false,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(title),
         content: Text(message),
         actions: [
@@ -76,6 +79,12 @@ class CloudSyncSecuritySection extends ConsumerWidget {
             child: Text(context.l10n.cloudSync_cancel),
           ),
           FilledButton(
+            style: destructive
+                ? FilledButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    foregroundColor: Theme.of(context).colorScheme.onError,
+                  )
+                : null,
             onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(context.l10n.cloudSync_confirm),
           ),

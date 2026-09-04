@@ -170,7 +170,10 @@ class GenerationToolDefinitions {
             'switch to inpaint with "inpaint_strength" (0-0.99); "noise" '
             '(0-0.99) adds variation. Without "source_image" this is plain '
             'text-to-image regardless of the generation page img2img '
-            'state. '
+            'state. These arguments apply to this single transaction only and '
+            'never change the generation page Image2Image panel; use '
+            'set_generation_source_image when the user should see the image '
+            'loaded there. '
             'If a generation is already running, this waits up to 300s and '
             'runs in order. Each saved image returns path as the exact '
             'workspace-relative argument for read plus an application-owned '
@@ -224,7 +227,9 @@ class GenerationToolDefinitions {
             },
             'source_image': {
               'type': 'string',
-              'description': 'Local image file path to use as img2img base.',
+              'description':
+                  'Local image file path to use as img2img base for this '
+                  'call only; the generation page panel is left unchanged.',
             },
             'mask_image': {
               'type': 'string',
@@ -362,24 +367,6 @@ class GenerationToolDefinitions {
           'required': ['limit'],
         },
         executeFn: (_, params) => _history.recentImages(params),
-      ),
-      DefinedAgentTool(
-        name: 'preview_generated_image',
-        label: 'Preview Generated Image',
-        description:
-            'Resolve one generated image by stable resource_ref (preferred) '
-            'or stable image_id and return a bounded preview without exposing '
-            'its saved file path. List indexes and paths are not accepted.',
-        parameters: const {
-          'type': 'object',
-          'properties': {
-            'resource_ref': {'type': 'object'},
-            'image_id': {'type': 'string'},
-          },
-          'required': <String>[],
-          'additionalProperties': false,
-        },
-        executeFn: (_, params) => _history.previewGeneratedImage(params),
       ),
       DefinedAgentTool(
         name: 'get_generation_settings',

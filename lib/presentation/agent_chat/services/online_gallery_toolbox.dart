@@ -1,14 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
-import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/online_gallery/gallery_tag_query.dart';
-import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
@@ -27,7 +22,6 @@ class OnlineGalleryToolbox {
     _browse(),
     _searchCompatibility(),
     _detail(),
-    _preview(),
     _toggleFavorite(),
   ];
 
@@ -300,93 +294,6 @@ class OnlineGalleryToolbox {
       } finally {
         signal?.removeListener(abortDetail);
       }
-    },
-  );
-
-  DefinedAgentTool _preview() => DefinedAgentTool(
-    name: 'preview_online_gallery_media',
-    label: 'Preview Online Gallery Media',
-    description:
-        'Return a bounded preview for media already resolved by an online gallery source.',
-    parameters: toolboxObject(
-      properties: {
-        ..._identityProperties,
-        'media_id': {'type': 'string'},
-      },
-      required: const ['source', 'work_id'],
-    ),
-    executeFn: (_, params) async {
-      final item = _find(params);
-      if (item == null) {
-        return agentToolError('not_loaded', 'Browse the work first.');
-      }
-      final notifier = _ref.read(onlineGalleryNotifierProvider.notifier);
-      return notifier.runWithExplicitNetworkAccess(() async {
-        final detail = await notifier.loadDetail(item);
-        final mediaId = params['media_id'] as String?;
-        final media = mediaId == null
-            ? detail.media.firstOrNull
-            : detail.media.where((value) => value.id == mediaId).firstOrNull;
-        if (media == null) {
-          return agentToolError(
-            'media_not_found',
-            'Gallery media was not found.',
-          );
-        }
-        final url = media.previewUrl.isNotEmpty
-            ? media.previewUrl
-            : media.displayUrl;
-        if (url.isEmpty) {
-          return agentToolError('preview_unavailable', 'Media has no preview.');
-        }
-        final file = await OnlineGalleryImageCacheManager.instance
-            .getSingleFile(
-              url,
-              key: onlineGalleryImageCacheKeyForUrl(url),
-              headers: onlineGalleryImageHeadersForUrl(url),
-            );
-        final thumbnail = await DisplayThumbnailUtils.normalize(
-          await file.readAsBytes(),
-        );
-        if (thumbnail == null) {
-          return agentToolError(
-            'preview_invalid',
-            'Gallery preview is invalid.',
-          );
-        }
-        final mime = detectSupportedImageMimeType(thumbnail);
-        if (mime == null) {
-          return agentToolError(
-            'preview_invalid',
-            'Unsupported preview format.',
-          );
-        }
-        final details = <String, dynamic>{
-          'ok': true,
-          'source': item.sourceId.key,
-          'work_id': item.sourceWorkId,
-          'media': _mediaJson(
-            media,
-            source: item.sourceId,
-            workId: item.sourceWorkId,
-            title: item.title,
-          ),
-        };
-        return AgentToolResult(
-          content: [
-            ToolResultTextContent(jsonEncode(details)),
-            ToolResultImageContent(
-              ImageContent(
-                source: ImageSource.base64(
-                  mimeType: mime,
-                  base64Data: base64Encode(thumbnail),
-                ),
-              ),
-            ),
-          ],
-          details: details,
-        );
-      });
     },
   );
 

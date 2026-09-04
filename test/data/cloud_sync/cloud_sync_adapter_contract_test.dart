@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/cloud_sync/cloud_sync.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_blacklist.dart';
+import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/data/repositories/online_gallery_blacklist_repository.dart';
 
 class _TrackingAdapter extends ValidatingCloudSyncDataAdapter {
@@ -144,6 +145,14 @@ void main() {
     await storage.setSetting(StorageKeys.locale, 'ja');
     await storage.setSetting(StorageKeys.accessToken, 'secret-token');
     await storage.setSetting(StorageKeys.imageSavePath, 'D:/private');
+    await storage.setSetting(
+      StorageKeys.watermarkConfigV1,
+      const WatermarkSettings(enabled: true).encode(),
+    );
+    await storage.setSetting(
+      StorageKeys.watermarkLogoPathV1,
+      'D:/private/logo.png',
+    );
     final adapter = SettingsCloudSyncAdapter(storage);
 
     final records = await adapter.exportRecords().toList();
@@ -156,14 +165,35 @@ void main() {
       records.map((record) => record.id),
       isNot(contains(StorageKeys.imageSavePath)),
     );
+    expect(
+      records.map((record) => record.id),
+      contains(StorageKeys.watermarkConfigV1),
+    );
+    expect(
+      records.map((record) => record.id),
+      isNot(contains(StorageKeys.watermarkLogoPathV1)),
+    );
+    expect(records.every((record) => record.resource == null), isTrue);
 
     await storage.setSetting(StorageKeys.locale, 'en');
+    await storage.deleteSetting(StorageKeys.watermarkConfigV1);
     await adapter.apply(records);
     expect(storage.getSetting<String>(StorageKeys.locale), 'ja');
+    expect(
+      WatermarkSettings.decode(
+        storage.getSetting<String>(StorageKeys.watermarkConfigV1),
+      ).settings.enabled,
+      isTrue,
+    );
   });
 
   test('portable preferences and explicit exclusions stay classified', () {
     expect(portableSettingKeys, contains(StorageKeys.defaultModel));
+    expect(portableSettingKeys, contains(StorageKeys.watermarkConfigV1));
+    expect(
+      portableSettingKeys,
+      isNot(contains(StorageKeys.watermarkLogoPathV1)),
+    );
     expect(
       portableSettingKeys,
       contains(StorageKeys.autocompleteOpenOnTagClick),

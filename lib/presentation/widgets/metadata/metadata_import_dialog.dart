@@ -4,6 +4,10 @@ import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
+import '../../utils/fixed_tag_import_resolution.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../common/adaptive_dialog_frame.dart';
+import '../common/translated_tag_text.dart';
 
 /// 元数据导入对话框
 ///
@@ -11,17 +15,50 @@ import '../../../../data/models/metadata/metadata_import_options.dart';
 /// 新设计：按类型分组复选框，支持父子选项联动
 class MetadataImportDialog extends StatefulWidget {
   final NaiImageMetadata metadata;
+  final ScrollController? scrollController;
+  final FixedTagImportResolution? fixedTagResolution;
 
-  const MetadataImportDialog({super.key, required this.metadata});
+  const MetadataImportDialog({
+    super.key,
+    required this.metadata,
+    this.scrollController,
+    this.fixedTagResolution,
+  });
 
   /// 显示对话框并返回用户选择的导入选项
   static Future<MetadataImportOptions?> show(
     BuildContext context, {
     required NaiImageMetadata metadata,
+    FixedTagImportResolution? fixedTagResolution,
   }) {
-    return showDialog<MetadataImportOptions>(
+    return AdaptivePresenter.showForm<MetadataImportOptions>(
       context: context,
-      builder: (context) => MetadataImportDialog(metadata: metadata),
+      sideSheetWidth: 560,
+      titleBuilder: (context) {
+        final theme = Theme.of(context);
+        return Row(
+          children: [
+            Icon(
+              Icons.file_download_outlined,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                context.l10n.metadataImport_title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+          ],
+        );
+      },
+      builder: (context, scrollController) => MetadataImportDialog(
+        metadata: metadata,
+        fixedTagResolution: fixedTagResolution,
+        scrollController: scrollController,
+      ),
     );
   }
 
@@ -71,89 +108,107 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
     final theme = Theme.of(context);
     final selectedCount = _options.selectedCountFor(widget.metadata);
 
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.file_download_outlined, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(l10n.metadataImport_title),
-        ],
-      ),
-      content: SizedBox(
-        width: 520,
-        height: 600,
-        child: Column(
+    return AdaptiveDialogFrame(
+      key: const Key('metadata-import-dialog-frame'),
+      maxWidth: 560,
+      maxHeight: 700,
+      reservedVerticalSpace: 0,
+      horizontalMargin: 0,
+      child: LayoutBuilder(
+        builder: (context, frameConstraints) => Column(
           children: [
-            // 快速预设按钮
-            _buildQuickPresets(),
-            const SizedBox(height: 12),
-            Divider(color: theme.colorScheme.outlineVariant),
-            const SizedBox(height: 8),
-            // 可滚动的选项列表
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 提示词分组
-                    _buildPromptSection(),
-                    if (_hasReferenceData()) ...[
-                      const SizedBox(height: 16),
-                      Divider(color: theme.colorScheme.outlineVariant),
-                      const SizedBox(height: 8),
-                      _buildReferenceSection(),
-                    ],
+              child: ListView(
+                key: const Key('metadata-import-options-list'),
+                controller: widget.scrollController,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                children: [
+                  _buildQuickPresets(),
+                  const SizedBox(height: 12),
+                  Divider(color: theme.colorScheme.outlineVariant),
+                  const SizedBox(height: 8),
+                  _buildPromptSection(),
+                  if (_hasReferenceData()) ...[
                     const SizedBox(height: 16),
                     Divider(color: theme.colorScheme.outlineVariant),
                     const SizedBox(height: 8),
-                    // 生成参数分组
-                    _buildGenerationSection(),
+                    _buildReferenceSection(),
                   ],
-                ),
-              ),
-            ),
-            // 底部统计
-            Container(
-              padding: const EdgeInsets.only(top: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: theme.colorScheme.outlineVariant),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.check_circle_outline,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    l10n.metadataImport_selectedCount(selectedCount),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  const SizedBox(height: 16),
+                  Divider(color: theme.colorScheme.outlineVariant),
+                  const SizedBox(height: 8),
+                  _buildGenerationSection(),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 16,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          l10n.metadataImport_selectedCount(selectedCount),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
+              ),
+            ),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: frameConstraints.maxHeight * 0.8,
+              ),
+              child: SingleChildScrollView(
+                key: const Key('metadata-import-actions-scroll'),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final stackActions =
+                            constraints.maxWidth < 360 ||
+                            MediaQuery.textScalerOf(context).scale(1) >= 2;
+                        final cancel = TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text(l10n.common_cancel),
+                        );
+                        final confirm = FilledButton(
+                          onPressed: selectedCount == 0
+                              ? null
+                              : () => Navigator.of(context).pop(_options),
+                          child: Text(l10n.common_confirm),
+                        );
+                        if (stackActions) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [confirm, cancel],
+                          );
+                        }
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [cancel, const SizedBox(width: 8), confirm],
+                        );
+                      },
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: selectedCount == 0
-              ? null
-              : () => Navigator.of(context).pop(_options),
-          child: Text(l10n.common_confirm),
-        ),
-      ],
     );
   }
 
@@ -215,14 +270,19 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
         // 主提示词
         _buildCheckboxTile(
           title: l10n.metadataImport_mainPrompt,
-          subtitle: _truncateText(metadata.mainPrompt, 50),
+          subtitleWidget: TranslatedPromptText(
+            metadata.mainPrompt,
+            selectable: false,
+            maxLines: 1,
+          ),
           value: _options.importPrompt,
           hasData: metadata.prompt.isNotEmpty,
           onChanged: (v) =>
               setState(() => _options = _options.copyWith(importPrompt: v)),
         ),
         // 固定词（带子选项）
-        if (metadata.hasSeparatedFields) ...[
+        if (metadata.hasSeparatedFields ||
+            widget.fixedTagResolution != null) ...[
           _buildParentCheckboxTile(
             title: l10n.metadataImport_fixedTags,
             value: _options.importFixedTags,
@@ -230,15 +290,29 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 metadata.fixedPrefixTags.isNotEmpty ||
                 metadata.fixedSuffixTags.isNotEmpty ||
                 metadata.fixedNegativePrefixTags.isNotEmpty ||
-                metadata.fixedNegativeSuffixTags.isNotEmpty,
+                metadata.fixedNegativeSuffixTags.isNotEmpty ||
+                metadata.hasExplicitFixedTagMetadata ||
+                widget.fixedTagResolution?.isUnknown == true,
             onChanged: (v) => setState(
               () => _options = _options.copyWith(importFixedTags: v),
             ),
             children: [
+              if (widget.fixedTagResolution != null)
+                _buildFixedTagSource(widget.fixedTagResolution!),
+              if (widget.fixedTagResolution?.isUnknown == true)
+                _buildUnknownFixedTagPolicy(),
               if (metadata.fixedPrefixTags.isNotEmpty)
                 _buildChildCheckboxTile(
                   title: l10n.metadataImport_fixedPrefix(
                     _truncateText(metadata.fixedPrefixTags.join(', '), 40),
+                  ),
+                  titleWidget: TranslatedPromptText(
+                    metadata.fixedPrefixTags.join(', '),
+                    originalText: l10n.metadataImport_fixedPrefix(
+                      _truncateText(metadata.fixedPrefixTags.join(', '), 40),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
                   ),
                   value: _options.importFixedPrefix,
                   onChanged: _options.importFixedTags
@@ -253,6 +327,14 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 _buildChildCheckboxTile(
                   title: l10n.metadataImport_fixedSuffix(
                     _truncateText(metadata.fixedSuffixTags.join(', '), 40),
+                  ),
+                  titleWidget: TranslatedPromptText(
+                    metadata.fixedSuffixTags.join(', '),
+                    originalText: l10n.metadataImport_fixedSuffix(
+                      _truncateText(metadata.fixedSuffixTags.join(', '), 40),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
                   ),
                   value: _options.importFixedSuffix,
                   onChanged: _options.importFixedTags
@@ -271,11 +353,22 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                       40,
                     ),
                   ),
-                  value: _options.importFixedPrefix,
+                  titleWidget: TranslatedPromptText(
+                    metadata.fixedNegativePrefixTags.join(', '),
+                    originalText: l10n.metadataImport_negativeFixedPrefix(
+                      _truncateText(
+                        metadata.fixedNegativePrefixTags.join(', '),
+                        40,
+                      ),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
+                  ),
+                  value: _options.importFixedNegativePrefix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
                           () => _options = _options.copyWith(
-                            importFixedPrefix: v,
+                            importFixedNegativePrefix: v,
                           ),
                         )
                       : null,
@@ -288,11 +381,22 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                       40,
                     ),
                   ),
-                  value: _options.importFixedSuffix,
+                  titleWidget: TranslatedPromptText(
+                    metadata.fixedNegativeSuffixTags.join(', '),
+                    originalText: l10n.metadataImport_negativeFixedSuffix(
+                      _truncateText(
+                        metadata.fixedNegativeSuffixTags.join(', '),
+                        40,
+                      ),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
+                  ),
+                  value: _options.importFixedNegativeSuffix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
                           () => _options = _options.copyWith(
-                            importFixedSuffix: v,
+                            importFixedNegativeSuffix: v,
                           ),
                         )
                       : null,
@@ -314,6 +418,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 final tag = entry.value;
                 return _buildChildCheckboxTile(
                   title: tag,
+                  titleWidget: TranslatedTagText(tag),
                   value: _options.selectedQualityTags.contains(tag),
                   onChanged: _options.importQualityTags
                       ? (v) => setState(() {
@@ -351,6 +456,15 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   title: l10n.metadataImport_characterIndex(
                     index + 1,
                     _truncateText(character.prompt, 35),
+                  ),
+                  titleWidget: TranslatedPromptText(
+                    character.prompt,
+                    originalText: l10n.metadataImport_characterIndex(
+                      index + 1,
+                      _truncateText(character.prompt, 35),
+                    ),
+                    selectable: false,
+                    maxLines: 1,
                   ),
                   value: _options.selectedCharacterIndices.contains(index),
                   onChanged: _options.importCharacterPrompts
@@ -390,7 +504,11 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
         // 负向提示词
         _buildCheckboxTile(
           title: l10n.metadataImport_negativePrompt,
-          subtitle: _truncateText(metadata.displayNegativePrompt, 50),
+          subtitleWidget: TranslatedPromptText(
+            metadata.displayNegativePrompt,
+            selectable: false,
+            maxLines: 1,
+          ),
           value: _options.importNegativePrompt,
           hasData: metadata.negativePrompt.isNotEmpty,
           onChanged: (v) => setState(
@@ -398,6 +516,68 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFixedTagSource(FixedTagImportResolution resolution) {
+    final l10n = context.l10n;
+    final text = switch (resolution.source) {
+      FixedTagImportSource.structured =>
+        l10n.metadataImport_fixedSourceStructured,
+      FixedTagImportSource.legacyFields =>
+        l10n.metadataImport_fixedSourceLegacy,
+      FixedTagImportSource.currentLibrary =>
+        l10n.metadataImport_fixedSourceLibrary,
+      FixedTagImportSource.unknown => l10n.metadataImport_fixedSourceUnknown,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, right: 8, bottom: 6),
+      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+    );
+  }
+
+  Widget _buildUnknownFixedTagPolicy() {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              l10n.metadataImport_unknownFixedTagsHint,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          RadioGroup<UnknownFixedTagPolicy>(
+            groupValue: _options.unknownFixedTagPolicy,
+            onChanged: _options.importFixedTags
+                ? (value) => setState(
+                    () => _options = _options.copyWith(
+                      unknownFixedTagPolicy: value!,
+                    ),
+                  )
+                : (_) {},
+            child: Column(
+              children: [
+                RadioListTile<UnknownFixedTagPolicy>(
+                  dense: true,
+                  title: Text(l10n.metadataImport_disableCurrentFixedTags),
+                  value: UnknownFixedTagPolicy.disableCurrent,
+                  enabled: _options.importFixedTags,
+                ),
+                RadioListTile<UnknownFixedTagPolicy>(
+                  dense: true,
+                  title: Text(l10n.metadataImport_keepCurrentFixedTags),
+                  value: UnknownFixedTagPolicy.keepCurrent,
+                  enabled: _options.importFixedTags,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -647,11 +827,15 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
       children: [
         Icon(icon, size: 18, color: theme.colorScheme.primary),
         const SizedBox(width: 6),
-        Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.primary,
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+            ),
           ),
         ),
       ],
@@ -662,6 +846,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
   Widget _buildCheckboxTile({
     required String title,
     String? subtitle,
+    Widget? subtitleWidget,
     required bool value,
     required bool hasData,
     required ValueChanged<bool> onChanged,
@@ -676,7 +861,9 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           fontWeight: FontWeight.w500,
         ),
       ),
-      subtitle: subtitle != null && hasData
+      subtitle: subtitleWidget != null && hasData
+          ? subtitleWidget
+          : subtitle != null && hasData
           ? Text(
               subtitle,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -744,22 +931,25 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
   /// 构建子级复选框
   Widget _buildChildCheckboxTile({
     required String title,
+    Widget? titleWidget,
     required bool value,
     required ValueChanged<bool>? onChanged,
   }) {
     final theme = Theme.of(context);
 
     return CheckboxListTile(
-      title: Text(
-        title,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: onChanged != null
-              ? null
-              : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title:
+          titleWidget ??
+          Text(
+            title,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: onChanged != null
+                  ? null
+                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
       value: value && onChanged != null,
       onChanged: onChanged != null ? (v) => onChanged(v ?? false) : null,
       dense: true,

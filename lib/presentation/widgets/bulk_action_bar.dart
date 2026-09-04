@@ -1,7 +1,6 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
 /// 通用批量操作工具栏
 ///
@@ -58,170 +57,150 @@ class BulkActionBar extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final hasSelection = selectedCount > 0;
 
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: const EdgeInsets.only(
-            left: 16,
-            top: 10,
-            right: 8,
-            bottom: 10,
-          ),
-          decoration: BoxDecoration(
-            color: isDark
-                ? theme.colorScheme.surface.withValues(alpha: 0.9)
-                : theme.colorScheme.surface.withValues(alpha: 0.95),
-            border: Border(
-              bottom: BorderSide(
-                color: theme.dividerColor.withValues(
-                  alpha: isDark ? 0.15 : 0.2,
+    return Container(
+      padding: const EdgeInsets.only(left: 16, top: 10, right: 8, bottom: 10),
+      color: sectionSurfaceColor(theme.colorScheme),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 700) {
+            return _CompactBulkActions(
+              selectedCount: selectedCount,
+              isAllSelected: isAllSelected,
+              isAllAvailableSelected: isAllAvailableSelected,
+              onExit: onExit,
+              onSelectAll: onSelectAll,
+              onSelectAllAvailable: onSelectAllAvailable,
+              selectAllLabel: selectAllLabel,
+              deselectAllLabel: deselectAllLabel,
+              selectAllAvailableLabel: selectAllAvailableLabel,
+              deselectAllAvailableLabel: deselectAllAvailableLabel,
+              actions: actions,
+            );
+          }
+
+          final showSelectionLabels = constraints.maxWidth >= 1180;
+          final compactActions = constraints.maxWidth < 1180;
+
+          return Row(
+            children: [
+              // 退出按钮
+              _ActionButton(
+                icon: Icons.close,
+                label: l10n.common_exit,
+                onPressed: onExit,
+                compact: true,
+              ),
+              const SizedBox(width: 12),
+
+              // 选中数量徽章
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 180),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withValues(
+                      alpha: 0.8,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    l10n.bulkAction_selectedCount(selectedCount),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 700) {
-                return _CompactBulkActions(
-                  selectedCount: selectedCount,
-                  isAllSelected: isAllSelected,
-                  isAllAvailableSelected: isAllAvailableSelected,
-                  onExit: onExit,
-                  onSelectAll: onSelectAll,
-                  onSelectAllAvailable: onSelectAllAvailable,
-                  selectAllLabel: selectAllLabel,
-                  deselectAllLabel: deselectAllLabel,
-                  selectAllAvailableLabel: selectAllAvailableLabel,
-                  deselectAllAvailableLabel: deselectAllAvailableLabel,
-                  actions: actions,
-                );
-              }
+              const SizedBox(width: 12),
 
-              final showSelectionLabels = constraints.maxWidth >= 1180;
-              final compactActions = constraints.maxWidth < 1180;
+              // 全选/取消全选按钮
+              _ActionButton(
+                icon: isAllSelected
+                    ? Icons.indeterminate_check_box_outlined
+                    : Icons.check_box_outlined,
+                label: isAllSelected
+                    ? deselectAllLabel ?? l10n.common_deselectAll
+                    : selectAllLabel ?? l10n.common_selectAll,
+                onPressed: onSelectAll,
+                compact: !showSelectionLabels,
+                isActive: isAllSelected,
+              ),
+              if (onSelectAllAvailable != null) ...[
+                const SizedBox(width: 8),
+                _ActionButton(
+                  icon: isAllAvailableSelected
+                      ? Icons.remove_done
+                      : Icons.done_all,
+                  label: isAllAvailableSelected
+                      ? deselectAllAvailableLabel ?? l10n.common_deselectAll
+                      : selectAllAvailableLabel ?? l10n.common_selectAll,
+                  onPressed: onSelectAllAvailable,
+                  compact: !showSelectionLabels,
+                  isActive: isAllAvailableSelected,
+                ),
+              ],
 
-              return Row(
-                children: [
-                  // 退出按钮
-                  _ActionButton(
-                    icon: Icons.close,
-                    label: l10n.common_exit,
-                    onPressed: onExit,
-                    compact: true,
-                  ),
-                  const SizedBox(width: 12),
+              const SizedBox(width: 12),
 
-                  // 选中数量徽章
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 180),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+              // Expanded + Align makes the action group meet the trailing
+              // edge instead of inheriting spare space from the left group.
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLow.withValues(
+                        alpha: isDark ? 0.56 : 0.72,
                       ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer.withValues(
-                          alpha: 0.8,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        l10n.bulkAction_selectedCount(selectedCount),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // 全选/取消全选按钮
-                  _ActionButton(
-                    icon: isAllSelected
-                        ? Icons.indeterminate_check_box_outlined
-                        : Icons.check_box_outlined,
-                    label: isAllSelected
-                        ? deselectAllLabel ?? l10n.common_deselectAll
-                        : selectAllLabel ?? l10n.common_selectAll,
-                    onPressed: onSelectAll,
-                    compact: !showSelectionLabels,
-                    isActive: isAllSelected,
-                  ),
-                  if (onSelectAllAvailable != null) ...[
-                    const SizedBox(width: 8),
-                    _ActionButton(
-                      icon: isAllAvailableSelected
-                          ? Icons.remove_done
-                          : Icons.done_all,
-                      label: isAllAvailableSelected
-                          ? deselectAllAvailableLabel ?? l10n.common_deselectAll
-                          : selectAllAvailableLabel ?? l10n.common_selectAll,
-                      onPressed: onSelectAllAvailable,
-                      compact: !showSelectionLabels,
-                      isActive: isAllAvailableSelected,
-                    ),
-                  ],
-
-                  const SizedBox(width: 12),
-
-                  // Expanded + Align makes the action group meet the trailing
-                  // edge instead of inheriting spare space from the left group.
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerLow
-                              .withValues(alpha: isDark ? 0.56 : 0.72),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(2),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              for (int i = 0; i < actions.length; i++) ...[
-                                if (i > 0) ...[
-                                  if (actions[i].showDividerBefore)
-                                    Container(
-                                      width: 1,
-                                      height: 22,
-                                      margin: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                      ),
-                                      color: theme.colorScheme.outlineVariant
-                                          .withValues(alpha: 0.55),
-                                    )
-                                  else
-                                    const SizedBox(width: 2),
-                                ],
-                                _ActionButton(
-                                  icon: actions[i].icon,
-                                  label: actions[i].label,
-                                  onPressed: hasSelection
-                                      ? actions[i].onPressed
-                                      : null,
-                                  color: actions[i].color,
-                                  isDanger: actions[i].isDanger,
-                                  compact: compactActions,
-                                  prominent: true,
-                                ),
-                              ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (int i = 0; i < actions.length; i++) ...[
+                            if (i > 0) ...[
+                              if (actions[i].showDividerBefore)
+                                Container(
+                                  width: 1,
+                                  height: 22,
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.55),
+                                )
+                              else
+                                const SizedBox(width: 2),
                             ],
-                          ),
-                        ),
+                            _ActionButton(
+                              icon: actions[i].icon,
+                              label: actions[i].label,
+                              onPressed: hasSelection
+                                  ? actions[i].onPressed
+                                  : null,
+                              color: actions[i].color,
+                              isDanger: actions[i].isDanger,
+                              compact: compactActions,
+                              prominent: true,
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ),
-                ],
-              );
-            },
-          ),
-        ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

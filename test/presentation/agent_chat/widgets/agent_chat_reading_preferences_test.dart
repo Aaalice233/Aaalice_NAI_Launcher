@@ -23,6 +23,7 @@ void main() {
             readingTextScale: 1.15,
             density: AgentChatDensity.compact,
           ),
+          desktop: false,
           child: Builder(
             builder: (context) {
               effectiveScale = MediaQuery.textScalerOf(context).scale(16) / 16;
@@ -54,6 +55,7 @@ void main() {
         ),
         home: AgentChatReadingPreferences(
           config: const AgentChatConfig(readingTextScale: 1.3),
+          desktop: false,
           child: Builder(
             builder: (context) {
               final scaler = MediaQuery.textScalerOf(context);
@@ -81,6 +83,7 @@ void main() {
       MaterialApp(
         home: AgentChatReadingPreferences(
           config: const AgentChatConfig(),
+          desktop: false,
           child: Builder(
             builder: (context) {
               effectiveScale = MediaQuery.textScalerOf(context).scale(16) / 16;
@@ -95,6 +98,89 @@ void main() {
     expect(effectiveScale, 1);
     expect(visualDensity, VisualDensity.standard);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop applies a larger baseline to the entire chat surface', (
+    tester,
+  ) async {
+    late double effectiveScale;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AgentChatReadingPreferences(
+          config: const AgentChatConfig(),
+          desktop: true,
+          child: Builder(
+            builder: (context) {
+              effectiveScale = MediaQuery.textScalerOf(context).scale(16) / 16;
+              return const Text('Agent content');
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      effectiveScale,
+      moreOrLessEquals(AgentChatReadingPreferences.desktopBaselineScale),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop baseline does not multiply accessibility scaling', (
+    tester,
+  ) async {
+    late double effectiveScale;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: AgentChatReadingPreferences(
+          config: const AgentChatConfig(),
+          desktop: true,
+          child: Builder(
+            builder: (context) {
+              effectiveScale = MediaQuery.textScalerOf(context).scale(16) / 16;
+              return const Text('Agent content');
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(effectiveScale, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop baseline preserves the user reading-size preference', (
+    tester,
+  ) async {
+    late double effectiveScale;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AgentChatReadingPreferences(
+          config: const AgentChatConfig(readingTextScale: 0.9),
+          desktop: true,
+          child: Builder(
+            builder: (context) {
+              effectiveScale = MediaQuery.textScalerOf(context).scale(16) / 16;
+              return const Text('Agent content');
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      effectiveScale,
+      moreOrLessEquals(AgentChatReadingPreferences.desktopBaselineScale * 0.9),
+    );
   });
 }
 

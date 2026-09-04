@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../data/models/auth/saved_account.dart';
 import '../utils/app_logger.dart';
+import 'avatar_image_cache.dart';
 
 /// 头像操作结果
 class AvatarResult {
@@ -17,19 +18,19 @@ class AvatarResult {
 
   /// 成功结果
   const AvatarResult.success(this.path)
-      : errorMessage = null,
-        type = AvatarResultType.success;
+    : errorMessage = null,
+      type = AvatarResultType.success;
 
   /// 失败结果
   const AvatarResult.failure(this.errorMessage)
-      : path = null,
-        type = AvatarResultType.failure;
+    : path = null,
+      type = AvatarResultType.failure;
 
   /// 取消结果（用户未选择）
   const AvatarResult.cancel()
-      : path = null,
-        errorMessage = null,
-        type = AvatarResultType.cancel;
+    : path = null,
+      errorMessage = null,
+      type = AvatarResultType.cancel;
 
   /// 是否成功
   bool get isSuccess => type == AvatarResultType.success;
@@ -41,11 +42,7 @@ class AvatarResult {
   bool get isCancel => type == AvatarResultType.cancel;
 }
 
-enum AvatarResultType {
-  success,
-  failure,
-  cancel,
-}
+enum AvatarResultType { success, failure, cancel }
 
 /// 头像服务
 /// 封装头像选择、复制、删除逻辑
@@ -157,6 +154,10 @@ class AvatarService {
         }
       }
 
+      AvatarImageCache.instance
+        ..evict(oldAvatarPath)
+        ..evict(finalPath);
+      await AvatarImageCache.instance.load(finalPath);
       AppLogger.i('Avatar saved successfully: $finalPath', 'AvatarService');
       return AvatarResult.success(finalPath);
     } catch (e) {
@@ -171,6 +172,7 @@ class AvatarService {
     try {
       // 删除头像文件
       if (account.avatarPath != null) {
+        AvatarImageCache.instance.evict(account.avatarPath);
         final file = File(account.avatarPath!);
         if (await file.exists()) {
           await file.delete();
@@ -202,9 +204,7 @@ class AvatarService {
 
   /// 清理废弃的头像文件
   /// 遍历 avatars 目录，删除不属于任何账号的头像文件
-  Future<void> cleanupOrphanedAvatars(
-    List<SavedAccount> accounts,
-  ) async {
+  Future<void> cleanupOrphanedAvatars(List<SavedAccount> accounts) async {
     try {
       final avatarsDir = await _getAvatarsDirectory();
       if (!await avatarsDir.exists()) return;

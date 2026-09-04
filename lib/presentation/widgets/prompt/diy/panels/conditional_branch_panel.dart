@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../../adaptive/interaction_policy.dart';
 import '../../../../../data/models/prompt/conditional_branch.dart';
 import '../../../common/themed_slider.dart';
 import '../../../../widgets/common/themed_divider.dart';
@@ -220,7 +221,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: SizedBox(
-          height: 40,
+          height: context.interactionPolicy.minimumControlExtent,
           child: Row(
             children: _config.branches.asMap().entries.map((entry) {
               final index = entry.key;
@@ -239,7 +240,9 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                     child: InkWell(
                       onTap: () => setState(() => _selectedIndex = index),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 200),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,

@@ -37,4 +37,58 @@ void main() {
     expect(find.byIcon(Icons.forum_outlined), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('桌面会话菜单使用紧凑尺寸和密度', (tester) async {
+    tester.view.physicalSize = const Size(600, 520);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 240,
+              child: AgentChatSessionPicker(
+                sessions: [
+                  for (var index = 0; index < 4; index++)
+                    AgentChatSessionOption(
+                      id: 'session-$index',
+                      name: '测试会话 $index',
+                      updatedAt: DateTime(2026, 9, 3, 20, index),
+                    ),
+                ],
+                activeSessionId: 'session-0',
+                enabled: true,
+                onSelect: (_) async {},
+                onNew: () async {},
+                onRename: (_) async {},
+                onDelete: (_) async {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('测试会话 0'));
+    await tester.pumpAndSettle();
+
+    final menu = find.byKey(const ValueKey('agent-chat-session-menu'));
+    expect(tester.getSize(menu), const Size(340, 336));
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('agent-chat-session-material-session-0')),
+          )
+          .height,
+      lessThan(64),
+    );
+    expect(tester.getSize(find.byType(FilledButton)).height, 40);
+    expect(tester.takeException(), isNull);
+  });
 }

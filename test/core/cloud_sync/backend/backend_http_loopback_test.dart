@@ -5,7 +5,9 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/backend_http.dart';
+import 'package:nai_launcher/core/cloud_sync/backend/backend_http_metrics.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
+import 'package:nai_launcher/core/cloud_sync/operation.dart';
 
 void main() {
   test('HEAD ignores the declared representation length', () async {
@@ -82,13 +84,69 @@ void main() {
     });
     addTearDown(() => server.close(force: true));
 
-    final response = await BackendHttp().request(
-      'GET',
-      Uri.parse('http://127.0.0.1:${server.port}/transient'),
-    );
+    final response = await BackendHttp(
+      sleeper: (_) async {},
+    ).request('GET', Uri.parse('http://127.0.0.1:${server.port}/transient'));
 
     expect(response.statusCode, HttpStatus.ok);
     expect(requests, 3);
+  });
+
+  test('operation cancellation aborts an in-flight request', () async {
+    final requestSeen = Completer<void>();
+    final holdResponse = Completer<void>();
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      requestSeen.complete();
+      await holdResponse.future;
+      await request.response.close();
+    });
+    addTearDown(() async {
+      if (!holdResponse.isCompleted) holdResponse.complete();
+      await server.close(force: true);
+    });
+    final operation = OperationToken();
+    final request = operation.runInScope(
+      () => BackendHttp().request(
+        'GET',
+        Uri.parse('http://127.0.0.1:${server.port}/cancel-request'),
+      ),
+    );
+    await requestSeen.future;
+
+    operation.cancel();
+
+    await expectLater(
+      request.timeout(const Duration(seconds: 1)),
+      throwsA(isA<OperationCancelledException>()),
+    );
+  });
+
+  test('operation cancellation stops retry backoff', () async {
+    final requestSeen = Completer<void>();
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      if (!requestSeen.isCompleted) requestSeen.complete();
+      request.response.statusCode = HttpStatus.serviceUnavailable;
+      request.response.headers.set(HttpHeaders.retryAfterHeader, '120');
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+    final operation = OperationToken();
+    final request = operation.runInScope(
+      () => BackendHttp().request(
+        'GET',
+        Uri.parse('http://127.0.0.1:${server.port}/cancel-operation-backoff'),
+      ),
+    );
+    await requestSeen.future;
+
+    operation.cancel();
+
+    await expectLater(
+      request.timeout(const Duration(seconds: 1)),
+      throwsA(isA<OperationCancelledException>()),
+    );
   });
 
   test('retry backoff stops immediately when cancelled', () async {
@@ -97,7 +155,7 @@ void main() {
     server.listen((request) async {
       if (!requestSeen.isCompleted) requestSeen.complete();
       request.response.statusCode = HttpStatus.serviceUnavailable;
-      request.response.headers.set(HttpHeaders.retryAfterHeader, '30');
+      request.response.headers.set(HttpHeaders.retryAfterHeader, '120');
       await request.response.close();
     });
     addTearDown(() => server.close(force: true));
@@ -135,7 +193,7 @@ void main() {
     });
     addTearDown(() => server.close(force: true));
 
-    final response = await BackendHttp().request(
+    final response = await BackendHttp(sleeper: (_) async {}).request(
       'PUT',
       Uri.parse('http://127.0.0.1:${server.port}/immutable'),
       data: const [1, 2, 3],
@@ -246,4 +304,171 @@ void main() {
       expect(targetRequests, 0);
     },
   );
+
+  test('observer records redacted deterministic retry metrics', () async {
+    var requests = 0;
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      requests++;
+      request.response.statusCode = requests == 1
+          ? HttpStatus.serviceUnavailable
+          : HttpStatus.created;
+      request.response.add(utf8.encode('ok'));
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+
+    var now = DateTime.utc(2026, 1, 1);
+    final sleeps = <Duration>[];
+    final metrics = <BackendHttpRequestMetric>[];
+    final http = BackendHttp(
+      observer: metrics.add,
+      clock: () => now,
+      jitter: (delay, attempt) => const Duration(milliseconds: 125),
+      sleeper: (delay) async {
+        sleeps.add(delay);
+        now = now.add(delay);
+      },
+    );
+
+    final response = await http.request(
+      'put',
+      Uri.parse(
+        'http://127.0.0.1:${server.port}/private/account-id?token=secret',
+      ),
+      headers: const {'Authorization': 'Bearer secret-token'},
+      data: const [1, 2, 3],
+      retryable: true,
+      endpointCategory: BackendHttpEndpointCategory.object,
+    );
+
+    expect(response.statusCode, HttpStatus.created);
+    expect(sleeps, [const Duration(milliseconds: 125)]);
+    expect(metrics, hasLength(2));
+    expect(metrics[0].method, 'PUT');
+    expect(metrics[0].endpointCategory, BackendHttpEndpointCategory.object);
+    expect(metrics[0].attempt, 1);
+    expect(metrics[0].statusCode, HttpStatus.serviceUnavailable);
+    expect(metrics[0].requestBytes, 3);
+    expect(metrics[0].responseBytes, 2);
+    expect(metrics[0].retry, isTrue);
+    expect(metrics[0].concurrentRequests, 1);
+    expect(metrics[0].maxConcurrentRequests, 1);
+    expect(metrics[1].attempt, 2);
+    expect(metrics[1].statusCode, HttpStatus.created);
+    expect(metrics[1].retry, isFalse);
+    expect(metrics[1].elapsed, Duration.zero);
+    expect(metrics.join(), isNot(contains('secret')));
+    expect(metrics.join(), isNot(contains('account-id')));
+  });
+
+  test('Retry-After seconds are bounded to 30 seconds', () async {
+    var requests = 0;
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      requests++;
+      request.response.statusCode = requests == 1
+          ? HttpStatus.tooManyRequests
+          : HttpStatus.ok;
+      if (requests == 1) {
+        request.response.headers.set(HttpHeaders.retryAfterHeader, '120');
+      }
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+
+    final sleeps = <Duration>[];
+    final response =
+        await BackendHttp(sleeper: (delay) async => sleeps.add(delay)).request(
+          'GET',
+          Uri.parse('http://127.0.0.1:${server.port}/long-retry-after'),
+        );
+
+    expect(response.statusCode, HttpStatus.ok);
+    expect(sleeps, [const Duration(seconds: 30)]);
+  });
+
+  test('HTTP-date retry delay uses the injected clock', () async {
+    var requests = 0;
+    final now = DateTime.utc(2026, 1, 1, 0, 0, 0);
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      requests++;
+      if (requests == 1) {
+        request.response
+          ..statusCode = HttpStatus.serviceUnavailable
+          ..headers.set(
+            HttpHeaders.retryAfterHeader,
+            HttpDate.format(now.add(const Duration(seconds: 7))),
+          );
+      } else {
+        request.response.statusCode = HttpStatus.ok;
+      }
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+
+    final sleeps = <Duration>[];
+    final response =
+        await BackendHttp(
+          clock: () => now,
+          sleeper: (delay) async => sleeps.add(delay),
+        ).request(
+          'GET',
+          Uri.parse('http://127.0.0.1:${server.port}/retry-after-date'),
+        );
+
+    expect(response.statusCode, HttpStatus.ok);
+    expect(sleeps, [const Duration(seconds: 7)]);
+  });
+
+  test('observer reports the maximum concurrent logical requests', () async {
+    final bothRequestsSeen = Completer<void>();
+    final releaseResponses = Completer<void>();
+    var requests = 0;
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      requests++;
+      if (requests == 2) bothRequestsSeen.complete();
+      await releaseResponses.future;
+      request.response.statusCode = HttpStatus.ok;
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+
+    final metrics = <BackendHttpRequestMetric>[];
+    final http = BackendHttp(observer: metrics.add);
+    final first = http.request(
+      'GET',
+      Uri.parse('http://127.0.0.1:${server.port}/first'),
+    );
+    final second = http.request(
+      'GET',
+      Uri.parse('http://127.0.0.1:${server.port}/second'),
+    );
+    await bothRequestsSeen.future;
+    releaseResponses.complete();
+    await Future.wait([first, second]);
+
+    expect(metrics, hasLength(2));
+    expect(
+      metrics.map((metric) => metric.maxConcurrentRequests),
+      everyElement(2),
+    );
+  });
+
+  test('disabled observer does not read the metrics clock', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      request.response.statusCode = HttpStatus.ok;
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+
+    final response = await BackendHttp(
+      clock: () => throw StateError('metrics clock should stay idle'),
+    ).request('GET', Uri.parse('http://127.0.0.1:${server.port}/no-observer'));
+
+    expect(response.statusCode, HttpStatus.ok);
+  });
 }

@@ -166,8 +166,6 @@ class CacheClearService {
       StorageKeys.hfTranslationRefreshInterval,
       // 共现数据相关
       StorageKeys.cooccurrenceRefreshInterval,
-      // 数据源后台刷新标记
-      StorageKeys.pendingDataSourceRefresh,
     ];
 
     for (final key in keysToRemove) {

@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +13,8 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/thumbnail_image_normalizer.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
@@ -24,6 +24,7 @@ import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_formatter_wrapper.dart';
+import '../../../widgets/prompt/quick_translate_prompt_field.dart';
 import 'thumbnail_crop_dialog.dart';
 
 /// 添加/编辑词库条目对话框
@@ -42,40 +43,82 @@ class EntryAddDialog extends ConsumerStatefulWidget {
 
   /// 初始条目名称（用于从拖拽图片创建时预填文件名）
   final String? initialName;
+  final ScrollController? _scrollController;
 
-  const EntryAddDialog({
-    super.key,
+  const EntryAddDialog._({
     required this.categories,
-    this.initialCategoryId,
-    this.entry,
-    this.initialContent,
-    this.initialImageBytes,
-    this.initialName,
-  });
+    required this.initialCategoryId,
+    required this.entry,
+    required this.initialContent,
+    required this.initialImageBytes,
+    required this.initialName,
+    required ScrollController scrollController,
+  }) : _scrollController = scrollController;
 
   /// 显示对话框的静态方法
   static Future<void> show(
     BuildContext context, {
     required List<TagLibraryCategory> categories,
     String? initialCategoryId,
+    TagLibraryEntry? entry,
     String? initialContent,
     Uint8List? initialImageBytes,
     String? initialName,
   }) {
-    return showDialog(
+    Widget title(BuildContext dialogContext) =>
+        _EntryAddDialogTitle(editing: entry != null);
+
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => EntryAddDialog(
+      titleBuilder: title,
+      sideSheetWidth: 700,
+      maxCenteredHeight: 680,
+      builder: (dialogContext, scrollController) => EntryAddDialog._(
         categories: categories,
         initialCategoryId: initialCategoryId,
+        entry: entry,
         initialContent: initialContent,
         initialImageBytes: initialImageBytes,
         initialName: initialName,
+        scrollController: scrollController,
       ),
     );
   }
 
   @override
   ConsumerState<EntryAddDialog> createState() => _EntryAddDialogState();
+}
+
+class _EntryAddDialogTitle extends StatelessWidget {
+  const _EntryAddDialogTitle({required this.editing});
+
+  final bool editing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(
+          editing ? Icons.edit_outlined : Icons.add_box_outlined,
+          color: theme.colorScheme.primary,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            editing
+                ? context.l10n.tagLibrary_editEntry
+                : context.l10n.tagLibrary_addEntry,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
@@ -85,7 +128,10 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   final _nameFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
   final _tagsFocusNode = FocusNode();
-  final _scrollController = ScrollController();
+  final _ownedScrollController = ScrollController();
+
+  ScrollController get _scrollController =>
+      widget._scrollController ?? _ownedScrollController;
 
   String? _selectedCategoryId;
   String? _thumbnailPath;
@@ -213,106 +259,77 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     _nameFocusNode.dispose();
     _contentFocusNode.dispose();
     _tagsFocusNode.dispose();
-    _scrollController.dispose();
+    _ownedScrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final mediaQuery = MediaQuery.of(context);
-    final isCompact = mediaQuery.size.width < 600;
-    final maxHeight = math.min(
-      700.0,
-      mediaQuery.size.height - (isCompact ? 32 : 80),
-    );
     _syncSyntaxHighlightSettings();
+    return _buildContent(Theme.of(context));
+  }
 
-    return Dialog(
-      insetPadding: isCompact
-          ? const EdgeInsets.symmetric(horizontal: 16, vertical: 16)
-          : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 700,
-          minWidth: isCompact ? 0 : 500,
-          maxHeight: maxHeight,
-        ),
-        child: ScrollbarTheme(
-          data: ScrollbarTheme.of(context).copyWith(
-            thumbColor: WidgetStatePropertyAll(
-              theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+  Widget _buildContent(ThemeData theme) {
+    return Column(
+      children: [
+        Expanded(
+          child: ScrollbarTheme(
+            data: ScrollbarTheme.of(context).copyWith(
+              thumbColor: WidgetStatePropertyAll(
+                theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+              ),
+              mainAxisMargin: 12,
+              crossAxisMargin: 4,
             ),
-            mainAxisMargin: 20,
-            crossAxisMargin: 4,
-          ),
-          child: Scrollbar(
-            controller: _scrollController,
-            thumbVisibility: isCompact,
-            interactive: true,
-            thickness: 3,
-            radius: const Radius.circular(3),
-            child: SingleChildScrollView(
+            child: Scrollbar(
               controller: _scrollController,
-              child: Padding(
-                padding: EdgeInsets.all(isCompact ? 20 : 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 标题
-                    Row(
-                      children: [
-                        Icon(
-                          _isEditing
-                              ? Icons.edit_outlined
-                              : Icons.add_box_outlined,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          _isEditing
-                              ? context.l10n.tagLibrary_editEntry
-                              : context.l10n.tagLibrary_addEntry,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    if (isCompact) ...[
-                      _buildThumbnailSection(theme, expand: true),
-                      const SizedBox(height: 24),
-                      _buildFormSection(theme),
-                    ] else
-                      Row(
+              interactive: true,
+              thickness: 3,
+              radius: const Radius.circular(3),
+              child: ListView(
+                key: const Key('entry-add-dialog-scroll'),
+                controller: _scrollController,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stacked =
+                          constraints.maxWidth < 560 ||
+                          MediaQuery.textScalerOf(context).scale(1) >= 2;
+                      if (stacked) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildThumbnailSection(theme, expand: true),
+                            const SizedBox(height: 24),
+                            _buildFormSection(theme),
+                          ],
+                        );
+                      }
+                      return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildThumbnailSection(theme),
                           const SizedBox(width: 24),
                           Expanded(child: _buildFormSection(theme)),
                         ],
-                      ),
-
-                    const SizedBox(height: 16),
-
-                    // 提示词内容
-                    Text(
-                      context.l10n.tagLibrary_content,
-                      style: theme.textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 150,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    context.l10n.tagLibrary_content,
+                    style: theme.textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    key: const Key('entry-add-dialog-content-editor'),
+                    height: 176,
+                    child: QuickTranslatePromptField(
+                      controller: _contentController,
+                      sourceFocusNode: _contentFocusNode,
                       child: PromptFormatterWrapper(
                         controller: _contentController,
                         focusNode: _contentFocusNode,
@@ -334,7 +351,14 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                             focusNode: _contentFocusNode,
                             decoration: InputDecoration(
                               hintText: context.l10n.tagLibrary_contentHint,
-                              contentPadding: const EdgeInsets.all(12),
+                              contentPadding: EdgeInsets.fromLTRB(
+                                12,
+                                12,
+                                12,
+                                QuickTranslatePromptField.contentBottomClearance(
+                                  context.interactionPolicy,
+                                ),
+                              ),
                             ),
                             maxLines: null,
                             expands: true,
@@ -342,116 +366,134 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: Text(
-                        context.l10n.tagLibrary_characterNegativeSyntaxHelp,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.outline,
-                        ),
-                        maxLines: 3,
+                  ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 12),
+                    child: Text(
+                      context.l10n.tagLibrary_characterNegativeSyntaxHelp,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.outline,
                       ),
                     ),
-
-                    const SizedBox(height: 24),
-
-                    // 操作按钮
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(context.l10n.common_cancel),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          onPressed: _canSave() ? _save : null,
-                          child: Text(context.l10n.common_save),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked =
+                    constraints.maxWidth < 320 ||
+                    MediaQuery.textScalerOf(context).scale(1) >= 2;
+                final cancel = TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(context.l10n.common_cancel),
+                );
+                final save = FilledButton(
+                  onPressed: _canSave() ? _save : null,
+                  child: Text(context.l10n.common_save),
+                );
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [save, cancel],
+                  );
+                }
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [cancel, const SizedBox(width: 8), save],
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildThumbnailSection(ThemeData theme, {bool expand = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          context.l10n.tagLibrary_thumbnail,
-          style: theme.textTheme.labelLarge,
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _thumbnailPath != null
-              ? _showThumbnailOptions
-              : _selectThumbnail,
-          child: Container(
-            width: expand ? double.infinity : 200,
-            height: expand ? 112 : 80,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: _thumbnailPath != null
-                ? Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(11),
-                        child: _buildThumbnailImage(),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: IconButton.filled(
-                          icon: const Icon(Icons.close, size: 16),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.black54,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(24, 24),
-                            padding: EdgeInsets.zero,
-                          ),
-                          onPressed: _clearThumbnail,
+    return SizedBox(
+      key: const Key('entry-add-dialog-thumbnail-section'),
+      width: expand ? double.infinity : 220,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.tagLibrary_thumbnail,
+            style: theme.textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _thumbnailPath != null
+                ? _showThumbnailOptions
+                : _selectThumbnail,
+            child: Container(
+              width: double.infinity,
+              height: expand ? 112 : 124,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: _thumbnailPath != null
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: _buildThumbnailImage(),
                         ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 36,
-                        color: theme.colorScheme.outline,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        context.l10n.tagLibrary_selectImage,
-                        style: TextStyle(
-                          fontSize: 12,
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: IconButton.filled(
+                            icon: const Icon(Icons.close, size: 16),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black54,
+                              foregroundColor: Colors.white,
+                              minimumSize: Size.square(
+                                context.interactionPolicy.minimumControlExtent,
+                              ),
+                              padding: EdgeInsets.zero,
+                            ),
+                            onPressed: _clearThumbnail,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 36,
                           color: theme.colorScheme.outline,
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(height: 8),
+                        Text(
+                          context.l10n.tagLibrary_selectImage,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          context.l10n.tagLibrary_thumbnailHint,
-          style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.tagLibrary_thumbnailHint,
+            style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+          ),
+        ],
+      ),
     );
   }
 
@@ -561,13 +603,15 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     );
 
     // 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
-    return ThumbnailDisplay(
-      imagePath: _thumbnailPath!,
-      offsetX: _thumbnailOffsetX,
-      offsetY: _thumbnailOffsetY,
-      scale: _thumbnailScale,
-      width: 200,
-      height: 80,
+    return LayoutBuilder(
+      builder: (context, constraints) => ThumbnailDisplay(
+        imagePath: _thumbnailPath!,
+        offsetX: _thumbnailOffsetX,
+        offsetY: _thumbnailOffsetY,
+        scale: _thumbnailScale,
+        width: constraints.maxWidth,
+        height: constraints.maxHeight,
+      ),
     );
   }
 

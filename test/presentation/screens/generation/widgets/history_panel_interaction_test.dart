@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/generation/preview_selection_provider.dart';
 import 'package:nai_launcher/presentation/providers/history_click_behavior_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
@@ -17,9 +18,26 @@ import 'package:nai_launcher/presentation/widgets/common/image_detail/components
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/workspace_panel_header.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('历史记录使用统一面板顶栏且收起按钮贴齐左侧', (tester) async {
+    final container = _createContainer([_image('header-alignment')]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_historyApp(container));
+    await tester.pump();
+
+    final panelRect = tester.getRect(find.byType(HistoryPanel));
+    final collapseRect = tester.getRect(
+      find.byKey(const ValueKey('generation-history-collapse')),
+    );
+    expect(find.byType(WorkspacePanelHeader), findsOneWidget);
+    expect(tester.getSize(find.byType(WorkspacePanelHeader)).height, 56);
+    expect(collapseRect.left, closeTo(panelRect.left + 4, 0.01));
+  });
 
   testWidgets('classic single click opens one image detail', (tester) async {
     final container = _createContainer([_image('classic')]);
@@ -156,6 +174,7 @@ void main() {
     await _openContextMenu(tester, second);
     await tester.tap(find.text('查看详情'));
     await _pumpRoute(tester);
+    await tester.pump();
 
     _expectLinkedViewer(tester, initialIndex: 1);
   });
@@ -209,6 +228,7 @@ void main() {
       await _openContextMenu(tester, finder);
       await tester.tap(find.text('查看详情'));
       await _pumpRoute(tester);
+      await tester.pump();
       final viewer = tester.widget<ImageDetailViewer>(
         find.byType(ImageDetailViewer),
       );
@@ -607,26 +627,33 @@ Widget _historyApp(
   ValueNotifier<bool>? visible,
 }) {
   final previewFocusNode = container.read(generationPreviewFocusNodeProvider);
-  return UncontrolledProviderScope(
-    container: container,
-    child: MaterialApp(
-      locale: const Locale('zh'),
-      supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: Scaffold(
-        body: Focus(
-          focusNode: previewFocusNode,
-          child: SizedBox(
-            width: 320,
-            height: 640,
-            child: visible == null
-                ? const HistoryPanel()
-                : ValueListenableBuilder(
-                    valueListenable: visible,
-                    builder: (_, isVisible, __) => isVisible
-                        ? const HistoryPanel()
-                        : const SizedBox.shrink(),
-                  ),
+  return InteractionPolicyScope(
+    initialPolicy: const InteractionPolicy(
+      modality: InteractionModality.pointer,
+      touchAvailable: false,
+      precisePointerAvailable: true,
+    ),
+    child: UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: Focus(
+            focusNode: previewFocusNode,
+            child: SizedBox(
+              width: 320,
+              height: 640,
+              child: visible == null
+                  ? const HistoryPanel()
+                  : ValueListenableBuilder(
+                      valueListenable: visible,
+                      builder: (_, isVisible, __) => isVisible
+                          ? const HistoryPanel()
+                          : const SizedBox.shrink(),
+                    ),
+            ),
           ),
         ),
       ),

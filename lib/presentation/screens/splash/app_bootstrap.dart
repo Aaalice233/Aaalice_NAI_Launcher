@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../app.dart';
+import '../../../core/services/interactive_work_gate.dart';
 import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/first_launch_detector.dart';
+import '../../../core/windowing/windows_native_window_state.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/warmup_provider.dart';
@@ -23,7 +26,7 @@ class AppBootstrap extends ConsumerStatefulWidget {
     super.key,
     this.mainAppBuilder,
     this.onWarmupComplete,
-    this.autoUpdateDelay = const Duration(seconds: 3),
+    this.autoUpdateDelay = const Duration(seconds: 10),
     this.autoUpdateCheckRunner,
   });
 
@@ -43,8 +46,32 @@ class AppBootstrap extends ConsumerStatefulWidget {
 
 class _AppBootstrapState extends ConsumerState<AppBootstrap> {
   bool _showMainApp = false;
+  bool _showSplashOverlay = true;
   bool _hasCheckedFirstLaunch = false;
+  bool _mainAppMountScheduled = false;
   bool _warmupCompletionNotified = false;
+  Widget? _mountedMainApp;
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    if (Platform.isWindows) {
+      unawaited(_synchronizeWindowsViewMetrics());
+    }
+  }
+
+  Future<void> _synchronizeWindowsViewMetrics() async {
+    try {
+      await const WindowsNativeWindowStatePlatform().synchronizeViewMetrics();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to synchronize Windows view metrics after hot reload',
+        error,
+        stackTrace,
+        'AppBootstrap',
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -59,48 +86,31 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final warmupState = ref.watch(warmupNotifierProvider);
-
-    // 预加载完成后显示主应用
-    if (warmupState.isComplete && !_showMainApp) {
-      // 延迟一帧后切换，确保动画流畅
+  void _scheduleMainAppMount() {
+    if (_mainAppMountScheduled) return;
+    _mainAppMountScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _showMainApp) return;
+      setState(() {
+        _showMainApp = true;
+      });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _showMainApp) return;
+        if (!mounted || !_showSplashOverlay) return;
         setState(() {
-          _showMainApp = true;
+          _showSplashOverlay = false;
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || _warmupCompletionNotified) return;
           _warmupCompletionNotified = true;
-          ref.read(warmupNotifierProvider.notifier).startPostWarmupTasks();
+          AppLogger.i('Main application first frame rendered', 'AppBootstrap');
           widget.onWarmupComplete?.call();
         });
       });
-    }
+    });
+  }
 
-    // 如果显示主应用，直接返回（NAILauncherApp 自带 MaterialApp）
-    if (_showMainApp) {
-      final mainAppBuilder = widget.mainAppBuilder;
-      final mainApp = mainAppBuilder != null
-          ? mainAppBuilder(context)
-          : _MainAppWrapper(
-              hasCheckedFirstLaunch: _hasCheckedFirstLaunch,
-              onFirstLaunchChecked: () {
-                _hasCheckedFirstLaunch = true;
-              },
-            );
-      return AutomaticUpdateCheck(
-        delay: widget.autoUpdateDelay,
-        checkRunner: widget.autoUpdateCheckRunner,
-        child: mainApp,
-      );
-    }
-
-    // SplashScreen 需要 MaterialApp 提供基础上下文
+  Widget _buildSplash() {
     final locale = ref.watch(localeNotifierProvider);
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
@@ -109,6 +119,58 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       builder: (context, child) => DesktopWindowFrame(child: child!),
       home: const SplashScreen(key: ValueKey('splash')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final warmupState = ref.watch(warmupNotifierProvider);
+
+    if (warmupState.isComplete && !_showMainApp) {
+      _scheduleMainAppMount();
+    }
+
+    if (!_showMainApp) {
+      return _buildSplash();
+    }
+
+    // Cache the complete mounted subtree. Recreating this widget while merely
+    // removing Splash would update and rebuild the entire router hierarchy.
+    final mountedMainApp = _mountedMainApp ??= AutomaticUpdateCheck(
+      delay: widget.autoUpdateDelay,
+      checkRunner: widget.autoUpdateCheckRunner,
+      child:
+          widget.mainAppBuilder?.call(context) ??
+          _MainAppWrapper(
+            hasCheckedFirstLaunch: _hasCheckedFirstLaunch,
+            onFirstLaunchChecked: () {
+              _hasCheckedFirstLaunch = true;
+            },
+          ),
+    );
+    // Keep the root and both child identities stable while hiding Splash.
+    // Removing the overlay would relayout the complete router tree; returning
+    // mountedMainApp directly would additionally remount it.
+    return Stack(
+      alignment: Alignment.topLeft,
+      fit: StackFit.expand,
+      children: [
+        mountedMainApp,
+        Opacity(
+          key: const ValueKey('splash_overlay'),
+          opacity: _showSplashOverlay ? 1 : 0,
+          child: TickerMode(
+            enabled: _showSplashOverlay,
+            child: IgnorePointer(
+              ignoring: !_showSplashOverlay,
+              child: ExcludeSemantics(
+                excluding: !_showSplashOverlay,
+                child: _buildSplash(),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -122,7 +184,7 @@ class AutomaticUpdateCheck extends ConsumerStatefulWidget {
   const AutomaticUpdateCheck({
     super.key,
     required this.child,
-    this.delay = const Duration(seconds: 3),
+    this.delay = const Duration(seconds: 10),
     this.checkRunner,
   });
 
@@ -144,6 +206,7 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
   @override
   void initState() {
     super.initState();
+    InteractiveWorkGate.instance.markInteraction();
     _schedule(widget.delay);
   }
 
@@ -161,12 +224,19 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
         return;
       }
 
-      final provider = automaticUpdateCheckProvider(
-        onStartup: !_startupCheckCompleted,
+      // 更新检查可能继续下载并校验发布资产。进入统一空闲队列，避免与
+      // 云恢复、缓存维护和后台刷新同时争抢 UI isolate。
+      await InteractiveWorkGate.instance.runWhenIdle(
+        action: () async {
+          if (!mounted) return;
+          final provider = automaticUpdateCheckProvider(
+            onStartup: !_startupCheckCompleted,
+          );
+          ref.invalidate(provider);
+          await ref.read(provider.future);
+          _startupCheckCompleted = true;
+        },
       );
-      ref.invalidate(provider);
-      await ref.read(provider.future);
-      _startupCheckCompleted = true;
     } catch (error, stackTrace) {
       AppLogger.w('Auto update check failed: $error', 'AppBootstrap');
       AppLogger.d('$stackTrace', 'AppBootstrap');
