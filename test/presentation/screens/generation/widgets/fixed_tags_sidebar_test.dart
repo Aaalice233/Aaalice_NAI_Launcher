@@ -137,7 +137,11 @@ void main() {
     final selectAll = find.byKey(
       const ValueKey('fixed-tags-toggle-all-positive'),
     );
-    expect(tester.getSize(selectAll), const Size.square(48));
+    expect(tester.getSize(selectAll), const Size(52, 48));
+    expect(
+      find.descendant(of: selectAll, matching: find.byType(ThemedSwitch)),
+      findsOneWidget,
+    );
 
     await pump(
       const InteractionPolicy(
@@ -146,7 +150,67 @@ void main() {
         precisePointerAvailable: true,
       ),
     );
-    expect(tester.getSize(selectAll), const Size.square(40));
+    expect(tester.getSize(selectAll), const Size(52, 40));
+  });
+
+  testWidgets('mobile positive and negative headers use full-size switches', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: [
+        FixedTagEntry.create(name: 'positive', content: 'masterpiece'),
+        FixedTagEntry.create(
+          name: 'negative',
+          content: 'lowres',
+          promptType: FixedTagPromptType.negative,
+        ),
+      ],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const InteractionPolicyScope(
+          initialPolicy: InteractionPolicy.touchFirst,
+          child: MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final type in FixedTagPromptType.values) {
+      if (type == FixedTagPromptType.negative) {
+        await tester.tap(
+          find.byKey(const ValueKey('fixed-tags-mobile-tab-negative')),
+        );
+        await tester.pumpAndSettle();
+      }
+      final toggle = find.byKey(ValueKey('fixed-tags-toggle-all-${type.name}'));
+      expect(toggle, findsOneWidget);
+      expect(tester.getSize(toggle), const Size(52, 48));
+      final switchFinder = find.descendant(
+        of: toggle,
+        matching: find.byType(ThemedSwitch),
+      );
+      expect(tester.widget<ThemedSwitch>(switchFinder).value, isTrue);
+
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<ThemedSwitch>(switchFinder).value, isFalse);
+    }
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('mobile entries scroll before a long-press starts reordering', (

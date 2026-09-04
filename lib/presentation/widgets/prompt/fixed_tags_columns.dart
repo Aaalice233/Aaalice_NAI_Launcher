@@ -9,6 +9,7 @@ import '../../adaptive/interaction_policy.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../common/themed_input.dart';
+import '../common/themed_switch.dart';
 import '../tag_library/tag_library_entry_hover_preview.dart';
 import 'fixed_tag_entry_tile.dart';
 import 'fixed_tags_dialog_controller.dart';
@@ -217,9 +218,6 @@ class FixedTagColumn extends StatelessWidget {
     final theme = Theme.of(context);
     final interactionPolicy = context.interactionPolicy;
     final controlExtent = interactionPolicy.minimumControlExtent;
-    final iconButtonLayoutExtent = interactionPolicy.touchAvailable
-        ? controlExtent
-        : controlExtent + 8;
     final totalText = config.hasSearch
         ? context.l10n.fixedTags_columnFilteredCount(
             config.enabledCount,
@@ -246,24 +244,17 @@ class FixedTagColumn extends StatelessWidget {
               ),
             ),
             if (config.compact)
-              IconButton(
+              Tooltip(
                 key: ValueKey(
                   'fixed-tags-toggle-all-${config.promptType.name}',
                 ),
-                tooltip: _enableAllLabel(context),
-                visualDensity: interactionPolicy.touchAvailable
-                    ? VisualDensity.standard
-                    : VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints.tightFor(
-                  width: iconButtonLayoutExtent,
-                  height: iconButtonLayoutExtent,
-                ),
-                onPressed: _toggleAll,
-                icon: Icon(
-                  _enableAll
-                      ? Icons.toggle_on_outlined
-                      : Icons.toggle_off_outlined,
+                message: _enableAllLabel(context),
+                child: ThemedSwitch(
+                  value: _allEnabled,
+                  onChanged: (value) => config.commands.setPromptTypeEnabled(
+                    config.promptType,
+                    value,
+                  ),
                 ),
               )
             else ...[
@@ -399,6 +390,10 @@ class FixedTagColumn extends StatelessWidget {
   }
 
   bool get _enableAll => config.enabledCount != config.allEntries.length;
+
+  bool get _allEnabled =>
+      config.allEntries.isNotEmpty &&
+      config.enabledCount == config.allEntries.length;
 
   String _enableAllLabel(BuildContext context) => _enableAll
       ? context.l10n.fixedTags_enableAll
