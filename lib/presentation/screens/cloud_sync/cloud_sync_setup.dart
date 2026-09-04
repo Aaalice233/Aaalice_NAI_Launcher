@@ -375,8 +375,6 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   }
 
   Widget _dataScope() => CloudSyncSection(
-    title: context.l10n.cloudSync_dataScope,
-    subtitle: context.l10n.cloudSync_dataScopeDescription,
     child: ListTile(
       key: const ValueKey('cloud-sync-content-selection-entry'),
       contentPadding: EdgeInsets.zero,
