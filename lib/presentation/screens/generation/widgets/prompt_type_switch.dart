@@ -263,6 +263,8 @@ class _PromptTypeButtonState extends State<PromptTypeButton>
       preferBelow: true,
       verticalOffset: 20,
       waitDuration: const Duration(milliseconds: 300),
+      exitDuration: rich ? const Duration(milliseconds: 300) : null,
+      enableTapToDismiss: !rich,
       ignorePointer: false,
       decoration: richTooltipOuterDecoration,
       padding: EdgeInsets.zero,
