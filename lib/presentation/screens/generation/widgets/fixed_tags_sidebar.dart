@@ -937,13 +937,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         label: context.l10n.fixedTags_negativeTitle,
         count: entries.length,
         color: theme.colorScheme.error,
-        trailing: IconButton(
-          tooltip: context.l10n.fixedTags_addNegative,
-          icon: const Icon(Icons.add_rounded, size: 18),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-          onPressed: () => _addEntry(promptType: FixedTagPromptType.negative),
-        ),
       ),
       body: Row(
         children: [

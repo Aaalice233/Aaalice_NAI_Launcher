@@ -952,6 +952,13 @@ void main() {
     expect(find.text('正向固定词'), findsOneWidget);
     expect(find.text('负向固定词'), findsOneWidget);
     expect(
+      find.descendant(
+        of: negativeCard,
+        matching: find.byIcon(Icons.add_rounded),
+      ),
+      findsNothing,
+    );
+    expect(
       tester.widget<Material>(positiveCard).color,
       isNot(equals(tester.widget<Material>(negativeCard).color)),
     );
