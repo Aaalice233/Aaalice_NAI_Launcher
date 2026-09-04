@@ -54,15 +54,17 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         SettingsCard(
-          title: context.l10n.promptAssistant_taskRouting,
-          description: context.l10n.promptAssistant_taskRoutingSubtitle,
-          child: _buildRouting(context, state, notifier),
-        ),
-        const SizedBox(height: 16),
-        SettingsCard(
+          key: const ValueKey('prompt-assistant-provider-section'),
           title: context.l10n.promptAssistant_providerManagement,
           description: context.l10n.promptAssistant_providerManagementSubtitle,
           child: _buildProviders(context, ref, state, notifier),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          key: const ValueKey('prompt-assistant-routing-section'),
+          title: context.l10n.promptAssistant_taskRouting,
+          description: context.l10n.promptAssistant_taskRoutingSubtitle,
+          child: _buildRouting(context, state, notifier),
         ),
         const SizedBox(height: 16),
         SettingsCard(

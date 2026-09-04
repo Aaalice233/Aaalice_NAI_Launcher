@@ -270,6 +270,20 @@ void main() {
     expect(promptAssistantSection, findsOneWidget);
     expect(
       tester
+          .getTopLeft(
+            find.byKey(const ValueKey('prompt-assistant-provider-section')),
+          )
+          .dy,
+      lessThan(
+        tester
+            .getTopLeft(
+              find.byKey(const ValueKey('prompt-assistant-routing-section')),
+            )
+            .dy,
+      ),
+    );
+    expect(
+      tester
           .widget<Text>(find.byKey(const ValueKey('settings-page-title')))
           .data,
       '集成',
