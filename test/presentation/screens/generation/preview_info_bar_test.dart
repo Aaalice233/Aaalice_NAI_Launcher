@@ -90,10 +90,7 @@ void main() {
     const seed = 4201934405;
     final container = await _pumpBar(tester, _image(seed: seed));
 
-    expect(
-      container.read(generationParamsNotifierProvider).seed,
-      isNot(seed),
-    );
+    expect(container.read(generationParamsNotifierProvider).seed, isNot(seed));
 
     await tester.tap(find.text('$seed'));
     await tester.pump();
@@ -119,10 +116,7 @@ void main() {
   testWidgets('信息条按内容收窄，种子胶囊不会被拉满剩余宽度', (tester) async {
     await _pumpBar(tester, _image(seed: 4201934405), width: 600);
 
-    expect(
-      tester.getSize(find.byType(PreviewInfoBar)).width,
-      lessThan(400),
-    );
+    expect(tester.getSize(find.byType(PreviewInfoBar)).width, lessThan(400));
   });
 
   testWidgets('元数据没有种子时不显示种子胶囊', (tester) async {
@@ -151,7 +145,10 @@ void main() {
     await tester.pumpAndSettle();
 
     final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
-    expect(find.text(l10n.generation_transparencyBackgroundTitle), findsOneWidget);
+    expect(
+      find.text(l10n.generation_transparencyBackgroundTitle),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byTooltip(l10n.generation_transparencyCheckerDark));
     await tester.pump();
@@ -160,6 +157,27 @@ void main() {
       container.read(previewTransparencyNotifierProvider),
       TransparencyBackgrounds.checkerDark,
     );
+  });
+
+  testWidgets('窄屏下透明底色浮层会改向展开并保持在视口内', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpBar(tester, _image(seed: 1), width: 200);
+
+    await tester.tap(find.byType(TransparencyBackgroundIcon));
+    await tester.pumpAndSettle();
+
+    final panel = find.byKey(
+      const ValueKey('generation_transparency_background_panel'),
+    );
+    final panelRect = tester.getRect(panel);
+
+    expect(panel, findsOneWidget);
+    expect(panelRect.left, greaterThanOrEqualTo(0));
+    expect(panelRect.right, lessThanOrEqualTo(320));
   });
 }
 

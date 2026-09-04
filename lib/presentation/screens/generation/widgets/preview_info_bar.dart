@@ -255,9 +255,30 @@ class _TransparencyBackgroundButtonState
     extends State<_TransparencyBackgroundButton> {
   final OverlayPortalController _controller = OverlayPortalController();
   final LayerLink _link = LayerLink();
+  bool _alignPanelToLeft = false;
 
   void _close() {
     if (_controller.isShowing) _controller.hide();
+  }
+
+  void _togglePanel() {
+    if (!_controller.isShowing) {
+      final targetBox = context.findRenderObject() as RenderBox?;
+      final overlayBox =
+          Overlay.of(context).context.findRenderObject() as RenderBox?;
+      if (targetBox != null && overlayBox != null) {
+        final targetOrigin = targetBox.localToGlobal(
+          Offset.zero,
+          ancestor: overlayBox,
+        );
+        final fitsOnRight =
+            targetOrigin.dx + _TransparencyBackgroundPanel.width <=
+            overlayBox.size.width;
+        _alignPanelToLeft = fitsOnRight;
+      }
+    }
+
+    setState(_controller.toggle);
   }
 
   @override
@@ -286,8 +307,12 @@ class _TransparencyBackgroundButtonState
               ),
               CompositedTransformFollower(
                 link: _link,
-                targetAnchor: Alignment.topRight,
-                followerAnchor: Alignment.bottomRight,
+                targetAnchor: _alignPanelToLeft
+                    ? Alignment.topLeft
+                    : Alignment.topRight,
+                followerAnchor: _alignPanelToLeft
+                    ? Alignment.bottomLeft
+                    : Alignment.bottomRight,
                 offset: const Offset(0, -5),
                 child: const _TransparencyBackgroundPanel(),
               ),
@@ -306,9 +331,7 @@ class _TransparencyBackgroundButtonState
             borderRadius: BorderRadius.circular(6),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: () {
-                setState(() => _controller.toggle());
-              },
+              onTap: _togglePanel,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   minWidth: minimumControlExtent,
@@ -334,6 +357,8 @@ class _TransparencyBackgroundButtonState
 /// 透明底色档位浮层
 class _TransparencyBackgroundPanel extends ConsumerStatefulWidget {
   const _TransparencyBackgroundPanel();
+
+  static const double width = 232;
 
   @override
   ConsumerState<_TransparencyBackgroundPanel> createState() =>
@@ -381,12 +406,13 @@ class _TransparencyBackgroundPanelState
     };
 
     return Material(
+      key: const ValueKey('generation_transparency_background_panel'),
       elevation: 8,
       borderRadius: BorderRadius.circular(6),
       clipBehavior: Clip.antiAlias,
       color: theme.colorScheme.surfaceContainerHigh,
       child: Container(
-        width: 232,
+        width: _TransparencyBackgroundPanel.width,
         padding: const EdgeInsets.all(10),
         child: Column(
           mainAxisSize: MainAxisSize.min,
