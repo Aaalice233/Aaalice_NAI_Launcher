@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_add_dialog.dart';
@@ -103,7 +107,11 @@ void main() {
       find.byKey(const Key('entry-add-dialog-content-editor')),
     );
     expect(thumbnailSection.width, 220);
-    expect(thumbnailSection.height, lessThan(210));
+    expect(thumbnailSection.height, greaterThan(240));
+    final squarePreview = tester.getRect(
+      find.byKey(const ValueKey('entry-thumbnail-square-preview')),
+    );
+    expect(squarePreview.size, const Size.square(220));
     expect(editor.height, 176);
     expect(editor.top, lessThan(490));
     final contentFooter = find.byKey(
@@ -119,10 +127,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(
-      tester.getTopLeft(contentFooter).dy,
-      closeTo(editor.bottom + 4, 1),
-    );
+    expect(tester.getTopLeft(contentFooter).dy, closeTo(editor.bottom + 4, 1));
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).floatOverEditor,
       false,
@@ -136,6 +141,14 @@ void main() {
       closeTo(tester.getTopRight(contentFooter).dx - 4, 1),
     );
 
+    final dialogScrollable = find
+        .descendant(
+          of: find.byKey(const Key('entry-add-dialog-scroll')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.drag(dialogScrollable, const Offset(0, -180));
+    await tester.pumpAndSettle();
     await tester.tap(
       find.descendant(
         of: assistant,
@@ -153,6 +166,40 @@ void main() {
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();
     expect(completed, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('已有预览图时在方形区域标出卡片显示范围', (tester) async {
+    final testImage = File('assets/icons/android/playstore-icon.png').absolute;
+    await _cacheFileImage(tester, testImage);
+    final entry = TagLibraryEntry(
+      id: 'entry-with-preview',
+      name: '测试词条',
+      content: '1girl',
+      thumbnail: testImage.path,
+      thumbnailOffsetX: 0.4,
+      thumbnailOffsetY: -0.3,
+      thumbnailScale: 1.5,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    await _pumpLauncher(tester, size: const Size(1180, 800), entry: entry);
+
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+
+    final preview = tester.getRect(
+      find.byKey(const ValueKey('entry-thumbnail-square-preview')),
+    );
+    final frame = tester.getRect(
+      find.byKey(const ValueKey('entry-thumbnail-card-frame')),
+    );
+    expect(preview.size, const Size.square(220));
+    expect(frame.width / frame.height, closeTo(2.5, 0.01));
+    expect(preview.contains(frame.topLeft), isTrue);
+    expect(preview.contains(frame.bottomRight), isTrue);
+    expect(frame.center.dx, greaterThan(preview.center.dx));
+    expect(frame.center.dy, lessThan(preview.center.dy));
     expect(tester.takeException(), isNull);
   });
 
@@ -177,6 +224,28 @@ void main() {
   });
 }
 
+Future<void> _cacheFileImage(WidgetTester tester, File file) async {
+  await tester.runAsync(() async {
+    final completed = Completer<void>();
+    final stream = FileImage(file).resolve(ImageConfiguration.empty);
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (_, __) {
+        if (!completed.isCompleted) completed.complete();
+        stream.removeListener(listener);
+      },
+      onError: (Object error, StackTrace? stackTrace) {
+        if (!completed.isCompleted) {
+          completed.completeError(error, stackTrace);
+        }
+        stream.removeListener(listener);
+      },
+    );
+    stream.addListener(listener);
+    await completed.future;
+  });
+}
+
 Future<void> _pumpLauncher(
   WidgetTester tester, {
   required Size size,
@@ -184,6 +253,7 @@ Future<void> _pumpLauncher(
   EdgeInsets padding = EdgeInsets.zero,
   EdgeInsets viewInsets = EdgeInsets.zero,
   VoidCallback? onCompleted,
+  TagLibraryEntry? entry,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -211,7 +281,11 @@ Future<void> _pumpLauncher(
             builder: (context) => Center(
               child: FilledButton(
                 onPressed: () async {
-                  await EntryAddDialog.show(context, categories: const []);
+                  await EntryAddDialog.show(
+                    context,
+                    categories: const [],
+                    entry: entry,
+                  );
                   onCompleted?.call();
                 },
                 child: const Text('打开'),
