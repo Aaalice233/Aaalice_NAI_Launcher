@@ -1816,7 +1816,7 @@ void main() {
   );
 
   testWidgets(
-    'list mode reserves translated preview height without overflowing',
+    'list rows keep identical heights and never render translations',
     (tester) async {
       PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
         TargetPlatform.windows,
@@ -1861,7 +1861,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('杰作'), findsOneWidget);
+      // 只有一条能查到译文；一旦重新渲染翻译，行高就会不一致。
+      expect(find.text('杰作'), findsNothing);
       expect(tester.takeException(), isNull);
       final tileHeights = tester
           .widgetList<SidebarEntryTile>(find.byType(SidebarEntryTile))
@@ -2481,7 +2482,7 @@ void main() {
   );
 
   testWidgets(
-    'grid cards fit linked thumbnails and translated text without overflow',
+    'grid cards fit linked thumbnails and show raw prompts without overflow',
     (tester) async {
       final category = TagLibraryCategory.create(name: 'Quality');
       final positiveLibrary = TagLibraryEntry.create(
@@ -2529,10 +2530,13 @@ void main() {
         translationLookup: lookup,
       );
 
+      // 词典可用也不得渲染译文：侧栏条目只显示原文，翻译留给悬停预览。
       expect(
         find.byKey(const ValueKey('translated-prompt-translation')),
-        findsNWidgets(2),
+        findsNothing,
       );
+      expect(find.text(positiveLibrary.content), findsOneWidget);
+      expect(find.text(negativeLibrary.content), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

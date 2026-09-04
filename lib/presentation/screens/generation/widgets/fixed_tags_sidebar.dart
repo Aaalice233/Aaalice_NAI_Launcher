@@ -17,6 +17,7 @@ import '../../../adaptive/interaction_policy.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../widgets/common/tile_action_button.dart';
 import '../../../widgets/prompt/fixed_tag_edit_dialog.dart';
 import '../../../widgets/tag_library/tag_library_picker_dialog.dart';
 import 'sidebar_entry_tile.dart';
@@ -27,15 +28,17 @@ const _linkDetachDistance = 36.0;
 
 double _gridCardHeight(BuildContext context) {
   final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
-  // 触屏命中区把链接锚点和操作行整体撑高，大字号同样需要额外余量。
-  final needsRoomyCard =
-      context.interactionPolicy.shouldExposeTouchAlternatives ||
-      scaledLabelSize >= 20;
-
-  // Grid previews can contain up to five scaled text lines. Grow the fixed
-  // extent with the text scaler so asynchronous translations cannot outgrow it.
+  // 底行取链接锚点与操作按钮中较高者：前者看有无精确指针，后者看有无触摸，两条规则会错配。
+  final footerExtent = math.max(
+    context.interactionPolicy.precisePointerAvailable ? 24.0 : 44.0,
+    TileActionButton.extentOf(context),
+  );
+  // 带缩略图的卡片最紧：正文只有一行，但正文区仅分到卡片 5/8 高度，按它标定基准。
+  const contentInsets = 20.0; // 上下内边距 15 + 正文与底行间距 5
+  const singleLineText = 36.0; // 名称 20 + 单行正文 16
+  final baseHeight =
+      (contentInsets + singleLineText + footerExtent) * 8 / 5 + 12;
   final scaledTextGrowth = (scaledLabelSize - 14).clamp(0.0, double.infinity);
-  final baseHeight = needsRoomyCard ? 210.0 : 180.0;
   return baseHeight + scaledTextGrowth * 6;
 }
 
