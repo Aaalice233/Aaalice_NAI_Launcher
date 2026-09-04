@@ -5,10 +5,11 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/library_classification_drag.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 
-enum _EntryListAction { select, edit, favorite, copy, delete }
+enum _EntryListAction { select, edit, favorite, classify, copy, delete }
 
 /// 词库条目列表项
 class EntryListItem extends StatefulWidget {
@@ -17,6 +18,7 @@ class EntryListItem extends StatefulWidget {
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onEdit;
+  final VoidCallback? onClassify;
 
   /// 所属分类名称
   final String? categoryName;
@@ -41,6 +43,7 @@ class EntryListItem extends StatefulWidget {
     required this.onDelete,
     required this.onToggleFavorite,
     this.onEdit,
+    this.onClassify,
     this.categoryName,
     this.enableDrag = false,
     this.isSelectionMode = false,
@@ -134,113 +137,20 @@ class _EntryListItemState extends State<EntryListItem> {
       ),
     );
 
-    // 保持根节点稳定，避免切换多选模式时重建缩略图子树。
-    return Draggable<TagLibraryEntry>(
+    return LibraryClassificationDragSource<TagLibraryEntry>(
       data: entry,
-      maxSimultaneousDrags: widget.enableDrag && !isTouch ? null : 0,
-      feedback: widget.enableDrag && !isTouch
-          ? _buildDragFeedback(theme, entry)
-          : const SizedBox.shrink(),
-      childWhenDragging: Opacity(opacity: 0.4, child: itemContent),
+      label: entry.displayName,
+      enabled: widget.enableDrag,
       onDragStarted: () {
-        HapticFeedback.mediumImpact();
         setState(() {
           _isDragging = true;
           _isHovering = false;
         });
       },
-      onDragEnd: (_) {
-        setState(() {
-          _isDragging = false;
-        });
+      onDragEnded: () {
+        if (mounted) setState(() => _isDragging = false);
       },
       child: itemContent,
-    );
-  }
-
-  /// 构建拖拽反馈UI
-  Widget _buildDragFeedback(ThemeData theme, TagLibraryEntry entry) {
-    return Material(
-      elevation: 12,
-      borderRadius: BorderRadius.circular(10),
-      color: theme.colorScheme.surfaceContainerHigh,
-      shadowColor: Colors.black54,
-      child: Container(
-        width: 280,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: theme.colorScheme.primary.withValues(alpha: 0.5),
-            width: 2,
-          ),
-        ),
-        child: Row(
-          children: [
-            // 缩略图
-            if (entry.hasThumbnail && entry.thumbnail != null)
-              ThumbnailDisplay(
-                imagePath: entry.thumbnail!,
-                offsetX: entry.thumbnailOffsetX,
-                offsetY: entry.thumbnailOffsetY,
-                scale: entry.thumbnailScale,
-                width: 48,
-                height: 48,
-                borderRadius: BorderRadius.circular(6),
-              )
-            else
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.library_books,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            const SizedBox(width: 12),
-            // 信息
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entry.displayName,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.drive_file_move_outline,
-                        size: 12,
-                        color: theme.colorScheme.outline,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        context.l10n.tagLibrary_dragToCategoryHint,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -416,6 +326,9 @@ class _EntryListItemState extends State<EntryListItem> {
             case _EntryListAction.favorite:
               widget.onToggleFavorite();
               break;
+            case _EntryListAction.classify:
+              widget.onClassify?.call();
+              break;
             case _EntryListAction.copy:
               _copyToClipboard(widget.entry.content);
               break;
@@ -460,6 +373,15 @@ class _EntryListItemState extends State<EntryListItem> {
               ),
             ),
           ),
+          if (widget.onClassify != null)
+            PopupMenuItem(
+              value: _EntryListAction.classify,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.drive_file_move_outline),
+                title: Text(l10n.tagLibrary_moveToCategoryTitle),
+              ),
+            ),
           PopupMenuItem(
             value: _EntryListAction.copy,
             child: ListTile(

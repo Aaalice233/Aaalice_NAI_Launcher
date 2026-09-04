@@ -142,7 +142,7 @@ class _BulkMoveCategoryContent extends StatelessWidget {
                     id: null,
                     name: context.l10n.tagLibrary_rootCategory,
                     isSelected: currentCategoryId == null,
-                    onTap: () => Navigator.of(context).pop(null),
+                    onTap: () => Navigator.of(context).pop(''),
                     depth: 0,
                   ),
                   const Divider(height: 1, indent: 8, endIndent: 8),

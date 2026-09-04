@@ -504,6 +504,8 @@ class LocalGalleryActionCoordinator {
     switch (request.action) {
       case LocalImageContextAction.addToAgent:
         await _addToAgent(record);
+      case LocalImageContextAction.moveToCategory:
+        await _moveImageToCategory(record);
       case LocalImageContextAction.sendToTextToImage:
       case LocalImageContextAction.importMetadata:
         await importImageMetadata(record);
@@ -570,6 +572,50 @@ class LocalGalleryActionCoordinator {
           _context().l10n.agentChat_addResourceFailed('$error'),
         );
       }
+    }
+  }
+
+  Future<void> _moveImageToCategory(LocalImageRecord record) async {
+    final categories = _ref.read(galleryCategoryNotifierProvider).categories;
+    final targets = buildLocalGalleryMoveTargets(categories);
+    if (targets.isEmpty) {
+      AppToast.info(
+        _context(),
+        _context().l10n.localGallery_noCategoriesAvailable,
+      );
+      return;
+    }
+    final targetId = await showLocalGalleryMoveTargetDialog(
+      context: _context(),
+      targets: targets,
+    );
+    if (targetId == null || !_mounted()) return;
+    final protected = await AssetProtectionGuard.confirmDangerousAction(
+      context: _context(),
+      ref: _ref,
+      title: _context().l10n.localGallery_confirmMoveImageTitle,
+      content: _context().l10n.localGallery_confirmMoveImageContent,
+      confirmText: _context().l10n.localGallery_confirmMove,
+      icon: Icons.drive_file_move_outline,
+    );
+    if (!protected || !_mounted()) return;
+    final newPath = await _ref
+        .read(galleryCategoryNotifierProvider.notifier)
+        .moveImageToCategory(record.path, targetId);
+    if (newPath == null) return;
+    await _watermarkRegistry.relocatePath(
+      oldPath: record.path,
+      newPath: newPath,
+    );
+    await _ref.read(localGalleryNotifierProvider.notifier).refresh(scan: false);
+    unawaited(
+      _ref.read(galleryAlbumNotifierProvider.notifier).exportSidecarNow(),
+    );
+    if (_mounted()) {
+      AppToast.success(
+        _context(),
+        _context().l10n.localGallery_imageMovedToCategory,
+      );
     }
   }
 

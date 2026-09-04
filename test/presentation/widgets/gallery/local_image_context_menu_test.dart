@@ -36,6 +36,7 @@ void main() {
 
     expect(items.map((item) => item.value).toList(), const [
       LocalImageContextAction.addToAgent,
+      LocalImageContextAction.moveToCategory,
       LocalImageContextAction.sendToTextToImage,
       LocalImageContextAction.sendToImg2Img,
       LocalImageContextAction.sendToReversePrompt,
@@ -148,7 +149,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final items = find.byType(PopupMenuItem<LocalImageContextAction>);
-      expect(items, findsNWidgets(15));
+      expect(items, findsNWidgets(16));
       for (final element in items.evaluate()) {
         final rect = tester.getRect(
           find.byElementPredicate((candidate) => candidate == element),

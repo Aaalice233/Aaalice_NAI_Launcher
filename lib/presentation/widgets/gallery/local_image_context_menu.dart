@@ -6,6 +6,7 @@ import '../common/context_menu_anchor.dart';
 
 enum LocalImageContextAction {
   addToAgent,
+  moveToCategory,
   sendToTextToImage,
   sendToImg2Img,
   sendToReversePrompt,
@@ -106,6 +107,12 @@ class LocalImageContextMenu {
         value: LocalImageContextAction.addToAgent,
         icon: Icons.auto_awesome_outlined,
         label: context.l10n.agentChat_addResource,
+      ),
+      _item(
+        context,
+        value: LocalImageContextAction.moveToCategory,
+        icon: Icons.drive_file_move_outline,
+        label: context.l10n.localGallery_moveToCategory,
       ),
       const PopupMenuDivider(),
       ...buildSendEntries(context, isKritaConnected: isKritaConnected),

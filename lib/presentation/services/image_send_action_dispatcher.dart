@@ -44,6 +44,7 @@ class ImageSendActionDispatcher {
 
       switch (action) {
         case LocalImageContextAction.addToAgent:
+        case LocalImageContextAction.moveToCategory:
           return;
         case LocalImageContextAction.sendToTextToImage:
         case LocalImageContextAction.importMetadata:

@@ -28,8 +28,10 @@ import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/frame_staggered_builder.dart';
 import '../../../widgets/common/pro_context_menu.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../widgets/common/library_classification_drag.dart';
 import '../../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'vibe_card.dart';
+import 'category/vibe_category_destination_panel.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
 import 'vibe_detail_viewer.dart';
 import 'vibe_export_dialog.dart';
@@ -155,52 +157,73 @@ class _VibeLibraryContentViewState
               resourceId: entry.id,
               display: {'name': entry.displayName},
             ),
-            child: VibeCard(
-              entry: entry,
-              width: widget.itemWidth,
-              height: computeVibeCardHeight(widget.itemWidth),
-              isSelected: isSelected,
-              showFavoriteIndicator: true,
-              onTap: () {
-                if (selectionState.isActive) {
+            child: LibraryClassificationDragSource<VibeLibraryEntry>(
+              data: entry,
+              label: entry.displayName,
+              enabled: !selectionState.isActive,
+              child: VibeCard(
+                entry: entry,
+                width: widget.itemWidth,
+                height: computeVibeCardHeight(widget.itemWidth),
+                isSelected: isSelected,
+                showFavoriteIndicator: true,
+                onTap: () {
+                  if (selectionState.isActive) {
+                    ref
+                        .read(vibeLibrarySelectionNotifierProvider.notifier)
+                        .toggle(entry.id);
+                  } else {
+                    _showVibeDetail(context, entry);
+                  }
+                },
+                onLongPress: () {
+                  if (!selectionState.isActive) {
+                    ref
+                        .read(vibeLibrarySelectionNotifierProvider.notifier)
+                        .enterAndSelect(entry.id);
+                  }
+                },
+                onSecondaryTapUp: (details) {
+                  _showContextMenu(context, entry, details.globalPosition);
+                },
+                onFavoriteToggle: () {
                   ref
-                      .read(vibeLibrarySelectionNotifierProvider.notifier)
-                      .toggle(entry.id);
-                } else {
-                  _showVibeDetail(context, entry);
-                }
-              },
-              onLongPress: () {
-                if (!selectionState.isActive) {
-                  ref
-                      .read(vibeLibrarySelectionNotifierProvider.notifier)
-                      .enterAndSelect(entry.id);
-                }
-              },
-              onSecondaryTapUp: (details) {
-                _showContextMenu(context, entry, details.globalPosition);
-              },
-              onFavoriteToggle: () {
-                ref
-                    .read(vibeLibraryNotifierProvider.notifier)
-                    .toggleFavorite(entry.id);
-              },
-              onSendToGeneration: () async {
-                final physicalKeys =
-                    HardwareKeyboard.instance.physicalKeysPressed;
-                final isShiftPressed =
-                    physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
-                    physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
-                await _sendEntryToGeneration(context, entry, isShiftPressed);
-              },
-              onExport: () => unawaited(_exportSingleEntry(context, entry)),
-              onEdit: () => _showVibeDetail(context, entry),
-              onDelete: () => _deleteSingleEntry(context, entry),
+                      .read(vibeLibraryNotifierProvider.notifier)
+                      .toggleFavorite(entry.id);
+                },
+                onSendToGeneration: () async {
+                  final physicalKeys =
+                      HardwareKeyboard.instance.physicalKeysPressed;
+                  final isShiftPressed =
+                      physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
+                      physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
+                  await _sendEntryToGeneration(context, entry, isShiftPressed);
+                },
+                onExport: () => unawaited(_exportSingleEntry(context, entry)),
+                onEdit: () => _showVibeDetail(context, entry),
+                onClassify: () => _classifyEntry(entry),
+                onDelete: () => _deleteSingleEntry(context, entry),
+              ),
             ),
           ),
         );
       },
     );
+  }
+
+  Future<void> _classifyEntry(VibeLibraryEntry entry) async {
+    final categories = ref.read(vibeLibraryCategoryNotifierProvider).categories;
+    final destination = await VibeCategoryDestinationPanel.show(
+      context,
+      categories: categories,
+    );
+    if (destination == null || !mounted) return;
+    await ref
+        .read(vibeLibraryNotifierProvider.notifier)
+        .updateEntryCategory(
+          entry.id,
+          destination.isEmpty ? null : destination,
+        );
   }
 
   /// 显示 Vibe 详情

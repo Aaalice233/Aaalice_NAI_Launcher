@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/vibe/vibe_library_category.dart';
+import '../../../../../data/models/vibe/vibe_library_entry.dart';
+import '../../../../widgets/common/library_classification_drag.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
 import '../../../../widgets/gallery/gallery_album_tree_view.dart';
 import '../../../../widgets/gallery/gallery_sidebar.dart';
@@ -24,6 +26,8 @@ class VibeCategoryTreeView extends StatelessWidget {
     this.onCategoryRename,
     this.onCategoryDelete,
     this.onCreateCategory,
+    this.onEntryDrop,
+    this.onFavoriteDrop,
   });
 
   final List<VibeLibraryCategory> categories;
@@ -36,6 +40,8 @@ class VibeCategoryTreeView extends StatelessWidget {
   final void Function(String id, String newName)? onCategoryRename;
   final ValueChanged<String>? onCategoryDelete;
   final VoidCallback? onCreateCategory;
+  final void Function(VibeLibraryEntry entry, String? categoryId)? onEntryDrop;
+  final ValueChanged<VibeLibraryEntry>? onFavoriteDrop;
 
   @override
   Widget build(BuildContext context) {
@@ -50,36 +56,51 @@ class VibeCategoryTreeView extends StatelessWidget {
         padding: const EdgeInsets.only(top: 4, bottom: 8),
         children: [
           if (includeAll)
-            GalleryAllImagesItem(
-              key: const ValueKey('vibe-library-all'),
-              label: context.l10n.vibeLibrary_allVibes,
-              icon: Icons.auto_awesome_outlined,
-              selectedIcon: Icons.auto_awesome_rounded,
-              count: totalEntryCount,
-              isSelected: selectedCategoryId == null,
-              onTap: () => onCategorySelected(null),
+            LibraryClassificationDropTarget<VibeLibraryEntry>(
+              enabled: onEntryDrop != null,
+              canAccept: (entry) => entry.categoryId != null,
+              onAccept: (entry) => onEntryDrop?.call(entry, null),
+              child: GalleryAllImagesItem(
+                key: const ValueKey('vibe-library-all'),
+                label: context.l10n.vibeLibrary_allVibes,
+                icon: Icons.auto_awesome_outlined,
+                selectedIcon: Icons.auto_awesome_rounded,
+                count: totalEntryCount,
+                isSelected: selectedCategoryId == null,
+                onTap: () => onCategorySelected(null),
+              ),
             ),
-          GallerySidebarFavoritesItem(
-            key: const ValueKey('vibe-library-favorites'),
-            label: context.l10n.vibeLibrary_favorites,
-            count: favoriteCount,
-            isSelected: selectedCategoryId == 'favorites',
-            onTap: () => onCategorySelected('favorites'),
+          LibraryClassificationDropTarget<VibeLibraryEntry>(
+            enabled: onFavoriteDrop != null,
+            canAccept: (entry) => !entry.isFavorite,
+            onAccept: (entry) => onFavoriteDrop?.call(entry),
+            child: GallerySidebarFavoritesItem(
+              key: const ValueKey('vibe-library-favorites'),
+              label: context.l10n.vibeLibrary_favorites,
+              count: favoriteCount,
+              isSelected: selectedCategoryId == 'favorites',
+              onTap: () => onCategorySelected('favorites'),
+            ),
           ),
           for (final category in sortedCategories)
-            VibeCategoryItem(
-              key: ValueKey('vibe-library-category-${category.id}'),
-              icon: Icons.label_outline_rounded,
-              label: category.displayName,
-              count: categoryEntryCounts[category.id] ?? 0,
-              isSelected: selectedCategoryId == category.id,
-              onTap: () => onCategorySelected(category.id),
-              onRename: onCategoryRename == null
-                  ? null
-                  : (name) => onCategoryRename!(category.id, name),
-              onDelete: onCategoryDelete == null
-                  ? null
-                  : () => onCategoryDelete!(category.id),
+            LibraryClassificationDropTarget<VibeLibraryEntry>(
+              enabled: onEntryDrop != null,
+              canAccept: (entry) => entry.categoryId != category.id,
+              onAccept: (entry) => onEntryDrop?.call(entry, category.id),
+              child: VibeCategoryItem(
+                key: ValueKey('vibe-library-category-${category.id}'),
+                icon: Icons.label_outline_rounded,
+                label: category.displayName,
+                count: categoryEntryCounts[category.id] ?? 0,
+                isSelected: selectedCategoryId == category.id,
+                onTap: () => onCategorySelected(category.id),
+                onRename: onCategoryRename == null
+                    ? null
+                    : (name) => onCategoryRename!(category.id, name),
+                onDelete: onCategoryDelete == null
+                    ? null
+                    : () => onCategoryDelete!(category.id),
+              ),
             ),
         ],
       ),

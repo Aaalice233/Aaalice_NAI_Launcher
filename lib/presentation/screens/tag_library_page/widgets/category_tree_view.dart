@@ -8,6 +8,7 @@ import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
+import '../../../widgets/common/library_classification_drag.dart';
 import '../../../widgets/gallery/gallery_album_tree_view.dart';
 import '../../../widgets/gallery/gallery_sidebar.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -33,6 +34,7 @@ class CategoryTreeView extends StatefulWidget {
 
   /// 词条拖拽到分类
   final void Function(String entryId, String? categoryId)? onEntryDrop;
+  final ValueChanged<String>? onEntryFavoriteDrop;
   final bool includeAllEntries;
 
   const CategoryTreeView({
@@ -49,6 +51,7 @@ class CategoryTreeView extends StatefulWidget {
     this.onCategoryMove,
     this.onCategoryReorder,
     this.onEntryDrop,
+    this.onEntryFavoriteDrop,
     this.includeAllEntries = true,
   });
 
@@ -118,13 +121,17 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
               ),
             ),
 
-          // 收藏 - 不接收拖拽
-          GallerySidebarFavoritesItem(
-            key: const ValueKey('tag-library-favorites'),
-            label: context.l10n.tagLibrary_favorites,
-            count: widget.entries.where((e) => e.isFavorite).length,
-            isSelected: widget.selectedCategoryId == 'favorites',
-            onTap: () => widget.onCategorySelected('favorites'),
+          LibraryClassificationDropTarget<TagLibraryEntry>(
+            enabled: widget.onEntryFavoriteDrop != null,
+            canAccept: (entry) => !entry.isFavorite,
+            onAccept: (entry) => widget.onEntryFavoriteDrop?.call(entry.id),
+            child: GallerySidebarFavoritesItem(
+              key: const ValueKey('tag-library-favorites'),
+              label: context.l10n.tagLibrary_favorites,
+              count: widget.entries.where((e) => e.isFavorite).length,
+              isSelected: widget.selectedCategoryId == 'favorites',
+              onTap: () => widget.onCategorySelected('favorites'),
+            ),
           ),
 
           // 分类树

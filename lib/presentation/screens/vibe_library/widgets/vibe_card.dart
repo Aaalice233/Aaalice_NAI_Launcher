@@ -27,6 +27,7 @@ enum _VibeCardAction {
   send,
   export,
   edit,
+  classify,
   delete,
 }
 
@@ -49,6 +50,7 @@ class VibeCard extends ConsumerStatefulWidget {
   final VoidCallback? onSendToGeneration;
   final VoidCallback? onExport;
   final VoidCallback? onEdit;
+  final VoidCallback? onClassify;
   final VoidCallback? onDelete;
 
   const VibeCard({
@@ -66,6 +68,7 @@ class VibeCard extends ConsumerStatefulWidget {
     this.onSendToGeneration,
     this.onExport,
     this.onEdit,
+    this.onClassify,
     this.onDelete,
   });
 
@@ -318,6 +321,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
                           widget.onSendToGeneration != null ||
                           widget.onExport != null ||
                           widget.onEdit != null ||
+                          widget.onClassify != null ||
                           widget.onDelete != null))
                     _buildTouchActionMenu()
                   else if (_isHovered && !widget.isSelected)
@@ -740,6 +744,8 @@ class _VibeCardState extends ConsumerState<VibeCard>
                 widget.onExport?.call();
               case _VibeCardAction.edit:
                 widget.onEdit?.call();
+              case _VibeCardAction.classify:
+                widget.onClassify?.call();
               case _VibeCardAction.delete:
                 widget.onDelete?.call();
             }
@@ -806,6 +812,15 @@ class _VibeCardState extends ConsumerState<VibeCard>
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.edit),
                   title: Text(l10n.common_edit),
+                ),
+              ),
+            if (widget.onClassify != null)
+              PopupMenuItem(
+                value: _VibeCardAction.classify,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.drive_file_move_outline),
+                  title: Text(l10n.vibeLibrary_moveToCategory),
                 ),
               ),
             if (widget.onDelete != null)

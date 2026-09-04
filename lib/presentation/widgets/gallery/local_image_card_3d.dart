@@ -535,6 +535,12 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                 icon: Icons.auto_awesome_outlined,
                 label: context.l10n.agentChat_addResource,
               ),
+            if (widget.onSendAction != null)
+              item(
+                value: LocalImageContextAction.moveToCategory,
+                icon: Icons.drive_file_move_outline,
+                label: context.l10n.localGallery_moveToCategory,
+              ),
             if (watermarkEnabled)
               item(
                 value: LocalImageContextAction.createWatermark,

@@ -25,6 +25,8 @@ import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/input_surface_container.dart';
 import '../../widgets/common/pagination_bar.dart';
+import '../../widgets/common/library_classification_drag.dart';
+import '../../widgets/common/precise_reference_type_dialog.dart';
 import '../../widgets/gallery/gallery_sidebar.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'widgets/precise_ref_card.dart';
@@ -342,6 +344,8 @@ class _PreciseRefLibraryScreenState
                   ? PreciseRefLibrarySidebar(
                       state: state,
                       onFilterChanged: _selectSidebarFilter,
+                      onEntryTypeDrop: _setEntryType,
+                      onFavoriteDrop: _favoriteEntry,
                     )
                   : null,
               body: state.isLoading
@@ -421,6 +425,8 @@ class _PreciseRefLibraryScreenState
           _selectSidebarFilter(favoritesOnly: favoritesOnly, type: type);
           Navigator.of(panelContext).pop();
         },
+        onEntryTypeDrop: _setEntryType,
+        onFavoriteDrop: _favoriteEntry,
       ),
     );
   }
@@ -771,21 +777,49 @@ class _PreciseRefLibraryScreenState
             resourceId: entry.id,
             display: {'name': entry.name},
           ),
-          child: PreciseRefCard(
-            entry: entry,
-            onSendToPreciseRef: () => _sendToPreciseRef(entry),
-            onSendToImg2Img: () => _sendToImg2Img(entry),
-            onEdit: () => _editEntry(entry),
-            onDelete: () => _deleteEntry(entry),
-            onToggleFavorite: () {
-              ref
-                  .read(preciseRefLibraryNotifierProvider.notifier)
-                  .toggleFavorite(entry.id);
-            },
+          child: LibraryClassificationDragSource<PreciseRefLibraryEntry>(
+            data: entry,
+            label: entry.name,
+            child: PreciseRefCard(
+              entry: entry,
+              onSendToPreciseRef: () => _sendToPreciseRef(entry),
+              onSendToImg2Img: () => _sendToImg2Img(entry),
+              onEdit: () => _editEntry(entry),
+              onDelete: () => _deleteEntry(entry),
+              onToggleFavorite: () {
+                ref
+                    .read(preciseRefLibraryNotifierProvider.notifier)
+                    .toggleFavorite(entry.id);
+              },
+              onClassify: () => _classifyEntry(entry),
+            ),
           ),
         );
       },
     );
+  }
+
+  Future<void> _classifyEntry(PreciseRefLibraryEntry entry) async {
+    final type = await PreciseReferenceTypeDialog.show(context);
+    if (type == null || !mounted) return;
+    await _setEntryType(entry, type);
+  }
+
+  Future<void> _setEntryType(
+    PreciseRefLibraryEntry entry,
+    PreciseRefType type,
+  ) async {
+    if (entry.type == type) return;
+    await ref
+        .read(preciseRefLibraryNotifierProvider.notifier)
+        .updateEntry(entry.id, type: type);
+  }
+
+  Future<void> _favoriteEntry(PreciseRefLibraryEntry entry) async {
+    if (entry.isFavorite) return;
+    await ref
+        .read(preciseRefLibraryNotifierProvider.notifier)
+        .toggleFavorite(entry.id);
   }
 
   Widget _buildPagination(PreciseRefLibraryState state, double contentWidth) {

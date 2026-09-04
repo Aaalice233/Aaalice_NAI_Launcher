@@ -14,7 +14,6 @@ import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/novelai_vibe_codec.dart';
 import '../../../core/utils/vibe_library_path_helper.dart';
-import '../../../data/models/vibe/vibe_library_category.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/generation/generation_params_notifier.dart';
@@ -31,6 +30,8 @@ import 'vibe_library_commands.dart';
 import 'vibe_library_screen_controller.dart';
 import 'vibe_library_workspace.dart';
 import 'widgets/category/vibe_category_tree_view.dart';
+import 'widgets/category/vibe_category_destination_panel.dart';
+export 'widgets/category/vibe_category_destination_panel.dart';
 import 'widgets/menus/vibe_import_menu.dart';
 import 'widgets/vibe_export_dialog_advanced.dart';
 
@@ -201,6 +202,17 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         unawaited(_markEncodingModel());
       case DeleteSelectionCommand():
         unawaited(_deleteSelection());
+      case ClassifyVibeEntryCommand(:final entryId, :final categoryId):
+        unawaited(library.updateEntryCategory(entryId, categoryId));
+      case FavoriteVibeEntryCommand(:final entryId):
+        final entry = ref
+            .read(vibeLibraryNotifierProvider)
+            .entries
+            .cast<VibeLibraryEntry?>()
+            .firstWhere((item) => item?.id == entryId, orElse: () => null);
+        if (entry != null && !entry.isFavorite) {
+          unawaited(library.toggleFavorite(entryId));
+        }
     }
   }
 
@@ -506,58 +518,6 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     if (selected.isEmpty || !mounted) return;
     await _controller.runDialogLocked(
       () => VibeExportDialogAdvanced.show(context, entries: selected),
-    );
-  }
-}
-
-/// 自适应的 Vibe 批量移动目标分类列表。
-///
-/// 空字符串表示“未分类”，null 仅表示用户取消，以保留既有返回值契约。
-class VibeCategoryDestinationPanel extends StatelessWidget {
-  const VibeCategoryDestinationPanel({
-    super.key,
-    required this.categories,
-    this.scrollController,
-  });
-
-  final List<VibeLibraryCategory> categories;
-  final ScrollController? scrollController;
-
-  static Future<String?> show(
-    BuildContext context, {
-    required List<VibeLibraryCategory> categories,
-  }) {
-    return AdaptivePresenter.showForm<String>(
-      context: context,
-      title: context.l10n.vibeLibrary_moveToCategory,
-      sideSheetWidth: 440,
-      builder: (panelContext, scrollController) => VibeCategoryDestinationPanel(
-        categories: categories,
-        scrollController: scrollController,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      key: const ValueKey('vibe-category-destination-list'),
-      controller: scrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      children: [
-        ListTile(
-          leading: const Icon(Icons.folder_off_outlined),
-          title: Text(context.l10n.vibeLibrary_uncategorized),
-          onTap: () => Navigator.of(context).pop(''),
-        ),
-        for (final category in categories)
-          ListTile(
-            leading: const Icon(Icons.folder_outlined),
-            title: Text(category.name),
-            onTap: () => Navigator.of(context).pop(category.id),
-          ),
-      ],
     );
   }
 }
