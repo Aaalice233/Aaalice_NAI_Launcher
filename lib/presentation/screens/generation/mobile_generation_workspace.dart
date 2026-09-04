@@ -253,130 +253,159 @@ class MobileCollapsedPromptLauncher extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 56),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              child: Row(
+              child: Stack(
+                alignment: Alignment.centerRight,
                 children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: colors.primaryContainer.withValues(alpha: 0.62),
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: Icon(
-                      Icons.edit_rounded,
-                      size: 17,
-                      color: colors.onPrimaryContainer,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Padding(
+                    padding: const EdgeInsets.only(right: 32),
+                    child: Row(
                       children: [
-                        if (largeText) ...[
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  context.l10n.promptToken_prompt,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                Icons.open_in_full_rounded,
-                                size: 15,
-                                color: colors.onSurfaceVariant.withValues(
-                                  alpha: 0.68,
-                                ),
-                              ),
-                            ],
+                        Container(
+                          width: 32,
+                          height: 32,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: colors.primaryContainer.withValues(
+                              alpha: 0.62,
+                            ),
+                            borderRadius: BorderRadius.circular(9),
                           ),
-                        ] else
-                          Row(
+                          child: Icon(
+                            Icons.edit_rounded,
+                            size: 17,
+                            color: colors.onPrimaryContainer,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Flexible(
-                                child: Text(
-                                  context.l10n.promptToken_prompt,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              Row(
+                                key: const ValueKey(
+                                  'generation-prompt-overview-primary-row',
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  hasPrompt
-                                      ? prompt.replaceAll(RegExp(r'\s+'), ' ')
-                                      : context.l10n.prompt_describeImage,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colors.onSurfaceVariant.withValues(
-                                      alpha: hasPrompt ? 0.8 : 0.56,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      context.l10n.promptToken_prompt,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              if (hasPrompt) ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  context.l10n
-                                      .generation_promptOverviewCharacters(
-                                        prompt.runes.length,
+                                  if (!largeText) ...[
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        hasPrompt
+                                            ? prompt.replaceAll(
+                                                RegExp(r'\s+'),
+                                                ' ',
+                                              )
+                                            : context.l10n.prompt_describeImage,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: colors.onSurfaceVariant
+                                                  .withValues(
+                                                    alpha: hasPrompt
+                                                        ? 0.8
+                                                        : 0.56,
+                                                  ),
+                                            ),
                                       ),
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: colors.onSurfaceVariant,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures(),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(width: 6),
-                              Icon(
-                                Icons.open_in_full_rounded,
-                                size: 15,
-                                color: colors.onSurfaceVariant.withValues(
-                                  alpha: 0.68,
-                                ),
-                              ),
-                            ],
-                          ),
-                        if (!largeText && statusItems.isNotEmpty) ...[
-                          const SizedBox(height: 3),
-                          SizedBox(
-                            height: largeText ? 48 : 17,
-                            child: SingleChildScrollView(
-                              key: const ValueKey(
-                                'generation-prompt-overview-statuses',
-                              ),
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  for (
-                                    var index = 0;
-                                    index < statusItems.length;
-                                    index++
-                                  ) ...[
-                                    if (index > 0) const SizedBox(width: 11),
-                                    statusItems[index],
+                                    ),
                                   ],
                                 ],
                               ),
-                            ),
+                              if ((!largeText && statusItems.isNotEmpty) ||
+                                  hasPrompt) ...[
+                                const SizedBox(height: 3),
+                                Row(
+                                  key: const ValueKey(
+                                    'generation-prompt-overview-secondary-row',
+                                  ),
+                                  children: [
+                                    if (!largeText && statusItems.isNotEmpty)
+                                      Expanded(
+                                        child: SizedBox(
+                                          height: 17,
+                                          child: SingleChildScrollView(
+                                            key: const ValueKey(
+                                              'generation-prompt-overview-statuses',
+                                            ),
+                                            scrollDirection: Axis.horizontal,
+                                            child: Row(
+                                              children: [
+                                                for (
+                                                  var index = 0;
+                                                  index < statusItems.length;
+                                                  index++
+                                                ) ...[
+                                                  if (index > 0)
+                                                    const SizedBox(width: 11),
+                                                  statusItems[index],
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      const Spacer(),
+                                    if (hasPrompt) ...[
+                                      if (!largeText && statusItems.isNotEmpty)
+                                        const SizedBox(width: 8),
+                                      Text(
+                                        key: const ValueKey(
+                                          'generation-prompt-overview-characters',
+                                        ),
+                                        context.l10n
+                                            .generation_promptOverviewCharacters(
+                                              prompt.runes.length,
+                                            ),
+                                        maxLines: 1,
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              color: colors.onSurfaceVariant,
+                                              fontFeatures: const [
+                                                FontFeature.tabularFigures(),
+                                              ],
+                                            ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
+                        ),
                       ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: 32,
+                    child: Center(
+                      key: const ValueKey(
+                        'generation-prompt-overview-maximize-slot',
+                      ),
+                      child: Icon(
+                        Icons.open_in_full_rounded,
+                        key: const ValueKey(
+                          'generation-prompt-overview-maximize',
+                        ),
+                        size: 17,
+                        color: colors.onSurfaceVariant.withValues(alpha: 0.68),
+                      ),
                     ),
                   ),
                 ],
