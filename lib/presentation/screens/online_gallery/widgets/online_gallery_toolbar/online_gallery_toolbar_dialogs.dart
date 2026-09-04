@@ -41,7 +41,7 @@ class OnlineGalleryToolbarDialogs {
       initialChildSize: 0.58,
       minChildSize: 0.36,
       maxChildSize: 0.92,
-      sideSheetWidth: 480,
+      width: 480,
       titleBuilder: (panelContext) => Row(
         children: [
           const Icon(Icons.tune_rounded, size: 20),

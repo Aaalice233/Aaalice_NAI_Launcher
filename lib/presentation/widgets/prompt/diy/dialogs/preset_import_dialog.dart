@@ -56,7 +56,7 @@ class PresetImportDialog extends StatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      sideSheetWidth: 560,
+      width: 560,
       builder: (context, scrollController) => PresetImportDialog(
         isExport: isExport,
         presetToExport: presetToExport,

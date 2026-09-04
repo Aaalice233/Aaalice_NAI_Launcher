@@ -21,7 +21,7 @@ class VibeCategoryDestinationPanel extends StatelessWidget {
   }) => AdaptivePresenter.showForm<String>(
     context: context,
     title: context.l10n.vibeLibrary_moveToCategory,
-    sideSheetWidth: 440,
+    width: 440,
     builder: (panelContext, scrollController) => VibeCategoryDestinationPanel(
       categories: categories,
       scrollController: scrollController,

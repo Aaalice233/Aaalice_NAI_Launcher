@@ -356,7 +356,7 @@ class OnlineGallerySelectionActions {
         barrierDismissible: false,
         allowDragDismissal: false,
         showHeader: false,
-        sideSheetWidth: 480,
+        width: 480,
         initialChildSize: 0.42,
         minChildSize: 0.32,
         maxChildSize: 0.72,

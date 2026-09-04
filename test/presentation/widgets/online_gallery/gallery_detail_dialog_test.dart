@@ -1016,7 +1016,7 @@ void main() {
                 onPressed: () => AdaptivePresenter.showForm<void>(
                   context: context,
                   showHeader: false,
-                  sideSheetWidth: 960,
+                  width: 960,
                   builder: (context, _) => GalleryDetailDialog(
                     embedded: true,
                     item: item,
@@ -1048,7 +1048,6 @@ void main() {
 
     final surface = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(surface, findsOneWidget);
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsNothing);
     final rect = tester.getRect(surface);
     expect(rect.width, 960);
     expect(rect.center, const Offset(800, 450));

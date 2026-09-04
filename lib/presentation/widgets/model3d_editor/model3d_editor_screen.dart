@@ -289,7 +289,7 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
     await AdaptivePresenter.showForm<void>(
       context: context,
       title: context.l10n.model3d_light,
-      sideSheetWidth: 520,
+      width: 520,
       builder: (panelContext, scrollController) => StatefulBuilder(
         builder: (context, setFormState) {
           void updateLight(ValueChanged<double> update, double value) {

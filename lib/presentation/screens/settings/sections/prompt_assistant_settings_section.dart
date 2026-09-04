@@ -532,7 +532,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     final result =
         await AdaptivePresenter.showForm<PromptAssistantProviderFormResult>(
           context: context,
-          sideSheetWidth: 520,
+          width: 520,
           title: provider == null
               ? context.l10n.promptAssistant_addProvider
               : context.l10n.promptAssistant_editProviderTitle,
@@ -622,7 +622,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     final result =
         await AdaptivePresenter.showForm<PromptAssistantConnectionFormResult>(
           context: context,
-          sideSheetWidth: 520,
+          width: 520,
           title: context.l10n.promptAssistant_connectionTitle(provider.name),
           builder: (context, scrollController) => PromptAssistantConnectionForm(
             provider: provider,
@@ -657,7 +657,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     final result =
         await AdaptivePresenter.showForm<PromptAssistantRuleFormResult>(
           context: context,
-          sideSheetWidth: 560,
+          width: 560,
           title: rule == null
               ? context.l10n.promptAssistant_addRuleTitle
               : context.l10n.promptAssistant_editRuleTitle,

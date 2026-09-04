@@ -510,7 +510,7 @@ Future<VibeLibrarySaveFormResult?> showVibeLibrarySaveForm({
   return AdaptivePresenter.showForm<VibeLibrarySaveFormResult>(
     context: context,
     title: context.l10n.vibe_saveToLibrary_title,
-    sideSheetWidth: 440,
+    width: 440,
     builder: (panelContext, scrollController) => StatefulBuilder(
       builder: (panelContext, setState) => Column(
         children: [

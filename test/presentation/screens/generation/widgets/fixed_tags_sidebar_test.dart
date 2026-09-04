@@ -295,7 +295,6 @@ void main() {
 
     final surface = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(surface, findsOneWidget);
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsNothing);
     final rect = tester.getRect(surface);
     expect(rect.width, 980);
     expect(rect.center, const Offset(800, 450));

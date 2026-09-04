@@ -489,7 +489,7 @@ class _CategoryItemState extends State<_CategoryItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Deep imported hierarchies must retain room for the label and action menu
-    // instead of pushing the row beyond a compact side sheet.
+    // instead of pushing the row beyond a compact modal surface.
     final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
     final showActions =
         widget.onRename != null &&

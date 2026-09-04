@@ -52,7 +52,7 @@ class PreciseRefEntryEditDialog extends StatefulWidget {
         panelContext.l10n.preciseRefLib_editEntry,
         style: Theme.of(panelContext).textTheme.titleLarge,
       ),
-      sideSheetWidth: 440,
+      width: 440,
       builder: (panelContext, scrollController) =>
           PreciseRefEntryEditDialog._presented(
             entry: entry,

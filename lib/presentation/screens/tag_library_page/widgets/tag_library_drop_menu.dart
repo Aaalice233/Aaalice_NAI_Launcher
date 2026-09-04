@@ -44,7 +44,7 @@ class TagLibraryDropMenu extends StatelessWidget {
     final displayFileName = _displayFileName(fileName);
     return AdaptivePresenter.showForm<TagLibraryDropAction>(
       context: context,
-      sideSheetWidth: 400,
+      width: 400,
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(

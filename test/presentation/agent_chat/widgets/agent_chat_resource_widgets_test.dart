@@ -47,11 +47,11 @@ void main() {
         );
         expect(
           find.byKey(const ValueKey('adaptive-bottom-sheet')),
-          width < 840 ? findsOneWidget : findsNothing,
+          width < 600 ? findsOneWidget : findsNothing,
         );
         expect(
-          find.byKey(const ValueKey('adaptive-side-sheet')),
-          width >= 840 ? findsOneWidget : findsNothing,
+          find.byKey(const ValueKey('adaptive-centered-form')),
+          width >= 600 ? findsOneWidget : findsNothing,
         );
 
         await tester.tap(find.text('本地图库'));
@@ -144,7 +144,7 @@ void main() {
     },
   );
 
-  testWidgets('both resource managers use an adaptive side sheet at 1180', (
+  testWidgets('both resource managers use a centered dialog at 1180', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -165,7 +165,10 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(find.text('生成历史'), findsOneWidget);
     expect(find.text('本地图库'), findsOneWidget);
     await tester.binding.handlePopRoute();
@@ -173,7 +176,10 @@ void main() {
 
     await tester.tap(find.text('open resource'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(find.text('标签词库'), findsOneWidget);
     expect(find.text('Vibe 库'), findsOneWidget);
     expect(find.text('精准参考库'), findsOneWidget);
@@ -182,7 +188,7 @@ void main() {
 
     expect(selected?.kind, AgentChatResourceKind.tagLibraryEntry);
     expect(selected?.resourceId, 'tag-1');
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsNothing);
+    expect(find.byKey(const ValueKey('adaptive-centered-form')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

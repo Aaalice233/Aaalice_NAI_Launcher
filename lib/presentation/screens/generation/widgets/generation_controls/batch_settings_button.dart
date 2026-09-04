@@ -92,7 +92,7 @@ class BatchSettingsButton extends ConsumerWidget {
           Flexible(child: Text(l10n.batchSize_title)),
         ],
       ),
-      sideSheetWidth: 440,
+      width: 440,
       builder: (context, scrollController) => StatefulBuilder(
         builder: (context, setState) {
           final totalImages = batchCount * currentBatchSize;

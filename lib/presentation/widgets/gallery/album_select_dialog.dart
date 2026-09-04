@@ -29,7 +29,7 @@ class AlbumSelectDialog extends ConsumerStatefulWidget {
     return AdaptivePresenter.showForm<AlbumSelectResult>(
       context: context,
       title: context.l10n.localGallery_albumSelectTitle,
-      sideSheetWidth: 450,
+      width: 450,
       builder: (panelContext, scrollController) =>
           AlbumSelectDialog(scrollController: scrollController),
     );

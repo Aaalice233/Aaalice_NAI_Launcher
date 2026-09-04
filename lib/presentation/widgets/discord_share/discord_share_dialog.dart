@@ -45,7 +45,7 @@ class DiscordShareDialog extends ConsumerStatefulWidget {
     return AdaptivePresenter.showForm<bool>(
       context: context,
       barrierDismissible: false,
-      sideSheetWidth: 920,
+      width: 920,
       titleBuilder: (panelContext) => Row(
         children: [
           Container(

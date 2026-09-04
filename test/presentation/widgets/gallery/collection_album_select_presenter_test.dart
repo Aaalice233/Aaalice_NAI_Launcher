@@ -119,7 +119,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('desktop selectors use bounded side sheets', (tester) async {
+  testWidgets('desktop selectors use bounded centered dialogs', (tester) async {
     await _pumpHost(
       tester,
       size: const Size(1180, 800),
@@ -128,12 +128,15 @@ void main() {
 
     await tester.tap(find.text('Open collection'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('adaptive-side-sheet')), findsOneWidget);
-    expect(find.byType(AlertDialog), findsNothing);
-    final collectionSheet = tester.getRect(
-      find.byKey(const ValueKey('adaptive-side-sheet')),
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
     );
-    expect(collectionSheet.width, 450);
+    expect(find.byType(AlertDialog), findsNothing);
+    final collectionDialog = tester.getRect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+    );
+    expect(collectionDialog.width, 450);
     await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();
 
@@ -143,10 +146,10 @@ void main() {
       find.byKey(const ValueKey('adaptive-centered-form')),
       findsOneWidget,
     );
-    final albumSheet = tester.getRect(
+    final albumDialog = tester.getRect(
       find.byKey(const ValueKey('adaptive-centered-form')),
     );
-    expect(albumSheet.width, 450);
+    expect(albumDialog.width, 450);
     expect(tester.takeException(), isNull);
   });
 }

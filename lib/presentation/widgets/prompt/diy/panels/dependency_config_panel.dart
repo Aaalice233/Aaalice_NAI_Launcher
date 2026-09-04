@@ -729,7 +729,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
           ),
         ],
       ),
-      sideSheetWidth: 480,
+      width: 480,
       builder: (context, scrollController) =>
           _MappingRuleForm(scrollController: scrollController),
     );

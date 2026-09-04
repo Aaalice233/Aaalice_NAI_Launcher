@@ -50,7 +50,7 @@ class FixedTagEditDialog extends ConsumerStatefulWidget {
       title: entry == null
           ? context.l10n.fixedTags_add
           : context.l10n.fixedTags_edit,
-      sideSheetWidth: 860,
+      width: 860,
       builder: (_, __) => FixedTagEditDialog(
         entry: entry,
         initialPromptType: initialPromptType,

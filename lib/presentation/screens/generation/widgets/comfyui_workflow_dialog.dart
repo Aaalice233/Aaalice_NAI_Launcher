@@ -39,7 +39,7 @@ class ComfyUIWorkflowDialog extends ConsumerStatefulWidget {
   }) {
     return AdaptivePresenter.showForm<List<Uint8List>>(
       context: context,
-      sideSheetWidth: 560,
+      width: 560,
       titleBuilder: (panelContext) {
         final theme = Theme.of(panelContext);
         return Row(

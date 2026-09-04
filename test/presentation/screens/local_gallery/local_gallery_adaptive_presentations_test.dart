@@ -66,7 +66,7 @@ void main() {
 
         final expectedSurface = size.width < 600
             ? const ValueKey('adaptive-full-screen-form')
-            : const ValueKey('adaptive-side-sheet');
+            : const ValueKey('adaptive-centered-form');
 
         await tester.tap(find.text('move'));
         await tester.pumpAndSettle();
@@ -92,9 +92,9 @@ void main() {
 
         await tester.tap(find.text('failures'));
         await tester.pumpAndSettle();
-        final failureSurface = size.width < 840
+        final failureSurface = size.width < 600
             ? const ValueKey('adaptive-bottom-sheet')
-            : const ValueKey('adaptive-side-sheet');
+            : const ValueKey('adaptive-centered-form');
         expect(find.byKey(failureSurface), findsOneWidget);
         expect(
           find.byKey(const ValueKey('local-gallery-zip-failure-list')),

@@ -112,7 +112,7 @@ class VibeExportDialog extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      sideSheetWidth: 650,
+      width: 650,
       builder: (_, __) =>
           VibeExportDialog(entries: entries, categories: categories),
     );

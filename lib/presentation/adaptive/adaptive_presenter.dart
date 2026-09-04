@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../core/windowing/workspace_side_panel_contract.dart';
 import '../themes/theme_extension.dart';
 import 'window_size_class.dart';
 
@@ -18,6 +17,8 @@ typedef AdaptivePanelBuilder =
 class AdaptivePresenter {
   AdaptivePresenter._();
 
+  static const _defaultCenteredWidth = 560.0;
+
   /// Presents dialog-style editing flows full-screen on compact panes and in
   /// a bounded, centered surface at every larger width.
   static Future<T?> showForm<T>({
@@ -25,7 +26,7 @@ class AdaptivePresenter {
     String? title,
     WidgetBuilder? titleBuilder,
     required AdaptivePanelBuilder builder,
-    double? sideSheetWidth,
+    double? width,
     double? maxCenteredHeight,
     bool barrierDismissible = true,
     bool requestFocus = true,
@@ -46,7 +47,7 @@ class AdaptivePresenter {
         context: context,
         titleBuilder: resolvedTitleBuilder,
         builder: builder,
-        width: sideSheetWidth ?? WorkspaceSidePanelContract.preferredFormWidth,
+        width: width ?? _defaultCenteredWidth,
         maxHeight: maxCenteredHeight,
         barrierDismissible: barrierDismissible,
         requestFocus: requestFocus,
@@ -117,7 +118,7 @@ class AdaptivePresenter {
         initialChildSize: initialChildSize,
         minChildSize: minChildSize,
         maxChildSize: maxChildSize,
-        sideSheetWidth: width,
+        width: width,
         barrierDismissible: barrierDismissible,
         requestFocus: requestFocus,
         restoreFocus: restoreFocus,
@@ -138,7 +139,7 @@ class AdaptivePresenter {
       context: context,
       titleBuilder: (_) => const SizedBox.shrink(),
       builder: builder,
-      width: width ?? WorkspaceSidePanelContract.preferredFormWidth,
+      width: width ?? _defaultCenteredWidth,
       maxHeight: maxCenteredHeight,
       barrierDismissible: barrierDismissible,
       requestFocus: requestFocus,
@@ -154,6 +155,8 @@ class AdaptivePresenter {
     return result;
   }
 
+  /// Presents auxiliary content as a bottom sheet on compact panes and as an
+  /// independent, centered dialog everywhere else.
   static Future<T?> showPanel<T>({
     required BuildContext context,
     String? title,
@@ -162,7 +165,8 @@ class AdaptivePresenter {
     double initialChildSize = 0.72,
     double minChildSize = 0.38,
     double maxChildSize = 0.94,
-    double? sideSheetWidth,
+    double? width,
+    double? maxCenteredHeight,
     bool barrierDismissible = true,
     bool allowDragDismissal = true,
     bool requestFocus = true,
@@ -180,15 +184,13 @@ class AdaptivePresenter {
         ? FocusManager.instance.primaryFocus
         : null;
     final Future<T?> presentation;
-    if (metrics.isExpandedOrWider) {
-      presentation = _showSideSheet<T>(
+    if (!metrics.isCompact) {
+      presentation = _showCenteredForm<T>(
         context: context,
         titleBuilder: resolvedTitleBuilder,
         builder: builder,
-        width: WorkspaceSidePanelContract.overlayWidth(
-          metrics.safeUsableSize.width,
-          preferredWidth: sideSheetWidth,
-        ),
+        width: width ?? _defaultCenteredWidth,
+        maxHeight: maxCenteredHeight,
         barrierDismissible: barrierDismissible,
         requestFocus: requestFocus,
         showHeader: showHeader,
@@ -281,46 +283,6 @@ class AdaptivePresenter {
       },
     );
   }
-
-  static Future<T?> _showSideSheet<T>({
-    required BuildContext context,
-    required WidgetBuilder titleBuilder,
-    required AdaptivePanelBuilder builder,
-    required double width,
-    required bool barrierDismissible,
-    required bool requestFocus,
-    required bool showHeader,
-  }) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final motion = Theme.of(context).appTheme;
-    return showGeneralDialog<T>(
-      context: context,
-      anchorPoint: Offset(MediaQuery.sizeOf(context).width - 1, 0),
-      barrierDismissible: barrierDismissible,
-      barrierLabel: barrierDismissible
-          ? MaterialLocalizations.of(context).modalBarrierDismissLabel
-          : null,
-      requestFocus: requestFocus,
-      barrierColor: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.32),
-      transitionDuration: reduceMotion ? Duration.zero : motion.normalDuration,
-      pageBuilder: (dialogContext, _, __) => _SideSheetPanel(
-        width: width,
-        titleBuilder: titleBuilder,
-        builder: builder,
-        showHeader: showHeader,
-      ),
-      transitionBuilder: (context, animation, _, child) {
-        if (reduceMotion) return child;
-        return SlideTransition(
-          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-              .animate(
-                CurvedAnimation(parent: animation, curve: motion.enterCurve),
-              ),
-          child: child,
-        );
-      },
-    );
-  }
 }
 
 class _FullScreenPanel extends StatefulWidget {
@@ -394,8 +356,6 @@ class _CenteredFormPanel extends StatefulWidget {
 }
 
 class _CenteredFormPanelState extends State<_CenteredFormPanel> {
-  static const _minimumCenteredHeight = 560.0;
-
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -417,8 +377,6 @@ class _CenteredFormPanelState extends State<_CenteredFormPanel> {
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final useFullScreen =
-                constraints.maxHeight < _minimumCenteredHeight;
             final maxPanelHeight = math.min(
               constraints.maxHeight * 0.9,
               widget.maxHeight ?? double.infinity,
@@ -426,83 +384,20 @@ class _CenteredFormPanelState extends State<_CenteredFormPanel> {
             final panel = _PanelSurface(
               titleBuilder: widget.titleBuilder,
               scrollController: _scrollController,
-              fullScreen: useFullScreen,
-              centered: !useFullScreen,
+              centered: true,
               showHeader: widget.showHeader,
               child: widget.builder(context, _scrollController),
             );
             return Center(
               child: SizedBox(
-                width: useFullScreen
-                    ? double.infinity
-                    : widget.width.clamp(320, size.width * 0.9).toDouble(),
-                height: useFullScreen ? double.infinity : null,
-                child: useFullScreen
-                    ? panel
-                    : ConstrainedBox(
-                        constraints: BoxConstraints(maxHeight: maxPanelHeight),
-                        child: panel,
-                      ),
+                width: widget.width.clamp(320, size.width * 0.9).toDouble(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxPanelHeight),
+                  child: panel,
+                ),
               ),
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-class _SideSheetPanel extends StatefulWidget {
-  const _SideSheetPanel({
-    required this.width,
-    required this.titleBuilder,
-    required this.builder,
-    required this.showHeader,
-  });
-
-  final double width;
-  final WidgetBuilder titleBuilder;
-  final AdaptivePanelBuilder builder;
-  final bool showHeader;
-
-  @override
-  State<_SideSheetPanel> createState() => _SideSheetPanelState();
-}
-
-class _SideSheetPanelState extends State<_SideSheetPanel> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final motion = Theme.of(context).appTheme;
-    return AnimatedPadding(
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : motion.fastDuration,
-      curve: motion.standardCurve,
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: SizedBox(
-            width: widget.width
-                .clamp(320, MediaQuery.sizeOf(context).width * 0.9)
-                .toDouble(),
-            height: double.infinity,
-            child: _PanelSurface(
-              titleBuilder: widget.titleBuilder,
-              scrollController: _scrollController,
-              sideSheet: true,
-              showHeader: widget.showHeader,
-              child: widget.builder(context, _scrollController),
-            ),
-          ),
         ),
       ),
     );
@@ -514,7 +409,6 @@ class _PanelSurface extends StatelessWidget {
     required this.titleBuilder,
     required this.scrollController,
     required this.child,
-    this.sideSheet = false,
     this.fullScreen = false,
     this.centered = false,
     this.showHeader = true,
@@ -523,7 +417,6 @@ class _PanelSurface extends StatelessWidget {
   final WidgetBuilder titleBuilder;
   final ScrollController scrollController;
   final Widget child;
-  final bool sideSheet;
   final bool fullScreen;
   final bool centered;
   final bool showHeader;
@@ -542,8 +435,6 @@ class _PanelSurface extends StatelessWidget {
                 ? 'adaptive-full-screen-form'
                 : centered
                 ? 'adaptive-centered-form'
-                : sideSheet
-                ? 'adaptive-side-sheet'
                 : 'adaptive-bottom-sheet',
           ),
           color: theme.colorScheme.surface,
@@ -553,14 +444,12 @@ class _PanelSurface extends StatelessWidget {
                 ? BorderRadius.zero
                 : centered
                 ? BorderRadius.circular(24)
-                : sideSheet
-                ? const BorderRadius.horizontal(left: Radius.circular(24))
                 : const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             mainAxisSize: centered ? MainAxisSize.min : MainAxisSize.max,
             children: [
-              if (!sideSheet && !fullScreen && !centered)
+              if (!fullScreen && !centered)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Container(
@@ -616,7 +505,7 @@ class _PanelSurface extends StatelessWidget {
                   top: false,
                   left: false,
                   right: false,
-                  bottom: !sideSheet,
+                  bottom: true,
                   child: PrimaryScrollController(
                     controller: scrollController,
                     child: child,

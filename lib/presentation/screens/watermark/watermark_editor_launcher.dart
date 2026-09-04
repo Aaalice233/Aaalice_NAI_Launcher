@@ -127,7 +127,7 @@ class WatermarkEditorLauncher {
     return AdaptivePresenter.showForm<String>(
       context: context,
       title: context.l10n.watermark_editorTitle,
-      sideSheetWidth: 960,
+      width: 960,
       barrierDismissible: false,
       showHeader: false,
       builder: (context, scrollController) => page,

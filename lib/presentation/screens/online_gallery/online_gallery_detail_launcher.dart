@@ -93,7 +93,7 @@ class OnlineGalleryDetailLauncher {
       await AdaptivePresenter.showForm<void>(
         context: context,
         showHeader: false,
-        sideSheetWidth: 960,
+        width: 960,
         builder: (dialogContext, _) => GalleryDetailDialog(
           embedded: true,
           item: item,

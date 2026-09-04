@@ -396,6 +396,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       minChildSize: 0.62,
       builder: (panelContext, scrollController) => ListView(
         controller: scrollController,
+        shrinkWrap: true,
         padding: const EdgeInsets.fromLTRB(8, 16, 8, 32),
         children: [
           LoginFormContainer(onLoginSuccess: () => Navigator.pop(panelContext)),
@@ -417,6 +418,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       maxChildSize: 0.62,
       builder: (panelContext, scrollController) => ListView(
         controller: scrollController,
+        shrinkWrap: true,
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           ListTile(

@@ -216,7 +216,7 @@ void main() {
         expect(
           find.byKey(
             ValueKey(
-              width < 840 ? 'adaptive-bottom-sheet' : 'adaptive-side-sheet',
+              width < 600 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
             ),
           ),
           findsOneWidget,
@@ -556,7 +556,9 @@ void main() {
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
-        final filterPanel = find.byType(DraggableScrollableSheet);
+        final filterPanel = find.byKey(
+          const ValueKey('adaptive-centered-form'),
+        );
         expect(filterPanel, findsOneWidget);
         expect(
           find.descendant(

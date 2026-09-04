@@ -45,8 +45,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      final surfaceKey = scenario.size.width >= 840
-          ? 'adaptive-side-sheet'
+      final surfaceKey = scenario.size.width >= 600
+          ? 'adaptive-centered-form'
           : 'adaptive-bottom-sheet';
       expect(find.byKey(ValueKey(surfaceKey)), findsOneWidget);
       final tipsList = find.byKey(

@@ -53,7 +53,7 @@ class CollectionSelectDialog extends ConsumerStatefulWidget {
       initialChildSize: needsTallPanel ? 0.93 : 0.72,
       minChildSize: needsTallPanel ? 0.72 : 0.46,
       maxChildSize: 0.94,
-      sideSheetWidth: 450,
+      width: 450,
       builder: (panelContext, scrollController) => CollectionSelectDialog(
         theme: theme,
         scrollController: scrollController,

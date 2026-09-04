@@ -40,7 +40,7 @@ class PreciseRefSelectorDialog extends ConsumerStatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(panelContext).textTheme.titleLarge,
       ),
-      sideSheetWidth: 720,
+      width: 720,
       builder: (panelContext, scrollController) => PreciseRefSelectorDialog(
         multiSelect: multiSelect,
         scrollController: scrollController,

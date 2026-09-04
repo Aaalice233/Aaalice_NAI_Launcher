@@ -52,7 +52,7 @@ class EntrySelectorDialog extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      sideSheetWidth: 500,
+      width: 500,
       builder: (panelContext, scrollController) => EntrySelectorDialog(
         entries: entries,
         categories: categories,

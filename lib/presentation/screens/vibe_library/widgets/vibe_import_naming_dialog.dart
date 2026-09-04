@@ -92,7 +92,7 @@ class VibeImportNamingDialog extends StatefulWidget {
             ),
         ],
       ),
-      sideSheetWidth: 400,
+      width: 400,
       builder: (dialogContext, scrollController) =>
           VibeImportNamingDialog._presented(
             suggestedName: suggestedName,
