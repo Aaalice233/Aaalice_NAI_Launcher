@@ -78,11 +78,9 @@ class _HSVColorPickerState extends State<HSVColorPicker> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Hex 输入框
-        Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hexInput = Row(
           children: [
             Container(
               width: 32,
@@ -125,24 +123,18 @@ class _HSVColorPickerState extends State<HSVColorPicker> {
               ),
             ),
           ],
-        ),
-
-        const SizedBox(height: 12),
-
-        // SV 面板
-        SizedBox(
+        );
+        final saturationValuePanel = SizedBox(
+          key: const ValueKey('hsv-color-picker-sv-panel'),
           height: 120,
           child: _SVPanel(
             hsvColor: _hsvColor,
             semanticLabel: widget.saturationBrightnessLabel,
             onChanged: _onColorChanged,
           ),
-        ),
-
-        const SizedBox(height: 8),
-
-        // Hue 滑块
-        SizedBox(
+        );
+        final hueSlider = SizedBox(
+          key: const ValueKey('hsv-color-picker-hue-slider'),
           height: widget.hueHeight,
           child: _HueSlider(
             hue: _hsvColor.hue,
@@ -151,8 +143,24 @@ class _HSVColorPickerState extends State<HSVColorPicker> {
               _onColorChanged(_hsvColor.withHue(hue));
             },
           ),
-        ),
-      ],
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            hexInput,
+            const SizedBox(height: 12),
+            // 浮层可能给出短而有界的高度；保留 Hex 与 Hue 操作，
+            // 由二维色板吸收剩余空间，避免任一控制被裁掉。
+            if (constraints.hasBoundedHeight)
+              Expanded(child: saturationValuePanel)
+            else
+              saturationValuePanel,
+            const SizedBox(height: 8),
+            hueSlider,
+          ],
+        );
+      },
     );
   }
 }

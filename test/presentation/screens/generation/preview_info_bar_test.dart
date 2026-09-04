@@ -159,6 +159,22 @@ void main() {
     );
   });
 
+  testWidgets('透明底色浮层展开自定义颜色时不会溢出', (tester) async {
+    await _pumpBar(tester, _image(seed: 1));
+
+    await tester.tap(find.byType(TransparencyBackgroundIcon));
+    await tester.pumpAndSettle();
+
+    final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+    await tester.tap(find.byTooltip(l10n.generation_transparencyCustom));
+    await tester.pumpAndSettle();
+
+    final svPanel = find.byKey(const ValueKey('hsv-color-picker-sv-panel'));
+    expect(svPanel, findsOneWidget);
+    expect(tester.getSize(svPanel).height, lessThan(120));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('窄屏下透明底色浮层会改向展开并保持在视口内', (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
