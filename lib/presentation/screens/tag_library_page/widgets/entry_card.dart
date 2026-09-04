@@ -121,14 +121,14 @@ class _EntryCardState extends State<EntryCard> {
                   if (widget.isSelectionMode || !_isHovering)
                     _buildNameArea(theme, entry),
 
-                  // 4. 收藏图标（常驻显示在右上角，仅非选择模式、非悬浮且已收藏时）
+                  // 4. 收藏图标（常驻显示在左上角，仅非选择模式、非悬浮且已收藏时）
                   if (!isTouch &&
                       !widget.isSelectionMode &&
                       !_isHovering &&
                       widget.entry.isFavorite)
                     Positioned(
                       top: 8,
-                      right: 8,
+                      left: 8,
                       child: LibraryCardFavoriteBadge(
                         semanticLabel: context.l10n.common_favorite,
                       ),

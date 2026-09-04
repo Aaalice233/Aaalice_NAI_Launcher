@@ -77,7 +77,12 @@ class LibraryCardFavoriteBadge extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(Icons.favorite, size: 12, color: Colors.white),
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.favorite_rounded,
+          size: 12,
+          color: Colors.white,
+        ),
       ),
     );
   }
