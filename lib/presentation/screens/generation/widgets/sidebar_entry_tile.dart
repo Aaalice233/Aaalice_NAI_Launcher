@@ -73,10 +73,10 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
       onExit: (_) => setState(() => _isHovering = false),
       child: Material(
         color: _backgroundColor(theme),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(widget.isListMode ? 6 : 10),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(widget.isListMode ? 6 : 10),
           onFocusChange: (focused) => setState(() => _isFocused = focused),
           onTap: widget.onToggle,
           child: AnimatedContainer(
@@ -108,13 +108,19 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   }
 
   Color _backgroundColor(ThemeData theme) {
-    if (!widget.entry.enabled) return theme.colorScheme.surfaceContainerHigh;
-    return widget.categoryColor.withValues(alpha: 0.11);
+    if (widget.isListMode) {
+      return widget.entry.enabled
+          ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55)
+          : Colors.transparent;
+    }
+    return widget.entry.enabled
+        ? theme.colorScheme.surfaceContainerHighest
+        : theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.65);
   }
 
   Widget _buildListContent(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       child: Row(
         children: [
           _buildStatusDot(),
@@ -225,7 +231,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
             ],
           ],
         ),
-        if (widget.isListMode) const SizedBox(height: 2),
+        if (widget.isListMode) const SizedBox(height: 1),
         TranslatedPromptText(
           widget.entry.content,
           selectable: false,

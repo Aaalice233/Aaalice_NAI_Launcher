@@ -298,42 +298,44 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   }
 
   Widget _buildEnabledStrip(ThemeData theme, FixedTagsState fixedState) {
+    final positiveSummary = _buildEnabledStripSection(
+      theme,
+      key: const ValueKey('fixed-tags-enabled-positive-strip'),
+      label: context.l10n.fixedTags_enabledPositive,
+      emptyText: context.l10n.fixedTags_emptyEnabledPositive,
+      icon: Icons.bolt_rounded,
+      color: theme.colorScheme.primary,
+      entries: fixedState.enabledEntries,
+    );
+    final negativeSummary = _buildEnabledStripSection(
+      theme,
+      key: const ValueKey('fixed-tags-enabled-negative-strip'),
+      label: context.l10n.fixedTags_enabledNegative,
+      emptyText: context.l10n.fixedTags_emptyEnabledNegative,
+      icon: Icons.block_rounded,
+      color: theme.colorScheme.error,
+      entries: fixedState.negativeEnabledEntries,
+    );
+    final useCompactRow = MediaQuery.textScalerOf(context).scale(1) >= 1.6;
+
     return Padding(
       key: const ValueKey('fixed-tags-enabled-strip'),
       padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildEnabledStripSection(
-              theme,
-              key: const ValueKey('fixed-tags-enabled-positive-strip'),
-              label: context.l10n.fixedTags_enabledPositive,
-              emptyText: context.l10n.fixedTags_emptyEnabledPositive,
-              icon: Icons.bolt_rounded,
-              color: theme.colorScheme.primary,
-              backgroundColor: theme.colorScheme.primaryContainer.withValues(
-                alpha: 0.22,
-              ),
-              entries: fixedState.enabledEntries,
+      child: useCompactRow
+          ? Row(
+              children: [
+                Expanded(child: positiveSummary),
+                const SizedBox(width: 4),
+                Expanded(child: negativeSummary),
+              ],
+            )
+          : Column(
+              children: [
+                positiveSummary,
+                const SizedBox(height: 4),
+                negativeSummary,
+              ],
             ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _buildEnabledStripSection(
-              theme,
-              key: const ValueKey('fixed-tags-enabled-negative-strip'),
-              label: context.l10n.fixedTags_enabledNegative,
-              emptyText: context.l10n.fixedTags_emptyEnabledNegative,
-              icon: Icons.block_rounded,
-              color: theme.colorScheme.error,
-              backgroundColor: theme.colorScheme.errorContainer.withValues(
-                alpha: 0.28,
-              ),
-              entries: fixedState.negativeEnabledEntries,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -344,7 +346,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     required String emptyText,
     required IconData icon,
     required Color color,
-    required Color backgroundColor,
     required List<FixedTagEntry> entries,
   }) {
     final labelWidget = Row(
@@ -376,6 +377,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                 InputChip(
                   label: Text(entry.displayName),
                   visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                   onDeleted: () => ref
                       .read(fixedTagsNotifierProvider.notifier)
                       .toggleEnabled(entry.id),
@@ -387,10 +393,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
 
     return Container(
       key: key,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
+        color: sectionSurfaceColor(theme.colorScheme).withValues(alpha: 0.58),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -454,7 +461,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
           activeNegativeCategoryId,
         ).length;
         const populatedMinimumHeight = 96.0;
-        const emptyMinimumHeight = 48.0;
+        const emptyMinimumHeight = 64.0;
         final desiredPositiveMinimum = positiveEntryCount == 0
             ? emptyMinimumHeight
             : populatedMinimumHeight;
@@ -488,7 +495,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
             paneWidth: constraints.maxWidth - panePadding.horizontal,
           ).clamp(negativeMinimumHeight, maximumNegativeHeight).toDouble();
 
-          if (positivePreferredHeight < positiveHeight) {
+          if (positivePreferredHeight != positiveHeight) {
             positiveHeight = positivePreferredHeight;
             negativeHeight = usableHeight - positiveHeight;
           } else if (negativePreferredHeight < negativeHeight) {
@@ -539,9 +546,9 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     required double paneWidth,
   }) {
     final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
-    final headerHeight = scaledLabelSize >= 28 ? 54.0 : 42.0;
+    final headerHeight = scaledLabelSize >= 28 ? scaledLabelSize + 30 : 42.0;
     final visibleRailItems = destinationCount;
-    const railItemHeight = 48.0;
+    final railItemHeight = math.max(48.0, scaledLabelSize + 34);
     final railHeight =
         12 +
         visibleRailItems * railItemHeight +
@@ -549,7 +556,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
 
     double collectionHeight;
     if (entryCount == 0) {
-      collectionHeight = headerHeight + 72;
+      collectionHeight = headerHeight;
     } else if (isListMode) {
       final itemHeight = scaledLabelSize >= 20 ? 72.0 : 56.0;
       collectionHeight =
@@ -574,7 +581,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
           math.max(0, rowCount - 1) * gridSpacing;
     }
 
-    return math.max(144.0, math.max(railHeight, collectionHeight));
+    final minimumPreferredHeight = entryCount == 0 ? 64.0 : 144.0;
+    return math.max(
+      minimumPreferredHeight,
+      math.max(railHeight, collectionHeight),
+    );
   }
 
   List<FixedTagEntry> _visiblePositiveEntries(
@@ -663,70 +674,51 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         ),
     ];
 
-    return _buildPaneSurface(
-      theme,
-      accent: theme.colorScheme.primary,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Row(
-            children: [
-              FixedTagsCategoryRail(
-                keyPrefix: 'fixed-tags-positive',
-                destinations: destinations,
-                selectedId: activeCategoryId,
-                onSelected: _selectPositiveCategory,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildPaneHeader(
-                      icon: isSearching
-                          ? Icons.search_rounded
-                          : activeCategoryId == _enabledSectionId
-                          ? Icons.check_circle_outline_rounded
-                          : Icons.folder_rounded,
-                      label: label,
-                      count: entries.length,
-                      color: color,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Row(
+          children: [
+            FixedTagsCategoryRail(
+              keyPrefix: 'fixed-tags-positive',
+              destinations: destinations,
+              selectedId: activeCategoryId,
+              onSelected: _selectPositiveCategory,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildPaneHeader(
+                    icon: isSearching
+                        ? Icons.search_rounded
+                        : activeCategoryId == _enabledSectionId
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.folder_rounded,
+                    label: label,
+                    count: entries.length,
+                    color: color,
+                  ),
+                  Expanded(
+                    child: _buildEntryCollection(
+                      entries: entries,
+                      promptType: FixedTagPromptType.positive,
+                      categoryColor: color,
+                      categoryName: isSearching ? null : label,
+                      libraryEntries: libraryEntries,
+                      isListMode: isListMode,
+                      controller: _positiveScrollController,
+                      emptyText: _searchQuery.isEmpty
+                          ? context.l10n.fixedTags_emptyEnabledPositive
+                          : context.l10n.fixedTags_noMatchingEnabled,
                     ),
-                    Expanded(
-                      child: _buildEntryCollection(
-                        entries: entries,
-                        promptType: FixedTagPromptType.positive,
-                        categoryColor: color,
-                        categoryName: isSearching ? null : label,
-                        libraryEntries: libraryEntries,
-                        isListMode: isListMode,
-                        controller: _positiveScrollController,
-                        emptyText: _searchQuery.isEmpty
-                            ? context.l10n.fixedTags_emptyEnabledPositive
-                            : context.l10n.fixedTags_noMatchingEnabled,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPaneSurface(
-    ThemeData theme, {
-    required Color accent,
-    required Widget child,
-  }) {
-    final baseColor = sectionSurfaceColor(theme.colorScheme);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(accent.withValues(alpha: 0.035), baseColor),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ClipRRect(borderRadius: BorderRadius.circular(8), child: child),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -928,57 +920,53 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
           color: theme.colorScheme.error,
         ),
     ];
-    return _buildPaneSurface(
-      theme,
-      accent: theme.colorScheme.error,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Row(
-            children: [
-              FixedTagsCategoryRail(
-                keyPrefix: 'fixed-tags-negative',
-                destinations: destinations,
-                selectedId: activeCategoryId,
-                onSelected: _selectNegativeCategory,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildPaneHeader(
-                      icon: Icons.block_rounded,
-                      label: context.l10n.fixedTags_negativeTitle,
-                      count: entries.length,
-                      color: theme.colorScheme.error,
-                      trailing: IconButton(
-                        tooltip: context.l10n.fixedTags_addNegative,
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        onPressed: () =>
-                            _addEntry(promptType: FixedTagPromptType.negative),
-                      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Row(
+          children: [
+            FixedTagsCategoryRail(
+              keyPrefix: 'fixed-tags-negative',
+              destinations: destinations,
+              selectedId: activeCategoryId,
+              onSelected: _selectNegativeCategory,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildPaneHeader(
+                    icon: Icons.block_rounded,
+                    label: context.l10n.fixedTags_negativeTitle,
+                    count: entries.length,
+                    color: theme.colorScheme.error,
+                    trailing: IconButton(
+                      tooltip: context.l10n.fixedTags_addNegative,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      onPressed: () =>
+                          _addEntry(promptType: FixedTagPromptType.negative),
                     ),
-                    Expanded(
-                      child: _buildEntryCollection(
-                        entries: entries,
-                        promptType: FixedTagPromptType.negative,
-                        categoryColor: color,
-                        categoryName: selectedSection?.name,
-                        libraryEntries: libraryEntries,
-                        isListMode: isListMode,
-                        controller: _negativeScrollController,
-                        emptyText: _searchQuery.isEmpty
-                            ? context.l10n.fixedTags_emptyNegative
-                            : context.l10n.fixedTags_noMatchingNegative,
-                      ),
+                  ),
+                  Expanded(
+                    child: _buildEntryCollection(
+                      entries: entries,
+                      promptType: FixedTagPromptType.negative,
+                      categoryColor: color,
+                      categoryName: selectedSection?.name,
+                      libraryEntries: libraryEntries,
+                      isListMode: isListMode,
+                      controller: _negativeScrollController,
+                      emptyText: _searchQuery.isEmpty
+                          ? context.l10n.fixedTags_emptyNegative
+                          : context.l10n.fixedTags_noMatchingNegative,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 

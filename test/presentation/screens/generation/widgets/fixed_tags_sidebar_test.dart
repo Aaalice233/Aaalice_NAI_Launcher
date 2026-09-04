@@ -979,6 +979,10 @@ void main() {
   testWidgets(
     'sparse positive pane contracts and enabled prompt types stay distinct',
     (tester) async {
+      tester.view.physicalSize = const Size(420, 980);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final positive = FixedTagEntry.create(
         name: '夏日狂想曲风格',
         content: 'pixel art, makoto daibakuhatsu',
@@ -1039,7 +1043,20 @@ void main() {
       );
       final positiveColor = (positiveStrip.decoration! as BoxDecoration).color;
       final negativeColor = (negativeStrip.decoration! as BoxDecoration).color;
-      expect(positiveColor, isNot(equals(negativeColor)));
+      expect(positiveColor, equals(negativeColor));
+      final positiveIcon = tester.widget<Icon>(
+        find.descendant(
+          of: find.byKey(const ValueKey('fixed-tags-enabled-positive-strip')),
+          matching: find.byIcon(Icons.bolt_rounded),
+        ),
+      );
+      final negativeIcon = tester.widget<Icon>(
+        find.descendant(
+          of: find.byKey(const ValueKey('fixed-tags-enabled-negative-strip')),
+          matching: find.byIcon(Icons.block_rounded),
+        ),
+      );
+      expect(positiveIcon.color, isNot(equals(negativeIcon.color)));
       expect(tester.takeException(), isNull);
     },
   );
