@@ -96,10 +96,7 @@ class ThemeComposer {
 
       // 普通卡片依靠语义色面区分层级，不叠加常驻描边和阴影。
       cardTheme: CardThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(shape.largeRadius),
-          side: BorderSide.none,
-        ),
+        shape: _borderless(shape.cardShape),
         elevation: 0,
         color: colorScheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
@@ -110,7 +107,7 @@ class ThemeComposer {
       // 深度层叠风格：按钮配置
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          shape: shape.buttonShape as OutlinedBorder?,
+          shape: _outlined(shape.buttonShape, shape.smallRadius),
           elevation: 0,
           shadowColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -119,7 +116,7 @@ class ThemeComposer {
 
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          shape: shape.buttonShape as OutlinedBorder?,
+          shape: _outlined(shape.buttonShape, shape.smallRadius),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
@@ -128,7 +125,7 @@ class ThemeComposer {
       // 避免页面上出现成排的白色空心框。
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: shape.buttonShape as OutlinedBorder?,
+          shape: _outlined(shape.buttonShape, shape.smallRadius),
           side: BorderSide.none,
           foregroundColor: colorScheme.onSurfaceVariant,
           backgroundColor: colorScheme.surfaceContainerHighest,
@@ -141,7 +138,7 @@ class ThemeComposer {
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          shape: shape.buttonShape as OutlinedBorder?,
+          shape: _outlined(shape.buttonShape, shape.smallRadius),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         ),
       ),
@@ -193,9 +190,7 @@ class ThemeComposer {
       dropdownMenuTheme: DropdownMenuThemeData(
         menuStyle: MenuStyle(
           shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(shape.menuRadius),
-            ),
+            _outlined(shape.menuShape, shape.menuRadius),
           ),
           backgroundColor: WidgetStatePropertyAll(
             colorScheme.surfaceContainerHigh,
@@ -209,9 +204,7 @@ class ThemeComposer {
       ),
 
       popupMenuTheme: PopupMenuThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(shape.menuRadius),
-        ),
+        shape: shape.menuShape,
         color: colorScheme.surfaceContainerHigh,
         elevation: 8,
         shadowColor: Colors.black.withValues(alpha: 0.15),
@@ -221,9 +214,7 @@ class ThemeComposer {
       menuTheme: MenuThemeData(
         style: MenuStyle(
           shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(shape.menuRadius),
-            ),
+            _outlined(shape.menuShape, shape.menuRadius),
           ),
           backgroundColor: WidgetStatePropertyAll(
             colorScheme.surfaceContainerHigh,
@@ -350,9 +341,15 @@ class ThemeComposer {
       dividerThickness: 1,
       useDivider: true,
       controlRadius: shape.smallRadius,
-      cardRadius: shape.largeRadius,
+      cardRadius: _extractBorderRadius(
+        shape.cardShape,
+        fallbackRadius: shape.largeRadius,
+      ).topLeft.x,
       dialogRadius: shape.mediumRadius,
-      menuRadius: shape.menuRadius,
+      menuRadius: _extractBorderRadius(
+        shape.menuShape,
+        fallbackRadius: shape.menuRadius,
+      ).topLeft.x,
       fastDuration: motion.fastDuration,
       normalDuration: motion.normalDuration,
       slowDuration: motion.slowDuration,
@@ -368,12 +365,30 @@ class ThemeComposer {
   }
 
   /// Extracts BorderRadius from a ShapeBorder.
-  BorderRadius _extractBorderRadius(ShapeBorder shapeBorder) {
+  BorderRadius _extractBorderRadius(
+    ShapeBorder shapeBorder, {
+    double? fallbackRadius,
+  }) {
     if (shapeBorder is RoundedRectangleBorder) {
-      return shapeBorder.borderRadius as BorderRadius;
+      return shapeBorder.borderRadius.resolve(TextDirection.ltr);
     }
-    // Default fallback
-    return BorderRadius.circular(shape.smallRadius);
+    return BorderRadius.circular(fallbackRadius ?? shape.smallRadius);
+  }
+
+  /// 保留 preset 声明的卡片几何，只去掉常驻描边。
+  ShapeBorder _borderless(ShapeBorder shapeBorder) {
+    if (shapeBorder is OutlinedBorder) {
+      return shapeBorder.copyWith(side: BorderSide.none);
+    }
+    return shapeBorder;
+  }
+
+  /// 按钮和菜单槽位只接受 [OutlinedBorder]，其余形状退回同尺度圆角矩形。
+  OutlinedBorder _outlined(ShapeBorder shapeBorder, double fallbackRadius) {
+    if (shapeBorder is OutlinedBorder) return shapeBorder;
+    return RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(fallbackRadius),
+    );
   }
 }
 

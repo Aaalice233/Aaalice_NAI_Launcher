@@ -1,4 +1,4 @@
-/// Fluid Shapes - Extreme rounded corners (100px+)
+/// Fluid Shapes - Oversized rounded corners
 library;
 
 import 'package:flutter/material.dart';
@@ -13,8 +13,9 @@ class FluidShapes extends BaseShapeModule {
   @override
   double get mediumRadius => 32.0;
 
+  // Cards clip to this: past ~3.4x the title padding the first glyph is cut.
   @override
-  double get largeRadius => 100.0;
+  double get largeRadius => 40.0;
 
   @override
   double get menuRadius => 0.0;
