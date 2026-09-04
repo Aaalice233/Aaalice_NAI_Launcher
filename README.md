@@ -211,6 +211,7 @@ NAI Launcher 不把账号系统和作品托管在本项目服务器上。不同�
 
 ## 支持与反馈
 
+- 遇到异常时，可通过“设置 → 关于 → 导出诊断日志”保存排查信息，并在反馈时一并提供。
 - [提交 Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues)：报告可复现的问题或提出功能建议。
 - [加入 Discord](https://discord.gg/R48n6GwXzD)：交流使用经验、获取社区帮助。
 - [查看 Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases)：下载版本、校验文件与更新内容。

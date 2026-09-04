@@ -211,6 +211,7 @@ NAI Launcher does not host your account or artwork on a project-operated server.
 
 ## Support and feedback
 
+- If something goes wrong, use **Settings → About → Export diagnostic logs** and attach the exported information to your report.
 - [Open an Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues) for a reproducible bug or feature request.
 - [Join Discord](https://discord.gg/R48n6GwXzD) for usage discussion and community help.
 - [View Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) for packages, checksums, and release notes.

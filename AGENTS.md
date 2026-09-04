@@ -160,6 +160,8 @@ Android 系统界面快速回归使用 `.agents/skills/aaalice-runtime-verify/sc
 
 `AGENTS.md` 必须始终不超过 500 行，这是硬性限制；新增规则前先删重、归并和精炼现有内容，只保留当前有效且可执行的项目约定。其他文档也应围绕单一稳定主题，不持续堆放历史审计、迁移过程、重复示例或临时结论。除天然累积或机器生成的 `CHANGELOG.md`、第三方许可/来源清单、版本发布记录等材料外，Markdown 文档原则上控制在 500 行以内；仍需拆分时按稳定职责建立独立文档和明确索引，禁止为规避行数机械切片或复制内容。修改中英文用户文档时继续遵守双语同步要求。
 
+发布版本涉及大量功能或底层调整、且测试覆盖相对有限时，可以在该版本 Release Note 开头添加显著警告，客观说明可能存在尚未发现的问题；需要引导用户反馈时，统一使用“如遇异常，请通过‘设置 → 关于 → 导出诊断日志’反馈”。
+
 ## 资源与生成文件注意事项
 
 `assets/databases/tag_catalog.db` 是唯一通过 Git LFS 管理并随应用提供的数据库，校验或构建时必须确认它是真实 SQLite 数据库而不是 LFS pointer。原始标签/翻译/共现 CSV 不得放回 `assets/`；`assets/translations/` 已废弃。`assets/data/` 和 `assets/images/` 会随 Flutter assets 打包，移动或重命名后需要同步检查 `pubspec.yaml`。
