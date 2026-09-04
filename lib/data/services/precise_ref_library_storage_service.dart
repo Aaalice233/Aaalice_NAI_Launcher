@@ -234,6 +234,7 @@ class PreciseRefLibraryStorageService {
     PreciseRefType? type,
     double? strength,
     double? fidelity,
+    bool? isFavorite,
   }) async {
     await init();
     final entry = _entriesBox!.get(id);
@@ -247,6 +248,7 @@ class PreciseRefLibraryStorageService {
       typeIndex: type?.index ?? entry.typeIndex,
       strength: strength ?? entry.strength,
       fidelity: fidelity ?? entry.fidelity,
+      isFavorite: isFavorite ?? entry.isFavorite,
     );
     await _entriesBox!.put(id, updated);
     return updated;

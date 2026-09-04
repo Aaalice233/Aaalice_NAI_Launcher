@@ -39,6 +39,10 @@ class PreciseRefCard extends ConsumerStatefulWidget {
     this.onDelete,
     this.onToggleFavorite,
     this.onClassify,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onToggleSelection,
+    this.onEnterSelectionMode,
   });
 
   final PreciseRefLibraryEntry entry;
@@ -48,6 +52,10 @@ class PreciseRefCard extends ConsumerStatefulWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onToggleFavorite;
   final VoidCallback? onClassify;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final VoidCallback? onToggleSelection;
+  final VoidCallback? onEnterSelectionMode;
 
   @override
   ConsumerState<PreciseRefCard> createState() => _PreciseRefCardState();
@@ -177,7 +185,12 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
         onExit: _onHoverExit,
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: widget.onSendToPreciseRef,
+          onTap: widget.isSelectionMode
+              ? widget.onToggleSelection
+              : widget.onSendToPreciseRef,
+          onLongPress: widget.isSelectionMode
+              ? widget.onToggleSelection
+              : widget.onEnterSelectionMode,
           child: ImageCardHoverMotion(
             hovered: _hovering,
             enabled: !isTouch,
@@ -210,7 +223,16 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
                     _buildThumbnail(theme),
                     _buildInfoOverlay(theme),
                     if (isTouch || !_hovering) _buildTypeBadge(),
-                    if (!isTouch && !_hovering && widget.entry.isFavorite)
+                    if (widget.isSelectionMode)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Checkbox(
+                          value: widget.isSelected,
+                          onChanged: (_) => widget.onToggleSelection?.call(),
+                        ),
+                      )
+                    else if (!isTouch && !_hovering && widget.entry.isFavorite)
                       Positioned(
                         top: 8,
                         right: 8,
@@ -221,7 +243,7 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
                           semanticLabel: context.l10n.common_favorite,
                         ),
                       ),
-                    if (isTouch) ...[
+                    if (!widget.isSelectionMode && isTouch) ...[
                       Positioned(
                         top: 6,
                         right: 54,
@@ -232,7 +254,7 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
                         right: 6,
                         child: _buildTouchActions(theme),
                       ),
-                    ] else if (_hovering)
+                    ] else if (!widget.isSelectionMode && _hovering)
                       Positioned(
                         top: 6,
                         right: 6,

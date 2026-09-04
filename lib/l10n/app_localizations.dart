@@ -425,6 +425,18 @@ abstract class AppLocalizations {
   /// **'Grid'**
   String get common_grid;
 
+  /// No description provided for @common_list.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get common_list;
+
+  /// No description provided for @common_grouped.
+  ///
+  /// In en, this message translates to:
+  /// **'Grouped'**
+  String get common_grouped;
+
   /// No description provided for @common_date.
   ///
   /// In en, this message translates to:
@@ -20535,6 +20547,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import Images'**
   String get preciseRefLib_import;
+
+  /// No description provided for @preciseRefLib_exportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Precise Reference Package'**
+  String get preciseRefLib_exportTitle;
+
+  /// No description provided for @preciseRefLib_exportedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported {count} precise references'**
+  String preciseRefLib_exportedCount(Object count);
+
+  /// No description provided for @preciseRefLib_exportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to export precise references: {error}'**
+  String preciseRefLib_exportFailed(Object error);
+
+  /// No description provided for @preciseRefLib_openFolderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open the precise reference folder: {error}'**
+  String preciseRefLib_openFolderFailed(Object error);
+
+  /// No description provided for @preciseRefLib_enterSelectionMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter selection mode'**
+  String get preciseRefLib_enterSelectionMode;
+
+  /// No description provided for @preciseRefLib_changeType.
+  ///
+  /// In en, this message translates to:
+  /// **'Change type'**
+  String get preciseRefLib_changeType;
+
+  /// No description provided for @preciseRefLib_sentSelectedSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent {success} precise references; {failed} failed'**
+  String preciseRefLib_sentSelectedSummary(Object failed, Object success);
+
+  /// No description provided for @preciseRefLib_failedItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed items: {items}'**
+  String preciseRefLib_failedItems(Object items);
+
+  /// No description provided for @preciseRefLib_confirmDeleteSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the {count} selected precise references? Their image files will also be removed.'**
+  String preciseRefLib_confirmDeleteSelected(Object count);
+
+  /// No description provided for @preciseRefLib_deletedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {count} precise references'**
+  String preciseRefLib_deletedCount(Object count);
 
   /// No description provided for @preciseRefLib_entryCount.
   ///

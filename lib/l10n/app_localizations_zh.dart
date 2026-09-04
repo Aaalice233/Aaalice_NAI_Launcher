@@ -177,6 +177,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get common_grid => '网格';
 
   @override
+  String get common_list => '列表';
+
+  @override
+  String get common_grouped => '分组';
+
+  @override
   String get common_date => '日期';
 
   @override
@@ -11251,6 +11257,50 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preciseRefLib_import => '导入图片';
 
   @override
+  String get preciseRefLib_exportTitle => '导出精准参考配置包';
+
+  @override
+  String preciseRefLib_exportedCount(Object count) {
+    return '已导出 $count 个精准参考';
+  }
+
+  @override
+  String preciseRefLib_exportFailed(Object error) {
+    return '导出精准参考失败：$error';
+  }
+
+  @override
+  String preciseRefLib_openFolderFailed(Object error) {
+    return '打开精准参考目录失败：$error';
+  }
+
+  @override
+  String get preciseRefLib_enterSelectionMode => '进入多选模式';
+
+  @override
+  String get preciseRefLib_changeType => '修改类型';
+
+  @override
+  String preciseRefLib_sentSelectedSummary(Object failed, Object success) {
+    return '已发送 $success 个精准参考，$failed 个失败';
+  }
+
+  @override
+  String preciseRefLib_failedItems(Object items) {
+    return '失败项：$items';
+  }
+
+  @override
+  String preciseRefLib_confirmDeleteSelected(Object count) {
+    return '确定删除所选的 $count 个精准参考吗？对应原图也会删除。';
+  }
+
+  @override
+  String preciseRefLib_deletedCount(Object count) {
+    return '已删除 $count 个精准参考';
+  }
+
+  @override
   String preciseRefLib_entryCount(int count) {
     return '$count 个条目';
   }
@@ -14015,6 +14065,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get common_grid => '網格';
+
+  @override
+  String get common_list => '列表';
+
+  @override
+  String get common_grouped => '分組';
 
   @override
   String get common_date => '日期';
@@ -25089,6 +25145,50 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get preciseRefLib_import => '匯入圖片';
+
+  @override
+  String get preciseRefLib_exportTitle => '匯出精準參考設定包';
+
+  @override
+  String preciseRefLib_exportedCount(Object count) {
+    return '已匯出 $count 個精準參考';
+  }
+
+  @override
+  String preciseRefLib_exportFailed(Object error) {
+    return '匯出精準參考失敗：$error';
+  }
+
+  @override
+  String preciseRefLib_openFolderFailed(Object error) {
+    return '開啟精準參考目錄失敗：$error';
+  }
+
+  @override
+  String get preciseRefLib_enterSelectionMode => '進入多選模式';
+
+  @override
+  String get preciseRefLib_changeType => '修改類型';
+
+  @override
+  String preciseRefLib_sentSelectedSummary(Object failed, Object success) {
+    return '已傳送 $success 個精準參考，$failed 個失敗';
+  }
+
+  @override
+  String preciseRefLib_failedItems(Object items) {
+    return '失敗項：$items';
+  }
+
+  @override
+  String preciseRefLib_confirmDeleteSelected(Object count) {
+    return '確定刪除所選的 $count 個精準參考嗎？對應原圖也會刪除。';
+  }
+
+  @override
+  String preciseRefLib_deletedCount(Object count) {
+    return '已刪除 $count 個精準參考';
+  }
 
   @override
   String preciseRefLib_entryCount(int count) {

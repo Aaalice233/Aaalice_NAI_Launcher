@@ -294,4 +294,38 @@ void main() {
     expect(state().entries, isEmpty);
     expect(state().filteredEntries, isEmpty);
   });
+
+  test('批量修改类型、统一收藏与删除只更新指定条目', () async {
+    await notifier().initialize();
+    final first = await notifier().importFromBytes(_pngBytes(), name: 'first');
+    final second = await notifier().importFromBytes(
+      _pngBytes(),
+      name: 'second',
+    );
+    await notifier().importFromBytes(_pngBytes(), name: 'untouched');
+
+    await notifier().updateEntriesType({
+      first.id,
+      second.id,
+    }, PreciseRefType.style);
+    await notifier().setEntriesFavorite({
+      first.id,
+      second.id,
+    }, isFavorite: true);
+
+    expect(
+      state().entries.where(
+        (entry) => {first.id, second.id}.contains(entry.id),
+      ),
+      everyElement(
+        isA<PreciseRefLibraryEntry>()
+            .having((entry) => entry.type, 'type', PreciseRefType.style)
+            .having((entry) => entry.isFavorite, 'isFavorite', isTrue),
+      ),
+    );
+
+    final deleted = await notifier().deleteEntries({first.id, second.id});
+    expect(deleted, 2);
+    expect(state().entries.single.name, 'untouched');
+  });
 }

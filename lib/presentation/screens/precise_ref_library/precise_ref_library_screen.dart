@@ -7,26 +7,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/services/file_export_service.dart';
+import '../../../core/utils/file_explorer_utils.dart';
+import '../../../core/utils/precise_ref_library_path_helper.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
+import '../../../data/services/precise_ref_library_archive_service.dart';
 import '../../../data/services/precise_ref_library_storage_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
+import '../../providers/precise_ref_library_selection_provider.dart';
+import '../../providers/selection_mode_provider.dart';
+import '../../services/precise_ref_library_batch_sender.dart';
 import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';
-import '../../widgets/common/compact_icon_button.dart';
-import '../../widgets/common/input_surface_container.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/common/library_classification_drag.dart';
 import '../../widgets/common/precise_reference_type_dialog.dart';
+import '../../widgets/bulk_action_bar.dart';
 import '../../widgets/gallery/gallery_sidebar.dart';
 import '../../widgets/gallery/gallery_library_toolbar.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
@@ -54,6 +61,8 @@ class _PreciseRefLibraryScreenState
   Timer? _searchDebounceTimer;
   bool _isDragging = false;
   bool _isPickingFile = false;
+  bool _isExporting = false;
+  bool _showCategoryPanel = true;
   int _currentPage = 0;
   int _pageSize = 50;
 
@@ -96,39 +105,80 @@ class _PreciseRefLibraryScreenState
     setState(() => _isPickingFile = true);
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
+        type: FileType.custom,
+        allowedExtensions: const [
+          'png',
+          'jpg',
+          'jpeg',
+          'webp',
+          'gif',
+          'bmp',
+          PreciseRefLibraryArchiveService.extension,
+        ],
         allowMultiple: true,
         withData: false,
       );
       if (result == null || !mounted) return;
 
       final importType = _importType;
+      var archiveImportedCount = 0;
+      var archiveFailedCount = 0;
+      final archiveService = PreciseRefLibraryArchiveService(
+        ref.read(preciseRefLibraryStorageServiceProvider),
+      );
+      for (final file in result.files.where(
+        (file) =>
+            p.extension(file.name).toLowerCase() ==
+            '.${PreciseRefLibraryArchiveService.extension}',
+      )) {
+        final path = file.path;
+        if (path == null) {
+          archiveFailedCount++;
+          continue;
+        }
+        try {
+          archiveImportedCount += (await archiveService.importFromPath(
+            path,
+          )).length;
+        } on Object {
+          archiveFailedCount++;
+        }
+      }
       final sources = [
         for (final file in result.files)
-          PreciseRefLibraryImportSource(
-            name: p.basenameWithoutExtension(file.name),
-            type: importType,
-            loadBytes: () async {
-              final filePath = file.path;
-              return filePath == null
-                  ? file.bytes
-                  : File(filePath).readAsBytes();
-            },
-          ),
+          if (p.extension(file.name).toLowerCase() !=
+              '.${PreciseRefLibraryArchiveService.extension}')
+            PreciseRefLibraryImportSource(
+              name: p.basenameWithoutExtension(file.name),
+              type: importType,
+              loadBytes: () async {
+                final filePath = file.path;
+                return filePath == null
+                    ? file.bytes
+                    : File(filePath).readAsBytes();
+              },
+            ),
       ];
       final batch = await ref
           .read(preciseRefLibraryNotifierProvider.notifier)
           .importMany(sources);
-      if (mounted && batch.importedCount > 0) {
+      if (archiveImportedCount > 0) {
+        await ref
+            .read(preciseRefLibraryNotifierProvider.notifier)
+            .reload(showLoading: false);
+      }
+      final importedCount = batch.importedCount + archiveImportedCount;
+      final failedCount = batch.failedCount + archiveFailedCount;
+      if (mounted && importedCount > 0) {
         AppToast.success(
           context,
-          context.l10n.preciseRefLib_importedCount(batch.importedCount),
+          context.l10n.preciseRefLib_importedCount(importedCount),
         );
       }
-      if (mounted && batch.failedCount > 0) {
+      if (mounted && failedCount > 0) {
         AppToast.error(
           context,
-          context.l10n.preciseRefLib_importFailedCount(batch.failedCount),
+          context.l10n.preciseRefLib_importFailedCount(failedCount),
         );
       }
     } catch (e) {
@@ -138,6 +188,68 @@ class _PreciseRefLibraryScreenState
     } finally {
       if (mounted) {
         setState(() => _isPickingFile = false);
+      }
+    }
+  }
+
+  Future<void> _exportEntries(List<PreciseRefLibraryEntry> entries) async {
+    if (_isExporting || entries.isEmpty) return;
+    setState(() => _isExporting = true);
+    final exportTitle = context.l10n.preciseRefLib_exportTitle;
+    File? temporary;
+    try {
+      final tempDir = await getTemporaryDirectory();
+      temporary = File(
+        p.join(
+          tempDir.path,
+          'precise-references-${DateTime.now().millisecondsSinceEpoch}.'
+          '${PreciseRefLibraryArchiveService.extension}',
+        ),
+      );
+      await PreciseRefLibraryArchiveService(
+        ref.read(preciseRefLibraryStorageServiceProvider),
+      ).exportToPath(entries: entries, outputPath: temporary.path);
+      final saved = await FileExportService.saveFileFromPath(
+        sourcePath: temporary.path,
+        fileName:
+            'precise-references.${PreciseRefLibraryArchiveService.extension}',
+        dialogTitle: exportTitle,
+        mimeType: 'application/zip',
+        allowedExtensions: const [PreciseRefLibraryArchiveService.extension],
+      );
+      if (mounted && saved != null) {
+        AppToast.success(
+          context,
+          context.l10n.preciseRefLib_exportedCount(entries.length),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.preciseRefLib_exportFailed('$error'),
+        );
+      }
+    } finally {
+      if (temporary != null && await temporary.exists()) {
+        await temporary.delete();
+      }
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  Future<void> _openLibraryFolder() async {
+    if (!PlatformCapabilities.current.supportsOpenFolder) return;
+    try {
+      final path = await PreciseRefLibraryPathHelper.instance.getDefaultPath();
+      await PreciseRefLibraryPathHelper.instance.ensurePathExists(path);
+      await FileExplorerUtils.openDirectory(path);
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.preciseRefLib_openFolderFailed('$error'),
+        );
       }
     }
   }
@@ -263,6 +375,103 @@ class _PreciseRefLibraryScreenState
     context.go(AppRoutes.home);
   }
 
+  Future<void> _sendSelection(
+    PreciseRefLibraryState state,
+    Set<String> selectedIds,
+  ) async {
+    final params = ref.read(generationParamsNotifierProvider);
+    if (!params.isV4Model) {
+      AppToast.warning(context, context.l10n.preciseRef_v4Only);
+      return;
+    }
+    final storage = ref.read(preciseRefLibraryStorageServiceProvider);
+    final generation = ref.read(generationParamsNotifierProvider.notifier);
+    final library = ref.read(preciseRefLibraryNotifierProvider.notifier);
+    final result = await const PreciseRefLibraryBatchSender().send(
+      orderedEntries: state.filteredEntries,
+      selectedIds: selectedIds,
+      loadBytes: storage.readImageBytes,
+      sendEntry: (bytes, entry) => generation.addPreciseReferenceFromImage(
+        bytes,
+        type: entry.type,
+        strength: entry.strength,
+        fidelity: entry.fidelity,
+      ),
+      recordUsage: (id) async {
+        await library.recordUsage(id);
+      },
+    );
+    if (!mounted) return;
+    final failedNames = result.failedEntries
+        .map((entry) => entry.name)
+        .toList();
+    final summary = context.l10n.preciseRefLib_sentSelectedSummary(
+      result.successfulEntries.length,
+      failedNames.length,
+    );
+    if (failedNames.isEmpty) {
+      AppToast.success(context, summary);
+    } else {
+      AppToast.error(
+        context,
+        '$summary\n${context.l10n.preciseRefLib_failedItems(failedNames.join(', '))}',
+      );
+    }
+    if (result.successfulEntries.isNotEmpty) context.go(AppRoutes.home);
+  }
+
+  Future<void> _changeSelectionType(Set<String> selectedIds) async {
+    final type = await PreciseReferenceTypeDialog.show(context);
+    if (type == null || !mounted) return;
+    await ref
+        .read(preciseRefLibraryNotifierProvider.notifier)
+        .updateEntriesType(selectedIds, type);
+  }
+
+  Future<void> _toggleSelectionFavorite(
+    PreciseRefLibraryState state,
+    Set<String> selectedIds,
+  ) async {
+    final selected = state.entries.where(
+      (entry) => selectedIds.contains(entry.id),
+    );
+    final allFavorite =
+        selected.isNotEmpty && selected.every((entry) => entry.isFavorite);
+    await ref
+        .read(preciseRefLibraryNotifierProvider.notifier)
+        .setEntriesFavorite(selectedIds, isFavorite: !allFavorite);
+  }
+
+  Future<void> _deleteSelection(Set<String> selectedIds) async {
+    if (selectedIds.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.common_confirmDelete),
+        content: Text(
+          context.l10n.preciseRefLib_confirmDeleteSelected(selectedIds.length),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(context.l10n.common_delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final deleted = await ref
+        .read(preciseRefLibraryNotifierProvider.notifier)
+        .deleteEntries(selectedIds);
+    if (!mounted) return;
+    ref.read(preciseRefLibrarySelectionNotifierProvider.notifier).exit();
+    AppToast.success(context, context.l10n.preciseRefLib_deletedCount(deleted));
+  }
+
   // ============================================================
   // 编辑 / 删除
   // ============================================================
@@ -326,10 +535,12 @@ class _PreciseRefLibraryScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(preciseRefLibraryNotifierProvider);
+    final selection = ref.watch(preciseRefLibrarySelectionNotifierProvider);
 
     final content = LayoutBuilder(
       builder: (context, constraints) {
-        final showSidebar = constraints.maxWidth >= 840;
+        final persistentCategories = constraints.maxWidth >= 840;
+        final showSidebar = persistentCategories && _showCategoryPanel;
         final mainWidth = constraints.maxWidth - (showSidebar ? 250 : 0);
         final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
         final layout = computePreciseRefGridLayout(mainWidth, textScale);
@@ -338,7 +549,8 @@ class _PreciseRefLibraryScreenState
             GalleryCollectionWorkspace(
               toolbar: _buildToolbar(
                 state,
-                showCategoryButton: !showSidebar,
+                selection: selection,
+                persistentCategories: persistentCategories,
                 showPageTitle: true,
               ),
               sidebar: showSidebar
@@ -372,35 +584,42 @@ class _PreciseRefLibraryScreenState
       },
     );
 
-    if (!PlatformCapabilities.current.supportsExternalFileDrop) {
-      return Scaffold(body: content);
-    }
-
-    return Scaffold(
-      body: DropRegion(
-        formats: Formats.standardFormats,
-        hitTestBehavior: HitTestBehavior.opaque,
-        onDropOver: (event) {
-          if (event.session.allowedOperations.contains(DropOperation.copy)) {
-            if (!_isDragging) {
-              setState(() => _isDragging = true);
-            }
-            return DropOperation.copy;
-          }
-          return DropOperation.none;
-        },
-        onDropLeave: (event) {
-          if (_isDragging) {
-            setState(() => _isDragging = false);
-          }
-        },
-        onPerformDrop: (event) async {
-          setState(() => _isDragging = false);
-          // 不等待处理完成，让拖放回调立即返回（避免资源管理器卡死）
-          unawaited(_handleDrop(event));
-        },
-        child: content,
-      ),
+    final body = !PlatformCapabilities.current.supportsExternalFileDrop
+        ? content
+        : DropRegion(
+            formats: Formats.standardFormats,
+            hitTestBehavior: HitTestBehavior.opaque,
+            onDropOver: (event) {
+              if (event.session.allowedOperations.contains(
+                DropOperation.copy,
+              )) {
+                if (!_isDragging) {
+                  setState(() => _isDragging = true);
+                }
+                return DropOperation.copy;
+              }
+              return DropOperation.none;
+            },
+            onDropLeave: (event) {
+              if (_isDragging) {
+                setState(() => _isDragging = false);
+              }
+            },
+            onPerformDrop: (event) async {
+              setState(() => _isDragging = false);
+              // 不等待处理完成，让拖放回调立即返回（避免资源管理器卡死）
+              unawaited(_handleDrop(event));
+            },
+            child: content,
+          );
+    return PopScope<void>(
+      canPop: !selection.isActive,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && selection.isActive) {
+          ref.read(preciseRefLibrarySelectionNotifierProvider.notifier).exit();
+        }
+      },
+      child: Scaffold(body: body),
     );
   }
 
@@ -414,7 +633,7 @@ class _PreciseRefLibraryScreenState
         .setSidebarFilter(favoritesOnly: favoritesOnly, type: type);
   }
 
-  Future<void> _showCategoryPanel(PreciseRefLibraryState state) {
+  Future<void> _showCategoryPanelSheet(PreciseRefLibraryState state) {
     return AdaptivePresenter.showPanel<void>(
       context: context,
       title: context.l10n.tagLibrary_categories,
@@ -465,122 +684,77 @@ class _PreciseRefLibraryScreenState
 
   Widget _buildToolbar(
     PreciseRefLibraryState state, {
-    required bool showCategoryButton,
+    required SelectionModeState selection,
+    required bool persistentCategories,
     required bool showPageTitle,
   }) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-    final compact = MediaQuery.sizeOf(context).width < 1050 || textScale > 1.5;
+    if (selection.isActive) return _buildBulkBar(state, selection);
     final title = GalleryCollectionPageTitle(
       key: const Key('precise-ref-library-page-title'),
       icon: Icons.center_focus_strong,
       title: l10n.preciseRefLib_title,
-      maxWidth: compact ? 180 : 220,
     );
-    final searchHeight = compact ? 48.0 : 36.0;
-    final search = InputSurfaceContainer(
+    final search = GalleryLibrarySearchField(
       key: const Key('precise-ref-library-search-surface'),
-      height: searchHeight,
-      borderRadius: searchHeight / 2,
-      focusedBorderColor: theme.colorScheme.primary.withValues(alpha: 0.38),
-      child: ValueListenableBuilder<TextEditingValue>(
-        valueListenable: _searchController,
-        builder: (context, value, _) => TextField(
-          key: const Key('precise-ref-library-search'),
-          controller: _searchController,
-          textAlignVertical: TextAlignVertical.center,
-          style: theme.textTheme.bodyMedium,
-          decoration: InputDecoration(
-            hintText: l10n.preciseRefLib_searchHint,
-            hintStyle: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55),
-            ),
-            prefixIcon: const Icon(Icons.search_rounded, size: 18),
-            suffixIcon: value.text.isEmpty
-                ? null
-                : IconButton(
-                    tooltip: l10n.common_clear,
-                    icon: const Icon(Icons.close_rounded, size: 16),
-                    onPressed: () {
-                      _searchController.clear();
-                      _onSearchChanged('');
-                    },
-                  ),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          ),
-          onChanged: _onSearchChanged,
-        ),
-      ),
+      controller: _searchController,
+      hintText: l10n.preciseRefLib_searchHint,
+      onChanged: _onSearchChanged,
     );
-    final sort = PopupMenuButton<PreciseRefLibrarySortOrder>(
+    final sort = GalleryLibrarySortMenu<PreciseRefLibrarySortOrder>(
       key: const Key('precise-ref-library-sort-menu'),
-      tooltip: l10n.preciseRefLib_sortBy,
-      icon: const Icon(Icons.sort),
+      label: l10n.preciseRefLib_sortBy,
+      value: state.sortOrder,
+      descending: state.sortDescending,
       onSelected: (order) {
         setState(() => _currentPage = 0);
         ref
             .read(preciseRefLibraryNotifierProvider.notifier)
             .setSortOrder(order);
       },
-      itemBuilder: (context) => [
-        _sortMenuItem(
-          PreciseRefLibrarySortOrder.createdAt,
-          l10n.preciseRefLib_sortCreatedAt,
-          state,
+      options: [
+        GalleryLibrarySortOption(
+          value: PreciseRefLibrarySortOrder.createdAt,
+          label: l10n.preciseRefLib_sortCreatedAt,
         ),
-        _sortMenuItem(
-          PreciseRefLibrarySortOrder.lastUsed,
-          l10n.preciseRefLib_sortLastUsed,
-          state,
+        GalleryLibrarySortOption(
+          value: PreciseRefLibrarySortOrder.lastUsed,
+          label: l10n.preciseRefLib_sortLastUsed,
         ),
-        _sortMenuItem(
-          PreciseRefLibrarySortOrder.usedCount,
-          l10n.preciseRefLib_sortUsedCount,
-          state,
+        GalleryLibrarySortOption(
+          value: PreciseRefLibrarySortOrder.usedCount,
+          label: l10n.preciseRefLib_sortUsedCount,
         ),
-        _sortMenuItem(
-          PreciseRefLibrarySortOrder.name,
-          l10n.preciseRefLib_sortName,
-          state,
+        GalleryLibrarySortOption(
+          value: PreciseRefLibrarySortOrder.name,
+          label: l10n.preciseRefLib_sortName,
         ),
       ],
     );
-    final importButton = CompactIconButton(
+    final importButton = GalleryLibraryAction(
       key: const Key('precise-ref-library-import-button'),
       onPressed: _isPickingFile ? null : _importImages,
       icon: Icons.add_photo_alternate_outlined,
       label: l10n.preciseRefLib_import,
       tooltip: l10n.preciseRefLib_import,
+      isLoading: _isPickingFile,
     );
-    final compactImportButton = IconButton.filledTonal(
-      key: const Key('precise-ref-library-import-button'),
-      onPressed: _isPickingFile ? null : _importImages,
-      tooltip: l10n.preciseRefLib_import,
-      icon: const Icon(Icons.add_photo_alternate_outlined),
-    );
-    final showToolbarImport = state.totalCount > 0 || state.hasFilters;
-    final categories = CompactIconButton(
+    final categories = GalleryLibraryAction(
       key: const Key('precise-ref-library-categories-button'),
-      icon: Icons.folder_outlined,
+      icon: _showCategoryPanel && persistentCategories
+          ? Icons.view_sidebar
+          : Icons.view_sidebar_outlined,
       label: l10n.common_categories,
-      tooltip: l10n.localGallery_showCategoryPanel,
-      onPressed: () => _showCategoryPanel(state),
-    );
-    final compactCategories = IconButton(
-      key: const Key('precise-ref-library-categories-button'),
-      tooltip: l10n.localGallery_showCategoryPanel,
-      onPressed: () => _showCategoryPanel(state),
-      icon: const Icon(Icons.folder_outlined),
+      tooltip: persistentCategories && _showCategoryPanel
+          ? l10n.localGallery_hideCategoryPanel
+          : l10n.localGallery_showCategoryPanel,
+      onPressed: persistentCategories
+          ? () => setState(() => _showCategoryPanel = !_showCategoryPanel)
+          : () => _showCategoryPanelSheet(state),
     );
 
     return GalleryLibraryToolbar(
       key: const Key('precise-ref-library-unified-toolbar'),
-      compact: compact,
       title: showPageTitle ? title : const SizedBox.shrink(),
       count: GalleryLibraryCountBadge(
         label: state.hasFilters
@@ -588,43 +762,131 @@ class _PreciseRefLibraryScreenState
             : '${state.totalCount}',
       ),
       search: search,
-      desktopActions: [
+      actions: [
         sort,
-        if (showCategoryButton) categories,
-        if (showToolbarImport) importButton,
+        categories,
+        GalleryLibraryAction(
+          key: const Key('precise-ref-library-multi-select-button'),
+          icon: Icons.checklist,
+          label: l10n.common_multiSelect,
+          tooltip: l10n.preciseRefLib_enterSelectionMode,
+          onPressed: () => ref
+              .read(preciseRefLibrarySelectionNotifierProvider.notifier)
+              .enter(),
+        ),
+        importButton,
+        GalleryLibraryAction(
+          key: const Key('precise-ref-library-export-button'),
+          icon: Icons.file_download_outlined,
+          label: l10n.common_export,
+          isLoading: _isExporting,
+          onPressed: state.entries.isEmpty || _isExporting
+              ? null
+              : () => _exportEntries(state.entries),
+        ),
+        if (PlatformCapabilities.current.supportsOpenFolder)
+          GalleryLibraryAction(
+            key: const Key('precise-ref-library-folder-button'),
+            icon: Icons.folder_open_outlined,
+            label: l10n.common_folder,
+            onPressed: _openLibraryFolder,
+          ),
+        GalleryLibraryAction(
+          key: const Key('precise-ref-library-refresh-button'),
+          icon: Icons.refresh,
+          label: l10n.common_refresh,
+          isLoading: state.isLoading,
+          onPressed: state.isLoading
+              ? null
+              : () => ref
+                    .read(preciseRefLibraryNotifierProvider.notifier)
+                    .reload(showLoading: true),
+        ),
       ],
-      compactHeaderActions: [if (showCategoryButton) compactCategories],
-      compactSearchActions: [sort, if (showToolbarImport) compactImportButton],
     );
   }
 
-  PopupMenuItem<PreciseRefLibrarySortOrder> _sortMenuItem(
-    PreciseRefLibrarySortOrder order,
-    String label,
+  Widget _buildBulkBar(
     PreciseRefLibraryState state,
+    SelectionModeState selection,
   ) {
-    final selected = state.sortOrder == order;
-    return PopupMenuItem(
-      value: order,
-      child: Row(
-        children: [
-          Expanded(child: Text(label)),
-          if (selected)
-            Icon(
-              state.sortDescending ? Icons.arrow_downward : Icons.arrow_upward,
-              size: 16,
-            ),
-        ],
-      ),
+    final pageIds = _currentPageEntries(
+      state,
+    ).map((entry) => entry.id).toList();
+    final allSelected =
+        pageIds.isNotEmpty && pageIds.every(selection.selectedIds.contains);
+    final selectedEntries = state.entries
+        .where((entry) => selection.selectedIds.contains(entry.id))
+        .toList();
+    final allFavorite =
+        selectedEntries.isNotEmpty &&
+        selectedEntries.every((entry) => entry.isFavorite);
+    final theme = Theme.of(context);
+    return BulkActionBar(
+      selectedCount: selection.selectedIds.length,
+      isAllSelected: allSelected,
+      onExit: () =>
+          ref.read(preciseRefLibrarySelectionNotifierProvider.notifier).exit(),
+      onSelectAll: () {
+        final notifier = ref.read(
+          preciseRefLibrarySelectionNotifierProvider.notifier,
+        );
+        allSelected
+            ? notifier.deselectAll(pageIds)
+            : notifier.selectAll(pageIds);
+      },
+      actions: [
+        BulkActionItem(
+          icon: Icons.send,
+          label: context.l10n.preciseRefLib_sendToPreciseRef,
+          color: theme.colorScheme.primary,
+          onPressed: selection.selectedIds.isEmpty
+              ? null
+              : () => _sendSelection(state, selection.selectedIds),
+        ),
+        BulkActionItem(
+          icon: Icons.category_outlined,
+          label: context.l10n.preciseRefLib_changeType,
+          color: theme.colorScheme.secondary,
+          onPressed: selection.selectedIds.isEmpty
+              ? null
+              : () => _changeSelectionType(selection.selectedIds),
+        ),
+        BulkActionItem(
+          icon: Icons.favorite_border,
+          label: allFavorite
+              ? context.l10n.common_unfavorite
+              : context.l10n.common_favorite,
+          color: theme.colorScheme.primary,
+          onPressed: selection.selectedIds.isEmpty
+              ? null
+              : () => _toggleSelectionFavorite(state, selection.selectedIds),
+        ),
+        BulkActionItem(
+          icon: Icons.file_upload_outlined,
+          label: context.l10n.common_export,
+          color: theme.colorScheme.secondary,
+          onPressed: selectedEntries.isEmpty || _isExporting
+              ? null
+              : () => _exportEntries(selectedEntries),
+        ),
+        BulkActionItem(
+          icon: Icons.delete_forever_outlined,
+          label: context.l10n.common_delete,
+          color: theme.colorScheme.error,
+          isDanger: true,
+          showDividerBefore: true,
+          onPressed: selection.selectedIds.isEmpty
+              ? null
+              : () => _deleteSelection(selection.selectedIds),
+        ),
+      ],
     );
   }
 
   Widget _buildGrid(PreciseRefLibraryState state, PreciseRefGridLayout layout) {
-    final totalPages = _totalPagesFor(state.filteredEntries.length);
-    final page = _currentPage.clamp(0, totalPages - 1);
-    final start = page * _pageSize;
-    final end = (start + _pageSize).clamp(0, state.filteredEntries.length);
-    final entries = state.filteredEntries.sublist(start, end);
+    final entries = _currentPageEntries(state);
+    final selection = ref.watch(preciseRefLibrarySelectionNotifierProvider);
     return GridView.builder(
       key: const PageStorageKey('precise_ref_library_grid'),
       padding: EdgeInsets.all(layout.padding),
@@ -637,6 +899,33 @@ class _PreciseRefLibraryScreenState
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
+        final card = PreciseRefCard(
+          entry: entry,
+          isSelectionMode: selection.isActive,
+          isSelected: selection.selectedIds.contains(entry.id),
+          onToggleSelection: () => ref
+              .read(preciseRefLibrarySelectionNotifierProvider.notifier)
+              .toggle(entry.id),
+          onEnterSelectionMode: () => ref
+              .read(preciseRefLibrarySelectionNotifierProvider.notifier)
+              .enterAndSelect(entry.id),
+          onSendToPreciseRef: () => _sendToPreciseRef(entry),
+          onSendToImg2Img: () => _sendToImg2Img(entry),
+          onEdit: () => _editEntry(entry),
+          onDelete: () => _deleteEntry(entry),
+          onToggleFavorite: () {
+            ref
+                .read(preciseRefLibraryNotifierProvider.notifier)
+                .toggleFavorite(entry.id);
+          },
+          onClassify: () => _classifyEntry(entry),
+        );
+        if (selection.isActive) {
+          return KeyedSubtree(
+            key: Key('precise-ref-card-${entry.id}'),
+            child: card,
+          );
+        }
         return AgentResourceDragSource(
           key: Key('precise-ref-card-${entry.id}'),
           reference: AgentChatResourceReference(
@@ -648,23 +937,21 @@ class _PreciseRefLibraryScreenState
           child: LibraryClassificationDragSource<PreciseRefLibraryEntry>(
             data: entry,
             label: entry.name,
-            child: PreciseRefCard(
-              entry: entry,
-              onSendToPreciseRef: () => _sendToPreciseRef(entry),
-              onSendToImg2Img: () => _sendToImg2Img(entry),
-              onEdit: () => _editEntry(entry),
-              onDelete: () => _deleteEntry(entry),
-              onToggleFavorite: () {
-                ref
-                    .read(preciseRefLibraryNotifierProvider.notifier)
-                    .toggleFavorite(entry.id);
-              },
-              onClassify: () => _classifyEntry(entry),
-            ),
+            child: card,
           ),
         );
       },
     );
+  }
+
+  List<PreciseRefLibraryEntry> _currentPageEntries(
+    PreciseRefLibraryState state,
+  ) {
+    final totalPages = _totalPagesFor(state.filteredEntries.length);
+    final page = _currentPage.clamp(0, totalPages - 1);
+    final start = page * _pageSize;
+    final end = (start + _pageSize).clamp(0, state.filteredEntries.length);
+    return state.filteredEntries.sublist(start, end);
   }
 
   Future<void> _classifyEntry(PreciseRefLibraryEntry entry) async {
