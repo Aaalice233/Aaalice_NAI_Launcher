@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/window_size_class.dart';
 import '../../themes/core/layered_surface_style.dart';
@@ -28,6 +29,7 @@ class _SettingsSection {
   final IconData selectedIcon;
   final String label;
   final Widget widget;
+  final bool compactEnabled;
 
   const _SettingsSection({
     required this.id,
@@ -35,6 +37,7 @@ class _SettingsSection {
     required this.selectedIcon,
     required this.label,
     required this.widget,
+    this.compactEnabled = true,
   });
 }
 
@@ -153,6 +156,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         selectedIcon: Icons.keyboard,
         label: context.l10n.settings_shortcuts,
         widget: const ShortcutSettingsSection(),
+        compactEnabled:
+            PlatformCapabilities.current.supportsKeyboardShortcutConfiguration,
       ),
       _SettingsSection(
         id: SettingsSection.integrations,
@@ -312,8 +317,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     List<_SettingsSection> sections,
     int selectedIndex,
   ) {
+    final selectedSection = sections[selectedIndex];
+    final showDetail = _showCompactDetail && selectedSection.compactEnabled;
     return PopScope<void>(
-      canPop: !_showCompactDetail,
+      canPop: !showDetail,
       onPopInvokedWithResult: (didPop, _) async {
         if (!didPop) await _returnToCompactSettingsList();
       },
@@ -321,7 +328,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         appBar: _buildAppBar(
           context,
           theme,
-          leading: _showCompactDetail
+          leading: showDetail
               ? BackButton(onPressed: _returnToCompactSettingsList)
               : null,
         ),
@@ -331,7 +338,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               : const Duration(milliseconds: 180),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
-          child: _showCompactDetail
+          child: showDetail
               ? KeyedSubtree(
                   key: ValueKey('settings-detail-$selectedIndex'),
                   child: _buildSectionContent(
@@ -351,17 +358,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       type: MaterialType.transparency,
                       child: ListTile(
                         minTileHeight: 56,
+                        enabled: section.compactEnabled,
                         tileColor: sectionSurfaceColor(theme.colorScheme),
                         leading: Icon(section.icon),
                         title: Text(section.label),
-                        trailing: const Icon(Icons.chevron_right),
+                        trailing: section.compactEnabled
+                            ? const Icon(Icons.chevron_right)
+                            : null,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        onTap: () => _onSectionSelected(
-                          section.id,
-                          showCompactDetail: true,
-                        ),
+                        onTap: section.compactEnabled
+                            ? () => _onSectionSelected(
+                                section.id,
+                                showCompactDetail: true,
+                              )
+                            : null,
                       ),
                     );
                   },

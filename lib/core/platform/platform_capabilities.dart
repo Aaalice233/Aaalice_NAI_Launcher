@@ -61,6 +61,7 @@ class PlatformCapabilities {
   bool get usesAppManagedStorage => isMobile;
   bool get supportsComfyUiIntegration => isDesktop;
   bool get supportsDesktopOverlayInteractions => isDesktop;
+  bool get supportsKeyboardShortcutConfiguration => isDesktop;
   bool get supportsKritaBridge => isDesktop;
   bool get supportsSystemFontEnumeration => isWindows;
   bool get supportsNativeShare => isMobile || isMacOS;

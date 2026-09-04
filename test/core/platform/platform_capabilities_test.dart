@@ -17,6 +17,7 @@ void main() {
       expect(capabilities.supportsOpenFolder, isFalse);
       expect(capabilities.supportsComfyUiIntegration, isFalse);
       expect(capabilities.supportsDesktopOverlayInteractions, isFalse);
+      expect(capabilities.supportsKeyboardShortcutConfiguration, isFalse);
       expect(capabilities.supportsKritaBridge, isFalse);
       expect(capabilities.supportsSystemFontEnumeration, isFalse);
       expect(capabilities.supportsInAppPackageInstall, isTrue);
@@ -35,6 +36,7 @@ void main() {
       expect(capabilities.supportsOpenFolder, isTrue);
       expect(capabilities.supportsComfyUiIntegration, isTrue);
       expect(capabilities.supportsDesktopOverlayInteractions, isTrue);
+      expect(capabilities.supportsKeyboardShortcutConfiguration, isTrue);
       expect(capabilities.supportsKritaBridge, isTrue);
       expect(capabilities.supportsSystemFontEnumeration, isTrue);
       expect(capabilities.supportsInAppPackageInstall, isTrue);

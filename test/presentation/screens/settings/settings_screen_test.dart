@@ -21,6 +21,7 @@ import 'package:nai_launcher/presentation/screens/settings/sections/account_sett
 import 'package:nai_launcher/presentation/screens/settings/sections/appearance_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/prompt_assistant_settings_section.dart';
+import 'package:nai_launcher/presentation/screens/settings/sections/shortcut_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
@@ -446,6 +447,25 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('账户'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
+
+    final shortcutsTile = find.ancestor(
+      of: find.text('快捷键'),
+      matching: find.byType(ListTile),
+    );
+    expect(shortcutsTile, findsOneWidget);
+    expect(tester.widget<ListTile>(shortcutsTile).enabled, isFalse);
+    expect(tester.widget<ListTile>(shortcutsTile).onTap, isNull);
+    expect(
+      find.descendant(
+        of: shortcutsTile,
+        matching: find.byIcon(Icons.chevron_right),
+      ),
+      findsNothing,
+    );
+    await tester.tap(shortcutsTile);
+    await pumpTransition();
+    expect(find.byKey(const ValueKey('settings-section-list')), findsOneWidget);
+    expect(find.byType(ShortcutSettingsSection), findsNothing);
 
     await tester.tap(find.text('外观'));
     await pumpTransition();
