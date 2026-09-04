@@ -135,8 +135,14 @@ void main() {
       final track = tester.widget<AnimatedContainer>(
         find.byKey(const ValueKey('random-mode-switch-track')),
       );
+      final thumb = tester.widget<AnimatedContainer>(
+        find.byKey(const ValueKey('random-mode-switch-thumb')),
+      );
+      final trackDecoration = track.decoration as BoxDecoration;
+      final thumbDecoration = thumb.decoration as BoxDecoration;
       expect(surface.color, isNot(Colors.transparent));
-      expect((track.decoration as BoxDecoration).border, isNotNull);
+      expect(trackDecoration.border, isNotNull);
+      expect(thumbDecoration.color, isNot(trackDecoration.color));
       expect(
         tester.getSize(find.byType(RandomModeToggle)).height,
         greaterThanOrEqualTo(48),

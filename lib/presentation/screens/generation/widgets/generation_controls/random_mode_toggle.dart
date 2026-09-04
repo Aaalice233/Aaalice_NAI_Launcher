@@ -44,7 +44,7 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
     final trackColor = widget.showLabel
         ? widget.enabled
               ? colors.primary
-              : colors.surfaceContainerLowest
+              : colors.surfaceContainerHighest
         : widget.enabled
         ? colors.primaryContainer
         : colors.surfaceContainerHigh;
@@ -86,6 +86,8 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
           decoration: BoxDecoration(
             color: widget.showLabel && widget.enabled
                 ? colors.onPrimary
+                : widget.showLabel
+                ? colors.onSurfaceVariant
                 : widget.enabled
                 ? colors.primary
                 : colors.surfaceContainerHighest,
