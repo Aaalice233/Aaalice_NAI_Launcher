@@ -799,7 +799,7 @@ void main() {
   );
 
   testWidgets(
-    'renders enabled categorized entries without duplicate key errors',
+    'search spans enabled and disabled positive categories without key errors',
     (tester) async {
       final category = TagLibraryCategory.create(name: '画师');
       final enabled = FixedTagEntry.create(
@@ -860,13 +860,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        find.descendant(
-          of: find.byType(SidebarEntryTile),
-          matching: find.text('quality'),
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('quality'), findsNothing);
       expect(tester.takeException(), isNull);
 
       await tester.enterText(find.byType(TextField), 'quality');
@@ -891,7 +885,9 @@ void main() {
     },
   );
 
-  testWidgets('category chips wrap when the sidebar is narrow', (tester) async {
+  testWidgets('category rails stay compact and support negative categories', (
+    tester,
+  ) async {
     final categories = [
       TagLibraryCategory.create(name: '质量词'),
       TagLibraryCategory.create(name: '画风'),
@@ -905,6 +901,12 @@ void main() {
           content: 'tag ${category.name}',
           categoryId: category.id,
         ),
+      FixedTagEntry.create(
+        name: 'negative quality',
+        content: 'bad quality',
+        categoryId: categories.first.id,
+        promptType: FixedTagPromptType.negative,
+      ),
     ];
     final storage = _SidebarTestStorage(
       fixedEntries: entries,
@@ -927,13 +929,23 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final wrappedChip = find.text('角色 1');
-    expect(wrappedChip, findsOneWidget);
+    final positiveRail = find.byKey(
+      const ValueKey('fixed-tags-positive-category-rail'),
+    );
+    final negativeRail = find.byKey(
+      const ValueKey('fixed-tags-negative-category-rail'),
+    );
+    expect(positiveRail, findsOneWidget);
+    expect(negativeRail, findsOneWidget);
+    expect(tester.getSize(positiveRail).width, 48);
 
-    final firstTop = tester.getTopLeft(find.text('已启用 4')).dy;
-    final wrappedTop = tester.getTopLeft(wrappedChip).dy;
-
-    expect(wrappedTop, greaterThan(firstTop + 20));
+    await tester.tap(
+      find.byKey(
+        ValueKey('fixed-tags-negative-category-${categories.first.id}'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('negative quality'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -1627,13 +1639,40 @@ void main() {
         );
         expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
 
-        final endpoint = find.byIcon(Icons.link_rounded).last;
+        final negativeTile = find.ancestor(
+          of: find.text('negative'),
+          matching: find.byType(SidebarEntryTile),
+        );
+        final endpoint = find.descendant(
+          of: negativeTile,
+          matching: find.byIcon(Icons.link_rounded),
+        );
+        await tester.ensureVisible(endpoint);
+        await tester.pumpAndSettle();
         final endpointCenter = tester.getCenter(endpoint);
-        await tester.dragFrom(endpointCenter, const Offset(12, 0));
+        final shortDrag = await tester.startGesture(
+          endpointCenter,
+          kind: PointerDeviceKind.mouse,
+        );
+        await shortDrag.moveBy(const Offset(12, 0));
+        await tester.pump();
+        await shortDrag.up();
         await tester.pumpAndSettle();
         expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
 
-        await tester.dragFrom(endpointCenter, const Offset(72, 0));
+        final refreshedEndpointCenter = tester.getCenter(
+          find.descendant(
+            of: negativeTile,
+            matching: find.byIcon(Icons.link_rounded),
+          ),
+        );
+        final detachDrag = await tester.startGesture(
+          refreshedEndpointCenter,
+          kind: PointerDeviceKind.mouse,
+        );
+        await detachDrag.moveBy(const Offset(72, 0));
+        await tester.pump();
+        await detachDrag.up();
         await tester.pumpAndSettle();
 
         expect(container.read(fixedTagsNotifierProvider).links, isEmpty);
@@ -1733,13 +1772,18 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
 
-      await tester.tap(
-        find.byKey(const ValueKey('sidebar-entry-actions-menu')),
+      final entryMenu = find.byKey(
+        const ValueKey('sidebar-entry-actions-menu'),
       );
+      await tester.ensureVisible(entryMenu);
+      await tester.pumpAndSettle();
+      await tester.tap(entryMenu);
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.edit_rounded));
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
 
       expect(
         find.byKey(const ValueKey('adaptive-bottom-sheet')),
@@ -1776,9 +1820,10 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      final negativeCategory = TagLibraryCategory.create(name: '负面质量');
       final storage = _SidebarTestStorage(
         fixedEntries: const [],
-        categories: const [],
+        categories: [negativeCategory],
         libraryEntries: const [],
       );
       await _pumpSidebar(tester, storage);
@@ -1804,6 +1849,13 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(FixedTagsSidebar)),
       );
+      final categorySelector = find.byType(DropdownButtonFormField<String?>);
+      await tester.ensureVisible(categorySelector);
+      await tester.pumpAndSettle();
+      await tester.tap(categorySelector);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('负面质量').last);
+      await tester.pumpAndSettle();
       await tester.enterText(contentField, ',');
       await tester.pump();
       await tester.tap(find.text('保存').hitTestable());
@@ -1822,6 +1874,7 @@ void main() {
       expect(added.position, FixedTagPosition.prefix);
       expect(added.enabled, isTrue);
       expect(added.weight, 1.0);
+      expect(added.categoryId, negativeCategory.id);
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(const SizedBox.shrink());
@@ -1878,21 +1931,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(ThumbnailDisplay), findsNWidgets(2));
+    expect(find.byType(ThumbnailDisplay), findsNWidgets(3));
 
     final tiles = find.byType(SidebarEntryTile);
-    expect(tiles, findsNWidgets(2));
+    expect(tiles, findsNWidgets(3));
     final firstTop = tester.getTopLeft(tiles.at(0)).dy;
     expect(tester.getTopLeft(tiles.at(1)).dy, closeTo(firstTop, 1));
-
-    final scrollView = tester.widget<CustomScrollView>(
-      find.byType(CustomScrollView),
+    expect(
+      find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('thumb three'),
+      ),
+      findsOneWidget,
     );
-    scrollView.controller!.jumpTo(
-      scrollView.controller!.position.maxScrollExtent,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('thumb three'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -1908,10 +1959,16 @@ void main() {
 
       await _pumpSidebar(tester, storage, textScale: 1.35);
 
-      final positiveScrollView = find.byType(CustomScrollView);
+      await tester.tap(
+        find.byKey(
+          ValueKey('fixed-tags-positive-category-${fixture.categories[1].id}'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final positiveScrollView = find.byType(ReorderableListView);
       final controller = tester
-          .widget<CustomScrollView>(positiveScrollView)
-          .controller!;
+          .widget<ReorderableListView>(positiveScrollView)
+          .scrollController!;
       final initialMax = await _expectStableScrollMetrics(
         tester,
         controller: controller,
@@ -1919,17 +1976,14 @@ void main() {
       );
 
       controller.jumpTo(0);
-      await tester.enterText(find.byType(TextField), 'section-3-');
+      await tester.enterText(find.byType(TextField), 'section-0-');
       await tester.pumpAndSettle();
 
       final filteredMax = controller.position.maxScrollExtent;
-      expect(filteredMax, greaterThan(0));
+      expect(filteredMax, 0);
       expect(filteredMax, lessThan(initialMax));
-      await _expectStableScrollMetrics(
-        tester,
-        controller: controller,
-        scrollable: positiveScrollView,
-      );
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(controller.position.maxScrollExtent, filteredMax);
       expect(tester.takeException(), isNull);
     },
   );
@@ -1946,9 +2000,15 @@ void main() {
 
       await _pumpSidebar(tester, storage);
 
-      final positiveScrollView = find.byType(CustomScrollView);
+      await tester.tap(
+        find.byKey(
+          ValueKey('fixed-tags-positive-category-${fixture.categories[1].id}'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final positiveScrollView = find.byType(GridView).first;
       final controller = tester
-          .widget<CustomScrollView>(positiveScrollView)
+          .widget<GridView>(positiveScrollView)
           .controller!;
       await _expectStableScrollMetrics(
         tester,
@@ -1995,6 +2055,11 @@ void main() {
         translationLookup: lookup,
       );
 
+      await tester.tap(
+        find.byKey(ValueKey('fixed-tags-positive-category-${category.id}')),
+      );
+      await tester.pumpAndSettle();
+
       expect(
         find.byKey(const ValueKey('translated-prompt-translation')),
         findsNWidgets(2),
@@ -2038,7 +2103,7 @@ void main() {
   });
 
   testWidgets(
-    'category chip scrolls to a section beyond the initial viewport',
+    'category rail switches directly to a section without retaining scroll',
     (tester) async {
       final near = TagLibraryCategory.create(name: 'Near', sortOrder: 0);
       final far = TagLibraryCategory.create(name: 'Far', sortOrder: 1);
@@ -2075,28 +2140,25 @@ void main() {
         ),
       );
 
-      final positiveScrollView = find.byType(CustomScrollView);
+      await tester.tap(
+        find.byKey(ValueKey('fixed-tags-positive-category-${near.id}')),
+      );
+      await tester.pumpAndSettle();
+      final positiveList = find.byType(ReorderableListView);
       final controller = tester
-          .widget<CustomScrollView>(positiveScrollView)
-          .controller!;
-      final initialMax = controller.position.maxScrollExtent;
+          .widget<ReorderableListView>(positiveList)
+          .scrollController!;
+      controller.jumpTo(controller.position.maxScrollExtent);
+      await tester.pump();
 
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await mouse.addPointer();
-      addTearDown(mouse.removePointer);
-      await mouse.moveTo(tester.getCenter(find.text('Far 1')));
-      await mouse.down(tester.getCenter(find.text('Far 1')));
-      await mouse.up();
+      await tester.tap(
+        find.byKey(ValueKey('fixed-tags-positive-category-${far.id}')),
+      );
       await tester.pumpAndSettle();
 
-      expect(controller.offset, greaterThan(0));
-      expect(controller.position.maxScrollExtent, closeTo(initialMax, 0.01));
-      expect(
-        tester
-            .getRect(positiveScrollView)
-            .overlaps(tester.getRect(find.text('Far'))),
-        isTrue,
-      );
+      expect(controller.offset, 0);
+      expect(find.text('far-entry'), findsOneWidget);
+      expect(find.text('near-0'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -2226,75 +2288,74 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'SidebarEntryTile pointer actions remain full-size and invoke commands at 320',
-    (tester) async {
-      tester.view.physicalSize = const Size(320, 300);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('SidebarEntryTile pointer menu exposes every action at 320', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 300);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      var edited = 0;
-      var deleted = 0;
-      String? copiedText;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    var edited = 0;
+    var deleted = 0;
+    String? copiedText;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copiedText =
+              (call.arguments as Map<Object?, Object?>)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            copiedText =
-                (call.arguments as Map<Object?, Object?>)['text'] as String?;
-          }
-          return null;
-        },
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        ),
-      );
+        null,
+      ),
+    );
 
-      final entry = FixedTagEntry.create(name: 'tile', content: 'copied tag');
-      await _pumpEntryTile(
-        tester,
-        entry: entry,
-        width: 288,
-        policy: const InteractionPolicy(
-          modality: InteractionModality.pointer,
-          touchAvailable: false,
-          precisePointerAvailable: true,
-        ),
-        onEdit: () => edited++,
-        onDelete: () => deleted++,
-      );
+    final entry = FixedTagEntry.create(name: 'tile', content: 'copied tag');
+    await _pumpEntryTile(
+      tester,
+      entry: entry,
+      width: 288,
+      policy: const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+      onEdit: () => edited++,
+      onDelete: () => deleted++,
+    );
 
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await mouse.addPointer();
-      addTearDown(mouse.removePointer);
-      await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
-      await tester.pumpAndSettle();
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(FittedBox), findsNothing);
-      for (final icon in const [
-        Icons.copy_rounded,
-        Icons.edit_rounded,
-        Icons.delete_outline_rounded,
-      ]) {
-        final iconFinder = find.byIcon(icon);
-        expect(iconFinder, findsOneWidget);
-        expect(tester.getSize(iconFinder), const Size.square(15));
-      }
+    final menu = find.byKey(const ValueKey('sidebar-entry-actions-menu'));
+    expect(menu, findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.copy_rounded));
-      await tester.tap(find.byIcon(Icons.edit_rounded));
-      await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.copy_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.edit_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
 
-      expect(copiedText, 'copied tag');
-      expect(edited, 1);
-      expect(deleted, 1);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(copiedText, 'copied tag');
+    expect(edited, 1);
+    expect(deleted, 1);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('SidebarEntryTile touch menu invokes edit and delete callbacks', (
     tester,
@@ -2450,6 +2511,10 @@ void main() {
     expect(find.byIcon(Icons.remove_rounded), findsNothing);
     expect(find.byIcon(Icons.add_rounded), findsNothing);
 
+    final menu = find.byKey(const ValueKey('sidebar-entry-actions-menu'));
+    expect(menu, findsOneWidget);
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_rounded));
 
     expect(edited, isTrue);

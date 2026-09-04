@@ -89,6 +89,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     _promptType = entry?.promptType ?? widget.initialPromptType;
     _weight = entry?.weight ?? 1.0;
     _enabled = entry?.enabled ?? true;
+    _selectedCategoryId = entry?.categoryId;
     _assistantSessionId = PromptHistorySessionIds.fixedTag(
       entry?.id ?? 'draft-${identityHashCode(this)}',
     );
@@ -488,6 +489,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           ),
           dense: true,
         ),
+        const SizedBox(height: 12),
+        _buildCategorySelector(theme),
         if (!_isEditing) ...[
           const SizedBox(height: 8),
           _buildSaveToLibrary(theme),
@@ -690,10 +693,6 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
               ],
             ),
           ),
-          if (_saveToLibrary) ...[
-            const SizedBox(height: 10),
-            _buildCompactCategorySelector(theme),
-          ],
         ],
       ),
     );
@@ -753,14 +752,16 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     if (content.isEmpty) return;
 
     final result =
-        widget.entry?.update(
-          name: name,
-          content: content,
-          weight: _weight,
-          position: _position,
-          promptType: _promptType,
-          enabled: _enabled,
-        ) ??
+        widget.entry
+            ?.update(
+              name: name,
+              content: content,
+              weight: _weight,
+              position: _position,
+              promptType: _promptType,
+              enabled: _enabled,
+            )
+            .copyWith(categoryId: _selectedCategoryId) ??
         FixedTagEntry.create(
           name: name,
           content: content,
@@ -768,6 +769,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           position: _position,
           promptType: _promptType,
           enabled: _enabled,
+          categoryId: _selectedCategoryId,
         );
 
     if (_saveToLibrary && !_isEditing) {
@@ -789,9 +791,12 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     Navigator.of(context).pop(result);
   }
 
-  Widget _buildCompactCategorySelector(ThemeData theme) {
+  Widget _buildCategorySelector(ThemeData theme) {
     final state = ref.watch(tagLibraryPageNotifierProvider);
     final categories = state.categories;
+    final itemHeight = (MediaQuery.textScalerOf(context).scale(20) + 16)
+        .clamp(48.0, double.infinity)
+        .toDouble();
     final items = <DropdownMenuItem<String?>>[];
 
     items.add(
@@ -805,9 +810,12 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
               color: theme.colorScheme.primary,
             ),
             const SizedBox(width: 8),
-            Text(
-              context.l10n.tagLibrary_rootCategory,
-              style: const TextStyle(fontSize: 13),
+            Expanded(
+              child: Text(
+                context.l10n.tagLibrary_rootCategory,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13),
+              ),
             ),
           ],
         ),
@@ -860,12 +868,12 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
         const SizedBox(height: 6),
         DropdownButtonFormField<String?>(
           initialValue: _selectedCategoryId,
+          itemHeight: itemHeight,
           decoration: InputDecoration(
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 10,
-              vertical: 6,
+              vertical: 12,
             ),
-            isDense: true,
             filled: true,
             fillColor: inputSurfaceFillColor(theme.colorScheme),
           ),
