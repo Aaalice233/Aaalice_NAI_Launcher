@@ -802,6 +802,11 @@ void main() {
   });
 
   testWidgets('prompt copy dialog rejects an empty selection', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(500, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
     const projection = GalleryPromptCopyProjection(
       mainPositive: 'main',
       mainNegative: 'bad',

@@ -20,8 +20,8 @@ class AdaptivePresenter {
 
   static const double defaultDialogWidth = 560;
 
-  /// Presents dialog-style editing flows in a bottom sheet below the expanded
-  /// breakpoint and in a bounded, centered surface on wider panes.
+  /// Presents dialog-style editing flows in a content-sized bottom sheet on
+  /// compact panes and in a bounded, centered surface on wider panes.
   static Future<T?> showForm<T>({
     required BuildContext context,
     String? title,
@@ -29,6 +29,7 @@ class AdaptivePresenter {
     required AdaptivePanelBuilder builder,
     double? dialogWidth,
     double? maxCenteredHeight,
+    bool expandCompact = false,
     bool barrierDismissible = true,
     bool requestFocus = true,
     bool restoreFocus = true,
@@ -43,7 +44,7 @@ class AdaptivePresenter {
     final previousFocus = restoreFocus
         ? FocusManager.instance.primaryFocus
         : null;
-    if (metrics.isExpandedOrWider) {
+    if (!metrics.isCompact) {
       final result = await _showCenteredForm<T>(
         context: context,
         titleBuilder: resolvedTitleBuilder,
@@ -63,18 +64,14 @@ class AdaptivePresenter {
       }
       return result;
     }
-    final result = await showPanel<T>(
+    final result = await _showBottomForm<T>(
       context: context,
       titleBuilder: resolvedTitleBuilder,
       builder: builder,
-      initialChildSize: 1,
-      minChildSize: 0.5,
-      maxChildSize: 1,
-      dialogWidth: dialogWidth,
+      maxHeight: maxCenteredHeight,
+      expand: expandCompact,
       barrierDismissible: barrierDismissible,
-      allowDragDismissal: barrierDismissible,
       requestFocus: requestFocus,
-      restoreFocus: false,
       showHeader: showHeader,
     );
     if (restoreFocus && context.mounted && previousFocus?.context != null) {
@@ -85,6 +82,59 @@ class AdaptivePresenter {
       });
     }
     return result;
+  }
+
+  static Future<T?> _showBottomForm<T>({
+    required BuildContext context,
+    required WidgetBuilder titleBuilder,
+    required AdaptivePanelBuilder builder,
+    required bool barrierDismissible,
+    required bool requestFocus,
+    required bool showHeader,
+    required bool expand,
+    double? maxHeight,
+  }) {
+    final motion = Theme.of(context).appTheme;
+    return showModalBottomSheet<T>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      isDismissible: barrierDismissible,
+      enableDrag: barrierDismissible,
+      requestFocus: requestFocus,
+      backgroundColor: Colors.transparent,
+      barrierColor: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.4),
+      builder: (sheetContext) {
+        final viewInset = _activeRouteViewInsetBottom(sheetContext);
+        return AnimatedPadding(
+          duration: MediaQuery.disableAnimationsOf(sheetContext)
+              ? Duration.zero
+              : motion.fastDuration,
+          curve: motion.standardCurve,
+          padding: EdgeInsets.only(bottom: viewInset),
+          child: expand || viewInset > 0
+              ? DraggableScrollableSheet(
+                  expand: false,
+                  initialChildSize: 1,
+                  minChildSize: 0.5,
+                  maxChildSize: 1,
+                  builder: (context, scrollController) => _PanelSurface(
+                    titleBuilder: titleBuilder,
+                    scrollController: scrollController,
+                    showHeader: showHeader,
+                    child: builder(context, scrollController),
+                  ),
+                )
+              : _BottomFormPanel(
+                  titleBuilder: titleBuilder,
+                  builder: builder,
+                  showHeader: showHeader,
+                  maxHeight: maxHeight,
+                ),
+        );
+      },
+    );
   }
 
   /// Presents a searchable picker using a bottom sheet below the expanded
@@ -278,6 +328,59 @@ class AdaptivePresenter {
   }
 }
 
+class _BottomFormPanel extends StatefulWidget {
+  const _BottomFormPanel({
+    required this.titleBuilder,
+    required this.builder,
+    required this.showHeader,
+    this.maxHeight,
+  });
+
+  final WidgetBuilder titleBuilder;
+  final AdaptivePanelBuilder builder;
+  final bool showHeader;
+  final double? maxHeight;
+
+  @override
+  State<_BottomFormPanel> createState() => _BottomFormPanelState();
+}
+
+class _BottomFormPanelState extends State<_BottomFormPanel> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight = math.max(0.0, constraints.maxHeight - 16);
+        final maxPanelHeight = math.min(
+          availableHeight,
+          widget.maxHeight ?? double.infinity,
+        );
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxPanelHeight),
+            child: _PanelSurface(
+              titleBuilder: widget.titleBuilder,
+              scrollController: _scrollController,
+              contentSized: true,
+              showHeader: widget.showHeader,
+              child: widget.builder(context, _scrollController),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _CenteredFormPanel extends StatefulWidget {
   const _CenteredFormPanel({
     required this.width,
@@ -358,6 +461,7 @@ class _PanelSurface extends StatelessWidget {
     required this.scrollController,
     required this.child,
     this.centered = false,
+    this.contentSized = false,
     this.showHeader = true,
   });
 
@@ -365,6 +469,7 @@ class _PanelSurface extends StatelessWidget {
   final ScrollController scrollController;
   final Widget child;
   final bool centered;
+  final bool contentSized;
   final bool showHeader;
 
   @override
@@ -387,7 +492,9 @@ class _PanelSurface extends StatelessWidget {
                 : const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
-            mainAxisSize: centered ? MainAxisSize.min : MainAxisSize.max,
+            mainAxisSize: centered || contentSized
+                ? MainAxisSize.min
+                : MainAxisSize.max,
             children: [
               if (!centered)
                 Padding(
@@ -437,7 +544,7 @@ class _PanelSurface extends StatelessWidget {
                 ),
               ],
               Flexible(
-                fit: centered ? FlexFit.loose : FlexFit.tight,
+                fit: centered || contentSized ? FlexFit.loose : FlexFit.tight,
                 child: SafeArea(
                   top: false,
                   left: false,

@@ -8956,6 +8956,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_export_format => 'エクスポート形式';
 
   @override
+  String get vibe_export_multipleFormatsHint =>
+      '必要に応じて複数の形式を選択できます。形式ごとに個別のエクスポート結果が作成されます。';
+
+  @override
   String get vibe_selector_title => 'Vibe を選択してください';
 
   @override

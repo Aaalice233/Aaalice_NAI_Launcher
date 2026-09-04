@@ -787,7 +787,7 @@ class _PreciseRefLibraryScreenState
         importButton,
         GalleryLibraryAction(
           key: const Key('precise-ref-library-export-button'),
-          icon: Icons.file_download_outlined,
+          icon: Icons.file_upload_outlined,
           label: l10n.common_export,
           isLoading: _isExporting,
           onPressed: state.entries.isEmpty || _isExporting

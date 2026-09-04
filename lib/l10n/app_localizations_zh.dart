@@ -8826,6 +8826,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_export_format => '导出格式';
 
   @override
+  String get vibe_export_multipleFormatsHint => '可同时选择多种格式，每种格式会生成一份独立的导出结果。';
+
+  @override
   String get vibe_selector_title => '选择 Vibe';
 
   @override
@@ -22739,6 +22742,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get vibe_export_format => '匯出格式';
+
+  @override
+  String get vibe_export_multipleFormatsHint => '可同時選擇多種格式，每種格式會產生一份獨立的匯出結果。';
 
   @override
   String get vibe_selector_title => '選擇 Vibe';

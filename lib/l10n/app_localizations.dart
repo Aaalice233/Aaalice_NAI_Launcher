@@ -16204,6 +16204,12 @@ abstract class AppLocalizations {
   /// **'Export Format'**
   String get vibe_export_format;
 
+  /// No description provided for @vibe_export_multipleFormatsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select multiple formats if needed. Each format creates a separate export result.'**
+  String get vibe_export_multipleFormatsHint;
+
   /// No description provided for @vibe_selector_title.
   ///
   /// In en, this message translates to:

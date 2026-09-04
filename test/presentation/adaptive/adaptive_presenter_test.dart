@@ -277,7 +277,7 @@ void main() {
     expect(triggerFocus.hasFocus, isTrue);
   });
 
-  testWidgets('compact long forms use the shared bottom-sheet presentation', (
+  testWidgets('compact long forms can opt into the draggable presentation', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -295,6 +295,7 @@ void main() {
                   AdaptivePresenter.showForm<void>(
                     context: context,
                     title: 'Long form',
+                    expandCompact: true,
                     builder: (context, scrollController) => ListView(
                       controller: scrollController,
                       children: const [Text('Form content')],
@@ -317,7 +318,52 @@ void main() {
     expect(find.text('Form content'), findsOneWidget);
   });
 
-  testWidgets('medium long forms use a bounded bottom sheet', (tester) async {
+  testWidgets('compact short forms shrink to their content height', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(400, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () {
+                unawaited(
+                  AdaptivePresenter.showForm<void>(
+                    context: context,
+                    title: 'Short compact form',
+                    builder: (context, _) => const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('Short compact content'),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Open compact form'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open compact form'));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+    expect(surface, findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(tester.getSize(surface).height, lessThan(160));
+    expect(tester.getRect(surface).bottom, 800);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('medium long forms use a bounded centered dialog', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(839.9, 700);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -350,8 +396,12 @@ void main() {
     await tester.tap(find.text('Open medium form'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
-    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
     expect(find.text('Medium form content'), findsOneWidget);
   });
 
@@ -442,7 +492,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('medium forms use a bottom sheet above IME and SafeArea', (
+  testWidgets('medium forms stay centered above IME and SafeArea', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -500,9 +550,9 @@ void main() {
     await tester.tap(find.text('Open short form'));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(surface, findsOneWidget);
-    expect(find.byKey(const Key('adaptive-centered-form')), findsNothing);
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
     expect(tester.getRect(surface).bottom, lessThanOrEqualTo(420));
     expect(find.byKey(const Key('bottom-action')), findsOneWidget);
     expect(tester.takeException(), isNull);

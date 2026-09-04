@@ -149,7 +149,6 @@ void main() {
         );
         final surfaceKey = switch (width) {
           < 600 => 'adaptive-bottom-sheet',
-          < 840 => 'adaptive-bottom-sheet',
           _ => 'adaptive-centered-form',
         };
         final surface = find.byKey(ValueKey(surfaceKey));
@@ -286,7 +285,7 @@ void main() {
   );
 
   for (final (width, surfaceKey) in [
-    (700.0, 'adaptive-bottom-sheet'),
+    (700.0, 'adaptive-centered-form'),
     (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('${width.toInt()}px selector uses a bounded adaptive surface', (
@@ -301,6 +300,7 @@ void main() {
       final surface = find.byKey(ValueKey(surfaceKey));
       expect(surface, findsOneWidget);
       expect(tester.getSize(surface).width, lessThan(width));
+      expect(tester.getSize(surface).height, lessThan(760));
       expect(
         find.byKey(const Key('precise-ref-selector-search')),
         findsOneWidget,
@@ -342,6 +342,31 @@ void main() {
     await tester.ensureVisible(confirm);
     expect(find.text('导出所选 (2)'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('precise reference toolbar uses the outward export icon', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpLibrary(tester);
+
+    final exportButton = find.byKey(
+      const Key('precise-ref-library-export-button'),
+    );
+    expect(
+      find.descendant(
+        of: exportButton,
+        matching: find.byIcon(Icons.file_upload_outlined),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: exportButton,
+        matching: find.byIcon(Icons.file_download_outlined),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets(

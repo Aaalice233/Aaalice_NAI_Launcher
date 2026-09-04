@@ -95,7 +95,7 @@ void main() {
   });
 
   for (final (width, surfaceKey) in [
-    (700.0, 'adaptive-bottom-sheet'),
+    (700.0, 'adaptive-centered-form'),
     (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('${width.toInt()} 宽完整导出管理器使用共享自适应表单', (tester) async {
@@ -121,7 +121,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(ValueKey(surfaceKey)), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(ValueKey(surfaceKey))).height,
+        lessThan(760),
+      );
       expect(find.byType(Dialog), findsNothing);
+      expect(find.text('可同时选择多种格式，每种格式会生成一份独立的导出结果。'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -146,6 +151,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(ValueKey(surfaceKey)), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(ValueKey(surfaceKey))).height,
+        lessThan(760),
+      );
       expect(find.byType(Dialog), findsNothing);
       expect(tester.takeException(), isNull);
     });
