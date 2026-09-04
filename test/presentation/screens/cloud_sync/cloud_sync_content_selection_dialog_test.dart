@@ -110,6 +110,43 @@ void main() {
     });
   }
 
+  testWidgets('桌面弹窗操作按钮贴紧内容区右侧', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 760);
+    addTearDown(() {
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPhysicalSize();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () => showCloudSyncContentSelectionDialog(
+                context: context,
+                initialSelection: const CloudSyncContentSelection(),
+                skills: const SkillCatalogSnapshot(),
+              ),
+              child: const Text('打开'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+
+    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
+    final actions = find.byKey(const ValueKey('cloud-sync-content-actions'));
+    expect(tester.getTopRight(actions).dx, tester.getTopRight(panel).dx - 20);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Skill 清单使用独立弹窗，不嵌套在内容清单滚动区', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1180, 760);
