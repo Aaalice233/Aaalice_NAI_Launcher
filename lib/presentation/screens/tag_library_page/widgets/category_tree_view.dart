@@ -489,6 +489,7 @@ class _CategoryItem extends StatefulWidget {
 class _CategoryItemState extends State<_CategoryItem> {
   bool _isHovering = false;
   bool _isEditing = false;
+  bool _isActionMenuOpen = false;
   late TextEditingController _editController;
 
   @override
@@ -509,9 +510,12 @@ class _CategoryItemState extends State<_CategoryItem> {
     // Deep imported hierarchies must retain room for the label and action menu
     // instead of pushing the row beyond a compact bottom sheet.
     final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
+    // 菜单打开后指针被遮罩挡在行外，必须保住按钮挂载，否则选中值随按钮一起消失。
     final showActions =
         widget.onRename != null &&
-        (!context.interactionPolicy.precisePointerAvailable || _isHovering);
+        (!context.interactionPolicy.precisePointerAvailable ||
+            _isHovering ||
+            _isActionMenuOpen);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -629,10 +633,18 @@ class _CategoryItemState extends State<_CategoryItem> {
                     ),
                     if (showActions)
                       PopupMenuButton<_CategoryAction>(
+                        key: const ValueKey('category-item-actions-menu'),
                         tooltip: MaterialLocalizations.of(
                           context,
                         ).moreButtonTooltip,
-                        onSelected: _handleAction,
+                        onOpened: () =>
+                            setState(() => _isActionMenuOpen = true),
+                        onCanceled: () =>
+                            setState(() => _isActionMenuOpen = false),
+                        onSelected: (action) {
+                          setState(() => _isActionMenuOpen = false);
+                          _handleAction(action);
+                        },
                         itemBuilder: _buildActionItems,
                         icon: const Icon(Icons.more_vert, size: 20),
                       ),
