@@ -117,6 +117,7 @@ void main() {
       find.text('Artist Codex'),
       find.text('All categories'),
       find.text('Filter'),
+      find.text('Contributors and source'),
       find.byKey(const ValueKey('quick-tag-cloud-contributors')),
     ]) {
       final rect = tester.getRect(finder);

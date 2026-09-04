@@ -218,6 +218,16 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
 
     final contributorsButton = selectedMeta == null
         ? null
+        : widget.wrapControls
+        ? TextButton.icon(
+            key: const ValueKey('quick-tag-cloud-contributors'),
+            onPressed: () => _showContributors(
+              context,
+              codexValue?.valueOrNull?.asMediaMeta() ?? selectedMeta,
+            ),
+            icon: const Icon(Icons.group_outlined, size: 20),
+            label: Text(l10n.onlineGallery_codexContributors),
+          )
         : IconButton(
             key: const ValueKey('quick-tag-cloud-contributors'),
             tooltip: l10n.onlineGallery_codexContributors,
