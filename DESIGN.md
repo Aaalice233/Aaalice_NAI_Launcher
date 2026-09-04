@@ -257,6 +257,10 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 - **Hierarchy**：大面积 Prompt 编辑器优先保障正文面积，工具操作放在框外 footer；只读内容无需编辑能力时直接使用文本。
 - **Behavior**：prefix/suffix 保持次级权重；软键盘打开后当前字段必须可见。
 
+### Sliders
+
+- 滑条可以使用 `divisions` 保留离散取值、键盘步进和语义行为，但所有主题与局部 `SliderTheme` 均隐藏轨道间隔点，只显示轨道、进度和滑块。
+
 ### Chips
 
 - **Style**：默认无 side，普通背景使用 `surfaceContainerHighest`，selected 使用 `primaryContainer`；短标签采用 4px 圆角与 8×4px padding。

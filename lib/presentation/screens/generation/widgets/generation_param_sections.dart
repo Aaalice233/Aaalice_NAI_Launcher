@@ -278,7 +278,6 @@ class StepsSection extends ConsumerWidget {
           min: 1,
           max: 50,
           divisions: 49,
-          hideTickMarks: true,
           onChanged: (value) {
             ref
                 .read(generationParamsNotifierProvider.notifier)

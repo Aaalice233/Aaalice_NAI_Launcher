@@ -166,7 +166,7 @@ void main() {
       expect(cfgSliders, hasLength(1));
       expect(cfgSliders.single.divisions, equals(190));
       expect(stepsSliders, hasLength(1));
-      expect(stepsSliders.single.hideTickMarks, isTrue);
+      expect(stepsSliders.single.divisions, equals(49));
     });
 
     testWidgets('高级选项在侧栏色面内使用独立 Material', (tester) async {

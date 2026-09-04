@@ -236,6 +236,7 @@ class ColorfulProbabilitySlider extends StatelessWidget {
           child: SliderTheme(
             data: SliderThemeData(
               trackHeight: 6,
+              tickMarkShape: SliderTickMarkShape.noTickMark,
               // 隐藏默认轨道，使用自定义背景
               activeTrackColor: Colors.transparent,
               inactiveTrackColor: Colors.transparent,

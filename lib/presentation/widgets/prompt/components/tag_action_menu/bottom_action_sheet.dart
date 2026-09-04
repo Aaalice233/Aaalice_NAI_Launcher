@@ -305,6 +305,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
           SliderTheme(
             data: SliderThemeData(
               trackHeight: 6,
+              tickMarkShape: SliderTickMarkShape.noTickMark,
               activeTrackColor: isIncrease
                   ? PromptTagColors.weightIncrease
                   : isDecrease
