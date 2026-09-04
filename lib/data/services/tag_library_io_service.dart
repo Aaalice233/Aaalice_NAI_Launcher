@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/tag_library/import_models.dart';
+import '../models/tag_library/import_plan.dart';
 import '../models/tag_library/tag_library_category.dart';
 import '../models/tag_library/tag_library_entry.dart';
 import 'tag_library_portable_thumbnail_store.dart';
@@ -280,32 +281,20 @@ class TagLibraryIOService {
     return conflicts;
   }
 
-  /// 执行导入
+  /// 按计划落盘预览图，条目的身份与引用由计划决定
   Future<ImportResult> executeImport({
     required File zipFile,
-    required ImportPreview preview,
-    required Set<String> selectedEntryIds,
-    required Set<String> selectedCategoryIds,
-    required Map<String, ConflictResolution> conflictResolutions,
-    required List<TagLibraryEntry> existingEntries,
-    required List<TagLibraryCategory> existingCategories,
+    required TagLibraryImportPlan plan,
     void Function(double progress, String message)? onProgress,
   }) async {
-    var importedEntries = 0;
-    var importedCategories = 0;
-    var skippedConflicts = 0;
-    var overwrittenCount = 0;
-    var renamedCount = 0;
-    final errors = <String>[];
-
     final bytes = await zipFile.readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
 
-    // 归档与预览都由调用方提供，落盘前必须重新校验而不是沿用解析阶段的结论
+    // 归档与计划都由调用方提供，落盘前必须重新校验而不是沿用解析阶段的结论
     final thumbnailMembers = _preflightArchive(archive);
     _verifyIdentifiers(
-      entries: preview.entries,
-      categories: preview.categories,
+      entries: plan.preview.entries,
+      categories: plan.preview.categories,
     );
 
     // 获取应用文档目录用于保存预览图
@@ -315,119 +304,70 @@ class TagLibraryIOService {
       await thumbnailsDir.create(recursive: true);
     }
 
-    final totalSteps = selectedEntryIds.length + selectedCategoryIds.length;
+    final totalSteps = plan.categories.length + plan.entries.length;
+    final progressBase = totalSteps == 0 ? 1 : totalSteps;
     var currentStep = 0;
 
-    // 创建分类 ID 映射（旧 ID -> 新 ID）
-    final categoryIdMapping = <String, String>{};
-
-    // 导入分类
-    for (final category in preview.categories) {
-      if (!selectedCategoryIds.contains(category.id)) continue;
-
+    for (final item in plan.categories) {
       onProgress?.call(
-        currentStep / totalSteps,
-        '导入分类: ${category.displayName}',
+        currentStep / progressBase,
+        '导入分类: ${item.source.displayName}',
       );
-
-      final resolution = conflictResolutions[category.id];
-      if (resolution == ConflictResolution.skip) {
-        skippedConflicts++;
-        // 找到现有分类的 ID 用于映射
-        final existing = existingCategories
-            .cast<TagLibraryCategory?>()
-            .firstWhere(
-              (c) =>
-                  c?.name.toLowerCase() == category.name.toLowerCase() &&
-                  c?.parentId == category.parentId,
-              orElse: () => null,
-            );
-        if (existing != null) {
-          categoryIdMapping[category.id] = existing.id;
-        }
-      } else if (resolution == ConflictResolution.overwrite) {
-        overwrittenCount++;
-        categoryIdMapping[category.id] = category.id;
-      } else {
-        // 新建或重命名
-        String newName = category.name;
-        if (resolution == ConflictResolution.rename) {
-          newName = '${category.name} (导入)';
-          renamedCount++;
-        }
-        final newCategory = TagLibraryCategory.create(
-          name: newName,
-          parentId: category.parentId != null
-              ? categoryIdMapping[category.parentId]
-              : null,
-        );
-        categoryIdMapping[category.id] = newCategory.id;
-        importedCategories++;
-      }
-
       currentStep++;
     }
 
     // 存储更新后的条目（key: 原始条目ID, value: 更新后的条目）
     final updatedEntries = <String, TagLibraryEntry>{};
 
-    // 导入条目
-    for (final entry in preview.entries) {
-      if (!selectedEntryIds.contains(entry.id)) continue;
-
-      onProgress?.call(currentStep / totalSteps, '导入条目: ${entry.displayName}');
-
-      final resolution = conflictResolutions[entry.id];
-      if (resolution == ConflictResolution.skip) {
-        skippedConflicts++;
-        currentStep++;
-        continue;
-      }
-
-      // 提取预览图并更新缩略图路径
-      String? newThumbnailPath;
-      if (entry.hasThumbnail) {
-        final member = thumbnailMembers[entry.id];
-        if (member != null) {
-          final ext = path.url.extension(member.name).toLowerCase();
-          _verifyThumbnailTarget(thumbnailsDir, entry.id, ext);
-          newThumbnailPath = await importPortableThumbnail(
-            entry.id,
-            ext,
-            Stream.value(member.content as List<int>),
-          );
-        }
-      }
-
-      // 创建更新后的条目（使用新的缩略图路径）
-      final updatedEntry = entry.copyWith(
-        thumbnail:
-            newThumbnailPath ??
-            _retainedThumbnail(thumbnailsDir, entry.thumbnail),
+    for (final item in plan.entries) {
+      onProgress?.call(
+        currentStep / progressBase,
+        '导入条目: ${item.source.displayName}',
       );
-      updatedEntries[entry.id] = updatedEntry;
-
-      if (resolution == ConflictResolution.overwrite) {
-        overwrittenCount++;
-      } else if (resolution == ConflictResolution.rename) {
-        renamedCount++;
-      }
-
-      importedEntries++;
       currentStep++;
+
+      final targetId = item.thumbnailEntryId;
+      if (targetId == null) continue;
+
+      updatedEntries[item.source.id] = item.source.copyWith(
+        thumbnail: await _importThumbnail(
+          entry: item.source,
+          targetId: targetId,
+          thumbnailMembers: thumbnailMembers,
+          thumbnailsDir: thumbnailsDir,
+        ),
+      );
     }
 
     onProgress?.call(1.0, '导入完成');
 
     return ImportResult(
-      importedEntries: importedEntries,
-      importedCategories: importedCategories,
-      skippedConflicts: skippedConflicts,
-      overwrittenCount: overwrittenCount,
-      renamedCount: renamedCount,
-      errors: errors,
-      success: errors.isEmpty,
+      importedEntries: plan.importedEntryCount,
+      importedCategories: plan.importedCategoryCount,
+      skippedConflicts: plan.skippedCount,
+      overwrittenCount: plan.overwrittenCount,
+      renamedCount: plan.renamedCount,
       updatedEntries: updatedEntries,
+    );
+  }
+
+  /// 预览图写入目标条目自己的 ID，避免与包内 ID 相同的本地条目互相覆盖
+  Future<String?> _importThumbnail({
+    required TagLibraryEntry entry,
+    required String targetId,
+    required Map<String, ArchiveFile> thumbnailMembers,
+    required Directory thumbnailsDir,
+  }) async {
+    final member = entry.hasThumbnail ? thumbnailMembers[entry.id] : null;
+    if (member == null) {
+      return _retainedThumbnail(thumbnailsDir, entry.thumbnail);
+    }
+    final extension = path.url.extension(member.name).toLowerCase();
+    _verifyThumbnailTarget(thumbnailsDir, targetId, extension);
+    return importPortableThumbnail(
+      targetId,
+      extension,
+      Stream.value(member.content as List<int>),
     );
   }
 

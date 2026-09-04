@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/tag_library/import_models.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
+import 'package:nai_launcher/data/services/tag_library_import_planner.dart';
 import 'package:nai_launcher/data/services/tag_library_io_service.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -53,12 +54,16 @@ void main() {
   Future<ImportResult> runImport(File package, ImportPreview preview) =>
       service.executeImport(
         zipFile: package,
-        preview: preview,
-        selectedEntryIds: preview.entries.map((e) => e.id).toSet(),
-        selectedCategoryIds: preview.categories.map((c) => c.id).toSet(),
-        conflictResolutions: const {},
-        existingEntries: const [],
-        existingCategories: const [],
+        plan: const TagLibraryImportPlanner().plan(
+          preview: preview,
+          selectedEntryIds: preview.entries.map((e) => e.id).toSet(),
+          selectedCategoryIds: preview.categories.map((c) => c.id).toSet(),
+          conflicts: const [],
+          conflictResolutions: const {},
+          existingEntries: const [],
+          existingCategories: const [],
+          renameSuffix: ' (导入)',
+        ),
       );
 
   group('归档成员校验', () {
@@ -274,7 +279,7 @@ void main() {
       expect(result.success, isTrue);
       expect(p.isWithin(thumbnailsRoot().path, imported), isTrue);
       expect(File(imported).readAsBytesSync(), _pngBytes);
-      expect(thumbnailNames(), ['$_entryId.png']);
+      expect(thumbnailNames(), [p.basename(imported)]);
       expect(documentEntryNames(), ['tag_library_thumbnails']);
     });
 

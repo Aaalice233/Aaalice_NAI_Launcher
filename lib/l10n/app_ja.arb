@@ -3315,6 +3315,12 @@
       "count": {}
     }
   },
+  "tagLibrary_importRejectedCount": "{count} は未インポート",
+  "@tagLibrary_importRejectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "tagLibrary_unknownCategory": "不明なカテゴリ",
   "tagLibrary_selectEntryToUpdate": "更新するエントリを選択してください",
   "tagLibrary_updatePreview": "プレビューを更新",

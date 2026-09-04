@@ -13084,6 +13084,12 @@ abstract class AppLocalizations {
   /// **'{count} skipped'**
   String tagLibrary_skippedCount(Object count);
 
+  /// No description provided for @tagLibrary_importRejectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} not imported'**
+  String tagLibrary_importRejectedCount(Object count);
+
   /// No description provided for @tagLibrary_unknownCategory.
   ///
   /// In en, this message translates to:

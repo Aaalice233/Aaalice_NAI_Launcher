@@ -3366,6 +3366,12 @@
       "count": {}
     }
   },
+  "tagLibrary_importRejectedCount": "{count} not imported",
+  "@tagLibrary_importRejectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "tagLibrary_unknownCategory": "Unknown Category",
   "tagLibrary_selectEntryToUpdate": "Select Entry to Update",
   "tagLibrary_updatePreview": "Update Preview",

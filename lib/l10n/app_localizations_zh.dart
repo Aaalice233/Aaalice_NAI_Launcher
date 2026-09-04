@@ -7078,6 +7078,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String tagLibrary_importRejectedCount(Object count) {
+    return '$count 未导入';
+  }
+
+  @override
   String get tagLibrary_unknownCategory => '未知分类';
 
   @override
@@ -20929,6 +20934,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String tagLibrary_skippedCount(Object count) {
     return '$count 跳過';
+  }
+
+  @override
+  String tagLibrary_importRejectedCount(Object count) {
+    return '$count 未匯入';
   }
 
   @override
