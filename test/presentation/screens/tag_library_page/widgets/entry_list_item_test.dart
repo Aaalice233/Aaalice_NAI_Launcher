@@ -46,7 +46,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('桌面悬浮使用选中态高亮且不会抬升或改变布局几何', (tester) async {
+  testWidgets('桌面悬浮使用不闪烁的高亮且不会抬升或改变布局几何', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 320));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final timestamp = DateTime(2026);
@@ -117,8 +117,12 @@ void main() {
     expect(hoveredContainer.transform, isNull);
     expect(
       hoveredDecoration.color,
-      theme.colorScheme.primary.withValues(alpha: 0.08),
+      Color.alphaBlend(
+        theme.colorScheme.primary.withValues(alpha: 0.08),
+        theme.colorScheme.surfaceContainerLow,
+      ),
     );
+    expect(hoveredDecoration.color!.a, 1);
     expect(tester.getRect(item).size, restingItemRect.size);
     expect(tester.getSize(prompt), restingPromptSize);
     expect(tester.takeException(), isNull);
