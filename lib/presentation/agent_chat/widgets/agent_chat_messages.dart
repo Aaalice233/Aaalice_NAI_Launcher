@@ -655,22 +655,33 @@ class AgentChatMessages extends StatelessWidget {
                   _assistantMarkdown(context, message.text),
                 if (message.text.trim().isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    _formatMessageTime(context, message.timestamp),
-                    key: ValueKey('agent-assistant-message-time-$messageIndex'),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.7,
-                      ),
+                  Row(
+                    key: ValueKey(
+                      'agent-assistant-message-footer-$messageIndex',
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  _AssistantActionBar(
-                    messageIndex: messageIndex,
-                    onCopy: () => commands.copyAssistantMessage(message),
-                    onRetry: isLastAssistantMessage && !viewData.running
-                        ? commands.retryLastMessage
-                        : null,
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        _formatMessageTime(context, message.timestamp),
+                        key: ValueKey(
+                          'agent-assistant-message-time-$messageIndex',
+                        ),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      _AssistantActionBar(
+                        messageIndex: messageIndex,
+                        onCopy: () => commands.copyAssistantMessage(message),
+                        onRetry: isLastAssistantMessage && !viewData.running
+                            ? commands.retryLastMessage
+                            : null,
+                      ),
+                    ],
                   ),
                 ],
               ],

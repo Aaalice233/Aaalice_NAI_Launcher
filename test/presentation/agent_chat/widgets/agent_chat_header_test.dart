@@ -133,6 +133,7 @@ void main() {
     final menu = tester.widget<PopupMenuButton<String>>(
       find.byKey(const ValueKey('agent-chat-desktop-more')),
     );
+    expect(menu.useRootNavigator, isTrue);
     final backgroundColor = menu.style!.backgroundColor!;
     final colors = Theme.of(
       tester.element(find.byKey(const ValueKey('agent-chat-desktop-more'))),

@@ -91,6 +91,14 @@ void main() {
         expect(finder, findsOneWidget);
         expect(tester.getSize(finder), const Size(48, 48));
       }
+      final time = find.byKey(const ValueKey('agent-assistant-message-time-1'));
+      final actions = find.byKey(
+        const ValueKey('agent-assistant-message-actions-1'),
+      );
+      expect(
+        tester.getCenter(time).dy,
+        closeTo(tester.getCenter(actions).dy, 1),
+      );
       for (final removedAction in ['helpful', 'not-helpful', 'share']) {
         expect(
           find.byKey(ValueKey('agent-assistant-message-$removedAction-1')),

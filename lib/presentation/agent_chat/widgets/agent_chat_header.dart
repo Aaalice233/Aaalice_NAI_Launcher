@@ -82,6 +82,7 @@ class AgentChatHeader extends StatelessWidget {
             : 'agent-chat-desktop-more',
       ),
       tooltip: l10n.agentChat_moreActions,
+      useRootNavigator: true,
       constraints: const BoxConstraints(minWidth: 220),
       padding: EdgeInsets.zero,
       icon: const Icon(Icons.more_vert_rounded, size: 22),
