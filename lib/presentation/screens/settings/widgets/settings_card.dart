@@ -46,10 +46,11 @@ class SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    // 部分自定义主题未单独定义容器色阶，需保留最小色差才能让分组可见。
+    // 从页面基色直接抬高一层，避免未完整定义 Material 3
+    // 容器色阶的主题落入带红色偏的默认 surfaceContainerLow。
     final cardColor = Color.alphaBlend(
       colorScheme.onSurface.withValues(alpha: 0.05),
-      colorScheme.surfaceContainerLow,
+      colorScheme.surface,
     );
 
     final description = this.description;

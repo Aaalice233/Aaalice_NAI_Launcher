@@ -4,6 +4,30 @@ import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card
 import 'package:nai_launcher/presentation/screens/settings/widgets/settings_page_layout.dart';
 
 void main() {
+  testWidgets('settings cards derive their layer from the page surface', (
+    tester,
+  ) async {
+    const scheme = ColorScheme.dark(
+      surface: Color(0xFF1A1A1A),
+      onSurface: Color(0xFFF0EAD6),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(colorScheme: scheme),
+        home: const Scaffold(body: SettingsCard(child: Text('content'))),
+      ),
+    );
+
+    final card = tester.widget<Card>(find.byType(Card));
+    expect(
+      card.color,
+      Color.alphaBlend(
+        scheme.onSurface.withValues(alpha: 0.05),
+        scheme.surface,
+      ),
+    );
+  });
+
   Widget buildSubject({
     required Brightness brightness,
     required double textScale,
@@ -93,7 +117,7 @@ void main() {
           widget.color,
           Color.alphaBlend(
             colorScheme.onSurface.withValues(alpha: 0.05),
-            colorScheme.surfaceContainerLow,
+            colorScheme.surface,
           ),
         );
         expect(widget.color, isNot(colorScheme.surface));
