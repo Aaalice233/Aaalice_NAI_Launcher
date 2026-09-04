@@ -4,6 +4,9 @@ import '../../core/storage/local_storage_service.dart';
 
 part 'layout_state_provider.g.dart';
 
+const fixedTagsNegativePaneMinHeight = 60.0;
+const fixedTagsNegativePaneMaxHeight = 500.0;
+
 /// UI布局状态数据类
 class LayoutState {
   final bool leftPanelExpanded;
@@ -220,7 +223,9 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
 
   /// 设置负向固定词区域高度
   Future<void> setFixedTagsNegativeHeight(double height) async {
-    final clamped = height.clamp(60.0, 500.0).toDouble();
+    final clamped = height
+        .clamp(fixedTagsNegativePaneMinHeight, fixedTagsNegativePaneMaxHeight)
+        .toDouble();
     state = state.copyWith(fixedTagsNegativeHeight: clamped);
 
     final storage = ref.read(localStorageServiceProvider);

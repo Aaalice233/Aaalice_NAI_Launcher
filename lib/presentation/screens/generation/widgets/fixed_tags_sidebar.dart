@@ -48,9 +48,7 @@ double _gridCardHeight(BuildContext context, {required double cardWidth}) {
 
 /// 桌面端固定词侧边栏。
 class FixedTagsSidebar extends ConsumerStatefulWidget {
-  const FixedTagsSidebar({super.key, this.isResizing = false});
-
-  final bool isResizing;
+  const FixedTagsSidebar({super.key});
 
   @override
   ConsumerState<FixedTagsSidebar> createState() => _FixedTagsSidebarState();
@@ -72,6 +70,8 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   String _activeNegativeCategoryId = _allNegativeSectionId;
   String? _highlightedLinkEntryId;
   bool _linkRepaintScheduled = false;
+  double? _draggedNegativePaneHeight;
+  bool _isNegativeDividerHovered = false;
 
   @override
   void initState() {
@@ -481,7 +481,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         const panePadding = EdgeInsets.fromLTRB(8, 0, 8, 8);
         final dividerHeight = context.interactionPolicy.prefersTouchPresentation
             ? context.interactionPolicy.minimumControlExtent
-            : 12.0;
+            : 16.0;
         final usableHeight =
             (constraints.maxHeight - panePadding.vertical - dividerHeight)
                 .clamp(0.0, double.infinity)
@@ -524,8 +524,18 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
           negativeMinimumHeight,
           usableHeight - positiveMinimumHeight,
         );
-        final negativeHeight = layoutState.fixedTagsNegativeHeight
-            .clamp(negativeMinimumHeight, maximumNegativeHeight)
+        final boundedMaximumNegativeHeight = math.min(
+          maximumNegativeHeight,
+          fixedTagsNegativePaneMaxHeight,
+        );
+        final boundedMinimumNegativeHeight = math.min(
+          boundedMaximumNegativeHeight,
+          math.max(negativeMinimumHeight, fixedTagsNegativePaneMinHeight),
+        );
+        final requestedNegativeHeight =
+            _draggedNegativePaneHeight ?? layoutState.fixedTagsNegativeHeight;
+        final negativeHeight = requestedNegativeHeight
+            .clamp(boundedMinimumNegativeHeight, boundedMaximumNegativeHeight)
             .toDouble();
         final positiveHeight = usableHeight - negativeHeight;
 
@@ -545,7 +555,12 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                   activePositiveCategoryId,
                 ),
               ),
-              _buildNegativeResizeDivider(theme, layoutState),
+              _buildNegativeResizeDivider(
+                theme,
+                renderedNegativeHeight: negativeHeight,
+                minimumNegativeHeight: boundedMinimumNegativeHeight,
+                maximumNegativeHeight: boundedMaximumNegativeHeight,
+              ),
               Expanded(
                 key: const ValueKey('fixed-tags-negative-pane'),
                 child: _buildNegativeArea(
@@ -845,23 +860,41 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     );
   }
 
-  Widget _buildNegativeResizeDivider(ThemeData theme, LayoutState layoutState) {
+  Widget _buildNegativeResizeDivider(
+    ThemeData theme, {
+    required double renderedNegativeHeight,
+    required double minimumNegativeHeight,
+    required double maximumNegativeHeight,
+  }) {
     final interactionPolicy = context.interactionPolicy;
     final hitHeight = interactionPolicy.prefersTouchPresentation
         ? interactionPolicy.minimumControlExtent
-        : 12.0;
+        : 16.0;
+    final isActive =
+        _isNegativeDividerHovered || _draggedNegativePaneHeight != null;
     return MouseRegion(
       cursor: SystemMouseCursors.resizeUpDown,
+      onEnter: (_) => setState(() => _isNegativeDividerHovered = true),
+      onExit: (_) => setState(() => _isNegativeDividerHovered = false),
       child: GestureDetector(
+        key: const ValueKey('fixed-tags-pane-resize-divider'),
         behavior: HitTestBehavior.opaque,
-        onVerticalDragUpdate: (details) {
-          final currentHeight = ref
-              .read(layoutStateNotifierProvider)
-              .fixedTagsNegativeHeight;
-          ref
-              .read(layoutStateNotifierProvider.notifier)
-              .setFixedTagsNegativeHeight(currentHeight - details.delta.dy);
+        onVerticalDragStart: (_) {
+          setState(() {
+            _draggedNegativePaneHeight = renderedNegativeHeight;
+          });
         },
+        onVerticalDragUpdate: (details) {
+          final currentHeight =
+              _draggedNegativePaneHeight ?? renderedNegativeHeight;
+          final nextHeight = (currentHeight - details.delta.dy)
+              .clamp(minimumNegativeHeight, maximumNegativeHeight)
+              .toDouble();
+          if (nextHeight == currentHeight) return;
+          setState(() => _draggedNegativePaneHeight = nextHeight);
+        },
+        onVerticalDragEnd: (_) => _finishNegativePaneResize(),
+        onVerticalDragCancel: _finishNegativePaneResize,
         child: SizedBox(
           height: hitHeight,
           child: Stack(
@@ -874,14 +907,15 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                 color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
               ),
               AnimatedContainer(
+                key: const ValueKey('fixed-tags-pane-resize-indicator'),
                 duration: MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
                     : const Duration(milliseconds: 120),
-                width: widget.isResizing ? 48 : 40,
-                height: widget.isResizing ? 3 : 2,
+                width: isActive ? 48 : 40,
+                height: isActive ? 3 : 2,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: widget.isResizing ? 0.95 : 0.8,
+                    alpha: isActive ? 0.95 : 0.8,
                   ),
                   borderRadius: BorderRadius.circular(99),
                 ),
@@ -891,6 +925,19 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         ),
       ),
     );
+  }
+
+  Future<void> _finishNegativePaneResize() async {
+    final finalHeight = _draggedNegativePaneHeight;
+    if (finalHeight == null) return;
+
+    final persistence = ref
+        .read(layoutStateNotifierProvider.notifier)
+        .setFixedTagsNegativeHeight(finalHeight);
+    if (mounted) {
+      setState(() => _draggedNegativePaneHeight = null);
+    }
+    await persistence;
   }
 
   Widget _buildNegativeArea(

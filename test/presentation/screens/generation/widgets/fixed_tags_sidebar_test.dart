@@ -1105,6 +1105,74 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'pane divider drags from rendered height and persists only on release',
+    (tester) async {
+      tester.view.physicalSize = const Size(420, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final storage = _SidebarTestStorage(
+        fixedEntries: [
+          FixedTagEntry.create(name: 'positive', content: 'positive tag'),
+          FixedTagEntry.create(
+            name: 'negative',
+            content: 'negative tag',
+            promptType: FixedTagPromptType.negative,
+          ),
+        ],
+        categories: const [],
+        libraryEntries: const [],
+      )..negativeHeight = 500;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsSidebar()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final divider = find.byKey(
+        const ValueKey('fixed-tags-pane-resize-divider'),
+      );
+      final negativePane = find.byKey(
+        const ValueKey('fixed-tags-negative-pane'),
+      );
+      final initialHeight = tester.getSize(negativePane).height;
+      expect(initialHeight, lessThan(500));
+
+      final gesture = await tester.startGesture(tester.getCenter(divider));
+      await gesture.moveBy(const Offset(0, 32));
+      await tester.pump();
+
+      final draggedHeight = tester.getSize(negativePane).height;
+      expect(draggedHeight, lessThan(initialHeight - 20));
+      expect(storage.negativeHeightWriteCount, 0);
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(
+        tester.getSize(
+          find.byKey(const ValueKey('fixed-tags-pane-resize-indicator')),
+        ),
+        const Size(48, 3),
+      );
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(storage.negativeHeightWriteCount, 1);
+      expect(storage.negativeHeight, closeTo(draggedHeight, 0.1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('enabled summaries wrap every chip inside the sidebar', (
     tester,
   ) async {
@@ -3008,6 +3076,7 @@ class _SidebarTestStorage extends LocalStorageService {
   double fixedSidebarWidth = 320.0;
   String fixedSidebarViewMode = 'list';
   double negativeHeight = 180.0;
+  int negativeHeightWriteCount = 0;
   String linksJson = '[]';
 
   @override
@@ -3063,6 +3132,7 @@ class _SidebarTestStorage extends LocalStorageService {
   @override
   Future<void> setFixedTagsNegativeHeight(double height) async {
     negativeHeight = height;
+    negativeHeightWriteCount++;
   }
 
   @override

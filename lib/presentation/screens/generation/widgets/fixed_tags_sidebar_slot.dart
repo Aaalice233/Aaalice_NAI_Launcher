@@ -34,7 +34,7 @@ class _FixedTagsSidebarSlotState extends ConsumerState<FixedTagsSidebarSlot> {
       color: Theme.of(context).colorScheme.surface,
       border: Border(right: BorderSide(color: Theme.of(context).dividerColor)),
     );
-    final child = FixedTagsSidebar(isResizing: _isResizing);
+    const child = FixedTagsSidebar();
 
     return Row(
       mainAxisSize: MainAxisSize.min,
