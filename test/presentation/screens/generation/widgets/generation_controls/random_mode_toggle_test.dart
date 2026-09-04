@@ -33,7 +33,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('random-mode switch thumb animates between off and on', (
+  testWidgets('random-mode button changes dice and surface between states', (
     tester,
   ) async {
     final enabled = ValueNotifier(false);
@@ -55,24 +55,31 @@ void main() {
       ),
     );
 
-    final thumb = find.byKey(const ValueKey('random-mode-switch-thumb'));
-    final offCenter = tester.getCenter(thumb);
+    final surfaceFinder = find.byKey(
+      const ValueKey('random-mode-button-surface'),
+    );
+    final offSurface = tester.widget<AnimatedContainer>(surfaceFinder);
+    final offColor = (offSurface.decoration as BoxDecoration).color;
+    expect(find.byIcon(Icons.casino_outlined), findsOneWidget);
+    expect(find.text('随机提示词'), findsNothing);
 
     enabled.value = true;
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-    final movingCenter = tester.getCenter(thumb);
     await tester.pumpAndSettle();
-    final onCenter = tester.getCenter(thumb);
+    final onSurface = tester.widget<AnimatedContainer>(surfaceFinder);
+    final onColor = (onSurface.decoration as BoxDecoration).color;
+    final rotation = tester.widget<AnimatedRotation>(
+      find.byKey(const ValueKey('random-mode-dice-rotation')),
+    );
 
-    expect(movingCenter.dx, greaterThan(offCenter.dx));
-    expect(movingCenter.dx, lessThan(onCenter.dx));
+    expect(onColor, isNot(offColor));
+    expect(rotation.turns, 0.125);
     expect(find.byIcon(Icons.casino_rounded), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets(
-    'random-mode switch reaches its state immediately with reduced motion',
+    'random-mode button reaches its state immediately with reduced motion',
     (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
@@ -88,18 +95,22 @@ void main() {
         ),
       );
 
-      final align = tester.widget<AnimatedAlign>(
-        find.byKey(const ValueKey('random-mode-switch-thumb-position')),
+      final surface = tester.widget<AnimatedContainer>(
+        find.byKey(const ValueKey('random-mode-button-surface')),
       );
-      expect(align.duration, Duration.zero);
-      expect(align.alignment, Alignment.centerRight);
+      final rotation = tester.widget<AnimatedRotation>(
+        find.byKey(const ValueKey('random-mode-dice-rotation')),
+      );
+      expect(surface.duration, Duration.zero);
+      expect(rotation.duration, Duration.zero);
+      expect(rotation.turns, 0.125);
       expect(find.byIcon(Icons.casino_rounded), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
 
   testWidgets(
-    'labeled random-mode switch stays usable in a narrow mobile row',
+    'random-mode button stays compact and text-free at large text scale',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -114,39 +125,22 @@ void main() {
               child: child!,
             ),
             home: const Scaffold(
-              body: SizedBox(
-                width: 160,
-                child: RandomModeToggle(enabled: false, showLabel: true),
+              body: InteractionPolicyScope(
+                initialPolicy: InteractionPolicy(
+                  modality: InteractionModality.touch,
+                  touchAvailable: true,
+                  precisePointerAvailable: false,
+                ),
+                child: Center(child: RandomModeToggle(enabled: false)),
               ),
             ),
           ),
         ),
       );
 
-      expect(find.byKey(const ValueKey('random-mode-switch-track')), findsOne);
-      expect(
-        find.byKey(const ValueKey('random-mode-labeled-surface')),
-        findsOne,
-      );
-      expect(find.text('随机提示词'), findsOne);
-      final surface = tester.widget<Material>(
-        find.byKey(const ValueKey('random-mode-labeled-surface')),
-      );
-      final track = tester.widget<AnimatedContainer>(
-        find.byKey(const ValueKey('random-mode-switch-track')),
-      );
-      final thumb = tester.widget<AnimatedContainer>(
-        find.byKey(const ValueKey('random-mode-switch-thumb')),
-      );
-      final trackDecoration = track.decoration as BoxDecoration;
-      final thumbDecoration = thumb.decoration as BoxDecoration;
-      expect(surface.color, isNot(Colors.transparent));
-      expect(trackDecoration.border, isNotNull);
-      expect(thumbDecoration.color, isNot(trackDecoration.color));
-      expect(
-        tester.getSize(find.byType(RandomModeToggle)).height,
-        greaterThanOrEqualTo(48),
-      );
+      expect(find.byIcon(Icons.casino_outlined), findsOneWidget);
+      expect(find.text('随机提示词'), findsNothing);
+      expect(tester.getSize(find.byType(RandomModeToggle)), const Size(48, 48));
       expect(tester.takeException(), isNull);
     },
   );

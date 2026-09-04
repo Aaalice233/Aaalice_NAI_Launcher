@@ -176,18 +176,29 @@ class MobileGenerationChrome extends ConsumerWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
-                const OpusUsageChip(compact: true),
-                const AnlasBalanceChip(compact: true),
-                if (data.showRandomTools)
-                  RandomModeToggle(
-                    enabled: data.randomModeEnabled,
-                    showLabel: true,
-                  ),
-                IconButton(
-                  key: const ValueKey('generation-add-current-to-queue'),
-                  onPressed: () => controller.addCurrentPromptToQueue(context),
-                  icon: const Icon(Icons.playlist_add_rounded),
-                  tooltip: context.l10n.queue_addCurrentTask,
+                const Wrap(
+                  key: ValueKey('generation-mobile-balance-group'),
+                  spacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    OpusUsageChip(compact: true),
+                    AnlasBalanceChip(compact: true),
+                  ],
+                ),
+                Row(
+                  key: const ValueKey('generation-mobile-queue-actions'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (data.showRandomTools)
+                      RandomModeToggle(enabled: data.randomModeEnabled),
+                    IconButton(
+                      key: const ValueKey('generation-add-current-to-queue'),
+                      onPressed: () =>
+                          controller.addCurrentPromptToQueue(context),
+                      icon: const Icon(Icons.playlist_add_rounded),
+                      tooltip: context.l10n.queue_addCurrentTask,
+                    ),
+                  ],
                 ),
               ],
             ),

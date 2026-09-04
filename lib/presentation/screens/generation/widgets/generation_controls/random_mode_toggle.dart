@@ -6,18 +6,16 @@ import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
-/// 抽卡模式开关
+/// 抽卡模式状态按钮。
 class RandomModeToggle extends ConsumerStatefulWidget {
-  final bool enabled;
-  final bool compact;
-  final bool showLabel;
-
   const RandomModeToggle({
     super.key,
     required this.enabled,
     this.compact = false,
-    this.showLabel = false,
   });
+
+  final bool enabled;
+  final bool compact;
 
   @override
   ConsumerState<RandomModeToggle> createState() => _RandomModeToggleState();
@@ -35,86 +33,15 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
     final controlExtent = widget.compact
         ? 36.0
         : context.interactionPolicy.minimumControlExtent;
-    final trackWidth = widget.compact ? 36.0 : 52.0;
-    final trackHeight = widget.compact ? 24.0 : 30.0;
-    final thumbExtent = trackHeight - 6;
     final tooltip = widget.enabled
         ? context.l10n.randomMode_enabledTip
         : context.l10n.randomMode_disabledTip;
-    final trackColor = widget.showLabel
-        ? widget.enabled
-              ? colors.primary
-              : colors.surfaceContainerHighest
-        : widget.enabled
+    final baseColor = widget.enabled
         ? colors.primaryContainer
         : colors.surfaceContainerHigh;
-    final controlColor = widget.enabled
-        ? colors.primaryContainer
-        : colors.surfaceContainerHigh;
-    final switchTrack = AnimatedContainer(
-      key: const ValueKey('random-mode-switch-track'),
-      width: trackWidth,
-      height: trackHeight,
-      padding: const EdgeInsets.all(3),
-      duration: duration,
-      curve: theme.appTheme.standardCurve,
-      decoration: BoxDecoration(
-        color: _hovered
-            ? Color.alphaBlend(
-                colors.onSurface.withValues(alpha: 0.06),
-                trackColor,
-              )
-            : trackColor,
-        borderRadius: BorderRadius.circular(trackHeight / 2),
-        border: widget.showLabel && !widget.enabled
-            ? Border.all(color: colors.outline.withValues(alpha: 0.72))
-            : null,
-      ),
-      child: AnimatedAlign(
-        key: const ValueKey('random-mode-switch-thumb-position'),
-        alignment: widget.enabled
-            ? Alignment.centerRight
-            : Alignment.centerLeft,
-        duration: duration,
-        curve: theme.appTheme.standardCurve,
-        child: AnimatedContainer(
-          key: const ValueKey('random-mode-switch-thumb'),
-          width: thumbExtent,
-          height: thumbExtent,
-          duration: duration,
-          curve: theme.appTheme.standardCurve,
-          decoration: BoxDecoration(
-            color: widget.showLabel && widget.enabled
-                ? colors.onPrimary
-                : widget.showLabel
-                ? colors.onSurfaceVariant
-                : widget.enabled
-                ? colors.primary
-                : colors.surfaceContainerHighest,
-            shape: BoxShape.circle,
-          ),
-          child: widget.showLabel
-              ? null
-              : AnimatedSwitcher(
-                  duration: duration,
-                  switchInCurve: theme.appTheme.enterCurve,
-                  switchOutCurve: theme.appTheme.exitCurve,
-                  transitionBuilder: (child, animation) =>
-                      FadeTransition(opacity: animation, child: child),
-                  child: Icon(
-                    widget.enabled
-                        ? Icons.casino_rounded
-                        : Icons.casino_outlined,
-                    key: ValueKey(widget.enabled),
-                    size: widget.compact ? 15 : 16,
-                    color: widget.enabled
-                        ? colors.onPrimary
-                        : colors.onSurfaceVariant,
-                  ),
-                ),
-        ),
-      ),
-    );
+    final backgroundColor = _hovered
+        ? Color.alphaBlend(colors.onSurface.withValues(alpha: 0.07), baseColor)
+        : baseColor;
 
     return Semantics(
       button: true,
@@ -126,48 +53,51 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
           cursor: SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
-          child: Material(
-            key: widget.showLabel
-                ? const ValueKey('random-mode-labeled-surface')
-                : null,
-            color: widget.showLabel ? controlColor : Colors.transparent,
-            shape: const StadiumBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => ref.read(randomPromptModeProvider.notifier).toggle(),
-              customBorder: const StadiumBorder(),
-              child: widget.showLabel
-                  ? ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: controlExtent),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            switchTrack,
-                            const SizedBox(width: 7),
-                            Flexible(
-                              child: Text(
-                                context.l10n.toolbar_randomPrompt,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: widget.enabled
-                                      ? colors.onPrimaryContainer
-                                      : colors.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+          child: AnimatedContainer(
+            key: const ValueKey('random-mode-button-surface'),
+            width: controlExtent,
+            height: controlExtent,
+            duration: duration,
+            curve: theme.appTheme.standardCurve,
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(widget.compact ? 10 : 13),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(widget.compact ? 10 : 13),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () =>
+                    ref.read(randomPromptModeProvider.notifier).toggle(),
+                child: Center(
+                  child: AnimatedRotation(
+                    key: const ValueKey('random-mode-dice-rotation'),
+                    turns: widget.enabled ? 0.125 : 0,
+                    duration: duration,
+                    curve: theme.appTheme.enterCurve,
+                    child: AnimatedSwitcher(
+                      duration: duration,
+                      switchInCurve: theme.appTheme.enterCurve,
+                      switchOutCurve: theme.appTheme.exitCurve,
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(opacity: animation, child: child),
+                      child: Icon(
+                        widget.enabled
+                            ? Icons.casino_rounded
+                            : Icons.casino_outlined,
+                        key: ValueKey(widget.enabled),
+                        size: widget.compact ? 19 : 22,
+                        color: widget.enabled
+                            ? colors.onPrimaryContainer
+                            : colors.onSurfaceVariant,
                       ),
-                    )
-                  : SizedBox(
-                      width: widget.compact ? trackWidth : 52,
-                      height: controlExtent,
-                      child: Center(child: switchTrack),
                     ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
