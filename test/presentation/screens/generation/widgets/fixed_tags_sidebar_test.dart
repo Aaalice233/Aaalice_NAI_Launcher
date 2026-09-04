@@ -939,13 +939,21 @@ void main() {
   });
 
   testWidgets('FixedTagsButton 预览区分正负面与前后缀', (tester) async {
+    final linkedPositive = FixedTagEntry.create(
+      name: '正面前缀条目',
+      content: 'best quality',
+      sourceEntryId: 'linked-positive-entry',
+      weight: 1.2,
+    );
+    final linkedNegative = FixedTagEntry.create(
+      name: '负面前缀条目',
+      content: 'lowres, worst quality, bad anatomy, watermark, text, blurry',
+      promptType: FixedTagPromptType.negative,
+      sourceEntryId: 'linked-negative-entry',
+    );
     final storage = _SidebarTestStorage(
       fixedEntries: [
-        FixedTagEntry.create(
-          name: '正面前缀条目',
-          content: 'best quality',
-          sourceEntryId: 'linked-positive-entry',
-        ),
+        linkedPositive,
         FixedTagEntry.create(name: '正面前缀条目 2', content: 'detailed'),
         FixedTagEntry.create(name: '正面前缀条目 3', content: 'masterpiece'),
         FixedTagEntry.create(name: '正面前缀条目 4', content: 'sharp focus'),
@@ -954,22 +962,28 @@ void main() {
           content: 'cinematic lighting',
           position: FixedTagPosition.suffix,
         ),
-        FixedTagEntry.create(
-          name: '负面前缀条目',
-          content: 'lowres',
-          promptType: FixedTagPromptType.negative,
-          sourceEntryId: 'linked-negative-entry',
-        ),
+        linkedNegative,
         FixedTagEntry.create(
           name: '负面后缀条目',
           content: 'watermark',
           position: FixedTagPosition.suffix,
           promptType: FixedTagPromptType.negative,
         ),
+        FixedTagEntry.create(
+          name: '已禁用条目',
+          content: 'must not appear in active summary',
+          enabled: false,
+        ),
       ],
       categories: const [],
       libraryEntries: const [],
     );
+    storage.linksJson = jsonEncode([
+      FixedTagLink.create(
+        positiveEntryId: linkedPositive.id,
+        negativeEntryId: linkedNegative.id,
+      ).toJson(),
+    ]);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -983,6 +997,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer();
@@ -997,40 +1012,42 @@ void main() {
     final negativeSection = find.byKey(
       const ValueKey('fixed-tags-tooltip-negative'),
     );
+    Finder richText(String value) =>
+        find.textContaining(value, findRichText: true);
     expect(positiveSection, findsOneWidget);
     expect(negativeSection, findsOneWidget);
     expect(
-      find.descendant(of: positiveSection, matching: find.text('正面')),
+      find.descendant(of: positiveSection, matching: richText('正面 5')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: negativeSection, matching: find.text('负面')),
+      find.descendant(of: negativeSection, matching: richText('负面 2')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: positiveSection, matching: find.text('前缀 4')),
+      find.descendant(of: positiveSection, matching: richText('前缀 4')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: negativeSection, matching: find.text('前缀 1')),
+      find.descendant(of: negativeSection, matching: richText('前缀 1')),
       findsOneWidget,
     );
     for (final section in [positiveSection, negativeSection]) {
       expect(
-        find.descendant(of: section, matching: find.text('后缀 1')),
+        find.descendant(of: section, matching: richText('后缀 1')),
         findsOneWidget,
       );
     }
     for (final data in [
-      (section: positiveSection, labels: ('正面', '前缀 4', '后缀 1')),
-      (section: negativeSection, labels: ('负面', '前缀 1', '后缀 1')),
+      (section: positiveSection, labels: ('正面 5', '前缀 4', '后缀 1')),
+      (section: negativeSection, labels: ('负面 2', '前缀 1', '后缀 1')),
     ]) {
       final centers = [
         tester
             .getCenter(
               find.descendant(
                 of: data.section,
-                matching: find.text(data.labels.$1),
+                matching: richText(data.labels.$1),
               ),
             )
             .dy,
@@ -1038,7 +1055,7 @@ void main() {
             .getCenter(
               find.descendant(
                 of: data.section,
-                matching: find.text(data.labels.$2),
+                matching: richText(data.labels.$2),
               ),
             )
             .dy,
@@ -1046,7 +1063,7 @@ void main() {
             .getCenter(
               find.descendant(
                 of: data.section,
-                matching: find.text(data.labels.$3),
+                matching: richText(data.labels.$3),
               ),
             )
             .dy,
@@ -1065,6 +1082,14 @@ void main() {
       find.descendant(of: positiveSection, matching: find.text('正面后缀条目')),
       findsOneWidget,
     );
+    expect(find.text('7/8 已启用'), findsOneWidget);
+    expect(find.text('1.2×'), findsOneWidget);
+    expect(find.text('已禁用条目'), findsNothing);
+    expect(find.text('1 个联动'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('fixed-tags-tooltip-links')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('rich-tooltip-surface')), findsOneWidget);
     expect(
       find.descendant(
@@ -1080,6 +1105,7 @@ void main() {
       ),
     )) {
       expect(prompt.includeUntranslated, isTrue);
+      expect(prompt.maxLines, 1);
     }
 
     final positiveDecoration =
@@ -1097,6 +1123,61 @@ void main() {
       negativeDecoration.color,
       semanticColors.negativeFixedTag.withValues(alpha: 0.08),
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('FixedTagsButton 桌面预览支持 3x 文本', (tester) async {
+    tester.view.physicalSize = const Size(1180, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: [
+        FixedTagEntry.create(
+          name: 'Long positive fixed tag name',
+          content: 'best quality, detailed background, cinematic lighting',
+        ),
+        FixedTagEntry.create(
+          name: 'Long negative fixed tag name',
+          content: 'lowres, worst quality, bad anatomy, watermark, blurry',
+          promptType: FixedTagPromptType.negative,
+        ),
+      ],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(3)),
+            child: child!,
+          ),
+          home: const Scaffold(body: Center(child: FixedTagsButton())),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(FixedTagsButton)));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('rich-tooltip-surface'));
+    expect(surface, findsOneWidget);
+    expect(tester.getRect(surface).width, lessThanOrEqualTo(1180));
+    expect(find.text('2/2 enabled'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

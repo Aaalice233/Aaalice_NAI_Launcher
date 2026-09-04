@@ -43,125 +43,143 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     final hasEntries = fixedTagsState.entries.isNotEmpty;
     final hasEnabled = enabledCount > 0;
     final activeControlColor = theme.colorScheme.onSurfaceVariant;
+    final mediaQuery = MediaQuery.of(context);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
-      child: Tooltip(
-        richMessage: WidgetSpan(
-          child: RichTooltipSurface(
-            maxWidth: 380,
-            child: _buildTooltipContent(theme, fixedTagsState),
+      // Tooltip 会用外层文本缩放再次放大 WidgetSpan 的几何尺寸；外壳禁用
+      // 这次缩放，再在按钮和悬浮内容内部恢复真实的 MediaQuery。
+      child: MediaQuery(
+        data: mediaQuery.copyWith(textScaler: TextScaler.noScaling),
+        child: Tooltip(
+          richMessage: WidgetSpan(
+            child: MediaQuery(
+              data: mediaQuery,
+              child: RichTooltipSurface(
+                maxWidth: 420,
+                child: _buildTooltipContent(theme, fixedTagsState),
+              ),
+            ),
           ),
-        ),
-        preferBelow: true,
-        verticalOffset: 20,
-        waitDuration: const Duration(milliseconds: 300),
-        ignorePointer: false,
-        decoration: richTooltipOuterDecoration,
-        padding: EdgeInsets.zero,
-        child: Semantics(
-          button: true,
-          label: context.l10n.fixedTags_label,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              final sidebarExpanded = ref.read(
-                layoutStateNotifierProvider.select(
-                  (state) => state.fixedTagsSidebarExpanded,
-                ),
-              );
-              if (!sidebarExpanded) {
-                _showFixedTagsDialog(context);
-              }
-            },
-            onLongPress: () => ref
-                .read(layoutStateNotifierProvider.notifier)
-                .toggleFixedTagsSidebar(),
-            child: AnimatedContainer(
-              key: const Key('fixed-tags-button-surface'),
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 150),
-              constraints: BoxConstraints(minHeight: widget.compact ? 36 : 44),
-              padding: EdgeInsets.symmetric(
-                horizontal: widget.compact ? 8 : 10,
-                vertical: widget.compact ? 4 : 6,
-              ),
-              decoration: BoxDecoration(
-                color: hasEnabled
-                    ? activeControlColor.withValues(
-                        alpha: _isHovering ? 0.18 : 0.12,
-                      )
-                    : (_isHovering
-                          ? theme.colorScheme.surfaceContainerHigh
-                          : theme.colorScheme.surfaceContainerLow),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
-                    size: widget.compact ? 15 : 16,
-                    color: hasEnabled
-                        ? activeControlColor
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+          preferBelow: true,
+          verticalOffset: 20,
+          waitDuration: const Duration(milliseconds: 300),
+          ignorePointer: false,
+          decoration: richTooltipOuterDecoration,
+          padding: EdgeInsets.zero,
+          child: MediaQuery(
+            data: mediaQuery,
+            child: Semantics(
+              button: true,
+              label: context.l10n.fixedTags_label,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  final sidebarExpanded = ref.read(
+                    layoutStateNotifierProvider.select(
+                      (state) => state.fixedTagsSidebarExpanded,
+                    ),
+                  );
+                  if (!sidebarExpanded) {
+                    _showFixedTagsDialog(context);
+                  }
+                },
+                onLongPress: () => ref
+                    .read(layoutStateNotifierProvider.notifier)
+                    .toggleFixedTagsSidebar(),
+                child: AnimatedContainer(
+                  key: const Key('fixed-tags-button-surface'),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 150),
+                  constraints: BoxConstraints(
+                    minHeight: widget.compact ? 36 : 44,
                   ),
-                  if (!widget.iconOnly) ...[
-                    const SizedBox(width: 4),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: widget.maxLabelWidth ?? double.infinity,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: widget.compact ? 8 : 10,
+                    vertical: widget.compact ? 4 : 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: hasEnabled
+                        ? activeControlColor.withValues(
+                            alpha: _isHovering ? 0.18 : 0.12,
+                          )
+                        : (_isHovering
+                              ? theme.colorScheme.surfaceContainerHigh
+                              : theme.colorScheme.surfaceContainerLow),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
+                        size: widget.compact ? 15 : 16,
+                        color: hasEnabled
+                            ? activeControlColor
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
                       ),
-                      child: Text(
-                        context.l10n.fixedTags_label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: widget.compact ? 11 : 12,
-                          fontWeight: hasEnabled
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: hasEnabled
-                              ? activeControlColor
-                              : theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.5,
-                                ),
+                      if (!widget.iconOnly) ...[
+                        const SizedBox(width: 4),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: widget.maxLabelWidth ?? double.infinity,
+                          ),
+                          child: Text(
+                            context.l10n.fixedTags_label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: widget.compact ? 11 : 12,
+                              fontWeight: hasEnabled
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: hasEnabled
+                                  ? activeControlColor
+                                  : theme.colorScheme.onSurface.withValues(
+                                      alpha: 0.5,
+                                    ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                  if (hasEnabled) ...[
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: activeControlColor.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        enabledCount.toString(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: activeControlColor,
+                      ],
+                      if (hasEnabled) ...[
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: activeControlColor.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            enabledCount.toString(),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: activeControlColor,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ] else if (hasEntries) ...[
-                    const SizedBox(width: 3),
-                    Icon(
-                      Icons.visibility_off,
-                      size: 14,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                    ),
-                  ],
-                ],
+                      ] else if (hasEntries) ...[
+                        const SizedBox(width: 3),
+                        Icon(
+                          Icons.visibility_off,
+                          size: 14,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.4,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -177,14 +195,13 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       return _buildEmptyState(theme);
     }
 
-    final disabledEntries = entries.where((e) => !e.enabled).toList();
     final enabledCount = entries.where((entry) => entry.enabled).length;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildTooltipHeader(theme, enabledCount, state.links.length),
+        _buildTooltipHeader(theme, enabledCount, entries.length),
 
         if (state.enabledEntries.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -204,14 +221,10 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
             suffixes: state.negativeEnabledSuffixes,
           ),
         ],
-
-        // 禁用的条目
-        if (disabledEntries.isNotEmpty) ...[
+        if (state.links.isNotEmpty) ...[
           const SizedBox(height: 10),
-          _buildDisabledSection(theme, disabledEntries),
+          _buildLinkSummary(theme, state.links.length),
         ],
-
-        // 底部操作提示
         const SizedBox(height: 10),
         _buildFooterHint(theme),
       ],
@@ -251,8 +264,16 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     );
   }
 
-  Widget _buildTooltipHeader(ThemeData theme, int enabledCount, int linkCount) {
-    return Row(
+  Widget _buildTooltipHeader(
+    ThemeData theme,
+    int enabledCount,
+    int totalCount,
+  ) {
+    final status = context.l10n.fixedTags_enabledCount(
+      enabledCount.toString(),
+      totalCount.toString(),
+    );
+    final title = Row(
       children: [
         Icon(
           Icons.push_pin_rounded,
@@ -260,36 +281,45 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
           color: theme.colorScheme.primary,
         ),
         const SizedBox(width: 8),
-        Text(
-          context.l10n.fixedTags_label,
-          style: theme.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w700,
+        Expanded(
+          child: Text(
+            context.l10n.fixedTags_label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
-        const Spacer(),
+      ],
+    );
+    if (MediaQuery.textScalerOf(context).scale(1) >= 2) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          title,
+          const SizedBox(height: 4),
+          Text(
+            status,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: title),
+        const SizedBox(width: 12),
         Text(
-          '${context.l10n.fixedTags_enabled} $enabledCount',
+          status,
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
         ),
-        if (linkCount > 0) ...[
-          const SizedBox(width: 8),
-          Icon(
-            Icons.link_rounded,
-            size: 12,
-            color: theme.colorScheme.secondary,
-          ),
-          const SizedBox(width: 3),
-          Text(
-            '$linkCount',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.secondary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -313,6 +343,8 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       ...prefixes.map((e) => (entry: e, isPrefix: true)),
       ...suffixes.map((e) => (entry: e, isPrefix: false)),
     ];
+    final promptLabel =
+        '${isPositive ? context.l10n.prompt_positive : context.l10n.prompt_negative} ${allEnabled.length}';
 
     return Container(
       key: ValueKey(
@@ -335,27 +367,27 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
             spacing: 12,
             runSpacing: 4,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isPositive
-                        ? Icons.auto_awesome_rounded
-                        : Icons.block_rounded,
-                    size: 15,
-                    color: color,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    isPositive
-                        ? context.l10n.prompt_positive
-                        : context.l10n.prompt_negative,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w700,
+              Text.rich(
+                TextSpan(
+                  children: [
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Icon(
+                        isPositive
+                            ? Icons.auto_awesome_rounded
+                            : Icons.block_rounded,
+                        size: 15,
+                        color: color,
+                      ),
                     ),
-                  ),
-                ],
+                    const WidgetSpan(child: SizedBox(width: 6)),
+                    TextSpan(text: promptLabel),
+                  ],
+                ),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               _buildPositionStat(
                 theme,
@@ -397,18 +429,101 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     required int count,
   }) {
     final displayColor = count > 0 ? color : theme.colorScheme.outline;
-    return Row(
+    return Text.rich(
+      TextSpan(
+        children: [
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Icon(icon, size: 11, color: displayColor),
+          ),
+          const WidgetSpan(child: SizedBox(width: 3)),
+          TextSpan(text: '$label $count'),
+        ],
+      ),
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: displayColor,
+        fontWeight: count > 0 ? FontWeight.w600 : FontWeight.w400,
+      ),
+    );
+  }
+
+  Widget _buildPositionBadge(
+    ThemeData theme, {
+    required bool isPrefix,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isPrefix ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+            size: 11,
+            color: color,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            isPrefix
+                ? context.l10n.fixedTags_prefix
+                : context.l10n.fixedTags_suffix,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEntryDetails(
+    ThemeData theme,
+    FixedTagEntry entry,
+    String content,
+    Color color,
+    Color mutedColor,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 11, color: displayColor),
-        const SizedBox(width: 3),
-        Text(
-          '$label $count',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: displayColor,
-            fontWeight: count > 0 ? FontWeight.w600 : FontWeight.w400,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                entry.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (entry.weight != 1.0) ...[
+              const SizedBox(width: 8),
+              Text(
+                '${entry.weight.toStringAsFixed(1)}×',
+                style: theme.textTheme.labelSmall?.copyWith(color: color),
+              ),
+            ],
+          ],
         ),
+        if (content.isNotEmpty)
+          TranslatedPromptText(
+            content,
+            selectable: false,
+            maxLines: 1,
+            includeUntranslated: true,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: mutedColor,
+              height: 1.3,
+            ),
+          ),
       ],
     );
   }
@@ -421,105 +536,64 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     Color mutedColor,
   ) {
     final content = entry.content.trim();
+    final positionBadge = _buildPositionBadge(
+      theme,
+      isPrefix: isPrefix,
+      color: color,
+    );
+    final details = _buildEntryDetails(
+      theme,
+      entry,
+      content,
+      color,
+      mutedColor,
+    );
+
+    if (MediaQuery.textScalerOf(context).scale(1) >= 2) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [positionBadge, const SizedBox(height: 6), details],
+      );
+    }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isPrefix
-                    ? Icons.arrow_forward_rounded
-                    : Icons.arrow_back_rounded,
-                size: 11,
-                color: color,
-              ),
-              const SizedBox(width: 3),
-              Text(
-                isPrefix
-                    ? context.l10n.fixedTags_prefix
-                    : context.l10n.fixedTags_suffix,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
+        positionBadge,
         const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                entry.displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (content.isNotEmpty)
-                TranslatedPromptText(
-                  content,
-                  selectable: false,
-                  includeUntranslated: true,
-                  style: theme.textTheme.bodySmall?.copyWith(color: mutedColor),
-                ),
-            ],
-          ),
-        ),
-        if (entry.weight != 1.0) ...[
-          const SizedBox(width: 8),
-          Text(
-            '${entry.weight.toStringAsFixed(1)}×',
-            style: theme.textTheme.labelSmall?.copyWith(color: color),
-          ),
-        ],
+        Expanded(child: details),
       ],
     );
   }
 
-  Widget _buildDisabledSection(
-    ThemeData theme,
-    List<FixedTagEntry> disabledEntries,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          Icons.visibility_off_rounded,
-          size: 14,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              Text(
-                '${context.l10n.fixedTags_disabled} ${disabledEntries.length}',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+  Widget _buildLinkSummary(ThemeData theme, int linkCount) {
+    final color = theme.colorScheme.secondary;
+    return Container(
+      key: const ValueKey('fixed-tags-tooltip-links'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.link_rounded, size: 14, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              context.l10n.fixedTags_linkCount(linkCount),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
               ),
-              ...disabledEntries.map(
-                (entry) => _buildDisabledChip(theme, entry),
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -533,28 +607,17 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
           color: theme.colorScheme.onSurfaceVariant,
         ),
         const SizedBox(width: 5),
-        Text(
-          context.l10n.fixedTags_clickManageLongPressCompact,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        Flexible(
+          child: Text(
+            context.l10n.fixedTags_clickManageLongPressCompact,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildDisabledChip(ThemeData theme, FixedTagEntry entry) {
-    final promptLabel = entry.promptType == FixedTagPromptType.positive
-        ? context.l10n.prompt_positive
-        : context.l10n.prompt_negative;
-    return Text(
-      '$promptLabel · ${entry.displayName}',
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.labelSmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-        decoration: TextDecoration.lineThrough,
-      ),
     );
   }
 
