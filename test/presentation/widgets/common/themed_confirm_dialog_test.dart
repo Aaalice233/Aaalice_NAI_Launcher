@@ -52,6 +52,48 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('compact confirmation stays content-sized above the keyboard', (
+    tester,
+  ) async {
+    final view = tester.view;
+    view.devicePixelRatio = 1;
+    view.physicalSize = const Size(390, 800);
+    view.viewInsets = const FakeViewPadding(bottom: 280);
+    addTearDown(() {
+      view.resetPhysicalSize();
+      view.resetDevicePixelRatio();
+      view.resetViewInsets();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () => ThemedConfirmDialog.show(
+              context: context,
+              title: '确认清空',
+              content: '确定要清空输入内容吗？',
+              confirmText: '清除',
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+    expect(surface, findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(tester.getSize(surface).height, lessThan(240));
+    expect(tester.getRect(surface).bottom, lessThanOrEqualTo(520));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('warning confirmation uses an AA semantic color pair', (
     tester,
   ) async {

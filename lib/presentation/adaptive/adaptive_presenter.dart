@@ -113,7 +113,7 @@ class AdaptivePresenter {
               : motion.fastDuration,
           curve: motion.standardCurve,
           padding: EdgeInsets.only(bottom: viewInset),
-          child: expand || viewInset > 0
+          child: expand
               ? DraggableScrollableSheet(
                   expand: false,
                   initialChildSize: 1,
