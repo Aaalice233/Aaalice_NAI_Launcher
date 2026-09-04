@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/online_gallery/gallery_tag_query.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/online_gallery/ai_tag_generation_info.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/online_gallery/quick_tag_cloud_codex.dart';
 import '../../../data/services/danbooru_auth_service.dart';
@@ -15,6 +16,7 @@ import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../services/gallery_prompt_projection_service.dart';
+import '../../services/generation_prompt_transfer_service.dart';
 import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/gelbooru_credentials_dialog.dart';
 import 'gallery_grid_item.dart';
@@ -383,6 +385,16 @@ class _OnlineGalleryContentPresenter {
         ? detail.media.first
         : null;
     final isQuickTagCloud = post.sourceId == GallerySourceId.quickTagCloud;
+    final aiTagInfo =
+        post.sourceId == GallerySourceId.aiTag && targetMedia != null
+        ? AiTagGenerationInfo.tryFromMediaMetadata(targetMedia.metadata)
+        : null;
+    final aiTagBadge = post.sourceId == GallerySourceId.aiTag
+        ? aiTagInfo?.modelBadgeLabel(fallbackType: post.aiType) ?? post.aiType
+        : null;
+    final aiTagTransferConfiguration = aiTagInfo == null
+        ? null
+        : GenerationTransferConfiguration.tryFromAiTag(aiTagInfo);
     return Consumer(
       builder: (context, cardRef, _) {
         final postKey = onlineGalleryPostKey(post);
@@ -482,6 +494,13 @@ class _OnlineGalleryContentPresenter {
                 )
               : isQuickTagCloud
               ? quickTagCloudBadge
+              : aiTagBadge,
+          badgeUsesModelColor:
+              post.sourceId == GallerySourceId.aiTag && aiTagBadge != null,
+          generationTransferOptions: post.sourceId == GallerySourceId.aiTag
+              ? GenerationTransferOptions(
+                  configuration: aiTagTransferConfiguration,
+                )
               : null,
           emptyTitle: isQuickTagCloud
               ? context.l10n.onlineGallery_codexUntitled

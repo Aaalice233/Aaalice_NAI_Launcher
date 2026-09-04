@@ -6003,6 +6003,24 @@ abstract class AppLocalizations {
   /// **'Sent to text-to-image'**
   String get onlineGallery_sentToTextToImage;
 
+  /// No description provided for @onlineGallery_replaceConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace configuration'**
+  String get onlineGallery_replaceConfig;
+
+  /// No description provided for @onlineGallery_replaceConfigDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which generation settings to replace; unselected settings keep their current values'**
+  String get onlineGallery_replaceConfigDescription;
+
+  /// No description provided for @onlineGallery_replaceConfigNaiOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Available only for images with recognized NovelAI configuration'**
+  String get onlineGallery_replaceConfigNaiOnly;
+
   /// No description provided for @onlineGallery_sendToReversePrompt.
   ///
   /// In en, this message translates to:

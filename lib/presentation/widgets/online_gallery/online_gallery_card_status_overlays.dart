@@ -11,6 +11,7 @@ class OnlineGalleryCardStatusOverlays extends StatelessWidget {
     this.secondaryFavoriteIcon,
     this.secondaryFavoriteTooltip,
     this.badgeLabel,
+    this.badgeUsesModelColor = false,
   });
 
   final bool favoriteReadOnly;
@@ -18,6 +19,7 @@ class OnlineGalleryCardStatusOverlays extends StatelessWidget {
   final IconData? secondaryFavoriteIcon;
   final String? secondaryFavoriteTooltip;
   final String? badgeLabel;
+  final bool badgeUsesModelColor;
   final int mediaCount;
 
   @override
@@ -25,9 +27,11 @@ class OnlineGalleryCardStatusOverlays extends StatelessWidget {
     final hasFavoriteStatus =
         favoriteReadOnly ||
         (secondaryFavoriteIcon != null && secondaryFavoriteTooltip != null);
-    final hasSourceBadge = badgeLabel != null || mediaCount > 1;
+    final hasSourceBadge = badgeLabel != null;
+    final hasMediaCountBadge = mediaCount > 1;
+    final hasGalleryStatus = hasSourceBadge || hasMediaCountBadge;
 
-    if (!hasFavoriteStatus && !hasSourceBadge) {
+    if (!hasFavoriteStatus && !hasGalleryStatus) {
       return const SizedBox.shrink();
     }
 
@@ -55,9 +59,16 @@ class OnlineGalleryCardStatusOverlays extends StatelessWidget {
                 ),
             ],
           ),
-        if (hasFavoriteStatus && hasSourceBadge) const SizedBox(height: 4),
+        if (hasFavoriteStatus && hasGalleryStatus) const SizedBox(height: 4),
         if (hasSourceBadge)
-          _GallerySourceBadge(label: badgeLabel, mediaCount: mediaCount),
+          _GallerySourceBadge(
+            label: badgeLabel!,
+            backgroundColor: badgeUsesModelColor
+                ? _modelBadgeColor(badgeLabel!)
+                : null,
+          ),
+        if (hasSourceBadge && hasMediaCountBadge) const SizedBox(height: 4),
+        if (hasMediaCountBadge) _GalleryMediaCountBadge(count: mediaCount),
       ],
     );
   }
@@ -126,7 +137,7 @@ class OnlineGalleryCardLeftStatusOverlays extends StatelessWidget {
             (codexBadgeLabel != null || hasRating || hasMediaType))
           const SizedBox(height: 4),
         if (codexBadgeLabel != null)
-          _GallerySourceBadge(label: codexBadgeLabel, mediaCount: 1),
+          _GallerySourceBadge(label: codexBadgeLabel!),
         if (codexBadgeLabel != null && (hasRating || hasMediaType))
           const SizedBox(height: 4),
         if (hasRating)
@@ -169,15 +180,52 @@ class OnlineGalleryCardLeftStatusOverlays extends StatelessWidget {
 }
 
 class _GallerySourceBadge extends StatelessWidget {
-  const _GallerySourceBadge({required this.label, required this.mediaCount});
+  const _GallerySourceBadge({required this.label, this.backgroundColor});
 
-  final String? label;
-  final int mediaCount;
+  final String label;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey('online-gallery-card-source-badge'),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.brush_outlined, size: 11, color: Colors.white),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GalleryMediaCountBadge extends StatelessWidget {
+  const _GalleryMediaCountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('online-gallery-card-media-count-badge'),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.72),
@@ -186,43 +234,50 @@ class _GallerySourceBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (label != null) ...[
-            const Icon(Icons.brush_outlined, size: 11, color: Colors.white),
-            const SizedBox(width: 3),
-            Flexible(
-              child: Text(
-                label!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-          if (label != null && mediaCount > 1) const SizedBox(width: 6),
-          if (mediaCount > 1) ...[
-            const Icon(
-              Icons.collections_outlined,
-              size: 11,
+          const Icon(Icons.collections_outlined, size: 11, color: Colors.white),
+          const SizedBox(width: 3),
+          Text(
+            '$count',
+            style: const TextStyle(
               color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(width: 3),
-            Text(
-              '$mediaCount',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );
   }
+}
+
+/// Keeps well-known model families visually distinct while producing a stable
+/// fallback for model labels that AI TAG adds later.
+Color _modelBadgeColor(String label) {
+  final normalized = label.trim().toLowerCase();
+  if (normalized.contains('nai v5')) return const Color(0xFF9F1239);
+  if (normalized.contains('nai v4.5')) return const Color(0xFF6D28D9);
+  if (normalized.contains('nai v4')) return const Color(0xFF1D4ED8);
+  if (normalized.contains('nai v3')) return const Color(0xFF0F766E);
+  if (normalized.contains('sdxl')) return const Color(0xFFB45309);
+  if (normalized.contains('stable diffusion') ||
+      RegExp(r'\bsd(?:\s|$)').hasMatch(normalized)) {
+    return const Color(0xFF3F6212);
+  }
+  if (normalized.contains('comfy')) return const Color(0xFF9D174D);
+
+  const fallbackPalette = <Color>[
+    Color(0xFF075985),
+    Color(0xFF7E22CE),
+    Color(0xFF0F766E),
+    Color(0xFFB45309),
+    Color(0xFFB91C1C),
+    Color(0xFF3F6212),
+  ];
+  var hash = 0;
+  for (final codeUnit in normalized.codeUnits) {
+    hash = (hash * 31 + codeUnit) & 0x7FFFFFFF;
+  }
+  return fallbackPalette[hash % fallbackPalette.length];
 }
 
 class OnlineGalleryCardRatingBadge extends StatelessWidget {

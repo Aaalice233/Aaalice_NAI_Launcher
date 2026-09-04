@@ -13,6 +13,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/media_mime_type.dart';
 import '../../../data/models/character/character_prompt.dart';
+import '../../../data/models/online_gallery/ai_tag_generation_info.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
@@ -29,6 +30,7 @@ import '../../services/gallery_prompt_projection_service.dart';
 import '../../services/generation_prompt_transfer_service.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/online_gallery/gallery_detail_dialog.dart';
+import '../../widgets/online_gallery/gallery_generation_transfer_dialog.dart';
 import '../../widgets/online_gallery/gallery_prompt_copy_dialog.dart';
 import '../watermark/watermark_editor_launcher.dart';
 import 'online_gallery_detail_loading_dialog.dart';
@@ -174,10 +176,13 @@ class OnlineGalleryDetailLauncher {
             ),
           ),
           onSendToGenerate: (media) {
-            _sendCodexDetailToGeneration(
-              context,
-              item,
-              _projectionFor(item, detail, media),
+            unawaited(
+              _sendDetailToGenerationWithOptions(
+                context,
+                item,
+                _projectionFor(item, detail, media),
+                media,
+              ),
             );
           },
           onAddToQueue: (media) => _addCodexDetailToQueue(
@@ -484,8 +489,10 @@ class OnlineGalleryDetailLauncher {
   void _sendCodexDetailToGeneration(
     BuildContext dialogContext,
     GalleryItem item,
-    GalleryPromptProjection projection,
-  ) {
+    GalleryPromptProjection projection, {
+    GenerationTransferConfiguration? configuration,
+    Set<GenerationTransferSetting>? configurationSettings,
+  }) {
     ref
         .read(characterPromptNotifierProvider.notifier)
         .replaceAll(_codexCharacters(item, projection));
@@ -494,10 +501,48 @@ class OnlineGalleryDetailLauncher {
         .replaceMainPrompt(
           prompt: projection.positivePrompt,
           negativePrompt: projection.negativePrompt,
+          configuration: configuration,
+          configurationSettings: configurationSettings,
         );
     Navigator.of(dialogContext, rootNavigator: true).pop();
     context.go('/');
     AppToast.info(context, context.l10n.onlineGallery_sentToTextToImage);
+  }
+
+  Future<void> _sendDetailToGenerationWithOptions(
+    BuildContext dialogContext,
+    GalleryItem item,
+    GalleryPromptProjection projection,
+    GalleryMedia? media,
+  ) async {
+    final configuration = item.sourceId == GallerySourceId.aiTag
+        ? _replacementConfigurationFor(media)
+        : null;
+    Set<GenerationTransferSetting>? selectedSettings;
+    if (item.sourceId == GallerySourceId.aiTag) {
+      selectedSettings = await GalleryGenerationTransferDialog.show(
+        dialogContext,
+        configuration: configuration,
+      );
+      if (selectedSettings == null || !dialogContext.mounted) return;
+    }
+    _sendCodexDetailToGeneration(
+      dialogContext,
+      item,
+      projection,
+      configuration: configuration,
+      configurationSettings: selectedSettings,
+    );
+  }
+
+  GenerationTransferConfiguration? _replacementConfigurationFor(
+    GalleryMedia? media,
+  ) {
+    if (media == null) return null;
+    final info = AiTagGenerationInfo.tryFromMediaMetadata(media.metadata);
+    return info == null
+        ? null
+        : GenerationTransferConfiguration.tryFromAiTag(info);
   }
 
   Future<void> _addCodexDetailToQueue(

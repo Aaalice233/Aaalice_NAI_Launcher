@@ -3199,6 +3199,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_sentToTextToImage => '已发送到文生图';
 
   @override
+  String get onlineGallery_replaceConfig => '替换配置';
+
+  @override
+  String get onlineGallery_replaceConfigDescription =>
+      '选择要同时替换的生成配置；未选择的项目会保留当前值';
+
+  @override
+  String get onlineGallery_replaceConfigNaiOnly => '仅包含可识别 NovelAI 配置的图片支持此选项';
+
+  @override
   String get onlineGallery_sendToReversePrompt => '发送到反推';
 
   @override
@@ -17102,6 +17112,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_sentToTextToImage => '已傳送到文生圖';
+
+  @override
+  String get onlineGallery_replaceConfig => '取代設定';
+
+  @override
+  String get onlineGallery_replaceConfigDescription =>
+      '選擇要同時取代的生成設定；未選擇的項目會保留目前值';
+
+  @override
+  String get onlineGallery_replaceConfigNaiOnly => '僅包含可識別 NovelAI 設定的圖片支援此選項';
 
   @override
   String get onlineGallery_sendToReversePrompt => '傳送到反推';

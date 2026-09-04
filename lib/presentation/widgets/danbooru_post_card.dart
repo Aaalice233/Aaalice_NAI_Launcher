@@ -30,6 +30,7 @@ import 'common/image_hover_preview.dart';
 import 'common/image_hover_preview_controller.dart';
 import 'online_gallery/online_gallery_card_status_overlays.dart';
 import 'online_gallery/coordinated_gallery_image.dart';
+import 'online_gallery/gallery_generation_transfer_dialog.dart';
 import 'online_gallery/online_gallery_image_placeholder.dart';
 import 'online_gallery/progressive_gallery_image.dart';
 
@@ -66,6 +67,8 @@ class DanbooruPostCard extends StatefulWidget {
   final String? copyTextOverride;
   final String? copyTooltip;
   final String? badgeLabel;
+  final bool badgeUsesModelColor;
+  final GenerationTransferOptions? generationTransferOptions;
   final String? emptyTitle;
   final VoidCallback onTap;
   final Function(String) onTagTap;
@@ -100,6 +103,8 @@ class DanbooruPostCard extends StatefulWidget {
     this.copyTextOverride,
     this.copyTooltip,
     this.badgeLabel,
+    this.badgeUsesModelColor = false,
+    this.generationTransferOptions,
     this.emptyTitle,
     required this.onTap,
     required this.onTagTap,
@@ -209,6 +214,43 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     }
     AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
     return null;
+  }
+
+  Future<void> _handleSendToGeneration(WidgetRef ref) async {
+    final prompt = _promptForGenerationAction();
+    if (prompt == null) return;
+
+    final transferOptions = widget.generationTransferOptions;
+    Set<GenerationTransferSetting>? selectedSettings;
+    if (transferOptions != null) {
+      selectedSettings = await GalleryGenerationTransferDialog.show(
+        context,
+        configuration: transferOptions.configuration,
+      );
+      if (selectedSettings == null || !mounted) return;
+    }
+
+    ref.read(characterPromptNotifierProvider.notifier).replaceAll([
+      for (var index = 0; index < widget.characterPrompts.length; index++)
+        CharacterPrompt(
+          id: 'gallery-${widget.post.stableKey}-$index',
+          name: widget.characterPrompts[index].label,
+          prompt: widget.characterPrompts[index].prompt,
+          negativePrompt: widget.characterPrompts[index].negativePrompt,
+          positionMode: CharacterPositionMode.aiChoice,
+        ),
+    ]);
+    ref
+        .read(generationPromptTransferServiceProvider)
+        .replaceMainPrompt(
+          prompt: prompt,
+          negativePrompt: widget.negativePromptOverride,
+          configuration: transferOptions?.configuration,
+          configurationSettings: selectedSettings,
+        );
+    if (!mounted) return;
+    context.go('/');
+    AppToast.info(context, context.l10n.onlineGallery_sentToTextToImage);
   }
 
   Future<void> _handleDownload() async {
@@ -547,6 +589,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   badgeLabel: showsCodexBadgeOnLeft
                                       ? null
                                       : widget.badgeLabel,
+                                  badgeUsesModelColor:
+                                      widget.badgeUsesModelColor,
                                   mediaCount: widget.post.mediaCount,
                                 ),
                               ),
@@ -773,53 +817,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 tooltip: context
                                     .l10n
                                     .onlineGallery_sendToTextToImage,
-                                onPressed: () {
-                                  final prompt = _promptForGenerationAction();
-                                  if (prompt == null) return;
-                                  ref
-                                      .read(
-                                        characterPromptNotifierProvider
-                                            .notifier,
-                                      )
-                                      .replaceAll([
-                                        for (
-                                          var index = 0;
-                                          index <
-                                              widget.characterPrompts.length;
-                                          index++
-                                        )
-                                          CharacterPrompt(
-                                            id: 'gallery-${widget.post.stableKey}-$index',
-                                            name: widget
-                                                .characterPrompts[index]
-                                                .label,
-                                            prompt: widget
-                                                .characterPrompts[index]
-                                                .prompt,
-                                            negativePrompt: widget
-                                                .characterPrompts[index]
-                                                .negativePrompt,
-                                            positionMode:
-                                                CharacterPositionMode.aiChoice,
-                                          ),
-                                      ]);
-                                  ref
-                                      .read(
-                                        generationPromptTransferServiceProvider,
-                                      )
-                                      .replaceMainPrompt(
-                                        prompt: prompt,
-                                        negativePrompt:
-                                            widget.negativePromptOverride,
-                                      );
-                                  context.go('/');
-                                  AppToast.info(
-                                    context,
-                                    context
-                                        .l10n
-                                        .onlineGallery_sentToTextToImage,
-                                  );
-                                },
+                                onPressed: () => _handleSendToGeneration(ref),
                               ),
                               if (widget.post.mediaCapability.isFlutterImage &&
                                   widget

@@ -106,6 +106,8 @@ class GalleryDetailDialogView extends StatelessWidget {
                                     final infoPanel = GalleryDetailInfoPanel(
                                       viewModel: viewModel,
                                       actions: actions,
+                                      scrollController:
+                                          controller.infoScrollController,
                                       primaryActions:
                                           GalleryDetailPrimaryActions(
                                             viewModel: viewModel,

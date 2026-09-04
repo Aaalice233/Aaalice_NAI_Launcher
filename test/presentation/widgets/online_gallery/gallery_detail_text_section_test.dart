@@ -21,4 +21,24 @@ void main() {
     expect(find.byType(SelectableText), findsOneWidget);
     expect(find.byType(VerticalDivider), findsNothing);
   });
+
+  testWidgets('renders an optional trailing action in the title row', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: GalleryDetailTextSection(
+            title: 'Raw JSON',
+            content: '{"seed": 1}',
+            accentColor: Colors.blue,
+            trailing: Icon(Icons.copy, key: ValueKey('copy-action')),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('copy-action')), findsOneWidget);
+    expect(find.text('{"seed": 1}'), findsOneWidget);
+  });
 }

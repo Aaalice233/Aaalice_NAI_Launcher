@@ -10,6 +10,8 @@ class GalleryDetailTextSection extends StatelessWidget {
     required this.accentColor,
     this.monospace = false,
     this.translateTags = false,
+    this.trailing,
+    this.maxLines,
   });
 
   final String title;
@@ -17,6 +19,8 @@ class GalleryDetailTextSection extends StatelessWidget {
   final Color accentColor;
   final bool monospace;
   final bool translateTags;
+  final Widget? trailing;
+  final int? maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -42,13 +46,16 @@ class GalleryDetailTextSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 7),
-                Text(
-                  title,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
+                if (trailing != null) trailing!,
               ],
             ),
             const SizedBox(height: 7),
@@ -64,6 +71,10 @@ class GalleryDetailTextSection extends StatelessWidget {
             else
               SelectableText(
                 content,
+                maxLines: maxLines,
+                // The containing details panel owns vertical scrolling. This
+                // prevents a collapsed preview from swallowing wheel events.
+                scrollPhysics: const NeverScrollableScrollPhysics(),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
                   height: 1.4,
