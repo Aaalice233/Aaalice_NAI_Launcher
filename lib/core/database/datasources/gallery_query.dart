@@ -31,6 +31,13 @@ abstract interface class GalleryQuery {
     int? minFileSize,
     int? maxFileSize,
     List<String>? metadataStatuses,
+    String? model,
+    String? sampler,
+    int? minSteps,
+    int? maxSteps,
+    double? minCfgScale,
+    double? maxCfgScale,
+    String? resolution,
     int limit = 100,
   });
   Future<List<GalleryImageRecord>> getAllImages();
@@ -54,7 +61,7 @@ class SqliteGalleryQuery implements GalleryQuery {
         .toList(growable: false);
   }
 
-  String _escapeLikePattern(String input) {
+  static String _escapeLikePattern(String input) {
     return input
         .replaceAll('\\', '\\\\')
         .replaceAll('%', r'\%')
@@ -454,21 +461,39 @@ class SqliteGalleryQuery implements GalleryQuery {
     int? minFileSize,
     int? maxFileSize,
     List<String>? metadataStatuses,
+    String? model,
+    String? sampler,
+    int? minSteps,
+    int? maxSteps,
+    double? minCfgScale,
+    double? maxCfgScale,
+    String? resolution,
     int limit = 100,
   }) async {
+    final criteria = _AdvancedSearchCriteria(
+      dateStart: dateStart,
+      dateEnd: dateEnd,
+      favoritesOnly: favoritesOnly,
+      minWidth: minWidth,
+      minHeight: minHeight,
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      minFileSize: minFileSize,
+      maxFileSize: maxFileSize,
+      metadataStatuses: metadataStatuses,
+      model: model,
+      sampler: sampler,
+      minSteps: minSteps,
+      maxSteps: maxSteps,
+      minCfgScale: minCfgScale,
+      maxCfgScale: maxCfgScale,
+      resolution: resolution,
+    );
+
     // 缓存键
     final cacheKey = GalleryQueryCacheKey('advancedSearch', {
       'textQuery': textQuery,
-      'dateStart': dateStart?.millisecondsSinceEpoch,
-      'dateEnd': dateEnd?.millisecondsSinceEpoch,
-      'favoritesOnly': favoritesOnly,
-      'minWidth': minWidth,
-      'minHeight': minHeight,
-      'maxWidth': maxWidth,
-      'maxHeight': maxHeight,
-      'minFileSize': minFileSize,
-      'maxFileSize': maxFileSize,
-      'metadataStatuses': metadataStatuses?.join(','),
+      ...criteria.cacheFields,
       'limit': limit,
     });
 
@@ -504,87 +529,14 @@ class SqliteGalleryQuery implements GalleryQuery {
         }
 
         return await gateway.execute('advancedSearch', (db) async {
-          // 2. 构建查询条件
-          final conditions = <String>['i.is_deleted = 0'];
-          final args = <dynamic>[];
+          final statement = criteria.buildStatement(
+            textSearchIds: textSearchIds,
+            limit: limit,
+          );
 
-          if (favoritesOnly) {
-            conditions.add('f.image_id IS NOT NULL');
-          }
-
-          if (dateStart != null) {
-            conditions.add('i.modified_at >= ?');
-            args.add(dateStart.millisecondsSinceEpoch);
-          }
-          if (dateEnd != null) {
-            conditions.add('i.modified_at <= ?');
-            args.add(dateEnd.millisecondsSinceEpoch);
-          }
-
-          if (minWidth != null) {
-            conditions.add('i.width >= ?');
-            args.add(minWidth);
-          }
-          if (minHeight != null) {
-            conditions.add('i.height >= ?');
-            args.add(minHeight);
-          }
-          if (maxWidth != null) {
-            conditions.add('i.width <= ?');
-            args.add(maxWidth);
-          }
-          if (maxHeight != null) {
-            conditions.add('i.height <= ?');
-            args.add(maxHeight);
-          }
-
-          if (minFileSize != null) {
-            conditions.add('i.file_size >= ?');
-            args.add(minFileSize);
-          }
-          if (maxFileSize != null) {
-            conditions.add('i.file_size <= ?');
-            args.add(maxFileSize);
-          }
-
-          if (metadataStatuses != null && metadataStatuses.isNotEmpty) {
-            final statusIndices = metadataStatuses
-                .map(
-                  (s) => MetadataStatus.values.indexWhere((v) => v.name == s),
-                )
-                .where((i) => i >= 0)
-                .toList();
-            if (statusIndices.isNotEmpty) {
-              final placeholders = List.filled(
-                statusIndices.length,
-                '?',
-              ).join(',');
-              conditions.add('i.metadata_status IN ($placeholders)');
-              args.addAll(statusIndices);
-            }
-          }
-
-          if (textSearchIds != null && textSearchIds.isNotEmpty) {
-            final placeholders = List.filled(
-              textSearchIds.length,
-              '?',
-            ).join(',');
-            conditions.add('i.id IN ($placeholders)');
-            args.addAll(textSearchIds);
-          }
-
-          final whereClause = conditions.join(' AND ');
-
-          // 3. 执行查询
           final results = await db.rawQuery(
-            '''
-            SELECT i.id FROM ${GalleryTables.images} i
-            ${favoritesOnly ? 'INNER JOIN ${GalleryTables.favorites} f ON i.id = f.image_id' : 'LEFT JOIN ${GalleryTables.favorites} f ON i.id = f.image_id'}
-            WHERE $whereClause
-            ORDER BY i.modified_at DESC
-            LIMIT ?
-            ''',
-            [...args, limit],
+            statement.sql,
+            statement.arguments,
           );
 
           final ids = results.map((row) => (row['id'] as num).toInt()).toList();
@@ -924,4 +876,219 @@ class SqliteGalleryQuery implements GalleryQuery {
     }
     return counts;
   }
+}
+
+/// advancedSearch 的非文本条件及其 SQL 展开。
+class _AdvancedSearchCriteria {
+  const _AdvancedSearchCriteria({
+    this.dateStart,
+    this.dateEnd,
+    this.favoritesOnly = false,
+    this.minWidth,
+    this.minHeight,
+    this.maxWidth,
+    this.maxHeight,
+    this.minFileSize,
+    this.maxFileSize,
+    this.metadataStatuses,
+    this.model,
+    this.sampler,
+    this.minSteps,
+    this.maxSteps,
+    this.minCfgScale,
+    this.maxCfgScale,
+    this.resolution,
+  });
+
+  final DateTime? dateStart;
+  final DateTime? dateEnd;
+  final bool favoritesOnly;
+  final int? minWidth;
+  final int? minHeight;
+  final int? maxWidth;
+  final int? maxHeight;
+  final int? minFileSize;
+  final int? maxFileSize;
+  final List<String>? metadataStatuses;
+  final String? model;
+  final String? sampler;
+  final int? minSteps;
+  final int? maxSteps;
+  final double? minCfgScale;
+  final double? maxCfgScale;
+  final String? resolution;
+
+  // 扫描时宽高同时写入 images 与 metadata，旧记录可能只落其中一处。
+  static const String _widthExpression =
+      'COALESCE(NULLIF(m.width, 0), NULLIF(i.width, 0))';
+  static const String _heightExpression =
+      'COALESCE(NULLIF(m.height, 0), NULLIF(i.height, 0))';
+
+  static final RegExp _resolutionPattern = RegExp(
+    r'^(\d{1,6})\s*[x×*]\s*(\d{1,6})$',
+    caseSensitive: false,
+  );
+
+  Map<String, dynamic> get cacheFields => {
+    'dateStart': dateStart?.millisecondsSinceEpoch,
+    'dateEnd': dateEnd?.millisecondsSinceEpoch,
+    'favoritesOnly': favoritesOnly,
+    'minWidth': minWidth,
+    'minHeight': minHeight,
+    'maxWidth': maxWidth,
+    'maxHeight': maxHeight,
+    'minFileSize': minFileSize,
+    'maxFileSize': maxFileSize,
+    'metadataStatuses': metadataStatuses?.join(','),
+    'model': _normalizedText(model),
+    'sampler': _normalizedText(sampler),
+    'minSteps': minSteps,
+    'maxSteps': maxSteps,
+    'minCfgScale': minCfgScale,
+    'maxCfgScale': maxCfgScale,
+    'resolution': _normalizedText(resolution),
+  };
+
+  _AdvancedSearchStatement buildStatement({
+    required List<int>? textSearchIds,
+    required int limit,
+  }) {
+    final conditions = <String>['i.is_deleted = 0'];
+    final arguments = <Object?>[];
+
+    if (favoritesOnly) {
+      conditions.add('f.image_id IS NOT NULL');
+    }
+
+    void addComparison(String expression, Object? value) {
+      if (value == null) return;
+      conditions.add(expression);
+      arguments.add(value);
+    }
+
+    addComparison('i.modified_at >= ?', dateStart?.millisecondsSinceEpoch);
+    addComparison('i.modified_at <= ?', dateEnd?.millisecondsSinceEpoch);
+    addComparison('$_widthExpression >= ?', minWidth);
+    addComparison('$_heightExpression >= ?', minHeight);
+    addComparison('$_widthExpression <= ?', maxWidth);
+    addComparison('$_heightExpression <= ?', maxHeight);
+    addComparison('i.file_size >= ?', minFileSize);
+    addComparison('i.file_size <= ?', maxFileSize);
+    addComparison('m.steps >= ?', minSteps);
+    addComparison('m.steps <= ?', maxSteps);
+    addComparison('m.cfg_scale >= ?', minCfgScale);
+    addComparison('m.cfg_scale <= ?', maxCfgScale);
+
+    _addStatusCondition(conditions, arguments);
+    _addContainsCondition(conditions, arguments, 'm.model', model);
+    _addContainsCondition(conditions, arguments, 'm.sampler', sampler);
+    _addResolutionCondition(conditions, arguments);
+
+    if (textSearchIds != null && textSearchIds.isNotEmpty) {
+      final placeholders = List.filled(textSearchIds.length, '?').join(',');
+      conditions.add('i.id IN ($placeholders)');
+      arguments.addAll(textSearchIds);
+    }
+
+    final favoritesJoin = favoritesOnly
+        ? 'INNER JOIN ${GalleryTables.favorites} f ON i.id = f.image_id'
+        : 'LEFT JOIN ${GalleryTables.favorites} f ON i.id = f.image_id';
+    final metadataJoin = _requiresMetadataJoin
+        ? 'LEFT JOIN ${GalleryTables.metadata} m ON m.image_id = i.id'
+        : '';
+
+    return _AdvancedSearchStatement(
+      sql:
+          '''
+            SELECT i.id FROM ${GalleryTables.images} i
+            $favoritesJoin
+            $metadataJoin
+            WHERE ${conditions.join(' AND ')}
+            ORDER BY i.modified_at DESC
+            LIMIT ?
+            ''',
+      arguments: [...arguments, limit],
+    );
+  }
+
+  bool get _requiresMetadataJoin =>
+      minWidth != null ||
+      minHeight != null ||
+      maxWidth != null ||
+      maxHeight != null ||
+      minSteps != null ||
+      maxSteps != null ||
+      minCfgScale != null ||
+      maxCfgScale != null ||
+      _normalizedText(model) != null ||
+      _normalizedText(sampler) != null ||
+      _normalizedText(resolution) != null;
+
+  void _addStatusCondition(List<String> conditions, List<Object?> arguments) {
+    final statuses = metadataStatuses;
+    if (statuses == null || statuses.isEmpty) return;
+
+    final statusIndices = statuses
+        .map((status) => MetadataStatus.values.indexWhere((v) => v.name == status))
+        .where((index) => index >= 0)
+        .toList();
+    if (statusIndices.isEmpty) return;
+
+    final placeholders = List.filled(statusIndices.length, '?').join(',');
+    conditions.add('i.metadata_status IN ($placeholders)');
+    arguments.addAll(statusIndices);
+  }
+
+  void _addContainsCondition(
+    List<String> conditions,
+    List<Object?> arguments,
+    String column,
+    String? value,
+  ) {
+    final normalized = _normalizedText(value);
+    if (normalized == null) return;
+
+    conditions.add("LOWER($column) LIKE ? ESCAPE '\\'");
+    arguments.add('%${SqliteGalleryQuery._escapeLikePattern(normalized)}%');
+  }
+
+  void _addResolutionCondition(
+    List<String> conditions,
+    List<Object?> arguments,
+  ) {
+    final normalized = _normalizedText(resolution);
+    if (normalized == null) return;
+
+    final match = _resolutionPattern.firstMatch(normalized);
+    final width = match == null ? null : int.tryParse(match.group(1)!);
+    final height = match == null ? null : int.tryParse(match.group(2)!);
+
+    if (width != null && width > 0 && height != null && height > 0) {
+      conditions.add('$_widthExpression = ?');
+      conditions.add('$_heightExpression = ?');
+      arguments.add(width);
+      arguments.add(height);
+      return;
+    }
+
+    // 面板允许自由输入，无法读成 宽x高 时退化为分辨率文本包含匹配。
+    conditions.add(
+      "(CAST($_widthExpression AS TEXT) || 'x' || "
+      "CAST($_heightExpression AS TEXT)) LIKE ? ESCAPE '\\'",
+    );
+    arguments.add('%${SqliteGalleryQuery._escapeLikePattern(normalized)}%');
+  }
+
+  static String? _normalizedText(String? value) {
+    final trimmed = value?.trim().toLowerCase();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
+  }
+}
+
+class _AdvancedSearchStatement {
+  const _AdvancedSearchStatement({required this.sql, required this.arguments});
+
+  final String sql;
+  final List<Object?> arguments;
 }

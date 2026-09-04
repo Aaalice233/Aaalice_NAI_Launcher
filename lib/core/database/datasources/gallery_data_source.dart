@@ -217,6 +217,13 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     int? minFileSize,
     int? maxFileSize,
     List<String>? metadataStatuses,
+    String? model,
+    String? sampler,
+    int? minSteps,
+    int? maxSteps,
+    double? minCfgScale,
+    double? maxCfgScale,
+    String? resolution,
     int limit = 100,
   }) => _query.advancedSearch(
     textQuery: textQuery,
@@ -230,6 +237,13 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     minFileSize: minFileSize,
     maxFileSize: maxFileSize,
     metadataStatuses: metadataStatuses,
+    model: model,
+    sampler: sampler,
+    minSteps: minSteps,
+    maxSteps: maxSteps,
+    minCfgScale: minCfgScale,
+    maxCfgScale: maxCfgScale,
+    resolution: resolution,
     limit: limit,
   );
 
