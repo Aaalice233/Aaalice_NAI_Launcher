@@ -1335,16 +1335,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
             context.interactionPolicy,
           )
         : 0.0;
-    final quickTranslationClearance = widget.config.enableQuickTranslation
-        ? QuickTranslatePromptField.contentBottomClearance(
-            context.interactionPolicy,
-          )
-        : 0.0;
     final effectiveContentPadding = _withBottomActionClearance(
       requestedContentPadding,
-      clearance: assistantClearance > quickTranslationClearance
-          ? assistantClearance
-          : quickTranslationClearance,
+      clearance: assistantClearance,
     );
 
     // 合并 decoration：优先使用传入的 decoration，但保留 config 中的 hintText

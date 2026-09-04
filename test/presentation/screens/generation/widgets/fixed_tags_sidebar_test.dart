@@ -29,6 +29,7 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_ent
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
 import 'package:nai_launcher/presentation/themes/prompt_semantic_colors.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
 import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_edit_dialog.dart';
@@ -516,6 +517,12 @@ void main() {
     );
     expect(tester.getSize(weightHeader).width, 250);
     final contentInput = find.byKey(const ValueKey('fixed-tag-content-input'));
+    final contentPadding = tester
+        .widget<ThemedInput>(contentInput)
+        .decoration!
+        .contentPadding!
+        .resolve(TextDirection.ltr);
+    expect(contentPadding.bottom, 12);
     final contentFooter = find.byKey(
       const ValueKey('fixed-tag-content-footer'),
     );

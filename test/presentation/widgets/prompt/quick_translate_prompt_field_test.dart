@@ -206,7 +206,7 @@ ultra\_complexity, perfect\_rendering, realistic\_rendering, detailed\_textures,
     expect(find.text('需要汉化词库'), findsNothing);
   });
 
-  testWidgets('紧凑触屏与桌面宽度均保持右下角入口和安全命中区', (tester) async {
+  testWidgets('紧凑触屏与桌面宽度均让入口只覆盖输入框右下角', (tester) async {
     for (final scenario in [
       (size: const Size(360, 640), policy: InteractionPolicy.touchFirst),
       (size: const Size(1180, 800), policy: InteractionPolicy.neutral),
@@ -231,6 +231,10 @@ ultra\_complexity, perfect\_rendering, realistic\_rendering, detailed\_textures,
       expect(buttonRect.bottom, lessThanOrEqualTo(fieldRect.bottom - 4));
       expect(buttonRect.width, greaterThanOrEqualTo(40));
       expect(buttonRect.height, greaterThanOrEqualTo(40));
+      final input = tester.widget<ThemedInput>(find.byType(ThemedInput));
+      final padding = input.contentPadding.resolve(TextDirection.ltr);
+      expect(padding.bottom, 10);
+      expect(buttonRect.top, greaterThan(fieldRect.center.dy));
       expect(tester.takeException(), isNull);
       source.dispose();
     }
@@ -269,12 +273,7 @@ Future<void> _pumpField(
                     controller: source,
                     maxLines: null,
                     expands: true,
-                    contentPadding: EdgeInsets.fromLTRB(
-                      12,
-                      10,
-                      12,
-                      QuickTranslatePromptField.contentBottomClearance(policy),
-                    ),
+                    contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                   ),
                 ),
               ),

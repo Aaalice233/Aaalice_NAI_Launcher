@@ -393,14 +393,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           focusNode: _contentFocusNode,
           decoration: InputDecoration(
             hintText: context.l10n.fixedTags_contentHint,
-            contentPadding: EdgeInsets.fromLTRB(
-              12,
-              12,
-              12,
-              QuickTranslatePromptField.contentBottomClearance(
-                context.interactionPolicy,
-              ),
-            ),
+            contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           ),
           maxLines: null,
           expands: true,

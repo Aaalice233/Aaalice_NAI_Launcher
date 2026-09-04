@@ -360,13 +360,11 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                             focusNode: _contentFocusNode,
                             decoration: InputDecoration(
                               hintText: context.l10n.tagLibrary_contentHint,
-                              contentPadding: EdgeInsets.fromLTRB(
+                              contentPadding: const EdgeInsets.fromLTRB(
                                 12,
                                 12,
                                 12,
-                                QuickTranslatePromptField.contentBottomClearance(
-                                  context.interactionPolicy,
-                                ),
+                                12,
                               ),
                             ),
                             maxLines: null,

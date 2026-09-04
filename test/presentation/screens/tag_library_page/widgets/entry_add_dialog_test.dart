@@ -8,6 +8,7 @@ import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_add_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 void main() {
   testWidgets('320px、3x 字号、IME 与 SafeArea 下 bottom sheet 全部操作可达', (
@@ -114,6 +115,17 @@ void main() {
     expect(squarePreview.size, const Size.square(220));
     expect(editor.height, 176);
     expect(editor.top, lessThan(490));
+    final contentInput = find.descendant(
+      of: find.byKey(const Key('entry-add-dialog-content-editor')),
+      matching: find.byType(ThemedInput),
+    );
+    expect(contentInput, findsOneWidget);
+    final contentPadding = tester
+        .widget<ThemedInput>(contentInput)
+        .decoration!
+        .contentPadding!
+        .resolve(TextDirection.ltr);
+    expect(contentPadding.bottom, 12);
     final contentFooter = find.byKey(
       const ValueKey('entry-add-dialog-content-footer'),
     );

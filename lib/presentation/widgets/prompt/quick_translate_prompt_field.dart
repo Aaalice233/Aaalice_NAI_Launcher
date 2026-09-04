@@ -37,10 +37,6 @@ class QuickTranslatePromptField extends ConsumerStatefulWidget {
   final Color? surfaceColor;
   final bool enabled;
 
-  /// Bottom clearance reserved by prompt inputs for the in-field action.
-  static double contentBottomClearance(InteractionPolicy policy) =>
-      policy.touchAvailable ? policy.minimumControlExtent + 8 : 44;
-
   @override
   ConsumerState<QuickTranslatePromptField> createState() =>
       _QuickTranslatePromptFieldState();
@@ -232,11 +228,11 @@ class _QuickTranslatePromptFieldState
                   widget.surfaceColor ??
                       inputSurfaceFillColor(theme.colorScheme),
                 ),
-                contentPadding: EdgeInsetsDirectional.fromSTEB(
+                contentPadding: const EdgeInsetsDirectional.fromSTEB(
                   12,
                   10,
                   12,
-                  QuickTranslatePromptField.contentBottomClearance(policy),
+                  10,
                 ),
               ),
             ),
