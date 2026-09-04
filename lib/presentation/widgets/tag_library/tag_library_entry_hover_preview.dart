@@ -11,6 +11,8 @@ import '../common/image_hover_preview_controller.dart';
 import '../common/thumbnail_display.dart';
 import '../common/translated_tag_text.dart';
 
+const _tagLibraryEntryPreviewSize = Size(320, 520);
+
 /// 使用词库条目卡片同款内容面板显示悬浮预览。
 class TagLibraryEntryHoverPreview extends StatefulWidget {
   const TagLibraryEntryHoverPreview({
@@ -33,7 +35,6 @@ class TagLibraryEntryHoverPreview extends StatefulWidget {
 
 class _TagLibraryEntryHoverPreviewState
     extends State<TagLibraryEntryHoverPreview> {
-  static const _previewSize = Size(320, 400);
   static const _dismissDelay = Duration(milliseconds: 120);
 
   final _layerLink = LayerLink();
@@ -108,7 +109,7 @@ class _TagLibraryEntryHoverPreviewState
       stableKey: widget.entry.id,
       layerLink: _layerLink,
       targetRect: renderObject.localToGlobal(Offset.zero) & renderObject.size,
-      previewSize: _previewSize,
+      previewSize: _tagLibraryEntryPreviewSize,
       delay: widget.hoverDelay,
       allowPointerInteraction: true,
       builder: (_) => MouseRegion(
@@ -168,11 +169,12 @@ class _TagLibraryEntryPreviewOverlayState
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const preferredWidth = 320.0;
-        const preferredMaxHeight = 400.0;
-        final previewWidth = math.min(preferredWidth, constraints.maxWidth);
+        final previewWidth = math.min(
+          _tagLibraryEntryPreviewSize.width,
+          constraints.maxWidth,
+        );
         final previewMaxHeight = math.min(
-          preferredMaxHeight,
+          _tagLibraryEntryPreviewSize.height,
           constraints.maxHeight,
         );
 

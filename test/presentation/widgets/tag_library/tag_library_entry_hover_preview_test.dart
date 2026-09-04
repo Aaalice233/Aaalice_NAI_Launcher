@@ -122,6 +122,7 @@ void main() {
     );
     expect(previewFinder, findsOneWidget);
     expect(scrollViewFinder, findsOneWidget);
+    expect(tester.getSize(previewFinder).height, 520);
 
     await mouse.moveTo(tester.getCenter(previewFinder));
     await tester.pump(const Duration(milliseconds: 150));
