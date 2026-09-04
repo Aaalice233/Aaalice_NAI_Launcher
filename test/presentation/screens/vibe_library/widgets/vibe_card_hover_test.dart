@@ -13,6 +13,7 @@ import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
+import 'package:nai_launcher/presentation/widgets/common/library_card_badges.dart';
 
 void main() {
   test('悬浮大图按比例适配且不会随高窗口无限增高', () {
@@ -111,6 +112,57 @@ void main() {
       (resized.imageProvider as MemoryImage).bytes,
       same(highResolutionImage),
     );
+  });
+
+  testWidgets('Vibe 卡片仅在有分类时显示类别，并为收藏条目显示常驻徽章', (tester) async {
+    final favoriteEntry = _entry(
+      rawImageData: _onePixelPng,
+    ).copyWith(isFavorite: true);
+
+    Future<void> pumpCard({String? categoryLabel}) => tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(
+            _HoverStorage(favoriteEntry, _onePixelPng),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: VibeCard(
+                entry: favoriteEntry.toDisplayEntry(),
+                width: 180,
+                categoryLabel: categoryLabel,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await pumpCard(categoryLabel: '人物 / 女性角色');
+    expect(find.text('人物 / 女性角色'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('vibe-card-category-hover-vibe')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('vibe-card-favorite-badge-hover-vibe')),
+      findsOneWidget,
+    );
+    expect(find.byType(LibraryCardFavoriteBadge), findsOneWidget);
+
+    await pumpCard();
+    expect(find.text('人物 / 女性角色'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('vibe-card-category-hover-vibe')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Vibe 卡片悬浮操作复用图片卡片双列操作轨', (tester) async {
