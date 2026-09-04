@@ -446,6 +446,9 @@ class ImageWorkflowState {
     bool clearBaseSnapshot = false,
     bool clearEnhanceEntryParams = false,
     bool clearFocusedSelectionRect = false,
+    // 聚焦重绘归属于当前这张源图：换图或退出重绘时开关和选区必须一起归零，
+    // 只清选区会让下一次进重绘仍带着上一张图的聚焦状态。
+    bool resetFocusedInpaint = false,
   }) {
     return ImageWorkflowState(
       mode: mode ?? this.mode,
@@ -471,11 +474,12 @@ class ImageWorkflowState {
       upscale: upscale ?? this.upscale,
       isPanelExpanded: isPanelExpanded ?? this.isPanelExpanded,
       isOutpaint: isOutpaint ?? this.isOutpaint,
-      focusedInpaintEnabled:
-          focusedInpaintEnabled ?? this.focusedInpaintEnabled,
+      focusedInpaintEnabled: resetFocusedInpaint
+          ? false
+          : (focusedInpaintEnabled ?? this.focusedInpaintEnabled),
       minimumContextMegaPixels:
           minimumContextMegaPixels ?? this.minimumContextMegaPixels,
-      focusedSelectionRect: clearFocusedSelectionRect
+      focusedSelectionRect: clearFocusedSelectionRect || resetFocusedInpaint
           ? null
           : (focusedSelectionRect ?? this.focusedSelectionRect),
     );
@@ -1055,7 +1059,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       sourceImageWidth: sourceImageSize?.$1,
       sourceImageHeight: sourceImageSize?.$2,
       isOutpaint: false,
-      clearFocusedSelectionRect: true,
+      resetFocusedInpaint: true,
     );
 
     switch (state.mode) {
@@ -1075,7 +1079,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
           mode: ImageWorkflowMode.base,
           isOutpaint: false,
           clearBaseSnapshot: true,
-          clearFocusedSelectionRect: true,
+          resetFocusedInpaint: true,
         );
         _paramsNotifier.updateAction(ImageGenerationAction.img2img);
         break;
@@ -1361,6 +1365,11 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       }
     }
 
+    // 编辑器已经明确给出输出尺寸，只在超出请求上限时收敛到最接近的合法尺寸。
+    final exactRequestSize = hasReplacementSource && importInfo == null
+        ? _clampToRequestLimits(sourceWidth!, sourceHeight!)
+        : null;
+
     _ensureBaseSizeSnapshot();
 
     final actualSourceWidth = hasReplacementSource
@@ -1391,10 +1400,10 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     state = state.copyWith(
       mode: ImageWorkflowMode.inpaint,
       sourceWidth: hasReplacementSource
-          ? (importInfo?.width ?? sourceWidth)
+          ? (importInfo?.width ?? exactRequestSize?.width ?? sourceWidth)
           : null,
       sourceHeight: hasReplacementSource
-          ? (importInfo?.height ?? sourceHeight)
+          ? (importInfo?.height ?? exactRequestSize?.height ?? sourceHeight)
           : null,
       sourceImageWidth: hasReplacementSource ? actualSourceWidth : null,
       sourceImageHeight: hasReplacementSource ? actualSourceHeight : null,
@@ -1484,7 +1493,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       mode: ImageWorkflowMode.base,
       isOutpaint: false,
       clearBaseSnapshot: shouldRestoreBaseSnapshot,
-      clearFocusedSelectionRect: clearMask,
+      resetFocusedInpaint: clearMask,
     );
     _applySourceSizeToParams();
     _paramsNotifier.updateIsOutpaint(false);
@@ -1697,6 +1706,19 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     return baseModel == ImageModels.animeCurated ||
         baseModel == ImageModels.animeFull ||
         baseModel == ImageModels.furry;
+  }
+
+  ({int width, int height}) _clampToRequestLimits(int width, int height) {
+    if (NaiResolutionAdapter.isGenerationCompatible(width, height)) {
+      return (width: width, height: height);
+    }
+    final closest = NaiResolutionAdapter.findClosestResolution(width, height);
+    AppLogger.i(
+      'Editor source clamped to request limits: '
+      '${width}x$height -> ${closest.width}x${closest.height}',
+      'ImageWorkflow',
+    );
+    return (width: closest.width, height: closest.height);
   }
 
   (int, int)? _resolveImageSize(

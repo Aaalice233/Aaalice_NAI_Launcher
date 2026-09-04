@@ -63,6 +63,38 @@ class NaiResolutionAdapter {
     );
   }
 
+  /// 计算导入后应使用的请求分辨率。
+  ///
+  /// 面积在上限内时保持原尺寸只做 64 对齐，超限时收敛到最接近的合法尺寸；
+  /// SD 族旧模型没有高分辨率可用，仍走官网基准边。
+  static ({int width, int height, double scaleFactor}) findImportResolution(
+    int sourceWidth,
+    int sourceHeight, {
+    int? currentWidth,
+    int? currentHeight,
+    bool isStableDiffusionFamily = false,
+  }) {
+    final reused = _reuseCurrentRequestSize(
+      sourceWidth,
+      sourceHeight,
+      currentWidth: currentWidth,
+      currentHeight: currentHeight,
+    );
+    if (reused != null) return reused;
+
+    if (isStableDiffusionFamily) {
+      return findOfficialImportResolution(
+        sourceWidth,
+        sourceHeight,
+        currentWidth: currentWidth,
+        currentHeight: currentHeight,
+        isStableDiffusionFamily: true,
+      );
+    }
+
+    return findClosestResolution(sourceWidth, sourceHeight);
+  }
+
   /// 按当前 NovelAI Web 的 Image2Image 导入逻辑计算目标分辨率。
   ///
   /// 官网逻辑会先把横图临时转为竖向计算，再在两个基准边
@@ -76,8 +108,15 @@ class NaiResolutionAdapter {
     int? currentHeight,
     bool isStableDiffusionFamily = false,
   }) {
-    final sourceAspect = sourceWidth / sourceHeight;
-    final isLandscape = sourceAspect > 1;
+    final reused = _reuseCurrentRequestSize(
+      sourceWidth,
+      sourceHeight,
+      currentWidth: currentWidth,
+      currentHeight: currentHeight,
+    );
+    if (reused != null) return reused;
+
+    final isLandscape = sourceWidth / sourceHeight > 1;
 
     var orientedWidth = sourceWidth;
     var orientedHeight = sourceHeight;
@@ -88,28 +127,6 @@ class NaiResolutionAdapter {
     }
 
     final orientedAspect = orientedWidth / orientedHeight;
-    final currentMatchesAspect =
-        currentWidth != null &&
-        currentHeight != null &&
-        currentWidth / currentHeight == sourceAspect;
-    final fitsCurrent =
-        currentWidth != null &&
-        currentHeight != null &&
-        orientedWidth <= currentWidth &&
-        orientedHeight <= currentHeight;
-
-    if (currentMatchesAspect && fitsCurrent) {
-      return (
-        width: currentWidth,
-        height: currentHeight,
-        scaleFactor: _combinedScale(
-          sourceWidth,
-          sourceHeight,
-          currentWidth,
-          currentHeight,
-        ),
-      );
-    }
 
     if (!isOfficialImportCompatible(orientedWidth, orientedHeight)) {
       final targetLongSide = isStableDiffusionFamily
@@ -248,7 +265,7 @@ class NaiResolutionAdapter {
 
     final srcW = imageSize?.$1 ?? decoded!.width;
     final srcH = imageSize?.$2 ?? decoded!.height;
-    final target = findOfficialImportResolution(
+    final target = findImportResolution(
       srcW,
       srcH,
       currentWidth: currentWidth,
@@ -302,7 +319,7 @@ class NaiResolutionAdapter {
 
     final srcW = imageSize.$1;
     final srcH = imageSize.$2;
-    final target = findOfficialImportResolution(
+    final target = findImportResolution(
       srcW,
       srcH,
       currentWidth: currentWidth,
@@ -492,6 +509,41 @@ class NaiResolutionAdapter {
   }
 
   // ==================== 内部方法 ====================
+
+  /// 源图比例与当前请求尺寸一致且不更大时，官网会沿用当前尺寸并在发送前放大源图。
+  static ({int width, int height, double scaleFactor})? _reuseCurrentRequestSize(
+    int sourceWidth,
+    int sourceHeight, {
+    required int? currentWidth,
+    required int? currentHeight,
+  }) {
+    if (currentWidth == null || currentHeight == null) return null;
+
+    final sourceAspect = sourceWidth / sourceHeight;
+    if (currentWidth / currentHeight != sourceAspect) return null;
+
+    var orientedWidth = sourceWidth;
+    var orientedHeight = sourceHeight;
+    if (sourceAspect > 1) {
+      final temp = orientedWidth;
+      orientedWidth = orientedHeight;
+      orientedHeight = temp;
+    }
+    if (orientedWidth > currentWidth || orientedHeight > currentHeight) {
+      return null;
+    }
+
+    return (
+      width: currentWidth,
+      height: currentHeight,
+      scaleFactor: _combinedScale(
+        sourceWidth,
+        sourceHeight,
+        currentWidth,
+        currentHeight,
+      ),
+    );
+  }
 
   static int _ceilToGrid(int value) {
     return math.max(

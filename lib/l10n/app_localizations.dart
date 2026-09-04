@@ -4923,6 +4923,17 @@ abstract class AppLocalizations {
   /// **'Higher resolutions are unavailable because the current Focused Inpaint selection would exceed the request area limit.'**
   String get editor_compressionFocusLimited;
 
+  /// No description provided for @editor_compressionClampedToLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'{targetWidth}×{targetHeight} exceeds the request area limit, so {clampedWidth}×{clampedHeight} is sent instead.'**
+  String editor_compressionClampedToLimit(
+    int targetWidth,
+    int targetHeight,
+    int clampedWidth,
+    int clampedHeight,
+  );
+
   /// No description provided for @editor_focusRequestSummary.
   ///
   /// In en, this message translates to:
