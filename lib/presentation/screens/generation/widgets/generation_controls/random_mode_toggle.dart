@@ -41,7 +41,14 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
     final tooltip = widget.enabled
         ? context.l10n.randomMode_enabledTip
         : context.l10n.randomMode_disabledTip;
-    final trackColor = widget.enabled
+    final trackColor = widget.showLabel
+        ? widget.enabled
+              ? colors.primary
+              : colors.surfaceContainerLowest
+        : widget.enabled
+        ? colors.primaryContainer
+        : colors.surfaceContainerHigh;
+    final controlColor = widget.enabled
         ? colors.primaryContainer
         : colors.surfaceContainerHigh;
     final switchTrack = AnimatedContainer(
@@ -59,6 +66,9 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
               )
             : trackColor,
         borderRadius: BorderRadius.circular(trackHeight / 2),
+        border: widget.showLabel && !widget.enabled
+            ? Border.all(color: colors.outline.withValues(alpha: 0.72))
+            : null,
       ),
       child: AnimatedAlign(
         key: const ValueKey('random-mode-switch-thumb-position'),
@@ -74,26 +84,32 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
           duration: duration,
           curve: theme.appTheme.standardCurve,
           decoration: BoxDecoration(
-            color: widget.enabled
+            color: widget.showLabel && widget.enabled
+                ? colors.onPrimary
+                : widget.enabled
                 ? colors.primary
                 : colors.surfaceContainerHighest,
             shape: BoxShape.circle,
           ),
-          child: AnimatedSwitcher(
-            duration: duration,
-            switchInCurve: theme.appTheme.enterCurve,
-            switchOutCurve: theme.appTheme.exitCurve,
-            transitionBuilder: (child, animation) =>
-                FadeTransition(opacity: animation, child: child),
-            child: Icon(
-              widget.enabled ? Icons.casino_rounded : Icons.casino_outlined,
-              key: ValueKey(widget.enabled),
-              size: widget.compact ? 15 : 16,
-              color: widget.enabled
-                  ? colors.onPrimary
-                  : colors.onSurfaceVariant,
-            ),
-          ),
+          child: widget.showLabel
+              ? null
+              : AnimatedSwitcher(
+                  duration: duration,
+                  switchInCurve: theme.appTheme.enterCurve,
+                  switchOutCurve: theme.appTheme.exitCurve,
+                  transitionBuilder: (child, animation) =>
+                      FadeTransition(opacity: animation, child: child),
+                  child: Icon(
+                    widget.enabled
+                        ? Icons.casino_rounded
+                        : Icons.casino_outlined,
+                    key: ValueKey(widget.enabled),
+                    size: widget.compact ? 15 : 16,
+                    color: widget.enabled
+                        ? colors.onPrimary
+                        : colors.onSurfaceVariant,
+                  ),
+                ),
         ),
       ),
     );
@@ -109,7 +125,12 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
           child: Material(
-            color: Colors.transparent,
+            key: widget.showLabel
+                ? const ValueKey('random-mode-labeled-surface')
+                : null,
+            color: widget.showLabel ? controlColor : Colors.transparent,
+            shape: const StadiumBorder(),
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => ref.read(randomPromptModeProvider.notifier).toggle(),
               customBorder: const StadiumBorder(),
@@ -129,7 +150,9 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.labelMedium?.copyWith(
-                                  color: colors.onSurfaceVariant,
+                                  color: widget.enabled
+                                      ? colors.onPrimaryContainer
+                                      : colors.onSurfaceVariant,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),

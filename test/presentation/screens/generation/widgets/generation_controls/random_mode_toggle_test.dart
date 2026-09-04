@@ -124,7 +124,19 @@ void main() {
       );
 
       expect(find.byKey(const ValueKey('random-mode-switch-track')), findsOne);
+      expect(
+        find.byKey(const ValueKey('random-mode-labeled-surface')),
+        findsOne,
+      );
       expect(find.text('随机提示词'), findsOne);
+      final surface = tester.widget<Material>(
+        find.byKey(const ValueKey('random-mode-labeled-surface')),
+      );
+      final track = tester.widget<AnimatedContainer>(
+        find.byKey(const ValueKey('random-mode-switch-track')),
+      );
+      expect(surface.color, isNot(Colors.transparent));
+      expect((track.decoration as BoxDecoration).border, isNotNull);
       expect(
         tester.getSize(find.byType(RandomModeToggle)).height,
         greaterThanOrEqualTo(48),
