@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/watermark/watermark_settings.dart';
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../providers/share_image_settings_provider.dart';
 import '../../../providers/watermark_settings_provider.dart';
 import '../../watermark/watermark_editor_launcher.dart';
@@ -411,49 +412,44 @@ class _NumberEditorFormState extends State<_NumberEditorForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            controller: widget.scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(20),
-            child: TextField(
-              controller: _controller,
-              keyboardType: TextInputType.number,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: widget.label,
-                suffixText: widget.suffix,
-                helperText: widget.helperText,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-          ),
-        ),
-        SafeArea(
-          top: false,
-          minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: _save,
-                  child: Text(context.l10n.common_save),
-                ),
-              ],
-            ),
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
+      padding: const EdgeInsets.all(20),
+      content: [
+        TextField(
+          controller: _controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: widget.label,
+            suffixText: widget.suffix,
+            helperText: widget.helperText,
+            border: const OutlineInputBorder(),
           ),
         ),
       ],
+      footer: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(context.l10n.common_cancel),
+              ),
+              FilledButton(
+                onPressed: _save,
+                child: Text(context.l10n.common_save),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

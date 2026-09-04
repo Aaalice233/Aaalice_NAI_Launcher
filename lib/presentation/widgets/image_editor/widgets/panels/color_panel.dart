@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../../widgets/common/themed_input.dart';
 import '../../core/editor_state.dart';
 
@@ -300,87 +301,84 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      children: [
-        Expanded(
-          child: ListView(
-            key: const Key('color_picker_scroll'),
-            controller: widget.scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(16),
-            children: [
-              _AdaptiveColorSurface(
-                hsvColor: _hsvColor,
-                onSVChanged: _updateSV,
-                onHueChanged: _updateHue,
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
+      scrollViewKey: const Key('color_picker_scroll'),
+      content: [
+        _AdaptiveColorSurface(
+          hsvColor: _hsvColor,
+          onSVChanged: _updateSV,
+          onHueChanged: _updateHue,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _hsvColor.toColor(),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: theme.dividerColor),
               ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ThemedInput(
+                key: const Key('color_picker_hex'),
+                controller: _hexController,
+                decoration: const InputDecoration(
+                  prefixText: '#',
+                  labelText: 'HEX',
+                  isDense: true,
+                ),
+                onSubmitted: _parseHex,
+              ),
+            ),
+          ],
+        ),
+      ],
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Divider(height: 1),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: _hsvColor.toColor(),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: theme.dividerColor),
+                  Expanded(
+                    child: TextButton(
+                      key: const Key('color_picker_cancel'),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        context.l10n.common_cancel,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: ThemedInput(
-                      key: const Key('color_picker_hex'),
-                      controller: _hexController,
-                      decoration: const InputDecoration(
-                        prefixText: '#',
-                        labelText: 'HEX',
-                        isDense: true,
+                    child: FilledButton(
+                      key: const Key('color_picker_confirm'),
+                      onPressed: () {
+                        widget.onColorChanged(_hsvColor.toColor());
+                        Navigator.pop(context);
+                      },
+                      child: Text(
+                        context.l10n.common_confirm,
+                        textAlign: TextAlign.center,
                       ),
-                      onSubmitted: _parseHex,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    key: const Key('color_picker_cancel'),
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      context.l10n.common_cancel,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton(
-                    key: const Key('color_picker_confirm'),
-                    onPressed: () {
-                      widget.onColorChanged(_hsvColor.toColor());
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      context.l10n.common_confirm,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

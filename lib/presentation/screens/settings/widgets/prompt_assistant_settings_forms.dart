@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 
@@ -107,77 +108,67 @@ class _PromptAssistantProviderFormState
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ContentSizedAdaptiveForm(
       key: const ValueKey('prompt-assistant-provider-dialog'),
-      children: [
-        Expanded(
-          child: ListView(
-            controller: widget.scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(16),
-            children: [
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: context.l10n.promptAssistant_name,
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<ProviderPreset>(
-                initialValue: _preset,
-                isExpanded: true,
-                items: ProviderPreset.values
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(
-                          value.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _applyPreset(value));
-                  }
-                },
-                decoration: InputDecoration(
-                  labelText: context.l10n.promptAssistant_protocol,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _baseController,
-                keyboardType: TextInputType.url,
-                decoration: const InputDecoration(labelText: 'Base URL'),
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                value: _allowImageInput,
-                contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.promptAssistant_allowImageInput),
-                subtitle: Text(
-                  context.l10n.promptAssistant_allowImageInputSubtitle,
-                ),
-                onChanged: (value) {
-                  setState(() => _allowImageInput = value);
-                },
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _keyController,
-                decoration: InputDecoration(
-                  labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
-                ),
-                obscureText: true,
-              ),
-            ],
+      scrollController: widget.scrollController,
+      content: [
+        TextField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: context.l10n.promptAssistant_name,
           ),
         ),
-        _FormFooter(onSave: _save),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<ProviderPreset>(
+          initialValue: _preset,
+          isExpanded: true,
+          items: ProviderPreset.values
+              .map(
+                (value) => DropdownMenuItem(
+                  value: value,
+                  child: Text(
+                    value.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) {
+              setState(() => _applyPreset(value));
+            }
+          },
+          decoration: InputDecoration(
+            labelText: context.l10n.promptAssistant_protocol,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _baseController,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(labelText: 'Base URL'),
+        ),
+        const SizedBox(height: 8),
+        SwitchListTile(
+          value: _allowImageInput,
+          contentPadding: EdgeInsets.zero,
+          title: Text(context.l10n.promptAssistant_allowImageInput),
+          subtitle: Text(context.l10n.promptAssistant_allowImageInputSubtitle),
+          onChanged: (value) {
+            setState(() => _allowImageInput = value);
+          },
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _keyController,
+          decoration: InputDecoration(
+            labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
+          ),
+          obscureText: true,
+        ),
       ],
+      footer: _FormFooter(onSave: _save),
     );
   }
 }
@@ -246,60 +237,50 @@ class _PromptAssistantConnectionFormState
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ContentSizedAdaptiveForm(
       key: const ValueKey('prompt-assistant-connection-dialog'),
-      children: [
-        Expanded(
-          child: ListView(
-            controller: widget.scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(16),
-            children: [
-              TextField(
-                controller: _baseController,
-                keyboardType: TextInputType.url,
-                decoration: InputDecoration(
-                  labelText: 'Base URL',
-                  hintText: context.l10n.promptAssistant_baseUrlHint,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _keyController,
-                decoration: InputDecoration(
-                  labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                value: _clearApiKey,
-                contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.promptAssistant_clearCurrentApiKey),
-                onChanged: (value) {
-                  setState(() => _clearApiKey = value ?? false);
-                },
-              ),
-              SwitchListTile(
-                value: _allowImageInput,
-                contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.promptAssistant_allowImageInput),
-                subtitle: Text(
-                  widget.provider.protocol.supportsImagePayload
-                      ? context
-                            .l10n
-                            .promptAssistant_protocolSupportsImagePayload
-                      : context.l10n.promptAssistant_protocolTextOnlyWarning,
-                ),
-                onChanged: (value) {
-                  setState(() => _allowImageInput = value);
-                },
-              ),
-            ],
+      scrollController: widget.scrollController,
+      content: [
+        TextField(
+          controller: _baseController,
+          keyboardType: TextInputType.url,
+          decoration: InputDecoration(
+            labelText: 'Base URL',
+            hintText: context.l10n.promptAssistant_baseUrlHint,
           ),
         ),
-        _FormFooter(onSave: _save),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _keyController,
+          decoration: InputDecoration(
+            labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
+          ),
+          obscureText: true,
+        ),
+        const SizedBox(height: 8),
+        CheckboxListTile(
+          value: _clearApiKey,
+          contentPadding: EdgeInsets.zero,
+          title: Text(context.l10n.promptAssistant_clearCurrentApiKey),
+          onChanged: (value) {
+            setState(() => _clearApiKey = value ?? false);
+          },
+        ),
+        SwitchListTile(
+          value: _allowImageInput,
+          contentPadding: EdgeInsets.zero,
+          title: Text(context.l10n.promptAssistant_allowImageInput),
+          subtitle: Text(
+            widget.provider.protocol.supportsImagePayload
+                ? context.l10n.promptAssistant_protocolSupportsImagePayload
+                : context.l10n.promptAssistant_protocolTextOnlyWarning,
+          ),
+          onChanged: (value) {
+            setState(() => _allowImageInput = value);
+          },
+        ),
       ],
+      footer: _FormFooter(onSave: _save),
     );
   }
 }
@@ -389,67 +370,59 @@ class _PromptAssistantRuleFormState extends State<PromptAssistantRuleForm> {
   @override
   Widget build(BuildContext context) {
     final rule = widget.rule;
-    return Column(
+    return ContentSizedAdaptiveForm(
       key: const ValueKey('prompt-assistant-rule-dialog'),
-      children: [
-        Expanded(
-          child: ListView(
-            controller: widget.scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(16),
-            children: [
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: context.l10n.promptAssistant_name,
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<AssistantTaskType>(
-                initialValue: _taskType,
-                isExpanded: true,
-                items: AssistantTaskType.values
-                    .where((value) => value != AssistantTaskType.chat)
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(
-                          _assistantTaskLabel(context, value),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => _taskType = value);
-                },
-                decoration: InputDecoration(
-                  labelText: context.l10n.promptAssistant_taskType,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _contentController,
-                minLines: 4,
-                maxLines: 10,
-                decoration: InputDecoration(
-                  labelText: context.l10n.promptAssistant_ruleContent,
-                  alignLabelWithHint: true,
-                ),
-              ),
-            ],
+      scrollController: widget.scrollController,
+      content: [
+        TextField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: context.l10n.promptAssistant_name,
           ),
         ),
-        _FormFooter(
-          onSave: _save,
-          leading: rule != null && !rule.isDefault
-              ? TextButton(
-                  onPressed: _delete,
-                  child: Text(context.l10n.common_delete),
-                )
-              : null,
+        const SizedBox(height: 12),
+        DropdownButtonFormField<AssistantTaskType>(
+          initialValue: _taskType,
+          isExpanded: true,
+          items: AssistantTaskType.values
+              .where((value) => value != AssistantTaskType.chat)
+              .map(
+                (value) => DropdownMenuItem(
+                  value: value,
+                  child: Text(
+                    _assistantTaskLabel(context, value),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) setState(() => _taskType = value);
+          },
+          decoration: InputDecoration(
+            labelText: context.l10n.promptAssistant_taskType,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _contentController,
+          minLines: 4,
+          maxLines: 10,
+          decoration: InputDecoration(
+            labelText: context.l10n.promptAssistant_ruleContent,
+            alignLabelWithHint: true,
+          ),
         ),
       ],
+      footer: _FormFooter(
+        onSave: _save,
+        leading: rule != null && !rule.isDefault
+            ? TextButton(
+                onPressed: _delete,
+                child: Text(context.l10n.common_delete),
+              )
+            : null,
+      ),
     );
   }
 }

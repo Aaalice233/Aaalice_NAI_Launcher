@@ -6,6 +6,7 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../../adaptive/window_size_class.dart';
 
 /// 内容处理模式
@@ -148,152 +149,150 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
   Widget build(BuildContext context) {
     final compact = context.adaptiveWindow.isCompact;
 
-    return Column(
+    return ContentSizedAdaptiveForm(
       key: const ValueKey('canvas-size-dialog'),
-      children: [
-        Expanded(
-          child: ListView(
-            key: const ValueKey('canvas-size-scroll'),
-            controller: widget.scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.all(compact ? 12 : 16),
-            children: [
-              DropdownButtonFormField<CanvasSizePreset>(
-                key: const ValueKey('canvas-size-preset'),
-                initialValue: _selectedPreset,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: context.l10n.editor_presetSize,
-                  isDense: true,
+      scrollController: widget.scrollController,
+      scrollViewKey: const ValueKey('canvas-size-scroll'),
+      padding: EdgeInsets.all(compact ? 12 : 16),
+      content: [
+        DropdownButtonFormField<CanvasSizePreset>(
+          key: const ValueKey('canvas-size-preset'),
+          initialValue: _selectedPreset,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: context.l10n.editor_presetSize,
+            isDense: true,
+          ),
+          items: [
+            DropdownMenuItem(
+              value: null,
+              child: Text(
+                context.l10n.editor_customSize,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            ...canvasPresets.map(
+              (preset) => DropdownMenuItem(
+                value: preset,
+                child: Text(
+                  _presetLabel(context, preset),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                items: [
-                  DropdownMenuItem(
-                    value: null,
-                    child: Text(
-                      context.l10n.editor_customSize,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              ),
+            ),
+          ],
+          onChanged: (preset) {
+            setState(() {
+              _selectedPreset = preset;
+              if (preset != null) {
+                _widthController.text = preset.width.toString();
+                _heightController.text = preset.height.toString();
+                _aspectRatio = preset.width / preset.height;
+              }
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<ContentHandlingMode>(
+          key: const ValueKey('canvas-size-mode'),
+          initialValue: _selectedMode,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: context.l10n.editor_contentHandling,
+            isDense: true,
+          ),
+          items: ContentHandlingMode.values
+              .map(
+                (mode) => DropdownMenuItem(
+                  value: mode,
+                  child: Text(
+                    _modeLabel(context, mode),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  ...canvasPresets.map(
-                    (preset) => DropdownMenuItem(
-                      value: preset,
-                      child: Text(
-                        _presetLabel(context, preset),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (mode) {
+            if (mode != null) {
+              setState(() => _selectedMode = mode);
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stackInputs =
+                constraints.maxWidth < 400 ||
+                MediaQuery.textScalerOf(context).scale(1) >= 2;
+            if (stackInputs) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildWidthInput(),
+                  Align(child: _buildLinkButton()),
+                  _buildHeightInput(),
                 ],
-                onChanged: (preset) {
-                  setState(() {
-                    _selectedPreset = preset;
-                    if (preset != null) {
-                      _widthController.text = preset.width.toString();
-                      _heightController.text = preset.height.toString();
-                      _aspectRatio = preset.width / preset.height;
-                    }
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<ContentHandlingMode>(
-                key: const ValueKey('canvas-size-mode'),
-                initialValue: _selectedMode,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: context.l10n.editor_contentHandling,
-                  isDense: true,
-                ),
-                items: ContentHandlingMode.values
-                    .map(
-                      (mode) => DropdownMenuItem(
-                        value: mode,
-                        child: Text(
-                          _modeLabel(context, mode),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (mode) {
-                  if (mode != null) {
-                    setState(() => _selectedMode = mode);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final stackInputs =
-                      constraints.maxWidth < 400 ||
-                      MediaQuery.textScalerOf(context).scale(1) >= 2;
-                  if (stackInputs) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildWidthInput(),
-                        Align(child: _buildLinkButton()),
-                        _buildHeightInput(),
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: _buildWidthInput()),
-                      _buildLinkButton(),
-                      Expanded(child: _buildHeightInput()),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              Wrap(
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: _buildWidthInput()),
+                _buildLinkButton(),
+                Expanded(child: _buildHeightInput()),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _RatioChip(label: '1:1', onTap: () => _setRatio(1, 1)),
+            _RatioChip(label: '4:3', onTap: () => _setRatio(4, 3)),
+            _RatioChip(label: '3:4', onTap: () => _setRatio(3, 4)),
+            _RatioChip(label: '16:9', onTap: () => _setRatio(16, 9)),
+            _RatioChip(label: '9:16', onTap: () => _setRatio(9, 16)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _CanvasSizePreview(
+          originalSize: widget.initialSize ?? const Size(1024, 1024),
+          newWidth: int.tryParse(_widthController.text) ?? 1024,
+          newHeight: int.tryParse(_heightController.text) ?? 1024,
+          mode: _selectedMode,
+        ),
+      ],
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Divider(height: 1),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.all(compact ? 12 : 16),
+              child: Wrap(
+                alignment: WrapAlignment.end,
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _RatioChip(label: '1:1', onTap: () => _setRatio(1, 1)),
-                  _RatioChip(label: '4:3', onTap: () => _setRatio(4, 3)),
-                  _RatioChip(label: '3:4', onTap: () => _setRatio(3, 4)),
-                  _RatioChip(label: '16:9', onTap: () => _setRatio(16, 9)),
-                  _RatioChip(label: '9:16', onTap: () => _setRatio(9, 16)),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(context.l10n.common_cancel),
+                  ),
+                  FilledButton(
+                    onPressed: _isValid() ? _confirm : null,
+                    child: Text(widget.confirmText),
+                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _CanvasSizePreview(
-                originalSize: widget.initialSize ?? const Size(1024, 1024),
-                newWidth: int.tryParse(_widthController.text) ?? 1024,
-                newHeight: int.tryParse(_heightController.text) ?? 1024,
-                mode: _selectedMode,
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.all(compact ? 12 : 16),
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: _isValid() ? _confirm : null,
-                  child: Text(widget.confirmText),
-                ),
-              ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
