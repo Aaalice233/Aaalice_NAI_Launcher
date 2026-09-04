@@ -33,9 +33,7 @@ class PreviewInfoBar extends ConsumerWidget {
 
   static double heightFor(BuildContext context) {
     final scaledLine = MediaQuery.textScalerOf(context).scale(14) + 20;
-    final policyExtent = context.interactionPolicy.minimumControlExtent;
-    final minimumHeight = policyExtent < barHeight ? barHeight : policyExtent;
-    return scaledLine < minimumHeight ? minimumHeight : scaledLine;
+    return scaledLine < barHeight ? barHeight : scaledLine;
   }
 
   /// 低于该宽度就收起分辨率胶囊（官网在窄容器下同样隐藏它）
@@ -122,9 +120,7 @@ class PreviewInfoBar extends ConsumerWidget {
                 toggled: transparentBackground.enabled,
                 label: context.l10n.generation_transparentBackground,
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: context.interactionPolicy.minimumControlExtent,
-                  ),
+                  constraints: const BoxConstraints(minHeight: barHeight),
                   child: GenerationToggleButton(
                     key: const ValueKey(
                       'generation_preview_transparent_background_toggle',
@@ -162,8 +158,6 @@ class _InfoPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final policyExtent = context.interactionPolicy.minimumControlExtent;
-    final interactiveMinimumHeight = policyExtent < 44 ? 44.0 : policyExtent;
 
     Widget pill = Material(
       color: selected
@@ -174,8 +168,8 @@ class _InfoPill extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: onTap == null ? 44 : interactiveMinimumHeight,
+          constraints: const BoxConstraints(
+            minHeight: PreviewInfoBar.barHeight,
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -330,10 +324,6 @@ class _TransparencyBackgroundButtonState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final policyExtent = context.interactionPolicy.minimumControlExtent;
-    final minimumControlExtent = policyExtent < PreviewInfoBar.barHeight
-        ? PreviewInfoBar.barHeight
-        : policyExtent;
     // 只在浮层打开时高亮，平时与两侧胶囊保持同一套底色
     final selected = _controller.isShowing;
 
@@ -379,9 +369,9 @@ class _TransparencyBackgroundButtonState
             child: InkWell(
               onTap: _togglePanel,
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: minimumControlExtent,
-                  minHeight: minimumControlExtent,
+                constraints: const BoxConstraints(
+                  minWidth: PreviewInfoBar.barHeight,
+                  minHeight: PreviewInfoBar.barHeight,
                 ),
                 child: Center(
                   child: TransparencyBackgroundIcon(

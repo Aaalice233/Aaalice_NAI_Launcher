@@ -30,6 +30,7 @@ import '../../../../data/models/image/image_stream_chunk.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
+import '../../../adaptive/window_size_class.dart';
 import '../../../providers/generation/generation_error_classifier.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/generation/generation_view_state_provider.dart';
@@ -160,9 +161,16 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
             ref.read(generationPreviewFocusNodeProvider).requestFocus();
           }
         },
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Center(child: _buildContent(context, ref, state, theme)),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = WindowSizeClass.fromWidth(
+              constraints.maxWidth,
+            ).isCompact;
+            return Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, compact ? 4 : 16),
+              child: Center(child: _buildContent(context, ref, state, theme)),
+            );
+          },
         ),
       ),
     );
@@ -578,7 +586,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     GeneratedImage image,
     ThemeData theme,
   ) {
-    const gap = 8.0;
     final comparisonAvailable = image.canCompareWithSource;
     final comparisonEnabled =
         comparisonAvailable && ref.watch(generationComparisonEnabledProvider);
@@ -587,6 +594,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     // 因此先扣掉信息条高度再按比例算卡片尺寸，避免二者互相挤压。
     return LayoutBuilder(
       builder: (context, constraints) {
+        final gap = WindowSizeClass.fromWidth(constraints.maxWidth).isCompact
+            ? 4.0
+            : 8.0;
         final availableHeight = constraints.maxHeight.isFinite
             ? max(
                 0.0,
@@ -612,7 +622,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                 comparisonEnabled: comparisonEnabled,
               ),
             ),
-            const SizedBox(height: gap),
+            SizedBox(height: gap),
             SizedBox(
               width: cardSize.width,
               child: Align(

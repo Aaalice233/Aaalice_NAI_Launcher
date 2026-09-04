@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_comparison_view.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/preview_info_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
@@ -306,18 +307,69 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('compact single preview keeps the metadata strip tight', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(
+          () => _SelectionImageGenerationNotifier(
+            ImageGenerationState(displayImages: [_portraitImage()]),
+          ),
+        ),
+        shortcutConfigNotifierProvider.overrideWith(
+          _DefaultShortcutConfigNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_app(container, size: const Size(360, 560)));
+    await tester.pumpAndSettle();
+
+    final preview = find.byType(ImagePreviewWidget);
+    final card = find.byType(SelectableImageCard);
+    final infoBar = find.byType(PreviewInfoBar);
+    expect(infoBar, findsOneWidget);
+    expect(
+      tester.getRect(infoBar).top - tester.getRect(card).bottom,
+      closeTo(4, 0.01),
+    );
+    expect(
+      tester.getRect(preview).bottom - tester.getRect(infoBar).bottom,
+      closeTo(4, 0.01),
+    );
+    expect(tester.getSize(infoBar).height, PreviewInfoBar.barHeight);
+    expect(tester.takeException(), isNull);
+  });
 }
 
-Widget _app(ProviderContainer container) {
+Widget _app(ProviderContainer container, {Size size = const Size(640, 480)}) {
   return UncontrolledProviderScope(
     container: container,
-    child: const MaterialApp(
+    child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
-        body: SizedBox(width: 640, height: 480, child: ImagePreviewWidget()),
+        body: SizedBox(
+          width: size.width,
+          height: size.height,
+          child: const ImagePreviewWidget(),
+        ),
       ),
     ),
+  );
+}
+
+GeneratedImage _portraitImage() {
+  final image = img.Image(width: 4, height: 6);
+  image.clear(img.ColorRgba8(80, 20, 30, 255));
+  return GeneratedImage(
+    id: 'portrait',
+    bytes: Uint8List.fromList(img.encodePng(image)),
+    width: 4,
+    height: 6,
   );
 }
 

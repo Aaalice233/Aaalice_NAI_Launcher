@@ -180,7 +180,11 @@ void main() {
       tester.getRect(toggle).right,
       closeTo(tester.getRect(find.byType(PreviewInfoBar)).right, 0.01),
     );
-    expect(tester.getSize(toggle).height, greaterThanOrEqualTo(48));
+    expect(tester.getSize(toggle).height, PreviewInfoBar.barHeight);
+    expect(
+      tester.getSize(find.byType(PreviewInfoBar)).height,
+      PreviewInfoBar.barHeight,
+    );
 
     await tester.tap(toggle);
     await tester.pump();
