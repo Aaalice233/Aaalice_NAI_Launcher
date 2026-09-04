@@ -122,6 +122,13 @@ void main() {
       find.byKey(const Key('account-profile-logout-button')),
       findsOneWidget,
     );
+    final logout = tester.widget<FilledButton>(
+      find.byKey(const Key('account-profile-logout-button')),
+    );
+    final colors = Theme.of(
+      tester.element(find.byKey(const Key('account-profile-logout-button'))),
+    ).colorScheme;
+    expect(logout.style?.backgroundColor?.resolve({}), colors.errorContainer);
     expect(tester.takeException(), isNull);
   });
 }

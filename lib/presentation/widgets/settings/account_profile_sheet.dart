@@ -352,13 +352,14 @@ class _AccountProfileBottomSheetState
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
         child: SizedBox(
           width: double.infinity,
-          child: TextButton.icon(
+          child: FilledButton.icon(
             key: const Key('account-profile-logout-button'),
             onPressed: _isOperationInProgress ? null : _logout,
             icon: const Icon(Icons.logout_rounded),
             label: Text(context.l10n.auth_logout),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
+            style: FilledButton.styleFrom(
+              backgroundColor: theme.colorScheme.errorContainer,
+              foregroundColor: theme.colorScheme.onErrorContainer,
               minimumSize: const Size.fromHeight(48),
             ),
           ),
