@@ -10,8 +10,11 @@ import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/card_action_buttons.dart';
+import '../../../widgets/common/card_hover_preview_controller.dart';
 import '../../../widgets/common/image_card_actions.dart';
 import '../../../widgets/common/image_card_hover_motion.dart';
+import '../../../widgets/common/library_card_badges.dart';
+import 'precise_ref_hover_preview.dart';
 
 enum _PreciseRefCardAction {
   addToAgent,
@@ -55,6 +58,10 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
   bool _thumbnailRequested = false;
   bool _hovering = false;
   bool _isBranchVisible = true;
+  Future<Uint8List?>? _hoverImageFuture;
+  final CardHoverPreviewController _hoverController =
+      CardHoverPreviewController();
+  final LayerLink _layerLink = LayerLink();
 
   @override
   void didChangeDependencies() {
@@ -70,9 +77,18 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
   void didUpdateWidget(covariant PreciseRefCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.entry.id != widget.entry.id) {
+      _hoverController.dismissFor(oldWidget.entry.id);
       _thumbnail = null;
       _thumbnailRequested = false;
+      _hoverImageFuture = null;
+      _hovering = false;
     }
+  }
+
+  @override
+  void dispose() {
+    _hoverController.dispose();
+    super.dispose();
   }
 
   void _loadThumbnailIfNeeded() {
@@ -112,6 +128,41 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
     );
   }
 
+  void _onHoverEnter(PointerEvent event) {
+    setState(() => _hovering = true);
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return;
+    final previewSize = computePreciseRefHoverPreviewBounds(
+      MediaQuery.sizeOf(context),
+    );
+    if (previewSize.isEmpty) return;
+
+    _hoverImageFuture ??= ref
+        .read(preciseRefLibraryStorageServiceProvider)
+        .readImageBytes(widget.entry.id);
+    final targetRect =
+        renderObject.localToGlobal(Offset.zero) & renderObject.size;
+    _hoverController.schedule(
+      context: context,
+      stableKey: widget.entry.id,
+      layerLink: _layerLink,
+      targetRect: targetRect,
+      previewSize: previewSize,
+      builder: (_) => PreciseRefHoverPreview(
+        entry: widget.entry,
+        imageFuture: _hoverImageFuture!,
+        fallbackImage: _thumbnail,
+        maxWidth: previewSize.width,
+        maxHeight: previewSize.height,
+      ),
+    );
+  }
+
+  void _onHoverExit(PointerEvent event) {
+    setState(() => _hovering = false);
+    _hoverController.dismissFor(widget.entry.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     _loadThumbnailIfNeeded();
@@ -119,62 +170,76 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
     final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onSendToPreciseRef,
-        child: ImageCardHoverMotion(
-          hovered: _hovering,
-          enabled: !isTouch,
-          child: AnimatedContainer(
-            duration: reducedMotion
-                ? Duration.zero
-                : const Duration(milliseconds: 150),
-            curve: Curves.easeOutCubic,
-            transform: Matrix4.identity()
-              ..translateByDouble(0, _hovering && !isTouch ? -2 : 0, 0, 1),
-            transformAlignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: _hovering ? 0.18 : 0.08,
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: MouseRegion(
+        onEnter: _onHoverEnter,
+        onExit: _onHoverExit,
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onSendToPreciseRef,
+          child: ImageCardHoverMotion(
+            hovered: _hovering,
+            enabled: !isTouch,
+            child: AnimatedContainer(
+              duration: reducedMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 150),
+              curve: Curves.easeOutCubic,
+              transform: Matrix4.identity()
+                ..translateByDouble(0, _hovering && !isTouch ? -2 : 0, 0, 1),
+              transformAlignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: _hovering ? 0.18 : 0.08,
+                    ),
+                    blurRadius: _hovering ? 16 : 6,
+                    offset: Offset(0, _hovering ? 7 : 2),
                   ),
-                  blurRadius: _hovering ? 16 : 6,
-                  offset: Offset(0, _hovering ? 7 : 2),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _buildThumbnail(theme),
-                  _buildInfoOverlay(theme),
-                  if (isTouch || !_hovering) _buildTypeBadge(theme),
-                  if (isTouch) ...[
-                    Positioned(
-                      top: 6,
-                      right: 54,
-                      child: _buildFavoriteButton(theme),
-                    ),
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: _buildTouchActions(theme),
-                    ),
-                  ] else if (_hovering)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: _buildDesktopActions(theme),
-                    ),
                 ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildThumbnail(theme),
+                    _buildInfoOverlay(theme),
+                    if (isTouch || !_hovering) _buildTypeBadge(),
+                    if (!isTouch && !_hovering && widget.entry.isFavorite)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: LibraryCardFavoriteBadge(
+                          key: Key(
+                            'precise-ref-card-favorite-badge-${widget.entry.id}',
+                          ),
+                          semanticLabel: context.l10n.common_favorite,
+                        ),
+                      ),
+                    if (isTouch) ...[
+                      Positioned(
+                        top: 6,
+                        right: 54,
+                        child: _buildFavoriteButton(theme),
+                      ),
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: _buildTouchActions(theme),
+                      ),
+                    ] else if (_hovering)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: _buildDesktopActions(theme),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -201,41 +266,14 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
     );
   }
 
-  Widget _buildTypeBadge(ThemeData theme) {
+  Widget _buildTypeBadge() {
     final entry = widget.entry;
     return Positioned(
       top: 8,
       left: 8,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.inverseSurface.withValues(alpha: 0.82),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              entry.type.icon,
-              size: 12,
-              semanticLabel: _typeDisplayName(context),
-              color: theme.colorScheme.onInverseSurface,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                _typeDisplayName(context),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onInverseSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
+      child: LibraryCardCategoryBadge(
+        icon: entry.type.icon,
+        label: _typeDisplayName(context),
       ),
     );
   }

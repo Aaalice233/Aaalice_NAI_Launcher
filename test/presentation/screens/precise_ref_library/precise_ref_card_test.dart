@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
@@ -10,15 +11,24 @@ import 'package:nai_launcher/data/services/precise_ref_library_storage_service.d
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_card.dart';
+import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_hover_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
+import 'package:nai_launcher/presentation/widgets/common/library_card_badges.dart';
 
 class _FakeStorage extends PreciseRefLibraryStorageService {
+  _FakeStorage({this.imageBytes});
+
+  final Uint8List? imageBytes;
+
   @override
   Future<Uint8List?> getDisplayThumbnail(
     String id, {
     bool Function()? isCancelled,
-  }) async => null;
+  }) async => imageBytes;
+
+  @override
+  Future<Uint8List?> readImageBytes(String id) async => imageBytes;
 }
 
 void main() {
@@ -99,8 +109,11 @@ void main() {
       ),
       findsOneWidget,
     );
-    // 精确指针下操作只在悬浮时出现，避免常驻按钮遮挡图像。
-    expect(find.byIcon(Icons.favorite_rounded), findsNothing);
+    expect(
+      find.byKey(const Key('precise-ref-card-favorite-badge-entry-1')),
+      findsOneWidget,
+    );
+    expect(find.byType(LibraryCardFavoriteBadge), findsOneWidget);
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(
@@ -113,6 +126,93 @@ void main() {
           .widget<ImageCardHoverMotion>(find.byType(ImageCardHoverMotion))
           .hovered,
       isTrue,
+    );
+  });
+
+  testWidgets('悬浮预览读取原图、展示参数并避让窗口边缘', (tester) async {
+    tester.view.physicalSize = const Size(700, 520);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final imageBytes = Uint8List.fromList(_onePixelPng);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          preciseRefLibraryStorageServiceProvider.overrideWithValue(
+            _FakeStorage(imageBytes: imageBytes),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Stack(
+              children: [
+                Positioned(
+                  right: 4,
+                  bottom: 4,
+                  width: 160,
+                  height: 200,
+                  child: PreciseRefCard(entry: entry),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(PreciseRefCard)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 281));
+    await tester.pump();
+
+    const previewKey = ValueKey('precise-ref-hover-preview');
+    expect(find.byKey(previewKey), findsOneWidget);
+    final previewRect = tester.getRect(find.byKey(previewKey));
+    expect(previewRect.left, greaterThanOrEqualTo(10));
+    expect(previewRect.top, greaterThanOrEqualTo(10));
+    expect(previewRect.right, lessThanOrEqualTo(690));
+    expect(previewRect.bottom, lessThanOrEqualTo(510));
+    expect(find.text('银发少女'), findsWidgets);
+    expect(find.text('角色'), findsOneWidget);
+    expect(find.text('参考强度 1.0'), findsOneWidget);
+    expect(find.text('保真度 0.85'), findsOneWidget);
+    expect(find.text('使用次数 0'), findsOneWidget);
+
+    final image = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(const ValueKey('precise-ref-hover-media')),
+        matching: find.byType(Image),
+      ),
+    );
+    final resized = image.image as ResizeImage;
+    expect((resized.imageProvider as MemoryImage).bytes, same(imageBytes));
+    expect(tester.takeException(), isNull);
+  });
+
+  test('悬浮预览按比例适配且有最大尺寸', () {
+    expect(
+      computePreciseRefHoverPreviewBounds(const Size(700, 520)),
+      const Size(380, 500),
+    );
+    expect(
+      computePreciseRefHoverPreviewBounds(const Size(1200, 1000)),
+      const Size(380, 680),
+    );
+    expect(
+      computePreciseRefHoverImageSize(
+        aspectRatio: 2,
+        maxWidth: 380,
+        maxHeight: 500,
+      ),
+      const Size(380, 190),
     );
   });
 
@@ -301,3 +401,7 @@ void main() {
     expect(addCount, 2);
   });
 }
+
+final Uint8List _onePixelPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+);

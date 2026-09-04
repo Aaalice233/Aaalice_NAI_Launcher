@@ -13,6 +13,7 @@ import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/card_action_buttons.dart';
 import '../../../widgets/common/card_hover_preview_controller.dart';
 import '../../../widgets/common/image_card_actions.dart';
+import '../../../widgets/common/library_card_badges.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 
 /// Vibe 图像卡片统一采用 4:5 纵向比例，为缩略图和底部参数保留稳定空间。
@@ -46,6 +47,7 @@ class VibeCard extends ConsumerStatefulWidget {
   final void Function(TapUpDetails)? onSecondaryTapUp;
   final bool isSelected;
   final bool showFavoriteIndicator;
+  final String? categoryLabel;
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSendToGeneration;
   final VoidCallback? onExport;
@@ -64,6 +66,7 @@ class VibeCard extends ConsumerStatefulWidget {
     this.onSecondaryTapUp,
     this.isSelected = false,
     this.showFavoriteIndicator = true,
+    this.categoryLabel,
     this.onFavoriteToggle,
     this.onSendToGeneration,
     this.onExport,
@@ -307,6 +310,38 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
                   // Bundle 数量标识
                   if (widget.entry.isBundle) _buildBundleBadge(),
+
+                  if (widget.categoryLabel case final categoryLabel?)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: LibraryCardCategoryBadge(
+                        key: ValueKey('vibe-card-category-${widget.entry.id}'),
+                        icon: Icons.category_outlined,
+                        label: categoryLabel,
+                        maxWidth: math.max(
+                          80,
+                          widget.width -
+                              (widget.entry.isFavorite && !isTouch ? 48 : 16),
+                        ),
+                      ),
+                    ),
+
+                  if (!isTouch &&
+                      !_isHovered &&
+                      !widget.isSelected &&
+                      widget.showFavoriteIndicator &&
+                      widget.entry.isFavorite)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: LibraryCardFavoriteBadge(
+                        key: ValueKey(
+                          'vibe-card-favorite-badge-${widget.entry.id}',
+                        ),
+                        semanticLabel: context.l10n.common_favorite,
+                      ),
+                    ),
 
                   // 选中状态
                   if (widget.isSelected) _buildSelectionOverlay(colorScheme),
@@ -656,7 +691,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
   Widget _buildBundleBadge() {
     return Positioned(
-      top: 8,
+      top: widget.categoryLabel == null ? 8 : 38,
       left: 8,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

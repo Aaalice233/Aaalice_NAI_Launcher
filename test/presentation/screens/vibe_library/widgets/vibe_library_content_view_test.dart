@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_library_category.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
@@ -20,6 +21,25 @@ void main() {
   test('Vibe 库与选择器共用 4:5 图像卡片比例', () {
     expect(vibeCardAspectRatio, 0.8);
     expect(computeVibeCardHeight(200), 250);
+  });
+
+  test('分类标签保留完整层级路径，未分类条目不会得到标签', () {
+    final categories = [
+      VibeLibraryCategory(id: 'people', name: '人物', createdAt: DateTime(2026)),
+      VibeLibraryCategory(
+        id: 'female',
+        name: '女性角色',
+        parentId: 'people',
+        createdAt: DateTime(2026),
+      ),
+    ];
+
+    final labels = buildVibeCategoryLabels(categories);
+
+    expect(labels['people'], '人物');
+    expect(labels['female'], '人物 / 女性角色');
+    expect(labels[null], isNull);
+    expect(labels['missing'], isNull);
   });
 
   test('打开详情前应优先回读真实条目参数，而不是继续使用列表旧快照', () async {
