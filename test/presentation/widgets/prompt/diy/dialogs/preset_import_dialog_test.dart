@@ -21,10 +21,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(Dialog), findsNothing);
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byKey(const ValueKey('preset-import-scroll')), findsOneWidget);
 
     final closeRect = tester.getRect(
@@ -43,7 +40,7 @@ void main() {
     expect(find.byType(PresetImportDialog), findsNothing);
   });
 
-  testWidgets('导入面板在 Expanded 使用受限宽度侧栏', (tester) async {
+  testWidgets('导入面板在 Expanded 使用受限宽度居中弹窗', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {

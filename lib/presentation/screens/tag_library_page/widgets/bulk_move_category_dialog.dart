@@ -26,7 +26,7 @@ class BulkMoveCategoryDialog extends StatelessWidget {
     return AdaptivePresenter.showForm<String>(
       context: context,
       titleBuilder: _buildTitle,
-      width: 440,
+      dialogWidth: 440,
       builder: (panelContext, scrollController) => _BulkMoveCategoryContent(
         categories: categories,
         currentCategoryId: currentCategoryId,

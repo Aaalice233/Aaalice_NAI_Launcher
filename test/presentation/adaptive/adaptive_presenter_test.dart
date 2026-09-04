@@ -277,7 +277,7 @@ void main() {
     expect(triggerFocus.hasFocus, isTrue);
   });
 
-  testWidgets('compact long forms use the shared full-screen presentation', (
+  testWidgets('compact long forms use the shared bottom-sheet presentation', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -312,15 +312,12 @@ void main() {
     await tester.tap(find.text('Open form'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
-    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
     expect(find.text('Form content'), findsOneWidget);
   });
 
-  testWidgets('medium long forms use a bounded centered form', (tester) async {
+  testWidgets('medium long forms use a bounded bottom sheet', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(839.9, 700);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -353,11 +350,8 @@ void main() {
     await tester.tap(find.text('Open medium form'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-centered-form')),
-      findsOneWidget,
-    );
-    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
     expect(find.text('Medium form content'), findsOneWidget);
   });
 
@@ -403,11 +397,11 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('non-compact panels use a content-sized centered dialog', (
+  testWidgets('expanded panels use a content-sized centered dialog', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(700, 800);
+    tester.view.physicalSize = const Size(1180, 800);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
 
@@ -421,7 +415,7 @@ void main() {
                   AdaptivePresenter.showPanel<void>(
                     context: context,
                     title: 'Short panel',
-                    width: 420,
+                    dialogWidth: 420,
                     builder: (context, _) => const Padding(
                       padding: EdgeInsets.all(20),
                       child: Text('Short panel content'),
@@ -444,11 +438,11 @@ void main() {
     expect(find.byType(DraggableScrollableSheet), findsNothing);
     expect(tester.getSize(surface).width, 420);
     expect(tester.getSize(surface).height, lessThan(140));
-    expect(tester.getRect(surface).center, const Offset(350, 400));
+    expect(tester.getRect(surface).center, const Offset(590, 400));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('medium forms remain centered with IME and large text', (
+  testWidgets('medium forms use a bottom sheet above IME and SafeArea', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -506,12 +500,10 @@ void main() {
     await tester.tap(find.text('Open short form'));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
-    final rect = tester.getRect(surface);
-    expect(rect.width, 560);
-    expect(rect.height, lessThanOrEqualTo(392 * 0.9));
-    expect(rect.center.dy, moreOrLessEquals(208));
+    expect(find.byKey(const Key('adaptive-centered-form')), findsNothing);
+    expect(tester.getRect(surface).bottom, lessThanOrEqualTo(420));
     expect(find.byKey(const Key('bottom-action')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -587,7 +579,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(find.byTooltip('Close'), findsNothing);

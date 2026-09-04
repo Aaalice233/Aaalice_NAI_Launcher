@@ -65,10 +65,7 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'renamed');
     await tester.tap(find.byType(Checkbox));
     await tester.ensureVisible(find.text('确认'));

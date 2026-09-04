@@ -13,7 +13,7 @@ class ZipExportMetadataDialog extends StatefulWidget {
     return AdaptivePresenter.showForm<bool>(
       context: context,
       title: context.l10n.localGallery_zipMetadataTitle,
-      width: 520,
+      dialogWidth: 520,
       builder: (panelContext, scrollController) =>
           ZipExportMetadataDialog(scrollController: scrollController),
     );

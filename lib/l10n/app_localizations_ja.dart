@@ -13009,6 +13009,91 @@ class AppLocalizationsJa extends AppLocalizations {
       'プッシュとプルの対象を選択します。アカウント、パスワード、API キーはアップロードされません。';
 
   @override
+  String get cloudSync_chooseBackupContents => 'バックアップ内容を選択';
+
+  @override
+  String get cloudSync_backupContentDescription =>
+      '復元に必要なデータだけを保存し、画像リソースはアップロード前に圧縮します。';
+
+  @override
+  String get cloudSync_lightweightData => '軽量データ（既定）';
+
+  @override
+  String get cloudSync_settingsDescription => 'テーマ、生成パラメータ、アプリ設定';
+
+  @override
+  String get cloudSync_promptsAndTags => 'プロンプトとタグライブラリ';
+
+  @override
+  String get cloudSync_promptsAndTagsDescription => '項目、分類、固定タグ、プリセット';
+
+  @override
+  String get cloudSync_tagThumbnails => 'タグライブラリのプレビュー';
+
+  @override
+  String get cloudSync_tagThumbnailsDescription => 'アップロード前に圧縮し、原画像は保存しません';
+
+  @override
+  String get cloudSync_onlineGallerySettings => 'オンラインギャラリー設定';
+
+  @override
+  String get cloudSync_onlineGallerySettingsDescription =>
+      'ブラックリスト、フィルター、ユーザー分類';
+
+  @override
+  String get cloudSync_onlineGalleryFavorites => 'オンラインギャラリーのお気に入り';
+
+  @override
+  String get cloudSync_onlineGalleryFavoritesDescription =>
+      'ソース ID と復元に必要な情報のみを保存し、原画像は保存しません';
+
+  @override
+  String get cloudSync_galleryAlbums => 'ローカルギャラリーのアルバム';
+
+  @override
+  String get cloudSync_galleryAlbumsDescription =>
+      'アルバム構造と画像参照のみを保存し、原画像はアップロードしません';
+
+  @override
+  String get cloudSync_optionalResources => '任意のリソース（既定はオフ）';
+
+  @override
+  String get cloudSync_vibes => 'Vibe';
+
+  @override
+  String get cloudSync_preciseReferences => '精密参照';
+
+  @override
+  String get cloudSync_largeResourceDescription =>
+      '復元用リソースを含むため、サイズが大幅に増える場合があります';
+
+  @override
+  String get cloudSync_neverBackedUp =>
+      'クラウド認証情報、キャッシュ、ログ、閲覧履歴、リモートギャラリーの原画像は常に除外されます。';
+
+  @override
+  String get cloudSync_restoreDefaults => '既定に戻す';
+
+  @override
+  String get cloudSync_saveSelection => '選択を保存';
+
+  @override
+  String cloudSync_selectedContentSummary(int count) {
+    return '$count 件の内容を選択中';
+  }
+
+  @override
+  String get cloudSync_rebuildCompactBackup => '古いバックアップを削除して再構築';
+
+  @override
+  String get cloudSync_rebuildCompactBackupDescription =>
+      '現在のクラウド領域を削除し、現在の選択で新しい軽量バックアップをアップロードします。サービス側の履歴は書き換えません。';
+
+  @override
+  String get cloudSync_rebuildCompactBackupConfirm =>
+      '現在のクラウドバックアップを削除し、新しい軽量バックアップを直ちにアップロードしますか？元に戻せません。';
+
+  @override
   String get cloudSync_kindSettings => '設定';
 
   @override
@@ -13035,7 +13120,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_skillsBackupDescription =>
-      '既定ではオフです。他のデバイスへ移す Skill を選択できます。';
+      'バックアップは既定でオンです。下で選択した Skill だけを保存します。';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {

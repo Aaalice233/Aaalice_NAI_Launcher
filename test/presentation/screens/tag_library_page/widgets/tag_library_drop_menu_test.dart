@@ -26,7 +26,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('open-drop-menu')));
       await tester.pumpAndSettle();
 
-      final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
+      final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
       expect(panel, findsOneWidget);
       expect(find.byType(Dialog), findsNothing);
       expect(
@@ -76,10 +76,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('open-drop-menu')));
     await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('adaptive-centered-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
 
     await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();

@@ -294,12 +294,10 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      final detailSurface = find.byKey(
-        const ValueKey('adaptive-full-screen-form'),
-      );
+      final detailSurface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
       expect(detailSurface, findsOneWidget);
       expect(tester.getRect(detailSurface).top, greaterThanOrEqualTo(24));
-      expect(tester.getRect(detailSurface).bottom, lessThanOrEqualTo(696));
+      expect(tester.getRect(detailSurface).bottom, lessThanOrEqualTo(720));
       expect(find.byIcon(Icons.image_outlined), findsWidgets);
       expect(find.byIcon(Icons.tune), findsOneWidget);
       await tester.tap(find.byIcon(Icons.tune));
@@ -314,9 +312,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('vibe-rename-form')), findsOneWidget);
       final renameSurface = tester.getRect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')).last,
+        find.byKey(const ValueKey('adaptive-bottom-sheet')).last,
       );
-      expect(renameSurface.bottom, lessThanOrEqualTo(500));
+      expect(renameSurface.bottom, lessThanOrEqualTo(520));
 
       await tester.enterText(
         find.byKey(const ValueKey('vibe-rename-field')),

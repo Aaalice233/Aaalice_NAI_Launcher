@@ -113,7 +113,7 @@ void main() {
         expect(
           find.byKey(
             ValueKey(
-              size.width < 600
+              size.width < 840
                   ? 'adaptive-bottom-sheet'
                   : 'adaptive-centered-form',
             ),
@@ -171,8 +171,8 @@ void main() {
       await tester.tap(find.text('Shortcuts'));
       await tester.pumpAndSettle();
 
-      final presentation = scenario.size.width < 600
-          ? find.byKey(const ValueKey('adaptive-full-screen-form'))
+      final presentation = scenario.size.width < 840
+          ? find.byKey(const ValueKey('adaptive-bottom-sheet'))
           : find.byKey(const ValueKey('adaptive-centered-form'));
       expect(presentation, findsOneWidget);
       expect(find.byType(AlertDialog), findsNothing);

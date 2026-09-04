@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/storage/local_storage_service.dart';
+import '../../../data/cloud_sync/cloud_sync_content_selection_store.dart';
+import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
+import 'cloud_sync_content_selection_dialog.dart';
 import 'cloud_sync_conflict_center.dart';
 import 'cloud_sync_ffdkj_prompt.dart';
 import 'cloud_sync_preview_panel.dart';
@@ -71,6 +75,26 @@ class CloudSyncDashboard extends ConsumerWidget {
                 value: _date(state.lastSync),
               ),
             ],
+          ),
+        ),
+        CloudSyncSection(
+          title: context.l10n.cloudSync_dataScope,
+          subtitle: context.l10n.cloudSync_dataScopeDescription,
+          child: ListTile(
+            key: const ValueKey('cloud-sync-content-selection-entry'),
+            contentPadding: EdgeInsets.zero,
+            minTileHeight: 56,
+            title: Text(context.l10n.cloudSync_chooseBackupContents),
+            subtitle: Text(
+              context.l10n.cloudSync_selectedContentSummary(
+                state.contentSelection.selectedItemCount,
+              ),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            enabled: !state.isBusy && !state.needsPreviewConfirmation,
+            onTap: state.isBusy || state.needsPreviewConfirmation
+                ? null
+                : () => _editContentSelection(context, ref, port),
           ),
         ),
         _syncActions(context, port),
@@ -212,6 +236,25 @@ class CloudSyncDashboard extends ConsumerWidget {
     if (confirmed == true && context.mounted) {
       await _runAction(context, action);
     }
+  }
+
+  Future<void> _editContentSelection(
+    BuildContext context,
+    WidgetRef ref,
+    CloudSyncUiPort port,
+  ) async {
+    final selection = await showCloudSyncContentSelectionDialog(
+      context: context,
+      initialSelection: state.contentSelection,
+      skills: ref.read(agentSettingsProvider).skills,
+    );
+    if (selection == null || !context.mounted) return;
+    await _runAction(context, () async {
+      await port.updateContentSelection(selection);
+      await CloudSyncContentSelectionStore(
+        ref.read(localStorageServiceProvider),
+      ).save(selection);
+    });
   }
 
   Widget _progress(

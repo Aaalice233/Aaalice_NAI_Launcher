@@ -98,7 +98,7 @@ class ImageDestinationDialog extends ConsumerWidget {
   }) {
     return AdaptivePresenter.showForm<ImageDestination>(
       context: context,
-      width: metadata == null ? 480 : 960,
+      dialogWidth: metadata == null ? 480 : 960,
       titleBuilder: (panelContext) {
         final theme = Theme.of(panelContext);
         return Row(
@@ -310,7 +310,7 @@ class ImageDestinationDialog extends ConsumerWidget {
     return AdaptivePresenter.showForm<void>(
       context: context,
       title: context.l10n.drop_metadataErrorDetails,
-      width: 600,
+      dialogWidth: 600,
       builder: (panelContext, scrollController) => ListView(
         key: const ValueKey('metadata-error-details-scroll'),
         controller: scrollController,

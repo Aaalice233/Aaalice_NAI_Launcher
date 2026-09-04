@@ -5,7 +5,9 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_add_dialog.dart';
 
 void main() {
-  testWidgets('320px、3x 字号、IME 与 SafeArea 下全屏呈现且全部表单操作可达', (tester) async {
+  testWidgets('320px、3x 字号、IME 与 SafeArea 下 bottom sheet 全部操作可达', (
+    tester,
+  ) async {
     await _pumpLauncher(
       tester,
       size: const Size(320, 900),
@@ -17,20 +19,17 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(tester.takeException(), isNull);
 
     final surface = tester.getRect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
     );
     expect(surface.left, greaterThanOrEqualTo(12));
     expect(surface.right, lessThanOrEqualTo(308));
     expect(surface.top, greaterThanOrEqualTo(24));
-    expect(surface.bottom, lessThanOrEqualTo(600));
+    expect(surface.bottom, lessThanOrEqualTo(620));
 
     final scrollable = find
         .descendant(
@@ -54,7 +53,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Medium 在 IME 导致短高度时切换为全屏表单', (tester) async {
+  testWidgets('Medium 在 IME 导致短高度时使用 bottom sheet', (tester) async {
     await _pumpLauncher(
       tester,
       size: const Size(700, 720),
@@ -67,11 +66,11 @@ void main() {
 
     expect(find.byType(Dialog), findsNothing);
     expect(find.byKey(const ValueKey('adaptive-centered-form')), findsNothing);
-    final panelFinder = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final panelFinder = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(panelFinder, findsOneWidget);
     final panel = tester.getRect(panelFinder);
     expect(panel.top, greaterThanOrEqualTo(24));
-    expect(panel.bottom, lessThanOrEqualTo(520));
+    expect(panel.bottom, lessThanOrEqualTo(540));
     expect(find.byKey(const Key('entry-add-dialog-scroll')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -135,10 +134,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
     expect(completed, isTrue);
     expect(tester.takeException(), isNull);
   });

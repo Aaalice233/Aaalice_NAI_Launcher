@@ -113,10 +113,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(AdaptiveDialogFrame), findsOneWidget);
     final frameRect = tester.getRect(find.byType(AdaptiveDialogFrame));
     expect(frameRect.left, greaterThanOrEqualTo(12));
@@ -205,23 +202,20 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-centered-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(AdaptiveDialogFrame), findsOneWidget);
     final surfaceRect = tester.getRect(
-      find.byKey(const ValueKey('adaptive-centered-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
     );
-    expect(surfaceRect.width, lessThan(700));
-    expect(surfaceRect.height, lessThan(900));
+    expect(surfaceRect.width, lessThanOrEqualTo(700));
+    expect(surfaceRect.height, lessThanOrEqualTo(900));
     expect(
       tester
           .widget<SegmentedButton<PromptLibraryWriteMode>>(
             find.byKey(const ValueKey('prompt-library-write-mode')),
           )
           .direction,
-      Axis.vertical,
+      Axis.horizontal,
     );
 
     await tester.ensureVisible(find.text('Cancel'));

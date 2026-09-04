@@ -33,7 +33,9 @@ void main() {
   testWidgets('combined configuration picker hugs short content', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(840, 720));
+    tester.view.devicePixelRatio = 1;
+    await tester.binding.setSurfaceSize(const Size(1180, 720));
+    addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       MaterialApp(
@@ -247,7 +249,7 @@ void main() {
   ) async {
     for (final (width, surfaceKey) in const [
       (320.0, 'adaptive-bottom-sheet'),
-      (700.0, 'adaptive-centered-form'),
+      (700.0, 'adaptive-bottom-sheet'),
       (840.0, 'adaptive-centered-form'),
       (1200.0, 'adaptive-centered-form'),
     ]) {

@@ -60,7 +60,7 @@ class SendToHomeDialog extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      width: 480,
+      dialogWidth: 480,
       builder: (panelContext, scrollController) =>
           SendToHomeDialog(entry: entry, scrollController: scrollController),
     );

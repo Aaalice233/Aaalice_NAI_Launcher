@@ -32,7 +32,7 @@ class GlobalSettingsDialog extends ConsumerStatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      width: 720,
+      dialogWidth: 720,
       builder: (context, scrollController) =>
           GlobalSettingsDialog(scrollController: scrollController),
     );
@@ -518,7 +518,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
         title: category.isMultiPersonContainer
             ? l10n.characterCountConfig_addMultiPersonCombo
             : l10n.characterCountConfig_addTagOption,
-        width: 480,
+        dialogWidth: 480,
         builder: (context, scrollController) => StatefulBuilder(
           builder: (context, setDialogState) {
             return Column(
@@ -719,7 +719,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
       await AdaptivePresenter.showForm<void>(
         context: context,
         title: l10n.characterCountConfig_customSlotsTitle,
-        width: 480,
+        dialogWidth: 480,
         builder: (context, scrollController) => StatefulBuilder(
           builder: (context, setDialogState) {
             return Column(

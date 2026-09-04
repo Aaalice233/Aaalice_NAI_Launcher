@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
 import 'package:nai_launcher/core/cloud_sync/coordinator.dart';
+import 'package:nai_launcher/core/cloud_sync/content_selection.dart';
 import 'package:nai_launcher/core/cloud_sync/data_source.dart';
 import 'package:nai_launcher/core/cloud_sync/journal.dart';
 import 'package:nai_launcher/core/cloud_sync/models.dart';
@@ -284,6 +285,55 @@ void main() {
       expect(second.states.last.lastSync, isNull);
     },
   );
+
+  test('updating backup contents only persists configuration', () async {
+    final fixture = await _Fixture.create();
+    addTearDown(fixture.dispose);
+    await fixture.service.connect(
+      const CloudSyncConnectRequest(
+        connection: _draft,
+        dataKinds: cloudSyncSelectableDataKinds,
+      ),
+    );
+    const selection = CloudSyncContentSelection(
+      includeGalleryAlbums: false,
+      includeVibes: true,
+    );
+
+    await fixture.service.updateContentSelection(selection);
+
+    expect(fixture.backend.head, isNull);
+    expect(fixture.backend.events, isEmpty);
+    expect(fixture.states.last.contentSelection.includeGalleryAlbums, isFalse);
+    expect(fixture.states.last.contentSelection.includeVibes, isTrue);
+    final stored = await CloudSyncConnectionStore(
+      localStorage: fixture.local,
+      secureStorage: fixture.secure,
+    ).load();
+    expect(stored?.contentSelection.includeGalleryAlbums, isFalse);
+    expect(stored?.contentSelection.includeVibes, isTrue);
+  });
+
+  test('explicit compact rebuild clears the namespace then uploads', () async {
+    final fixture = await _Fixture.create();
+    addTearDown(fixture.dispose);
+    await fixture.service.testConnection(_draft);
+    await fixture.service.connect(
+      const CloudSyncConnectRequest(
+        connection: _draft,
+        dataKinds: cloudSyncSelectableDataKinds,
+      ),
+    );
+    await fixture.service.pushNow();
+    final previousHead = fixture.backend.head;
+
+    await fixture.service.rebuildCompactBackup();
+
+    expect(fixture.backend.deleteCalls, 1);
+    expect(fixture.backend.head, isNotNull);
+    expect(fixture.backend.head!.revision, isNot(previousHead!.revision));
+    expect(fixture.states.last.remoteExists, isTrue);
+  });
 }
 
 const _draft = CloudSyncConnectionDraft(
@@ -363,6 +413,7 @@ class _ApplicationBackend extends CoordinatorTestBackend
   int capabilityChecks = 0;
   int readOnlyValidationChecks = 0;
   int historyListCalls = 0;
+  int deleteCalls = 0;
 
   @override
   Future<CloudBackendCapability> testCapability() async {
@@ -379,6 +430,12 @@ class _ApplicationBackend extends CoordinatorTestBackend
   Future<List<String>> listSnapshotIds({int limit = 20}) {
     historyListCalls++;
     return super.listSnapshotIds(limit: limit);
+  }
+
+  @override
+  Future<void> deleteNamespace() async {
+    deleteCalls++;
+    await super.deleteNamespace();
   }
 }
 

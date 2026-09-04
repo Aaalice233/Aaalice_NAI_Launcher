@@ -447,7 +447,7 @@ Future<void> confirmClearAllCharacters(
     title: l10n.characterEditor_clearAllTitle,
     initialChildSize: 0.46,
     minChildSize: 0.38,
-    width: 440,
+    dialogWidth: 440,
     builder: (panelContext, scrollController) => ListView(
       controller: scrollController,
       shrinkWrap: true,

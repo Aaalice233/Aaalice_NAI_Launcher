@@ -193,8 +193,9 @@ void main() {
     await tester.tap(find.text('新建'));
     await tester.pumpAndSettle();
 
-    final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
-    expect(panel, findsOneWidget);
+    final panels = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+    expect(panels, findsNWidgets(2));
+    final panel = panels.last;
     expect(
       find.byKey(const ValueKey('tag-library-add-category-form')),
       findsOneWidget,
@@ -209,7 +210,11 @@ void main() {
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(panel, findsNothing);
+    expect(
+      find.byKey(const ValueKey('tag-library-add-category-form')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
   });
 
   testWidgets('responsive sidebar rebuild keeps the active library viewport', (

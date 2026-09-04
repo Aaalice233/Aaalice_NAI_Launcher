@@ -35,7 +35,7 @@ class AddTagGroupDialog extends ConsumerStatefulWidget {
   }) {
     return AdaptivePresenter.showForm<void>(
       context: context,
-      width: 580,
+      dialogWidth: 580,
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(

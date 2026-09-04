@@ -35,10 +35,7 @@ void main() {
     await tester.tap(find.text('打开导出'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(
       find.byKey(const Key('vibe-export-compact-actions')),
@@ -79,10 +76,7 @@ void main() {
     await tester.tap(find.text('打开导出'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(
       find.byKey(const Key('vibe-export-advanced-compact-actions')),
@@ -101,7 +95,7 @@ void main() {
   });
 
   for (final (width, surfaceKey) in [
-    (700.0, 'adaptive-centered-form'),
+    (700.0, 'adaptive-bottom-sheet'),
     (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('${width.toInt()} 宽完整导出管理器使用共享自适应表单', (tester) async {

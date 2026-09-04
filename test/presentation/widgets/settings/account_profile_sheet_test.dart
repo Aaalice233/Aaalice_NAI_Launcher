@@ -34,7 +34,7 @@ class _AccountManagerNotifier extends AccountManagerNotifier {
 }
 
 void main() {
-  testWidgets('复杂账号资料在最窄屏、放大文字和键盘组合下使用全屏表单', (tester) async {
+  testWidgets('复杂账号资料在最窄屏、放大文字和键盘组合下使用全高 bottom sheet', (tester) async {
     tester.view.physicalSize = const Size(320, 568);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -79,10 +79,7 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(find.textContaining('token_'), findsNothing);
     expect(find.text('Token 账号'), findsOneWidget);

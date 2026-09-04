@@ -41,7 +41,7 @@ class _PrivacySettingsSectionState
         overflow: TextOverflow.ellipsis,
         style: Theme.of(panelContext).textTheme.titleMedium,
       ),
-      width: 420,
+      dialogWidth: 420,
       builder: (panelContext, scrollController) => _NumberEditorForm(
         initialValue: initialValue,
         label: label,

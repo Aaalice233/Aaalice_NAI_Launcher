@@ -66,10 +66,7 @@ void main() {
     await tester.tap(find.text('Open emoji'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(find.text('Cancel'), findsOneWidget);
 

@@ -107,7 +107,6 @@ class CloudSyncCapabilityResult {
     this.supportsHistory = false,
     this.supportsDelete = false,
     this.warnings = const [],
-    this.limit,
   });
 
   const CloudSyncCapabilityResult.unavailable()
@@ -116,8 +115,7 @@ class CloudSyncCapabilityResult {
       message = '',
       supportsHistory = false,
       supportsDelete = false,
-      warnings = const [],
-      limit = null;
+      warnings = const [];
 
   final bool succeeded;
   final CloudSyncCapabilityMode mode;
@@ -125,7 +123,6 @@ class CloudSyncCapabilityResult {
   final bool supportsHistory;
   final bool supportsDelete;
   final List<CloudBackendWarning> warnings;
-  final String? limit;
 }
 
 @immutable
@@ -261,7 +258,6 @@ class CloudSyncUiState {
     this.supportsHistory = true,
     this.supportsDelete = true,
     this.capabilityWarnings = const [],
-    this.providerLimit,
     this.progress,
     this.metrics,
     this.logs = const [],
@@ -270,6 +266,7 @@ class CloudSyncUiState {
     this.remoteExists,
     this.pendingPreview,
     this.pendingFfdkjInstall = false,
+    this.contentSelection = const CloudSyncContentSelection(),
     this.error,
   });
 
@@ -285,7 +282,6 @@ class CloudSyncUiState {
   final bool supportsHistory;
   final bool supportsDelete;
   final List<CloudBackendWarning> capabilityWarnings;
-  final String? providerLimit;
   final CloudSyncProgressView? progress;
   final CloudSyncMetricsView? metrics;
   final List<CloudSyncLogEntry> logs;
@@ -294,6 +290,7 @@ class CloudSyncUiState {
   final bool? remoteExists;
   final CloudSyncPreviewView? pendingPreview;
   final bool pendingFfdkjInstall;
+  final CloudSyncContentSelection contentSelection;
   final String? error;
 
   bool get isConnected =>
@@ -328,7 +325,6 @@ class CloudSyncUiState {
     bool? supportsHistory,
     bool? supportsDelete,
     List<CloudBackendWarning>? capabilityWarnings,
-    String? providerLimit,
     CloudSyncProgressView? progress,
     CloudSyncMetricsView? metrics,
     List<CloudSyncLogEntry>? logs,
@@ -337,10 +333,12 @@ class CloudSyncUiState {
     bool? remoteExists,
     CloudSyncPreviewView? pendingPreview,
     bool? pendingFfdkjInstall,
+    CloudSyncContentSelection? contentSelection,
     String? error,
     bool clearProgress = false,
     bool clearError = false,
     bool clearPendingPreview = false,
+    bool clearRemoteRevision = false,
   }) => CloudSyncUiState(
     connectionStatus: connectionStatus ?? this.connectionStatus,
     activityStatus: activityStatus ?? this.activityStatus,
@@ -349,12 +347,13 @@ class CloudSyncUiState {
     accountLabel: accountLabel ?? this.accountLabel,
     deviceName: deviceName ?? this.deviceName,
     lastSync: lastSync ?? this.lastSync,
-    remoteRevision: remoteRevision ?? this.remoteRevision,
+    remoteRevision: clearRemoteRevision
+        ? null
+        : remoteRevision ?? this.remoteRevision,
     capabilityMode: capabilityMode ?? this.capabilityMode,
     supportsHistory: supportsHistory ?? this.supportsHistory,
     supportsDelete: supportsDelete ?? this.supportsDelete,
     capabilityWarnings: capabilityWarnings ?? this.capabilityWarnings,
-    providerLimit: providerLimit ?? this.providerLimit,
     progress: clearProgress ? null : progress ?? this.progress,
     metrics: metrics ?? this.metrics,
     logs: logs ?? this.logs,
@@ -365,6 +364,7 @@ class CloudSyncUiState {
         ? null
         : pendingPreview ?? this.pendingPreview,
     pendingFfdkjInstall: pendingFfdkjInstall ?? this.pendingFfdkjInstall,
+    contentSelection: contentSelection ?? this.contentSelection,
     error: clearError ? null : error ?? this.error,
   );
 }
@@ -407,6 +407,10 @@ abstract interface class CloudSyncUiPort {
   Future<void> refreshHistory();
 
   Future<void> deleteRemoteNamespace();
+
+  Future<void> updateContentSelection(CloudSyncContentSelection selection);
+
+  Future<void> rebuildCompactBackup();
 
   Future<void> disconnect();
 
@@ -454,6 +458,13 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
 
   @override
   Future<void> deleteRemoteNamespace() => _unavailable();
+
+  @override
+  Future<void> updateContentSelection(CloudSyncContentSelection selection) =>
+      _unavailable();
+
+  @override
+  Future<void> rebuildCompactBackup() => _unavailable();
 
   @override
   Future<void> detectRemote(CloudSyncConnectionDraft connection) =>

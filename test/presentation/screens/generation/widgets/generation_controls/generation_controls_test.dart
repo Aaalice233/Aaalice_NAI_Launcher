@@ -420,10 +420,7 @@ void main() {
     await tester.tap(find.byType(BatchSettingsButton));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(ListView), findsOneWidget);
     expect(tester.takeException(), isNull);
 

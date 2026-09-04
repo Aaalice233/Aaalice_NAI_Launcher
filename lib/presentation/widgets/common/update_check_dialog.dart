@@ -881,7 +881,7 @@ class UpdateCheckDialog extends ConsumerWidget {
       context: context,
       barrierDismissible: false,
       showHeader: false,
-      width: 680,
+      dialogWidth: 680,
       builder: (context, scrollController) =>
           const UpdateCheckDialog(presentationManaged: true),
     );

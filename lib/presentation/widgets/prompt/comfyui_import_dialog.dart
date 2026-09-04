@@ -55,7 +55,7 @@ class ComfyuiImportDialog extends StatefulWidget {
       ),
       initialChildSize: 0.78,
       minChildSize: 0.5,
-      width: 520,
+      dialogWidth: 520,
       builder: (context, scrollController) => ComfyuiImportDialog(
         parseResult: parseResult,
         scrollController: scrollController,

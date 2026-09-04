@@ -107,7 +107,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(container.read(selectedCharacterIdProvider), 'alice');

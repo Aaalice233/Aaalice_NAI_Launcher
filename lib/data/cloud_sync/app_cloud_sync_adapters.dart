@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
 
 import '../../core/constants/storage_keys.dart';
+import '../../core/cloud_sync/content_selection.dart';
 import '../../core/shortcuts/shortcut_config.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../models/gallery/gallery_album.dart';
@@ -50,6 +51,7 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
   required TagLibraryIOService tagLibraryIO,
   required bool Function() isFfdkjInstalled,
   required Future<void> Function() recordPendingFfdkjInstallIntent,
+  required CloudSyncContentSelection contentSelection,
   AgentSkillsCloudSyncAdapter? agentSkills,
 }) {
   final galleryDataSource = GalleryDataSource();
@@ -57,13 +59,23 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
       galleryDataSource.albums.getAlbums();
 
   return CloudSyncDataAdapterRegistry([
-    SettingsCloudSyncAdapter(localStorage),
+    SettingsCloudSyncAdapter(
+      localStorage,
+      includeAppSettings: contentSelection.includeSettings,
+      includePromptsAndTags: contentSelection.includePromptsAndTags,
+      includeOnlineGallerySettings:
+          contentSelection.includeOnlineGallerySettings,
+    ),
     AgentSystemPromptCloudSyncAdapter(localStorage),
     if (agentSkills != null) agentSkills,
     GalleryBlacklistCloudSyncAdapter(
       OnlineGalleryBlacklistRepository(localStorage),
     ),
-    UserTagLibraryCloudSyncAdapter(localStorage, tagLibraryIO),
+    UserTagLibraryCloudSyncAdapter(
+      localStorage,
+      tagLibraryIO,
+      includeThumbnails: contentSelection.includeTagThumbnails,
+    ),
     StrictHiveCloudSyncAdapter(
       id: 'tag-favorites',
       boxName: StorageKeys.tagFavoritesBox,
@@ -253,8 +265,6 @@ const portableSettingKeys = <String>{
   StorageKeys.danbooruCopyrightThreshold,
   StorageKeys.danbooruMetaThreshold,
   StorageKeys.cooccurrenceRefreshInterval,
-  StorageKeys.quickTagCloudContentAccessV1,
-  StorageKeys.quickTagCloudBrowsingFiltersV1,
   StorageKeys.workflowEnhanceLevel,
   StorageKeys.workflowEnhanceMaxScale,
   StorageKeys.workflowEnhanceShowIndividualSettings,
@@ -271,12 +281,17 @@ const portableSettingKeys = <String>{
   StorageKeys.protectionGenerationIntervalSeconds,
 };
 
-const portableBusinessSettingKeys = <String>{
+const portablePromptSettingKeys = <String>{
   StorageKeys.fixedTagsData,
   StorageKeys.fixedTagLinksData,
   StorageKeys.fixedTagCategoriesData,
+};
+
+const portableOnlineGallerySettingKeys = <String>{
   StorageKeys.onlineGalleryOutputFilterTags,
   StorageKeys.onlineGalleryPromptTagCategories,
+  StorageKeys.quickTagCloudContentAccessV1,
+  StorageKeys.quickTagCloudBrowsingFiltersV1,
 };
 
 class GalleryBlacklistCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
@@ -349,8 +364,16 @@ class GalleryBlacklistCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
 }
 
 class SettingsCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
-  SettingsCloudSyncAdapter(this._storage);
+  SettingsCloudSyncAdapter(
+    this._storage, {
+    this.includeAppSettings = true,
+    this.includePromptsAndTags = true,
+    this.includeOnlineGallerySettings = true,
+  });
   final LocalStorageService _storage;
+  final bool includeAppSettings;
+  final bool includePromptsAndTags;
+  final bool includeOnlineGallerySettings;
 
   @override
   String get id => 'portable-settings';
@@ -359,12 +382,19 @@ class SettingsCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
 
   Set<String> get keys => {
     ...portableSettingKeys,
-    ...portableBusinessSettingKeys,
+    ...portablePromptSettingKeys,
+    ...portableOnlineGallerySettingKeys,
+  };
+
+  Set<String> get exportedKeys => {
+    if (includeAppSettings) ...portableSettingKeys,
+    if (includePromptsAndTags) ...portablePromptSettingKeys,
+    if (includeOnlineGallerySettings) ...portableOnlineGallerySettingKeys,
   };
 
   @override
   Stream<PortableSyncRecord> exportRecords() async* {
-    for (final key in keys) {
+    for (final key in exportedKeys) {
       final value = _storage.getSetting<Object?>(key);
       if (value == null) continue;
       final portable = jsonDecode(jsonEncode(value)) as Object?;
@@ -390,6 +420,9 @@ class SettingsCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   @override
   Future<void> apply(List<PortableSyncRecord> records) async {
     for (final record in records) {
+      // One adapter owns three independently selectable groups. Records from
+      // an older remote snapshot must not bypass the current user's choice.
+      if (!exportedKeys.contains(record.id)) continue;
       if (record.deleted) {
         if (!keys.contains(record.id)) {
           throw const CloudSyncPreflightException('Setting is not portable');

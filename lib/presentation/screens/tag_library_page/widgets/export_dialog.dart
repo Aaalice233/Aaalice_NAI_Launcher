@@ -52,7 +52,7 @@ class ExportDialog extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      width: 600,
+      dialogWidth: 600,
       builder: (context, _) =>
           ExportDialog._(entries: entries, categories: categories),
     );

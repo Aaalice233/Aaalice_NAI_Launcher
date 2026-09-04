@@ -5,12 +5,31 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/cloud_sync/cloud_sync_content_selection_store.dart';
 
 void main() {
-  test('content selection defaults keep prompt on and Skills off', () {
+  test('content selection defaults keep portable data on', () {
     const selection = CloudSyncContentSelection();
 
+    expect(selection.includeSettings, isTrue);
+    expect(selection.includePromptsAndTags, isTrue);
+    expect(selection.includeTagThumbnails, isTrue);
+    expect(selection.includeOnlineGallerySettings, isTrue);
+    expect(selection.includeOnlineGalleryFavorites, isTrue);
     expect(selection.includeAgentSystemPrompt, isTrue);
-    expect(selection.includeSkills, isFalse);
+    expect(selection.includeSkills, isTrue);
+    expect(selection.includeVibes, isFalse);
+    expect(selection.includePreciseReferences, isFalse);
     expect(selection.selectedSkillIds, isEmpty);
+  });
+
+  test('version 1 selection migrates with new lightweight defaults', () {
+    final selection = CloudSyncContentSelection.decode(
+      '{"version":1,"includeAgentSystemPrompt":true,'
+      '"includeSkills":false,"selectedSkillIds":[]}',
+    );
+
+    expect(selection.includeSettings, isTrue);
+    expect(selection.includeTagThumbnails, isTrue);
+    expect(selection.includeAgentSystemPrompt, isTrue);
+    expect(selection.includeVibes, isFalse);
   });
 
   test('content selection persists exact source-qualified Skill ids', () async {

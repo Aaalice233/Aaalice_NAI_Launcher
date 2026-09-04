@@ -21,7 +21,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(panel, findsOneWidget);
     expect(find.byKey(const Key('workflow-import-step-label')), findsOneWidget);
     expect(find.textContaining('1'), findsWidgets);

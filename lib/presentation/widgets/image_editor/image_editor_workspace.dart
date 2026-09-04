@@ -2210,7 +2210,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       title: context.l10n.editor_compressionTitle,
       initialChildSize: 0.62,
       minChildSize: 0.42,
-      width: 440,
+      dialogWidth: 440,
       builder: (panelContext, scrollController) => StatefulBuilder(
         builder: (panelContext, setPanelState) {
           final plan = _compressionPlan;
@@ -3075,7 +3075,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     unawaited(
       AdaptivePresenter.showForm<void>(
         context: context,
-        width: 440,
+        dialogWidth: 440,
         titleBuilder: (panelContext) => Row(
           children: [
             const Icon(Icons.keyboard),

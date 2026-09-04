@@ -328,7 +328,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(
@@ -336,7 +336,7 @@ void main() {
         findsOneWidget,
       );
       final surface = tester.getRect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
       );
       expect(surface.top, greaterThanOrEqualTo(24));
       expect(surface.bottom, lessThanOrEqualTo(720 - 220));

@@ -622,7 +622,7 @@ void main() {
 
       await openExport();
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(
@@ -757,7 +757,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(
@@ -851,27 +851,27 @@ void main() {
         (
           size: const Size(360, 480),
           scale: 1,
-          surface: 'adaptive-full-screen-form',
+          surface: 'adaptive-bottom-sheet',
         ),
         (
           size: const Size(599.9, 700),
           scale: 1,
-          surface: 'adaptive-full-screen-form',
+          surface: 'adaptive-bottom-sheet',
         ),
         (
           size: const Size(600, 500),
           scale: 2,
-          surface: 'adaptive-full-screen-form',
+          surface: 'adaptive-bottom-sheet',
         ),
         (
           size: const Size(839.9, 700),
           scale: 1,
-          surface: 'adaptive-centered-form',
+          surface: 'adaptive-bottom-sheet',
         ),
         (
           size: const Size(840, 500),
           scale: 2,
-          surface: 'adaptive-full-screen-form',
+          surface: 'adaptive-centered-form',
         ),
         (
           size: const Size(1600, 900),

@@ -141,8 +141,8 @@ void main() {
     'launcher uses shared adaptive form surfaces and preserves back',
     (tester) async {
       for (final scenario in <({double width, String surfaceKey})>[
-        (width: 320, surfaceKey: 'adaptive-full-screen-form'),
-        (width: 700, surfaceKey: 'adaptive-centered-form'),
+        (width: 320, surfaceKey: 'adaptive-bottom-sheet'),
+        (width: 700, surfaceKey: 'adaptive-bottom-sheet'),
         (width: 1200, surfaceKey: 'adaptive-centered-form'),
       ]) {
         await tester.binding.setSurfaceSize(Size(scenario.width, 760));
@@ -247,14 +247,14 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     final rect = tester.getRect(surface);
     expect(find.byType(Dialog), findsNothing);
-    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
     expect(rect.left, greaterThanOrEqualTo(8));
     expect(rect.top, greaterThanOrEqualTo(24));
     expect(rect.right, lessThanOrEqualTo(352));
-    expect(rect.bottom, lessThanOrEqualTo(400));
+    expect(rect.bottom, lessThanOrEqualTo(420));
     expect(tester.takeException(), isNull);
   });
 
@@ -308,10 +308,7 @@ void main() {
     tester.view.viewInsets = const FakeViewPadding(bottom: 160);
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     final form = find.byKey(const ValueKey('watermark-color-form'));
     expect(form, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);

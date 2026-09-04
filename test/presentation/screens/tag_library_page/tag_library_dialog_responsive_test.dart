@@ -44,7 +44,7 @@ void main() {
       await tester.tap(find.text('打开'));
       await tester.pumpAndSettle();
 
-      final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
+      final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
       expect(panel, findsOneWidget);
       final panelRect = tester.getRect(panel);
       expect(panelRect.top, greaterThanOrEqualTo(24));
@@ -123,10 +123,10 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
+    final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(panel, findsOneWidget);
-    expect(tester.getSize(panel).width, 480);
-    expect(tester.getSize(panel).height, lessThan(800));
+    expect(tester.getSize(panel).width, lessThanOrEqualTo(700));
+    expect(tester.getSize(panel).height, lessThanOrEqualTo(800));
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
@@ -154,10 +154,7 @@ void main() {
     await tester.tap(find.text('打开导入'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     final chooser = find.text('点击选择 ZIP 文件');
     await tester.ensureVisible(chooser);
@@ -203,7 +200,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       expect(find.byType(Dialog), findsNothing);

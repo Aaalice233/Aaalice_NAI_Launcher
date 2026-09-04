@@ -358,7 +358,7 @@ void main() {
   );
 
   test(
-    'shrinking scope preserves base groups while real in-scope deletion tombstones',
+    'deselecting a known adapter tombstones it while unknown adapters stay opaque',
     () async {
       final retained = _Adapter('retained')
         ..exported = [
@@ -377,7 +377,10 @@ void main() {
       await initial.saveBase(base, 'base');
       retained.exported = [];
       final narrowed = AppCloudSyncDataSource(
-        registry: CloudSyncDataAdapterRegistry([retained]),
+        registry: CloudSyncDataAdapterRegistry(
+          [retained, removed],
+          activeAdapterIds: {'retained'},
+        ),
         root: root,
         chunkSize: 2,
       );
@@ -395,10 +398,8 @@ void main() {
             .deleted,
         isTrue,
       );
-      expect(decoded.records[_stableId('removed', 'two')]!.deleted, isFalse);
-      expect(decoded.metadataChunks[_stableId('removed', 'two')], [
-        '${_stableId('removed', 'two')}.c0',
-      ]);
+      expect(decoded.records[_stableId('removed', 'two')]!.deleted, isTrue);
+      expect(decoded.metadataChunks[_stableId('removed', 'two')], isEmpty);
     },
   );
 

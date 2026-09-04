@@ -12787,6 +12787,86 @@ class AppLocalizationsZh extends AppLocalizations {
       '选择要推送和拉取的内容。账号、密码和 API Key 不会上传。';
 
   @override
+  String get cloudSync_chooseBackupContents => '选择备份内容';
+
+  @override
+  String get cloudSync_backupContentDescription => '仅备份恢复所需的数据；图片资源会在上传前压缩。';
+
+  @override
+  String get cloudSync_lightweightData => '轻量数据（默认）';
+
+  @override
+  String get cloudSync_settingsDescription => '主题、生成参数和应用偏好';
+
+  @override
+  String get cloudSync_promptsAndTags => '提示词与词库';
+
+  @override
+  String get cloudSync_promptsAndTagsDescription => '条目、分类、固定词和预设';
+
+  @override
+  String get cloudSync_tagThumbnails => '词库预览图';
+
+  @override
+  String get cloudSync_tagThumbnailsDescription => '上传前压缩，不保存原图';
+
+  @override
+  String get cloudSync_onlineGallerySettings => '在线画廊设置';
+
+  @override
+  String get cloudSync_onlineGallerySettingsDescription => '黑名单、筛选和用户分类';
+
+  @override
+  String get cloudSync_onlineGalleryFavorites => '在线画廊收藏';
+
+  @override
+  String get cloudSync_onlineGalleryFavoritesDescription =>
+      '仅保存来源 ID 与恢复所需信息，不保存原图';
+
+  @override
+  String get cloudSync_galleryAlbums => '本地画廊相册';
+
+  @override
+  String get cloudSync_galleryAlbumsDescription => '只保存相册结构与图片引用，不上传原图';
+
+  @override
+  String get cloudSync_optionalResources => '可选资源（默认关闭）';
+
+  @override
+  String get cloudSync_vibes => 'Vibe';
+
+  @override
+  String get cloudSync_preciseReferences => '精准参考';
+
+  @override
+  String get cloudSync_largeResourceDescription => '包含恢复所需资源，可能显著增加体积';
+
+  @override
+  String get cloudSync_neverBackedUp => '云端凭据、缓存、日志、浏览历史和远程图库原图始终不会备份。';
+
+  @override
+  String get cloudSync_restoreDefaults => '恢复默认';
+
+  @override
+  String get cloudSync_saveSelection => '保存选择';
+
+  @override
+  String cloudSync_selectedContentSummary(int count) {
+    return '已选择 $count 项内容';
+  }
+
+  @override
+  String get cloudSync_rebuildCompactBackup => '清理旧备份并重新建立';
+
+  @override
+  String get cloudSync_rebuildCompactBackupDescription =>
+      '删除当前云端备份空间并按现有选择上传新的精简备份。服务商保留的历史版本不会被重写。';
+
+  @override
+  String get cloudSync_rebuildCompactBackupConfirm =>
+      '删除当前云端备份并立即上传新的精简备份吗？此操作不能撤销。';
+
+  @override
   String get cloudSync_kindSettings => '设置';
 
   @override
@@ -12812,8 +12892,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_skillsBackup => '备份已选 Skill';
 
   @override
-  String get cloudSync_skillsBackupDescription =>
-      '默认不备份。开启后可以选择要带到其他设备的 Skill。';
+  String get cloudSync_skillsBackupDescription => '备份开关默认开启；只备份你在下方选择的 Skill。';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {
@@ -26553,6 +26632,86 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '選擇要推送和拉取的內容。帳號、密碼和 API Key 不會上傳。';
 
   @override
+  String get cloudSync_chooseBackupContents => '選擇備份內容';
+
+  @override
+  String get cloudSync_backupContentDescription => '僅備份恢復所需的資料；圖片資源會在上傳前壓縮。';
+
+  @override
+  String get cloudSync_lightweightData => '輕量資料（預設）';
+
+  @override
+  String get cloudSync_settingsDescription => '主題、生成參數和應用偏好';
+
+  @override
+  String get cloudSync_promptsAndTags => '提示詞與詞庫';
+
+  @override
+  String get cloudSync_promptsAndTagsDescription => '條目、分類、固定詞和預設';
+
+  @override
+  String get cloudSync_tagThumbnails => '詞庫預覽圖';
+
+  @override
+  String get cloudSync_tagThumbnailsDescription => '上傳前壓縮，不儲存原圖';
+
+  @override
+  String get cloudSync_onlineGallerySettings => '線上畫廊設定';
+
+  @override
+  String get cloudSync_onlineGallerySettingsDescription => '黑名單、篩選和使用者分類';
+
+  @override
+  String get cloudSync_onlineGalleryFavorites => '線上畫廊收藏';
+
+  @override
+  String get cloudSync_onlineGalleryFavoritesDescription =>
+      '僅儲存來源 ID 與恢復所需資訊，不儲存原圖';
+
+  @override
+  String get cloudSync_galleryAlbums => '本機畫廊相簿';
+
+  @override
+  String get cloudSync_galleryAlbumsDescription => '只儲存相簿結構與圖片引用，不上傳原圖';
+
+  @override
+  String get cloudSync_optionalResources => '可選資源（預設關閉）';
+
+  @override
+  String get cloudSync_vibes => 'Vibe';
+
+  @override
+  String get cloudSync_preciseReferences => '精準參考';
+
+  @override
+  String get cloudSync_largeResourceDescription => '包含恢復所需資源，可能顯著增加體積';
+
+  @override
+  String get cloudSync_neverBackedUp => '雲端憑據、快取、日誌、瀏覽歷史和遠端圖庫原圖始終不會備份。';
+
+  @override
+  String get cloudSync_restoreDefaults => '恢復預設';
+
+  @override
+  String get cloudSync_saveSelection => '儲存選擇';
+
+  @override
+  String cloudSync_selectedContentSummary(int count) {
+    return '已選擇 $count 項內容';
+  }
+
+  @override
+  String get cloudSync_rebuildCompactBackup => '清理舊備份並重新建立';
+
+  @override
+  String get cloudSync_rebuildCompactBackupDescription =>
+      '刪除目前雲端備份空間並按現有選擇上傳新的精簡備份。服務商保留的歷史版本不會被重寫。';
+
+  @override
+  String get cloudSync_rebuildCompactBackupConfirm =>
+      '刪除目前雲端備份並立即上傳新的精簡備份嗎？此操作無法復原。';
+
+  @override
   String get cloudSync_kindSettings => '設定';
 
   @override
@@ -26578,8 +26737,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_skillsBackup => '備份已選 Skill';
 
   @override
-  String get cloudSync_skillsBackupDescription =>
-      '預設不備份。開啟後可以選擇要帶到其他裝置的 Skill。';
+  String get cloudSync_skillsBackupDescription => '備份開關預設開啟；只備份你在下方選擇的 Skill。';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {

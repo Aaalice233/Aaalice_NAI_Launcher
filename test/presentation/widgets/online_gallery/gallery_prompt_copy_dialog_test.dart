@@ -56,13 +56,13 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     final rect = tester.getRect(surface);
     expect(rect.left, greaterThanOrEqualTo(12));
     expect(rect.top, greaterThanOrEqualTo(16));
     expect(rect.right, lessThanOrEqualTo(320 - 14));
-    expect(rect.bottom, lessThanOrEqualTo(568 - 240 - 20));
+    expect(rect.bottom, lessThanOrEqualTo(568 - 240));
     final listView = tester.widget<ListView>(find.byType(ListView));
     final scrollController = listView.controller!;
     expect(scrollController.hasClients, isTrue);

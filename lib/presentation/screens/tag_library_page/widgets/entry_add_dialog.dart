@@ -71,7 +71,7 @@ class EntryAddDialog extends ConsumerStatefulWidget {
     return AdaptivePresenter.showForm<void>(
       context: context,
       titleBuilder: title,
-      width: 700,
+      dialogWidth: 700,
       maxCenteredHeight: 680,
       builder: (dialogContext, scrollController) => EntryAddDialog._(
         categories: categories,

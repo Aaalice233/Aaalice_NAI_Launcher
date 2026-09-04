@@ -833,7 +833,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     await AdaptivePresenter.showForm<void>(
       context: context,
       title: context.l10n.tagLibrary_newCategory,
-      width: 440,
+      dialogWidth: 440,
       builder: (panelContext, scrollController) => _AddCategoryForm(
         scrollController: scrollController,
         onCreate: (name) async {

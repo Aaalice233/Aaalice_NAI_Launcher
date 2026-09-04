@@ -21,7 +21,7 @@ class EmojiPickerDialog extends StatelessWidget {
     return AdaptivePresenter.showForm<String>(
       context: context,
       title: context.l10n.category_selectEmoji,
-      width: 440,
+      dialogWidth: 440,
       builder: (context, scrollController) =>
           const EmojiPickerDialog(presentationManaged: true),
     );

@@ -302,6 +302,13 @@ void main() {
     final records = await adapter.exportRecords().toList();
     expect(records, hasLength(1));
     expect(records.single.resource, isNull);
+    final encoded = jsonEncode(records.single.data);
+    expect(encoded, isNot(contains('remote-response-payload')));
+    expect(encoded, isNot(contains('rawSourceMetadata')));
+    expect(encoded, isNot(contains('portable-2.mp4')));
+    final record = records.single.data['record']! as Map;
+    final detail = record['detail']! as Map;
+    expect(detail['media'], hasLength(1));
 
     await repository.remove('ai_tag:portable');
     await adapter.preflight(records);
@@ -334,6 +341,7 @@ GalleryDetail _detail({
     height: 768,
     extension: 'webp',
     prompt: '$title media prompt',
+    rawMetadata: 'remote-response-payload',
   );
   final item = GalleryItem(
     id: workId.hashCode,
@@ -347,6 +355,7 @@ GalleryDetail _detail({
     tags: tags,
     cover: cover,
     mediaCount: 2,
+    rawSourceMetadata: const {'raw': 'remote-response-payload'},
   );
   return GalleryDetail(
     item: item,

@@ -10,7 +10,9 @@ import 'package:nai_launcher/presentation/widgets/tag_library/tag_library_picker
 import '../../../helpers/light_theme_contrast.dart';
 
 void main() {
-  testWidgets('320 宽 3x 字体与 IME 下使用 SafeArea 全屏选择面且无溢出', (tester) async {
+  testWidgets('320 宽 3x 字体与 IME 下使用 SafeArea bottom sheet 且无溢出', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(320, 900);
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(top: 24, bottom: 16);
@@ -26,14 +28,14 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     final surfaceRect = tester.getRect(surface);
     expect(surfaceRect.left, greaterThanOrEqualTo(0));
     expect(surfaceRect.top, greaterThanOrEqualTo(24));
     expect(surfaceRect.right, lessThanOrEqualTo(320));
-    expect(surfaceRect.bottom, lessThanOrEqualTo(900 - 16 - 220));
+    expect(surfaceRect.bottom, lessThanOrEqualTo(900 - 220));
     expect(find.byType(TextField), findsOneWidget);
     expect(tester.takeException(), isNull);
 
@@ -43,7 +45,7 @@ void main() {
   });
 
   for (final (width, surfaceKey) in [
-    (700.0, 'adaptive-centered-form'),
+    (700.0, 'adaptive-bottom-sheet'),
     (1200.0, 'adaptive-centered-form'),
   ]) {
     testWidgets('$width 宽度使用有界共享选择面并返回所选条目', (tester) async {

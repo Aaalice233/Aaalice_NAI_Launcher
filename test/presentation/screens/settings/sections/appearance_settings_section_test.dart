@@ -123,7 +123,7 @@ void main() {
   });
 
   for (final formFactor in [
-    (width: 700.0, surface: 'adaptive-centered-form'),
+    (width: 700.0, surface: 'adaptive-bottom-sheet'),
     (width: 1200.0, surface: 'adaptive-centered-form'),
   ]) {
     testWidgets(
@@ -216,10 +216,7 @@ void main() {
     await tester.tap(find.text('字体').first);
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
     expect(tester.takeException(), isNull);
 
@@ -233,7 +230,7 @@ void main() {
 
     await tester.tap(find.text('字体').first);
     await tester.pumpAndSettle();
-    final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     final panelScrollable = find.descendant(
       of: panel,
       matching: find.byType(Scrollable),
@@ -250,10 +247,7 @@ void main() {
 
     expect(container.read(fontNotifierProvider), selectedFont);
     expect(storage.fontFamily, selectedFont.key);
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
   });
 
   testWidgets('字体缩放自适应编辑器在窄屏、3x 字号和 IME 下实时保存', (tester) async {
@@ -293,14 +287,11 @@ void main() {
     await tester.tap(find.text('字体大小').first);
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
     expect(tester.takeException(), isNull);
 
-    final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     final panelScrollable = find.descendant(
       of: panel,
       matching: find.byType(Scrollable),

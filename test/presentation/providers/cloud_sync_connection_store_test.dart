@@ -47,6 +47,7 @@ void main() {
     );
 
     const contentSelection = CloudSyncContentSelection(
+      includeAgentSystemPrompt: false,
       includeSkills: true,
       selectedSkillIds: {'workspace:test-skill'},
     );
@@ -60,7 +61,7 @@ void main() {
     expect(restored!.draft.allowInsecureHttp, isTrue);
     expect(restored.draft.serverUrl, draft.serverUrl);
     expect(restored.dataKinds, {CloudSyncDataKind.settings});
-    expect(restored.contentSelection.includeAgentSystemPrompt, isTrue);
+    expect(restored.contentSelection.includeAgentSystemPrompt, isFalse);
     expect(restored.contentSelection.includeSkills, isTrue);
     expect(
       restored.contentSelection.selectedSkillIds,
@@ -105,7 +106,7 @@ void main() {
               as Map<String, dynamic>;
       expect(migrated['version'], 3);
       expect(restored.contentSelection.includeAgentSystemPrompt, isTrue);
-      expect(restored.contentSelection.includeSkills, isFalse);
+      expect(restored.contentSelection.includeSkills, isTrue);
       expect(restored.contentSelection.selectedSkillIds, isEmpty);
     },
   );
@@ -157,7 +158,7 @@ void main() {
     final restored = await store.load();
 
     expect(restored!.contentSelection.includeAgentSystemPrompt, isTrue);
-    expect(restored.contentSelection.includeSkills, isFalse);
+    expect(restored.contentSelection.includeSkills, isTrue);
     expect(restored.contentSelection.selectedSkillIds, isEmpty);
   });
 

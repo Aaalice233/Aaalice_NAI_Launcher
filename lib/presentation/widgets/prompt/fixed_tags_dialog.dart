@@ -24,7 +24,7 @@ class FixedTagsDialog extends ConsumerStatefulWidget {
     return AdaptivePresenter.showForm<void>(
       context: context,
       showHeader: false,
-      width: 980,
+      dialogWidth: 980,
       builder: (_, __) => const FixedTagsDialog(presentationManaged: true),
     );
   }

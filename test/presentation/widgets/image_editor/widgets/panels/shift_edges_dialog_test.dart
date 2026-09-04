@@ -138,10 +138,7 @@ void main() {
     );
     await _openDialog(tester);
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byKey(const Key('shift_edges_scroll')), findsOneWidget);
     expect(find.byKey(const Key('shift_edges_cancel')), findsOneWidget);
     expect(find.byKey(const Key('shift_edges_confirm')), findsOneWidget);

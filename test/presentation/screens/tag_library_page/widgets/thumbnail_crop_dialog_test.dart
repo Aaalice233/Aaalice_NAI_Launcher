@@ -150,7 +150,7 @@ void main() {
 
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
-    final panel = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(panel, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(

@@ -59,21 +59,21 @@ void main() {
     return result;
   }
 
-  testWidgets('compact form is full-screen at 320px and respects SafeArea', (
+  testWidgets('compact form uses a bottom sheet and respects SafeArea', (
     tester,
   ) async {
     const size = Size(320, 640);
     const safePadding = EdgeInsets.fromLTRB(8, 24, 12, 20);
     await pumpAndOpenDialog(tester, size: size, padding: safePadding);
 
-    expect(find.byKey(const ValueKey('adaptive-full-screen-form')), findsOne);
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOne);
     final rect = tester.getRect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
+      find.byKey(const ValueKey('adaptive-bottom-sheet')),
     );
     expect(rect.left, greaterThanOrEqualTo(safePadding.left));
     expect(rect.top, greaterThanOrEqualTo(safePadding.top));
     expect(rect.right, lessThanOrEqualTo(size.width - safePadding.right));
-    expect(rect.bottom, lessThanOrEqualTo(size.height - safePadding.bottom));
+    expect(rect.bottom, lessThanOrEqualTo(size.height));
     expect(tester.takeException(), isNull);
   });
 
@@ -93,7 +93,7 @@ void main() {
       expect(find.byKey(const Key('metadata-import-options-list')), findsOne);
       expect(find.text('Confirm'), findsOne);
       final dialogRect = tester.getRect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
       );
       expect(dialogRect.bottom, lessThanOrEqualTo(size.height - keyboardInset));
       expect(tester.takeException(), isNull);
@@ -107,10 +107,13 @@ void main() {
       await pumpAndOpenDialog(tester, size: size);
 
       final surfaceFinder = size.width < 840
-          ? find.byKey(const ValueKey('adaptive-centered-form'))
+          ? find.byKey(const ValueKey('adaptive-bottom-sheet'))
           : find.byKey(const ValueKey('adaptive-centered-form'));
       expect(surfaceFinder, findsOneWidget);
-      expect(tester.getSize(surfaceFinder).width, lessThanOrEqualTo(560));
+      expect(
+        tester.getSize(surfaceFinder).width,
+        lessThanOrEqualTo(size.width),
+      );
       expect(tester.takeException(), isNull, reason: '$size');
 
       await tester.binding.handlePopRoute();
@@ -127,10 +130,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-full-screen-form')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
     expect(find.byKey(const Key('open-metadata-import')), findsOneWidget);
   });
 

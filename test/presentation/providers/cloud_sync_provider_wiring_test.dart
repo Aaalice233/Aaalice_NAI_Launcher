@@ -24,8 +24,8 @@ void main() {
     const adapterIds = [
       'agent-system-prompt',
       'agent-skills',
-      'local-settings',
-      'prompt-assistant',
+      'portable-settings',
+      'prompt-assistant-profile',
     ];
 
     final payloadByBackend = <CloudSyncBackendKind, List<String>>{};
@@ -41,24 +41,50 @@ void main() {
     );
     expect(
       payloadByBackend[CloudSyncBackendKind.webDav],
-      containsAll(['agent-system-prompt', 'agent-skills', 'local-settings']),
+      containsAll(['agent-system-prompt', 'agent-skills', 'portable-settings']),
     );
     expect(
       payloadByBackend[CloudSyncBackendKind.webDav],
-      isNot(contains('prompt-assistant')),
+      isNot(contains('prompt-assistant-profile')),
     );
   });
 
-  test('large-file libraries are never included in cloud backup', () {
-    const scope = {CloudSyncDataKind.largeBinary};
+  test(
+    'large-file libraries are excluded by default and opt in explicitly',
+    () {
+      const scope = {CloudSyncDataKind.largeBinary};
+      const selection = CloudSyncContentSelection();
+
+      expect(
+        isCloudSyncAdapterInScope('precise-ref-library', scope, selection),
+        isFalse,
+      );
+      expect(
+        isCloudSyncAdapterInScope('vibe-library', scope, selection),
+        isFalse,
+      );
+      const optedIn = CloudSyncContentSelection(
+        includeVibes: true,
+        includePreciseReferences: true,
+      );
+      expect(
+        isCloudSyncAdapterInScope('precise-ref-library', scope, optedIn),
+        isTrue,
+      );
+      expect(isCloudSyncAdapterInScope('vibe-library', scope, optedIn), isTrue);
+    },
+  );
+
+  test('gallery albums are lightweight while image bytes have no adapter', () {
+    const scope = {CloudSyncDataKind.galleries};
     const selection = CloudSyncContentSelection();
 
     expect(
-      isCloudSyncAdapterInScope('precise-ref-library', scope, selection),
-      isFalse,
+      isCloudSyncAdapterInScope('gallery-albums', scope, selection),
+      isTrue,
     );
     expect(
-      isCloudSyncAdapterInScope('vibe-library', scope, selection),
+      isCloudSyncAdapterInScope('local-gallery-images', scope, selection),
       isFalse,
     );
   });

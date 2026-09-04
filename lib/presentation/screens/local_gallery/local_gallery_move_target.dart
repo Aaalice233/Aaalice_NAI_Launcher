@@ -45,7 +45,7 @@ Future<String?> showLocalGalleryMoveTargetDialog({
   return AdaptivePresenter.showForm<String>(
     context: context,
     title: l10n.localGallery_moveToCategory,
-    width: 440,
+    dialogWidth: 440,
     builder: (panelContext, scrollController) => ListView.builder(
       key: const ValueKey('local-gallery-move-target-list'),
       controller: scrollController,

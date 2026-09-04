@@ -592,11 +592,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(FixedTagEditDialog), findsOneWidget);
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       final frameRect = tester.getRect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
       );
       expect(frameRect.top, greaterThanOrEqualTo(24));
       expect(frameRect.bottom, lessThanOrEqualTo(720));
@@ -1742,7 +1742,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       final existingContentField = find.byWidgetPredicate(
@@ -1764,10 +1764,7 @@ void main() {
       expect(edited.position, FixedTagPosition.suffix);
       expect(edited.enabled, isFalse);
       expect(edited.promptType, FixedTagPromptType.negative);
-      expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
-        findsNothing,
-      );
+      expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -1795,7 +1792,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('adaptive-full-screen-form')),
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
       final contentField = find.byWidgetPredicate(

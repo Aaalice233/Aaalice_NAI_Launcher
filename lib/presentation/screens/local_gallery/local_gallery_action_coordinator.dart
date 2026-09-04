@@ -73,7 +73,7 @@ Future<void> showLocalGalleryZipFailureDetails(
     ),
     initialChildSize: 0.78,
     minChildSize: 0.5,
-    width: 600,
+    dialogWidth: 600,
     builder: (panelContext, scrollController) => ListView.builder(
       key: const ValueKey('local-gallery-zip-failure-list'),
       controller: scrollController,

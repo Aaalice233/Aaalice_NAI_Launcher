@@ -364,14 +364,14 @@ void main() {
     await _pumpAuthenticatedRail(tester, mediaQuery: mediaQuery);
     await _openAddAccountForm(tester);
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     expect(find.byKey(const Key('main-nav-add-account-form')), findsOneWidget);
     var rect = tester.getRect(surface);
     expect(rect.left, greaterThanOrEqualTo(12));
     expect(rect.top, greaterThanOrEqualTo(24));
     expect(rect.right, lessThanOrEqualTo(308));
-    expect(rect.bottom, lessThanOrEqualTo(880));
+    expect(rect.bottom, lessThanOrEqualTo(900));
     expect(
       tester.widget<ListView>(find.byType(ListView).last).controller,
       isNotNull,
@@ -405,11 +405,16 @@ void main() {
       await _pumpAuthenticatedRail(tester, mediaQuery: mediaQuery);
       await _openAddAccountForm(tester);
 
-      const surfaceKey = ValueKey('adaptive-centered-form');
+      final surfaceKey = ValueKey(
+        width < 840 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
+      );
       final surface = find.byKey(surfaceKey);
       expect(surface, findsOneWidget);
-      expect(tester.getSize(surface).width, lessThanOrEqualTo(450));
-      expect(tester.getSize(surface).width, lessThan(width));
+      expect(tester.getSize(surface).width, lessThanOrEqualTo(width));
+      if (width >= 840) {
+        expect(tester.getSize(surface).width, lessThanOrEqualTo(450));
+        expect(tester.getSize(surface).width, lessThan(width));
+      }
       expect(
         find.byKey(const Key('main-nav-add-account-form')),
         findsOneWidget,

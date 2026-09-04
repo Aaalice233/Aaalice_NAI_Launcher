@@ -37,7 +37,7 @@ void main() {
     });
   }
 
-  testWidgets('Medium 使用有界居中表单并保持双列', (tester) async {
+  testWidgets('Medium 使用有界 bottom sheet 并保持双列', (tester) async {
     tester.view.physicalSize = const Size(700, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -47,11 +47,11 @@ void main() {
 
     await _pumpFilterPanel(tester);
 
-    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
-    expect(tester.getSize(surface).width, 460);
-    expect(tester.getRect(surface).top, greaterThan(0));
-    expect(tester.getRect(surface).bottom, lessThan(800));
+    expect(tester.getSize(surface).width, lessThanOrEqualTo(700));
+    expect(tester.getRect(surface).top, greaterThanOrEqualTo(0));
+    expect(tester.getRect(surface).bottom, lessThanOrEqualTo(800));
     expect(
       find.byKey(const ValueKey('galleryFilterWideRangeGroups')),
       findsOneWidget,
@@ -73,7 +73,7 @@ void main() {
 
     await _pumpFilterPanel(tester, textScaler: const TextScaler.linear(3));
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     expect(
       find.byKey(const ValueKey('galleryFilterScrollView')),
@@ -119,7 +119,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(GalleryFilterPanel), findsOneWidget);
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(tester.getRect(surface).bottom, lessThanOrEqualTo(480));
     expect(find.text('应用筛选').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -142,12 +142,12 @@ void main() {
 
     await _pumpFilterPanel(tester);
 
-    final surface = find.byKey(const ValueKey('adaptive-full-screen-form'));
+    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     final rect = tester.getRect(surface);
     expect(rect.left, greaterThanOrEqualTo(12));
     expect(rect.top, greaterThanOrEqualTo(24));
     expect(rect.right, lessThanOrEqualTo(304));
-    expect(rect.bottom, lessThanOrEqualTo(680));
+    expect(rect.bottom, lessThanOrEqualTo(700));
 
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();

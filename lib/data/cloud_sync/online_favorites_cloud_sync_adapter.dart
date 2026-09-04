@@ -24,7 +24,7 @@ class OnlineFavoritesCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
     final stableKeys = _repository.stableKeys.toList()..sort();
     for (final stableKey in stableKeys) {
       final favorite = _repository.getByStableKey(stableKey)!;
-      final sanitized = _sanitize(favorite.toMap());
+      final sanitized = _compact(favorite.toMap());
       yield PortableSyncRecord(
         adapterId: id,
         id: _portableId(favorite.stableKey),
@@ -82,6 +82,72 @@ class OnlineFavoritesCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   String _portableId(String value) {
     return 'favorite-${sha256.convert(utf8.encode(value))}';
   }
+
+  Map<String, dynamic> _compact(Map<String, dynamic> source) {
+    final detail = Map<String, dynamic>.from(source['detail']! as Map);
+    final item = Map<String, dynamic>.from(detail['item']! as Map);
+    final cover = Map<String, dynamic>.from(item['cover']! as Map);
+    final compactCover = _pick(cover, const {
+      'id',
+      'previewUrl',
+      'displayUrl',
+      'downloadUrl',
+      'width',
+      'height',
+      'extension',
+      'mimeType',
+      'mediaType',
+    });
+    return {
+      'version': source['version'],
+      'stableKey': source['stableKey'],
+      'sourceId': source['sourceId'],
+      'sourceWorkId': source['sourceWorkId'],
+      'savedAt': source['savedAt'],
+      'detail': {
+        'item': {
+          ..._pick(item, const {
+            'id',
+            'workId',
+            'sourceId',
+            'site',
+            'title',
+            'author',
+            'description',
+            'aiType',
+            'createdAt',
+            'rating',
+            'imageWidth',
+            'imageHeight',
+            'tags',
+            'fileExt',
+            'previewFileUrl',
+            'sampleUrl',
+            'sampleWidth',
+            'sampleHeight',
+            'mediaCount',
+          }),
+          'cover': compactCover,
+        },
+        // The source work ID is the durable recovery pointer. One compact
+        // cover is enough for offline recognition; the remote detail can be
+        // fetched again instead of duplicating every media response here.
+        'media': [compactCover],
+        'prompt': detail['prompt'],
+        'negativePrompt': detail['negativePrompt'],
+        'categoryPath': detail['categoryPath'],
+        'note': detail['note'],
+        'rawTags': detail['rawTags'],
+        'characterPrompts': const <Object>[],
+        'contributors': const <Object>[],
+      },
+    };
+  }
+
+  Map<String, dynamic> _pick(Map<String, dynamic> source, Set<String> keys) => {
+    for (final key in keys)
+      if (source.containsKey(key)) key: _sanitizeValue(key, source[key]),
+  };
 
   Map<String, dynamic> _sanitize(Map<dynamic, dynamic> source) {
     final output = <String, dynamic>{};
