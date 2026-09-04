@@ -104,8 +104,18 @@ void main() {
       contains('WindowsNativeWindowStatePlatform().restore(restorePlan)'),
     );
     expect(nativeSource, contains('EnumDisplayMonitors('));
-    expect(nativeSource, contains('GetWindowRect(window, &bounds)'));
-    expect(nativeSource, contains('ShowWindow(window, *maximized'));
+    expect(nativeSource, contains('GetWindowPlacement(window, &placement)'));
+    expect(nativeSource, contains('placement->rcNormalPosition'));
+    expect(nativeSource, contains('IsMaximizedPlacement(*placement)'));
+    expect(nativeSource, contains('PlacementToScreenRect('));
+    expect(nativeSource, contains('ScreenToPlacementRect(screen_bounds)'));
+    expect(
+      nativeSource,
+      contains('SetWindowPlacement(window, &restored_placement)'),
+    );
+    expect(nativeSource, isNot(contains('ShowWindow(window,')));
+    expect(nativeSource, isNot(contains('ShowWindow(window, *maximized')));
+    expect(nativeSource, isNot(contains('SetWindowPos(window, nullptr')));
     expect(nativeSource, isNot(contains('SetNextFrameCallback')));
     expect(nativeSource, contains('message == WM_WINDOWPOSCHANGED'));
     expect(nativeSource, contains('message == WM_EXITSIZEMOVE'));

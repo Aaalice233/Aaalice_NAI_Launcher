@@ -131,6 +131,62 @@ std::optional<double> ReadFiniteDouble(const flutter::EncodableMap& values,
   return *value;
 }
 
+std::optional<WINDOWPLACEMENT> ReadWindowPlacement(HWND window) {
+  WINDOWPLACEMENT placement = {};
+  placement.length = sizeof(placement);
+  if (!GetWindowPlacement(window, &placement)) {
+    return std::nullopt;
+  }
+  return placement;
+}
+
+bool IsMaximizedPlacement(const WINDOWPLACEMENT& placement) {
+  return placement.showCmd == SW_SHOWMAXIMIZED;
+}
+
+bool IsMinimizedPlacement(const WINDOWPLACEMENT& placement) {
+  return placement.showCmd == SW_SHOWMINIMIZED ||
+         placement.showCmd == SW_MINIMIZE ||
+         placement.showCmd == SW_SHOWMINNOACTIVE;
+}
+
+std::optional<MONITORINFO> ReadMonitorInfo(HMONITOR monitor) {
+  MONITORINFO info = {};
+  info.cbSize = sizeof(info);
+  if (!GetMonitorInfo(monitor, &info)) {
+    return std::nullopt;
+  }
+  return info;
+}
+
+RECT PlacementToScreenRect(HWND window, const RECT& placement_rect) {
+  RECT screen_rect = placement_rect;
+  const auto monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
+  const auto info = ReadMonitorInfo(monitor);
+  if (!info.has_value()) {
+    return screen_rect;
+  }
+
+  const LONG x_offset = info->rcWork.left - info->rcMonitor.left;
+  const LONG y_offset = info->rcWork.top - info->rcMonitor.top;
+  OffsetRect(&screen_rect, x_offset, y_offset);
+  return screen_rect;
+}
+
+RECT ScreenToPlacementRect(const RECT& screen_rect) {
+  RECT placement_rect = screen_rect;
+  const auto monitor = MonitorFromRect(&screen_rect, MONITOR_DEFAULTTONEAREST);
+  const auto info = ReadMonitorInfo(monitor);
+  if (!info.has_value()) {
+    return placement_rect;
+  }
+
+  const LONG x_offset = info->rcWork.left - info->rcMonitor.left;
+  const LONG y_offset = info->rcWork.top - info->rcMonitor.top;
+  OffsetRect(&placement_rect, -x_offset, -y_offset);
+  return placement_rect;
+}
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -219,19 +275,21 @@ bool FlutterWindow::OnCreate() {
         }
 
         if (call.method_name() == "readState") {
-          RECT bounds = {};
-          if (!GetWindowRect(window, &bounds)) {
-            result->Error("window_bounds_query_failed",
-                          "Unable to read the Windows window bounds.");
+          const auto placement = ReadWindowPlacement(window);
+          if (!placement.has_value()) {
+            result->Error("window_placement_query_failed",
+                          "Unable to read the Windows window placement.");
             return;
           }
           flutter::EncodableMap response = {
               {flutter::EncodableValue("bounds"),
-               flutter::EncodableValue(EncodeRect(bounds))},
+               flutter::EncodableValue(
+                   EncodeRect(PlacementToScreenRect(
+                       window, placement->rcNormalPosition)))},
               {flutter::EncodableValue("maximized"),
-               flutter::EncodableValue(IsZoomed(window) != FALSE)},
+               flutter::EncodableValue(IsMaximizedPlacement(*placement))},
               {flutter::EncodableValue("minimized"),
-               flutter::EncodableValue(IsIconic(window) != FALSE)},
+               flutter::EncodableValue(IsMinimizedPlacement(*placement))},
               {flutter::EncodableValue("scaleFactor"),
                flutter::EncodableValue(
                    FlutterDesktopGetDpiForMonitor(MonitorFromWindow(
@@ -276,16 +334,30 @@ bool FlutterWindow::OnCreate() {
             return;
           }
 
-          if (!SetWindowPos(window, nullptr, static_cast<int>(std::round(*x)),
-                            static_cast<int>(std::round(*y)),
-                            static_cast<int>(std::round(*width)),
-                            static_cast<int>(std::round(*height)),
-                            SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER)) {
-            result->Error("window_restore_failed",
-                          "Unable to restore the Windows window bounds.");
+          const auto current_placement = ReadWindowPlacement(window);
+          if (!current_placement.has_value()) {
+            result->Error("window_placement_query_failed",
+                          "Unable to read the Windows window placement.");
             return;
           }
-          ShowWindow(window, *maximized ? SW_MAXIMIZE : SW_SHOWNORMAL);
+
+          WINDOWPLACEMENT restored_placement = *current_placement;
+          restored_placement.flags = 0;
+          restored_placement.showCmd =
+              *maximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+          const RECT screen_bounds = {
+              static_cast<LONG>(std::round(*x)),
+              static_cast<LONG>(std::round(*y)),
+              static_cast<LONG>(std::round(*x + *width)),
+              static_cast<LONG>(std::round(*y + *height)),
+          };
+          restored_placement.rcNormalPosition =
+              ScreenToPlacementRect(screen_bounds);
+          if (!SetWindowPlacement(window, &restored_placement)) {
+            result->Error("window_restore_failed",
+                          "Unable to restore the Windows window placement.");
+            return;
+          }
           result->Success();
           return;
         }
