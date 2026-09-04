@@ -72,7 +72,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   String _activeNegativeCategoryId = _allNegativeSectionId;
   String? _highlightedLinkEntryId;
   bool _linkRepaintScheduled = false;
-  bool _splitAdjusted = false;
 
   @override
   void initState() {
@@ -211,7 +210,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
               size: 18,
             ),
             onPressed: () {
-              setState(() => _splitAdjusted = false);
               ref
                   .read(layoutStateNotifierProvider.notifier)
                   .setFixedTagsSidebarViewMode(isListMode ? 'grid' : 'list');
@@ -277,10 +275,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                   icon: const Icon(Icons.close_rounded, size: 16),
                   onPressed: () {
                     _searchController.clear();
-                    setState(() {
-                      _searchQuery = '';
-                      _splitAdjusted = false;
-                    });
+                    setState(() => _searchQuery = '');
                   },
                 ),
           isDense: true,
@@ -289,10 +284,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
             vertical: 10,
           ),
         ),
-        onChanged: (value) => setState(() {
-          _searchQuery = value.trim();
-          _splitAdjusted = false;
-        }),
+        onChanged: (value) => setState(() => _searchQuery = value.trim()),
       ),
     );
   }
@@ -362,34 +354,20 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         ),
       ],
     );
-    final entryContent = entries.isEmpty
-        ? Text(
-            emptyText,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          )
-        : Row(
-            children: [
-              for (final entry in entries) ...[
-                InputChip(
-                  label: Text(entry.displayName),
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  side: BorderSide.none,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  onDeleted: () => ref
-                      .read(fixedTagsNotifierProvider.notifier)
-                      .toggleEnabled(entry.id),
-                ),
-                const SizedBox(width: 6),
-              ],
-            ],
-          );
+    final chips = [
+      for (final entry in entries)
+        InputChip(
+          label: Text(entry.displayName),
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          side: BorderSide.none,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          onDeleted: () => ref
+              .read(fixedTagsNotifierProvider.notifier)
+              .toggleEnabled(entry.id),
+        ),
+    ];
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.6;
 
     return Container(
       key: key,
@@ -399,33 +377,51 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         color: sectionSurfaceColor(theme.colorScheme).withValues(alpha: 0.58),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final stackContent =
-              constraints.maxWidth < 300 ||
-              MediaQuery.textScalerOf(context).scale(1) >= 1.6;
-          if (stackContent) {
-            return SingleChildScrollView(
+      child: usesLargeText
+          ? SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: [labelWidget, const SizedBox(width: 8), entryContent],
+                children: [
+                  labelWidget,
+                  if (entries.isEmpty) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      emptyText,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ] else
+                    for (final chip in chips) ...[
+                      const SizedBox(width: 8),
+                      chip,
+                    ],
+                ],
               ),
-            );
-          }
-          return Row(
-            children: [
-              labelWidget,
-              const SizedBox(width: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: entryContent,
+            )
+          : entries.isEmpty
+          ? Row(
+              children: [
+                labelWidget,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    emptyText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
-      ),
+              ],
+            )
+          : Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [labelWidget, ...chips],
+            ),
     );
   }
 
@@ -450,22 +446,16 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
             (constraints.maxHeight - panePadding.vertical - dividerHeight)
                 .clamp(0.0, double.infinity)
                 .toDouble();
-        final positiveEntryCount = _visiblePositiveEntries(
-          fixedState,
-          positiveSections,
-          activePositiveCategoryId,
-        ).length;
-        final negativeEntryCount = _visibleNegativeEntries(
-          fixedState,
-          negativeSections,
-          activeNegativeCategoryId,
-        ).length;
+        final hasPositiveEntries = fixedState.positiveEntries.isNotEmpty;
+        final hasNegativeEntries = fixedState.negativeEntries.isNotEmpty;
         const populatedMinimumHeight = 96.0;
         const emptyMinimumHeight = 64.0;
-        final desiredPositiveMinimum = positiveEntryCount == 0
+        final desiredPositiveMinimum = !hasPositiveEntries
             ? emptyMinimumHeight
-            : populatedMinimumHeight;
-        final desiredNegativeMinimum = negativeEntryCount == 0
+            : isListMode
+            ? populatedMinimumHeight
+            : 232.0;
+        final desiredNegativeMinimum = !hasNegativeEntries
             ? emptyMinimumHeight
             : populatedMinimumHeight;
         final minimumScale = math.min(
@@ -474,35 +464,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         );
         final positiveMinimumHeight = desiredPositiveMinimum * minimumScale;
         final negativeMinimumHeight = desiredNegativeMinimum * minimumScale;
-        final maximumPositiveHeight = usableHeight - negativeMinimumHeight;
         final maximumNegativeHeight = usableHeight - positiveMinimumHeight;
-        var negativeHeight = layoutState.fixedTagsNegativeHeight
+        final negativeHeight = layoutState.fixedTagsNegativeHeight
             .clamp(negativeMinimumHeight, maximumNegativeHeight)
             .toDouble();
-        var positiveHeight = usableHeight - negativeHeight;
-
-        if (!_splitAdjusted && usableHeight > 0) {
-          final positivePreferredHeight = _preferredPaneHeight(
-            entryCount: positiveEntryCount,
-            destinationCount: positiveSections.length + 1,
-            isListMode: isListMode,
-            paneWidth: constraints.maxWidth - panePadding.horizontal,
-          ).clamp(positiveMinimumHeight, maximumPositiveHeight).toDouble();
-          final negativePreferredHeight = _preferredPaneHeight(
-            entryCount: negativeEntryCount,
-            destinationCount: negativeSections.length + 1,
-            isListMode: isListMode,
-            paneWidth: constraints.maxWidth - panePadding.horizontal,
-          ).clamp(negativeMinimumHeight, maximumNegativeHeight).toDouble();
-
-          if (positivePreferredHeight != positiveHeight) {
-            positiveHeight = positivePreferredHeight;
-            negativeHeight = usableHeight - positiveHeight;
-          } else if (negativePreferredHeight < negativeHeight) {
-            negativeHeight = negativePreferredHeight;
-            positiveHeight = usableHeight - negativeHeight;
-          }
-        }
+        final positiveHeight = usableHeight - negativeHeight;
 
         return Padding(
           padding: panePadding,
@@ -536,55 +502,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
           ),
         );
       },
-    );
-  }
-
-  double _preferredPaneHeight({
-    required int entryCount,
-    required int destinationCount,
-    required bool isListMode,
-    required double paneWidth,
-  }) {
-    final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
-    final headerHeight = scaledLabelSize >= 28 ? scaledLabelSize + 30 : 42.0;
-    final visibleRailItems = destinationCount;
-    final railItemHeight = math.max(48.0, scaledLabelSize + 34);
-    final railHeight =
-        12 +
-        visibleRailItems * railItemHeight +
-        math.max(0, visibleRailItems - 1) * 4;
-
-    double collectionHeight;
-    if (entryCount == 0) {
-      collectionHeight = headerHeight;
-    } else if (isListMode) {
-      final itemHeight = scaledLabelSize >= 20 ? 72.0 : 56.0;
-      collectionHeight =
-          headerHeight + 10 + entryCount * itemHeight + (entryCount - 1) * 4;
-    } else {
-      const railWidth = 48.0;
-      const railGap = 8.0;
-      const gridSpacing = 7.0;
-      final collectionWidth = math.max(1.0, paneWidth - railWidth - railGap);
-      final minimumCardWidth = scaledLabelSize >= 20 ? 220.0 : 140.0;
-      final columnCount =
-          ((collectionWidth + gridSpacing) / (minimumCardWidth + gridSpacing))
-              .floor()
-              .clamp(1, 3);
-      final cardWidth =
-          (collectionWidth - gridSpacing * (columnCount - 1)) / columnCount;
-      final rowCount = (entryCount / columnCount).ceil();
-      collectionHeight =
-          headerHeight +
-          10 +
-          rowCount * _gridCardHeight(context, cardWidth: cardWidth) +
-          math.max(0, rowCount - 1) * gridSpacing;
-    }
-
-    final minimumPreferredHeight = entryCount == 0 ? 64.0 : 144.0;
-    return math.max(
-      minimumPreferredHeight,
-      math.max(railHeight, collectionHeight),
     );
   }
 
@@ -729,8 +646,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     required Color color,
     Widget? trailing,
   }) {
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(14) >= 28;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 8, 6, 6),
+      padding: usesLargeText
+          ? const EdgeInsets.fromLTRB(8, 2, 4, 2)
+          : const EdgeInsets.fromLTRB(10, 8, 6, 6),
       child: Row(
         children: [
           Expanded(
@@ -854,7 +774,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       cursor: SystemMouseCursors.resizeUpDown,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onVerticalDragStart: (_) => setState(() => _splitAdjusted = true),
         onVerticalDragUpdate: (details) {
           final currentHeight = ref
               .read(layoutStateNotifierProvider)
@@ -1409,7 +1328,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     if (_activePositiveCategoryId == categoryId) return;
     setState(() {
       _activePositiveCategoryId = categoryId;
-      _splitAdjusted = false;
     });
     if (_positiveScrollController.hasClients) {
       _positiveScrollController.jumpTo(0);
@@ -1420,7 +1338,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     if (_activeNegativeCategoryId == categoryId) return;
     setState(() {
       _activeNegativeCategoryId = categoryId;
-      _splitAdjusted = false;
     });
     if (_negativeScrollController.hasClients) {
       _negativeScrollController.jumpTo(0);

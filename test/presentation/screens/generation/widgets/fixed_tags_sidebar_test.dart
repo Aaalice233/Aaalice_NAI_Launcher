@@ -939,6 +939,13 @@ void main() {
     expect(negativeRail, findsOneWidget);
     expect(tester.getSize(positiveRail).width, 48);
 
+    final initialPositivePane = tester.getSize(
+      find.byKey(const ValueKey('fixed-tags-positive-pane')),
+    );
+    final initialNegativePane = tester.getSize(
+      find.byKey(const ValueKey('fixed-tags-negative-pane')),
+    );
+
     final categoryButton = find.byKey(
       ValueKey('fixed-tags-positive-category-${categories.first.id}'),
     );
@@ -960,6 +967,17 @@ void main() {
     await tester.pump();
     await pointer.removePointer();
 
+    await tester.tap(categoryButton);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byKey(const ValueKey('fixed-tags-positive-pane'))),
+      initialPositivePane,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('fixed-tags-negative-pane'))),
+      initialNegativePane,
+    );
+
     await tester.tap(
       find.byKey(
         ValueKey('fixed-tags-negative-category-${categories.first.id}'),
@@ -976,90 +994,152 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'sparse positive pane contracts and enabled prompt types stay distinct',
-    (tester) async {
-      tester.view.physicalSize = const Size(420, 980);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final positive = FixedTagEntry.create(
-        name: '夏日狂想曲风格',
-        content: 'pixel art, makoto daibakuhatsu',
+  testWidgets('persisted pane split and enabled prompt types stay distinct', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(420, 980);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final positive = FixedTagEntry.create(
+      name: '夏日狂想曲风格',
+      content: 'pixel art, makoto daibakuhatsu',
+      enabled: true,
+    );
+    final negatives = [
+      for (var index = 0; index < 5; index++)
+        FixedTagEntry.create(
+          name: '负向固定词 $index',
+          content: 'bad hands, lowres, artifact $index',
+          promptType: FixedTagPromptType.negative,
+          enabled: index == 0,
+        ),
+    ];
+    final storage = _SidebarTestStorage(
+      fixedEntries: [positive, ...negatives],
+      categories: const [],
+      libraryEntries: const [],
+    )..negativeHeight = 500;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 420, height: 980, child: FixedTagsSidebar()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final positivePane = tester.getRect(
+      find.byKey(const ValueKey('fixed-tags-positive-pane')),
+    );
+    final negativePane = tester.getRect(
+      find.byKey(const ValueKey('fixed-tags-negative-pane')),
+    );
+    expect(negativePane.height, closeTo(500, 0.1));
+    expect(positivePane.height, greaterThan(64));
+    expect(find.text('已启用正向'), findsOneWidget);
+    expect(find.text('已启用负向'), findsOneWidget);
+
+    final positiveStrip = tester.widget<Container>(
+      find.byKey(const ValueKey('fixed-tags-enabled-positive-strip')),
+    );
+    final negativeStrip = tester.widget<Container>(
+      find.byKey(const ValueKey('fixed-tags-enabled-negative-strip')),
+    );
+    final positiveColor = (positiveStrip.decoration! as BoxDecoration).color;
+    final negativeColor = (negativeStrip.decoration! as BoxDecoration).color;
+    expect(positiveColor, equals(negativeColor));
+    final positiveIcon = tester.widget<Icon>(
+      find.descendant(
+        of: find.byKey(const ValueKey('fixed-tags-enabled-positive-strip')),
+        matching: find.byIcon(Icons.bolt_rounded),
+      ),
+    );
+    final negativeIcon = tester.widget<Icon>(
+      find.descendant(
+        of: find.byKey(const ValueKey('fixed-tags-enabled-negative-strip')),
+        matching: find.byIcon(Icons.block_rounded),
+      ),
+    );
+    expect(positiveIcon.color, isNot(equals(negativeIcon.color)));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('enabled summaries wrap every chip inside the sidebar', (
+    tester,
+  ) async {
+    final entries = [
+      FixedTagEntry.create(name: '蜀山', content: 'positive one', enabled: true),
+      FixedTagEntry.create(
+        name: '大奶萝莉',
+        content: 'positive two',
         enabled: true,
-      );
-      final negatives = [
-        for (var index = 0; index < 5; index++)
-          FixedTagEntry.create(
-            name: '负向固定词 $index',
-            content: 'bad hands, lowres, artifact $index',
-            promptType: FixedTagPromptType.negative,
-            enabled: index == 0,
+      ),
+      FixedTagEntry.create(
+        name: '大屁股',
+        content: 'positive three',
+        enabled: true,
+      ),
+      FixedTagEntry.create(
+        name: '大G-负面',
+        content: 'negative one',
+        promptType: FixedTagPromptType.negative,
+        enabled: true,
+      ),
+      FixedTagEntry.create(
+        name: '芋头-负面',
+        content: 'negative two',
+        promptType: FixedTagPromptType.negative,
+        enabled: true,
+      ),
+    ];
+    final storage = _SidebarTestStorage(
+      fixedEntries: entries,
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 380, height: 900, child: FixedTagsSidebar()),
           ),
-      ];
-      final storage = _SidebarTestStorage(
-        fixedEntries: [positive, ...negatives],
-        categories: const [],
-        libraryEntries: const [],
-      )..negativeHeight = 500;
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            localStorageServiceProvider.overrideWith((ref) => storage),
-          ],
-          child: const MaterialApp(
-            locale: Locale('zh'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SizedBox(
-                width: 420,
-                height: 980,
-                child: FixedTagsSidebar(),
-              ),
-            ),
-          ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final positivePane = tester.getRect(
-        find.byKey(const ValueKey('fixed-tags-positive-pane')),
+    for (final stripKey in const [
+      ValueKey('fixed-tags-enabled-positive-strip'),
+      ValueKey('fixed-tags-enabled-negative-strip'),
+    ]) {
+      final strip = find.byKey(stripKey);
+      final stripRect = tester.getRect(strip);
+      final chips = find.descendant(
+        of: strip,
+        matching: find.byType(InputChip),
       );
-      final negativePane = tester.getRect(
-        find.byKey(const ValueKey('fixed-tags-negative-pane')),
-      );
-      expect(positivePane.height, lessThan(220));
-      expect(negativePane.height, greaterThan(positivePane.height * 2));
-      expect(find.text('已启用正向'), findsOneWidget);
-      expect(find.text('已启用负向'), findsOneWidget);
-
-      final positiveStrip = tester.widget<Container>(
-        find.byKey(const ValueKey('fixed-tags-enabled-positive-strip')),
-      );
-      final negativeStrip = tester.widget<Container>(
-        find.byKey(const ValueKey('fixed-tags-enabled-negative-strip')),
-      );
-      final positiveColor = (positiveStrip.decoration! as BoxDecoration).color;
-      final negativeColor = (negativeStrip.decoration! as BoxDecoration).color;
-      expect(positiveColor, equals(negativeColor));
-      final positiveIcon = tester.widget<Icon>(
-        find.descendant(
-          of: find.byKey(const ValueKey('fixed-tags-enabled-positive-strip')),
-          matching: find.byIcon(Icons.bolt_rounded),
-        ),
-      );
-      final negativeIcon = tester.widget<Icon>(
-        find.descendant(
-          of: find.byKey(const ValueKey('fixed-tags-enabled-negative-strip')),
-          matching: find.byIcon(Icons.block_rounded),
-        ),
-      );
-      expect(positiveIcon.color, isNot(equals(negativeIcon.color)));
-      expect(tester.takeException(), isNull);
-    },
-  );
+      expect(chips, findsWidgets);
+      for (final chip in tester.widgetList<InputChip>(chips)) {
+        final chipRect = tester.getRect(find.byWidget(chip));
+        expect(chipRect.left, greaterThanOrEqualTo(stripRect.left));
+        expect(chipRect.right, lessThanOrEqualTo(stripRect.right));
+      }
+    }
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('FixedTagsButton 预览区分正负面与前后缀', (tester) async {
     final linkedPositive = FixedTagEntry.create(
