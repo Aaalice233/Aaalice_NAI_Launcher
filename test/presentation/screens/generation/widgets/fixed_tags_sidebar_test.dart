@@ -939,6 +939,31 @@ void main() {
     expect(negativeRail, findsOneWidget);
     expect(tester.getSize(positiveRail).width, 48);
 
+    final topCard = find.byKey(const ValueKey('fixed-tags-top-card'));
+    final positiveCard = find.byKey(const ValueKey('fixed-tags-positive-card'));
+    final negativeCard = find.byKey(const ValueKey('fixed-tags-negative-card'));
+    expect(topCard, findsOneWidget);
+    expect(positiveCard, findsOneWidget);
+    expect(negativeCard, findsOneWidget);
+    expect(
+      find.descendant(of: topCard, matching: find.byType(TextField)),
+      findsOneWidget,
+    );
+    expect(find.text('正向固定词'), findsOneWidget);
+    expect(find.text('负向固定词'), findsOneWidget);
+    expect(
+      tester.widget<Material>(positiveCard).color,
+      isNot(equals(tester.widget<Material>(negativeCard).color)),
+    );
+    expect(
+      tester.getRect(positiveCard).left,
+      tester.getRect(negativeCard).left,
+    );
+    expect(
+      tester.getRect(positiveCard).right,
+      tester.getRect(negativeCard).right,
+    );
+
     final initialPositivePane = tester.getSize(
       find.byKey(const ValueKey('fixed-tags-positive-pane')),
     );
@@ -978,11 +1003,12 @@ void main() {
       initialNegativePane,
     );
 
-    await tester.tap(
-      find.byKey(
-        ValueKey('fixed-tags-negative-category-${categories.first.id}'),
-      ),
+    final negativeCategoryButton = find.byKey(
+      ValueKey('fixed-tags-negative-category-${categories.first.id}'),
     );
+    await tester.ensureVisible(negativeCategoryButton);
+    await tester.pump();
+    await tester.tap(negativeCategoryButton);
     await tester.pumpAndSettle();
     expect(
       find.descendant(
@@ -2139,7 +2165,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.byType(ThumbnailDisplay), findsAtLeastNWidgets(2));
+    expect(find.byType(ThumbnailDisplay), findsAtLeastNWidgets(1));
     expect(tester.takeException(), isNull);
   });
 
@@ -2155,11 +2181,12 @@ void main() {
 
       await _pumpSidebar(tester, storage, textScale: 1.35);
 
-      await tester.tap(
-        find.byKey(
-          ValueKey('fixed-tags-positive-category-${fixture.categories[1].id}'),
-        ),
+      final categoryButton = find.byKey(
+        ValueKey('fixed-tags-positive-category-${fixture.categories[1].id}'),
       );
+      await tester.ensureVisible(categoryButton);
+      await tester.pump();
+      await tester.tap(categoryButton);
       await tester.pumpAndSettle();
       final positiveScrollView = find.byType(ReorderableListView);
       final controller = tester
@@ -2196,11 +2223,12 @@ void main() {
 
       await _pumpSidebar(tester, storage);
 
-      await tester.tap(
-        find.byKey(
-          ValueKey('fixed-tags-positive-category-${fixture.categories[1].id}'),
-        ),
+      final categoryButton = find.byKey(
+        ValueKey('fixed-tags-positive-category-${fixture.categories[1].id}'),
       );
+      await tester.ensureVisible(categoryButton);
+      await tester.pump();
+      await tester.tap(categoryButton);
       await tester.pumpAndSettle();
       final positiveScrollView = find.byType(GridView).first;
       final controller = tester
@@ -2347,9 +2375,12 @@ void main() {
       controller.jumpTo(controller.position.maxScrollExtent);
       await tester.pump();
 
-      await tester.tap(
-        find.byKey(ValueKey('fixed-tags-positive-category-${far.id}')),
+      final farCategoryButton = find.byKey(
+        ValueKey('fixed-tags-positive-category-${far.id}'),
       );
+      await tester.ensureVisible(farCategoryButton);
+      await tester.pump();
+      await tester.tap(farCategoryButton);
       await tester.pumpAndSettle();
 
       expect(controller.offset, 0);

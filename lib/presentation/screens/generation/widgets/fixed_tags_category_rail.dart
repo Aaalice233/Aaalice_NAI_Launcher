@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 /// A category destination shared by the positive and negative fixed-tag panes.
 class FixedTagsRailDestination {
@@ -42,6 +43,7 @@ class FixedTagsCategoryRail extends StatelessWidget {
       key: ValueKey('$keyPrefix-category-rail'),
       width: 48,
       child: ListView.separated(
+        scrollCacheExtent: const ScrollCacheExtent.pixels(1000),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         itemCount: destinations.length,
         separatorBuilder: (_, __) => const SizedBox(height: 4),
