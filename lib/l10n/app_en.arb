@@ -1796,21 +1796,10 @@
   "weight_tagName": "Tag Name",
   "weight_tagNameHint": "Enter tag name...",
 
-  "tag_selected": "Selected {count}",
-  "@tag_selected": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "tag_enable": "Enable",
   "tag_disable": "Disable",
   "tag_delete": "Delete",
   "tag_addTag": "Add Tag",
-  "tag_add": "Add",
-  "tag_inputHint": "Enter tag...",
-  "tag_copiedToClipboard": "Copied to clipboard",
-  "tag_emptyHint": "Add tags to describe your desired image",
-  "tag_emptyHintSub": "You can browse, search, or add tags manually",
 
   "tagCategory_artist": "Artist",
   "tagCategory_copyright": "Copyright",
@@ -2349,12 +2338,6 @@
 
 
 
-  "tag_categoryGeneral": "General",
-  "tag_categoryArtist": "Artist",
-  "tag_categoryCopyright": "Copyright",
-  "tag_categoryCharacter": "Character",
-  "tag_categoryMeta": "Meta",
-  "tag_countBadgeBreakdown": "Tag Breakdown",
   "localGallery_progressiveLoadError": "Failed to load image",
   "localGallery_noImagesFound": "No images found",
   "localGallery_unknownError": "Unknown error",

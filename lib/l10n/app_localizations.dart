@@ -7465,12 +7465,6 @@ abstract class AppLocalizations {
   /// **'Enter tag name...'**
   String get weight_tagNameHint;
 
-  /// No description provided for @tag_selected.
-  ///
-  /// In en, this message translates to:
-  /// **'Selected {count}'**
-  String tag_selected(Object count);
-
   /// No description provided for @tag_enable.
   ///
   /// In en, this message translates to:
@@ -7494,36 +7488,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add Tag'**
   String get tag_addTag;
-
-  /// No description provided for @tag_add.
-  ///
-  /// In en, this message translates to:
-  /// **'Add'**
-  String get tag_add;
-
-  /// No description provided for @tag_inputHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter tag...'**
-  String get tag_inputHint;
-
-  /// No description provided for @tag_copiedToClipboard.
-  ///
-  /// In en, this message translates to:
-  /// **'Copied to clipboard'**
-  String get tag_copiedToClipboard;
-
-  /// No description provided for @tag_emptyHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Add tags to describe your desired image'**
-  String get tag_emptyHint;
-
-  /// No description provided for @tag_emptyHintSub.
-  ///
-  /// In en, this message translates to:
-  /// **'You can browse, search, or add tags manually'**
-  String get tag_emptyHintSub;
 
   /// No description provided for @tagCategory_artist.
   ///
@@ -9623,42 +9587,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to parse Vibe file'**
   String get vibeParseFailed;
-
-  /// No description provided for @tag_categoryGeneral.
-  ///
-  /// In en, this message translates to:
-  /// **'General'**
-  String get tag_categoryGeneral;
-
-  /// No description provided for @tag_categoryArtist.
-  ///
-  /// In en, this message translates to:
-  /// **'Artist'**
-  String get tag_categoryArtist;
-
-  /// No description provided for @tag_categoryCopyright.
-  ///
-  /// In en, this message translates to:
-  /// **'Copyright'**
-  String get tag_categoryCopyright;
-
-  /// No description provided for @tag_categoryCharacter.
-  ///
-  /// In en, this message translates to:
-  /// **'Character'**
-  String get tag_categoryCharacter;
-
-  /// No description provided for @tag_categoryMeta.
-  ///
-  /// In en, this message translates to:
-  /// **'Meta'**
-  String get tag_categoryMeta;
-
-  /// No description provided for @tag_countBadgeBreakdown.
-  ///
-  /// In en, this message translates to:
-  /// **'Tag Breakdown'**
-  String get tag_countBadgeBreakdown;
 
   /// No description provided for @localGallery_progressiveLoadError.
   ///

@@ -4013,11 +4013,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get weight_tagNameHint => '输入标签名称...';
 
   @override
-  String tag_selected(Object count) {
-    return '已选 $count';
-  }
-
-  @override
   String get tag_enable => '启用';
 
   @override
@@ -4028,21 +4023,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tag_addTag => '添加标签';
-
-  @override
-  String get tag_add => '添加';
-
-  @override
-  String get tag_inputHint => '输入标签...';
-
-  @override
-  String get tag_copiedToClipboard => '已复制到剪贴板';
-
-  @override
-  String get tag_emptyHint => '添加标签来描述你想要的画面';
-
-  @override
-  String get tag_emptyHintSub => '你可以浏览、搜索或手动添加标签';
 
   @override
   String get tagCategory_artist => '艺术家';
@@ -5162,24 +5142,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibeParseFailed => '无法解析 Vibe 文件';
-
-  @override
-  String get tag_categoryGeneral => '通用';
-
-  @override
-  String get tag_categoryArtist => '画师';
-
-  @override
-  String get tag_categoryCopyright => '版权';
-
-  @override
-  String get tag_categoryCharacter => '角色';
-
-  @override
-  String get tag_categoryMeta => '元数据';
-
-  @override
-  String get tag_countBadgeBreakdown => '标签分类统计';
 
   @override
   String get localGallery_progressiveLoadError => '图片加载失败';
@@ -17867,11 +17829,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get weight_tagNameHint => '輸入標籤名稱...';
 
   @override
-  String tag_selected(Object count) {
-    return '已選 $count';
-  }
-
-  @override
   String get tag_enable => '啟用';
 
   @override
@@ -17882,21 +17839,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get tag_addTag => '新增標籤';
-
-  @override
-  String get tag_add => '新增';
-
-  @override
-  String get tag_inputHint => '輸入標籤...';
-
-  @override
-  String get tag_copiedToClipboard => '已複製到剪貼簿';
-
-  @override
-  String get tag_emptyHint => '新增標籤來描述你想要的畫面';
-
-  @override
-  String get tag_emptyHintSub => '你可以瀏覽、搜尋或手動新增標籤';
 
   @override
   String get tagCategory_artist => '藝術家';
@@ -19016,24 +18958,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get vibeParseFailed => '無法解析 Vibe 檔案';
-
-  @override
-  String get tag_categoryGeneral => '通用';
-
-  @override
-  String get tag_categoryArtist => '畫師';
-
-  @override
-  String get tag_categoryCopyright => '版權';
-
-  @override
-  String get tag_categoryCharacter => '角色';
-
-  @override
-  String get tag_categoryMeta => '後設資料';
-
-  @override
-  String get tag_countBadgeBreakdown => '標籤分類統計';
 
   @override
   String get localGallery_progressiveLoadError => '圖片載入失敗';
