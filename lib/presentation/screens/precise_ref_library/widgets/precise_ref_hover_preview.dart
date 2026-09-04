@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/precise_ref/precise_ref_library_entry.dart';
+import '../../../themes/core/layered_surface_style.dart';
 import '../../../widgets/common/library_card_badges.dart';
 
 /// 精准参考卡片的桌面悬浮预览。
@@ -141,7 +142,7 @@ class _PreciseRefHoverPreviewContentState
         width: imageSize.width,
         constraints: BoxConstraints(maxHeight: widget.maxHeight),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
+          color: overlaySurfaceColor(theme.colorScheme),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -163,7 +164,7 @@ class _PreciseRefHoverPreviewContentState
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    ColoredBox(color: theme.colorScheme.surfaceContainerLowest),
+                    ColoredBox(color: overlaySurfaceColor(theme.colorScheme)),
                     if (widget.image != null)
                       Image.memory(
                         widget.image!,

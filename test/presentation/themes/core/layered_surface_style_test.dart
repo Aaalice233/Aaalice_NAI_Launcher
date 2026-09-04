@@ -8,15 +8,18 @@ void main() {
     final colors = const GrungePalette().darkScheme;
     final section = sectionSurfaceColor(colors);
     final control = controlSurfaceColor(colors);
+    final overlay = overlaySurfaceColor(colors);
 
     expect(section, isNot(colors.surface));
     expect(control, isNot(colors.surface));
+    expect(overlay, isNot(colors.surface));
     expect(control, isNot(section));
     expect(
       section.computeLuminance(),
       greaterThan(colors.surface.computeLuminance()),
     );
     expect(control.computeLuminance(), greaterThan(section.computeLuminance()));
+    expect(overlay.computeLuminance(), greaterThan(section.computeLuminance()));
   });
 
   test('已经声明容器色的主题保持原有语义颜色', () {
@@ -27,5 +30,6 @@ void main() {
 
     expect(sectionSurfaceColor(colors), colors.surfaceContainerLow);
     expect(controlSurfaceColor(colors), colors.surfaceContainer);
+    expect(overlaySurfaceColor(colors), colors.surfaceContainerHigh);
   });
 }

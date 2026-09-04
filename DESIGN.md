@@ -163,6 +163,8 @@ Aaalice NAI Launcher 是高频创作工具，而不是视觉陈列品。Prompt�
 
 Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow`，Control=`surfaceContainer` / `surfaceContainerHighest`，Overlay=`surfaceContainerHigh`。同一页面最多出现三个明显表面层级。
 
+Section、Control 与 Overlay 的语义色必须在实际主题中与 Canvas 保持可辨色差；旧主题若把对应 Material token 映射为相同颜色，统一通过 `sectionSurfaceColor`、`controlSurfaceColor`、`overlaySurfaceColor` 回退解析，禁止组件直接接受与背景融为一体的色面。
+
 **The Semantic Color Rule.** 页面只使用 `ColorScheme` 与具名业务语义；禁止散落固定颜色或把 `secondary` 当作错误色。
 
 **The Quiet Accent Rule.** `primary` 只标记主操作、选择、焦点与关键进度，不能让所有按钮和标签同时高亮。
@@ -273,7 +275,12 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 - **Static Card**：`surfaceContainerLow`、无边框、无阴影；内部 padding 使用 16px 或 24px。
 - **Interactive Card**：hover 可提高色面对比或轻移 2px；focus 使用不改变布局的 1px primary 状态线。
-- **Grouping**：优先标题与留白，其次低对比色面，最后才是边界；不使用三层嵌套卡片。
+- **Grouping**：相关内容使用有明确色差的无边框 Card / Section 色面分组，组间依靠标题与留白分层；禁止用横向分隔线承担界面层级，不使用三层嵌套卡片。分隔线只用于无法通过分组与间距表达的同级连续记录，不能与分组卡片重复表达边界。
+
+### Hover previews
+
+- 悬浮预览属于 Overlay 层，统一使用 `overlaySurfaceColor`，必须与所在页面 Canvas 和源卡片保持可辨色差；不得直接使用可能与背景相同的 `surface` 或未校验的容器 token。
+- 预览依靠色面、圆角与环境阴影从工作区浮起，默认不加完整描边；图片留白和元数据区域必须继承同一 Overlay 色面，不能出现与页面背景连成一片的大块空区。
 
 ### Navigation
 
@@ -283,6 +290,7 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 ### Dialogs and adaptive panels
 
 - Dialog 用于需要完成、取消或确认后才能返回的短时模态流程，例如设置表单、内容选择与风险决策；标题直接说明任务，风险流程的正文先说结果，再说原因。
+- Dialog / adaptive panel 标题区使用无边框 Section 色面与正文建立层级，禁止用横向分隔线切开标题和内容。
 - 操作顺序保持低强调取消在前、主操作在后；Esc 与系统返回可关闭并恢复合理焦点。
 - Expanded / Wide 使用位于视口中央、宽高受限的独立模态 Dialog；标题与底部操作区固定，正文独立滚动，弹窗四周必须保留可见遮罩空间，不得贴靠窗口侧边呈现。
 - Compact / Medium 使用避开 SafeArea 与软键盘的 bottom sheet，并保持与桌面 Dialog 相同的字段语义、状态和操作结果。

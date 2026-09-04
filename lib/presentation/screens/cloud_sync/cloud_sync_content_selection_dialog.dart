@@ -6,6 +6,7 @@ import '../../../core/agent/skill_catalog.dart';
 import '../../../core/cloud_sync/content_selection.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../themes/core/layered_surface_style.dart';
 import 'cloud_sync_agent_content_section.dart';
 
 Future<CloudSyncContentSelection?> showCloudSyncContentSelectionDialog({
@@ -209,7 +210,8 @@ class _CloudSyncContentSelectionBodyState
           ),
         ),
         Material(
-          color: theme.colorScheme.surfaceContainerLow,
+          key: ValueKey('cloud-sync-content-group-$key-surface'),
+          color: sectionSurfaceColor(theme.colorScheme),
           borderRadius: BorderRadius.circular(12),
           clipBehavior: Clip.antiAlias,
           child: Padding(
@@ -217,13 +219,7 @@ class _CloudSyncContentSelectionBodyState
             child: Column(
               children: [
                 for (var index = 0; index < children.length; index++) ...[
-                  if (index > 0)
-                    Divider(
-                      height: 1,
-                      color: theme.colorScheme.outlineVariant.withValues(
-                        alpha: 0.45,
-                      ),
-                    ),
+                  if (index > 0) const SizedBox(height: 4),
                   children[index],
                 ],
               ],

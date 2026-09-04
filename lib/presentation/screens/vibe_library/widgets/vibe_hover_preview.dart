@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../themes/core/layered_surface_style.dart';
 
 /// Desktop quick-look for a Vibe library entry.
 ///
@@ -99,7 +100,7 @@ class _VibeHoverPreviewFrame extends StatelessWidget {
         width: maxWidth,
         height: maxHeight,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHigh,
+          color: overlaySurfaceColor(theme.colorScheme),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -118,7 +119,7 @@ class _VibeHoverPreviewFrame extends StatelessWidget {
                   key: const ValueKey('vibe-hover-media'),
                   fit: StackFit.expand,
                   children: [
-                    ColoredBox(color: theme.colorScheme.surfaceContainerLowest),
+                    ColoredBox(color: overlaySurfaceColor(theme.colorScheme)),
                     if (image != null)
                       Image.memory(
                         image!,
@@ -223,7 +224,7 @@ class _VibeHoverMetadata extends StatelessWidget {
     ].join('  ');
 
     return ColoredBox(
-      color: colorScheme.surfaceContainerHigh,
+      color: overlaySurfaceColor(colorScheme),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Column(
@@ -267,13 +268,9 @@ class _VibeHoverMetadata extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 10),
-            Divider(height: 1, color: colorScheme.outlineVariant),
-            const SizedBox(height: 9),
             _VibeHoverStats(entry: entry),
             if (tagText.isNotEmpty) ...[
-              const SizedBox(height: 9),
-              Divider(height: 1, color: colorScheme.outlineVariant),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
                 tagText,
                 key: const ValueKey('vibe-hover-tags'),

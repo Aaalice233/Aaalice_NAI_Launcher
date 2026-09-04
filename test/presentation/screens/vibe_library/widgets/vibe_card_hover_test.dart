@@ -74,6 +74,14 @@ void main() {
 
     final preview = find.byKey(const ValueKey('vibe-hover-preview'));
     expect(preview, findsOneWidget);
+    final previewDecoration = tester.widget<Container>(preview).decoration;
+    final previewColor = (previewDecoration! as BoxDecoration).color;
+    final previewContext = tester.element(preview);
+    expect(previewColor, isNot(Theme.of(previewContext).colorScheme.surface));
+    expect(
+      find.descendant(of: preview, matching: find.byType(Divider)),
+      findsNothing,
+    );
     final rect = tester.getRect(preview);
     expect(rect.left, greaterThanOrEqualTo(10));
     expect(rect.top, greaterThanOrEqualTo(10));

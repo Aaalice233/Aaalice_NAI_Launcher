@@ -6,8 +6,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../themes/core/layered_surface_style.dart';
 import '../common/gallery_hover_controller.dart';
-import '../common/themed_divider.dart';
 import '../common/thumbnail_display.dart';
 import '../common/translated_tag_text.dart';
 
@@ -180,7 +180,7 @@ class _TagLibraryEntryPreviewOverlayState
           key: const ValueKey('tag-library-entry-preview-overlay'),
           elevation: 16,
           borderRadius: BorderRadius.circular(16),
-          color: theme.colorScheme.surfaceContainerHigh,
+          color: overlaySurfaceColor(theme.colorScheme),
           child: SizedBox(
             width: previewWidth,
             child: ConstrainedBox(
@@ -222,9 +222,7 @@ class _TagLibraryEntryPreviewOverlayState
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              const ThemedDivider(height: 1),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               TranslatedPromptText(
                                 entry.content,
                                 selectable: false,

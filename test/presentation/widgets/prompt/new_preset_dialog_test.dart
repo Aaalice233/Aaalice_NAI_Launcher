@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/themes/theme_extension.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/new_preset_dialog.dart';
 
 void main() {
@@ -33,13 +33,20 @@ void main() {
 
     expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     _expectBoundedDialog(tester, surfaceKey: 'adaptive-bottom-sheet');
-    final headerDivider = tester.widget<Divider>(
+    expect(
       find.byKey(const ValueKey('adaptive-panel-header-divider')),
+      findsNothing,
     );
-    final dividerContext = tester.element(
-      find.byKey(const ValueKey('adaptive-panel-header-divider')),
+    final headerSurface = tester.widget<ColoredBox>(
+      find.byKey(const ValueKey('adaptive-panel-header-surface')),
     );
-    expect(headerDivider.color, Theme.of(dividerContext).appTheme.dividerColor);
+    final headerContext = tester.element(
+      find.byKey(const ValueKey('adaptive-panel-header-surface')),
+    );
+    expect(
+      headerSurface.color,
+      sectionSurfaceColor(Theme.of(headerContext).colorScheme),
+    );
 
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();
