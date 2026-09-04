@@ -46,7 +46,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'compact worst case keeps form usable and back closes editor first',
+    'compact worst case keeps form usable and close exits immediately',
     (tester) async {
       tester.view.devicePixelRatio = 3;
       tester.view.physicalSize = const Size(960, 1440);
@@ -110,16 +110,8 @@ void main() {
         find.byKey(const ValueKey('adaptive-bottom-sheet')),
         findsOneWidget,
       );
-      expect(container.read(selectedCharacterIdProvider), 'alice');
-      expect(tester.takeException(), isNull);
-
-      await tester.binding.handlePopRoute();
-      await tester.pump(const Duration(milliseconds: 300));
       expect(container.read(selectedCharacterIdProvider), isNull);
-      expect(
-        find.byKey(const ValueKey('generation_mobile_character_manager_sheet')),
-        findsOneWidget,
-      );
+      expect(tester.takeException(), isNull);
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();

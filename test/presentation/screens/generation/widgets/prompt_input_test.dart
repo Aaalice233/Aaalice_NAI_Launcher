@@ -324,7 +324,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('手机角色按钮直接展开单个已有角色的完整编辑器', (tester) async {
+  testWidgets('手机角色管理不会自动触发单角色编辑', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(380, 800);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -380,7 +380,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('测试角色'), findsWidgets);
-    expect(find.byType(CharacterPromptEditor), findsOneWidget);
+    expect(find.byType(CharacterPromptEditor), findsNothing);
     expect(
       tester
           .getSize(
@@ -391,6 +391,41 @@ void main() {
           .height,
       greaterThan(600),
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('手机已有角色时添加菜单仍可新建角色', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(380, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final container = await _pumpMobilePromptHarness(tester);
+    final notifier = container.read(characterPromptNotifierProvider.notifier);
+    (notifier as _TestCharacterPromptNotifier).seed([
+      CharacterPrompt.create(name: '已有角色', prompt: '1girl'),
+    ]);
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
+    );
+    await tester.pumpAndSettle();
+    final sheet = find.byKey(
+      const ValueKey('generation_mobile_character_manager_sheet'),
+    );
+    final l10n = AppLocalizations.of(tester.element(sheet))!;
+
+    await tester.tap(find.byKey(const Key('character-add-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.characterEditor_addMale));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(characterPromptNotifierProvider).characters,
+      hasLength(2),
+    );
+    expect(find.byType(CharacterPromptEditor), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

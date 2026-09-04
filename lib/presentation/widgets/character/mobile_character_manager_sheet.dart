@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/character_position_canvas_provider.dart';
-import '../../providers/character_prompt_provider.dart';
 import 'inline_character_row.dart';
 
 /// Character manager content presented by [AdaptivePresenter].
@@ -23,28 +22,7 @@ class MobileCharacterManagerSheet extends ConsumerStatefulWidget {
 class _MobileCharacterManagerSheetState
     extends ConsumerState<MobileCharacterManagerSheet> {
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final characters = ref.read(characterPromptNotifierProvider).characters;
-      if (characters.length == 1) {
-        ref
-            .read(selectedCharacterIdProvider.notifier)
-            .select(characters.single.id);
-      }
-    });
-  }
-
-  void _closeEditor() {
-    FocusManager.instance.primaryFocus?.unfocus();
-    ref.read(selectedCharacterIdProvider.notifier).clear();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final selectedCharacterId = ref.watch(selectedCharacterIdProvider);
-
     ref.listen<bool>(characterPositionCanvasProvider, (previous, next) {
       if (!next || previous == true) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -52,22 +30,16 @@ class _MobileCharacterManagerSheetState
       });
     });
 
-    return PopScope<void>(
-      canPop: selectedCharacterId == null,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && selectedCharacterId != null) _closeEditor();
-      },
-      child: SizedBox.expand(
-        key: const ValueKey('generation_mobile_character_manager_sheet'),
-        child: SingleChildScrollView(
-          controller: widget.scrollController,
-          padding: const EdgeInsets.only(bottom: 16),
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: const InlineCharacterRow(
-            showWhenEmpty: true,
-            compactHeader: true,
-            managerLayout: true,
-          ),
+    return SizedBox.expand(
+      key: const ValueKey('generation_mobile_character_manager_sheet'),
+      child: SingleChildScrollView(
+        controller: widget.scrollController,
+        padding: const EdgeInsets.only(bottom: 16),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: const InlineCharacterRow(
+          showWhenEmpty: true,
+          compactHeader: true,
+          managerLayout: true,
         ),
       ),
     );
