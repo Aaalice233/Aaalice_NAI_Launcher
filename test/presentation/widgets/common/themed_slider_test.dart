@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_slider.dart';
 
 void main() {
-  testWidgets('can hide tick marks without removing discrete divisions', (
+  testWidgets('hides tick marks without removing discrete divisions', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -14,7 +14,6 @@ void main() {
             min: 1,
             max: 50,
             divisions: 49,
-            hideTickMarks: true,
             onChanged: (_) {},
           ),
         ),

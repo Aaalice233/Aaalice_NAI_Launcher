@@ -15,7 +15,6 @@ class ThemedSlider extends StatelessWidget {
     this.divisions,
     this.label,
     this.enabled = true,
-    this.hideTickMarks = false,
     this.activeColor,
     this.inactiveColor,
     this.thumbColor,
@@ -32,7 +31,6 @@ class ThemedSlider extends StatelessWidget {
   final int? divisions;
   final String? label;
   final bool enabled;
-  final bool hideTickMarks;
   final Color? activeColor;
   final Color? inactiveColor;
   final Color? thumbColor;
@@ -51,7 +49,7 @@ class ThemedSlider extends StatelessWidget {
         inactiveTrackColor: inactiveColor ?? colors.surfaceContainerHighest,
         thumbColor: thumbColor ?? activeColor ?? colors.primary,
         overlayColor: (activeColor ?? colors.primary).withValues(alpha: 0.12),
-        tickMarkShape: hideTickMarks ? SliderTickMarkShape.noTickMark : null,
+        tickMarkShape: SliderTickMarkShape.noTickMark,
         thumbShape: RoundSliderThumbShape(
           enabledThumbRadius: thumbSize / 2,
           disabledThumbRadius: thumbSize / 2,

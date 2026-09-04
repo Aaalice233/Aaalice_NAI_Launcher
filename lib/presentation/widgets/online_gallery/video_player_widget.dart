@@ -328,6 +328,7 @@ class OnlineGalleryVideoControls extends StatelessWidget {
                         child: SliderTheme(
                           data: SliderThemeData(
                             trackHeight: 3,
+                            tickMarkShape: SliderTickMarkShape.noTickMark,
                             thumbShape: const RoundSliderThumbShape(
                               enabledThumbRadius: 5,
                             ),

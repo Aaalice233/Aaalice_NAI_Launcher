@@ -79,6 +79,9 @@ class ThemeComposer {
         ),
       ),
       materialTapTargetSize: MaterialTapTargetSize.padded,
+      sliderTheme: SliderThemeData(
+        tickMarkShape: SliderTickMarkShape.noTickMark,
+      ),
 
       // Apply divider module colors to Flutter's built-in divider
       dividerColor: colorScheme.onSurface.withValues(alpha: 0.08),
