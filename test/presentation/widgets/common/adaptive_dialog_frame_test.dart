@@ -3,6 +3,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/common/adaptive_dialog_frame.dart';
 
 void main() {
+  testWidgets('short dialog content keeps its intrinsic height', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: AdaptiveDialogFrame(
+              maxWidth: 420,
+              maxHeight: 600,
+              child: SizedBox(
+                key: ValueKey('short-dialog-content'),
+                height: 72,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byKey(const ValueKey('short-dialog-content'))),
+      const Size(420, 72),
+    );
+  });
+
   testWidgets('bounds dialog content for landscape, large text and keyboard', (
     tester,
   ) async {
@@ -28,9 +57,9 @@ void main() {
                 maxHeight: 600,
                 reservedVerticalSpace: reservedSpace,
                 scaleReservedVerticalSpace: scaleReserve,
-                child: const ColoredBox(
+                child: const SizedBox(
                   key: ValueKey('dialog-content'),
-                  color: Colors.black,
+                  height: 500,
                 ),
               ),
             ),

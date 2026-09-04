@@ -35,7 +35,7 @@ void showFixedTagLinkManager({
     initialChildSize: 0.72,
     minChildSize: 0.38,
     maxChildSize: 0.94,
-    sideSheetWidth: 420,
+    width: 420,
     builder: (panelContext, scrollController) => Align(
       alignment: Alignment.topCenter,
       child: AdaptiveDialogFrame(

@@ -122,6 +122,7 @@ extension ImportMenuExtension on BuildContext {
       maxChildSize: 0.72,
       builder: (panelContext, scrollController) => ListView(
         controller: scrollController,
+        shrinkWrap: true,
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           for (final item in items)

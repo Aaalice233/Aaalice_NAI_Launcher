@@ -352,8 +352,7 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget.key == const ValueKey('adaptive-full-screen-form') ||
-            widget.key == const ValueKey('adaptive-centered-form') ||
-            widget.key == const ValueKey('adaptive-side-sheet'),
+            widget.key == const ValueKey('adaptive-centered-form'),
       ),
       findsOneWidget,
     );

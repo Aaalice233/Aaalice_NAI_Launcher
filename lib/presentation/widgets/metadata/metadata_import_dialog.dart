@@ -33,7 +33,7 @@ class MetadataImportDialog extends StatefulWidget {
   }) {
     return AdaptivePresenter.showForm<MetadataImportOptions>(
       context: context,
-      sideSheetWidth: 560,
+      width: 560,
       titleBuilder: (context) {
         final theme = Theme.of(context);
         return Row(

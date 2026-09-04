@@ -24,7 +24,7 @@ class DiyGuideDialog extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      sideSheetWidth: 680,
+      width: 680,
       builder: (context, scrollController) =>
           DiyGuideDialog(scrollController: scrollController),
     );

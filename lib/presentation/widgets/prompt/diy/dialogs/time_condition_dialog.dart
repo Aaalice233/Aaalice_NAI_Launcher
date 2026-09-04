@@ -26,7 +26,7 @@ class TimeConditionDialog extends StatefulWidget {
   }) {
     return AdaptivePresenter.showForm<TimeCondition>(
       context: context,
-      sideSheetWidth: 600,
+      width: 600,
       titleBuilder: (context) => Row(
         children: [
           const Icon(Icons.calendar_month),

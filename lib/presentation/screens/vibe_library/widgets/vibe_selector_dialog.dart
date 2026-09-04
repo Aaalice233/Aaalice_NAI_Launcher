@@ -184,7 +184,7 @@ class VibeSelectorDialog extends ConsumerStatefulWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(panelContext).textTheme.titleLarge,
       ),
-      sideSheetWidth: 900,
+      width: 900,
       builder: (panelContext, scrollController) {
         if (!openSpanFinished) {
           openSpanFinished = true;

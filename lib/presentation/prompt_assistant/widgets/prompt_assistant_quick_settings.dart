@@ -14,13 +14,14 @@ class PromptAssistantQuickSettings {
       title: context.l10n.promptAssistant_assistantSettings,
       initialChildSize: 0.42,
       minChildSize: 0.32,
-      sideSheetWidth: 440,
+      width: 440,
       builder: (context, scrollController) => Consumer(
         builder: (context, ref, _) {
           final config = ref.watch(promptAssistantConfigProvider);
           final notifier = ref.read(promptAssistantConfigProvider.notifier);
           return ListView(
             controller: scrollController,
+            shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
               SwitchListTile(

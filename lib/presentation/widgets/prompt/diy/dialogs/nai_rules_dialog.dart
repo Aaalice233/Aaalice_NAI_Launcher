@@ -15,7 +15,7 @@ class NaiRulesDialog extends StatelessWidget {
   static Future<void> show(BuildContext context) {
     return AdaptivePresenter.showForm<void>(
       context: context,
-      sideSheetWidth: 600,
+      width: 600,
       titleBuilder: (context) => Row(
         children: [
           const Icon(Icons.info_outline),

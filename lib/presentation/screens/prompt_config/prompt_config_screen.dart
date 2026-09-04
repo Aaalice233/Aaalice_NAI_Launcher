@@ -166,6 +166,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       maxChildSize: 0.62,
       builder: (context, scrollController) => ListView(
         controller: scrollController,
+        shrinkWrap: true,
         padding: const EdgeInsets.all(16),
         children: [
           _ImportExportActionCard(

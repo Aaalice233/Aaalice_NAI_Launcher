@@ -43,7 +43,7 @@ class ShiftEdgesDialog extends StatefulWidget {
   }) {
     return AdaptivePresenter.showForm<ShiftEdgesResult>(
       context: context,
-      sideSheetWidth: 480,
+      width: 480,
       titleBuilder: (context) => Text(
         context.l10n.editor_shiftEdges,
         maxLines: 2,

@@ -37,7 +37,7 @@ class WeightAdjustDialog extends StatefulWidget {
     return AdaptivePresenter.showPanel<void>(
       context: context,
       title: context.l10n.weight_title,
-      sideSheetWidth: 640,
+      width: 640,
       initialChildSize: 0.8,
       minChildSize: 0.5,
       builder: (_, scrollController) => WeightAdjustDialog(
@@ -402,7 +402,7 @@ class TagEditDialog extends StatefulWidget {
     return AdaptivePresenter.showForm<void>(
       context: context,
       title: context.l10n.weight_editTag,
-      sideSheetWidth: 440,
+      width: 440,
       builder: (_, __) => TagEditDialog(tag: tag, onTextChanged: onTextChanged),
     );
   }

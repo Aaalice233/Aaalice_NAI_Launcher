@@ -645,6 +645,7 @@ class _PromptAssistantOverlayState
       ),
       builder: (sheetContext, scrollController) => ListView(
         controller: scrollController,
+        shrinkWrap: true,
         children: [
           ListTile(
             leading: const Icon(Icons.history),

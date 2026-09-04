@@ -28,7 +28,7 @@ class FixedTagLibraryPickerDialog extends StatefulWidget {
     return AdaptivePresenter.showForm<TagLibraryEntry>(
       context: context,
       title: context.l10n.fixedTags_addFromLibrary,
-      sideSheetWidth: 460,
+      width: 460,
       builder: (_, __) => FixedTagLibraryPickerDialog(
         entries: entries,
         presentationManaged: true,

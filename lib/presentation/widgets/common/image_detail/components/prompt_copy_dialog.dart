@@ -24,7 +24,7 @@ class PromptCopyDialog extends StatefulWidget {
     required NaiImageMetadata metadata,
   }) => AdaptivePresenter.showForm<String>(
     context: context,
-    sideSheetWidth: 480,
+    width: 480,
     titleBuilder: (context) {
       final theme = Theme.of(context);
       return Row(
@@ -54,7 +54,7 @@ class PromptCopyDialog extends StatefulWidget {
     required NaiImageMetadata metadata,
   }) => AdaptivePresenter.showForm<String>(
     context: context,
-    sideSheetWidth: 480,
+    width: 480,
     titleBuilder: (context) => Text(
       context.l10n.promptCopy_exportTitle,
       maxLines: 1,

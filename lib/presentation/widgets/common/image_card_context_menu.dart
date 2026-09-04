@@ -46,6 +46,7 @@ class ImageCardContextMenu {
         maxChildSize: 0.94,
         builder: (panelContext, scrollController) => ListView(
           controller: scrollController,
+          shrinkWrap: true,
           padding: const EdgeInsets.only(bottom: 24),
           children: [
             for (final item in items)

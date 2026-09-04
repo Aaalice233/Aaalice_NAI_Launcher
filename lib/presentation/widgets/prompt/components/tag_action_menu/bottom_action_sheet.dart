@@ -113,6 +113,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
 
     return ListView(
       controller: widget.scrollController,
+      shrinkWrap: true,
       padding: const EdgeInsets.only(top: 16, bottom: 16),
       children: [
         _buildTagPreview(theme, tagColor),

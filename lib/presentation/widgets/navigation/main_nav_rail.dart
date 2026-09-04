@@ -1494,7 +1494,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
     AdaptivePresenter.showForm<void>(
       context: context,
       title: context.l10n.auth_addAccount,
-      sideSheetWidth: 450,
+      width: 450,
       builder: (panelContext, scrollController) => ListView(
         key: const Key('main-nav-add-account-form'),
         controller: scrollController,

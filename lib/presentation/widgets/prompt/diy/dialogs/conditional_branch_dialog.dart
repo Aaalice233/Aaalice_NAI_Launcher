@@ -26,7 +26,7 @@ class ConditionalBranchDialog extends StatefulWidget {
   }) {
     return AdaptivePresenter.showForm<ConditionalBranchConfig>(
       context: context,
-      sideSheetWidth: 600,
+      width: 600,
       titleBuilder: (context) => Row(
         children: [
           const Icon(Icons.call_split),

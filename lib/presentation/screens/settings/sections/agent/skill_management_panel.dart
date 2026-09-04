@@ -196,7 +196,7 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
     final confirmed = await AdaptivePresenter.showForm<bool>(
       context: context,
       title: context.l10n.agentSettings_exportSkillsTitle,
-      sideSheetWidth: 560,
+      width: 560,
       builder: (context, scrollController) => StatefulBuilder(
         builder: (context, setFormState) => Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
@@ -332,7 +332,7 @@ class SkillImportConflictForm {
     return AdaptivePresenter.showForm<Set<String>>(
       context: context,
       title: context.l10n.agentSettings_confirmSkillsImport,
-      sideSheetWidth: 600,
+      width: 600,
       builder: (context, scrollController) => StatefulBuilder(
         builder: (context, setFormState) => Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),

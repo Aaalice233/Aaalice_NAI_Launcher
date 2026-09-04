@@ -45,7 +45,7 @@ class TagLibraryPickerDialog extends ConsumerStatefulWidget {
           ),
         ],
       ),
-      sideSheetWidth: 800,
+      width: 800,
       builder: (context, scrollController) => const TagLibraryPickerDialog(),
     );
   }

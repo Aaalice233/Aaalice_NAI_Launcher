@@ -2210,7 +2210,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       title: context.l10n.editor_compressionTitle,
       initialChildSize: 0.62,
       minChildSize: 0.42,
-      sideSheetWidth: 440,
+      width: 440,
       builder: (panelContext, scrollController) => StatefulBuilder(
         builder: (panelContext, setPanelState) {
           final plan = _compressionPlan;
@@ -2220,6 +2220,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
           final theme = Theme.of(panelContext);
           return ListView(
             controller: scrollController,
+            shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
             children: [
               Text(
@@ -3074,7 +3075,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     unawaited(
       AdaptivePresenter.showForm<void>(
         context: context,
-        sideSheetWidth: 440,
+        width: 440,
         titleBuilder: (panelContext) => Row(
           children: [
             const Icon(Icons.keyboard),
@@ -3091,6 +3092,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         builder: (panelContext, scrollController) => ListView(
           key: const ValueKey('image-editor-shortcut-help-scroll'),
           controller: scrollController,
+          shrinkWrap: true,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.all(20),
           children: [

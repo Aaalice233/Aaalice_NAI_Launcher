@@ -20,7 +20,7 @@ class OnlineGalleryAuthDialogs {
       initialChildSize: 0.82,
       minChildSize: 0.58,
       maxChildSize: 0.96,
-      sideSheetWidth: 440,
+      width: 440,
       builder: (_, scrollController) => DanbooruLoginDialog(
         embedded: true,
         scrollController: scrollController,
@@ -41,7 +41,7 @@ class OnlineGalleryAuthDialogs {
       initialChildSize: 0.86,
       minChildSize: 0.58,
       maxChildSize: 0.96,
-      sideSheetWidth: 480,
+      width: 480,
       builder: (_, scrollController) => GelbooruCredentialsDialog(
         embedded: true,
         scrollController: scrollController,

@@ -35,7 +35,7 @@ class NewPresetDialog extends StatefulWidget {
   static Future<NewPresetResult?> show(BuildContext context) {
     return AdaptivePresenter.showForm<NewPresetResult>(
       context: context,
-      sideSheetWidth: 420,
+      width: 420,
       maxCenteredHeight: 460,
       titleBuilder: (panelContext) => Row(
         children: [

@@ -297,7 +297,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
   void _showEditDialog(BuildContext context, {int initialTabIndex = 0}) {
     AdaptivePresenter.showForm<void>(
       context: context,
-      sideSheetWidth: 640,
+      width: 640,
       titleBuilder: (panelContext) {
         final compactTitle =
             MediaQuery.textScalerOf(panelContext).scale(1) >= 2;
@@ -1050,7 +1050,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   }) {
     return AdaptivePresenter.showForm<void>(
       context: context,
-      sideSheetWidth: 620,
+      width: 620,
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(

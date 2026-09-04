@@ -27,7 +27,7 @@ class WorkflowImportWizard extends ConsumerStatefulWidget {
   static Future<void> show(BuildContext context) {
     return AdaptivePresenter.showForm<void>(
       context: context,
-      sideSheetWidth: 600,
+      width: 600,
       barrierDismissible: false,
       titleBuilder: (panelContext) => Row(
         children: [

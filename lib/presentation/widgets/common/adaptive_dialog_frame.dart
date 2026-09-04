@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Gives dialog bodies a bounded viewport while preserving a preferred
-/// desktop size. The reserved space accounts for route insets, titles and
-/// action rows that live outside [child].
+/// Gives dialog bodies a bounded viewport without forcing short content to
+/// occupy the full available height. The reserved space accounts for route
+/// insets, titles and action rows that live outside [child].
 class AdaptiveDialogFrame extends StatelessWidget {
   const AdaptiveDialogFrame({
     super.key,
@@ -46,13 +46,17 @@ class AdaptiveDialogFrame extends StatelessWidget {
     );
 
     // AlertDialog measures its content intrinsically. LayoutBuilder cannot
-    // provide intrinsic dimensions, so the frame must derive its preferred
-    // bounds directly from the current viewport and let parent constraints
-    // tighten the resulting SizedBox when necessary.
+    // provide intrinsic dimensions, so derive the bounds from the viewport.
+    // Width remains stable on desktop, while height is only capped: forcing
+    // maxHeight here makes every short dialog look like a mostly empty panel.
     return SizedBox(
       width: math.min(maxWidth, viewportWidth),
-      height: math.min(maxHeight, viewportHeight),
-      child: child,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: math.min(maxHeight, viewportHeight),
+        ),
+        child: child,
+      ),
     );
   }
 }
