@@ -81,6 +81,13 @@ void main() {
         expect(stepDecoration.color, isNotNull);
         expect(stepDecoration.border, isNull);
         expect(stepDecoration.borderRadius, BorderRadius.circular(8));
+        final stepInkWell = tester.widget<InkWell>(
+          find.descendant(
+            of: find.byKey(const ValueKey('step')),
+            matching: find.byType(InkWell),
+          ),
+        );
+        expect(stepInkWell.borderRadius, BorderRadius.circular(8));
         final stepPrompt = tester.widget<TranslatedPromptText>(
           find.descendant(
             of: find.byKey(const ValueKey('step')),
