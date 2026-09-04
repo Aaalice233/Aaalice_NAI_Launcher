@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-04T02:07:24.075Z",
+  "generatedAt": "2026-09-04T05:47:22.549Z",
   "title": "Design System: Aaalice NAI Launcher",
   "extensions": {
     "colorMeta": {
@@ -172,7 +172,7 @@
       "refersTo": "navigation-active",
       "description": "A 48px desktop navigation item with calm selected emphasis.",
       "html": "<button class=\"ds-nav-item\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 5h18v14H3zM7 9h10v6H7z\" fill=\"currentColor\"/></svg><span>生成</span></button>",
-      "css": ".ds-nav-item { width: 180px; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 0; border-radius: 4px; background: #5c4a3d; color: #fff5ee; font: 500 14px 'Courier Prime', monospace; cursor: pointer; transition: background-color 150ms ease-out, transform 100ms ease-out; } .ds-nav-item svg { width: 24px; height: 24px; flex: none; } .ds-nav-item:hover { background: color-mix(in srgb, #5c4a3d 84%, #f0ead6); } .ds-nav-item:active { transform: scale(.97); } .ds-nav-item:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; }"
+      "css": ".ds-nav-item { width: 180px; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 0; border-radius: 4px; background: #5c4a3d; color: #fff5ee; font: 500 14px 'Courier Prime', monospace; cursor: pointer; transition: background-color 150ms ease-out, opacity 100ms ease-out; } .ds-nav-item svg { width: 24px; height: 24px; flex: none; } .ds-nav-item:hover { background: color-mix(in srgb, #5c4a3d 84%, #f0ead6); } .ds-nav-item:active { opacity: .84; } .ds-nav-item:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; }"
     },
     {
       "name": "Section Card",
@@ -180,7 +180,28 @@
       "refersTo": "card-section",
       "description": "A flat, tonal section container for grouped working content.",
       "html": "<section class=\"ds-card\"><h3>生成参数</h3><p>采样器、尺寸与质量设置</p></section>",
-      "css": ".ds-card { width: 280px; padding: 16px; border: 0; border-radius: 8px; background: #1a1a1a; color: #f0ead6; box-shadow: none; font-family: 'Courier Prime', monospace; } .ds-card h3 { margin: 0 0 8px; font: 500 16px 'Courier Prime', monospace; } .ds-card p { margin: 0; color: #d4cfc0; font-size: 12px; } .ds-card:focus-within { outline: 1px solid #f0ead6; outline-offset: -1px; }"
+      "css": ".ds-card { width: 280px; padding: 16px; border: 0; border-radius: 8px; background: #252525; color: #f0ead6; box-shadow: none; font-family: 'Courier Prime', monospace; } .ds-card h3 { margin: 0 0 8px; font: 500 16px 'Courier Prime', monospace; } .ds-card p { margin: 0; color: #d4cfc0; font-size: 12px; } .ds-card:focus-within { outline: 1px solid #f0ead6; outline-offset: -1px; }"
+    },
+    {
+      "name": "Collection Workspace Toolbar",
+      "kind": "custom",
+      "description": "A full-width section surface that anchors the page identity and collection actions without table-like dividers.",
+      "html": "<header class=\"ds-collection-toolbar\"><span class=\"ds-collection-title\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 5h16v14H4zM7 8h10v2H7zm0 4h7v2H7z\" fill=\"currentColor\"/></svg>精准参考</span><span class=\"ds-collection-actions\"><button>导入</button><button>多选</button></span></header>",
+      "css": ".ds-collection-toolbar { min-height: 72px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 0; border-radius: 8px; background: #252525; color: #f0ead6; font-family: 'Courier Prime', monospace; } .ds-collection-title { display: flex; align-items: center; gap: 8px; flex: none; font: 600 16px 'Oswald', sans-serif; } .ds-collection-title svg { width: 20px; height: 20px; } .ds-collection-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; } .ds-collection-actions button { min-height: 40px; padding: 10px 16px; border: 0; border-radius: 6px; background: #343434; color: #f0ead6; font: 500 14px 'Courier Prime', monospace; transition: background-color 150ms ease-out, opacity 100ms ease-out; } .ds-collection-actions button:hover { background: #525252; } .ds-collection-actions button:active { opacity: .84; } .ds-collection-actions button:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; }"
+    },
+    {
+      "name": "Hover Preview",
+      "kind": "custom",
+      "description": "An overlay surface whose image gutter and metadata remain visually continuous and distinct from the canvas.",
+      "html": "<aside class=\"ds-hover-preview\" role=\"dialog\" aria-label=\"悬浮预览\"><div class=\"ds-preview-image\">PREVIEW</div><div class=\"ds-preview-meta\"><strong>最终生效提示词</strong><span>1girl, cinematic lighting</span></div></aside>",
+      "css": ".ds-hover-preview { width: 320px; overflow: hidden; border: 0; border-radius: 12px; background: #343434; color: #f0ead6; box-shadow: 0 8px 24px rgba(0,0,0,.24); font-family: 'Courier Prime', monospace; } .ds-preview-image { min-height: 150px; display: grid; place-items: center; background: #2a2a2a; color: #d4cfc0; font-size: 12px; letter-spacing: .12em; } .ds-preview-meta { display: grid; gap: 8px; padding: 16px; background: inherit; } .ds-preview-meta strong { font: 500 16px 'Courier Prime', monospace; } .ds-preview-meta span { color: #d4cfc0; font-size: 13px; line-height: 1.45; } .ds-hover-preview:focus-within { outline: 2px solid #f0ead6; outline-offset: 2px; }"
+    },
+    {
+      "name": "Adaptive Modal Dialog",
+      "kind": "custom",
+      "description": "A centered, bounded desktop dialog that becomes a safe-area-aware bottom sheet on compact widths without changing task semantics.",
+      "html": "<section class=\"ds-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"ds-dialog-title\"><header><h2 id=\"ds-dialog-title\">选择备份内容</h2></header><div class=\"ds-dialog-body\"><section><h3>创作资料</h3><label><input type=\"checkbox\" checked> 提示词与预设</label></section><section><h3>资源库</h3><label><input type=\"checkbox\"> 精准参考</label></section></div><footer><button class=\"ds-dialog-cancel\">取消</button><button class=\"ds-dialog-save\">保存</button></footer></section>",
+      "css": ".ds-dialog { width: min(560px, calc(100vw - 48px)); max-height: calc(100vh - 48px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border: 0; border-radius: 24px; background: #343434; color: #f0ead6; box-shadow: 0 16px 40px rgba(0,0,0,.32); font-family: 'Courier Prime', monospace; } .ds-dialog > header { padding: 20px 24px; background: #252525; } .ds-dialog h2, .ds-dialog h3 { margin: 0; } .ds-dialog h2 { font: 600 22px 'Oswald', sans-serif; } .ds-dialog h3 { margin-bottom: 12px; font-size: 16px; } .ds-dialog-body { overflow-y: auto; display: grid; gap: 24px; padding: 24px; } .ds-dialog-body section { padding: 16px; border-radius: 8px; background: #252525; } .ds-dialog > footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; background: #252525; } .ds-dialog button { min-height: 40px; padding: 10px 16px; border: 0; border-radius: 6px; font: 500 14px 'Courier Prime', monospace; } .ds-dialog-cancel { background: transparent; color: #d4cfc0; } .ds-dialog-save { background: #f0ead6; color: #1a1a1a; } .ds-dialog button:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; } @media (max-width: 839px) { .ds-dialog { width: 100%; max-height: calc(100vh - 24px); align-self: end; border-radius: 24px 24px 0 0; } }"
     },
     {
       "name": "Image Card",
@@ -217,13 +238,15 @@
       "**Do** 从公共组件、ColorScheme、TextTheme、AppThemeExtension 和稳定 spacing tokens 获取样式。",
       "**Do** 保持 default、hover、pressed、selected、focused、disabled、loading 状态完整且几何稳定。",
       "**Do** 为桌面鼠标、触控板、键盘和移动端触屏提供等价完成路径。",
-      "**Do** 在共享 UI 变更中覆盖必要的 360、412、600、840、1180、1600px 断点，并检查 SafeArea、软键盘、系统返回和窗口缩放。",
+      "**Do** 在共享 UI 变更中至少覆盖 320、600、840、1180、1600px，并按需要补充 360/412 等实际设备宽度；同时检查 3 倍文字、短横屏、SafeArea、软键盘、系统返回和窗口缩放。",
       "**Do** 使用 Semantics、清晰焦点、至少 WCAG AA 的正文对比度，以及不只依赖颜色的 selected / error / success 表达。",
       "**Do** 让加载和错误原位呈现，局部刷新保留已有内容；超过约 300ms 的异步操作提供可见反馈。"
     ],
     "donts": [
       "**Don't** 给普通卡片、工具按钮、导航项、chip 或已填充控件默认添加高对比完整描边。",
       "**Don't** 叠加“大圆角卡片 + 图标底座 + 标题 + 副标题”，或用外框、内框和分隔线重复表达同一分组。",
+      "**Don't** 连续堆放近义标题，或把副标题当成每个控件的默认组成；信息不能帮助判断时直接删除。",
+      "**Don't** 在同一纵向流程里嵌套两个可滚动区域；长子列表拆成独立选择弹窗。",
       "**Don't** 在页面散落固定颜色、圆角、间距和 Duration，或声明没有实际消费者的 token。",
       "**Don't** 通过缩小文字、裁切、FittedBox、静默隐藏功能或复制业务流程得到移动版。",
       "**Don't** 让 hover、右键、外接键盘或精细拖拽成为核心任务的唯一入口。",
