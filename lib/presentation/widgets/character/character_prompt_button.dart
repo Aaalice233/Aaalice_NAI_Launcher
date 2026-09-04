@@ -82,33 +82,28 @@ class CharacterPromptButton extends ConsumerWidget {
               ),
             ),
           ],
+          if (hasCharacters) ...[
+            const SizedBox(width: 5),
+            _CharacterCountBadge(
+              key: const ValueKey('character-count-badge'),
+              count: characterCount,
+            ),
+          ],
         ],
       ),
     );
 
     return _CharacterTooltipWrapper(
       config: config,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Material(
-            color: Colors.transparent,
-            child: onManage == null
-                ? _AddCharacterMenu(child: buttonContent)
-                : InkWell(
-                    onTap: onManage,
-                    borderRadius: BorderRadius.circular(10),
-                    child: buttonContent,
-                  ),
-          ),
-          // 按钮右上角角标
-          if (hasCharacters)
-            Positioned(
-              right: -4,
-              top: -4,
-              child: _CharacterCountBadge(count: characterCount),
-            ),
-        ],
+      child: Material(
+        color: Colors.transparent,
+        child: onManage == null
+            ? _AddCharacterMenu(child: buttonContent)
+            : InkWell(
+                onTap: onManage,
+                borderRadius: BorderRadius.circular(10),
+                child: buttonContent,
+              ),
       ),
     );
   }
@@ -219,7 +214,7 @@ class _AddCharacterMenu extends ConsumerWidget {
 class _CharacterCountBadge extends StatelessWidget {
   final int count;
 
-  const _CharacterCountBadge({required this.count});
+  const _CharacterCountBadge({super.key, required this.count});
 
   @override
   Widget build(BuildContext context) {

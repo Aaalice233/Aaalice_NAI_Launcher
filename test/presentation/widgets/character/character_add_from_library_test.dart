@@ -121,6 +121,12 @@ void main() {
     await tester.pumpAndSettle();
 
     final button = find.byType(CharacterPromptButton);
+    final badge = find.byKey(const ValueKey('character-count-badge'));
+    expect(badge, findsOneWidget);
+    final buttonRect = tester.getRect(button);
+    final badgeRect = tester.getRect(badge);
+    expect(buttonRect.contains(badgeRect.topLeft), isTrue);
+    expect(buttonRect.contains(badgeRect.bottomRight), isTrue);
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(location: Offset.zero);
