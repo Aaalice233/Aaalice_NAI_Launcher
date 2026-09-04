@@ -98,7 +98,7 @@ class GenerationTransferConfiguration {
       model: _resolveModel(info),
       seed: _validInt(info.seed, min: 0, max: 0xffffffff),
       steps: _validInt(info.steps, min: 1, max: 50),
-      scale: _validDouble(info.cfgScale, min: 0, max: 10),
+      scale: _validDouble(info.cfgScale, min: 1, max: 20),
       cfgRescale: _validDouble(info.cfgRescale, min: 0, max: 1),
       noiseSchedule: _resolveNoiseSchedule(info.scheduler),
       smea: info.smea,

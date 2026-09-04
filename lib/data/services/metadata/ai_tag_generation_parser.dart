@@ -30,6 +30,7 @@ class AiTagGenerationParser {
             decoded,
             prettyJson: pretty,
             rawJson: effectiveRaw,
+            imageType: imageType,
           );
           if (naiInfo != null) return naiInfo;
           // SD path: {"parameters": "prompt\nSteps: ..."}
@@ -407,16 +408,20 @@ class AiTagGenerationParser {
     Map<String, dynamic> decoded, {
     required String prettyJson,
     required String rawJson,
+    required String imageType,
   }) {
     final software =
         decoded['Software']?.toString() ?? decoded['software']?.toString();
     final source =
         decoded['Source']?.toString() ?? decoded['source']?.toString();
     final comment = _decodeJsonMap(decoded['Comment'] ?? decoded['comment']);
+    final normalizedSoftware = software?.toLowerCase();
+    final normalizedSource = source?.toLowerCase();
     final isNaiHint =
-        (software != null && software.contains('NovelAI')) ||
-        (source != null && source.contains('NovelAI')) ||
-        comment != null;
+        normalizedSoftware?.contains('novelai') == true ||
+        normalizedSource?.contains('novelai') == true ||
+        comment != null ||
+        _softwareFromImageType(imageType) == 'NovelAI';
     if (!isNaiHint) return null;
     // Direct Comment may be missing but top-level already looks like NAI payload
     // (e.g. {"prompt": "...", "steps": 28}) — treat decoded itself as comment.

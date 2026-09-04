@@ -106,6 +106,37 @@ void main() {
       expect(info.smeaDyn, isFalse);
     });
 
+    test('parses a direct NovelAI comment using the image type hint', () {
+      final raw = jsonEncode({
+        'prompt': '1girl',
+        'uc': 'lowres',
+        'steps': 28,
+        'sampler': 'k_euler',
+        'scale': 5,
+        'cfg_rescale': 0.2,
+        'seed': 7,
+        'width': 832,
+        'height': 1216,
+        'noise_schedule': 'karras',
+        'sm': true,
+        'sm_dyn': true,
+      });
+
+      final info = AiTagGenerationParser.parse(
+        rawAiJson: raw,
+        promptText: null,
+        imageType: 'NAI',
+      );
+
+      expect(info.software, 'NovelAI');
+      expect(info.prompt, '1girl');
+      expect(info.negativePrompt, 'lowres');
+      expect(info.cfgRescale, 0.2);
+      expect(info.scheduler, 'karras');
+      expect(info.smea, isTrue);
+      expect(info.smeaDyn, isTrue);
+    });
+
     test('parses a generic direct-key payload', () {
       final raw = jsonEncode({
         'model_name': 'generic-model',

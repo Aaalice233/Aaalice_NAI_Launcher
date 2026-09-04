@@ -125,6 +125,37 @@ void main() {
       GenerationTransferSetting.size,
     });
   });
+
+  test('NAI CFG transfer uses the same range as the generation form', () {
+    const supported = AiTagGenerationInfo(
+      software: 'NovelAI',
+      cfgScale: 12,
+      prettyJson: '{}',
+      rawJson: '{}',
+    );
+    const belowMinimum = AiTagGenerationInfo(
+      software: 'NovelAI',
+      cfgScale: 0,
+      prettyJson: '{}',
+      rawJson: '{}',
+    );
+    const aboveMaximum = AiTagGenerationInfo(
+      software: 'NovelAI',
+      cfgScale: 20.1,
+      prettyJson: '{}',
+      rawJson: '{}',
+    );
+
+    expect(GenerationTransferConfiguration.tryFromAiTag(supported)!.scale, 12);
+    expect(
+      GenerationTransferConfiguration.tryFromAiTag(belowMinimum)!.scale,
+      isNull,
+    );
+    expect(
+      GenerationTransferConfiguration.tryFromAiTag(aboveMaximum)!.scale,
+      isNull,
+    );
+  });
 }
 
 class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
