@@ -11,7 +11,7 @@ import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
-import 'package:nai_launcher/presentation/widgets/common/animated_favorite_button.dart';
+import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 
 void main() {
@@ -113,7 +113,7 @@ void main() {
     );
   });
 
-  testWidgets('Vibe 卡片悬浮操作不会遮住收藏按钮', (tester) async {
+  testWidgets('Vibe 卡片悬浮操作复用图片卡片双列操作轨', (tester) async {
     tester.view.physicalSize = const Size(400, 400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -162,60 +162,53 @@ void main() {
     await tester.pump();
 
     final cardRect = tester.getRect(cardFinder);
-    final favoriteRect = tester.getRect(
-      find.descendant(
-        of: find.byType(CardFavoriteButton),
-        matching: find.byType(IconButton),
-      ),
-    );
-    final actionRects = [
-      for (final icon in [
-        Icons.auto_awesome_outlined,
-        Icons.send,
-        Icons.download,
-        Icons.edit,
-        Icons.delete,
+    expect(find.byType(CardActionButtons), findsOneWidget);
+    final actionKeys = [
+      for (final action in [
+        'favorite',
+        'agent',
+        'send',
+        'export',
+        'edit',
+        'delete',
       ])
-        tester.getRect(
-          find
-              .ancestor(
-                of: find.byIcon(icon),
-                matching: find.byType(AnimatedContainer),
-              )
-              .first,
-        ),
+        ValueKey('vibe-card-$action-${entry.id}'),
+    ];
+    final actionRects = [
+      for (final key in actionKeys) tester.getRect(find.byKey(key)),
     ];
 
     for (final rect in actionRects) {
       expect(cardRect.contains(rect.topLeft), isTrue);
       expect(cardRect.contains(rect.bottomRight), isTrue);
-      expect(favoriteRect.overlaps(rect), isFalse);
     }
-    final sendButton = tester.widget<AnimatedContainer>(
-      find
-          .ancestor(
-            of: find.byIcon(Icons.send),
-            matching: find.byType(AnimatedContainer),
-          )
-          .first,
+    expect(actionRects.take(3).map((rect) => rect.left).toSet(), hasLength(1));
+    expect(actionRects.skip(3).map((rect) => rect.left).toSet(), hasLength(1));
+    expect(actionRects[3].left, greaterThan(actionRects[0].left));
+    expect(actionRects[0].top, closeTo(actionRects[3].top, 0.01));
+
+    final sendButton = tester.widget<IconButton>(
+      find.byKey(ValueKey('vibe-card-send-${entry.id}')),
     );
-    final deleteButton = tester.widget<AnimatedContainer>(
-      find
-          .ancestor(
-            of: find.byIcon(Icons.delete),
-            matching: find.byType(AnimatedContainer),
-          )
-          .first,
+    final deleteButton = tester.widget<IconButton>(
+      find.byKey(ValueKey('vibe-card-delete-${entry.id}')),
     );
-    final sendDecoration = sendButton.decoration! as BoxDecoration;
-    final deleteDecoration = deleteButton.decoration! as BoxDecoration;
-    expect(sendDecoration.color, Colors.black.withValues(alpha: 0.5));
-    expect(deleteDecoration.color, sendDecoration.color);
-    expect(sendDecoration.borderRadius, BorderRadius.circular(16));
-    expect(deleteDecoration.borderRadius, sendDecoration.borderRadius);
-    expect(tester.widget<Icon>(find.byIcon(Icons.send)).color, Colors.white);
     expect(
-      tester.widget<Icon>(find.byIcon(Icons.delete)).color,
+      sendButton.style!.backgroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.surface,
+    );
+    expect(
+      deleteButton.style!.backgroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.surface,
+    );
+    expect(sendButton.style!.shape!.resolve(const {}), isA<CircleBorder>());
+    expect(deleteButton.style!.shape!.resolve(const {}), isA<CircleBorder>());
+    expect(
+      sendButton.style!.foregroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.foreground,
+    );
+    expect(
+      deleteButton.style!.foregroundColor!.resolve(const {}),
       Theme.of(tester.element(find.byIcon(Icons.delete))).colorScheme.error,
     );
     expect(tester.takeException(), isNull);

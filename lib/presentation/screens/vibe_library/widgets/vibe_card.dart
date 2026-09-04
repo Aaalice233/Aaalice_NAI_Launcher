@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -11,7 +10,7 @@ import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
-import '../../../widgets/common/animated_favorite_button.dart';
+import '../../../widgets/common/card_action_buttons.dart';
 import '../../../widgets/common/card_hover_preview_controller.dart';
 import '../../../widgets/common/image_card_actions.dart';
 import '../../../widgets/common/translated_tag_text.dart';
@@ -302,10 +301,6 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
                   // 信息层
                   _buildInfoOverlay(),
-
-                  // 精确指针保留悬浮收藏；触屏合并到常驻操作菜单。
-                  if (widget.showFavoriteIndicator && !isTouch)
-                    _buildFavoriteButton(),
 
                   // Bundle 数量标识
                   if (widget.entry.isBundle) _buildBundleBadge(),
@@ -655,23 +650,6 @@ class _VibeCardState extends ConsumerState<VibeCard>
     );
   }
 
-  Widget _buildFavoriteButton() {
-    final isFavorite = widget.entry.isFavorite;
-    final showButton = _isHovered || isFavorite;
-
-    if (!showButton) return const SizedBox.shrink();
-
-    return Positioned(
-      top: 8,
-      right: 8,
-      child: CardFavoriteButton(
-        isFavorite: isFavorite,
-        onToggle: widget.onFavoriteToggle,
-        size: 18,
-      ),
-    );
-  }
-
   Widget _buildBundleBadge() {
     return Positioned(
       top: 8,
@@ -850,66 +828,68 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
   Widget _buildActionButtons() {
     final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
-    final actions = <Widget>[
+    final actions = <CardActionButtonConfig>[
+      if (widget.showFavoriteIndicator && widget.onFavoriteToggle != null)
+        CardActionButtonConfig(
+          key: ValueKey('vibe-card-favorite-${widget.entry.id}'),
+          icon: widget.entry.isFavorite
+              ? Icons.favorite_rounded
+              : Icons.favorite_border_rounded,
+          iconColor: widget.entry.isFavorite
+              ? Theme.of(context).colorScheme.error
+              : null,
+          tooltip: widget.entry.isFavorite
+              ? context.l10n.common_unfavorite
+              : context.l10n.common_favorite,
+          onPressed: widget.onFavoriteToggle!,
+        ),
       if (onAddToAgent != null)
-        _ActionButton(
+        CardActionButtonConfig(
+          key: ValueKey('vibe-card-agent-${widget.entry.id}'),
           icon: Icons.auto_awesome_outlined,
           tooltip: context.l10n.agentChat_addResource,
-          onTap: onAddToAgent,
+          onPressed: onAddToAgent,
         ),
       if (widget.onSendToGeneration != null)
-        _ActionButton(
+        CardActionButtonConfig(
+          key: ValueKey('vibe-card-send-${widget.entry.id}'),
           icon: Icons.send,
-          tooltip: context.l10n.vibe_reuseButton,
-          modifierHint: context.l10n.vibe_shiftReplaceHint,
-          onTap: widget.onSendToGeneration,
+          tooltip:
+              '${context.l10n.vibe_reuseButton}\n${context.l10n.vibe_shiftReplaceHint}',
+          onPressed: widget.onSendToGeneration!,
         ),
       if (widget.onExport != null)
-        _ActionButton(
+        CardActionButtonConfig(
+          key: ValueKey('vibe-card-export-${widget.entry.id}'),
           icon: Icons.download,
           tooltip: context.l10n.common_export,
-          onTap: widget.onExport,
+          onPressed: widget.onExport!,
         ),
       if (widget.onEdit != null)
-        _ActionButton(
+        CardActionButtonConfig(
+          key: ValueKey('vibe-card-edit-${widget.entry.id}'),
           icon: Icons.edit,
           tooltip: context.l10n.common_edit,
-          onTap: widget.onEdit,
+          onPressed: widget.onEdit!,
         ),
       if (widget.onDelete != null)
-        _ActionButton(
+        CardActionButtonConfig(
+          key: ValueKey('vibe-card-delete-${widget.entry.id}'),
           icon: Icons.delete,
           tooltip: context.l10n.common_delete,
-          onTap: widget.onDelete,
-          isDanger: true,
+          iconColor: Theme.of(context).colorScheme.error,
+          onPressed: widget.onDelete!,
         ),
     ];
-    final cardHeight = widget.height ?? widget.width;
-    final top = widget.showFavoriteIndicator ? 60.0 : 8.0;
-    const actionExtent = 44.0;
-    final availableHeight = math.max(actionExtent, cardHeight - top - 8);
-    final needsSecondColumn = actions.length * actionExtent > availableHeight;
 
     return Positioned(
-      // 收藏按钮位于 top 8 且保留 40dp 命中区，操作组与其保持 12dp 间距。
-      top: top,
+      top: 8,
       right: 8,
-      child: needsSecondColumn
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: actions.skip((actions.length + 1) ~/ 2).toList(),
-                ),
-                const SizedBox(width: 4),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: actions.take((actions.length + 1) ~/ 2).toList(),
-                ),
-              ],
-            )
-          : Column(mainAxisSize: MainAxisSize.min, children: actions),
+      child: CardActionButtons(
+        visible: true,
+        direction: Axis.vertical,
+        buttons: actions,
+      ),
     );
   }
 }
@@ -1317,141 +1297,6 @@ class _HoverBadge extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 操作按钮组件
-class _ActionButton extends StatefulWidget {
-  final IconData icon;
-  final String tooltip;
-
-  /// 修饰键提示文本，如 "Shift+点击 替换"
-  final String? modifierHint;
-  final VoidCallback? onTap;
-  final bool isDanger;
-
-  const _ActionButton({
-    required this.icon,
-    required this.tooltip,
-    this.modifierHint,
-    this.onTap,
-    this.isDanger = false,
-  });
-
-  @override
-  State<_ActionButton> createState() => _ActionButtonState();
-}
-
-class _ActionButtonState extends State<_ActionButton> {
-  bool _isHovered = false;
-  bool _showTooltip = false;
-  Timer? _tooltipTimer;
-
-  void _onEnter() {
-    setState(() {
-      _isHovered = true;
-      _showTooltip = true;
-    });
-    _tooltipTimer?.cancel();
-  }
-
-  void _onExit() {
-    setState(() => _isHovered = false);
-    _tooltipTimer?.cancel();
-    _tooltipTimer = Timer(const Duration(milliseconds: 100), () {
-      if (mounted) setState(() => _showTooltip = false);
-    });
-  }
-
-  @override
-  void dispose() {
-    _tooltipTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    final backgroundColor = Colors.black.withValues(
-      alpha: _isHovered ? 0.68 : 0.5,
-    );
-    final iconColor = widget.isDanger ? colorScheme.error : Colors.white;
-
-    return MouseRegion(
-      onEnter: (_) => _onEnter(),
-      onExit: (_) => _onExit(),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // 按钮主体
-            AnimatedContainer(
-              duration: disableAnimations
-                  ? Duration.zero
-                  : const Duration(milliseconds: 120),
-              curve: Curves.easeOut,
-              width: 40,
-              height: 40,
-              margin: const EdgeInsets.only(bottom: 4),
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(widget.icon, size: 18, color: iconColor),
-            ),
-            // 自定义 Tooltip
-            if (_showTooltip)
-              Positioned(
-                right: 40,
-                top: 4,
-                child: AnimatedOpacity(
-                  opacity: _showTooltip ? 1.0 : 0.0,
-                  duration: disableAnimations
-                      ? Duration.zero
-                      : const Duration(milliseconds: 100),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          widget.tooltip,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        if (widget.modifierHint != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            widget.modifierHint!,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
