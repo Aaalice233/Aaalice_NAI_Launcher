@@ -116,7 +116,7 @@ void main() {
   }
 
   testWidgets(
-    'rich tooltip surface separates overlay and scrolls long content',
+    'rich tooltip surface owns one scrollbar while scrolling on desktop',
     (tester) async {
       tester.view.physicalSize = const Size(600, 360);
       tester.view.devicePixelRatio = 1;
@@ -125,7 +125,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData.dark(),
+          theme: ThemeData.dark().copyWith(platform: TargetPlatform.windows),
           home: const Scaffold(
             body: RichTooltipSurface(
               maxWidth: 420,
@@ -161,6 +161,18 @@ void main() {
         find.descendant(of: surface, matching: find.byType(Scrollbar)),
       );
       expect(scrollbar.thumbVisibility, isTrue);
+      expect(
+        find.descendant(of: surface, matching: find.byType(Scrollbar)),
+        findsOneWidget,
+      );
+
+      await tester.drag(scrollView, const Offset(0, -120));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(of: surface, matching: find.byType(Scrollbar)),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -467,6 +479,75 @@ void main() {
 
     expect(positiveCopies, 1);
     expect(negativeCopies, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('fixed-tag sections show every enabled entry without clipping', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final theme = ThemeData.dark();
+    final prefixes = List.generate(
+      3,
+      (index) => FixedTagEntry.create(
+        name: 'prefix $index',
+        content: List.filled(8, 'prefix_${index}_tag').join(', '),
+        sortOrder: index,
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: theme,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Consumer(
+            builder: (context, ref, _) => Scaffold(
+              body: SizedBox(
+                width: 320,
+                child: PositivePromptTooltip(
+                  theme: theme,
+                  userPrompt: '',
+                  prefixes: prefixes,
+                  suffixes: const [],
+                  qualityContent: null,
+                  characters: const [],
+                  globalAiChoice: true,
+                  l10n: AppLocalizations.of(context)!,
+                  aliasResolver: ref.read(
+                    aliasResolverServiceProvider.notifier,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final fixedTagSection = find.byWidgetPredicate(
+      (widget) =>
+          widget is TooltipSection &&
+          widget.label ==
+              AppLocalizations.of(
+                tester.element(find.byType(PositivePromptTooltip)),
+              )!.fixedTags_prefix,
+    );
+    final fixedTagPrompt = tester.widget<TranslatedPromptText>(
+      find.descendant(
+        of: fixedTagSection,
+        matching: find.byType(TranslatedPromptText),
+      ),
+    );
+
+    expect(fixedTagPrompt.maxLines, isNull);
+    for (var index = 0; index < prefixes.length; index++) {
+      expect(fixedTagPrompt.prompt, contains('prefix_${index}_tag'));
+    }
     expect(tester.takeException(), isNull);
   });
 
