@@ -163,7 +163,15 @@ Aaalice NAI Launcher 是高频创作工具，而不是视觉陈列品。Prompt�
 
 Material 表面按职责使用：Canvas=`surface`，Section=`surfaceContainerLow`，Control=`surfaceContainer` / `surfaceContainerHighest`，Overlay=`surfaceContainerHigh`。同一页面最多出现三个明显表面层级。
 
-Section、Control 与 Overlay 的语义色必须在实际主题中与 Canvas 保持可辨色差；旧主题若把对应 Material token 映射为相同颜色，统一通过 `sectionSurfaceColor`、`controlSurfaceColor`、`overlaySurfaceColor` 回退解析，禁止组件直接接受与背景融为一体的色面。
+### 跨端中性色面规范
+
+- 每个主题交给 `ThemeData` 前必须具有完整的 `surfaceContainerLowest`、`surfaceContainerLow`、`surfaceContainer`、`surfaceContainerHigh`、`surfaceContainerHighest` 色阶；这些角色必须与 Canvas 保持可辨色差，并按层级单调变化。
+- 旧主题缺失容器角色或把它们全部映射为 `surface` 时，由 `ThemeComposer` 统一通过 `resolveLayeredSurfaceColors` 补全。补全只能从 `surface` 做中性的明度变化，禁止混入 `onSurface`、`primary`、`secondary`、`tertiary` 或 `error`；前景色和强调色即使偏暖、偏红，也不得污染普通分组卡片。
+- Android、Windows 与 macOS 必须消费同一套已经解析的语义色。禁止按平台单独指定普通卡片颜色，也禁止依赖 Android Material 默认值形成第二套色面；平台只改变布局和输入方式，不改变 Canvas、Section、Control、Overlay 的颜色关系。
+- 页面和公共组件按职责使用 `sectionSurfaceColor`、`controlSurfaceColor`、`overlaySurfaceColor`，不得在组件内部自行用前景色透明叠加生成中性背景；普通 `Card` 必须继承全局 `CardTheme` 的 `surfaceContainerLow`。
+- 主题回归测试必须基于最终 `ThemeData`，至少断言容器色与 `surface` 不相等、各层级可区分、中性源色不会产生红绿蓝通道偏色，并确认切换 Android/桌面 `TargetPlatform` 不改变语义色值。
+
+**The Cross-platform Surface Rule.** 中性卡片色只能来自统一解析后的 Material 3 容器色阶；任何平台默认值、前景色混合或页面专属补丁都不能成为第二颜色来源。
 
 **The Semantic Color Rule.** 页面只使用 `ColorScheme` 与具名业务语义；禁止散落固定颜色或把 `secondary` 当作错误色。
 

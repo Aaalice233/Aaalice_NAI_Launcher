@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/core/theme_modules.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
@@ -56,6 +57,8 @@ class ThemeComposer {
       // (some dark-only themes return darkScheme for lightScheme)
       effectiveBrightness = colorScheme.brightness;
     }
+
+    colorScheme = resolveLayeredSurfaceColors(colorScheme);
 
     // Build text theme with proper colors applied
     final textTheme = _applyColorToTextTheme(

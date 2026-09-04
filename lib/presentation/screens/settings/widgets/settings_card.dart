@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../themes/core/layered_surface_style.dart';
 import '../../../themes/design_tokens.dart';
 
 /// 设置卡片组件
@@ -46,12 +47,7 @@ class SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    // 从页面基色直接抬高一层，避免未完整定义 Material 3
-    // 容器色阶的主题落入带红色偏的默认 surfaceContainerLow。
-    final cardColor = Color.alphaBlend(
-      colorScheme.onSurface.withValues(alpha: 0.05),
-      colorScheme.surface,
-    );
+    final cardColor = sectionSurfaceColor(colorScheme);
 
     final description = this.description;
 
