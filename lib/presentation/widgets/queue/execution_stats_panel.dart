@@ -88,8 +88,8 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-        final compact = constraints.maxWidth < 420 || textScale > 1.3;
-        final singleColumnStats = textScale > 1.3 || constraints.maxWidth < 360;
+        final needsStackedLayout =
+            constraints.maxWidth < 300 || textScale > 1.6;
         final statCards = [
           _buildStatCard(
             context,
@@ -166,16 +166,14 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
               const SizedBox(height: 12),
 
               // 统计数字行
-              if (compact)
+              if (needsStackedLayout)
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
                     for (final card in statCards)
                       SizedBox(
-                        width: singleColumnStats
-                            ? constraints.maxWidth - 48
-                            : (constraints.maxWidth - 56) / 2,
+                        width: (constraints.maxWidth - 56) / 2,
                         child: card,
                       ),
                   ],
@@ -235,7 +233,7 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
               ),
 
               const SizedBox(height: 12),
-              if (compact)
+              if (needsStackedLayout)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
