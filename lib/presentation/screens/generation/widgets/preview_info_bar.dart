@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/models/image/image_params.dart'
+    show ImageParamsExtension;
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/generation/generated_image_metadata_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/preview_transparency_provider.dart';
 import '../../../widgets/common/transparency_background.dart';
 import '../../../widgets/image_editor/widgets/color_picker.dart';
+import 'generation_toggle_button.dart';
 
 /// 预览图下方的信息条（对齐官网结果区底部的 display/save 工具条）
 ///
 /// 自左向右：分辨率胶囊 → 透明底色入口 → 可选对比开关 → 种子胶囊。
-/// 透明底色入口向上弹出档位浮层。
+/// 透明底色入口向上弹出档位浮层；触屏设备在支持的模型下把生成用的
+/// 透明背景开关固定在最右侧，避免用户必须进入提示词编辑页。
 class PreviewInfoBar extends ConsumerWidget {
   final GeneratedImage image;
   final bool comparisonEnabled;
@@ -45,6 +49,17 @@ class PreviewInfoBar extends ConsumerWidget {
         .watch(generatedImageMetadataProvider(image))
         .valueOrNull
         ?.seed;
+    final transparentBackground = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => (
+          supported: params.capabilities.supportsTransparentBackground,
+          enabled: params.transparentBackground,
+        ),
+      ),
+    );
+    final showTransparentBackground =
+        context.interactionPolicy.touchAvailable &&
+        transparentBackground.supported;
 
     return SizedBox(
       height: heightFor(context),
@@ -57,7 +72,7 @@ class PreviewInfoBar extends ConsumerWidget {
               !constraints.maxWidth.isFinite ||
               constraints.maxWidth >= resolutionMinWidth;
 
-          return SingleChildScrollView(
+          final infoScroll = SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -92,6 +107,34 @@ class PreviewInfoBar extends ConsumerWidget {
                 ],
               ],
             ),
+          );
+          if (!showTransparentBackground) return infoScroll;
+
+          return Row(
+            children: [
+              Expanded(child: infoScroll),
+              const SizedBox(width: 6),
+              Semantics(
+                button: true,
+                toggled: transparentBackground.enabled,
+                label: context.l10n.generation_transparentBackground,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: context.interactionPolicy.minimumControlExtent,
+                  ),
+                  child: GenerationToggleButton(
+                    key: const ValueKey(
+                      'generation_preview_transparent_background_toggle',
+                    ),
+                    label: context.l10n.generation_transparentBackground,
+                    isEnabled: transparentBackground.enabled,
+                    onChanged: (value) => ref
+                        .read(generationParamsNotifierProvider.notifier)
+                        .updateTransparentBackground(value),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),

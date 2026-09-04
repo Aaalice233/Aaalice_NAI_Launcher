@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/preview_transparency_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/preview_info_bar.dart';
@@ -39,13 +40,37 @@ Future<ProviderContainer> _pumpBar(
   WidgetTester tester,
   GeneratedImage image, {
   double? width,
+  InteractionPolicy? interactionPolicy,
+  String defaultModel = 'nai-diffusion-4-5-full',
 }) async {
   final container = ProviderContainer(
     overrides: [
-      localStorageServiceProvider.overrideWith((ref) => _FakeStorage()),
+      localStorageServiceProvider.overrideWith(
+        (ref) => _FakeStorage(defaultModel: defaultModel),
+      ),
     ],
   );
   addTearDown(container.dispose);
+
+  Widget home = Scaffold(
+    body: Center(
+      // 与 image_preview.dart 的用法一致：定宽容器 + 左对齐，
+      // 信息条本身拿到的是松约束，宽度由内容决定
+      child: SizedBox(
+        width: width,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: PreviewInfoBar(image: image),
+        ),
+      ),
+    ),
+  );
+  if (interactionPolicy != null) {
+    home = InteractionPolicyScope(
+      initialPolicy: interactionPolicy,
+      child: home,
+    );
+  }
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -54,19 +79,7 @@ Future<ProviderContainer> _pumpBar(
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: Center(
-            // 与 image_preview.dart 的用法一致：定宽容器 + 左对齐，
-            // 信息条本身拿到的是松约束，宽度由内容决定
-            child: SizedBox(
-              width: width,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: PreviewInfoBar(image: image),
-              ),
-            ),
-          ),
-        ),
+        home: home,
       ),
     ),
   );
@@ -138,6 +151,66 @@ void main() {
     expect(find.byIcon(Icons.eco_outlined), findsOneWidget);
   });
 
+  testWidgets('触屏主预览在种子右侧显示透明背景开关', (tester) async {
+    const seed = 2889740361;
+    final container = await _pumpBar(
+      tester,
+      _image(seed: seed),
+      width: 280,
+      defaultModel: 'nai-diffusion-5-curated',
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+    );
+
+    final toggle = find.byKey(
+      const ValueKey('generation_preview_transparent_background_toggle'),
+    );
+    final seedText = find.text('$seed');
+
+    expect(toggle, findsOneWidget);
+    expect(find.text('透明背景'), findsOneWidget);
+    expect(
+      tester.getRect(toggle).left,
+      greaterThanOrEqualTo(tester.getRect(seedText).right),
+    );
+    expect(
+      tester.getRect(toggle).right,
+      closeTo(tester.getRect(find.byType(PreviewInfoBar)).right, 0.01),
+    );
+    expect(tester.getSize(toggle).height, greaterThanOrEqualTo(48));
+
+    await tester.tap(toggle);
+    await tester.pump();
+    expect(
+      container.read(generationParamsNotifierProvider).transparentBackground,
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('不支持透明背景的模型不显示主预览开关', (tester) async {
+    await _pumpBar(
+      tester,
+      _image(seed: 1),
+      width: 280,
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey('generation_preview_transparent_background_toggle'),
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets('棋盘格入口弹出的浮层可切换透明底色档位', (tester) async {
     final container = await _pumpBar(tester, _image(seed: 1));
 
@@ -199,7 +272,22 @@ void main() {
 
 /// 测试环境没有 Hive box，透明底色偏好走内存实现
 class _FakeStorage extends LocalStorageService {
+  _FakeStorage({required this.defaultModel});
+
+  final String defaultModel;
   String? style;
+  bool transparentBackground = false;
+
+  @override
+  String getDefaultModel() => defaultModel;
+
+  @override
+  bool getLastTransparentBackground() => transparentBackground;
+
+  @override
+  Future<void> setLastTransparentBackground(bool value) async {
+    transparentBackground = value;
+  }
 
   @override
   String? getPreviewTransparencyBackground() => style;
