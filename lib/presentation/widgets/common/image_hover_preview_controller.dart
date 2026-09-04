@@ -3,12 +3,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-/// Coordinates delayed gallery previews in the root overlay.
-///
-/// The follower stays attached to its card while its layout delegate keeps the
-/// preview inside the visible window, including when neither side has enough
-/// room for the preferred size.
-class GalleryHoverController with WidgetsBindingObserver {
+enum ImageHoverPreviewVerticalAlignment { center, targetTop }
+
+/// Coordinates delayed image previews in the root overlay and keeps them
+/// inside the current safe viewport.
+class ImageHoverPreviewController with WidgetsBindingObserver {
   OverlayEntry? _entry;
   Timer? _showTimer;
   int _revision = 0;
@@ -31,6 +30,8 @@ class GalleryHoverController with WidgetsBindingObserver {
     VoidCallback? onIntent,
     VoidCallback? onDismissIntent,
     bool allowPointerInteraction = false,
+    ImageHoverPreviewVerticalAlignment verticalAlignment =
+        ImageHoverPreviewVerticalAlignment.center,
     Duration delay = const Duration(milliseconds: 280),
   }) {
     dismiss();
@@ -49,19 +50,17 @@ class GalleryHoverController with WidgetsBindingObserver {
       final overlay = Overlay.of(context, rootOverlay: true);
       _entry = OverlayEntry(
         builder: (overlayContext) {
-          final mediaSize = MediaQuery.sizeOf(overlayContext);
-          final safeWidth = (mediaSize.width - 20)
-              .clamp(0.0, previewSize.width)
-              .toDouble();
-          final safeHeight = (mediaSize.height - 20)
-              .clamp(0.0, previewSize.height)
-              .toDouble();
+          final mediaQuery = MediaQuery.of(overlayContext);
+          final viewport = Offset.zero & mediaQuery.size;
+          final safeViewport = _safeViewportRect(mediaQuery);
+          final safeWidth = min(previewSize.width, safeViewport.width);
+          final safeHeight = min(previewSize.height, safeViewport.height);
           final renderObject = context.findRenderObject();
           final liveTargetRect =
               renderObject is RenderBox && renderObject.attached
               ? renderObject.localToGlobal(Offset.zero) & renderObject.size
               : targetRect;
-          if (!liveTargetRect.overlaps(Offset.zero & mediaSize)) {
+          if (!liveTargetRect.overlaps(viewport)) {
             return const SizedBox.shrink();
           }
           return Positioned.fill(
@@ -73,10 +72,11 @@ class GalleryHoverController with WidgetsBindingObserver {
                 targetAnchor: Alignment.topLeft,
                 followerAnchor: Alignment.topLeft,
                 child: CustomSingleChildLayout(
-                  delegate: _GalleryHoverLayoutDelegate(
+                  delegate: _ImageHoverPreviewLayoutDelegate(
                     targetRect: liveTargetRect,
-                    viewportSize: mediaSize,
+                    safeViewport: safeViewport,
                     maxPreviewSize: Size(safeWidth, safeHeight),
+                    verticalAlignment: verticalAlignment,
                   ),
                   child: Builder(builder: builder),
                 ),
@@ -134,16 +134,31 @@ class GalleryHoverController with WidgetsBindingObserver {
   void dispose() => dismiss();
 }
 
-class _GalleryHoverLayoutDelegate extends SingleChildLayoutDelegate {
-  const _GalleryHoverLayoutDelegate({
+Rect _safeViewportRect(MediaQueryData mediaQuery) {
+  const margin = 10.0;
+  final left = mediaQuery.padding.left + margin;
+  final top = mediaQuery.padding.top + margin;
+  final right = mediaQuery.size.width - mediaQuery.padding.right - margin;
+  final obstructedBottom = max(
+    mediaQuery.padding.bottom,
+    mediaQuery.viewInsets.bottom,
+  );
+  final bottom = mediaQuery.size.height - obstructedBottom - margin;
+  return Rect.fromLTRB(left, top, max(left, right), max(top, bottom));
+}
+
+class _ImageHoverPreviewLayoutDelegate extends SingleChildLayoutDelegate {
+  const _ImageHoverPreviewLayoutDelegate({
     required this.targetRect,
-    required this.viewportSize,
+    required this.safeViewport,
     required this.maxPreviewSize,
+    required this.verticalAlignment,
   });
 
   final Rect targetRect;
-  final Size viewportSize;
+  final Rect safeViewport;
   final Size maxPreviewSize;
+  final ImageHoverPreviewVerticalAlignment verticalAlignment;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
@@ -155,42 +170,42 @@ class _GalleryHoverLayoutDelegate extends SingleChildLayoutDelegate {
   @override
   Offset getPositionForChild(Size size, Size childSize) {
     const gap = 12.0;
-    const viewportMargin = 10.0;
     final right = targetRect.right + gap;
     final left = targetRect.left - gap - childSize.width;
-    final fitsRight =
-        right + childSize.width <= viewportSize.width - viewportMargin;
-    final fitsLeft = left >= viewportMargin;
-
+    final fitsRight = right + childSize.width <= safeViewport.right;
+    final fitsLeft = left >= safeViewport.left;
     final absoluteLeft = switch ((fitsRight, fitsLeft)) {
       (true, _) => right,
       (false, true) => left,
       _ =>
-        (viewportSize.width - targetRect.right >= targetRect.left
+        (safeViewport.right - targetRect.right >=
+                    targetRect.left - safeViewport.left
                 ? right
                 : left)
             .clamp(
-              viewportMargin,
-              max(
-                viewportMargin,
-                viewportSize.width - childSize.width - viewportMargin,
-              ),
+              safeViewport.left,
+              max(safeViewport.left, safeViewport.right - childSize.width),
             )
             .toDouble(),
     };
-    final maxTop = max(
-      viewportMargin,
-      viewportSize.height - childSize.height - viewportMargin,
-    );
-    final absoluteTop = (targetRect.center.dy - childSize.height / 2)
-        .clamp(viewportMargin, maxTop)
+    final preferredTop = switch (verticalAlignment) {
+      ImageHoverPreviewVerticalAlignment.center =>
+        targetRect.center.dy - childSize.height / 2,
+      ImageHoverPreviewVerticalAlignment.targetTop => targetRect.top,
+    };
+    final absoluteTop = preferredTop
+        .clamp(
+          safeViewport.top,
+          max(safeViewport.top, safeViewport.bottom - childSize.height),
+        )
         .toDouble();
     return Offset(absoluteLeft - targetRect.left, absoluteTop - targetRect.top);
   }
 
   @override
-  bool shouldRelayout(covariant _GalleryHoverLayoutDelegate oldDelegate) =>
+  bool shouldRelayout(covariant _ImageHoverPreviewLayoutDelegate oldDelegate) =>
       targetRect != oldDelegate.targetRect ||
-      viewportSize != oldDelegate.viewportSize ||
-      maxPreviewSize != oldDelegate.maxPreviewSize;
+      safeViewport != oldDelegate.safeViewport ||
+      maxPreviewSize != oldDelegate.maxPreviewSize ||
+      verticalAlignment != oldDelegate.verticalAlignment;
 }

@@ -1,18 +1,15 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/precise_ref/precise_ref_library_entry.dart';
-import '../../../themes/core/layered_surface_style.dart';
+import '../../../widgets/common/decoded_memory_image.dart';
+import '../../../widgets/common/image_hover_preview.dart';
 import '../../../widgets/common/library_card_badges.dart';
 
-/// 精准参考卡片的桌面悬浮预览。
-///
-/// 原图异步读取期间先展示已有缩略图，避免把磁盘 IO 阻塞在 hover 事件中。
 class PreciseRefHoverPreview extends StatefulWidget {
   const PreciseRefHoverPreview({
     super.key,
@@ -39,10 +36,9 @@ class _PreciseRefHoverPreviewState extends State<PreciseRefHoverPreview> {
     return FutureBuilder<Uint8List?>(
       future: widget.imageFuture,
       builder: (context, snapshot) {
-        final image = snapshot.data ?? widget.fallbackImage;
         return _PreciseRefHoverPreviewContent(
           entry: widget.entry,
-          image: image,
+          image: snapshot.data ?? widget.fallbackImage,
           maxWidth: widget.maxWidth,
           maxHeight: widget.maxHeight,
           isLoading: snapshot.connectionState != ConnectionState.done,
@@ -74,7 +70,7 @@ class _PreciseRefHoverPreviewContent extends StatefulWidget {
 
 class _PreciseRefHoverPreviewContentState
     extends State<_PreciseRefHoverPreviewContent> {
-  Future<double>? _aspectRatioFuture;
+  late Future<double> _aspectRatioFuture;
 
   @override
   void initState() {
@@ -89,173 +85,99 @@ class _PreciseRefHoverPreviewContentState
   }
 
   void _resolveAspectRatio() {
-    final image = widget.image;
-    _aspectRatioFuture = image == null ? Future.value(1) : _decodeRatio(image);
-  }
-
-  Future<double> _decodeRatio(Uint8List bytes) async {
-    ui.Codec? codec;
-    ui.FrameInfo? frame;
-    try {
-      codec = await ui.instantiateImageCodec(bytes);
-      frame = await codec.getNextFrame();
-      final width = frame.image.width;
-      final height = frame.image.height;
-      return width > 0 && height > 0 ? width / height : 1;
-    } catch (_) {
-      return 1;
-    } finally {
-      frame?.image.dispose();
-      codec?.dispose();
-    }
+    _aspectRatioFuture = decodeMemoryImageAspectRatio(widget.image);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<double>(
-      future: _aspectRatioFuture,
-      initialData: 1,
-      builder: (context, snapshot) =>
-          _buildCard((snapshot.data ?? 1).clamp(0.1, 10).toDouble()),
-    );
-  }
-
-  Widget _buildCard(double aspectRatio) {
-    final theme = Theme.of(context);
-    const metadataHeight = 118.0;
-    final imageSize = computePreciseRefHoverImageSize(
-      aspectRatio: aspectRatio,
-      maxWidth: widget.maxWidth,
-      maxHeight: math.max(80, widget.maxHeight - metadataHeight),
-    );
-    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
     final typeLabel = widget.entry.type.getDisplayName(
       character: context.l10n.preciseRef_typeCharacter,
       style: context.l10n.preciseRef_typeStyle,
       characterAndStyle: context.l10n.preciseRef_typeCharacterAndStyle,
     );
-
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        key: const ValueKey('precise-ref-hover-preview'),
-        width: imageSize.width,
-        constraints: BoxConstraints(maxHeight: widget.maxHeight),
-        decoration: BoxDecoration(
-          color: overlaySurfaceColor(theme.colorScheme),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.32),
-              blurRadius: 28,
-              offset: const Offset(0, 14),
+    return FutureBuilder<double>(
+      future: _aspectRatioFuture,
+      initialData: 1,
+      builder: (context, snapshot) {
+        return ImageHoverPreviewSurface(
+          key: const ValueKey('precise-ref-hover-preview'),
+          sourceAspectRatio: snapshot.data ?? 1,
+          maxWidth: widget.maxWidth,
+          maxHeight: widget.maxHeight,
+          mediaBuilder: _buildMedia,
+          overlays: [
+            Positioned(
+              left: 10,
+              top: 10,
+              child: LibraryCardCategoryBadge(
+                icon: widget.entry.type.icon,
+                label: typeLabel,
+              ),
             ),
+            if (widget.entry.isFavorite)
+              Positioned(
+                right: 10,
+                top: 10,
+                child: LibraryCardFavoriteBadge(
+                  semanticLabel: context.l10n.common_favorite,
+                ),
+              ),
+            if (widget.isLoading)
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.58),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(7),
+                    child: SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.5
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                key: const ValueKey('precise-ref-hover-media'),
-                width: imageSize.width,
-                height: imageSize.height,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ColoredBox(color: overlaySurfaceColor(theme.colorScheme)),
-                    if (widget.image != null)
-                      Image.memory(
-                        widget.image!,
-                        fit: BoxFit.contain,
-                        cacheWidth: (imageSize.width * pixelRatio).round(),
-                        gaplessPlayback: true,
-                        errorBuilder: (_, __, ___) => _imageFallback(theme),
-                      )
-                    else
-                      _imageFallback(theme),
-                    Positioned(
-                      left: 10,
-                      top: 10,
-                      child: LibraryCardCategoryBadge(
-                        icon: widget.entry.type.icon,
-                        label: typeLabel,
-                      ),
-                    ),
-                    if (widget.entry.isFavorite)
-                      Positioned(
-                        right: 10,
-                        top: 10,
-                        child: LibraryCardFavoriteBadge(
-                          semanticLabel: context.l10n.common_favorite,
-                        ),
-                      ),
-                    if (widget.isLoading)
-                      Positioned(
-                        right: 10,
-                        bottom: 10,
-                        child: SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            value: MediaQuery.disableAnimationsOf(context)
-                                ? 0.5
-                                : null,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.entry.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _PreviewStat(
-                            label: context.l10n.preciseRef_strength,
-                            value: _formatParam(widget.entry.strength),
-                          ),
-                        ),
-                        Expanded(
-                          child: _PreviewStat(
-                            label: context.l10n.preciseRef_fidelity,
-                            value: _formatParam(widget.entry.fidelity),
-                          ),
-                        ),
-                        Expanded(
-                          child: _PreviewStat(
-                            label: context.l10n.vibeDetail_usageCount,
-                            value: '${widget.entry.usedCount}',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+          footer: _PreciseRefHoverFooter(entry: widget.entry),
+        );
+      },
     );
   }
 
-  Widget _imageFallback(ThemeData theme) {
+  Widget _buildMedia(
+    BuildContext context,
+    ImageHoverPreviewMediaLayout layout,
+  ) {
+    final image = widget.image;
+    return SizedBox(
+      key: const ValueKey('precise-ref-hover-media'),
+      width: layout.size.width,
+      height: layout.size.height,
+      child: image == null
+          ? _imageFallback(context)
+          : DecodedMemoryImage(
+              bytes: image,
+              fit: layout.fit,
+              alignment: layout.alignment,
+              maxLogicalWidth: layout.size.width,
+              maxLogicalHeight: layout.size.height,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (_, __, ___) => _imageFallback(context),
+            ),
+    );
+  }
+
+  Widget _imageFallback(BuildContext context) {
+    final theme = Theme.of(context);
     return ColoredBox(
       color: theme.colorScheme.surfaceContainerHighest,
       child: Center(
@@ -267,31 +189,76 @@ class _PreciseRefHoverPreviewContentState
       ),
     );
   }
-
-  static String _formatParam(double value) {
-    final text = value.toStringAsFixed(2);
-    return text.endsWith('0') ? value.toStringAsFixed(1) : text;
-  }
 }
 
-class _PreviewStat extends StatelessWidget {
-  const _PreviewStat({required this.label, required this.value});
+class _PreciseRefHoverFooter extends StatelessWidget {
+  const _PreciseRefHoverFooter({required this.entry});
 
-  final String label;
-  final String value;
+  final PreciseRefLibraryEntry entry;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Text(
-      '$label $value',
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-        fontFeatures: const [ui.FontFeature.tabularFigures()],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(entry.type.icon, size: 17, color: theme.colorScheme.primary),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  entry.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: ImageHoverPreviewMetric(
+                  icon: Icons.tune,
+                  label: context.l10n.preciseRef_strength,
+                  value: _formatParam(entry.strength),
+                  tone: ImageHoverPreviewTone.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ImageHoverPreviewMetric(
+                  icon: Icons.center_focus_strong_outlined,
+                  label: context.l10n.preciseRef_fidelity,
+                  value: _formatParam(entry.fidelity),
+                  tone: ImageHoverPreviewTone.secondary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ImageHoverPreviewMetric(
+                  icon: Icons.history,
+                  label: context.l10n.vibeDetail_usageCount,
+                  value: '${entry.usedCount}',
+                  tone: ImageHoverPreviewTone.tertiary,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  static String _formatParam(double value) {
+    final text = value.toStringAsFixed(2);
+    return text.endsWith('0') ? value.toStringAsFixed(1) : text;
   }
 }
 
@@ -300,19 +267,4 @@ Size computePreciseRefHoverPreviewBounds(Size viewport) {
     math.min(380.0, math.max(0.0, viewport.width - 20)),
     math.min(680.0, math.max(0.0, viewport.height - 20)),
   );
-}
-
-@visibleForTesting
-Size computePreciseRefHoverImageSize({
-  required double aspectRatio,
-  required double maxWidth,
-  required double maxHeight,
-}) {
-  final safeRatio = aspectRatio > 0 ? aspectRatio : 1.0;
-  final width = safeRatio >= 1
-      ? maxWidth
-      : math.min(maxWidth, math.max(240.0, maxHeight * safeRatio));
-  final naturalHeight = width / safeRatio;
-  final height = math.min(maxHeight, math.max(120.0, naturalHeight));
-  return Size(width, height);
 }

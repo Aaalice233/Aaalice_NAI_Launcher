@@ -14,6 +14,7 @@ import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/pr
 import 'package:nai_launcher/presentation/screens/precise_ref_library/widgets/precise_ref_hover_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_hover_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/library_card_badges.dart';
 
 class _FakeStorage extends PreciseRefLibraryStorageService {
@@ -183,6 +184,8 @@ void main() {
 
     const previewKey = ValueKey('precise-ref-hover-preview');
     expect(find.byKey(previewKey), findsOneWidget);
+    expect(find.byType(ImageHoverPreviewSurface), findsOneWidget);
+    expect(find.byType(ImageHoverPreviewMetric), findsNWidgets(3));
     final previewRect = tester.getRect(find.byKey(previewKey));
     expect(previewRect.left, greaterThanOrEqualTo(10));
     expect(previewRect.top, greaterThanOrEqualTo(10));
@@ -215,11 +218,11 @@ void main() {
       const Size(380, 680),
     );
     expect(
-      computePreciseRefHoverImageSize(
-        aspectRatio: 2,
-        maxWidth: 380,
+      resolveImageHoverPreviewMediaLayout(
+        sourceAspectRatio: 2,
+        width: 380,
         maxHeight: 500,
-      ),
+      ).size,
       const Size(380, 190),
     );
   });

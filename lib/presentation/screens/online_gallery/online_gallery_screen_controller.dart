@@ -9,8 +9,8 @@ import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../providers/online_gallery_provider.dart';
+import '../../widgets/common/image_hover_preview_controller.dart';
 import '../../widgets/common/owned_scroll_controller.dart';
-import '../../widgets/online_gallery/online_gallery_hover_controller.dart';
 import 'online_gallery_masonry_layout.dart';
 import 'online_gallery_pagination_demand.dart';
 import 'online_gallery_viewport_tracker.dart';
@@ -41,7 +41,7 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   late final OwnedScrollController scrollController;
   final pageController = TextEditingController();
   final pageFocusNode = FocusNode();
-  final hoverController = OnlineGalleryHoverController();
+  final hoverController = ImageHoverPreviewController();
   final OnlineGalleryPrefetchCoordinator prefetchCoordinator;
   final dateRangeLayerLink = LayerLink();
   final primarySearchRevealKey = GlobalKey();

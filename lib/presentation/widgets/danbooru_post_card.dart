@@ -22,12 +22,12 @@ import '../providers/character_prompt_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
 import '../services/generation_prompt_transfer_service.dart';
-import '../themes/core/layered_surface_style.dart';
 import '../themes/theme_extension.dart';
 import 'common/card_action_buttons.dart';
 import 'common/image_card_actions.dart';
 import 'common/image_card_hover_motion.dart';
-import 'online_gallery/online_gallery_hover_controller.dart';
+import 'common/image_hover_preview.dart';
+import 'common/image_hover_preview_controller.dart';
 import 'online_gallery/online_gallery_card_status_overlays.dart';
 import 'online_gallery/coordinated_gallery_image.dart';
 import 'online_gallery/gallery_generation_transfer_dialog.dart';
@@ -75,7 +75,7 @@ class DanbooruPostCard extends StatefulWidget {
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSelectionToggle;
   final VoidCallback? onLongPress;
-  final OnlineGalleryHoverController? hoverController;
+  final ImageHoverPreviewController? hoverController;
   final VoidCallback? onHoverIntent;
   final VoidCallback? onHoverDismiss;
   final OnlineGalleryPrefetchCoordinator? imageCoordinator;
@@ -126,16 +126,16 @@ class DanbooruPostCard extends StatefulWidget {
 class _DanbooruPostCardState extends State<DanbooruPostCard> {
   bool _isHovering = false;
   bool _isFocused = false;
-  late final OnlineGalleryHoverController _ownedHoverController;
+  late final ImageHoverPreviewController _ownedHoverController;
   final _layerLink = LayerLink();
 
-  OnlineGalleryHoverController get _hoverController =>
+  ImageHoverPreviewController get _hoverController =>
       widget.hoverController ?? _ownedHoverController;
 
   @override
   void initState() {
     super.initState();
-    _ownedHoverController = OnlineGalleryHoverController();
+    _ownedHoverController = ImageHoverPreviewController();
   }
 
   @override
@@ -1026,269 +1026,205 @@ class _HoverPreviewCardInnerState
     final maxWidth = widget.maxWidth;
     final maxHeight = widget.maxHeight;
     final imageCoordinator = widget.imageCoordinator;
-    final theme = Theme.of(context);
     final translationService = ref.watch(tagTranslationLookupProvider);
-
-    const borderExtent = 4.0;
-    final contentWidth = max(1.0, maxWidth - borderExtent);
-    final contentMaxHeight = max(1.0, maxHeight - borderExtent);
-    final maxMetadataHeight = min(240.0, max(40.0, contentMaxHeight * 0.35));
-    final metadataHeight = _stableMetadataHeight(post, maxMetadataHeight);
-    final naturalImageHeight = max(
-      150.0,
-      widget.aspectRatio != null && widget.aspectRatio! > 0
-          ? contentWidth / widget.aspectRatio!
-          : contentWidth,
-    );
-    final availableImageHeight = max(1.0, contentMaxHeight - metadataHeight);
-    final previewHeight = min(naturalImageHeight, availableImageHeight);
-    final cropsTallImage = naturalImageHeight > availableImageHeight;
-    final imageFit = cropsTallImage ? BoxFit.fitWidth : BoxFit.contain;
-    final imageAlignment = cropsTallImage
-        ? Alignment.topCenter
-        : Alignment.center;
 
     final capability = post.mediaCapability;
     final imageUrl = capability.isVideo
         ? (capability.hasStaticThumbnail ? capability.previewUrl : '')
         : capability.imageDisplayUrl;
 
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        key: const ValueKey('online-gallery-hover-preview'),
-        width: maxWidth,
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        decoration: BoxDecoration(
-          color: overlaySurfaceColor(theme.colorScheme),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.24),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final maxMetadataHeight = min(240.0, max(80.0, maxHeight * 0.4));
+    return ImageHoverPreviewSurface(
+      key: const ValueKey('online-gallery-hover-preview'),
+      sourceAspectRatio: widget.aspectRatio ?? 1,
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      mediaBuilder: (context, layout) => SizedBox(
+        key: const ValueKey('online-gallery-hover-media'),
+        width: layout.size.width,
+        height: layout.size.height,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-              child: SizedBox(
-                key: const ValueKey('online-gallery-hover-media'),
-                width: maxWidth,
-                height: previewHeight,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ColoredBox(color: overlaySurfaceColor(theme.colorScheme)),
-                    if (imageUrl.isEmpty)
-                      Center(
-                        child: Icon(
-                          post.isVideo
-                              ? Icons.play_circle_outline
-                              : Icons.image_not_supported_outlined,
-                          color: Colors.white70,
-                          size: 48,
-                        ),
-                      )
-                    else if (imageCoordinator != null)
-                      ProgressiveGalleryImage(
-                        thumbnail: GalleryImageRequest.forUrl(
-                          sourceId: post.sourceId,
-                          url: post.previewUrl,
-                          tier: GalleryImageTier.thumbnail,
-                          targetDecodeWidth:
-                              GalleryImageSizing.hoverTargetWidth(
-                                MediaQuery.devicePixelRatioOf(context),
-                                naturalWidth: post.width,
-                                naturalHeight: post.height,
-                              ),
-                        ),
-                        sample: GalleryImageRequest.forUrl(
-                          sourceId: post.sourceId,
-                          url: imageUrl,
-                          tier: GalleryImageTier.sample,
-                          targetDecodeWidth:
-                              GalleryImageSizing.hoverTargetWidth(
-                                MediaQuery.devicePixelRatioOf(context),
-                                naturalWidth: post.width,
-                                naturalHeight: post.height,
-                              ),
-                        ),
-                        coordinator: imageCoordinator,
-                        fit: imageFit,
-                        alignment: imageAlignment,
-                      )
-                    else
-                      CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
-                        cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
-                        fit: imageFit,
-                        alignment: imageAlignment,
-                        cacheManager: OnlineGalleryImageCacheManager.instance,
-                        memCacheWidth: GalleryImageSizing.hoverTargetWidth(
-                          MediaQuery.devicePixelRatioOf(context),
-                        ),
-                        errorWidget: (_, __, ___) => CachedNetworkImage(
-                          imageUrl: post.previewUrl,
-                          httpHeaders: onlineGalleryImageHeadersForUrl(
-                            post.previewUrl,
-                          ),
-                          cacheKey: onlineGalleryImageCacheKeyForUrl(
-                            post.previewUrl,
-                          ),
-                          fit: imageFit,
-                          alignment: imageAlignment,
-                          cacheManager: OnlineGalleryImageCacheManager.instance,
-                          memCacheWidth: GalleryImageSizing.hoverTargetWidth(
-                            MediaQuery.devicePixelRatioOf(context),
-                          ),
-                        ),
-                      ),
-                    if (post.isVideo || post.isAnimated)
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            post.isVideo ? Icons.play_arrow : Icons.gif,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                      ),
-                  ],
+            if (imageUrl.isEmpty)
+              Center(
+                child: Icon(
+                  post.isVideo
+                      ? Icons.play_circle_outline
+                      : Icons.image_not_supported_outlined,
+                  color: Colors.white70,
+                  size: 48,
                 ),
-              ),
-            ),
-            ConstrainedBox(
-              key: const ValueKey('online-gallery-hover-metadata'),
-              constraints: BoxConstraints(maxHeight: metadataHeight),
-              child: SingleChildScrollView(
-                child: Padding(
-                  key: const ValueKey('online-gallery-hover-metadata-content'),
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Wrap(
-                              spacing: 12,
-                              runSpacing: 4,
-                              children: [
-                                _StatItem(
-                                  icon: Icons.photo_size_select_actual,
-                                  value: '${post.width}×${post.height}',
-                                ),
-                                if (post.score != null)
-                                  _StatItem(
-                                    icon: Icons.thumb_up,
-                                    value: '${post.score}',
-                                  ),
-                                if (post.viewCount != null)
-                                  _StatItem(
-                                    icon: Icons.visibility_outlined,
-                                    value: '${post.viewCount}',
-                                  ),
-                                if (post.favCount != null)
-                                  _StatItem(
-                                    icon: Icons.favorite,
-                                    value: '${post.favCount}',
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (post.rating != null) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _getRatingColor(post.rating),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                _getRatingLabel(context, post.rating),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      if (post.artistTags.isNotEmpty) ...[
-                        _TagRow(
-                          icon: Icons.brush,
-                          color: const Color(0xFFFF8A8A),
-                          tags: post.artistTags.take(3).toList(),
-                          translationService: translationService,
-                        ),
-                        const SizedBox(height: 6),
-                      ],
-                      if (post.characterTags.isNotEmpty) ...[
-                        _TagRow(
-                          icon: Icons.person,
-                          color: const Color(0xFF8AFF8A),
-                          tags: post.characterTags.take(4).toList(),
-                          translationService: translationService,
-                          isCharacter: true,
-                        ),
-                        const SizedBox(height: 6),
-                      ],
-                      if (post.copyrightTags.isNotEmpty) ...[
-                        _TagRow(
-                          icon: Icons.movie,
-                          color: const Color(0xFFCC8AFF),
-                          tags: post.copyrightTags.take(2).toList(),
-                          translationService: translationService,
-                        ),
-                      ],
-                    ],
+              )
+            else if (imageCoordinator != null)
+              ProgressiveGalleryImage(
+                thumbnail: GalleryImageRequest.forUrl(
+                  sourceId: post.sourceId,
+                  url: post.previewUrl,
+                  tier: GalleryImageTier.thumbnail,
+                  targetDecodeWidth: GalleryImageSizing.hoverTargetWidth(
+                    MediaQuery.devicePixelRatioOf(context),
+                    naturalWidth: post.width,
+                    naturalHeight: post.height,
+                  ),
+                ),
+                sample: GalleryImageRequest.forUrl(
+                  sourceId: post.sourceId,
+                  url: imageUrl,
+                  tier: GalleryImageTier.sample,
+                  targetDecodeWidth: GalleryImageSizing.hoverTargetWidth(
+                    MediaQuery.devicePixelRatioOf(context),
+                    naturalWidth: post.width,
+                    naturalHeight: post.height,
+                  ),
+                ),
+                coordinator: imageCoordinator,
+                fit: layout.fit,
+                alignment: layout.alignment,
+              )
+            else
+              CachedNetworkImage(
+                imageUrl: imageUrl,
+                httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
+                cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
+                fit: layout.fit,
+                alignment: layout.alignment,
+                cacheManager: OnlineGalleryImageCacheManager.instance,
+                memCacheWidth: GalleryImageSizing.hoverTargetWidth(
+                  MediaQuery.devicePixelRatioOf(context),
+                ),
+                errorWidget: (_, __, ___) => CachedNetworkImage(
+                  imageUrl: post.previewUrl,
+                  httpHeaders: onlineGalleryImageHeadersForUrl(post.previewUrl),
+                  cacheKey: onlineGalleryImageCacheKeyForUrl(post.previewUrl),
+                  fit: layout.fit,
+                  alignment: layout.alignment,
+                  cacheManager: OnlineGalleryImageCacheManager.instance,
+                  memCacheWidth: GalleryImageSizing.hoverTargetWidth(
+                    MediaQuery.devicePixelRatioOf(context),
                   ),
                 ),
               ),
-            ),
+            if (post.isVideo || post.isAnimated)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    post.isVideo ? Icons.play_arrow : Icons.gif,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
+      footer: ConstrainedBox(
+        key: const ValueKey('online-gallery-hover-metadata'),
+        constraints: BoxConstraints(maxHeight: maxMetadataHeight),
+        child: SingleChildScrollView(
+          child: Padding(
+            key: const ValueKey('online-gallery-hover-metadata-content'),
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          ImageHoverPreviewMetric(
+                            icon: Icons.photo_size_select_actual,
+                            value: '${post.width}×${post.height}',
+                            tone: ImageHoverPreviewTone.primary,
+                          ),
+                          if (post.score != null)
+                            ImageHoverPreviewMetric(
+                              icon: Icons.thumb_up,
+                              value: '${post.score}',
+                              tone: ImageHoverPreviewTone.secondary,
+                            ),
+                          if (post.viewCount != null)
+                            ImageHoverPreviewMetric(
+                              icon: Icons.visibility_outlined,
+                              value: '${post.viewCount}',
+                              tone: ImageHoverPreviewTone.neutral,
+                            ),
+                          if (post.favCount != null)
+                            ImageHoverPreviewMetric(
+                              icon: Icons.favorite,
+                              value: '${post.favCount}',
+                              tone: ImageHoverPreviewTone.tertiary,
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (post.rating != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getRatingColor(post.rating),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _getRatingLabel(context, post.rating),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (post.artistTags.isNotEmpty) ...[
+                  _TranslatedPreviewTagRow(
+                    icon: Icons.brush,
+                    tone: ImageHoverPreviewTone.secondary,
+                    tags: post.artistTags,
+                    maxVisibleTags: 3,
+                    translationService: translationService,
+                  ),
+                  const SizedBox(height: 6),
+                ],
+                if (post.characterTags.isNotEmpty) ...[
+                  _TranslatedPreviewTagRow(
+                    icon: Icons.person,
+                    tone: ImageHoverPreviewTone.tertiary,
+                    tags: post.characterTags,
+                    maxVisibleTags: 4,
+                    translationService: translationService,
+                  ),
+                  const SizedBox(height: 6),
+                ],
+                if (post.copyrightTags.isNotEmpty)
+                  _TranslatedPreviewTagRow(
+                    icon: Icons.movie,
+                    tone: ImageHoverPreviewTone.primary,
+                    tags: post.copyrightTags,
+                    maxVisibleTags: 2,
+                    translationService: translationService,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-  }
-
-  double _stableMetadataHeight(DanbooruPost post, double maxHeight) {
-    final groups = <List<String>>[
-      if (post.artistTags.isNotEmpty) post.artistTags.take(3).toList(),
-      if (post.characterTags.isNotEmpty) post.characterTags.take(4).toList(),
-      if (post.copyrightTags.isNotEmpty) post.copyrightTags.take(2).toList(),
-    ];
-    final estimatedLines = groups.fold<int>(0, (sum, tags) {
-      final characters = tags.fold<int>(
-        0,
-        (count, tag) => count + tag.replaceAll('_', ' ').length + 2,
-      );
-      return sum + max(1, (characters / 22).ceil());
-    });
-    final requested = groups.isEmpty
-        ? 40.0
-        : 44.0 + estimatedLines * 16 + (groups.length - 1) * 6;
-    return requested.clamp(40.0, maxHeight).toDouble();
   }
 
   Color _getRatingColor(String? rating) {
@@ -1350,56 +1286,31 @@ class _OverlayStatItem extends StatelessWidget {
   }
 }
 
-class _StatItem extends StatelessWidget {
+class _TranslatedPreviewTagRow extends StatefulWidget {
   final IconData icon;
-  final String value;
-
-  const _StatItem({required this.icon, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 11,
-            height: 1,
-            color: theme.colorScheme.onSurfaceVariant,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TagRow extends StatefulWidget {
-  final IconData icon;
-  final Color color;
+  final ImageHoverPreviewTone tone;
   final List<String> tags;
+  final int maxVisibleTags;
   final TagTranslationLookup translationService;
-  final bool isCharacter;
 
-  const _TagRow({
+  const _TranslatedPreviewTagRow({
     required this.icon,
-    required this.color,
+    required this.tone,
     required this.tags,
+    required this.maxVisibleTags,
     required this.translationService,
-    this.isCharacter = false,
   });
 
   @override
-  State<_TagRow> createState() => _TagRowState();
+  State<_TranslatedPreviewTagRow> createState() =>
+      _TranslatedPreviewTagRowState();
 }
 
-class _TagRowState extends State<_TagRow> {
+class _TranslatedPreviewTagRowState extends State<_TranslatedPreviewTagRow> {
   Map<String, String>? _translations;
+
+  List<String> get _visibleTags =>
+      widget.tags.take(widget.maxVisibleTags).toList(growable: false);
 
   @override
   void initState() {
@@ -1408,9 +1319,10 @@ class _TagRowState extends State<_TagRow> {
   }
 
   @override
-  void didUpdateWidget(_TagRow oldWidget) {
+  void didUpdateWidget(_TranslatedPreviewTagRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.tags != oldWidget.tags) {
+    if (widget.tags != oldWidget.tags ||
+        widget.maxVisibleTags != oldWidget.maxVisibleTags) {
       _translations = null;
       _loadTranslations();
     }
@@ -1418,7 +1330,7 @@ class _TagRowState extends State<_TagRow> {
 
   Future<void> _loadTranslations() async {
     final translations = await widget.translationService.translateBatch(
-      widget.tags,
+      _visibleTags,
     );
     if (mounted) {
       setState(() => _translations = translations);
@@ -1427,28 +1339,21 @@ class _TagRowState extends State<_TagRow> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(widget.icon, size: 14, color: widget.color),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Wrap(
-            spacing: 4,
-            runSpacing: 2,
-            children: widget.tags.map((tag) {
-              final translation = _translations?[tag];
-              final displayText = tag.replaceAll('_', ' ');
-              return Text(
-                translation != null
-                    ? '$displayText ($translation)'
-                    : displayText,
-                style: TextStyle(fontSize: 11, color: widget.color),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
+    return ImageHoverPreviewTagRow(
+      icon: widget.icon,
+      tone: widget.tone,
+      tags: _visibleTags
+          .map((tag) {
+            final translation = _translations?[tag];
+            final displayText = tag.replaceAll('_', ' ');
+            return translation == null
+                ? displayText
+                : '$displayText ($translation)';
+          })
+          .toList(growable: false),
+      maxVisibleTags: widget.maxVisibleTags,
+      totalCount: widget.tags.length,
+      prefix: '',
     );
   }
 }

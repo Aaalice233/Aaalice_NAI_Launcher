@@ -1,19 +1,15 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
-import '../../../themes/core/layered_surface_style.dart';
+import '../../../widgets/common/decoded_memory_image.dart';
+import '../../../widgets/common/image_hover_preview.dart';
+import '../../../widgets/common/library_card_badges.dart';
 
-/// Desktop quick-look for a Vibe library entry.
-///
-/// The frame deliberately keeps a stable width and height while the full image
-/// loads. This prevents the overlay from jumping when the thumbnail and source
-/// image have different encoded dimensions.
 class VibeHoverPreview extends StatelessWidget {
   const VibeHoverPreview({
     super.key,
@@ -71,7 +67,7 @@ class VibeHoverPreview extends StatelessWidget {
   }
 }
 
-class _VibeHoverPreviewFrame extends StatelessWidget {
+class _VibeHoverPreviewFrame extends StatefulWidget {
   const _VibeHoverPreviewFrame({
     required this.entry,
     required this.image,
@@ -89,90 +85,124 @@ class _VibeHoverPreviewFrame extends StatelessWidget {
   final bool loadFailed;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+  State<_VibeHoverPreviewFrame> createState() => _VibeHoverPreviewFrameState();
+}
 
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        key: const ValueKey('vibe-hover-preview'),
-        width: maxWidth,
-        height: maxHeight,
-        decoration: BoxDecoration(
-          color: overlaySurfaceColor(theme.colorScheme),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.shadow.withValues(alpha: 0.16),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Column(
-            children: [
-              Expanded(
-                child: Stack(
-                  key: const ValueKey('vibe-hover-media'),
-                  fit: StackFit.expand,
-                  children: [
-                    ColoredBox(color: overlaySurfaceColor(theme.colorScheme)),
-                    if (image != null)
-                      Image.memory(
-                        image!,
-                        fit: BoxFit.contain,
-                        cacheWidth: (maxWidth * pixelRatio).round(),
-                        gaplessPlayback: true,
-                        errorBuilder: (_, __, ___) =>
-                            _imageFallback(context, loadFailed: true),
-                      )
-                    else
-                      _imageFallback(context, loadFailed: loadFailed),
-                    if (isLoading)
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.58),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(7),
-                            child: SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white.withValues(alpha: 0.9),
-                                value: MediaQuery.disableAnimationsOf(context)
-                                    ? 0.5
-                                    : null,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (entry.isBundle)
-                      Positioned(
-                        left: 10,
-                        top: 10,
-                        child: _BundleCountBadge(count: entry.bundledVibeCount),
-                      ),
-                  ],
-                ),
-              ),
-              _VibeHoverMetadata(entry: entry),
-            ],
-          ),
-        ),
-      ),
+class _VibeHoverPreviewFrameState extends State<_VibeHoverPreviewFrame> {
+  late Future<double> _aspectRatioFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveAspectRatio();
+  }
+
+  @override
+  void didUpdateWidget(covariant _VibeHoverPreviewFrame oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.image, widget.image)) _resolveAspectRatio();
+  }
+
+  void _resolveAspectRatio() {
+    _aspectRatioFuture = decodeMemoryImageAspectRatio(widget.image);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<double>(
+      future: _aspectRatioFuture,
+      initialData: 1,
+      builder: (context, snapshot) {
+        return ImageHoverPreviewSurface(
+          key: const ValueKey('vibe-hover-preview'),
+          sourceAspectRatio: snapshot.data ?? 1,
+          maxWidth: widget.maxWidth,
+          maxHeight: widget.maxHeight,
+          mediaBuilder: _buildMedia,
+          overlays: _buildOverlays(context),
+          footer: _VibeHoverFooter(entry: widget.entry),
+        );
+      },
     );
   }
 
-  Widget _imageFallback(BuildContext context, {required bool loadFailed}) {
+  Widget _buildMedia(
+    BuildContext context,
+    ImageHoverPreviewMediaLayout layout,
+  ) {
+    final image = widget.image;
+    return SizedBox(
+      key: const ValueKey('vibe-hover-media'),
+      width: layout.size.width,
+      height: layout.size.height,
+      child: image == null
+          ? _imageFallback(context)
+          : DecodedMemoryImage(
+              bytes: image,
+              fit: layout.fit,
+              alignment: layout.alignment,
+              maxLogicalWidth: layout.size.width,
+              maxLogicalHeight: layout.size.height,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (_, __, ___) => _imageFallback(context),
+            ),
+    );
+  }
+
+  List<Widget> _buildOverlays(BuildContext context) {
+    final overlays = <Widget>[];
+    if (widget.entry.isBundle) {
+      overlays.add(
+        Positioned(
+          left: 10,
+          top: 10,
+          child: LibraryCardCategoryBadge(
+            icon: Icons.layers_outlined,
+            label: '${widget.entry.bundledVibeCount}',
+          ),
+        ),
+      );
+    }
+    if (widget.entry.isFavorite) {
+      overlays.add(
+        Positioned(
+          right: 10,
+          top: 10,
+          child: LibraryCardFavoriteBadge(
+            semanticLabel: context.l10n.common_favorite,
+          ),
+        ),
+      );
+    }
+    if (widget.isLoading) {
+      overlays.add(
+        Positioned(
+          right: 10,
+          bottom: 10,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.58),
+              shape: BoxShape.circle,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(7),
+              child: SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white.withValues(alpha: 0.9),
+                  value: MediaQuery.disableAnimationsOf(context) ? 0.5 : null,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return overlays;
+  }
+
+  Widget _imageFallback(BuildContext context) {
     final theme = Theme.of(context);
     return ColoredBox(
       color: theme.colorScheme.surfaceContainerHighest,
@@ -181,15 +211,15 @@ class _VibeHoverPreviewFrame extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              loadFailed
+              widget.loadFailed
                   ? Icons.broken_image_outlined
-                  : entry.isBundle
+                  : widget.entry.isBundle
                   ? Icons.style
                   : Icons.auto_fix_high,
               size: 46,
               color: theme.colorScheme.outline,
             ),
-            if (loadFailed) ...[
+            if (widget.loadFailed) ...[
               const SizedBox(height: 8),
               Text(
                 context.l10n.common_previewLoadFailed,
@@ -205,85 +235,78 @@ class _VibeHoverPreviewFrame extends StatelessWidget {
   }
 }
 
-class _VibeHoverMetadata extends StatelessWidget {
-  const _VibeHoverMetadata({required this.entry});
+class _VibeHoverFooter extends StatelessWidget {
+  const _VibeHoverFooter({required this.entry});
 
   final VibeLibraryEntry entry;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final textScaler = MediaQuery.textScalerOf(context);
-    final usesLargeText = textScaler.scale(12) / 12 > 1.45;
-    final visibleTags = entry.tags.take(4).toList(growable: false);
-    final remainingTags = entry.tags.length - visibleTags.length;
-    final tagText = [
-      ...visibleTags.map((tag) => '#$tag'),
-      if (remainingTags > 0) '+$remainingTags',
-    ].join('  ');
-
-    return ColoredBox(
-      color: overlaySurfaceColor(colorScheme),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              entry.displayName,
-              key: const ValueKey('vibe-hover-title'),
-              maxLines: usesLargeText ? 1 : 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                entry.isBundle ? Icons.layers_outlined : Icons.auto_fix_high,
+                size: 17,
+                color: theme.colorScheme.primary,
               ),
-            ),
-            if (entry.encodingModel case final model?) ...[
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: Icon(
-                      Icons.memory_outlined,
-                      size: 13,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  entry.displayName,
+                  key: const ValueKey('vibe-hover-title'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      model,
-                      key: const ValueKey('vibe-hover-model'),
-                      maxLines: usesLargeText ? 1 : 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 10),
-            _VibeHoverStats(entry: entry),
-            if (tagText.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                tagText,
-                key: const ValueKey('vibe-hover-tags'),
-                maxLines: usesLargeText ? 1 : 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  height: 1.35,
                 ),
               ),
             ],
+          ),
+          if (entry.encodingModel case final model?) ...[
+            const SizedBox(height: 7),
+            Row(
+              children: [
+                Icon(
+                  Icons.memory_outlined,
+                  size: 14,
+                  color: theme.colorScheme.secondary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    model,
+                    key: const ValueKey('vibe-hover-model'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
-        ),
+          const SizedBox(height: 10),
+          _VibeHoverStats(entry: entry),
+          if (entry.tags.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            KeyedSubtree(
+              key: const ValueKey('vibe-hover-tags'),
+              child: ImageHoverPreviewTagRow(
+                icon: Icons.tag,
+                tags: entry.tags,
+                tone: ImageHoverPreviewTone.tertiary,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -299,124 +322,50 @@ class _VibeHoverStats extends StatelessWidget {
     final stats = [
       (
         key: const ValueKey('vibe-hover-strength'),
+        icon: Icons.tune,
         label: context.l10n.vibe_strength,
         value: '${(entry.strength * 100).round()}%',
+        tone: ImageHoverPreviewTone.primary,
       ),
       (
         key: const ValueKey('vibe-hover-info-extracted'),
+        icon: Icons.auto_awesome_outlined,
         label: context.l10n.vibe_infoExtracted,
         value: '${(entry.infoExtracted * 100).round()}%',
+        tone: ImageHoverPreviewTone.secondary,
       ),
       (
         key: const ValueKey('vibe-hover-usage-count'),
+        icon: Icons.history,
         label: context.l10n.vibeDetail_usageCount,
         value: '${entry.usedCount}',
+        tone: ImageHoverPreviewTone.tertiary,
       ),
     ];
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth < 320 ? 1 : 3;
-        const spacing = 12.0;
-        final itemWidth =
+        const spacing = 8.0;
+        final width =
             (constraints.maxWidth - spacing * (columns - 1)) / columns;
         return Wrap(
           spacing: spacing,
-          runSpacing: 6,
+          runSpacing: 8,
           children: [
             for (final stat in stats)
               SizedBox(
                 key: stat.key,
-                width: itemWidth,
-                child: _VibeHoverStat(label: stat.label, value: stat.value),
+                width: width,
+                child: ImageHoverPreviewMetric(
+                  icon: stat.icon,
+                  label: stat.label,
+                  value: stat.value,
+                  tone: stat.tone,
+                ),
               ),
           ],
         );
       },
-    );
-  }
-}
-
-class _VibeHoverStat extends StatelessWidget {
-  const _VibeHoverStat({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final textScaler = MediaQuery.textScalerOf(context);
-    final usesLargeText = textScaler.scale(12) / 12 > 1.45;
-    final style = theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-      fontFeatures: const [ui.FontFeature.tabularFigures()],
-    );
-    if (usesLargeText) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: style,
-          ),
-          Text(
-            value,
-            maxLines: 1,
-            style: style?.copyWith(fontWeight: FontWeight.w700),
-          ),
-        ],
-      );
-    }
-    return Text.rich(
-      TextSpan(
-        text: '$label ',
-        children: [
-          TextSpan(
-            text: value,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: style,
-    );
-  }
-}
-
-class _BundleCountBadge extends StatelessWidget {
-  const _BundleCountBadge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.layers_outlined, size: 13, color: Colors.white),
-            const SizedBox(width: 4),
-            Text(
-              '$count',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

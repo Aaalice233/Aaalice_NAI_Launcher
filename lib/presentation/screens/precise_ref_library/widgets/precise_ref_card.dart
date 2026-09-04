@@ -10,9 +10,9 @@ import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/card_action_buttons.dart';
-import '../../../widgets/common/card_hover_preview_controller.dart';
 import '../../../widgets/common/image_card_actions.dart';
 import '../../../widgets/common/image_card_hover_motion.dart';
+import '../../../widgets/common/image_hover_preview_controller.dart';
 import '../../../widgets/common/library_card_badges.dart';
 import 'precise_ref_hover_preview.dart';
 
@@ -67,8 +67,8 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
   bool _hovering = false;
   bool _isBranchVisible = true;
   Future<Uint8List?>? _hoverImageFuture;
-  final CardHoverPreviewController _hoverController =
-      CardHoverPreviewController();
+  final ImageHoverPreviewController _hoverController =
+      ImageHoverPreviewController();
   final LayerLink _layerLink = LayerLink();
 
   @override
