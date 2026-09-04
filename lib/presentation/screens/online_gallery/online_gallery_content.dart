@@ -16,6 +16,7 @@ import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../services/gallery_prompt_projection_service.dart';
+import '../../services/generation_prompt_transfer_service.dart';
 import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/gelbooru_credentials_dialog.dart';
 import 'gallery_grid_item.dart';
@@ -391,6 +392,9 @@ class _OnlineGalleryContentPresenter {
     final aiTagBadge = post.sourceId == GallerySourceId.aiTag
         ? aiTagInfo?.modelBadgeLabel(fallbackType: post.aiType) ?? post.aiType
         : null;
+    final aiTagTransferConfiguration = aiTagInfo == null
+        ? null
+        : GenerationTransferConfiguration.tryFromAiTag(aiTagInfo);
     return Consumer(
       builder: (context, cardRef, _) {
         final postKey = onlineGalleryPostKey(post);
@@ -493,6 +497,11 @@ class _OnlineGalleryContentPresenter {
               : aiTagBadge,
           badgeUsesModelColor:
               post.sourceId == GallerySourceId.aiTag && aiTagBadge != null,
+          generationTransferOptions: post.sourceId == GallerySourceId.aiTag
+              ? GenerationTransferOptions(
+                  configuration: aiTagTransferConfiguration,
+                )
+              : null,
           emptyTitle: isQuickTagCloud
               ? context.l10n.onlineGallery_codexUntitled
               : null,

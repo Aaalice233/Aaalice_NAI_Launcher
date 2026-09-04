@@ -3324,6 +3324,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_sentToTextToImage => 'Sent to text-to-image';
 
   @override
+  String get onlineGallery_replaceConfig => 'Replace configuration';
+
+  @override
+  String get onlineGallery_replaceConfigDescription =>
+      'Choose which generation settings to replace; unselected settings keep their current values';
+
+  @override
+  String get onlineGallery_replaceConfigNaiOnly =>
+      'Available only for images with recognized NovelAI configuration';
+
+  @override
   String get onlineGallery_sendToReversePrompt => 'Send to Reverse Prompt';
 
   @override

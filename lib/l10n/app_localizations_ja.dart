@@ -3250,6 +3250,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_sentToTextToImage => 'text-to-image に送信されました';
 
   @override
+  String get onlineGallery_replaceConfig => '設定を置き換える';
+
+  @override
+  String get onlineGallery_replaceConfigDescription =>
+      '置き換える生成設定を選択します。選択しない設定は現在の値を保持します';
+
+  @override
+  String get onlineGallery_replaceConfigNaiOnly =>
+      '認識可能な NovelAI 設定を含む画像でのみ使用できます';
+
+  @override
   String get onlineGallery_sendToReversePrompt => '逆プロンプトに送信';
 
   @override
