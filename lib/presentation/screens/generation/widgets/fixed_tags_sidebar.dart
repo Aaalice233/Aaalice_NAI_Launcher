@@ -27,14 +27,15 @@ const _linkDetachDistance = 36.0;
 
 double _gridCardHeight(BuildContext context) {
   final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
-  final usesActionMenu =
+  // 触屏命中区把链接锚点和操作行整体撑高，大字号同样需要额外余量。
+  final needsRoomyCard =
       context.interactionPolicy.shouldExposeTouchAlternatives ||
       scaledLabelSize >= 20;
 
   // Grid previews can contain up to five scaled text lines. Grow the fixed
   // extent with the text scaler so asynchronous translations cannot outgrow it.
   final scaledTextGrowth = (scaledLabelSize - 14).clamp(0.0, double.infinity);
-  final baseHeight = usesActionMenu ? 210.0 : 180.0;
+  final baseHeight = needsRoomyCard ? 210.0 : 180.0;
   return baseHeight + scaledTextGrowth * 6;
 }
 

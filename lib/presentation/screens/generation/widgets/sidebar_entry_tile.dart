@@ -9,12 +9,11 @@ import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/thumbnail_display.dart';
+import '../../../widgets/common/tile_action_button.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
 
 typedef SidebarDragHandleBuilder = Widget Function(Widget child);
-
-enum _SidebarEntryAction { copy, edit, delete }
 
 /// A fixed-tag row or preview card.
 ///
@@ -55,11 +54,11 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   bool get _hasThumbnail =>
       !widget.isListMode && (widget.libraryEntry?.hasThumbnail ?? false);
 
-  bool get _showActionMenu =>
+  // 操作按钮常驻，未聚焦时压暗，让行高和文本宽度不随指针移动跳变。
+  bool get _actionsHighlighted =>
       _isHovering ||
       _isFocused ||
-      context.interactionPolicy.shouldExposeTouchAlternatives ||
-      MediaQuery.textScalerOf(context).scale(14) >= 20;
+      !context.interactionPolicy.precisePointerAvailable;
 
   @override
   Widget build(BuildContext context) {
@@ -114,25 +113,43 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   }
 
   Widget _buildListContent(ThemeData theme) {
+    final leading = [
+      _buildStatusDot(),
+      const SizedBox(width: 7),
+      if (widget.linkAnchor != null) ...[
+        widget.linkAnchor!,
+        const SizedBox(width: 4),
+      ],
+    ];
+    final label = _buildDragRegion(
+      _buildText(theme, maxLines: 1, includeWeight: true),
+    );
+    // 大字号下行内操作会把名称和权重挤没，整体换到第二行而不是收进菜单。
+    final stacksActions = MediaQuery.textScalerOf(context).scale(14) >= 20;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      child: Row(
-        children: [
-          _buildStatusDot(),
-          const SizedBox(width: 7),
-          if (widget.linkAnchor != null) ...[
-            widget.linkAnchor!,
-            const SizedBox(width: 4),
-          ],
-          Expanded(
-            child: _buildDragRegion(
-              _buildText(theme, maxLines: 1, includeWeight: true),
+      child: stacksActions
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: [...leading, Expanded(child: label)]),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildActions(theme),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                ...leading,
+                Expanded(child: label),
+                const SizedBox(width: 6),
+                _buildActions(theme),
+              ],
             ),
-          ),
-          const SizedBox(width: 6),
-          if (_showActionMenu) ...[_buildActionMenu(theme)],
-        ],
-      ),
     );
   }
 
@@ -163,7 +180,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
                   children: [
                     if (widget.linkAnchor != null) widget.linkAnchor!,
                     const Spacer(),
-                    _buildActionMenu(theme),
+                    _buildActions(theme),
                   ],
                 ),
               ],
@@ -220,9 +237,10 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
                 ),
               ),
             ),
+            // 权重宽度随字号增长，留成 Flexible 兜底，任何窄行都不会溢出。
             if (includeWeight) ...[
               const SizedBox(width: 6),
-              _buildWeight(theme),
+              Flexible(child: _buildWeight(theme)),
             ],
           ],
         ),
@@ -258,6 +276,8 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
       maxScaleFactor: 1.5,
       child: Text(
         widget.entry.weight.toStringAsFixed(2),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w700,
@@ -267,55 +287,37 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
     );
   }
 
-  Widget _buildActionMenu(ThemeData theme) {
-    final interactionPolicy = context.interactionPolicy;
-    return SizedBox.square(
-      dimension: interactionPolicy.precisePointerAvailable ? 32 : 44,
-      child: PopupMenuButton<_SidebarEntryAction>(
-        key: const ValueKey('sidebar-entry-actions-menu'),
-        tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-        icon: const Icon(Icons.more_horiz_rounded, size: 18),
-        padding: EdgeInsets.zero,
-        onSelected: (action) {
-          switch (action) {
-            case _SidebarEntryAction.copy:
-              unawaited(_copyContent());
-              break;
-            case _SidebarEntryAction.edit:
-              widget.onEdit();
-              break;
-            case _SidebarEntryAction.delete:
-              widget.onDelete();
-              break;
-          }
-        },
-        itemBuilder: (context) => [
-          PopupMenuItem(
-            value: _SidebarEntryAction.copy,
-            child: ListTile(
-              leading: const Icon(Icons.copy_rounded),
-              title: Text(context.l10n.common_copy),
-            ),
+  Widget _buildActions(ThemeData theme) {
+    final resting = theme.colorScheme.onSurfaceVariant;
+    return AnimatedOpacity(
+      key: const ValueKey('sidebar-entry-actions'),
+      opacity: _actionsHighlighted ? 1 : 0.4,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 120),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TileActionButton(
+            icon: Icons.copy_rounded,
+            tooltip: context.l10n.common_copy,
+            color: resting,
+            hoverColor: theme.colorScheme.primary,
+            onPressed: () => unawaited(_copyContent()),
           ),
-          PopupMenuItem(
-            value: _SidebarEntryAction.edit,
-            child: ListTile(
-              leading: const Icon(Icons.edit_rounded),
-              title: Text(context.l10n.common_edit),
-            ),
+          TileActionButton(
+            icon: Icons.edit_rounded,
+            tooltip: context.l10n.common_edit,
+            color: resting,
+            hoverColor: theme.colorScheme.primary,
+            onPressed: widget.onEdit,
           ),
-          PopupMenuItem(
-            value: _SidebarEntryAction.delete,
-            child: ListTile(
-              leading: Icon(
-                Icons.delete_outline_rounded,
-                color: theme.colorScheme.error,
-              ),
-              title: Text(
-                context.l10n.common_delete,
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ),
+          TileActionButton(
+            icon: Icons.delete_outline_rounded,
+            tooltip: context.l10n.common_delete,
+            color: resting,
+            hoverColor: theme.colorScheme.error,
+            onPressed: widget.onDelete,
           ),
         ],
       ),

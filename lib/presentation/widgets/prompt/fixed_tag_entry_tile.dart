@@ -6,6 +6,7 @@ import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../themes/core/layered_surface_style.dart';
 import '../../themes/prompt_semantic_colors.dart';
+import '../common/tile_action_button.dart';
 import '../common/translated_tag_text.dart';
 import '../common/themed_switch.dart';
 
@@ -147,14 +148,14 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _CompactIconButton(
+              TileActionButton(
                 icon: Icons.edit_outlined,
                 onPressed: widget.onEdit,
                 tooltip: context.l10n.common_edit,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 hoverColor: theme.colorScheme.primary,
               ),
-              _CompactIconButton(
+              TileActionButton(
                 icon: Icons.close_rounded,
                 onPressed: widget.onDelete,
                 tooltip: context.l10n.common_delete,
@@ -376,63 +377,6 @@ class _EntryBadges extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-class _CompactIconButton extends StatefulWidget {
-  const _CompactIconButton({
-    required this.icon,
-    required this.onPressed,
-    required this.tooltip,
-    required this.color,
-    required this.hoverColor,
-  });
-  final IconData icon;
-  final VoidCallback onPressed;
-  final String tooltip;
-  final Color color;
-  final Color hoverColor;
-
-  @override
-  State<_CompactIconButton> createState() => _CompactIconButtonState();
-}
-
-class _CompactIconButtonState extends State<_CompactIconButton> {
-  bool _hovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final interactionPolicy = context.interactionPolicy;
-    final extent = interactionPolicy.touchAvailable
-        ? interactionPolicy.minimumControlExtent
-        : 25.0;
-    return Tooltip(
-      message: widget.tooltip,
-      child: MouseRegion(
-        onEnter: interactionPolicy.precisePointerAvailable
-            ? (_) => setState(() => _hovering = true)
-            : null,
-        onExit: interactionPolicy.precisePointerAvailable
-            ? (_) => setState(() => _hovering = false)
-            : null,
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: widget.onPressed,
-          behavior: HitTestBehavior.opaque,
-          child: SizedBox(
-            width: extent,
-            height: extent,
-            child: Center(
-              child: Icon(
-                widget.icon,
-                size: 15,
-                color: _hovering ? widget.hoverColor : widget.color,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
