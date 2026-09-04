@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "dataVersion": "42f35be9d394",
+  "dataVersion": "125148ac88dc",
   "source": {
     "name": "danbooru_e621_merged.csv",
     "url": "https://raw.githubusercontent.com/willmiao/ComfyUI-Lora-Manager/42f35be9d394ff62fc9e9a39b8c500b8f9b67bfe/refs/danbooru_e621_merged.csv",
