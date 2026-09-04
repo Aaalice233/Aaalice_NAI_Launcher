@@ -5,10 +5,11 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/library_classification_drag.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
 
-enum _EntryAction { select, edit, favorite, copy, delete }
+enum _EntryAction { select, edit, favorite, classify, copy, delete }
 
 /// 词库条目卡片 - 名称居中 + 互斥显示
 ///
@@ -22,6 +23,7 @@ class EntryCard extends StatefulWidget {
   final VoidCallback onToggleFavorite;
   final VoidCallback? onEdit;
   final VoidCallback? onSend;
+  final VoidCallback? onClassify;
 
   /// 所属分类名称
   final String? categoryName;
@@ -47,6 +49,7 @@ class EntryCard extends StatefulWidget {
     required this.onToggleFavorite,
     this.onEdit,
     this.onSend,
+    this.onClassify,
     this.categoryName,
     this.enableDrag = false,
     this.isSelectionMode = false,
@@ -214,25 +217,18 @@ class _EntryCardState extends State<EntryCard> {
       child: cardVisual,
     );
 
-    // 保持根节点稳定，避免切换多选模式时重建缩略图子树。
-    return Draggable<TagLibraryEntry>(
+    return LibraryClassificationDragSource<TagLibraryEntry>(
       data: entry,
-      maxSimultaneousDrags: widget.enableDrag && !isTouch ? null : 0,
-      feedback: widget.enableDrag && !isTouch
-          ? _buildDragFeedback(theme, entry)
-          : const SizedBox.shrink(),
-      childWhenDragging: Opacity(opacity: 0.4, child: cardContent),
+      label: entry.displayName,
+      enabled: widget.enableDrag,
       onDragStarted: () {
-        HapticFeedback.mediumImpact();
         setState(() {
           _isDragging = true;
           _isHovering = false;
         });
       },
-      onDragEnd: (_) {
-        setState(() {
-          _isDragging = false;
-        });
+      onDragEnded: () {
+        if (mounted) setState(() => _isDragging = false);
       },
       child: cardContent,
     );
@@ -330,6 +326,8 @@ class _EntryCardState extends State<EntryCard> {
               widget.onEdit?.call();
             case _EntryAction.favorite:
               widget.onToggleFavorite();
+            case _EntryAction.classify:
+              widget.onClassify?.call();
             case _EntryAction.copy:
               _copyToClipboard(entry.content);
             case _EntryAction.delete:
@@ -370,6 +368,15 @@ class _EntryCardState extends State<EntryCard> {
               ),
             ),
           ),
+          if (widget.onClassify != null)
+            PopupMenuItem(
+              value: _EntryAction.classify,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.drive_file_move_outline),
+                title: Text(l10n.tagLibrary_moveToCategoryTitle),
+              ),
+            ),
           PopupMenuItem(
             value: _EntryAction.copy,
             child: ListTile(
@@ -430,116 +437,6 @@ class _EntryCardState extends State<EntryCard> {
             onTap: () => _copyToClipboard(entry.content),
           ),
         ],
-      ),
-    );
-  }
-
-  /// 构建拖拽反馈UI
-  Widget _buildDragFeedback(ThemeData theme, TagLibraryEntry entry) {
-    return Material(
-      elevation: 16,
-      borderRadius: BorderRadius.circular(16),
-      color: Colors.transparent,
-      shadowColor: Colors.black54,
-      child: Container(
-        width: 200,
-        height: 80,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: theme.colorScheme.primary.withValues(alpha: 0.75),
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // 背景图
-              if (entry.hasThumbnail && entry.thumbnail != null)
-                ThumbnailDisplay(
-                  imagePath: entry.thumbnail!,
-                  offsetX: entry.thumbnailOffsetX,
-                  offsetY: entry.thumbnailOffsetY,
-                  scale: entry.thumbnailScale,
-                  width: 200,
-                  height: 80,
-                )
-              else
-                _buildPlaceholder(),
-              // 轻微暗化
-              _buildDarkenOverlay(),
-              // 拖拽提示
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.drive_file_move_outline,
-                        size: 12,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        context.l10n.tagLibrary_moveToCategoryTitle,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: theme.colorScheme.onPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // 名称（靠左）
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    entry.displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 20,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black,
-                          blurRadius: 8,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.left,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

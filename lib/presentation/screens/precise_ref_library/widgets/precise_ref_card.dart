@@ -18,6 +18,7 @@ enum _PreciseRefCardAction {
   sendToPreciseRef,
   sendToImg2Img,
   edit,
+  classify,
   delete,
 }
 
@@ -34,6 +35,7 @@ class PreciseRefCard extends ConsumerStatefulWidget {
     this.onEdit,
     this.onDelete,
     this.onToggleFavorite,
+    this.onClassify,
   });
 
   final PreciseRefLibraryEntry entry;
@@ -42,6 +44,7 @@ class PreciseRefCard extends ConsumerStatefulWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onToggleFavorite;
+  final VoidCallback? onClassify;
 
   @override
   ConsumerState<PreciseRefCard> createState() => _PreciseRefCardState();
@@ -377,6 +380,8 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
             widget.onSendToImg2Img?.call();
           case _PreciseRefCardAction.edit:
             widget.onEdit?.call();
+          case _PreciseRefCardAction.classify:
+            widget.onClassify?.call();
           case _PreciseRefCardAction.delete:
             widget.onDelete?.call();
         }
@@ -413,6 +418,14 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.edit_outlined),
             title: Text(l10n.preciseRefLib_editEntry),
+          ),
+        ),
+        PopupMenuItem(
+          value: _PreciseRefCardAction.classify,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.category_outlined),
+            title: Text(l10n.preciseRef_referenceType),
           ),
         ),
         PopupMenuItem(

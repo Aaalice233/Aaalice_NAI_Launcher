@@ -216,6 +216,7 @@ void main() {
 
   testWidgets('Vibe 卡片桌面与触屏操作均可发送到智能体', (tester) async {
     var addCount = 0;
+    var classifyCount = 0;
     final entry = _entry(rawImageData: _onePixelPng);
     final storage = _HoverStorage(entry, _onePixelPng);
 
@@ -233,7 +234,11 @@ void main() {
             home: Scaffold(
               body: ImageCardActionScope(
                 onAddToAgent: () => addCount++,
-                child: VibeCard(entry: entry.toDisplayEntry(), width: 180),
+                child: VibeCard(
+                  entry: entry.toDisplayEntry(),
+                  width: 180,
+                  onClassify: () => classifyCount++,
+                ),
               ),
             ),
           ),
@@ -269,7 +274,16 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('发送到智能体'), kind: PointerDeviceKind.touch);
+    await tester.pumpAndSettle();
     expect(addCount, 2);
+
+    await tester.tap(
+      find.byIcon(Icons.more_vert_rounded),
+      kind: PointerDeviceKind.touch,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('移动到分类'), kind: PointerDeviceKind.touch);
+    expect(classifyCount, 1);
   });
 }
 

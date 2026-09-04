@@ -345,6 +345,16 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                       context.l10n.tagLibrary_entryMoved,
                     );
                   },
+                  onEntryFavoriteDrop: (entryId) {
+                    final index = state.entries.indexWhere(
+                      (candidate) => candidate.id == entryId,
+                    );
+                    if (index >= 0 && !state.entries[index].isFavorite) {
+                      ref
+                          .read(tagLibraryPageNotifierProvider.notifier)
+                          .toggleFavorite(entryId);
+                    }
+                  },
                 ),
               ),
             )
@@ -523,6 +533,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
           onDelete: commonProps.onDelete,
           onEdit: commonProps.onEdit,
           onSend: () => _showEntryDetail(entry),
+          onClassify: () => _classifyEntry(entry),
           onToggleFavorite: commonProps.onToggleFavorite,
         ),
       );
@@ -541,6 +552,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         onTap: () => _showEntryDetail(entry),
         onDelete: commonProps.onDelete,
         onEdit: commonProps.onEdit,
+        onClassify: () => _classifyEntry(entry),
         onToggleFavorite: commonProps.onToggleFavorite,
       ),
     );
@@ -559,6 +571,19 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       ),
       child: child,
     );
+  }
+
+  Future<void> _classifyEntry(TagLibraryEntry entry) async {
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    final target = await BulkMoveCategoryDialog.show(
+      context,
+      categories: state.categories,
+      currentCategoryId: entry.categoryId,
+    );
+    if (target == null || !mounted) return;
+    await ref
+        .read(tagLibraryPageNotifierProvider.notifier)
+        .moveEntryToCategory(entry.id, target.isEmpty ? null : target);
   }
 
   /// 获取分类名称
@@ -629,7 +654,10 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     for (final entryId in selectedIds) {
       await ref
           .read(tagLibraryPageNotifierProvider.notifier)
-          .moveEntryToCategory(entryId, targetCategoryId);
+          .moveEntryToCategory(
+            entryId,
+            targetCategoryId.isEmpty ? null : targetCategoryId,
+          );
     }
 
     ref.read(tagLibrarySelectionNotifierProvider.notifier).exit();

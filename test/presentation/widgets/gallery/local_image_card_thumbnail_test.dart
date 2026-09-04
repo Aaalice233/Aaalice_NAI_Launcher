@@ -438,7 +438,7 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('Android 卡片更多操作可保存到系统相册', (tester) async {
+  testWidgets('Android 卡片更多操作可点击移动到分类', (tester) async {
     final tempDirectory = (await tester.runAsync(
       () => Directory.systemTemp.createTemp('nai_local_card_menu_'),
     ))!;
@@ -492,17 +492,17 @@ void main() {
     await tester.tap(find.byIcon(Icons.more_vert_rounded));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('保存到系统相册'), findsOneWidget);
-    final saveItem = find.byWidgetPredicate(
+    expect(find.text('移动到分类'), findsOneWidget);
+    final classifyItem = find.byWidgetPredicate(
       (widget) =>
           widget is PopupMenuItem<Object> &&
-          widget.value == LocalImageContextAction.saveToSystemGallery,
+          widget.value == LocalImageContextAction.moveToCategory,
     );
-    expect(saveItem, findsOneWidget);
+    expect(classifyItem, findsOneWidget);
 
-    await tester.tap(saveItem);
+    await tester.tap(classifyItem);
     await tester.pump();
-    expect(selected, LocalImageContextAction.saveToSystemGallery);
+    expect(selected, LocalImageContextAction.moveToCategory);
   });
 }
 

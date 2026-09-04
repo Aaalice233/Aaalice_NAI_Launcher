@@ -8,6 +8,17 @@ sealed class VibeLibraryCommand {
   const VibeLibraryCommand();
 }
 
+final class ClassifyVibeEntryCommand extends VibeLibraryCommand {
+  const ClassifyVibeEntryCommand(this.entryId, this.categoryId);
+  final String entryId;
+  final String? categoryId;
+}
+
+final class FavoriteVibeEntryCommand extends VibeLibraryCommand {
+  const FavoriteVibeEntryCommand(this.entryId);
+  final String entryId;
+}
+
 final class ImportVibesCommand extends VibeLibraryCommand {
   const ImportVibesCommand();
 }

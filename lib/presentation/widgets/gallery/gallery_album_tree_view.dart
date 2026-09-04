@@ -40,6 +40,7 @@ class GalleryAlbumTreeView extends StatefulWidget {
   )?
   onAlbumMoveToSlot;
   final void Function(String imagePath, String albumId)? onImageDrop;
+  final void Function(String imagePath)? onImageFavoriteDrop;
   final VoidCallback? onCreateAlbumRequest;
 
   const GalleryAlbumTreeView({
@@ -57,6 +58,7 @@ class GalleryAlbumTreeView extends StatefulWidget {
     this.onAlbumMove,
     this.onAlbumMoveToSlot,
     this.onImageDrop,
+    this.onImageFavoriteDrop,
     this.onCreateAlbumRequest,
   });
 
@@ -70,6 +72,7 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
   String? _hoveredAlbumId;
   final Map<String, GalleryTreeDropSlot> _slotStates = {};
   Timer? _autoExpandTimer;
+  bool _favoriteDropActive = false;
 
   @override
   void dispose() {
@@ -122,17 +125,64 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
             isSelected: widget.selectedAlbumId == null,
             onTap: () => widget.onAlbumSelected(null),
           ),
-        GallerySidebarFavoritesItem(
-          key: const ValueKey('local-gallery-favorites'),
-          label: context.l10n.common_favorite,
-          count: widget.favoriteCount,
-          isSelected: widget.selectedAlbumId == 'favorites',
-          onTap: () => widget.onAlbumSelected('favorites'),
+        _wrapFavoriteDropTarget(
+          GallerySidebarFavoritesItem(
+            key: const ValueKey('local-gallery-favorites'),
+            label: context.l10n.common_favorite,
+            count: widget.favoriteCount,
+            isSelected: widget.selectedAlbumId == 'favorites',
+            onTap: () => widget.onAlbumSelected('favorites'),
+          ),
         ),
         if (widget.albums.isEmpty)
           _EmptyAlbumHint(onCreate: widget.onCreateAlbumRequest),
         ..._buildRootNodes(),
       ],
+    );
+  }
+
+  Widget _wrapFavoriteDropTarget(Widget child) {
+    final onDrop = widget.onImageFavoriteDrop;
+    if (onDrop == null) return child;
+    return DropRegion(
+      formats: const [Formats.fileUri],
+      onDropOver: (event) {
+        final accepts = event.session.items.any(
+          (item) =>
+              galleryInternalDragPathFromLocalData(item.localData) != null,
+        );
+        if (_favoriteDropActive != accepts) {
+          setState(() => _favoriteDropActive = accepts);
+        }
+        return accepts ? DropOperation.copy : DropOperation.none;
+      },
+      onDropLeave: (_) {
+        if (_favoriteDropActive) setState(() => _favoriteDropActive = false);
+      },
+      onPerformDrop: (event) async {
+        if (_favoriteDropActive) setState(() => _favoriteDropActive = false);
+        for (final item in event.session.items) {
+          final path = galleryInternalDragPathFromLocalData(item.localData);
+          if (path != null) {
+            HapticFeedback.heavyImpact();
+            onDrop(path);
+          }
+        }
+      },
+      child: AnimatedContainer(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
+        decoration: _favoriteDropActive
+            ? BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              )
+            : null,
+        child: child,
+      ),
     );
   }
 

@@ -38,6 +38,7 @@ class LocalGalleryCategoryPanel extends StatefulWidget {
     required this.onAlbumMoveToSlot,
     required this.onCategoryMoveToSlot,
     required this.onImageDropToAlbum,
+    this.onImageFavoriteDrop,
     this.modal = false,
     this.scrollController,
     this.afterSelection,
@@ -77,6 +78,7 @@ class LocalGalleryCategoryPanel extends StatefulWidget {
   onCategoryMoveToSlot;
   final Future<void> Function(String imagePath, String albumId)
   onImageDropToAlbum;
+  final Future<void> Function(String imagePath)? onImageFavoriteDrop;
   final bool modal;
   final ScrollController? scrollController;
   final VoidCallback? afterSelection;
@@ -147,6 +149,7 @@ class _LocalGalleryCategoryPanelState extends State<LocalGalleryCategoryPanel> {
                       onAlbumMove: widget.onAlbumMove,
                       onAlbumMoveToSlot: widget.onAlbumMoveToSlot,
                       onImageDrop: widget.onImageDropToAlbum,
+                      onImageFavoriteDrop: widget.onImageFavoriteDrop,
                       onCreateAlbumRequest: () => widget.onCreateAlbum(null),
                     ),
                   ),

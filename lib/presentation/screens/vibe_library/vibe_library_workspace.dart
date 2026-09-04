@@ -229,6 +229,11 @@ class _CategoryPanelState extends State<_CategoryPanel> {
                     widget.onCommand(DeleteCategoryCommand(id)),
                 onCreateCategory: () =>
                     widget.onCommand(const CreateCategoryCommand()),
+                onEntryDrop: (entry, categoryId) => widget.onCommand(
+                  ClassifyVibeEntryCommand(entry.id, categoryId),
+                ),
+                onFavoriteDrop: (entry) =>
+                    widget.onCommand(FavoriteVibeEntryCommand(entry.id)),
               ),
             ),
         ],

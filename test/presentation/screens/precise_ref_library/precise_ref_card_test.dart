@@ -41,6 +41,7 @@ void main() {
     VoidCallback? onEdit,
     VoidCallback? onDelete,
     VoidCallback? onToggleFavorite,
+    VoidCallback? onClassify,
     VoidCallback? onAddToAgent,
   }) async {
     final card = PreciseRefCard(
@@ -50,6 +51,7 @@ void main() {
       onEdit: onEdit,
       onDelete: onDelete,
       onToggleFavorite: onToggleFavorite,
+      onClassify: onClassify,
     );
     await tester.pumpWidget(
       ProviderScope(
@@ -144,6 +146,7 @@ void main() {
     var editCount = 0;
     var deleteCount = 0;
     var favoriteCount = 0;
+    var classifyCount = 0;
     await pumpCard(
       tester,
       initialPolicy: const InteractionPolicy(
@@ -156,6 +159,7 @@ void main() {
       onEdit: () => editCount++,
       onDelete: () => deleteCount++,
       onToggleFavorite: () => favoriteCount++,
+      onClassify: () => classifyCount++,
     );
 
     await tester.tap(
@@ -185,11 +189,13 @@ void main() {
     await selectAction('发送到精准参考');
     await selectAction('发送到图生图');
     await selectAction('编辑参数');
+    await selectAction('参考类型');
     await selectAction('删除');
 
     expect(sendCount, 1);
     expect(img2imgCount, 1);
     expect(editCount, 1);
+    expect(classifyCount, 1);
     expect(deleteCount, 1);
   });
 

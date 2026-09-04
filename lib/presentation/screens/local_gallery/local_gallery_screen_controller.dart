@@ -314,6 +314,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
           .read(galleryAlbumNotifierProvider.notifier)
           .moveAlbumToSlot(id, targetId, slot),
       onImageDropToAlbum: handleImageDropToAlbum,
+      onImageFavoriteDrop: handleImageFavoriteDrop,
     );
   }
 
@@ -486,6 +487,16 @@ class LocalGalleryScreenController extends ChangeNotifier {
         _context().l10n.localGallery_imageMovedToCategory,
       );
     }
+  }
+
+  Future<void> handleImageFavoriteDrop(String imagePath) async {
+    final images = _ref.read(localGalleryNotifierProvider).currentImages;
+    final index = images.indexWhere((item) => item.path == imagePath);
+    final image = index < 0 ? null : images[index];
+    if (image == null || image.isFavorite) return;
+    await _ref
+        .read(localGalleryNotifierProvider.notifier)
+        .toggleFavorite(imagePath);
   }
 
   Future<void> handleSyncWithFileSystem() async {
