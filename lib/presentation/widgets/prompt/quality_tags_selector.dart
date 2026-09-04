@@ -6,6 +6,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../data/models/prompt/prompt_preset_mode.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/quality_preset_provider.dart';
+import '../common/translated_tag_text.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'components/library_entry_menu_item.dart';
 
@@ -399,6 +400,9 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
           QualityTags.getQualityTags(ImageModels.animeDiffusionV45Full) ??
           '';
     }
+    final previewColor = theme.brightness == Brightness.dark
+        ? Colors.green.shade300
+        : Colors.green.shade700;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -406,15 +410,18 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       children: [
         Text(
           context.l10n.qualityTags_addToEnd,
-          style: TextStyle(
+          style: theme.textTheme.labelMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-            fontSize: 11,
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
+        const SizedBox(height: 6),
+        TranslatedPromptText(
           ', $content',
-          style: TextStyle(color: Colors.green.shade700, fontSize: 11),
+          selectable: false,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: previewColor,
+            height: 1.4,
+          ),
         ),
       ],
     );

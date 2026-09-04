@@ -5,6 +5,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/uc_preset_provider.dart';
+import '../common/translated_tag_text.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'components/library_entry_menu_item.dart';
 
@@ -340,15 +341,18 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
       children: [
         Text(
           context.l10n.ucPreset_addToNegative,
-          style: TextStyle(
+          style: theme.textTheme.labelMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-            fontSize: 11,
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
+        const SizedBox(height: 6),
+        TranslatedPromptText(
           content,
-          style: TextStyle(color: theme.colorScheme.secondary, fontSize: 11),
+          selectable: false,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.secondary,
+            height: 1.4,
+          ),
         ),
         // 如果包含 nsfw，显示提示信息
         if (hasNsfw && !isCustom) ...[
