@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
+import '../common/library_classification_drag.dart';
 import '../../themes/core/layered_surface_style.dart';
 
 /// Shared geometry for collection pages that pair a navigation sidebar with a
@@ -305,6 +306,9 @@ class _GallerySidebarNavigationItemState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final isAcceptingDrop = LibraryClassificationDropTargetStatus.isAcceptingOf(
+      context,
+    );
     const controlExtent = 48.0;
     final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0);
 
@@ -323,6 +327,8 @@ class _GallerySidebarNavigationItemState
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? colors.primaryContainer
+                : isAcceptingDrop
+                ? colors.primary.withValues(alpha: 0.12)
                 : _isHovered
                 ? colors.surfaceContainerHighest
                 : Colors.transparent,

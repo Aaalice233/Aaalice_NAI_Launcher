@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/library_classification_drag.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
 void main() {
   testWidgets(
@@ -52,6 +53,65 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(accepted, 'entry-1');
+    },
+  );
+
+  testWidgets(
+    'active drop uses the classification row single highlight surface',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Scaffold(
+              body: Column(
+                children: [
+                  LibraryClassificationDropTarget<String>(
+                    onAccept: (_) {},
+                    child: LibraryClassificationDropTargetStatus(
+                      isAccepting: true,
+                      child: GallerySidebarNavigationItem(
+                        key: const ValueKey('single-highlight-target'),
+                        icon: Icons.folder_outlined,
+                        label: 'Category',
+                        count: 1,
+                        isSelected: false,
+                        onTap: () {},
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final rowSurface = tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.byKey(const ValueKey('single-highlight-target')),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
+      final decoration = rowSurface.decoration! as BoxDecoration;
+      final theme = Theme.of(
+        tester.element(find.byKey(const ValueKey('single-highlight-target'))),
+      );
+      expect(
+        decoration.color,
+        theme.colorScheme.primary.withValues(alpha: 0.12),
+      );
+      expect(
+        find.ancestor(
+          of: find.text('Category'),
+          matching: find.byType(AnimatedContainer),
+        ),
+        findsOneWidget,
+      );
     },
   );
 

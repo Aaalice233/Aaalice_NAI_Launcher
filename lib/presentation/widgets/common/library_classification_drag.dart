@@ -3,6 +3,33 @@ import 'package:flutter/services.dart';
 
 import '../../adaptive/interaction_policy.dart';
 
+/// Exposes the active drop state to the classification row that owns the
+/// visual surface. Keeping the feedback on that row avoids stacking a second
+/// rounded highlight around its built-in pointer hover state.
+class LibraryClassificationDropTargetStatus extends InheritedWidget {
+  const LibraryClassificationDropTargetStatus({
+    super.key,
+    required this.isAccepting,
+    required super.child,
+  });
+
+  final bool isAccepting;
+
+  static bool isAcceptingOf(BuildContext context) {
+    return context
+            .dependOnInheritedWidgetOfExactType<
+              LibraryClassificationDropTargetStatus
+            >()
+            ?.isAccepting ??
+        false;
+  }
+
+  @override
+  bool updateShouldNotify(LibraryClassificationDropTargetStatus oldWidget) {
+    return isAccepting != oldWidget.isAccepting;
+  }
+}
+
 /// Shared in-app drag behavior for assigning library entries to sidebar
 /// destinations. Touch layouts use explicit card actions instead.
 class LibraryClassificationDragSource<T extends Object>
@@ -89,7 +116,6 @@ class LibraryClassificationDropTarget<T extends Object>
   @override
   Widget build(BuildContext context) {
     if (!enabled) return child;
-    final theme = Theme.of(context);
     return DragTarget<T>(
       onWillAcceptWithDetails: (details) =>
           canAccept?.call(details.data) ?? true,
@@ -97,18 +123,11 @@ class LibraryClassificationDropTarget<T extends Object>
         HapticFeedback.heavyImpact();
         onAccept(details.data);
       },
-      builder: (context, candidates, rejected) => AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 150),
-        decoration: candidates.isEmpty
-            ? null
-            : BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-        child: child,
-      ),
+      builder: (context, candidates, rejected) =>
+          LibraryClassificationDropTargetStatus(
+            isAccepting: candidates.isNotEmpty,
+            child: child,
+          ),
     );
   }
 }
