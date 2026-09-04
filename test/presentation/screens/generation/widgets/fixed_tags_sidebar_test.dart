@@ -1963,6 +1963,50 @@ void main() {
     },
   );
 
+  testWidgets(
+    'grid cards reserve enough height for translated text and touch actions',
+    (tester) async {
+      final category = TagLibraryCategory.create(name: 'Quality');
+      final positive = FixedTagEntry.create(
+        name: 'positive',
+        content: 'masterpiece, best quality, detailed background',
+        enabled: false,
+        categoryId: category.id,
+      );
+      final negative = FixedTagEntry.create(
+        name: 'negative',
+        content: 'bad hands, low quality, blurry, watermark',
+        enabled: false,
+        promptType: FixedTagPromptType.negative,
+      );
+      final storage = _SidebarTestStorage(
+        fixedEntries: [positive, negative],
+        categories: [category],
+        libraryEntries: const [],
+      )..fixedSidebarViewMode = 'grid';
+      final lookup = TagTranslationLookup.fromResolver((tags) async {
+        return {for (final tag in tags) tag: '译文$tag'};
+      });
+
+      await _pumpSidebar(
+        tester,
+        storage,
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.touch,
+          touchAvailable: true,
+          precisePointerAvailable: false,
+        ),
+        translationLookup: lookup,
+      );
+
+      expect(
+        find.byKey(const ValueKey('translated-prompt-translation')),
+        findsNWidgets(2),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('negative list keeps exact scroll metrics while scrolling', (
     tester,
   ) async {
@@ -2531,10 +2575,15 @@ Future<void> _pumpSidebar(
   _SidebarTestStorage storage, {
   double textScale = 1,
   InteractionPolicy? interactionPolicy,
+  TagTranslationLookup? translationLookup,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+      overrides: [
+        localStorageServiceProvider.overrideWith((ref) => storage),
+        if (translationLookup != null)
+          tagTranslationLookupProvider.overrideWithValue(translationLookup),
+      ],
       child: MaterialApp(
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
