@@ -4,10 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/database/database_providers.dart';
-import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
-import '../../core/utils/bulk_tag_edit_utils.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/services/bulk_operation_service.dart';
 import '../../core/utils/undo_redo_history.dart';
@@ -140,222 +137,49 @@ class BulkOperationState with _$BulkOperationState {
 }
 
 /// Bulk metadata edit command for undo/redo
+///
+/// 撤销与重做都按成功项的显式目标标签回放，不再逐图读取数据库。
 class _BulkMetadataEditCommand extends HistoryCommand {
-  final Ref _ref;
-  final List<String> _imagePaths;
-  final List<String> _tagsToAdd;
-  final List<String> _tagsToRemove;
-  final Map<String, List<String>> _originalTags;
+  final BulkOperationService _service;
+  final List<BulkTagAssignment> _previous;
+  final List<BulkTagAssignment> _applied;
 
   _BulkMetadataEditCommand(
     super.description,
-    this._ref,
-    this._imagePaths,
-    this._tagsToAdd,
-    this._tagsToRemove,
-    this._originalTags,
-  );
-
-  Future<GalleryDataSource> _getDataSource() async {
-    final dbManager = await _ref.read(databaseManagerProvider.future);
-    final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
-    if (dataSource == null) {
-      throw StateError('GalleryDataSource not found');
-    }
-    return dataSource;
-  }
+    this._service, {
+    required List<BulkTagAssignment> previous,
+    required List<BulkTagAssignment> applied,
+  }) : _previous = previous,
+       _applied = applied;
 
   @override
-  Future<void> execute() async {
-    final dataSource = await _getDataSource();
-
-    // Apply the metadata changes
-    for (final imagePath in _imagePaths) {
-      try {
-        var imageId = await dataSource.getImageIdByPath(imagePath);
-
-        // If image not in database, index it first
-        if (imageId == null) {
-          final file = File(imagePath);
-          if (await file.exists()) {
-            final stat = await file.stat();
-            final fileName = imagePath.split(Platform.pathSeparator).last;
-            imageId = await dataSource.upsertImage(
-              filePath: imagePath,
-              fileName: fileName,
-              fileSize: stat.size,
-              createdAt: stat.changed,
-              modifiedAt: stat.modified,
-            );
-          } else {
-            continue;
-          }
-        }
-
-        final currentTags = await dataSource.getImageTags(imageId);
-        final updatedTags = applyBulkTagChanges(
-          currentTags,
-          tagsToAdd: _tagsToAdd,
-          tagsToRemove: _tagsToRemove,
-        );
-
-        await dataSource.setImageTags(imageId, updatedTags);
-      } catch (e) {
-        AppLogger.e(
-          'Failed to edit metadata for $imagePath',
-          e,
-          null,
-          '_BulkMetadataEditCommand',
-        );
-      }
-    }
-  }
+  Future<void> execute() => _service.applyTagAssignments(_applied);
 
   @override
-  Future<void> undo() async {
-    final dataSource = await _getDataSource();
-
-    // Restore original tags
-    for (final imagePath in _imagePaths) {
-      try {
-        final originalTags = _originalTags[imagePath];
-        if (originalTags != null) {
-          var imageId = await dataSource.getImageIdByPath(imagePath);
-
-          if (imageId == null) {
-            final file = File(imagePath);
-            if (await file.exists()) {
-              final stat = await file.stat();
-              final fileName = imagePath.split(Platform.pathSeparator).last;
-              imageId = await dataSource.upsertImage(
-                filePath: imagePath,
-                fileName: fileName,
-                fileSize: stat.size,
-                createdAt: stat.changed,
-                modifiedAt: stat.modified,
-              );
-            } else {
-              continue;
-            }
-          }
-
-          await dataSource.setImageTags(imageId, originalTags);
-        }
-      } catch (e) {
-        AppLogger.e(
-          'Failed to undo metadata edit for $imagePath',
-          e,
-          null,
-          '_BulkMetadataEditCommand',
-        );
-      }
-    }
-  }
+  Future<void> undo() => _service.applyTagAssignments(_previous);
 }
 
 /// Bulk toggle favorite command for undo/redo
+///
+/// 撤销与重做都按成功项的显式目标收藏状态回放，不再逐图读取数据库。
 class _BulkToggleFavoriteCommand extends HistoryCommand {
-  final Ref _ref;
-  final Map<String, bool> _originalFavoriteStates;
-  final bool _newFavoriteState;
+  final BulkOperationService _service;
+  final List<BulkFavoriteAssignment> _previous;
+  final List<BulkFavoriteAssignment> _applied;
 
   _BulkToggleFavoriteCommand(
     super.description,
-    this._ref,
-    this._originalFavoriteStates,
-    this._newFavoriteState,
-  );
-
-  Future<GalleryDataSource> _getDataSource() async {
-    final dbManager = await _ref.read(databaseManagerProvider.future);
-    final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
-    if (dataSource == null) {
-      throw StateError('GalleryDataSource not found');
-    }
-    return dataSource;
-  }
+    this._service, {
+    required List<BulkFavoriteAssignment> previous,
+    required List<BulkFavoriteAssignment> applied,
+  }) : _previous = previous,
+       _applied = applied;
 
   @override
-  Future<void> execute() async {
-    final dataSource = await _getDataSource();
-
-    for (final entry in _originalFavoriteStates.entries) {
-      try {
-        var imageId = await dataSource.getImageIdByPath(entry.key);
-
-        // If image not in database, index it first
-        if (imageId == null) {
-          final file = File(entry.key);
-          if (await file.exists()) {
-            final stat = await file.stat();
-            final fileName = entry.key.split(Platform.pathSeparator).last;
-            imageId = await dataSource.upsertImage(
-              filePath: entry.key,
-              fileName: fileName,
-              fileSize: stat.size,
-              createdAt: stat.changed,
-              modifiedAt: stat.modified,
-            );
-          } else {
-            continue;
-          }
-        }
-
-        final currentlyFavorite = await dataSource.isFavorite(imageId);
-        if (currentlyFavorite != _newFavoriteState) {
-          await dataSource.toggleFavorite(imageId);
-        }
-      } catch (e) {
-        AppLogger.e(
-          'Failed to toggle favorite for ${entry.key}',
-          e,
-          null,
-          '_BulkToggleFavoriteCommand',
-        );
-      }
-    }
-  }
+  Future<void> execute() => _service.applyFavoriteAssignments(_applied);
 
   @override
-  Future<void> undo() async {
-    final dataSource = await _getDataSource();
-
-    // Restore original favorite states
-    for (final entry in _originalFavoriteStates.entries) {
-      try {
-        var imageId = await dataSource.getImageIdByPath(entry.key);
-
-        if (imageId == null) {
-          final file = File(entry.key);
-          if (await file.exists()) {
-            final stat = await file.stat();
-            final fileName = entry.key.split(Platform.pathSeparator).last;
-            imageId = await dataSource.upsertImage(
-              filePath: entry.key,
-              fileName: fileName,
-              fileSize: stat.size,
-              createdAt: stat.changed,
-              modifiedAt: stat.modified,
-            );
-          } else {
-            continue;
-          }
-        }
-
-        final currentlyFavorite = await dataSource.isFavorite(imageId);
-        if (currentlyFavorite != entry.value) {
-          await dataSource.toggleFavorite(imageId);
-        }
-      } catch (e) {
-        AppLogger.e(
-          'Failed to undo favorite toggle for ${entry.key}',
-          e,
-          null,
-          '_BulkToggleFavoriteCommand',
-        );
-      }
-    }
-  }
+  Future<void> undo() => _service.applyFavoriteAssignments(_previous);
 }
 
 /// Provider for BulkOperationService
@@ -378,16 +202,6 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
     return const BulkOperationState();
   }
 
-  /// 获取 GalleryDataSource
-  Future<GalleryDataSource> _getDataSource() async {
-    final dbManager = await ref.read(databaseManagerProvider.future);
-    final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
-    if (dataSource == null) {
-      throw StateError('GalleryDataSource not found');
-    }
-    return dataSource;
-  }
-
   /// Bulk delete images
   ///
   /// [imagePaths] List of image file paths to delete
@@ -397,12 +211,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
   /// 返回操作结果（成功数、失败数、错误列表）
   Future<BulkOperationResult> bulkDelete(List<String> imagePaths) async {
     if (imagePaths.isEmpty) {
-      return (
-        success: 0,
-        failed: 0,
-        errors: <String>[],
-        successfulItems: <String>[],
-      );
+      return emptyBulkOperationResult;
     }
 
     state = state.copyWith(
@@ -561,12 +370,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
     List<String> tagsToRemove = const [],
   }) async {
     if (imagePaths.isEmpty) {
-      return (
-        success: 0,
-        failed: 0,
-        errors: <String>[],
-        successfulItems: <String>[],
-      );
+      return emptyBulkOperationResult;
     }
 
     if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
@@ -575,12 +379,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
           BulkOperationErrorCode.noMetadataChanges,
         ),
       );
-      return (
-        success: 0,
-        failed: 0,
-        errors: <String>[],
-        successfulItems: <String>[],
-      );
+      return emptyBulkOperationResult;
     }
 
     state = state.copyWith(
@@ -595,19 +394,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
     );
 
     try {
-      // Store original tags for undo
-      final dataSource = await _getDataSource();
-      final originalTags = <String, List<String>>{};
-      for (final path in imagePaths) {
-        final imageId = await dataSource.getImageIdByPath(path);
-        if (imageId != null) {
-          originalTags[path] = await dataSource.getImageTags(imageId);
-        } else {
-          originalTags[path] = [];
-        }
-      }
-
-      final result = await _service.bulkEditMetadata(
+      final outcome = await _service.bulkEditMetadata(
         imagePaths,
         tagsToAdd: tagsToAdd,
         tagsToRemove: tagsToRemove,
@@ -627,14 +414,13 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
             },
       );
 
-      if (result.successfulItems.isNotEmpty) {
+      final result = outcome.result;
+      if (outcome.previous.isNotEmpty) {
         final command = _BulkMetadataEditCommand(
-          'Edit metadata for ${result.successfulItems.length} images',
-          ref,
-          result.successfulItems,
-          tagsToAdd,
-          tagsToRemove,
-          originalTags,
+          'Edit metadata for ${outcome.previous.length} images',
+          _service,
+          previous: outcome.previous,
+          applied: outcome.applied,
         );
         _history.push(command);
       }
@@ -688,12 +474,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
     required bool isFavorite,
   }) async {
     if (imagePaths.isEmpty) {
-      return (
-        success: 0,
-        failed: 0,
-        errors: <String>[],
-        successfulItems: <String>[],
-      );
+      return emptyBulkOperationResult;
     }
 
     state = state.copyWith(
@@ -706,19 +487,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
     );
 
     try {
-      // Store original favorite states for undo
-      final dataSource = await _getDataSource();
-      final originalStates = <String, bool>{};
-      for (final path in imagePaths) {
-        final imageId = await dataSource.getImageIdByPath(path);
-        if (imageId != null) {
-          originalStates[path] = await dataSource.isFavorite(imageId);
-        } else {
-          originalStates[path] = false;
-        }
-      }
-
-      final result = await _service.bulkToggleFavorite(
+      final outcome = await _service.bulkToggleFavorite(
         imagePaths,
         isFavorite: isFavorite,
         onProgress:
@@ -737,16 +506,13 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
             },
       );
 
-      if (result.successfulItems.isNotEmpty) {
-        final successfulOriginalStates = {
-          for (final path in result.successfulItems)
-            path: originalStates[path]!,
-        };
+      final result = outcome.result;
+      if (outcome.previous.isNotEmpty) {
         final command = _BulkToggleFavoriteCommand(
-          'Toggle favorite for ${result.successfulItems.length} images to $isFavorite',
-          ref,
-          successfulOriginalStates,
-          isFavorite,
+          'Toggle favorite for ${outcome.previous.length} images to $isFavorite',
+          _service,
+          previous: outcome.previous,
+          applied: outcome.applied,
         );
         _history.push(command);
       }
