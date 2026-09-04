@@ -93,6 +93,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('desktop toolbar toggles the persistent category panel', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1180, 700));
+    await _pumpTagLibrary(tester, _TestTagLibraryPageNotifier.new);
+
+    final categoriesButton = find.byKey(
+      const Key('tag-library-categories-button'),
+    );
+    expect(
+      find.byKey(const Key('tag-library-category-sidebar')),
+      findsOneWidget,
+    );
+
+    await tester.tap(categoriesButton);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('tag-library-category-sidebar')), findsNothing);
+
+    await tester.tap(categoriesButton);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('tag-library-category-sidebar')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('compact category panel keeps expansion after close and reopen', (
     tester,
   ) async {
