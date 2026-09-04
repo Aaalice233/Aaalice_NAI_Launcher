@@ -142,6 +142,18 @@ void main() {
         ),
         findsOneWidget,
       );
+      final scrollView = find.descendant(
+        of: surface,
+        matching: find.byType(SingleChildScrollView),
+      );
+      final surfaceRect = tester.getRect(surface);
+      final scrollRect = tester.getRect(scrollView);
+      expect(scrollRect.top, surfaceRect.top + 14);
+      expect(scrollRect.bottom, surfaceRect.bottom - 14);
+      final scrollbar = tester.widget<Scrollbar>(
+        find.descendant(of: surface, matching: find.byType(Scrollbar)),
+      );
+      expect(scrollbar.thumbVisibility, isTrue);
       expect(tester.takeException(), isNull);
     },
   );
