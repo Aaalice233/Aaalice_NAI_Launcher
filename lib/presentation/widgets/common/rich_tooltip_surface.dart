@@ -74,10 +74,15 @@ class _RichTooltipSurfaceState extends State<RichTooltipSurface> {
               interactive: true,
               thickness: 4,
               radius: const Radius.circular(4),
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                primary: false,
-                child: widget.child,
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(
+                  context,
+                ).copyWith(scrollbars: false),
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  primary: false,
+                  child: widget.child,
+                ),
               ),
             ),
           ),

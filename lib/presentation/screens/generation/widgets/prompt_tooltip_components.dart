@@ -85,6 +85,7 @@ class TooltipSection extends StatelessWidget {
     required this.content,
     required this.isDark,
     this.initiallyExpanded = true,
+    this.maxLines = 3,
   });
 
   final ThemeData theme;
@@ -94,6 +95,7 @@ class TooltipSection extends StatelessWidget {
   final String content;
   final bool isDark;
   final bool initiallyExpanded;
+  final int? maxLines;
 
   @override
   Widget build(BuildContext context) => _TooltipCompositionCard(
@@ -107,7 +109,7 @@ class TooltipSection extends StatelessWidget {
     child: TranslatedPromptText(
       content,
       selectable: false,
-      maxLines: 3,
+      maxLines: maxLines,
       includeUntranslated: true,
       style: theme.textTheme.bodySmall?.copyWith(
         color: theme.colorScheme.onSurfaceVariant,

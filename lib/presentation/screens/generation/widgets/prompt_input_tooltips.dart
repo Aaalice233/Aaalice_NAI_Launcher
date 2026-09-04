@@ -88,6 +88,7 @@ class PositivePromptTooltip extends StatelessWidget {
             prefixes.map((tag) => _resolve(tag.content)).join(', '),
             isDark,
             initiallyExpanded: expandSection(),
+            maxLines: null,
           ),
           const SizedBox(height: 8),
         ],
@@ -136,6 +137,7 @@ class PositivePromptTooltip extends StatelessWidget {
             suffixes.map((tag) => _resolve(tag.content)).join(', '),
             isDark,
             initiallyExpanded: expandSection(),
+            maxLines: null,
           ),
           const SizedBox(height: 8),
         ],
@@ -151,6 +153,7 @@ class PositivePromptTooltip extends StatelessWidget {
     String content,
     bool isDark, {
     required bool initiallyExpanded,
+    int? maxLines = 3,
   }) => TooltipSection(
     key: ValueKey('prompt-composition-$id'),
     theme: theme,
@@ -160,6 +163,7 @@ class PositivePromptTooltip extends StatelessWidget {
     content: content,
     isDark: isDark,
     initiallyExpanded: initiallyExpanded,
+    maxLines: maxLines,
   );
 
   String _resolve(String value) => aliasResolver.resolveAliases(value);
@@ -270,6 +274,7 @@ class NegativePromptTooltip extends StatelessWidget {
             prefixes.map((tag) => _resolve(tag.content)).join(', '),
             isDark,
             initiallyExpanded: expandSection(),
+            maxLines: null,
           ),
           const SizedBox(height: 8),
         ],
@@ -294,6 +299,7 @@ class NegativePromptTooltip extends StatelessWidget {
             suffixes.map((tag) => _resolve(tag.content)).join(', '),
             isDark,
             initiallyExpanded: expandSection(),
+            maxLines: null,
           ),
           const SizedBox(height: 8),
         ],
@@ -309,6 +315,7 @@ class NegativePromptTooltip extends StatelessWidget {
     String content,
     bool isDark, {
     required bool initiallyExpanded,
+    int? maxLines = 3,
   }) => TooltipSection(
     key: ValueKey('prompt-composition-$id'),
     theme: theme,
@@ -318,6 +325,7 @@ class NegativePromptTooltip extends StatelessWidget {
     content: content,
     isDark: isDark,
     initiallyExpanded: initiallyExpanded,
+    maxLines: maxLines,
   );
 
   String _resolve(String value) => aliasResolver.resolveAliases(value);
