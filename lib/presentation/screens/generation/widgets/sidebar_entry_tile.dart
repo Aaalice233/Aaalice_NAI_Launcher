@@ -99,11 +99,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
         !context.interactionPolicy.precisePointerAvailable) {
       return tile;
     }
-    return TagLibraryEntryHoverPreview(
-      entry: libraryEntry,
-      hoverDelay: const Duration(milliseconds: 300),
-      child: tile,
-    );
+    return TagLibraryEntryHoverPreview(entry: libraryEntry, child: tile);
   }
 
   Color _backgroundColor(ThemeData theme) {

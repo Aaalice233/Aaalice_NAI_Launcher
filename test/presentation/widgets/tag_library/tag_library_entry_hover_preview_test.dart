@@ -80,6 +80,40 @@ void main() {
     expect(tester.takeException(), isNull);
   }
 
+  testWidgets('默认悬浮延迟避免经过或滚动列表时误触预览', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 160,
+              height: 64,
+              child: TagLibraryEntryHoverPreview(
+                entry: entry,
+                child: const ColoredBox(color: Colors.black),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(
+      tester.getCenter(find.byType(TagLibraryEntryHoverPreview)),
+    );
+
+    await tester.pump(const Duration(milliseconds: 699));
+    expect(find.byKey(previewKey), findsNothing);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.byKey(previewKey), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('词库来源条目悬浮后显示完整词库同款预览', (tester) async {
     final mouse = await showPreview(
       tester,

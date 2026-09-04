@@ -2564,7 +2564,7 @@ void main() {
       await mouse.addPointer();
       addTearDown(mouse.removePointer);
       await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
-      await tester.pump(const Duration(milliseconds: 299));
+      await tester.pump(const Duration(milliseconds: 699));
 
       const previewKey = ValueKey('tag-library-entry-preview-overlay');
       expect(find.byKey(previewKey), findsNothing);
@@ -2639,7 +2639,7 @@ void main() {
     await mouse.addPointer();
     addTearDown(mouse.removePointer);
     await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 700));
 
     expect(
       find.byKey(const ValueKey('tag-library-entry-preview-overlay')),

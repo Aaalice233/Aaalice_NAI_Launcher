@@ -20,7 +20,7 @@ class TagLibraryEntryHoverPreview extends StatefulWidget {
     required this.entry,
     required this.child,
     this.enabled = true,
-    this.hoverDelay = const Duration(milliseconds: 500),
+    this.hoverDelay = const Duration(milliseconds: 700),
   });
 
   final TagLibraryEntry entry;
