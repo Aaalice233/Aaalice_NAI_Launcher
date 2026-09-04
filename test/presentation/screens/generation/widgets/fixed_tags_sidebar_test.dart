@@ -980,6 +980,15 @@ void main() {
       tester.getCenter(positiveCollapseAll).dy,
       closeTo(tester.getCenter(find.text('正向固定词')).dy, 1),
     );
+    final positiveTitleRect = tester.getRect(find.text('正向固定词'));
+    final positiveCountRect = tester.getRect(
+      find.descendant(of: positiveCard, matching: find.text('4')),
+    );
+    expect(positiveCountRect.left - positiveTitleRect.right, lessThan(16));
+    expect(
+      positiveCountRect.right,
+      lessThan(tester.getRect(positiveExpandAll).left),
+    );
     expect(
       find.descendant(
         of: negativeCard,

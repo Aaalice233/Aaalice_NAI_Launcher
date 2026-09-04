@@ -1706,7 +1706,8 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Icon(icon, size: 15, color: color),
         const SizedBox(width: 6),
-        Expanded(
+        Flexible(
+          fit: FlexFit.loose,
           child: Text(
             label,
             maxLines: 1,
@@ -1716,6 +1717,7 @@ class _SectionTitle extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(width: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
