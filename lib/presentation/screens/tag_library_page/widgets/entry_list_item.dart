@@ -67,12 +67,16 @@ class _EntryListItemState extends State<EntryListItem> {
     final theme = Theme.of(context);
     final entry = widget.entry;
     final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
+    final restingBackground = theme.colorScheme.surfaceContainerLow;
 
     final backgroundColor = widget.isSelected
         ? theme.colorScheme.primary.withValues(alpha: 0.12)
         : (_isHovering && !widget.isSelectionMode
-              ? theme.colorScheme.primary.withValues(alpha: 0.08)
-              : theme.colorScheme.surfaceContainerLow);
+              ? Color.alphaBlend(
+                  theme.colorScheme.primary.withValues(alpha: 0.08),
+                  restingBackground,
+                )
+              : restingBackground);
 
     final itemContent = MouseRegion(
       onEnter: (_) {
