@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="NAI Launcher 官方项目主页与隐私说明。">
+  <title>NAI Launcher</title>
+  <link rel="stylesheet" href="./site.css">
+</head>
+<body>
+  <!--
+    THESIS: 用一页可信、克制的项目说明承接 OAuth 用户，而不是堆砌营销卡片。
+    OWN-WORLD: 炭黑画布、旧纸正文与少量猩红信号，使用紧凑工具界面的低对比层级。
+    STORY: 访客先确认产品身份，再理解本地优先与云备份边界，最后选择下载或查阅政策。
+    FIRST VIEWPORT: 左对齐大标题和简明身份说明占据主视野，下载与源代码操作紧随其后。
+    FORM: 已建立产品视觉系统中的 Read 模式项目主页；用户要求的克制工具页优先于随机方向，surface seed be3ca83e 仅用于审计。
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+  -->
+  <header class="site-header">
+    <nav class="nav" aria-label="主导航">
+      <a class="brand" href="./"><img class="brand-icon" src="./assets/icon.png" alt=""> NAI Launcher</a>
+      <div class="nav-links">
+        <a href="./" aria-current="page">首页</a>
+        <a href="./privacy/">隐私政策</a>
+        <a href="./terms/">服务条款</a>
+        <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="page">
+    <section class="intro">
+      <h1>把创作流程留在自己的工作台。</h1>
+      <p class="lede">NAI Launcher 是开源、跨平台的第三方 NovelAI 客户端，连接 Prompt 编写、图像生成与编辑、资源整理和可选的云备份。</p>
+      <p>项目不运营用于托管 NovelAI 账号或用户作品的自有服务器。Google Drive 连接只访问隐藏的应用数据目录；OneDrive 连接只访问应用专属文件夹。</p>
+      <div class="actions">
+        <a class="button" href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases">下载最新版本</a>
+        <a class="button secondary" href="https://github.com/Aaalice233/Aaalice_NAI_Launcher">查看源代码</a>
+      </div>
+    </section>
+
+    <section class="facts" aria-label="项目特点">
+      <div class="fact">
+        <strong>本地优先</strong>
+        <p>Prompt、图库索引、标签和 Agent 会话默认保存在设备上。</p>
+      </div>
+      <div class="fact">
+        <strong>明确同步</strong>
+        <p>只有用户主动选择的数据范围，才会在用户明确操作后上传或拉取。</p>
+      </div>
+      <div class="fact">
+        <strong>开放透明</strong>
+        <p>客户端以 MIT License 开源，功能边界和数据去向可以公开检查。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>云备份如何工作</h2>
+      <p>连接 Google Drive 或 OneDrive 时，NAI Launcher 会打开服务商的官方登录页面。OAuth access token 和 refresh token 保存在设备安全存储中，不会写入备份。</p>
+      <p>备份只在用户明确点击上传、拉取或恢复后传输；内容使用明文快照，因此用户应自行确认所选云端账号和存储空间的访问安全。</p>
+      <div class="notice">Google Drive 仅使用 <code>drive.appdata</code> 对应的应用专属数据目录；OneDrive 仅使用 <code>Files.ReadWrite.AppFolder</code> 对应的应用文件夹。应用不会请求扫描普通网盘文件。</div>
+    </section>
+
+    <section>
+      <h2>支持与政策</h2>
+      <p>连接云盘前，请先阅读我们的 <a href="./privacy/">隐私政策</a> 与 <a href="./terms/">服务条款</a>。如果遇到问题，可在 <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues">GitHub Issues</a> 提交反馈。</p>
+    </section>
+
+    <section class="language-copy" lang="en">
+      <h2>English summary</h2>
+      <p>NAI Launcher is an open-source, cross-platform, third-party NovelAI client. Local data stays on your device by default. Google Drive accesses its hidden app-data directory, while OneDrive accesses an app-specific folder. Only the data categories you explicitly select are transferred when you start an upload, download, or restore.</p>
+      <p>Read the <a href="./privacy/#english">Privacy Policy</a> and <a href="./terms/#english">Terms of Service</a> before connecting a cloud account.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>NAI Launcher · Open source under the MIT License</p>
+      <p>非 NovelAI 官方产品 / Not affiliated with NovelAI</p>
+    </div>
+  </footer>
+</body>
+</html>

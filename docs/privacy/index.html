@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="NAI Launcher 隐私政策。">
+  <title>隐私政策 · NAI Launcher</title>
+  <link rel="stylesheet" href="../site.css">
+</head>
+<body class="legal">
+  <header class="site-header">
+    <nav class="nav" aria-label="主导航">
+      <a class="brand" href="../"><img class="brand-icon" src="../assets/icon.png" alt=""> NAI Launcher</a>
+      <div class="nav-links">
+        <a href="../">首页</a>
+        <a href="./" aria-current="page">隐私政策</a>
+        <a href="../terms/">服务条款</a>
+        <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="page">
+    <article>
+      <h1>隐私政策</h1>
+      <p class="meta">生效日期：2026 年 9 月 4 日</p>
+      <p class="lede">本政策说明 NAI Launcher 如何处理本地数据、第三方服务数据，以及可选的 Google Drive 和 OneDrive 云备份。</p>
+
+      <h2>1. 项目身份与适用范围</h2>
+      <p>NAI Launcher 是开源的第三方 NovelAI 客户端，并非 NovelAI 官方产品。本项目不运营用于托管用户账号或作品的自有服务器。本政策适用于 NAI Launcher 客户端及本项目网站。</p>
+
+      <h2>2. 我们处理的数据</h2>
+      <h3>本地数据</h3>
+      <p>Prompt、图库索引、标签、设置、生成记录和 Agent 会话默认保存在用户设备上。应用仅在实现用户选择的功能时读取这些数据。</p>
+      <h3>第三方服务</h3>
+      <ul>
+        <li>使用生成、编辑或 Vibe 编码时，对应的 Prompt、参数和图片会发送给 NovelAI。</li>
+        <li>使用在线画廊时，搜索条件和下载请求会发送给用户选择的第三方图库。</li>
+        <li>使用 AI 翻译或 Agent 时，对话、附加图片及完成任务所需的数据会发送给用户配置的模型服务。</li>
+      </ul>
+
+      <h2>3. Google 用户数据</h2>
+      <p>用户选择连接 Google Drive 时，应用通过 Google OAuth 请求基本身份信息（OpenID 标识与电子邮件地址）以识别当前连接的账号，并请求 <code>drive.appdata</code> 权限，在 Google Drive 的应用专属隐藏目录中创建、读取、更新和删除 NAI Launcher 备份。</p>
+      <p>应用不会请求访问、扫描或共享用户 Google Drive 中的普通文件。Google 用户数据仅用于显示连接账号、执行用户明确发起的备份上传、下载、恢复和删除，不用于广告、画像或出售。</p>
+
+      <h2>4. OneDrive 用户数据</h2>
+      <p>用户选择连接 OneDrive 时，应用使用 Microsoft OAuth 识别当前连接的账号，并通过 <code>Files.ReadWrite.AppFolder</code> 访问应用专属文件夹。应用不会请求扫描普通 OneDrive 文件。</p>
+
+      <h2>5. 存储、安全与共享</h2>
+      <ul>
+        <li>OAuth access token、refresh token、NovelAI Token、WebDAV 密码和 GitHub Token 保存在设备安全存储中，不会写入云备份。</li>
+        <li>云备份内容采用明文快照，不提供端到端加密。用户应确保所选云端账号及存储空间权限符合自己的隐私需求。</li>
+        <li>本项目不会向广告商出售或出租用户数据，也不会将 Google 用户数据转移给第三方用于广告。</li>
+        <li>只有为完成用户主动选择的功能所必需的第三方服务才会接收相应数据；这些服务对数据的处理受其各自政策约束。</li>
+      </ul>
+
+      <h2>6. 保留、删除与撤销访问</h2>
+      <p>本地数据会保留到用户在应用内删除、清除应用数据或卸载应用。云备份会保留在用户自己的云盘应用专属目录中，直到用户在应用内删除备份，或从对应云盘账号中删除应用数据。</p>
+      <p>用户可随时在 NAI Launcher 中断开云盘连接。断开连接会从设备安全存储中删除该连接的 OAuth token、OpenID 账号标识和显示邮箱；Google 连接还会在平台支持时撤销授权。用户也可在 Google 或 Microsoft 账号的授权管理页面撤销应用访问。断开或撤销授权会停止后续访问，但不会自动删除用户云盘中已有的备份；用户可单独删除这些备份。</p>
+
+      <h2>7. 政策变更与联系</h2>
+      <p>本政策更新时会在此页面修改生效日期。一般问题请通过 <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues">GitHub Issues</a> 联系项目维护者；隐私或数据删除请求可发送至 Google OAuth 权限页显示的用户支持邮箱。请勿在公开 Issue 中提交 token、账号凭据或私人内容。</p>
+
+      <section class="language-copy" id="english" lang="en">
+        <h2>Privacy Policy — English</h2>
+        <p class="meta">Effective: September 4, 2026</p>
+        <p>NAI Launcher is an open-source, third-party NovelAI client. The project does not operate its own server for hosting user accounts or artwork. Prompts, gallery indexes, tags, settings, generation records, and Agent sessions remain on the user’s device by default.</p>
+        <p>When a user connects Google Drive, the app uses basic OpenID identity and email data to identify the connected account and requests <code>drive.appdata</code> access to create, read, update, and delete NAI Launcher backups in Google Drive’s app-private hidden storage. It does not request access to ordinary Drive files. OneDrive similarly uses <code>Files.ReadWrite.AppFolder</code> for app-private storage.</p>
+        <p>Cloud transfers occur only when the user explicitly starts an upload, download, restore, or deletion. OAuth tokens remain in device secure storage and are excluded from backups. Backup snapshots are not end-to-end encrypted. Google user data is not sold, used for advertising, or transferred for advertising purposes.</p>
+        <p>Disconnecting in the app deletes that connection’s OAuth tokens, OpenID account identifier, and display email from device secure storage. Google authorization is also revoked when supported. Existing cloud backups remain until the user deletes them in the app or from the provider’s app-data storage. General questions may use <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues">GitHub Issues</a>; private privacy or deletion requests may use the support email shown on the Google OAuth consent screen. Never post credentials or private content publicly.</p>
+      </section>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner"><p>NAI Launcher · Privacy</p><p><a href="../terms/">服务条款 / Terms</a></p></div>
+  </footer>
+</body>
+</html>

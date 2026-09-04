@@ -1,5 +1,14 @@
 # Third-Party Notices
 
+## Project Website Fonts
+
+The public project website self-hosts [Oswald](https://github.com/googlefonts/OswaldFont)
+and [Courier Prime](https://github.com/quoteunquoteapps/CourierPrime) from the
+[Google Fonts repository](https://github.com/google/fonts). Both font families
+are distributed under the SIL Open Font License 1.1. The exact license texts
+are retained next to the website font files under `docs/assets/fonts/`. The
+website does not contact Google Fonts at runtime.
+
 ## Bundled Watermark Fonts
 
 The watermark editor uses a curated, platform-independent font set so previews
