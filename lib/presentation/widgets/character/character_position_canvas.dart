@@ -7,6 +7,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/composition_guide_provider.dart';
@@ -509,11 +510,14 @@ class _ModeSegment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final controlExtent = context.interactionPolicy.minimumControlExtent;
 
     return InkWell(
       onTap: onTap,
       borderRadius: radius,
       child: Container(
+        constraints: BoxConstraints(minHeight: controlExtent),
+        alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: selected

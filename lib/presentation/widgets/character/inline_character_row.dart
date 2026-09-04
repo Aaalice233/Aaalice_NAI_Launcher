@@ -81,43 +81,39 @@ class _InlineCharacterHeader extends ConsumerWidget {
           ),
         if (count > 0) ...[
           SizedBox(width: compact ? 4 : 8),
-          IconButton(
+          TextButton.icon(
+            key: const ValueKey('character-manager-clear-all'),
             onPressed: () => confirmClearAllCharacters(context, ref),
-            icon: const Icon(Icons.delete_sweep_outlined),
-            iconSize: 20,
-            tooltip: l10n.characterEditor_clearAll,
-            color: theme.colorScheme.error,
-            constraints: BoxConstraints.tightFor(
-              width: controlExtent,
-              height: controlExtent,
+            icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+            label: Text(l10n.characterEditor_clearAll),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+              minimumSize: Size(0, controlExtent),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              visualDensity: VisualDensity.compact,
             ),
-            padding: EdgeInsets.zero,
           ),
         ],
       ],
     );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final largeText = MediaQuery.textScalerOf(context).scale(14) >= 20;
-        if (constraints.maxWidth < 380 || largeText) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              modeOrTitle,
-              const SizedBox(height: 4),
-              Align(alignment: Alignment.centerRight, child: actions),
-            ],
-          );
-        }
-        return Row(
-          children: [
-            Flexible(child: modeOrTitle),
-            const Spacer(),
-            actions,
-          ],
-        );
-      },
+    final largeText = MediaQuery.textScalerOf(context).scale(14) >= 20;
+    if (largeText) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          modeOrTitle,
+          const SizedBox(height: 4),
+          Align(alignment: Alignment.centerRight, child: actions),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Flexible(child: modeOrTitle),
+        const Spacer(),
+        actions,
+      ],
     );
   }
 }

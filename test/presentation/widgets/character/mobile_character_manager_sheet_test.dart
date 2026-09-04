@@ -5,6 +5,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/character_position_canvas_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/mobile_character_manager_sheet.dart';
@@ -44,6 +45,54 @@ class _MemoryStorage extends LocalStorageService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('常规手机宽度把位置选择和带文本清空操作保持在同一行', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 640);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => _MemoryStorage()),
+          characterPromptNotifierProvider.overrideWith(
+            _SingleCharacterNotifier.new,
+          ),
+          characterPositionCanvasProvider.overrideWith(_CanvasNotifier.new),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: InteractionPolicyScope(
+            initialPolicy: InteractionPolicy.touchFirst,
+            child: Scaffold(body: MobileCharacterManagerSheet()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final modes = find.byKey(const ValueKey('character-position-mode-scroll'));
+    final clear = find.byKey(const ValueKey('character-manager-clear-all'));
+    expect(modes, findsOneWidget);
+    expect(clear, findsOneWidget);
+    expect(find.text('清空所有'), findsOneWidget);
+    expect(
+      tester.getCenter(modes).dy,
+      closeTo(tester.getCenter(clear).dy, 0.1),
+    );
+
+    for (final label in ['AI 选择', '自定义']) {
+      final segment = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(InkWell),
+      );
+      expect(tester.getSize(segment).height, greaterThanOrEqualTo(48));
+    }
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'compact worst case keeps form usable and close exits immediately',
