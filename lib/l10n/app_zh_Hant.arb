@@ -5482,6 +5482,13 @@
   "preciseRefLib_emptyHintTouch": "也可以從生成結果、歷史記錄或本地相簿儲存",
   "preciseRefLib_import": "匯入圖片",
   "preciseRefLib_exportTitle": "匯出精準參考設定包",
+  "preciseRefLib_exportSelectionHint": "選擇要包含的精準參考；所選內容會封裝成一個 .naipreciseref 檔案。",
+  "preciseRefLib_exportConfirm": "匯出所選 ({count})",
+  "@preciseRefLib_exportConfirm": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "preciseRefLib_exportedCount": "已匯出 {count} 個精準參考",
   "preciseRefLib_exportFailed": "匯出精準參考失敗：{error}",
   "preciseRefLib_openFolderFailed": "開啟精準參考目錄失敗：{error}",

@@ -5619,6 +5619,13 @@
   "preciseRefLib_emptyHintTouch": "生成結果、履歴、ローカルギャラリーから保存することもできます",
   "preciseRefLib_import": "画像をインポート",
   "preciseRefLib_exportTitle": "精密参照パッケージをエクスポート",
+  "preciseRefLib_exportSelectionHint": "含める精密参照を選択してください。選択した項目は 1 つの .naipreciseref ファイルにまとめられます。",
+  "preciseRefLib_exportConfirm": "選択項目をエクスポート ({count})",
+  "@preciseRefLib_exportConfirm": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "preciseRefLib_exportedCount": "精密参照を {count} 件エクスポートしました",
   "preciseRefLib_exportFailed": "精密参照のエクスポートに失敗しました：{error}",
   "preciseRefLib_openFolderFailed": "精密参照フォルダーを開けませんでした：{error}",
