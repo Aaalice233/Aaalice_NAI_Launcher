@@ -88,7 +88,7 @@ void main() {
           ),
         );
         expect(stepPrompt.prompt, 'best quality, detailed');
-        expect(stepPrompt.maxLines, isNull);
+        expect(stepPrompt.maxLines, 3);
         expect(stepPrompt.includeUntranslated, isTrue);
         final resultContainer = tester.widget<Container>(
           find
@@ -425,6 +425,26 @@ void main() {
     )) {
       expect(prompt.includeUntranslated, isTrue);
     }
+    final promptTooltips = [
+      find.byType(PositivePromptTooltip),
+      find.byType(NegativePromptTooltip),
+    ];
+    for (final tooltip in promptTooltips) {
+      final finalPrompt = find.descendant(
+        of: tooltip,
+        matching: find.byType(TooltipFinalPromptSection),
+      );
+      final composition = find.descendant(
+        of: tooltip,
+        matching: find.byType(TooltipCompositionHeading),
+      );
+      expect(finalPrompt, findsOneWidget);
+      expect(composition, findsOneWidget);
+      expect(
+        tester.getRect(finalPrompt).bottom,
+        lessThan(tester.getRect(composition).top),
+      );
+    }
     expect(
       tester
           .widgetList<Container>(find.byType(Container))
@@ -440,6 +460,91 @@ void main() {
 
     expect(positiveCopies, 1);
     expect(negativeCopies, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('composition cards and final prompt expand independently', (
+    tester,
+  ) async {
+    final theme = ThemeData.dark();
+    final prefix = FixedTagEntry.create(
+      name: 'negative prefix',
+      content: 'lowres, blurry, bad anatomy',
+      promptType: FixedTagPromptType.negative,
+    );
+    final suffix = FixedTagEntry.create(
+      name: 'negative suffix',
+      content: 'watermark, signature',
+      position: FixedTagPosition.suffix,
+      promptType: FixedTagPromptType.negative,
+    );
+    final longMain = List.generate(24, (index) => 'main_tag_$index').join(', ');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: theme,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Consumer(
+            builder: (context, ref, _) => Scaffold(
+              body: SingleChildScrollView(
+                child: SizedBox(
+                  width: 420,
+                  child: NegativePromptTooltip(
+                    theme: theme,
+                    userNegativePrompt: longMain,
+                    prefixes: [prefix],
+                    suffixes: [suffix],
+                    ucPresetContent: 'worst quality, low quality',
+                    l10n: AppLocalizations.of(context)!,
+                    aliasResolver: ref.read(
+                      aliasResolverServiceProvider.notifier,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(NegativePromptTooltip)),
+    )!;
+    final mainSection = find.byWidgetPredicate(
+      (widget) =>
+          widget is TooltipSection && widget.label == l10n.prompt_mainNegative,
+    );
+    expect(
+      find.descendant(
+        of: mainSection,
+        matching: find.byType(TranslatedPromptText),
+      ),
+      findsNothing,
+    );
+
+    await tester.tap(find.text(l10n.prompt_mainNegative));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: mainSection,
+        matching: find.byType(TranslatedPromptText),
+      ),
+      findsOneWidget,
+    );
+
+    final finalSection = find.byType(TooltipFinalPromptSection);
+    final finalPrompt = find.descendant(
+      of: finalSection,
+      matching: find.byType(TranslatedPromptText),
+    );
+    expect(tester.widget<TranslatedPromptText>(finalPrompt).maxLines, 3);
+
+    await tester.tap(find.byKey(const ValueKey('tooltip-final-expand-toggle')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TranslatedPromptText>(finalPrompt).maxLines, isNull);
     expect(tester.takeException(), isNull);
   });
 
@@ -520,11 +625,11 @@ void main() {
       colors.positiveFixedTag,
       colors.mainPrompt,
       colors.positiveQuality,
-      colors.positiveFixedTag,
+      theme.colorScheme.secondary,
       colors.negativeQuality,
       colors.negativeFixedTag,
       colors.mainPrompt,
-      colors.negativeFixedTag,
+      theme.colorScheme.tertiary,
     ]);
     expect(tester.takeException(), isNull);
   });

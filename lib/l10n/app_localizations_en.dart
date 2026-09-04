@@ -1579,6 +1579,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prompt_finalNegative => 'Final Effective Undesired Content';
 
   @override
+  String get prompt_composition => 'Prompt Composition';
+
+  @override
+  String get prompt_expandFull => 'Expand full text';
+
+  @override
+  String get prompt_collapseFull => 'Collapse full text';
+
+  @override
   String prompt_importedCharacters(int count) {
     return 'Imported $count character(s)';
   }

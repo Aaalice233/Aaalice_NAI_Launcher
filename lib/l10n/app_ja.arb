@@ -598,6 +598,9 @@
   "prompt_characterPrompts": "複数キャラクターのプロンプト",
   "prompt_finalPrompt": "最終的な有効なプロンプト",
   "prompt_finalNegative": "最終有効な除外したい要素",
+  "prompt_composition": "プロンプトの構成",
+  "prompt_expandFull": "全文を展開",
+  "prompt_collapseFull": "全文を折りたたむ",
   "prompt_importedCharacters": "{count} キャラクターをインポートしました",
   "@prompt_importedCharacters": {
     "placeholders": {

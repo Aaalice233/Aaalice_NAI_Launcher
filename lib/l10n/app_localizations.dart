@@ -2969,6 +2969,24 @@ abstract class AppLocalizations {
   /// **'Final Effective Undesired Content'**
   String get prompt_finalNegative;
 
+  /// No description provided for @prompt_composition.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt Composition'**
+  String get prompt_composition;
+
+  /// No description provided for @prompt_expandFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand full text'**
+  String get prompt_expandFull;
+
+  /// No description provided for @prompt_collapseFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse full text'**
+  String get prompt_collapseFull;
+
   /// No description provided for @prompt_importedCharacters.
   ///
   /// In en, this message translates to:

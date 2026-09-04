@@ -1544,6 +1544,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get prompt_finalNegative => '最終有効な除外したい要素';
 
   @override
+  String get prompt_composition => 'プロンプトの構成';
+
+  @override
+  String get prompt_expandFull => '全文を展開';
+
+  @override
+  String get prompt_collapseFull => '全文を折りたたむ';
+
+  @override
   String prompt_importedCharacters(int count) {
     return '$count キャラクターをインポートしました';
   }

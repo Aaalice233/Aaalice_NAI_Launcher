@@ -606,6 +606,9 @@
   "prompt_characterPrompts": "Multi-Character Prompts",
   "prompt_finalPrompt": "Final Effective Prompt",
   "prompt_finalNegative": "Final Effective Undesired Content",
+  "prompt_composition": "Prompt Composition",
+  "prompt_expandFull": "Expand full text",
+  "prompt_collapseFull": "Collapse full text",
   "prompt_importedCharacters": "Imported {count} character(s)",
   "@prompt_importedCharacters": {
     "placeholders": {

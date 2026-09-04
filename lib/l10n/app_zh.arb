@@ -556,6 +556,9 @@
   "prompt_characterPrompts": "多角色提示词",
   "prompt_finalPrompt": "最终生效提示词",
   "prompt_finalNegative": "最终生效负面词",
+  "prompt_composition": "提示词构成",
+  "prompt_expandFull": "展开全文",
+  "prompt_collapseFull": "收起全文",
   "prompt_importedCharacters": "已导入 {count} 个角色",
   "@prompt_importedCharacters": {
     "placeholders": {

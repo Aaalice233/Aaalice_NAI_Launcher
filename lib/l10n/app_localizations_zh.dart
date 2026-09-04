@@ -1523,6 +1523,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_finalNegative => '最终生效负面词';
 
   @override
+  String get prompt_composition => '提示词构成';
+
+  @override
+  String get prompt_expandFull => '展开全文';
+
+  @override
+  String get prompt_collapseFull => '收起全文';
+
+  @override
   String prompt_importedCharacters(int count) {
     return '已导入 $count 个角色';
   }
@@ -15277,6 +15286,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get prompt_finalNegative => '最終生效負面詞';
+
+  @override
+  String get prompt_composition => '提示詞構成';
+
+  @override
+  String get prompt_expandFull => '展開全文';
+
+  @override
+  String get prompt_collapseFull => '收起全文';
 
   @override
   String prompt_importedCharacters(int count) {
