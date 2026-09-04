@@ -25,12 +25,12 @@ import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/safe_dropdown.dart';
-import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_formatter_wrapper.dart';
 import '../../../widgets/prompt/quick_translate_prompt_field.dart';
 import 'thumbnail_crop_dialog.dart';
+import 'thumbnail_selection_preview.dart';
 
 /// 添加/编辑词库条目对话框
 class EntryAddDialog extends ConsumerStatefulWidget {
@@ -500,62 +500,79 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
             style: theme.textTheme.labelLarge,
           ),
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _thumbnailPath != null
-                ? _showThumbnailOptions
-                : _selectThumbnail,
-            child: Container(
-              width: double.infinity,
-              height: expand ? 112 : 124,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: _thumbnailPath != null
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(11),
-                          child: _buildThumbnailImage(),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: IconButton.filled(
-                            icon: const Icon(Icons.close, size: 16),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.black54,
-                              foregroundColor: Colors.white,
-                              minimumSize: Size.square(
-                                context.interactionPolicy.minimumControlExtent,
-                              ),
-                              padding: EdgeInsets.zero,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final previewSize = constraints.maxWidth.clamp(0, 220).toDouble();
+              return Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: SizedBox.square(
+                  key: const ValueKey('entry-thumbnail-square-preview'),
+                  dimension: previewSize,
+                  child: GestureDetector(
+                    onTap: _thumbnailPath != null
+                        ? _showThumbnailOptions
+                        : _selectThumbnail,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _thumbnailPath != null
+                          ? Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(11),
+                                  child: ThumbnailSelectionPreview(
+                                    imagePath: _thumbnailPath!,
+                                    offsetX: _thumbnailOffsetX,
+                                    offsetY: _thumbnailOffsetY,
+                                    scale: _thumbnailScale,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: IconButton.filled(
+                                    icon: const Icon(Icons.close, size: 16),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black54,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: Size.square(
+                                        context
+                                            .interactionPolicy
+                                            .minimumControlExtent,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                    ),
+                                    onPressed: _clearThumbnail,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  size: 36,
+                                  color: theme.colorScheme.outline,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  context.l10n.tagLibrary_selectImage,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ],
                             ),
-                            onPressed: _clearThumbnail,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_photo_alternate_outlined,
-                          size: 36,
-                          color: theme.colorScheme.outline,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          context.l10n.tagLibrary_selectImage,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                      ],
                     ),
-            ),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 8),
           Text(
@@ -652,36 +669,6 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
           ),
         ),
       ],
-    );
-  }
-
-  /// 构建带变换效果的预览图
-  /// 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
-  Widget _buildThumbnailImage() {
-    if (_thumbnailPath == null) {
-      return Container(
-        color: Colors.grey.shade800,
-        child: const Center(
-          child: Icon(Icons.image_not_supported, color: Colors.white38),
-        ),
-      );
-    }
-
-    // 调试用
-    debugPrint(
-      'EntryAddDialog: offset=($_thumbnailOffsetX, $_thumbnailOffsetY), scale=$_thumbnailScale',
-    );
-
-    // 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
-    return LayoutBuilder(
-      builder: (context, constraints) => ThumbnailDisplay(
-        imagePath: _thumbnailPath!,
-        offsetX: _thumbnailOffsetX,
-        offsetY: _thumbnailOffsetY,
-        scale: _thumbnailScale,
-        width: constraints.maxWidth,
-        height: constraints.maxHeight,
-      ),
     );
   }
 
