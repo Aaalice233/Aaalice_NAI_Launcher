@@ -115,13 +115,13 @@ abstract class ShapeModule {
   /// Medium border radius (typically 8-12px).
   double get mediumRadius;
 
-  /// Large border radius (typically 16-24px).
+  /// Large border radius; card-scale surfaces build on it.
   double get largeRadius;
 
   /// Menu/popup border radius (typically 4px, always small for clean look).
   double get menuRadius;
 
-  /// Shape for card components.
+  /// Shape for card components. Cards clip to it; content must clear the corner.
   ShapeBorder get cardShape;
 
   /// Shape for button components.
