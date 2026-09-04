@@ -23,12 +23,18 @@ void main() {
     expect(find.byIcon(Icons.edit), findsOneWidget);
     expect(tester.getSize(find.byType(PaginationBar)).height, 48);
     final barRect = tester.getRect(find.byType(PaginationBar));
-    final previousCenter = tester.getCenter(find.byIcon(Icons.chevron_left));
-    final selectorCenter = tester.getCenter(find.byIcon(Icons.tune_rounded));
-    expect(
-      (previousCenter.dx + selectorCenter.dx) / 2,
-      closeTo(barRect.center.dx, 2.1),
+    final navigationRect = tester.getRect(
+      find.byKey(const ValueKey('pagination-narrow-navigation')),
     );
+    final totalInfoRect = tester.getRect(
+      find.byKey(const ValueKey('pagination-narrow-total-info')),
+    );
+    final trailingActionRect = tester.getRect(
+      find.byKey(const ValueKey('pagination-narrow-trailing-action')),
+    );
+    expect(navigationRect.center.dx, closeTo(barRect.center.dx, 0.1));
+    expect(totalInfoRect.right, lessThanOrEqualTo(navigationRect.left));
+    expect(trailingActionRect.left, greaterThanOrEqualTo(navigationRect.right));
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byIcon(Icons.chevron_right));
