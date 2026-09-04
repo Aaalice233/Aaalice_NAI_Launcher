@@ -259,6 +259,7 @@ class _TooltipCompositionCardState extends State<_TooltipCompositionCard> {
             child: InkWell(
               onTap: () => setState(() => _expanded = !_expanded),
               mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(8),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(9, 7, 8, 7),
                 child: Row(
