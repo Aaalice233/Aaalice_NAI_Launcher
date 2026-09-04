@@ -418,6 +418,7 @@ void main() {
   testWidgets('Vibe 卡片桌面与触屏操作均可发送到智能体', (tester) async {
     var addCount = 0;
     var classifyCount = 0;
+    var favoriteCount = 0;
     final entry = _entry(rawImageData: _onePixelPng);
     final storage = _HoverStorage(entry, _onePixelPng);
 
@@ -438,6 +439,8 @@ void main() {
                 child: VibeCard(
                   entry: entry.toDisplayEntry(),
                   width: 180,
+                  categoryLabel: '角色 / 风格',
+                  onFavoriteToggle: () => favoriteCount++,
                   onClassify: () => classifyCount++,
                 ),
               ),
@@ -469,6 +472,21 @@ void main() {
         precisePointerAvailable: false,
       ),
     );
+    final favorite = find.byKey(ValueKey('vibe-card-favorite-${entry.id}'));
+    final more = find.byKey(ValueKey('vibe-card-more-${entry.id}'));
+    final category = find.byKey(ValueKey('vibe-card-category-${entry.id}'));
+    final favoriteRect = tester.getRect(favorite);
+    final moreRect = tester.getRect(more);
+    expect(favoriteRect.left, closeTo(moreRect.left, 0.1));
+    expect(favoriteRect.top, lessThan(moreRect.top));
+    expect(
+      tester.getRect(category).right,
+      lessThanOrEqualTo(favoriteRect.left),
+    );
+
+    await tester.tap(favorite, kind: PointerDeviceKind.touch);
+    expect(favoriteCount, 1);
+
     await tester.tap(
       find.byIcon(Icons.more_vert_rounded),
       kind: PointerDeviceKind.touch,
