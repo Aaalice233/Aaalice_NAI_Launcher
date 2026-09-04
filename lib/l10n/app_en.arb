@@ -2900,6 +2900,7 @@
 
   "fixedTags_label": "Fixed Tags",
   "fixedTags_enabled": "Enabled",
+  "fixedTags_enabledOnly": "Enabled only",
   "fixedTags_empty": "No fixed tags",
   "fixedTags_emptyHint": "Click the button below to add fixed tags, they will be automatically applied to your prompts",
   "fixedTags_manage": "Manage Fixed Tags",
@@ -2957,9 +2958,7 @@
   "fixedTags_addNegativeFromLibrary": "Add Undesired Content from Library",
   "fixedTags_searchNameOrContent": "Search name or content",
   "fixedTags_clearSearch": "Clear Search",
-  "fixedTags_enabledPositive": "Enabled Prompt",
   "fixedTags_emptyEnabledPositive": "No enabled prompt fixed tags",
-  "fixedTags_enabledNegative": "Enabled Negative",
   "fixedTags_emptyEnabledNegative": "No enabled negative fixed tags",
   "fixedTags_noMatchingEnabled": "No matching enabled fixed tags",
   "fixedTags_negativeTitle": "Undesired Content Fixed Tags",

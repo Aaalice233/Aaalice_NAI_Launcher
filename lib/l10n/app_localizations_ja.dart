@@ -6259,6 +6259,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fixedTags_enabled => '有効';
 
   @override
+  String get fixedTags_enabledOnly => '有効のみ';
+
+  @override
   String get fixedTags_empty => '固定タグなし';
 
   @override
@@ -6388,13 +6391,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fixedTags_clearSearch => '検索をクリア';
 
   @override
-  String get fixedTags_enabledPositive => '有効なプロンプト';
-
-  @override
   String get fixedTags_emptyEnabledPositive => '有効なプロンプト固定タグがありません';
-
-  @override
-  String get fixedTags_enabledNegative => '有効なネガティブ';
 
   @override
   String get fixedTags_emptyEnabledNegative => '有効なネガティブ固定タグがありません';

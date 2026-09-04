@@ -6413,6 +6413,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixedTags_enabled => 'Enabled';
 
   @override
+  String get fixedTags_enabledOnly => 'Enabled only';
+
+  @override
   String get fixedTags_empty => 'No fixed tags';
 
   @override
@@ -6548,13 +6551,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixedTags_clearSearch => 'Clear Search';
 
   @override
-  String get fixedTags_enabledPositive => 'Enabled Prompt';
-
-  @override
   String get fixedTags_emptyEnabledPositive => 'No enabled prompt fixed tags';
-
-  @override
-  String get fixedTags_enabledNegative => 'Enabled Negative';
 
   @override
   String get fixedTags_emptyEnabledNegative => 'No enabled negative fixed tags';

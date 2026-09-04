@@ -8,9 +8,9 @@ import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/translated_tag_text.dart';
+import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
 
 typedef SidebarDragHandleBuilder = Widget Function(Widget child);
 
@@ -95,14 +95,13 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
     );
 
     final libraryEntry = widget.libraryEntry;
-    if (libraryEntry == null || !libraryEntry.hasThumbnail) return tile;
-    return HoverImagePreview.file(
-      imagePath: libraryEntry.thumbnail!,
-      previewMaxSize: 320,
+    if (libraryEntry == null ||
+        !context.interactionPolicy.precisePointerAvailable) {
+      return tile;
+    }
+    return TagLibraryEntryHoverPreview(
+      entry: libraryEntry,
       hoverDelay: const Duration(milliseconds: 300),
-      imageOffsetX: libraryEntry.thumbnailOffsetX,
-      imageOffsetY: libraryEntry.thumbnailOffsetY,
-      imageScale: libraryEntry.thumbnailScale,
       child: tile,
     );
   }

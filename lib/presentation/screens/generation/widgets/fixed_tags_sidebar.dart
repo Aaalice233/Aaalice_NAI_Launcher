@@ -69,6 +69,8 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   bool _linkRepaintScheduled = false;
   double? _draggedNegativePaneHeight;
   bool _isNegativeDividerHovered = false;
+  bool _showOnlyEnabledPositive = false;
+  bool _showOnlyEnabledNegative = false;
 
   @override
   void initState() {
@@ -101,12 +103,18 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     );
     final isListMode = layoutState.fixedTagsSidebarViewMode == 'list';
     final query = _searchQuery.trim();
+    final positiveSource = _showOnlyEnabledPositive
+        ? fixedState.enabledEntries
+        : fixedState.positiveEntries;
+    final negativeSource = _showOnlyEnabledNegative
+        ? fixedState.negativeEnabledEntries
+        : fixedState.negativeEntries;
     final positiveEntries = query.isEmpty
-        ? fixedState.positiveEntries
-        : fixedState.positiveEntries.search(query);
+        ? positiveSource
+        : positiveSource.search(query);
     final negativeEntries = query.isEmpty
-        ? fixedState.negativeEntries
-        : fixedState.negativeEntries.search(query);
+        ? negativeSource
+        : negativeSource.search(query);
     final positiveSections = _tagSections(positiveEntries, categories);
     final negativeSections = _tagSections(negativeEntries, categories);
     _pruneAnchorKeys(fixedState);
@@ -170,7 +178,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         children: [
           _buildHeader(theme, fixedState, isListMode),
           _buildSearchBar(theme),
-          _buildEnabledStrip(theme, fixedState),
         ],
       ),
     );
@@ -298,160 +305,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         ),
         onChanged: (value) => setState(() => _searchQuery = value.trim()),
       ),
-    );
-  }
-
-  Widget _buildEnabledStrip(ThemeData theme, FixedTagsState fixedState) {
-    final mediaQuery = MediaQuery.of(context);
-    final useCompactRow = mediaQuery.textScaler.scale(14) >= 22.4;
-    final positiveSummary = _buildEnabledStripSection(
-      theme,
-      key: const ValueKey('fixed-tags-enabled-positive-strip'),
-      label: context.l10n.fixedTags_enabledPositive,
-      emptyText: context.l10n.fixedTags_emptyEnabledPositive,
-      icon: Icons.bolt_rounded,
-      color: theme.colorScheme.primary,
-      entries: fixedState.enabledEntries,
-      forceSingleLineScroll: useCompactRow,
-    );
-    final negativeSummary = _buildEnabledStripSection(
-      theme,
-      key: const ValueKey('fixed-tags-enabled-negative-strip'),
-      label: context.l10n.fixedTags_enabledNegative,
-      emptyText: context.l10n.fixedTags_emptyEnabledNegative,
-      icon: Icons.block_rounded,
-      color: theme.colorScheme.error,
-      entries: fixedState.negativeEnabledEntries,
-      forceSingleLineScroll: useCompactRow,
-    );
-
-    return Padding(
-      key: const ValueKey('fixed-tags-enabled-strip'),
-      padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-      child: useCompactRow
-          ? Row(
-              children: [
-                Expanded(child: positiveSummary),
-                const SizedBox(width: 4),
-                Expanded(child: negativeSummary),
-              ],
-            )
-          : Column(
-              children: [
-                positiveSummary,
-                const SizedBox(height: 4),
-                negativeSummary,
-              ],
-            ),
-    );
-  }
-
-  Widget _buildEnabledStripSection(
-    ThemeData theme, {
-    required Key key,
-    required String label,
-    required String emptyText,
-    required IconData icon,
-    required Color color,
-    required List<FixedTagEntry> entries,
-    required bool forceSingleLineScroll,
-  }) {
-    final labelWidget = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: color),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-    final chips = [
-      for (final entry in entries)
-        InputChip(
-          label: Text(entry.displayName),
-          visualDensity: VisualDensity.compact,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          side: BorderSide.none,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-          onDeleted: () => ref
-              .read(fixedTagsNotifierProvider.notifier)
-              .toggleEnabled(entry.id),
-        ),
-    ];
-    final usesSingleLineScroll =
-        forceSingleLineScroll ||
-        MediaQuery.textScalerOf(context).scale(14) >= 22.4;
-
-    return Container(
-      key: key,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: sectionSurfaceColor(theme.colorScheme).withValues(alpha: 0.58),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: usesSingleLineScroll
-          ? SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  labelWidget,
-                  if (entries.isEmpty) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      emptyText,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ] else
-                    for (final chip in chips) ...[
-                      const SizedBox(width: 8),
-                      chip,
-                    ],
-                ],
-              ),
-            )
-          : entries.isEmpty
-          ? Row(
-              children: [
-                Icon(icon, size: 15, color: color),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    emptyText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [labelWidget, ...chips],
-            ),
     );
   }
 
@@ -583,13 +436,17 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         label: context.l10n.fixedTags_positiveTitle,
         count: entryCount,
         color: theme.colorScheme.primary,
-        trailingBuilder: _searchQuery.trim().isEmpty
-            ? (iconOnly) => _buildGroupHeaderActions(
-                keyPrefix: 'fixed-tags-positive',
-                groupsKey: _positiveGroupsKey,
-                iconOnly: iconOnly,
-              )
-            : null,
+        trailingBuilder: (iconOnly) => _buildGroupHeaderActions(
+          keyPrefix: 'fixed-tags-positive',
+          groupsKey: _positiveGroupsKey,
+          iconOnly: iconOnly,
+          showBulkActions: _searchQuery.trim().isEmpty,
+          enabledOnly: _showOnlyEnabledPositive,
+          accent: theme.colorScheme.primary,
+          onToggleEnabledOnly: () => setState(
+            () => _showOnlyEnabledPositive = !_showOnlyEnabledPositive,
+          ),
+        ),
       ),
       body: _GroupedFixedTagCollection(
         key: _positiveGroupsKey,
@@ -598,9 +455,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         isListMode: isListMode,
         forceExpanded: _searchQuery.trim().isNotEmpty,
         controller: _positiveScrollController,
-        emptyText: _searchQuery.isEmpty
+        emptyText: _searchQuery.isNotEmpty
+            ? context.l10n.fixedTags_noMatchingEnabled
+            : _showOnlyEnabledPositive
             ? context.l10n.fixedTags_emptyEnabledPositive
-            : context.l10n.fixedTags_noMatchingEnabled,
+            : context.l10n.fixedTags_empty,
         listPrototypeBuilder: (categoryColor) => _buildListEntryPrototype(
           entry: sections.first.entries.first,
           categoryColor: categoryColor,
@@ -668,7 +527,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final trailing = trailingBuilder?.call(
-          constraints.maxWidth < 400 || usesLargeText,
+          constraints.maxWidth < 360 || usesLargeText,
         );
         return Padding(
           padding: usesLargeText
@@ -696,25 +555,40 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     required String keyPrefix,
     required GlobalKey<_GroupedFixedTagCollectionState> groupsKey,
     required bool iconOnly,
+    required bool showBulkActions,
+    required bool enabledOnly,
+    required Color accent,
+    required VoidCallback onToggleEnabledOnly,
   }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _GroupBulkAction(
-          key: ValueKey('$keyPrefix-expand-all'),
-          icon: Icons.unfold_more_rounded,
-          label: context.l10n.fixedTags_expandAll,
+        _EnabledOnlyAction(
+          key: ValueKey('$keyPrefix-enabled-only'),
+          selected: enabledOnly,
+          color: accent,
           iconOnly: iconOnly,
-          onPressed: () => groupsKey.currentState?.setAllCollapsed(false),
+          label: context.l10n.fixedTags_enabledOnly,
+          onPressed: onToggleEnabledOnly,
         ),
-        const SizedBox(width: 2),
-        _GroupBulkAction(
-          key: ValueKey('$keyPrefix-collapse-all'),
-          icon: Icons.unfold_less_rounded,
-          label: context.l10n.fixedTags_collapseAll,
-          iconOnly: iconOnly,
-          onPressed: () => groupsKey.currentState?.setAllCollapsed(true),
-        ),
+        if (showBulkActions) ...[
+          const SizedBox(width: 2),
+          _GroupBulkAction(
+            key: ValueKey('$keyPrefix-expand-all'),
+            icon: Icons.unfold_more_rounded,
+            label: context.l10n.fixedTags_expandAll,
+            iconOnly: true,
+            onPressed: () => groupsKey.currentState?.setAllCollapsed(false),
+          ),
+          const SizedBox(width: 2),
+          _GroupBulkAction(
+            key: ValueKey('$keyPrefix-collapse-all'),
+            icon: Icons.unfold_less_rounded,
+            label: context.l10n.fixedTags_collapseAll,
+            iconOnly: true,
+            onPressed: () => groupsKey.currentState?.setAllCollapsed(true),
+          ),
+        ],
       ],
     );
   }
@@ -818,13 +692,17 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         label: context.l10n.fixedTags_negativeTitle,
         count: entryCount,
         color: theme.colorScheme.error,
-        trailingBuilder: _searchQuery.trim().isEmpty
-            ? (iconOnly) => _buildGroupHeaderActions(
-                keyPrefix: 'fixed-tags-negative',
-                groupsKey: _negativeGroupsKey,
-                iconOnly: iconOnly,
-              )
-            : null,
+        trailingBuilder: (iconOnly) => _buildGroupHeaderActions(
+          keyPrefix: 'fixed-tags-negative',
+          groupsKey: _negativeGroupsKey,
+          iconOnly: iconOnly,
+          showBulkActions: _searchQuery.trim().isEmpty,
+          enabledOnly: _showOnlyEnabledNegative,
+          accent: theme.colorScheme.error,
+          onToggleEnabledOnly: () => setState(
+            () => _showOnlyEnabledNegative = !_showOnlyEnabledNegative,
+          ),
+        ),
       ),
       body: _GroupedFixedTagCollection(
         key: _negativeGroupsKey,
@@ -833,9 +711,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         isListMode: isListMode,
         forceExpanded: _searchQuery.trim().isNotEmpty,
         controller: _negativeScrollController,
-        emptyText: _searchQuery.isEmpty
-            ? context.l10n.fixedTags_emptyNegative
-            : context.l10n.fixedTags_noMatchingNegative,
+        emptyText: _searchQuery.isNotEmpty
+            ? context.l10n.fixedTags_noMatchingNegative
+            : _showOnlyEnabledNegative
+            ? context.l10n.fixedTags_emptyEnabledNegative
+            : context.l10n.fixedTags_emptyNegative,
         listPrototypeBuilder: (categoryColor) => _buildListEntryPrototype(
           entry: sections.first.entries.first,
           categoryColor: categoryColor,
@@ -1683,6 +1563,60 @@ class _GroupBulkAction extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
     );
+  }
+}
+
+class _EnabledOnlyAction extends StatelessWidget {
+  const _EnabledOnlyAction({
+    super.key,
+    required this.selected,
+    required this.color,
+    required this.iconOnly,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final bool selected;
+  final Color color;
+  final bool iconOnly;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = selected
+        ? Icons.filter_alt_rounded
+        : Icons.filter_alt_outlined;
+    final foregroundColor = selected
+        ? color
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    final action = iconOnly
+        ? IconButton(
+            tooltip: label,
+            onPressed: onPressed,
+            isSelected: selected,
+            selectedIcon: Icon(
+              Icons.filter_alt_rounded,
+              size: 18,
+              color: color,
+            ),
+            icon: Icon(icon, size: 18, color: foregroundColor),
+            visualDensity: VisualDensity.compact,
+          )
+        : TextButton.icon(
+            onPressed: onPressed,
+            icon: Icon(icon, size: 16),
+            label: Text(label),
+            style: TextButton.styleFrom(
+              foregroundColor: foregroundColor,
+              backgroundColor: selected
+                  ? color.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
+          );
+    return Semantics(selected: selected, child: action);
   }
 }
 

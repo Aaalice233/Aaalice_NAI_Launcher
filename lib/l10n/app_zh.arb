@@ -2923,6 +2923,7 @@
 
   "fixedTags_label": "固定词",
   "fixedTags_enabled": "已启用",
+  "fixedTags_enabledOnly": "只看启用",
   "fixedTags_empty": "暂无固定词",
   "fixedTags_emptyHint": "点击下方按钮添加固定词，它们会自动应用到你的提示词中",
   "fixedTags_manage": "管理固定词",
@@ -2980,9 +2981,7 @@
   "fixedTags_addNegativeFromLibrary": "从词库添加负向",
   "fixedTags_searchNameOrContent": "搜索名称或内容",
   "fixedTags_clearSearch": "清空搜索",
-  "fixedTags_enabledPositive": "已启用正向",
   "fixedTags_emptyEnabledPositive": "暂无启用的正向固定词",
-  "fixedTags_enabledNegative": "已启用负向",
   "fixedTags_emptyEnabledNegative": "暂无启用的负向固定词",
   "fixedTags_noMatchingEnabled": "没有匹配的启用固定词",
   "fixedTags_negativeTitle": "负向固定词",

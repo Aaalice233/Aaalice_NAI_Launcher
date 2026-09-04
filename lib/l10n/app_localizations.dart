@@ -11419,6 +11419,12 @@ abstract class AppLocalizations {
   /// **'Enabled'**
   String get fixedTags_enabled;
 
+  /// No description provided for @fixedTags_enabledOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled only'**
+  String get fixedTags_enabledOnly;
+
   /// No description provided for @fixedTags_empty.
   ///
   /// In en, this message translates to:
@@ -11665,23 +11671,11 @@ abstract class AppLocalizations {
   /// **'Clear Search'**
   String get fixedTags_clearSearch;
 
-  /// No description provided for @fixedTags_enabledPositive.
-  ///
-  /// In en, this message translates to:
-  /// **'Enabled Prompt'**
-  String get fixedTags_enabledPositive;
-
   /// No description provided for @fixedTags_emptyEnabledPositive.
   ///
   /// In en, this message translates to:
   /// **'No enabled prompt fixed tags'**
   String get fixedTags_emptyEnabledPositive;
-
-  /// No description provided for @fixedTags_enabledNegative.
-  ///
-  /// In en, this message translates to:
-  /// **'Enabled Negative'**
-  String get fixedTags_enabledNegative;
 
   /// No description provided for @fixedTags_emptyEnabledNegative.
   ///

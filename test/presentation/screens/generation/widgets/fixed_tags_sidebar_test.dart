@@ -28,7 +28,6 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
 import 'package:nai_launcher/presentation/themes/prompt_semantic_colors.dart';
-import 'package:nai_launcher/presentation/widgets/common/hover_image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
 import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
@@ -970,8 +969,9 @@ void main() {
     final positiveCollapseAll = find.byKey(
       const ValueKey('fixed-tags-positive-collapse-all'),
     );
-    expect(find.text('展开全部'), findsNWidgets(2));
-    expect(find.text('收起全部'), findsNWidgets(2));
+    expect(find.text('只看启用'), findsNWidgets(2));
+    expect(find.byTooltip('展开全部'), findsNWidgets(2));
+    expect(find.byTooltip('收起全部'), findsNWidgets(2));
     expect(
       tester.getCenter(positiveExpandAll).dy,
       closeTo(tester.getCenter(find.text('正向固定词')).dy, 1),
@@ -1120,31 +1120,12 @@ void main() {
     );
     expect(negativePane.height, closeTo(500, 0.1));
     expect(positivePane.height, greaterThan(64));
-    expect(find.text('已启用正向'), findsOneWidget);
-    expect(find.text('已启用负向'), findsOneWidget);
-
-    final positiveStrip = tester.widget<Container>(
-      find.byKey(const ValueKey('fixed-tags-enabled-positive-strip')),
+    expect(find.text('已启用正向'), findsNothing);
+    expect(find.text('已启用负向'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('fixed-tags-enabled-strip')),
+      findsNothing,
     );
-    final negativeStrip = tester.widget<Container>(
-      find.byKey(const ValueKey('fixed-tags-enabled-negative-strip')),
-    );
-    final positiveColor = (positiveStrip.decoration! as BoxDecoration).color;
-    final negativeColor = (negativeStrip.decoration! as BoxDecoration).color;
-    expect(positiveColor, equals(negativeColor));
-    final positiveIcon = tester.widget<Icon>(
-      find.descendant(
-        of: find.byKey(const ValueKey('fixed-tags-enabled-positive-strip')),
-        matching: find.byIcon(Icons.bolt_rounded),
-      ),
-    );
-    final negativeIcon = tester.widget<Icon>(
-      find.descendant(
-        of: find.byKey(const ValueKey('fixed-tags-enabled-negative-strip')),
-        matching: find.byIcon(Icons.block_rounded),
-      ),
-    );
-    expect(positiveIcon.color, isNot(equals(negativeIcon.color)));
     expect(tester.takeException(), isNull);
   });
 
@@ -1216,74 +1197,92 @@ void main() {
     },
   );
 
-  testWidgets('enabled summaries wrap every chip inside the sidebar', (
-    tester,
-  ) async {
-    final entries = [
-      FixedTagEntry.create(name: '蜀山', content: 'positive one', enabled: true),
-      FixedTagEntry.create(
-        name: '大奶萝莉',
-        content: 'positive two',
-        enabled: true,
-      ),
-      FixedTagEntry.create(
-        name: '大屁股',
-        content: 'positive three',
-        enabled: true,
-      ),
-      FixedTagEntry.create(
-        name: '大G-负面',
-        content: 'negative one',
-        promptType: FixedTagPromptType.negative,
-        enabled: true,
-      ),
-      FixedTagEntry.create(
-        name: '芋头-负面',
-        content: 'negative two',
-        promptType: FixedTagPromptType.negative,
-        enabled: true,
-      ),
-    ];
-    final storage = _SidebarTestStorage(
-      fixedEntries: entries,
-      categories: const [],
-      libraryEntries: const [],
-    );
+  testWidgets(
+    'positive and negative enabled-only filters toggle independently',
+    (tester) async {
+      final entries = [
+        FixedTagEntry.create(
+          name: '蜀山',
+          content: 'positive one',
+          enabled: true,
+        ),
+        FixedTagEntry.create(
+          name: '未启用正向',
+          content: 'positive two',
+          enabled: false,
+        ),
+        FixedTagEntry.create(
+          name: '大G-负面',
+          content: 'negative one',
+          promptType: FixedTagPromptType.negative,
+          enabled: true,
+        ),
+        FixedTagEntry.create(
+          name: '未启用负向',
+          content: 'negative two',
+          promptType: FixedTagPromptType.negative,
+          enabled: false,
+        ),
+      ];
+      final storage = _SidebarTestStorage(
+        fixedEntries: entries,
+        categories: const [],
+        libraryEntries: const [],
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(width: 380, height: 900, child: FixedTagsSidebar()),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 380,
+                height: 900,
+                child: FixedTagsSidebar(),
+              ),
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    for (final stripKey in const [
-      ValueKey('fixed-tags-enabled-positive-strip'),
-      ValueKey('fixed-tags-enabled-negative-strip'),
-    ]) {
-      final strip = find.byKey(stripKey);
-      final stripRect = tester.getRect(strip);
-      final chips = find.descendant(
-        of: strip,
-        matching: find.byType(InputChip),
       );
-      expect(chips, findsWidgets);
-      for (final chip in tester.widgetList<InputChip>(chips)) {
-        final chipRect = tester.getRect(find.byWidget(chip));
-        expect(chipRect.left, greaterThanOrEqualTo(stripRect.left));
-        expect(chipRect.right, lessThanOrEqualTo(stripRect.right));
-      }
-    }
-    expect(tester.takeException(), isNull);
-  });
+      await tester.pumpAndSettle();
+
+      expect(find.text('蜀山'), findsOneWidget);
+      expect(find.text('未启用正向'), findsOneWidget);
+      expect(find.text('大G-负面'), findsOneWidget);
+      expect(find.text('未启用负向'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-positive-enabled-only')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('蜀山'), findsOneWidget);
+      expect(find.text('未启用正向'), findsNothing);
+      expect(find.text('未启用负向'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-negative-enabled-only')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('大G-负面'), findsOneWidget);
+      expect(find.text('未启用负向'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-positive-enabled-only')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-negative-enabled-only')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('未启用正向'), findsOneWidget);
+      expect(find.text('未启用负向'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('FixedTagsButton 预览区分正负面与前后缀', (tester) async {
     final linkedPositive = FixedTagEntry.create(
@@ -2500,7 +2499,7 @@ void main() {
   );
 
   testWidgets(
-    'SidebarEntryTile shows a linked preview image after the hover delay',
+    'SidebarEntryTile shows the complete linked entry preview after hover',
     (tester) async {
       tester.view.physicalSize = const Size(1000, 600);
       tester.view.devicePixelRatio = 1;
@@ -2522,18 +2521,25 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: Align(
-              alignment: Alignment.centerRight,
-              child: SizedBox(
-                width: 280,
-                child: SidebarEntryTile(
-                  entry: entry,
-                  libraryEntry: libraryEntry,
-                  categoryColor: Colors.blue,
-                  isListMode: true,
-                  onToggle: () {},
-                  onEdit: () {},
-                  onDelete: () {},
+            body: InteractionPolicyScope(
+              initialPolicy: const InteractionPolicy(
+                modality: InteractionModality.pointer,
+                touchAvailable: false,
+                precisePointerAvailable: true,
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: 280,
+                  child: SidebarEntryTile(
+                    entry: entry,
+                    libraryEntry: libraryEntry,
+                    categoryColor: Colors.blue,
+                    isListMode: true,
+                    onToggle: () {},
+                    onEdit: () {},
+                    onDelete: () {},
+                  ),
                 ),
               ),
             ),
@@ -2547,7 +2553,7 @@ void main() {
       await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
       await tester.pump(const Duration(milliseconds: 299));
 
-      const previewKey = ValueKey('hover-image-preview-overlay');
+      const previewKey = ValueKey('tag-library-entry-preview-overlay');
       expect(find.byKey(previewKey), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 1));
@@ -2566,21 +2572,21 @@ void main() {
 
       final previewRect = tester.getRect(find.byKey(previewKey));
       expect(previewRect.width, 320);
-      expect(previewRect.height, 180);
+      expect(previewRect.height, greaterThan(180));
       expect(previewRect.left, greaterThanOrEqualTo(16));
       expect(previewRect.right, lessThanOrEqualTo(984));
       expect(previewRect.top, greaterThanOrEqualTo(16));
       expect(previewRect.bottom, lessThanOrEqualTo(584));
 
       await mouse.moveTo(const Offset(16, 16));
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 121));
 
       expect(find.byKey(previewKey), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
 
-  testWidgets('SidebarEntryTile skips hover preview without an image', (
+  testWidgets('SidebarEntryTile shows content preview without an image', (
     tester,
   ) async {
     final entry = FixedTagEntry.create(name: 'tile', content: 'tag');
@@ -2591,25 +2597,30 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 280,
-              child: SidebarEntryTile(
-                entry: entry,
-                libraryEntry: libraryEntry,
-                categoryColor: Colors.blue,
-                isListMode: true,
-                onToggle: () {},
-                onEdit: () {},
-                onDelete: () {},
+          body: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Center(
+              child: SizedBox(
+                width: 280,
+                child: SidebarEntryTile(
+                  entry: entry,
+                  libraryEntry: libraryEntry,
+                  categoryColor: Colors.blue,
+                  isListMode: true,
+                  onToggle: () {},
+                  onEdit: () {},
+                  onDelete: () {},
+                ),
               ),
             ),
           ),
         ),
       ),
     );
-
-    expect(find.byType(HoverImagePreview), findsNothing);
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer();
@@ -2618,9 +2629,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
-      find.byKey(const ValueKey('hover-image-preview-overlay')),
-      findsNothing,
+      find.byKey(const ValueKey('tag-library-entry-preview-overlay')),
+      findsOneWidget,
     );
+    expect(find.text('tile'), findsNWidgets(2));
+    expect(find.text('tag'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 

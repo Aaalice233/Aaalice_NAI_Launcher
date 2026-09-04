@@ -6157,6 +6157,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fixedTags_enabled => '已启用';
 
   @override
+  String get fixedTags_enabledOnly => '只看启用';
+
+  @override
   String get fixedTags_empty => '暂无固定词';
 
   @override
@@ -6286,13 +6289,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fixedTags_clearSearch => '清空搜索';
 
   @override
-  String get fixedTags_enabledPositive => '已启用正向';
-
-  @override
   String get fixedTags_emptyEnabledPositive => '暂无启用的正向固定词';
-
-  @override
-  String get fixedTags_enabledNegative => '已启用负向';
 
   @override
   String get fixedTags_emptyEnabledNegative => '暂无启用的负向固定词';
@@ -20081,6 +20078,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get fixedTags_enabled => '已啟用';
 
   @override
+  String get fixedTags_enabledOnly => '只看啟用';
+
+  @override
   String get fixedTags_empty => '暫無固定詞';
 
   @override
@@ -20210,13 +20210,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get fixedTags_clearSearch => '清空搜尋';
 
   @override
-  String get fixedTags_enabledPositive => '已啟用正向';
-
-  @override
   String get fixedTags_emptyEnabledPositive => '暫無啟用的正向固定詞';
-
-  @override
-  String get fixedTags_enabledNegative => '已啟用負向';
 
   @override
   String get fixedTags_emptyEnabledNegative => '暫無啟用的負向固定詞';
