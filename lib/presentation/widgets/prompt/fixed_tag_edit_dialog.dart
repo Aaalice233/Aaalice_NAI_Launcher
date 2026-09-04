@@ -18,6 +18,7 @@ import '../../themes/core/input_surface_style.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import '../common/adaptive_dialog_frame.dart';
+import '../common/keyboard_dismiss_region.dart';
 import '../common/prefix_suffix_switch.dart';
 import '../common/themed_input.dart';
 import '../common/themed_slider.dart';
@@ -117,25 +118,28 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     );
 
     final isCompact = context.adaptiveWindow.isCompact;
-    final body = Column(
-      children: [
-        if (!widget.presentationManaged) _buildHeader(theme),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final useTwoColumns =
-                  WindowSizeClass.fromWidth(
-                    constraints.maxWidth,
-                  ).isExpandedOrWider &&
-                  MediaQuery.textScalerOf(context).scale(1) < 2;
-              return useTwoColumns
-                  ? _buildWideBody(theme)
-                  : _buildNarrowBody(theme);
-            },
+    final body = KeyboardDismissRegion(
+      enabled: isCompact,
+      child: Column(
+        children: [
+          if (!widget.presentationManaged) _buildHeader(theme),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final useTwoColumns =
+                    WindowSizeClass.fromWidth(
+                      constraints.maxWidth,
+                    ).isExpandedOrWider &&
+                    MediaQuery.textScalerOf(context).scale(1) < 2;
+                return useTwoColumns
+                    ? _buildWideBody(theme)
+                    : _buildNarrowBody(theme);
+              },
+            ),
           ),
-        ),
-        _buildFooter(theme),
-      ],
+          _buildFooter(theme),
+        ],
+      ),
     );
     if (widget.presentationManaged) return body;
 

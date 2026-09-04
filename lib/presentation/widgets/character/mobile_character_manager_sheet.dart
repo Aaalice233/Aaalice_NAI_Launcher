@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../adaptive/window_size_class.dart';
 import '../../providers/character_position_canvas_provider.dart';
+import '../common/keyboard_dismiss_region.dart';
 import 'inline_character_row.dart';
 
 /// Character manager content presented by [AdaptivePresenter].
@@ -30,16 +32,19 @@ class _MobileCharacterManagerSheetState
       });
     });
 
-    return SizedBox.expand(
-      key: const ValueKey('generation_mobile_character_manager_sheet'),
-      child: SingleChildScrollView(
-        controller: widget.scrollController,
-        padding: const EdgeInsets.only(bottom: 16),
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        child: const InlineCharacterRow(
-          showWhenEmpty: true,
-          compactHeader: true,
-          managerLayout: true,
+    return KeyboardDismissRegion(
+      enabled: context.adaptiveWindow.isCompact,
+      child: SizedBox.expand(
+        key: const ValueKey('generation_mobile_character_manager_sheet'),
+        child: SingleChildScrollView(
+          controller: widget.scrollController,
+          padding: const EdgeInsets.only(bottom: 16),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: const InlineCharacterRow(
+            showWhenEmpty: true,
+            compactHeader: true,
+            managerLayout: true,
+          ),
         ),
       ),
     );

@@ -342,6 +342,9 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
     if (route != null && !route.isCurrent) return;
     // 位置画布打开时，点画布拖锚点是位置编辑的一部分，不退出编辑态
     if (ref.read(characterPositionCanvasProvider)) return;
+    // 第一次点空白区域只收起软键盘并保留角色编辑器；没有输入焦点时
+    // 再点外部区域才沿用原来的退出编辑行为。
+    if (_panelFocusNode.hasFocus) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final currentRoute = ModalRoute.of(context);

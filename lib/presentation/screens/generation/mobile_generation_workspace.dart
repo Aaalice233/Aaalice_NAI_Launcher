@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../themes/theme_extension.dart';
+import '../../widgets/common/keyboard_dismiss_region.dart';
 import 'mobile_generation_controller.dart';
 import 'mobile_generation_gestures.dart';
 import 'mobile_generation_view_data.dart';
@@ -38,113 +39,125 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
     final theme = Theme.of(context);
     final controller = widget.controller;
     final data = widget.data;
-    return MobileWorkspaceMotion(
-      active: !controller.agentFullScreen,
-      hiddenOffset: const Offset(0, -0.08),
-      child: TickerMode(
-        enabled: !controller.agentFullScreen,
-        child: data.isPromptMaximized
-            ? Padding(
-                key: const ValueKey('maximized-prompt'),
-                padding: const EdgeInsets.all(12),
-                child: PromptInputWidget(
-                  key: widget.promptInputKey,
-                  controller: widget.promptInputController,
-                  isMaximized: true,
-                  showMaximizeButton: false,
-                  autofocus: true,
-                ),
-              )
-            : MobileGenerationGestures(
-                onPointerDown: (event) =>
-                    controller.handleWorkspacePointerDown(context, event),
-                onPointerMove: controller.handleWorkspacePointerMove,
-                onPointerUp: controller.handleWorkspacePointerUp,
-                onPointerCancel: controller.handleWorkspacePointerCancel,
-                onScrollNotification:
-                    controller.handleWorkspaceScrollNotification,
-                pointerExclusionKeys: [_collapsedPromptLauncherKey],
-                pointerActive: controller.workspacePointerActive,
-                dragOffset: controller.workspaceDragFeedback,
-                showHint: controller.showGestureHint,
-                child: LayoutBuilder(
-                  key: const ValueKey('generation-workspace'),
-                  builder: (context, constraints) {
-                    final textScale = MediaQuery.textScalerOf(context).scale(1);
-                    final minimumHorizontalWidth = 640 * textScale;
-                    final useHorizontalLayout =
-                        constraints.maxWidth >= minimumHorizontalWidth &&
-                        constraints.maxHeight >=
-                            MobileGenerationWorkspace
-                                ._minimumHorizontalWorkspaceHeight &&
-                        constraints.maxWidth > constraints.maxHeight * 1.15;
-                    if (useHorizontalLayout) {
-                      return Row(
-                        children: [
-                          const Expanded(flex: 6, child: ImagePreviewWidget()),
-                          VerticalDivider(width: 1, color: theme.dividerColor),
-                          Expanded(
-                            flex: 5,
-                            child: Column(
-                              children: [
-                                Expanded(
-                                  child: Padding(
-                                    key: controller.embeddedPromptKey,
-                                    padding: const EdgeInsets.all(12),
-                                    child: PromptInputWidget(
-                                      key: widget.promptInputKey,
-                                      controller: widget.promptInputController,
-                                      compact: true,
+    return KeyboardDismissRegion(
+      child: MobileWorkspaceMotion(
+        active: !controller.agentFullScreen,
+        hiddenOffset: const Offset(0, -0.08),
+        child: TickerMode(
+          enabled: !controller.agentFullScreen,
+          child: data.isPromptMaximized
+              ? Padding(
+                  key: const ValueKey('maximized-prompt'),
+                  padding: const EdgeInsets.all(12),
+                  child: PromptInputWidget(
+                    key: widget.promptInputKey,
+                    controller: widget.promptInputController,
+                    isMaximized: true,
+                    showMaximizeButton: false,
+                    autofocus: true,
+                  ),
+                )
+              : MobileGenerationGestures(
+                  onPointerDown: (event) =>
+                      controller.handleWorkspacePointerDown(context, event),
+                  onPointerMove: controller.handleWorkspacePointerMove,
+                  onPointerUp: controller.handleWorkspacePointerUp,
+                  onPointerCancel: controller.handleWorkspacePointerCancel,
+                  onScrollNotification:
+                      controller.handleWorkspaceScrollNotification,
+                  pointerExclusionKeys: [_collapsedPromptLauncherKey],
+                  pointerActive: controller.workspacePointerActive,
+                  dragOffset: controller.workspaceDragFeedback,
+                  showHint: controller.showGestureHint,
+                  child: LayoutBuilder(
+                    key: const ValueKey('generation-workspace'),
+                    builder: (context, constraints) {
+                      final textScale = MediaQuery.textScalerOf(
+                        context,
+                      ).scale(1);
+                      final minimumHorizontalWidth = 640 * textScale;
+                      final useHorizontalLayout =
+                          constraints.maxWidth >= minimumHorizontalWidth &&
+                          constraints.maxHeight >=
+                              MobileGenerationWorkspace
+                                  ._minimumHorizontalWorkspaceHeight &&
+                          constraints.maxWidth > constraints.maxHeight * 1.15;
+                      if (useHorizontalLayout) {
+                        return Row(
+                          children: [
+                            const Expanded(
+                              flex: 6,
+                              child: ImagePreviewWidget(),
+                            ),
+                            VerticalDivider(
+                              width: 1,
+                              color: theme.dividerColor,
+                            ),
+                            Expanded(
+                              flex: 5,
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: Padding(
+                                      key: controller.embeddedPromptKey,
+                                      padding: const EdgeInsets.all(12),
+                                      child: PromptInputWidget(
+                                        key: widget.promptInputKey,
+                                        controller:
+                                            widget.promptInputController,
+                                        compact: true,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                if (data.generationState.isGenerating)
-                                  MobileGenerationProgress(
-                                    progress: data.generationState.progress,
-                                  ),
-                              ],
+                                  if (data.generationState.isGenerating)
+                                    MobileGenerationProgress(
+                                      progress: data.generationState.progress,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      return Column(
+                        children: [
+                          Offstage(
+                            offstage: true,
+                            child: SizedBox(
+                              width: constraints.maxWidth,
+                              height:
+                                  160 * textScale.clamp(1.0, 3.0).toDouble(),
+                              child: PromptInputWidget(
+                                key: widget.promptInputKey,
+                                controller: widget.promptInputController,
+                                compact: true,
+                                active: false,
+                              ),
+                            ),
+                          ),
+                          const Expanded(child: ImagePreviewWidget()),
+                          if (data.generationState.isGenerating)
+                            MobileGenerationProgress(
+                              progress: data.generationState.progress,
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                            child: MobileCollapsedPromptLauncher(
+                              key: _collapsedPromptLauncherKey,
+                              prompt: data.promptSummary,
+                              characterCount: data.enabledCharacterCount,
+                              qualityEnabled: data.qualityEnabled,
+                              negativePresetLabel: data.negativePresetLabel,
+                              fixedTagCount: data.fixedTagCount,
+                              onTap: controller.openPromptEditor,
                             ),
                           ),
                         ],
                       );
-                    }
-                    return Column(
-                      children: [
-                        Offstage(
-                          offstage: true,
-                          child: SizedBox(
-                            width: constraints.maxWidth,
-                            height: 160 * textScale.clamp(1.0, 3.0).toDouble(),
-                            child: PromptInputWidget(
-                              key: widget.promptInputKey,
-                              controller: widget.promptInputController,
-                              compact: true,
-                              active: false,
-                            ),
-                          ),
-                        ),
-                        const Expanded(child: ImagePreviewWidget()),
-                        if (data.generationState.isGenerating)
-                          MobileGenerationProgress(
-                            progress: data.generationState.progress,
-                          ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                          child: MobileCollapsedPromptLauncher(
-                            key: _collapsedPromptLauncherKey,
-                            prompt: data.promptSummary,
-                            characterCount: data.enabledCharacterCount,
-                            qualityEnabled: data.qualityEnabled,
-                            negativePresetLabel: data.negativePresetLabel,
-                            fixedTagCount: data.fixedTagCount,
-                            onTap: controller.openPromptEditor,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                    },
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
