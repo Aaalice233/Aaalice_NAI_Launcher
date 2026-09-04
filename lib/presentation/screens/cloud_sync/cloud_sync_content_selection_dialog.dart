@@ -241,6 +241,7 @@ class _CloudSyncContentSelectionBodyState
       child: Text(context.l10n.cloudSync_restoreDefaults),
     );
     final actions = Wrap(
+      key: const ValueKey('cloud-sync-content-actions'),
       alignment: WrapAlignment.end,
       spacing: 8,
       runSpacing: 4,
@@ -273,8 +274,10 @@ class _CloudSyncContentSelectionBodyState
           return Row(
             children: [
               defaults,
-              const Spacer(),
-              Flexible(child: actions),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Align(alignment: Alignment.centerRight, child: actions),
+              ),
             ],
           );
         },
