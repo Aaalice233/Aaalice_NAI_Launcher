@@ -258,6 +258,8 @@ void main() {
     var panel = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panel, findsOneWidget);
     expect(tester.getSize(panel).width, 700);
+    expect(tester.getSize(panel).height, lessThan(700));
+    expect(tester.getRect(panel).center.dy, moreOrLessEquals(400));
     await tester.tap(find.byIcon(Icons.close));
     await tester.pumpAndSettle();
 

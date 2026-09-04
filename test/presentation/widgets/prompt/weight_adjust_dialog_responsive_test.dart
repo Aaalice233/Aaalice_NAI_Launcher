@@ -114,6 +114,39 @@ void main() {
     expect(tester.getSize(panel).width, lessThanOrEqualTo(640));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('wide tag edit form follows its content height', (tester) async {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.single;
+    view.devicePixelRatio = 1;
+    view.physicalSize = const Size(1000, 800);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () =>
+                  TagEditDialog.show(context, tag: _tag, onTextChanged: (_) {}),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(panel, findsOneWidget);
+    expect(tester.getSize(panel).height, lessThan(320));
+    expect(tester.getRect(panel).center.dy, moreOrLessEquals(400));
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Widget _app({required ValueChanged<BuildContext> onPressed}) {
