@@ -1,12 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
+import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
@@ -62,6 +68,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   final ValueNotifier<Set<String>> _expandedCategoryIds =
       ValueNotifier<Set<String>>(<String>{});
   bool _categoriesExpanded = true;
+  bool _showCategoryPanel = true;
 
   @override
   void dispose() {
@@ -157,13 +164,20 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         child: Scaffold(
           body: LayoutBuilder(
             builder: (context, constraints) {
-              final showSidebar = constraints.maxWidth >= 840;
+              final persistentCategories = constraints.maxWidth >= 840;
+              final showSidebar = persistentCategories && _showCategoryPanel;
               return GalleryCollectionWorkspace(
                 toolbar: TagLibraryToolbar(
                   showPageTitle: true,
-                  onShowCategories: showSidebar
-                      ? null
-                      : () => _showCategoryPanel(state),
+                  showCategoryPanel: showSidebar,
+                  onShowCategories: persistentCategories
+                      ? () => setState(
+                          () => _showCategoryPanel = !_showCategoryPanel,
+                        )
+                      : () => _showCategoryPanelSheet(state),
+                  onOpenFolder: PlatformCapabilities.current.supportsOpenFolder
+                      ? _openLibraryFolder
+                      : null,
                   onEnterSelectionMode: () => ref
                       .read(tagLibrarySelectionNotifierProvider.notifier)
                       .enter(),
@@ -374,7 +388,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     );
   }
 
-  Future<void> _showCategoryPanel(TagLibraryPageState state) {
+  Future<void> _showCategoryPanelSheet(TagLibraryPageState state) {
     return AdaptivePresenter.showPanel<void>(
       context: context,
       title: context.l10n.tagLibrary_categories,
@@ -385,6 +399,24 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         onCategorySelectionComplete: () => Navigator.of(panelContext).pop(),
       ),
     );
+  }
+
+  Future<void> _openLibraryFolder() async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final directory = Directory(
+        path.join(appDir.path, 'tag_library_thumbnails'),
+      );
+      await directory.create(recursive: true);
+      await FileExplorerUtils.openDirectory(directory.path);
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.localGallery_openFolderFailed('$error'),
+        );
+      }
+    }
   }
 
   /// 构建内容区域

@@ -22,6 +22,9 @@ void main() {
 
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('词库使用公共顶栏并保留全部能力 ${width.toInt()}px', (tester) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.windows,
+      );
       await _pumpToolbar(tester, width: width);
 
       expect(find.byType(GalleryLibraryToolbar), findsOneWidget);
@@ -34,7 +37,7 @@ void main() {
         find.byType(GalleryLibraryViewModeSelector<TagLibraryViewMode>),
         findsOneWidget,
       );
-      for (final label in ['分类', '多选', '导入', '导出', '添加条目']) {
+      for (final label in ['分类', '多选', '导入', '导出', '文件夹', '添加条目']) {
         expect(find.text(label), findsOneWidget);
       }
       expect(find.text('0'), findsOneWidget);
@@ -53,7 +56,27 @@ void main() {
     expect(find.text('名称'), findsOneWidget);
   });
 
+  testWidgets('分类与文件夹按钮转发顶栏操作', (tester) async {
+    var categoryToggleCount = 0;
+    var openFolderCount = 0;
+    await _pumpToolbar(
+      tester,
+      width: 1180,
+      onShowCategories: () => categoryToggleCount++,
+      onOpenFolder: () => openFolderCount++,
+    );
+
+    await tester.tap(find.byKey(const Key('tag-library-categories-button')));
+    await tester.tap(find.byKey(const Key('tag-library-folder-button')));
+
+    expect(categoryToggleCount, 1);
+    expect(openFolderCount, 1);
+  });
+
   testWidgets('3x 文本保留完整可横向滚动操作区', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
     await _pumpToolbar(tester, width: 320, textScale: 3);
 
     expect(
@@ -64,7 +87,7 @@ void main() {
       find.byKey(const ValueKey('gallery-library-toolbar-actions')),
       findsOneWidget,
     );
-    for (final label in ['分类', '多选', '导入', '导出', '添加条目']) {
+    for (final label in ['分类', '多选', '导入', '导出', '文件夹', '添加条目']) {
       expect(find.text(label), findsOneWidget);
     }
     expect(tester.takeException(), isNull);
@@ -75,6 +98,8 @@ Future<void> _pumpToolbar(
   WidgetTester tester, {
   required double width,
   double textScale = 1,
+  VoidCallback? onShowCategories,
+  VoidCallback? onOpenFolder,
 }) async {
   await tester.binding.setSurfaceSize(Size(width, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -96,7 +121,8 @@ Future<void> _pumpToolbar(
             ).copyWith(textScaler: TextScaler.linear(textScale)),
             child: Scaffold(
               body: TagLibraryToolbar(
-                onShowCategories: () {},
+                onShowCategories: onShowCategories ?? () {},
+                onOpenFolder: onOpenFolder ?? () {},
                 onEnterSelectionMode: () {},
                 onImport: () {},
                 onExport: () {},

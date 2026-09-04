@@ -16,6 +16,8 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
   const TagLibraryToolbar({
     super.key,
     this.onShowCategories,
+    this.showCategoryPanel = true,
+    this.onOpenFolder,
     this.onEnterSelectionMode,
     this.onBulkDelete,
     this.onBulkMoveCategory,
@@ -29,6 +31,8 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
   });
 
   final VoidCallback? onShowCategories;
+  final bool showCategoryPanel;
+  final VoidCallback? onOpenFolder;
   final VoidCallback? onEnterSelectionMode;
   final VoidCallback? onBulkDelete;
   final VoidCallback? onBulkMoveCategory;
@@ -121,7 +125,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
       );
     }
 
-    final openCategories = widget.onShowCategories ?? widget.onOpenCategories;
+    final toggleCategories = widget.onShowCategories ?? widget.onOpenCategories;
     final filtered = state.filteredEntries.length != state.entries.length;
     return GalleryLibraryToolbar(
       key: const Key('tag-library-toolbar'),
@@ -138,6 +142,18 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
       ),
       search: _buildSearchField(),
       actions: [
+        if (toggleCategories != null)
+          GalleryLibraryAction(
+            key: const Key('tag-library-categories-button'),
+            icon: widget.showCategoryPanel
+                ? Icons.view_sidebar
+                : Icons.view_sidebar_outlined,
+            label: context.l10n.common_categories,
+            tooltip: widget.showCategoryPanel
+                ? context.l10n.localGallery_hideCategoryPanel
+                : context.l10n.localGallery_showCategoryPanel,
+            onPressed: toggleCategories,
+          ),
         GalleryLibrarySortMenu<TagLibrarySortBy>(
           key: const Key('tag-library-sort-menu-anchor'),
           label: _sortLabel(state.sortBy),
@@ -187,13 +203,6 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
               .read(tagLibraryPageNotifierProvider.notifier)
               .setViewMode(value),
         ),
-        if (openCategories != null)
-          GalleryLibraryAction(
-            key: const Key('tag-library-categories-button'),
-            icon: Icons.account_tree_outlined,
-            label: context.l10n.common_categories,
-            onPressed: openCategories,
-          ),
         GalleryLibraryAction(
           icon: Icons.checklist,
           label: context.l10n.common_multiSelect,
@@ -209,6 +218,14 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
           label: context.l10n.common_export,
           onPressed: state.entries.isEmpty ? null : widget.onExport,
         ),
+        if (widget.onOpenFolder != null)
+          GalleryLibraryAction(
+            key: const Key('tag-library-folder-button'),
+            icon: Icons.folder_open_outlined,
+            label: context.l10n.common_folder,
+            tooltip: context.l10n.shortcut_action_open_folder,
+            onPressed: widget.onOpenFolder,
+          ),
       ],
       primaryAction: GalleryLibraryPrimaryAction(
         key: const Key('tag-library-add-entry-button'),
