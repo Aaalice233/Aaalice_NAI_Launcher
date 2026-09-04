@@ -13027,6 +13027,10 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get cloudSync_errorOAuthAuthorizationFailed =>
+      'このアプリはクラウドサービスへのアクセスをまだ許可されていません。認証ページの案内を確認して、もう一度お試しください。';
+
+  @override
   String cloudSync_accountConnected(String provider) {
     return '$provider に接続済み';
   }

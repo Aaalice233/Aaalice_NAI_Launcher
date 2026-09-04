@@ -23252,6 +23252,12 @@ abstract class AppLocalizations {
   /// **'This build is missing its OAuth release configuration, so the destination is unavailable. Send this diagnostic to the publisher:\n{details}'**
   String cloudSync_oauthUnavailable(String details);
 
+  /// No description provided for @cloudSync_errorOAuthAuthorizationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This app has not been authorized to access the cloud service. Check the authorization page for details and try again.'**
+  String get cloudSync_errorOAuthAuthorizationFailed;
+
   /// No description provided for @cloudSync_accountConnected.
   ///
   /// In en, this message translates to:

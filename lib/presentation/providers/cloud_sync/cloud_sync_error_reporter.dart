@@ -1,5 +1,6 @@
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/cloud_sync/models.dart';
+import '../../../core/cloud_sync/oauth/cloud_drive_oauth_client.dart';
 import '../../../core/cloud_sync/sync_types.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/fatal_diagnostics.dart';
@@ -45,6 +46,10 @@ class CloudSyncErrorReporter {
 
 String cloudSyncErrorMessage(Object error) => switch (error) {
   CloudBackendException(kind: final kind) => 'backend.${kind.name}',
+  CloudDriveOAuthException(
+    code: CloudDriveOAuthFailureCode.authorizationFailed,
+  ) =>
+    'oauth.authorizationFailed',
   CloudPreviewStaleException() => 'previewStale',
   CloudFormatException() => 'format',
   FormatException() => 'configuration',

@@ -6403,6 +6403,7 @@
   "cloudSync_oauthSystemBrowser": "システムブラウザーで安全にログインします。アプリ内でプロバイダーのパスワードを入力する必要はありません。",
   "cloudSync_oauthUnavailable": "このビルドには OAuth のリリース設定がないため接続できません。次の診断情報を配布元に送ってください：\n{details}",
   "@cloudSync_oauthUnavailable": {"placeholders": {"details": {"type": "String"}}},
+  "cloudSync_errorOAuthAuthorizationFailed": "このアプリはクラウドサービスへのアクセスをまだ許可されていません。認証ページの案内を確認して、もう一度お試しください。",
   "cloudSync_accountConnected": "{provider} に接続済み",
   "@cloudSync_accountConnected": {"placeholders": {"provider": {"type": "String"}}},
   "cloudSync_connectAccount": "アカウントを接続",

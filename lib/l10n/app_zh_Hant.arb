@@ -6724,6 +6724,7 @@
   "cloudSync_oauthSystemBrowser": "將使用系統瀏覽器安全登入；無需在應用程式中輸入密碼。",
   "cloudSync_oauthUnavailable": "此版本缺少 OAuth 發佈設定，暫時無法連線。請向發佈者提供以下診斷：\n{details}",
   "@cloudSync_oauthUnavailable": {"placeholders": {"details": {"type": "String"}}},
+  "cloudSync_errorOAuthAuthorizationFailed": "應用程式尚未獲准存取此雲端服務。請檢查授權頁面中的提示後再試一次。",
   "cloudSync_accountConnected": "已連線 {provider}",
   "@cloudSync_accountConnected": {"placeholders": {"provider": {"type": "String"}}},
   "cloudSync_connectAccount": "連線帳號",

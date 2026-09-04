@@ -6380,6 +6380,7 @@
   "cloudSync_oauthSystemBrowser": "Secure sign-in opens in your system browser; you never enter the provider password in this app.",
   "cloudSync_oauthUnavailable": "This build is missing its OAuth release configuration, so the destination is unavailable. Send this diagnostic to the publisher:\n{details}",
   "@cloudSync_oauthUnavailable": {"placeholders": {"details": {"type": "String"}}},
+  "cloudSync_errorOAuthAuthorizationFailed": "This app has not been authorized to access the cloud service. Check the authorization page for details and try again.",
   "cloudSync_accountConnected": "{provider} connected",
   "@cloudSync_accountConnected": {"placeholders": {"provider": {"type": "String"}}},
   "cloudSync_connectAccount": "Connect account",

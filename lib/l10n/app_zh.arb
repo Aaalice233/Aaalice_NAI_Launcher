@@ -6449,6 +6449,7 @@
   "cloudSync_oauthSystemBrowser": "将使用系统浏览器安全登录；无需在应用中输入密码。",
   "cloudSync_oauthUnavailable": "此版本缺少 OAuth 发布配置，暂时无法连接。请向发布者提供以下诊断：\n{details}",
   "@cloudSync_oauthUnavailable": {"placeholders": {"details": {"type": "String"}}},
+  "cloudSync_errorOAuthAuthorizationFailed": "应用尚未获准访问该云端服务。请检查授权页面中的提示后重试。",
   "cloudSync_accountConnected": "已连接 {provider}",
   "@cloudSync_accountConnected": {"placeholders": {"provider": {"type": "String"}}},
   "cloudSync_connectAccount": "连接账号",

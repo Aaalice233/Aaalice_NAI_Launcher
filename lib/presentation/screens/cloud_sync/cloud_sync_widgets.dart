@@ -19,6 +19,8 @@ String localizeCloudSyncError(BuildContext context, String code) =>
       'format' => context.l10n.cloudSync_errorFormat,
       'configuration' => context.l10n.cloudSync_errorConfiguration,
       'state' => context.l10n.cloudSync_errorState,
+      'oauth.authorizationFailed' =>
+        context.l10n.cloudSync_errorOAuthAuthorizationFailed,
       _ => context.l10n.cloudSync_errorUnknown,
     };
 

@@ -10,6 +10,7 @@ import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/cloud_sync/cloud_sync_content_selection_store.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../../providers/cloud_sync/cloud_sync_error_reporter.dart';
 import '../../providers/cloud_sync/cloud_sync_flight_gate.dart';
 import '../../providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
@@ -166,12 +167,10 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
           error is CloudSyncOperationInProgressException ||
               authorizationInProgress
           ? context.l10n.cloudSync_operationInProgress
-          : ref.read(cloudSyncUiStateProvider).error;
-      if (message != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-      }
+          : localizeCloudSyncError(context, cloudSyncErrorMessage(error));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

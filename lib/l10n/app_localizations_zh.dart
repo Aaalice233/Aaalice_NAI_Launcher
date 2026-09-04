@@ -12803,6 +12803,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get cloudSync_errorOAuthAuthorizationFailed =>
+      '应用尚未获准访问该云端服务。请检查授权页面中的提示后重试。';
+
+  @override
   String cloudSync_accountConnected(String provider) {
     return '已连接 $provider';
   }
@@ -26723,6 +26727,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String cloudSync_oauthUnavailable(String details) {
     return '此版本缺少 OAuth 發佈設定，暫時無法連線。請向發佈者提供以下診斷：\n$details';
   }
+
+  @override
+  String get cloudSync_errorOAuthAuthorizationFailed =>
+      '應用程式尚未獲准存取此雲端服務。請檢查授權頁面中的提示後再試一次。';
 
   @override
   String cloudSync_accountConnected(String provider) {

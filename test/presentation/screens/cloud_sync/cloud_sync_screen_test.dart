@@ -194,6 +194,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('OAuth 服务拒绝授权时显示明确提示', (tester) async {
+    final port = _FakePort()
+      ..authorizationCompleter = Completer<CloudSyncConnectionDraft>();
+    await tester.pumpWidget(
+      _subject(port: port, registry: _oneDriveRegistry()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('OneDrive'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('cloud-sync-authorize-oneDrive')),
+    );
+    await tester.pump();
+    port.authorizationCompleter!.completeError(
+      const CloudDriveOAuthException(
+        CloudDriveOAuthFailureCode.authorizationFailed,
+        'provider rejected authorization',
+        oauthError: 'access_denied',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('应用尚未获准访问该云端服务。请检查授权页面中的提示后重试。'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('更换账号时取消会保留原 OAuth 草稿', (tester) async {
     final port = _FakePort();
     await tester.pumpWidget(

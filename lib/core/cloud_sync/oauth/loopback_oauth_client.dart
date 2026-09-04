@@ -53,9 +53,7 @@ final class OAuthCallbackValidator {
     final oauthError = uri.queryParameters['error'];
     if (oauthError != null) {
       throw CloudDriveOAuthException(
-        oauthError == 'access_denied'
-            ? CloudDriveOAuthFailureCode.cancelled
-            : CloudDriveOAuthFailureCode.authorizationFailed,
+        CloudDriveOAuthFailureCode.authorizationFailed,
         'OAuth authorization was not completed',
         oauthError: oauthError,
       );

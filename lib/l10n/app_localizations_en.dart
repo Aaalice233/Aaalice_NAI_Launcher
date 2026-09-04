@@ -13374,6 +13374,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get cloudSync_errorOAuthAuthorizationFailed =>
+      'This app has not been authorized to access the cloud service. Check the authorization page for details and try again.';
+
+  @override
   String cloudSync_accountConnected(String provider) {
     return '$provider connected';
   }

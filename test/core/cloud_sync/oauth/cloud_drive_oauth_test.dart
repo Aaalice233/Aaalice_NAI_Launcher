@@ -190,6 +190,33 @@ void main() {
     });
   });
 
+  group('OAuthCallbackValidator', () {
+    test('reports provider access denial as an authorization failure', () {
+      expect(
+        () => OAuthCallbackValidator.validate(
+          Uri.parse(
+            'http://127.0.0.1/oauth2/callback'
+            '?state=expected&error=access_denied',
+          ),
+          expectedState: 'expected',
+        ),
+        throwsA(
+          isA<CloudDriveOAuthException>()
+              .having(
+                (error) => error.code,
+                'code',
+                CloudDriveOAuthFailureCode.authorizationFailed,
+              )
+              .having(
+                (error) => error.oauthError,
+                'oauthError',
+                'access_denied',
+              ),
+        ),
+      );
+    });
+  });
+
   group('SecureCloudDriveOAuthTokenProvider', () {
     test(
       'reports missing build configuration instead of unsupported platform',
