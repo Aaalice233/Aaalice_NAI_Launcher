@@ -10,7 +10,6 @@ import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/tile_action_button.dart';
-import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
 
 typedef SidebarDragHandleBuilder = Widget Function(Widget child);
@@ -245,11 +244,10 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
           ],
         ),
         if (widget.isListMode) const SizedBox(height: 1),
-        TranslatedPromptText(
+        Text(
           widget.entry.content,
-          selectable: false,
           maxLines: maxLines,
-          reserveTranslationSpace: widget.isListMode,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
