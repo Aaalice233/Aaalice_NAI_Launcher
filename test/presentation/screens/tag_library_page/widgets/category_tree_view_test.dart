@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/category_tree_view.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
@@ -165,6 +166,77 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(createdInCategory, 'target-category');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('悬停出现的操作菜单在指针移出行后仍能派发选中项', (tester) async {
+    String? addedUnderCategory;
+    final categories = [
+      TagLibraryCategory(
+        id: 'target-category',
+        name: '目标分类',
+        createdAt: DateTime(2026),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 320,
+                height: 320,
+                child: CategoryTreeView(
+                  categories: categories,
+                  entries: const [],
+                  selectedCategoryId: null,
+                  expandedCategoryIds: const <String>{},
+                  onExpandedCategoryIdsChanged: (_) {},
+                  onCategorySelected: (_) {},
+                  onCategoryRename: (_, _) {},
+                  onCategoryDelete: (_) {},
+                  onAddSubCategory: (id) => addedUnderCategory = id,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 必须用真实鼠标：合成 tap 不更新指针命中，测不出菜单打开后按钮被卸载的回归。
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.text('目标分类')));
+    await tester.pumpAndSettle();
+
+    final menu = find.byKey(const ValueKey('category-item-actions-menu'));
+    expect(menu, findsOneWidget);
+
+    Future<void> clickAt(Offset target) async {
+      await mouse.moveTo(target);
+      await tester.pumpAndSettle();
+      await mouse.down(target);
+      await tester.pump();
+      await mouse.up();
+      await tester.pumpAndSettle();
+    }
+
+    await clickAt(tester.getCenter(menu));
+    await clickAt(tester.getCenter(find.byIcon(Icons.create_new_folder)));
+
+    expect(addedUnderCategory, 'target-category');
     expect(tester.takeException(), isNull);
   });
 }
