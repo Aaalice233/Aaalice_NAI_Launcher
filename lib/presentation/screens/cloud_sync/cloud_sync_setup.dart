@@ -396,10 +396,6 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
               CloudSyncDataKind.galleries,
               context.l10n.cloudSync_kindGalleries,
             ),
-            _filter(
-              CloudSyncDataKind.largeBinary,
-              context.l10n.cloudSync_kindLargeFiles,
-            ),
           ],
         ),
         const SizedBox(height: 16),

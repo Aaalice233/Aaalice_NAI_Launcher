@@ -212,9 +212,7 @@ bool isCloudSyncAdapterInScope(
     return contentSelection.includeAgentSystemPrompt;
   }
   if (id == 'agent-skills') return contentSelection.includeSkills;
-  if (id == 'vibe-library' || id == 'precise-ref-library') {
-    return scope.contains(CloudSyncDataKind.largeBinary);
-  }
+  if (id == 'vibe-library' || id == 'precise-ref-library') return false;
   if (id.contains('gallery') || id == 'online-favorites') {
     return scope.contains(CloudSyncDataKind.galleries);
   }
