@@ -25,21 +25,16 @@ import 'sidebar_link_painter.dart';
 const _uncategorizedSectionId = '__uncategorized__';
 const _linkDetachDistance = 36.0;
 
-double _gridCardHeight(BuildContext context, {required double cardWidth}) {
+double _gridCardHeight(BuildContext context) {
   final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
   final usesActionMenu =
       context.interactionPolicy.shouldExposeTouchAlternatives ||
       scaledLabelSize >= 20;
-  final needsTallBase = cardWidth < 320 || usesActionMenu;
 
   // Grid previews can contain up to five scaled text lines. Grow the fixed
   // extent with the text scaler so asynchronous translations cannot outgrow it.
   final scaledTextGrowth = (scaledLabelSize - 14).clamp(0.0, double.infinity);
-  final baseHeight = usesActionMenu
-      ? 210.0
-      : needsTallBase
-      ? 180.0
-      : 150.0;
+  final baseHeight = usesActionMenu ? 210.0 : 180.0;
   return baseHeight + scaledTextGrowth * 6;
 }
 
@@ -1507,9 +1502,7 @@ class _GroupedFixedTagCollectionState
             ((constraints.maxWidth + spacing) / (minimumCardWidth + spacing))
                 .floor()
                 .clamp(1, 3);
-        final cardWidth =
-            (constraints.maxWidth - spacing * (columnCount - 1)) / columnCount;
-        final cardHeight = _gridCardHeight(context, cardWidth: cardWidth);
+        final cardHeight = _gridCardHeight(context);
         return GridView.builder(
           key: ValueKey('${widget.keyPrefix}-group-${section.id}-body'),
           shrinkWrap: true,

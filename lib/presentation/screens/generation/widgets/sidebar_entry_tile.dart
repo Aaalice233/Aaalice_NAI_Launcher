@@ -145,7 +145,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_hasThumbnail)
-          Expanded(flex: 4, child: _buildThumbnail(widget.libraryEntry!)),
+          Expanded(flex: 3, child: _buildThumbnail(widget.libraryEntry!)),
         Expanded(
           flex: _hasThumbnail ? 5 : 1,
           child: Padding(

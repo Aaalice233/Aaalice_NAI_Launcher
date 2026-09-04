@@ -2363,25 +2363,38 @@ void main() {
   );
 
   testWidgets(
-    'grid cards reserve enough height for translated text and touch actions',
+    'grid cards fit linked thumbnails and translated text without overflow',
     (tester) async {
       final category = TagLibraryCategory.create(name: 'Quality');
-      final positive = FixedTagEntry.create(
+      final positiveLibrary = TagLibraryEntry.create(
         name: 'positive',
         content: 'masterpiece, best quality, detailed background',
-        enabled: false,
         categoryId: category.id,
+        thumbnail: 'missing-positive.png',
       );
-      final negative = FixedTagEntry.create(
+      final negativeLibrary = TagLibraryEntry.create(
         name: 'negative',
         content: 'bad hands, low quality, blurry, watermark',
+        thumbnail: 'missing-negative.png',
+      );
+      final positive = FixedTagEntry.create(
+        name: positiveLibrary.name,
+        content: positiveLibrary.content,
+        enabled: false,
+        categoryId: category.id,
+        sourceEntryId: positiveLibrary.id,
+      );
+      final negative = FixedTagEntry.create(
+        name: negativeLibrary.name,
+        content: negativeLibrary.content,
         enabled: false,
         promptType: FixedTagPromptType.negative,
+        sourceEntryId: negativeLibrary.id,
       );
       final storage = _SidebarTestStorage(
         fixedEntries: [positive, negative],
         categories: [category],
-        libraryEntries: const [],
+        libraryEntries: [positiveLibrary, negativeLibrary],
       )..fixedSidebarViewMode = 'grid';
       final lookup = TagTranslationLookup.fromResolver((tags) async {
         return {for (final tag in tags) tag: '译文$tag'};
@@ -2391,9 +2404,9 @@ void main() {
         tester,
         storage,
         interactionPolicy: const InteractionPolicy(
-          modality: InteractionModality.touch,
-          touchAvailable: true,
-          precisePointerAvailable: false,
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
         ),
         translationLookup: lookup,
       );
