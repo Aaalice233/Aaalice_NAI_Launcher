@@ -4,12 +4,86 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/animated/animated_number.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/cards/chart_card.dart';
+import 'package:nai_launcher/presentation/screens/statistics/widgets/cards/metric_card.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/charts/aspect_ratio_chart.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/charts/heatmap_chart.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/charts/top_tags_ranking.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/common/section_container.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
 void main() {
+  testWidgets(
+    'statistics cards keep tonal grouping when theme container roles collapse',
+    (tester) async {
+      const canvas = Color(0xFF181818);
+      final collapsedScheme = const ColorScheme.dark(
+        surface: canvas,
+      ).copyWith(surfaceContainerLow: canvas, surfaceContainer: canvas);
+      final sectionKey = GlobalKey();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(colorScheme: collapsedScheme),
+          home: Scaffold(
+            body: Column(
+              children: [
+                const MetricCard(
+                  key: ValueKey('grouped-metric-card'),
+                  icon: Icons.photo_outlined,
+                  label: 'Images',
+                  value: '42',
+                  compact: true,
+                ),
+                const ChartCard(
+                  key: ValueKey('grouped-chart-card'),
+                  title: 'Activity',
+                  child: SizedBox(height: 20),
+                ),
+                SectionContainer(
+                  sectionKey: sectionKey,
+                  title: 'Section',
+                  icon: Icons.bar_chart,
+                  child: const SizedBox(height: 20),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final metricSurface = tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.byKey(const ValueKey('grouped-metric-card')),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
+      final chartSurface = tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.byKey(const ValueKey('grouped-chart-card')),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
+      final sectionSurface = tester.widget<Container>(find.byKey(sectionKey));
+      final expectedSurface = sectionSurfaceColor(collapsedScheme);
+
+      expect(
+        (metricSurface.decoration! as BoxDecoration).color,
+        expectedSurface,
+      );
+      expect(
+        (chartSurface.decoration! as BoxDecoration).color,
+        expectedSurface,
+      );
+      expect(
+        (sectionSurface.decoration! as BoxDecoration).color,
+        expectedSurface,
+      );
+      expect(expectedSurface, isNot(canvas));
+      expect(find.byType(Divider), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'statistics containers use their local width at 700, 840, and 1180',
     (tester) async {
@@ -34,7 +108,6 @@ void main() {
                     sectionKey: sectionKey,
                     title: 'Section',
                     icon: Icons.bar_chart,
-                    showDivider: false,
                     child: const SizedBox(key: sectionChildKey, height: 20),
                   ),
                   const ChartCard(

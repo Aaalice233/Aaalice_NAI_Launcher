@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../adaptive/window_size_class.dart';
-import '../../../../widgets/common/themed_divider.dart';
+import '../../../../themes/core/layered_surface_style.dart';
 
 /// Container for statistics sections with consistent styling
 class SectionContainer extends StatelessWidget {
@@ -11,7 +11,6 @@ class SectionContainer extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
   final EdgeInsetsGeometry? padding;
-  final bool showDivider;
 
   const SectionContainer({
     super.key,
@@ -21,7 +20,6 @@ class SectionContainer extends StatelessWidget {
     required this.child,
     this.trailing,
     this.padding,
-    this.showDivider = true,
   });
 
   @override
@@ -42,6 +40,10 @@ class SectionContainer extends StatelessWidget {
                 horizontal: useExpandedSpacing ? 24 : 16,
                 vertical: useExpandedSpacing ? 24 : 20,
               ),
+          decoration: BoxDecoration(
+            color: sectionSurfaceColor(colorScheme),
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -71,13 +73,7 @@ class SectionContainer extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 20),
-              // Section content
               child,
-              // Bottom divider
-              if (showDivider) ...[
-                const SizedBox(height: 24),
-                const ThemedDivider(height: 1),
-              ],
             ],
           ),
         );

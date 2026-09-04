@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 import '../../../../adaptive/window_size_class.dart';
+import '../../../../themes/core/layered_surface_style.dart';
 
 /// Section header widget
 /// 章节标题组件
@@ -107,8 +108,8 @@ class _ChartCardState extends State<ChartCard> {
             curve: theme.appTheme.standardCurve,
             decoration: BoxDecoration(
               color: _isHovered
-                  ? colorScheme.surfaceContainer
-                  : colorScheme.surfaceContainerLow,
+                  ? controlSurfaceColor(colorScheme)
+                  : sectionSurfaceColor(colorScheme),
               borderRadius: BorderRadius.circular(8),
             ),
             child: ClipRRect(
