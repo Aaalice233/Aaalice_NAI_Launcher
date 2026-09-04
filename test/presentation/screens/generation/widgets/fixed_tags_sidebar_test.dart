@@ -1560,6 +1560,49 @@ void main() {
     expect(tester.getSize(surface).width, lessThan(100));
   });
 
+  testWidgets('header collapse button closes the fixed-tags sidebar', (
+    tester,
+  ) async {
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 340, height: 620, child: FixedTagsSidebar()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FixedTagsSidebar)),
+    );
+    expect(
+      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('fixed-tags-collapse-sidebar')));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+      isFalse,
+    );
+    expect(storage.fixedSidebarExpanded, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'FixedTagsButton long press toggles sidebar and tap keeps it open',
     (tester) async {

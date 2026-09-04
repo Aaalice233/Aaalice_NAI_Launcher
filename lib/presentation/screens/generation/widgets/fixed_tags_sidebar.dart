@@ -268,6 +268,16 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
               ),
             ],
           ),
+          IconButton(
+            key: const ValueKey('fixed-tags-collapse-sidebar'),
+            tooltip: context.l10n.nav_collapseSidebar,
+            icon: const Icon(Icons.chevron_right_rounded, size: 20),
+            onPressed: () {
+              ref
+                  .read(layoutStateNotifierProvider.notifier)
+                  .setFixedTagsSidebarExpanded(false);
+            },
+          ),
         ],
       ),
     );
