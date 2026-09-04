@@ -66,6 +66,7 @@ class DanbooruPostCard extends StatefulWidget {
   final String? copyTextOverride;
   final String? copyTooltip;
   final String? badgeLabel;
+  final bool badgeUsesModelColor;
   final String? emptyTitle;
   final VoidCallback onTap;
   final Function(String) onTagTap;
@@ -100,6 +101,7 @@ class DanbooruPostCard extends StatefulWidget {
     this.copyTextOverride,
     this.copyTooltip,
     this.badgeLabel,
+    this.badgeUsesModelColor = false,
     this.emptyTitle,
     required this.onTap,
     required this.onTagTap,
@@ -547,6 +549,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   badgeLabel: showsCodexBadgeOnLeft
                                       ? null
                                       : widget.badgeLabel,
+                                  badgeUsesModelColor:
+                                      widget.badgeUsesModelColor,
                                   mediaCount: widget.post.mediaCount,
                                 ),
                               ),

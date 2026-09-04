@@ -22,6 +22,7 @@ class GalleryDetailController extends ChangeNotifier {
   }
 
   late final PageController pageController;
+  final ScrollController infoScrollController = ScrollController();
   final FocusNode keyboardFocusNode = FocusNode();
 
   GalleryItem _item;
@@ -202,6 +203,7 @@ class GalleryDetailController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     pageController.dispose();
+    infoScrollController.dispose();
     keyboardFocusNode.dispose();
     super.dispose();
   }

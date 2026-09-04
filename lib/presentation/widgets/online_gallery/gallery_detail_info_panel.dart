@@ -3,9 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/prompt_tag_utils.dart';
+import '../../../data/models/online_gallery/ai_tag_generation_info.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../tag_chip.dart';
+import 'ai_tag_generation_info_section.dart';
 import 'gallery_detail_models.dart';
 import 'gallery_detail_overview_card.dart';
 import 'gallery_detail_tag_section.dart';
@@ -16,11 +18,13 @@ class GalleryDetailInfoPanel extends StatelessWidget {
     super.key,
     required this.viewModel,
     required this.actions,
+    required this.scrollController,
     required this.primaryActions,
   });
 
   final GalleryDetailViewModel viewModel;
   final GalleryDetailActions actions;
+  final ScrollController scrollController;
   final Widget primaryActions;
 
   @override
@@ -78,6 +82,18 @@ class GalleryDetailInfoPanel extends StatelessWidget {
     final note = viewModel.detail.note?.trim().isNotEmpty == true
         ? viewModel.detail.note!.trim()
         : viewModel.detail.description?.trim() ?? '';
+    final isAiTag = viewModel.item.sourceId == GallerySourceId.aiTag;
+    final aiTagInfo = currentMedia == null
+        ? null
+        : AiTagGenerationInfo.tryFromMediaMetadata(currentMedia.metadata);
+    final aiTagImageType =
+        currentMedia?.metadata['aiTagImageType']?.toString() ??
+        currentMedia?.metadata['software']?.toString() ??
+        viewModel.item.aiType;
+    final aiTagModelBadge = isAiTag
+        ? aiTagInfo?.modelBadgeLabel(fallbackType: aiTagImageType) ??
+              aiTagImageType
+        : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -85,139 +101,171 @@ class GalleryDetailInfoPanel extends StatelessWidget {
         return Column(
           children: [
             Expanded(
-              child: ListView(
-                key: const ValueKey('gallery-detail-info-list'),
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-                children: [
-                  if (isQuickTagCloud)
-                    _buildCodexOverview(
-                      context,
-                      codexTitle: codexTitle,
-                      categoryPath: categoryPath,
-                      fileLabel: preferredFileLabel,
-                      fileName: preferredFile,
-                      author: author,
-                      declaredSource: showDeclaredSource ? declaredSource : '',
-                      note: note,
-                    )
-                  else ...[
-                    _buildItemBadges(theme),
-                    if (codexTitle.isNotEmpty || categoryPath.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      GalleryDetailOverviewCard(
-                        icon: Icons.menu_book_rounded,
-                        title: codexTitle.isNotEmpty
-                            ? codexTitle
-                            : categoryPath.last,
-                        subtitle: codexTitle.isNotEmpty
-                            ? categoryPath.join(' / ')
-                            : '',
-                      ),
-                    ],
-                    if (viewModel.detail.item.tags.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      _buildTagSections(
-                        context,
-                        sectionLabel: promptIsRepresentedByTags
-                            ? viewModel.labels.positivePrompt
-                            : '',
-                      ),
-                    ],
-                  ],
-                  if (!isQuickTagCloud && showPromptCard) ...[
-                    const SizedBox(height: 16),
-                    _buildPromptTagSection(
-                      context,
-                      label: viewModel.labels.positivePrompt,
-                      prompt: viewModel.detail.prompt!.trim(),
-                      color: TagColors.general,
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(
+                  context,
+                ).copyWith(scrollbars: false),
+                child: Scrollbar(
+                  controller: scrollController,
+                  child: SingleChildScrollView(
+                    key: const ValueKey('gallery-detail-info-list'),
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (isQuickTagCloud)
+                          _buildCodexOverview(
+                            context,
+                            codexTitle: codexTitle,
+                            categoryPath: categoryPath,
+                            fileLabel: preferredFileLabel,
+                            fileName: preferredFile,
+                            author: author,
+                            declaredSource: showDeclaredSource
+                                ? declaredSource
+                                : '',
+                            note: note,
+                          )
+                        else ...[
+                          _buildItemBadges(theme, aiTypeLabel: aiTagModelBadge),
+                          if (codexTitle.isNotEmpty ||
+                              categoryPath.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            GalleryDetailOverviewCard(
+                              icon: Icons.menu_book_rounded,
+                              title: codexTitle.isNotEmpty
+                                  ? codexTitle
+                                  : categoryPath.last,
+                              subtitle: codexTitle.isNotEmpty
+                                  ? categoryPath.join(' / ')
+                                  : '',
+                            ),
+                          ],
+                          if (viewModel.detail.item.tags.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            _buildTagSections(
+                              context,
+                              sectionLabel: promptIsRepresentedByTags
+                                  ? viewModel.labels.positivePrompt
+                                  : '',
+                            ),
+                          ],
+                        ],
+                        if (!isQuickTagCloud && showPromptCard) ...[
+                          const SizedBox(height: 16),
+                          _buildPromptTagSection(
+                            context,
+                            label: viewModel.labels.positivePrompt,
+                            prompt: viewModel.detail.prompt!.trim(),
+                            color: TagColors.general,
+                          ),
+                        ],
+                        if (!isQuickTagCloud &&
+                            viewModel.hasNegativePrompt) ...[
+                          const SizedBox(height: 12),
+                          _buildPromptTagSection(
+                            context,
+                            label: viewModel.labels.negativePrompt,
+                            prompt: viewModel.detail.negativePrompt!.trim(),
+                            color: theme.colorScheme.error,
+                          ),
+                        ],
+                        if (!isQuickTagCloud &&
+                            viewModel.displayCharacterPrompts.isNotEmpty) ...[
+                          const SizedBox(height: 18),
+                          Text(
+                            viewModel.labels.characterPrompts,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          for (
+                            var index = 0;
+                            index < viewModel.displayCharacterPrompts.length;
+                            index++
+                          ) ...[
+                            _buildCharacterTagSection(
+                              context,
+                              viewModel.displayCharacterPrompts[index],
+                              index,
+                            ),
+                            if (index + 1 <
+                                viewModel.displayCharacterPrompts.length)
+                              const SizedBox(height: 8),
+                          ],
+                        ],
+                        if (!isQuickTagCloud &&
+                            isAiTag &&
+                            aiTagInfo != null &&
+                            aiTagInfo.hasAnyParam) ...[
+                          const SizedBox(height: 12),
+                          AiTagGenerationInfoSection(
+                            info: aiTagInfo,
+                            imageTypeLabel: aiTagModelBadge,
+                          ),
+                        ],
+                        if (!isQuickTagCloud && note.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          GalleryDetailTextSection(
+                            title: viewModel.labels.note,
+                            content: note,
+                            accentColor: theme.colorScheme.tertiary,
+                          ),
+                        ],
+                        if (!isQuickTagCloud &&
+                            isAiTag &&
+                            aiTagInfo != null) ...[
+                          const SizedBox(height: 12),
+                          AiTagRawJsonSection(info: aiTagInfo),
+                        ] else if (!isQuickTagCloud &&
+                            viewModel.currentRawTags.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          GalleryDetailTextSection(
+                            title: viewModel.labels.rawTags,
+                            content: viewModel.currentRawTags.join('\n'),
+                            accentColor: theme.colorScheme.secondary,
+                            monospace: true,
+                            translateTags: true,
+                          ),
+                        ],
+                        if (!isQuickTagCloud && preferredFile.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _buildCompactMetadata(
+                            theme,
+                            icon: Icons.image_outlined,
+                            label: preferredFileLabel,
+                            value: preferredFile,
+                          ),
+                        ],
+                        if (!isQuickTagCloud && author.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _buildCompactMetadata(
+                            theme,
+                            icon: Icons.person_outline,
+                            label: viewModel.labels.author,
+                            value: author,
+                          ),
+                        ],
+                        if (!isQuickTagCloud && showDeclaredSource) ...[
+                          const SizedBox(height: 12),
+                          _buildCompactMetadata(
+                            theme,
+                            icon: Icons.dataset_outlined,
+                            label: viewModel.labels.declaredSource,
+                            value: declaredSource,
+                          ),
+                        ],
+                        if (!isQuickTagCloud &&
+                            viewModel.detail.contributors.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _buildContributors(theme),
+                        ],
+                      ],
                     ),
-                  ],
-                  if (!isQuickTagCloud && viewModel.hasNegativePrompt) ...[
-                    const SizedBox(height: 12),
-                    _buildPromptTagSection(
-                      context,
-                      label: viewModel.labels.negativePrompt,
-                      prompt: viewModel.detail.negativePrompt!.trim(),
-                      color: theme.colorScheme.error,
-                    ),
-                  ],
-                  if (!isQuickTagCloud &&
-                      viewModel.displayCharacterPrompts.isNotEmpty) ...[
-                    const SizedBox(height: 18),
-                    Text(
-                      viewModel.labels.characterPrompts,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    for (
-                      var index = 0;
-                      index < viewModel.displayCharacterPrompts.length;
-                      index++
-                    ) ...[
-                      _buildCharacterTagSection(
-                        context,
-                        viewModel.displayCharacterPrompts[index],
-                        index,
-                      ),
-                      if (index + 1 < viewModel.displayCharacterPrompts.length)
-                        const SizedBox(height: 8),
-                    ],
-                  ],
-                  if (!isQuickTagCloud && note.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    GalleryDetailTextSection(
-                      title: viewModel.labels.note,
-                      content: note,
-                      accentColor: theme.colorScheme.tertiary,
-                    ),
-                  ],
-                  if (!isQuickTagCloud &&
-                      viewModel.currentRawTags.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    GalleryDetailTextSection(
-                      title: viewModel.labels.rawTags,
-                      content: viewModel.currentRawTags.join('\n'),
-                      accentColor: theme.colorScheme.secondary,
-                      monospace: true,
-                      translateTags: true,
-                    ),
-                  ],
-                  if (!isQuickTagCloud && preferredFile.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    _buildCompactMetadata(
-                      theme,
-                      icon: Icons.image_outlined,
-                      label: preferredFileLabel,
-                      value: preferredFile,
-                    ),
-                  ],
-                  if (!isQuickTagCloud && author.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    _buildCompactMetadata(
-                      theme,
-                      icon: Icons.person_outline,
-                      label: viewModel.labels.author,
-                      value: author,
-                    ),
-                  ],
-                  if (!isQuickTagCloud && showDeclaredSource) ...[
-                    const SizedBox(height: 12),
-                    _buildCompactMetadata(
-                      theme,
-                      icon: Icons.dataset_outlined,
-                      label: viewModel.labels.declaredSource,
-                      value: declaredSource,
-                    ),
-                  ],
-                  if (!isQuickTagCloud &&
-                      viewModel.detail.contributors.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    _buildContributors(theme),
-                  ],
-                ],
+                  ),
+                ),
               ),
             ),
             Divider(height: 1, color: theme.dividerColor),
@@ -231,8 +279,9 @@ class GalleryDetailInfoPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildItemBadges(ThemeData theme) {
+  Widget _buildItemBadges(ThemeData theme, {String? aiTypeLabel}) {
     final item = viewModel.detail.item;
+    final resolvedAiType = aiTypeLabel ?? item.aiType;
     final stats = <({IconData icon, String label, String value, Color accent})>[
       if (item.viewCount != null)
         (
@@ -265,8 +314,8 @@ class GalleryDetailInfoPanel extends StatelessWidget {
     ];
     final badges = <Widget>[
       if (item.rank != null) Chip(label: Text('#${item.rank}')),
-      if (item.aiType?.trim().isNotEmpty == true)
-        Chip(label: Text(item.aiType!.trim())),
+      if (resolvedAiType?.trim().isNotEmpty == true)
+        Chip(label: Text(resolvedAiType!.trim())),
       if (item.mediaCount > 1)
         Chip(label: Text(viewModel.labels.multipleImages(item.mediaCount))),
     ];

@@ -9,8 +9,10 @@ import 'package:html/parser.dart' as html_parser;
 import '../../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../models/gallery/nai_image_metadata.dart';
+import '../../../models/online_gallery/ai_tag_generation_info.dart';
 import '../../../models/online_gallery/gallery_item.dart';
 import '../../../models/online_gallery/gallery_source.dart';
+import '../../../services/metadata/ai_tag_generation_parser.dart';
 import '../../../services/metadata/unified_metadata_parser.dart';
 import 'gallery_random_sampler.dart';
 import 'gallery_source_adapter.dart';
@@ -348,6 +350,9 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
         for (final image in media) ...[
           ..._searchTextTerms(image.metadata['model']?.toString()),
           ..._searchTextTerms(image.metadata['source_model']?.toString()),
+          ..._searchTextTerms(image.metadata['aiTagModel']?.toString()),
+          ..._searchTextTerms(image.metadata['aiTagModelHash']?.toString()),
+          ..._searchTextTerms(image.metadata['aiTagVae']?.toString()),
         ],
       };
       final promptMetadataComplete =
@@ -492,6 +497,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
   static Map<String, Object?> _metadataMap(
     NaiImageMetadata? metadata,
     Map<String, dynamic> raw,
+    AiTagGenerationInfo? aiTagInfo,
   ) {
     return <String, Object?>{
       if (metadata?.seed != null) 'seed': metadata!.seed,
@@ -501,6 +507,14 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
       if (metadata?.model != null) 'model': metadata!.model,
       if (metadata?.software != null) 'software': metadata!.software,
       if (raw['model'] != null) 'source_model': raw['model'].toString(),
+      if (raw['image_type'] != null)
+        'aiTagImageType': raw['image_type'].toString(),
+      if (aiTagInfo != null) 'aiTag': aiTagInfo.toJson(),
+      // Flatten most useful fields for quick searchTerms access too.
+      if (aiTagInfo?.model != null) 'aiTagModel': aiTagInfo!.model,
+      if (aiTagInfo?.modelHash != null) 'aiTagModelHash': aiTagInfo!.modelHash,
+      if (aiTagInfo?.vae != null) 'aiTagVae': aiTagInfo!.vae,
+      if (aiTagInfo?.sampler != null) 'aiTagSampler': aiTagInfo!.sampler,
     };
   }
 
@@ -1003,18 +1017,39 @@ _ParsedAiTagMediaBatch _parseAiTagMediaRows(
         rawAiJson,
         promptText,
       );
+      final aiTagInfo = AiTagGenerationParser.parse(
+        rawAiJson: rawAiJson,
+        promptText: promptText,
+        imageType: imageType,
+      );
+      // Prefer AiTag parsed dimensions when NAI parser missed them (e.g. Size field).
+      final meta = parsed.metadata;
+      final resolvedWidth = meta != null && (meta.width ?? 0) > 0
+          ? meta.width!
+          : (aiTagInfo.width ?? 0);
+      final resolvedHeight = meta != null && (meta.height ?? 0) > 0
+          ? meta.height!
+          : (aiTagInfo.height ?? 0);
+      // Prefer structured prompt when NAI parser failed to extract (Comfy).
+      final resolvedPrompt = meta != null && meta.prompt.trim().isNotEmpty
+          ? meta.prompt
+          : aiTagInfo.prompt;
+      final resolvedNegativePrompt =
+          meta != null && meta.negativePrompt.trim().isNotEmpty
+          ? meta.negativePrompt
+          : aiTagInfo.negativePrompt;
       media.add(
         GalleryMedia(
           id: fileName,
           previewUrl: url,
           displayUrl: url,
           downloadUrl: url,
-          width: parsed.metadata?.width ?? 0,
-          height: parsed.metadata?.height ?? 0,
+          width: resolvedWidth,
+          height: resolvedHeight,
           extension: 'webp',
           mediaType: 'image',
-          prompt: parsed.metadata?.prompt,
-          negativePrompt: parsed.metadata?.negativePrompt,
+          prompt: resolvedPrompt,
+          negativePrompt: resolvedNegativePrompt,
           rawMetadata: rawAiJson ?? promptText,
           metadataFormat: parsed.sourceFormat,
           metadataError: parsed.success ? null : parsed.errorMessage,
@@ -1022,6 +1057,7 @@ _ParsedAiTagMediaBatch _parseAiTagMediaRows(
           metadata: AiTagGallerySourceAdapter._metadataMap(
             parsed.metadata,
             row,
+            aiTagInfo,
           ),
         ),
       );
