@@ -2931,6 +2931,8 @@
   },
   "fixedTags_expandNegative": "除外したい要素を展開",
   "fixedTags_collapseNegative": "除外したい要素を折りたたむ",
+  "fixedTags_expandAll": "すべて展開",
+  "fixedTags_collapseAll": "すべて折りたたむ",
   "fixedTags_undoTooltip": "固定タグ操作を元に戻す",
   "fixedTags_redoTooltip": "固定タグ操作をやり直す",
   "fixedTags_positiveTitle": "プロンプト固定タグ",

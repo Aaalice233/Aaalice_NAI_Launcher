@@ -2979,6 +2979,8 @@
   },
   "fixedTags_expandNegative": "Expand Undesired Content",
   "fixedTags_collapseNegative": "Collapse Undesired Content",
+  "fixedTags_expandAll": "Expand all",
+  "fixedTags_collapseAll": "Collapse all",
   "fixedTags_undoTooltip": "Undo fixed tag operation",
   "fixedTags_redoTooltip": "Redo fixed tag operation",
   "fixedTags_positiveTitle": "Prompt Fixed Tags",

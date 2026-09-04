@@ -6339,6 +6339,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fixedTags_collapseNegative => '收起负向';
 
   @override
+  String get fixedTags_expandAll => '展开全部';
+
+  @override
+  String get fixedTags_collapseAll => '收起全部';
+
+  @override
   String get fixedTags_undoTooltip => '撤销固定词操作';
 
   @override
@@ -20255,6 +20261,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get fixedTags_collapseNegative => '收起負向';
+
+  @override
+  String get fixedTags_expandAll => '展開全部';
+
+  @override
+  String get fixedTags_collapseAll => '收起全部';
 
   @override
   String get fixedTags_undoTooltip => '撤銷固定詞操作';

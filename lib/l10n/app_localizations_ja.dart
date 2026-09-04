@@ -6442,6 +6442,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fixedTags_collapseNegative => '除外したい要素を折りたたむ';
 
   @override
+  String get fixedTags_expandAll => 'すべて展開';
+
+  @override
+  String get fixedTags_collapseAll => 'すべて折りたたむ';
+
+  @override
   String get fixedTags_undoTooltip => '固定タグ操作を元に戻す';
 
   @override

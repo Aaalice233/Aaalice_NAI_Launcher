@@ -6604,6 +6604,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixedTags_collapseNegative => 'Collapse Undesired Content';
 
   @override
+  String get fixedTags_expandAll => 'Expand all';
+
+  @override
+  String get fixedTags_collapseAll => 'Collapse all';
+
+  @override
   String get fixedTags_undoTooltip => 'Undo fixed tag operation';
 
   @override

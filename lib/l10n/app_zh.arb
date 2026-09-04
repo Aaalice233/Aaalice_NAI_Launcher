@@ -3002,6 +3002,8 @@
   },
   "fixedTags_expandNegative": "展开负向",
   "fixedTags_collapseNegative": "收起负向",
+  "fixedTags_expandAll": "展开全部",
+  "fixedTags_collapseAll": "收起全部",
   "fixedTags_undoTooltip": "撤销固定词操作",
   "fixedTags_redoTooltip": "重做固定词操作",
   "fixedTags_positiveTitle": "正向固定词",

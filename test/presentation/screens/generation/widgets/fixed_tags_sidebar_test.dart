@@ -798,94 +798,108 @@ void main() {
     },
   );
 
-  testWidgets(
-    'search spans enabled and disabled positive categories without key errors',
-    (tester) async {
-      final category = TagLibraryCategory.create(name: '画师');
-      final enabled = FixedTagEntry.create(
-        name: 'artist enabled',
-        content: 'artist:fuzichoco',
-        categoryId: category.id,
-        enabled: true,
-      );
-      final quality = FixedTagEntry.create(
-        name: 'quality',
-        content: 'masterpiece',
-        categoryId: category.id,
-        enabled: false,
-      );
-      final negative = FixedTagEntry.create(
-        name: 'negative',
-        content: 'bad hands',
-        promptType: FixedTagPromptType.negative,
-      );
-      final storage = _SidebarTestStorage(
-        fixedEntries: [enabled, quality, negative],
-        categories: [category],
-        libraryEntries: [
-          TagLibraryEntry.create(
-            name: enabled.name,
-            content: enabled.content,
-            categoryId: category.id,
-          ),
-        ],
-      );
+  testWidgets('disabled positive entries remain grouped and searchable', (
+    tester,
+  ) async {
+    final category = TagLibraryCategory.create(name: '画师');
+    final enabled = FixedTagEntry.create(
+      name: 'artist enabled',
+      content: 'artist:fuzichoco',
+      categoryId: category.id,
+      enabled: true,
+    );
+    final quality = FixedTagEntry.create(
+      name: 'quality',
+      content: 'masterpiece',
+      categoryId: category.id,
+      enabled: false,
+    );
+    final negative = FixedTagEntry.create(
+      name: 'negative',
+      content: 'bad hands',
+      promptType: FixedTagPromptType.negative,
+    );
+    final storage = _SidebarTestStorage(
+      fixedEntries: [enabled, quality, negative],
+      categories: [category],
+      libraryEntries: [
+        TagLibraryEntry.create(
+          name: enabled.name,
+          content: enabled.content,
+          categoryId: category.id,
+        ),
+      ],
+    );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            localStorageServiceProvider.overrideWith((ref) => storage),
-          ],
-          child: const MaterialApp(
-            locale: Locale('zh'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SizedBox(
-                width: 340,
-                height: 620,
-                child: FixedTagsSidebar(),
-              ),
-            ),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 340, height: 620, child: FixedTagsSidebar()),
           ),
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
-      expect(
-        find.descendant(
-          of: find.byType(SidebarEntryTile),
-          matching: find.text('artist enabled'),
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('quality'), findsNothing);
-      expect(tester.takeException(), isNull);
+    expect(
+      find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('artist enabled'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('quality'), findsOneWidget);
 
-      await tester.enterText(find.byType(TextField), 'quality');
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('artist enabled'),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.descendant(
-          of: find.byType(SidebarEntryTile),
-          matching: find.text('quality'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byType(SidebarEntryTile),
-          matching: find.text('artist enabled'),
-        ),
-        findsNothing,
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.text('artist enabled'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FixedTagsSidebar)),
+    );
+    expect(
+      container
+          .read(fixedTagsNotifierProvider)
+          .entries
+          .firstWhere((entry) => entry.id == enabled.id)
+          .enabled,
+      isFalse,
+    );
+    expect(tester.takeException(), isNull);
 
-  testWidgets('category rails stay compact and support negative categories', (
+    await tester.enterText(find.byType(TextField), 'quality');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('quality'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('artist enabled'),
+      ),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('folder groups support per-category and bulk collapse', (
     tester,
   ) async {
     final categories = [
@@ -922,22 +936,21 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SizedBox(width: 260, height: 620, child: FixedTagsSidebar()),
+            body: SizedBox(width: 420, height: 620, child: FixedTagsSidebar()),
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    final positiveRail = find.byKey(
-      const ValueKey('fixed-tags-positive-category-rail'),
+    expect(
+      find.byKey(const ValueKey('fixed-tags-positive-category-rail')),
+      findsNothing,
     );
-    final negativeRail = find.byKey(
-      const ValueKey('fixed-tags-negative-category-rail'),
+    expect(
+      find.byKey(const ValueKey('fixed-tags-negative-category-rail')),
+      findsNothing,
     );
-    expect(positiveRail, findsOneWidget);
-    expect(negativeRail, findsOneWidget);
-    expect(tester.getSize(positiveRail).width, 48);
 
     final topCard = find.byKey(const ValueKey('fixed-tags-top-card'));
     final positiveCard = find.byKey(const ValueKey('fixed-tags-positive-card'));
@@ -951,6 +964,22 @@ void main() {
     );
     expect(find.text('正向固定词'), findsOneWidget);
     expect(find.text('负向固定词'), findsOneWidget);
+    final positiveExpandAll = find.byKey(
+      const ValueKey('fixed-tags-positive-expand-all'),
+    );
+    final positiveCollapseAll = find.byKey(
+      const ValueKey('fixed-tags-positive-collapse-all'),
+    );
+    expect(find.text('展开全部'), findsNWidgets(2));
+    expect(find.text('收起全部'), findsNWidgets(2));
+    expect(
+      tester.getCenter(positiveExpandAll).dy,
+      closeTo(tester.getCenter(find.text('正向固定词')).dy, 1),
+    );
+    expect(
+      tester.getCenter(positiveCollapseAll).dy,
+      closeTo(tester.getCenter(find.text('正向固定词')).dy, 1),
+    );
     expect(
       find.descendant(
         of: negativeCard,
@@ -978,29 +1007,24 @@ void main() {
       find.byKey(const ValueKey('fixed-tags-negative-pane')),
     );
 
-    final categoryButton = find.byKey(
-      ValueKey('fixed-tags-positive-category-${categories.first.id}'),
+    final categoryHeader = find.byKey(
+      ValueKey('fixed-tags-positive-group-${categories.first.id}'),
     );
-    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await pointer.addPointer();
-    await pointer.moveTo(tester.getCenter(categoryButton));
-    await tester.pump(const Duration(milliseconds: 150));
-    final hoverLabel = find.byKey(
-      ValueKey(
-        'fixed-tags-positive-category-${categories.first.id}-hover-label',
+    expect(categoryHeader, findsOneWidget);
+    expect(
+      find.byKey(
+        ValueKey('fixed-tags-positive-group-${categories.first.id}-body'),
       ),
+      findsOneWidget,
     );
-    expect(hoverLabel, findsOneWidget);
-    final hoverLabelSize = tester.getSize(hoverLabel);
-    expect(hoverLabelSize.width, lessThanOrEqualTo(220));
-    expect(hoverLabelSize.height, lessThan(60));
-    expect(tester.getSize(positiveRail).width, 48);
-    await pointer.moveTo(Offset.zero);
-    await tester.pump();
-    await pointer.removePointer();
-
-    await tester.tap(categoryButton);
+    await tester.tap(categoryHeader);
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(
+        ValueKey('fixed-tags-positive-group-${categories.first.id}-body'),
+      ),
+      findsNothing,
+    );
     expect(
       tester.getSize(find.byKey(const ValueKey('fixed-tags-positive-pane'))),
       initialPositivePane,
@@ -1010,16 +1034,26 @@ void main() {
       initialNegativePane,
     );
 
-    final negativeCategoryButton = find.byKey(
-      ValueKey('fixed-tags-negative-category-${categories.first.id}'),
+    final collapseAll = find.byKey(
+      const ValueKey('fixed-tags-negative-collapse-all'),
     );
-    await tester.ensureVisible(negativeCategoryButton);
+    await tester.ensureVisible(collapseAll);
     await tester.pump();
-    await tester.tap(negativeCategoryButton);
+    await tester.tap(collapseAll);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(
+        ValueKey('fixed-tags-negative-group-${categories.first.id}-body'),
+      ),
+      findsNothing,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('fixed-tags-negative-expand-all')),
+    );
     await tester.pumpAndSettle();
     expect(
       find.descendant(
-        of: find.byKey(const ValueKey('fixed-tags-negative-pane')),
+        of: find.byType(SidebarEntryTile),
         matching: find.text('negative quality'),
       ),
       findsOneWidget,
@@ -1864,7 +1898,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final start = tester.getCenter(find.byIcon(Icons.link_rounded).first);
+      final positiveLink = find.descendant(
+        of: find.ancestor(
+          of: find.text('artist'),
+          matching: find.byType(SidebarEntryTile),
+        ),
+        matching: find.byIcon(Icons.link_rounded),
+      );
+      await tester.ensureVisible(positiveLink);
+      await tester.pumpAndSettle();
+      final start = tester.getCenter(positiveLink);
       final gesture = await tester.startGesture(
         start,
         kind: PointerDeviceKind.mouse,
@@ -2001,6 +2044,8 @@ void main() {
 
     final menu = find.byKey(const ValueKey('sidebar-entry-actions-menu'));
     expect(menu, findsOneWidget);
+    await tester.ensureVisible(menu);
+    await tester.pumpAndSettle();
     await tester.tap(menu);
     await tester.pumpAndSettle();
 
@@ -2226,11 +2271,12 @@ void main() {
 
     final tiles = find.byType(SidebarEntryTile);
     expect(tiles, findsAtLeastNWidgets(2));
-    final positiveGrid = find.descendant(
-      of: find.byKey(const ValueKey('fixed-tags-positive-pane')),
-      matching: find.byType(GridView),
+    final positiveGroupList = find.byKey(
+      const ValueKey('fixed-tags-positive-group-list'),
     );
-    final controller = tester.widget<GridView>(positiveGrid).controller!;
+    final controller = tester
+        .widget<SingleChildScrollView>(positiveGroupList)
+        .controller!;
     controller.jumpTo(controller.position.maxScrollExtent);
     await tester.pumpAndSettle();
     expect(
@@ -2256,17 +2302,12 @@ void main() {
 
       await _pumpSidebar(tester, storage, textScale: 1.35);
 
-      final categoryButton = find.byKey(
-        ValueKey('fixed-tags-positive-category-${fixture.categories[1].id}'),
+      final positiveScrollView = find.byKey(
+        const ValueKey('fixed-tags-positive-group-list'),
       );
-      await tester.ensureVisible(categoryButton);
-      await tester.pump();
-      await tester.tap(categoryButton);
-      await tester.pumpAndSettle();
-      final positiveScrollView = find.byType(ReorderableListView);
       final controller = tester
-          .widget<ReorderableListView>(positiveScrollView)
-          .scrollController!;
+          .widget<SingleChildScrollView>(positiveScrollView)
+          .controller!;
       final initialMax = await _expectStableScrollMetrics(
         tester,
         controller: controller,
@@ -2278,7 +2319,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final filteredMax = controller.position.maxScrollExtent;
-      expect(filteredMax, 0);
+      expect(filteredMax, lessThanOrEqualTo(12));
       expect(filteredMax, lessThan(initialMax));
       await tester.pump(const Duration(milliseconds: 200));
       expect(controller.position.maxScrollExtent, filteredMax);
@@ -2298,16 +2339,11 @@ void main() {
 
       await _pumpSidebar(tester, storage);
 
-      final categoryButton = find.byKey(
-        ValueKey('fixed-tags-positive-category-${fixture.categories[1].id}'),
+      final positiveScrollView = find.byKey(
+        const ValueKey('fixed-tags-positive-group-list'),
       );
-      await tester.ensureVisible(categoryButton);
-      await tester.pump();
-      await tester.tap(categoryButton);
-      await tester.pumpAndSettle();
-      final positiveScrollView = find.byType(GridView).first;
       final controller = tester
-          .widget<GridView>(positiveScrollView)
+          .widget<SingleChildScrollView>(positiveScrollView)
           .controller!;
       await _expectStableScrollMetrics(
         tester,
@@ -2354,11 +2390,6 @@ void main() {
         translationLookup: lookup,
       );
 
-      await tester.tap(
-        find.byKey(ValueKey('fixed-tags-positive-category-${category.id}')),
-      );
-      await tester.pumpAndSettle();
-
       expect(
         find.byKey(const ValueKey('translated-prompt-translation')),
         findsNWidgets(2),
@@ -2388,11 +2419,13 @@ void main() {
 
     await _pumpSidebar(tester, storage, textScale: 1.35);
 
-    final negativeList = find.byType(ReorderableListView);
+    final negativeList = find.byKey(
+      const ValueKey('fixed-tags-negative-group-list'),
+    );
     expect(negativeList, findsOneWidget);
     final controller = tester
-        .widget<ReorderableListView>(negativeList)
-        .scrollController!;
+        .widget<SingleChildScrollView>(negativeList)
+        .controller!;
     await _expectStableScrollMetrics(
       tester,
       controller: controller,
@@ -2402,7 +2435,7 @@ void main() {
   });
 
   testWidgets(
-    'category rail switches directly to a section without retaining scroll',
+    'category folders collapse independently without hiding other sections',
     (tester) async {
       final near = TagLibraryCategory.create(name: 'Near', sortOrder: 0);
       final far = TagLibraryCategory.create(name: 'Far', sortOrder: 1);
@@ -2439,28 +2472,20 @@ void main() {
         ),
       );
 
-      await tester.tap(
-        find.byKey(ValueKey('fixed-tags-positive-category-${near.id}')),
+      final nearCategoryHeader = find.byKey(
+        ValueKey('fixed-tags-positive-group-${near.id}'),
       );
-      await tester.pumpAndSettle();
-      final positiveList = find.byType(ReorderableListView);
-      final controller = tester
-          .widget<ReorderableListView>(positiveList)
-          .scrollController!;
-      controller.jumpTo(controller.position.maxScrollExtent);
+      await tester.ensureVisible(nearCategoryHeader);
       await tester.pump();
-
-      final farCategoryButton = find.byKey(
-        ValueKey('fixed-tags-positive-category-${far.id}'),
-      );
-      await tester.ensureVisible(farCategoryButton);
-      await tester.pump();
-      await tester.tap(farCategoryButton);
+      await tester.tap(nearCategoryHeader);
       await tester.pumpAndSettle();
 
-      expect(controller.offset, 0);
       expect(find.text('far-entry'), findsOneWidget);
       expect(find.text('near-0'), findsNothing);
+      expect(
+        find.byKey(ValueKey('fixed-tags-positive-group-${far.id}')),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );

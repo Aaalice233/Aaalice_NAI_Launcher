@@ -11767,6 +11767,18 @@ abstract class AppLocalizations {
   /// **'Collapse Undesired Content'**
   String get fixedTags_collapseNegative;
 
+  /// No description provided for @fixedTags_expandAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand all'**
+  String get fixedTags_expandAll;
+
+  /// No description provided for @fixedTags_collapseAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse all'**
+  String get fixedTags_collapseAll;
+
   /// No description provided for @fixedTags_undoTooltip.
   ///
   /// In en, this message translates to:

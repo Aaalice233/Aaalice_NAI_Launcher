@@ -19,12 +19,9 @@ import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/prompt/fixed_tag_edit_dialog.dart';
 import '../../../widgets/tag_library/tag_library_picker_dialog.dart';
-import 'fixed_tags_category_rail.dart';
 import 'sidebar_entry_tile.dart';
 import 'sidebar_link_painter.dart';
 
-const _enabledSectionId = 'enabled';
-const _allNegativeSectionId = 'all-negative';
 const _uncategorizedSectionId = '__uncategorized__';
 const _linkDetachDistance = 36.0;
 
@@ -58,6 +55,8 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   final _searchController = TextEditingController();
   final _positiveScrollController = ScrollController();
   final _negativeScrollController = ScrollController();
+  final _positiveGroupsKey = GlobalKey<_GroupedFixedTagCollectionState>();
+  final _negativeGroupsKey = GlobalKey<_GroupedFixedTagCollectionState>();
   final _linkLayerKey = GlobalKey();
   final _positiveAnchorKeys = <String, GlobalKey>{};
   final _negativeAnchorKeys = <String, GlobalKey>{};
@@ -66,8 +65,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   var _negativeAnchorCenters = <String, Offset>{};
   _LinkDragPreview? _linkDragPreview;
   String _searchQuery = '';
-  String _activePositiveCategoryId = _enabledSectionId;
-  String _activeNegativeCategoryId = _allNegativeSectionId;
   String? _highlightedLinkEntryId;
   bool _linkRepaintScheduled = false;
   double? _draggedNegativePaneHeight;
@@ -103,20 +100,15 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       tagLibraryPageNotifierProvider.select((state) => state.entries),
     );
     final isListMode = layoutState.fixedTagsSidebarViewMode == 'list';
-    final positiveSections = _tagSections(
-      fixedState.positiveEntries,
-      categories,
-    );
-    final negativeSections = _tagSections(
-      fixedState.negativeEntries,
-      categories,
-    );
-    final activePositiveCategoryId = _effectivePositiveCategoryId(
-      positiveSections,
-    );
-    final activeNegativeCategoryId = _effectiveNegativeCategoryId(
-      negativeSections,
-    );
+    final query = _searchQuery.trim();
+    final positiveEntries = query.isEmpty
+        ? fixedState.positiveEntries
+        : fixedState.positiveEntries.search(query);
+    final negativeEntries = query.isEmpty
+        ? fixedState.negativeEntries
+        : fixedState.negativeEntries.search(query);
+    final positiveSections = _tagSections(positiveEntries, categories);
+    final negativeSections = _tagSections(negativeEntries, categories);
     _pruneAnchorKeys(fixedState);
     _scheduleLinkRepaint();
 
@@ -136,8 +128,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                 negativeSections,
                 libraryEntries,
                 isListMode,
-                activePositiveCategoryId,
-                activeNegativeCategoryId,
               ),
             ),
           ],
@@ -473,8 +463,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     List<_TagSection> negativeSections,
     List<TagLibraryEntry> libraryEntries,
     bool isListMode,
-    String activePositiveCategoryId,
-    String activeNegativeCategoryId,
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -548,11 +536,9 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                 height: positiveHeight,
                 child: _buildPositiveArea(
                   theme,
-                  fixedState,
                   positiveSections,
                   libraryEntries,
                   isListMode,
-                  activePositiveCategoryId,
                 ),
               ),
               _buildNegativeResizeDivider(
@@ -565,11 +551,9 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                 key: const ValueKey('fixed-tags-negative-pane'),
                 child: _buildNegativeArea(
                   theme,
-                  fixedState,
                   negativeSections,
                   libraryEntries,
                   isListMode,
-                  activeNegativeCategoryId,
                 ),
               ),
             ],
@@ -579,91 +563,16 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     );
   }
 
-  List<FixedTagEntry> _visiblePositiveEntries(
-    FixedTagsState fixedState,
-    List<_TagSection> sections,
-    String activeCategoryId,
-  ) {
-    if (_searchQuery.trim().isNotEmpty) {
-      return fixedState.positiveEntries.search(_searchQuery);
-    }
-    if (activeCategoryId == _enabledSectionId) {
-      return fixedState.enabledEntries;
-    }
-    return sections
-            .cast<_TagSection?>()
-            .firstWhere(
-              (section) => section?.id == activeCategoryId,
-              orElse: () => null,
-            )
-            ?.entries ??
-        const <FixedTagEntry>[];
-  }
-
-  List<FixedTagEntry> _visibleNegativeEntries(
-    FixedTagsState fixedState,
-    List<_TagSection> sections,
-    String activeCategoryId,
-  ) {
-    if (_searchQuery.trim().isNotEmpty) {
-      return fixedState.negativeEntries.search(_searchQuery);
-    }
-    if (activeCategoryId == _allNegativeSectionId) {
-      return fixedState.negativeEntries;
-    }
-    return sections
-            .cast<_TagSection?>()
-            .firstWhere(
-              (section) => section?.id == activeCategoryId,
-              orElse: () => null,
-            )
-            ?.entries ??
-        const <FixedTagEntry>[];
-  }
-
   Widget _buildPositiveArea(
     ThemeData theme,
-    FixedTagsState fixedState,
     List<_TagSection> sections,
     List<TagLibraryEntry> libraryEntries,
     bool isListMode,
-    String activeCategoryId,
   ) {
-    final isSearching = _searchQuery.trim().isNotEmpty;
-    final selectedSection = sections.cast<_TagSection?>().firstWhere(
-      (section) => section?.id == activeCategoryId,
-      orElse: () => null,
+    final entryCount = sections.fold<int>(
+      0,
+      (count, section) => count + section.entries.length,
     );
-    final entries = _visiblePositiveEntries(
-      fixedState,
-      sections,
-      activeCategoryId,
-    );
-    final color = activeCategoryId == _enabledSectionId
-        ? theme.colorScheme.primary
-        : selectedSection?.color ?? theme.colorScheme.outline;
-    final label = isSearching
-        ? context.l10n.fixedTags_searchNameOrContent
-        : activeCategoryId == _enabledSectionId
-        ? context.l10n.fixedTags_enabled
-        : selectedSection?.name ?? context.l10n.fixedTags_uncategorized;
-    final destinations = [
-      FixedTagsRailDestination(
-        id: _enabledSectionId,
-        label: context.l10n.fixedTags_enabled,
-        count: fixedState.enabledEntries.length,
-        icon: Icons.check_circle_outline_rounded,
-        color: theme.colorScheme.primary,
-      ),
-      for (final section in sections)
-        FixedTagsRailDestination(
-          id: section.id,
-          label: section.name,
-          count: section.entries.length,
-          icon: Icons.folder_outlined,
-          color: section.color,
-        ),
-    ];
 
     return _buildPaneCard(
       theme,
@@ -672,33 +581,47 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       header: _buildPaneHeader(
         icon: Icons.add_circle_outline_rounded,
         label: context.l10n.fixedTags_positiveTitle,
-        count: entries.length,
+        count: entryCount,
         color: theme.colorScheme.primary,
+        trailingBuilder: _searchQuery.trim().isEmpty
+            ? (iconOnly) => _buildGroupHeaderActions(
+                keyPrefix: 'fixed-tags-positive',
+                groupsKey: _positiveGroupsKey,
+                iconOnly: iconOnly,
+              )
+            : null,
       ),
-      body: Row(
-        children: [
-          FixedTagsCategoryRail(
-            keyPrefix: 'fixed-tags-positive',
-            destinations: destinations,
-            selectedId: activeCategoryId,
-            onSelected: _selectPositiveCategory,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildEntryCollection(
-              entries: entries,
+      body: _GroupedFixedTagCollection(
+        key: _positiveGroupsKey,
+        keyPrefix: 'fixed-tags-positive',
+        sections: sections,
+        isListMode: isListMode,
+        forceExpanded: _searchQuery.trim().isNotEmpty,
+        controller: _positiveScrollController,
+        emptyText: _searchQuery.isEmpty
+            ? context.l10n.fixedTags_emptyEnabledPositive
+            : context.l10n.fixedTags_noMatchingEnabled,
+        listPrototypeBuilder: (categoryColor) => _buildListEntryPrototype(
+          entry: sections.first.entries.first,
+          categoryColor: categoryColor,
+        ),
+        onVisibilityChanged: _scheduleLinkRepaint,
+        onReorder: (entries, oldIndex, newIndex) => ref
+            .read(fixedTagsNotifierProvider.notifier)
+            .reorderWithinVisibleIds(
               promptType: FixedTagPromptType.positive,
-              categoryColor: color,
-              categoryName: isSearching ? null : label,
+              visibleIds: entries.map((entry) => entry.id).toList(),
+              oldIndex: oldIndex,
+              newIndex: newIndex,
+            ),
+        entryBuilder: (entry, categoryColor, dragHandleBuilder) =>
+            _buildEntryTile(
+              entry: entry,
+              categoryColor: categoryColor,
               libraryEntries: libraryEntries,
               isListMode: isListMode,
-              controller: _positiveScrollController,
-              emptyText: _searchQuery.isEmpty
-                  ? context.l10n.fixedTags_emptyEnabledPositive
-                  : context.l10n.fixedTags_noMatchingEnabled,
+              dragHandleBuilder: dragHandleBuilder,
             ),
-          ),
-        ],
       ),
     );
   }
@@ -739,124 +662,60 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     required String label,
     required int count,
     required Color color,
-    Widget? trailing,
+    Widget Function(bool iconOnly)? trailingBuilder,
   }) {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(14) >= 28;
-    return Padding(
-      padding: usesLargeText
-          ? const EdgeInsets.fromLTRB(8, 2, 4, 2)
-          : const EdgeInsets.fromLTRB(10, 8, 6, 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SectionTitle(
-              icon: icon,
-              label: label,
-              count: count,
-              color: color,
-            ),
-          ),
-          if (trailing != null) trailing,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEntryCollection({
-    required List<FixedTagEntry> entries,
-    required FixedTagPromptType promptType,
-    required Color categoryColor,
-    required List<TagLibraryEntry> libraryEntries,
-    required bool isListMode,
-    required ScrollController controller,
-    required String emptyText,
-    String? categoryName,
-  }) {
-    if (entries.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            emptyText,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (isListMode) {
-      return ReorderableListView.builder(
-        key: ValueKey('${promptType.name}-list-${categoryName ?? 'all'}'),
-        buildDefaultDragHandles: false,
-        padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
-        itemCount: entries.length,
-        scrollController: controller,
-        prototypeItem: _buildListEntryPrototype(
-          entry: entries.first,
-          categoryColor: categoryColor,
-        ),
-        onReorderItem: (oldIndex, newIndex) => ref
-            .read(fixedTagsNotifierProvider.notifier)
-            .reorderWithinVisibleIds(
-              promptType: promptType,
-              visibleIds: entries.map((entry) => entry.id).toList(),
-              oldIndex: oldIndex,
-              newIndex: newIndex,
-            ),
-        itemBuilder: (context, index) {
-          final entry = entries[index];
-          return Padding(
-            key: ValueKey('${promptType.name}-${entry.id}'),
-            padding: const EdgeInsets.only(bottom: 4),
-            child: _buildEntryTile(
-              entry: entry,
-              categoryColor: categoryColor,
-              libraryEntries: libraryEntries,
-              isListMode: true,
-              dragHandleBuilder: entries.length > 1
-                  ? (child) =>
-                        ReorderableDragStartListener(index: index, child: child)
-                  : null,
-            ),
-          );
-        },
-      );
-    }
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        const spacing = 7.0;
-        final largeText = MediaQuery.textScalerOf(context).scale(14) >= 20;
-        final minimumCardWidth = largeText ? 220.0 : 140.0;
-        final columnCount =
-            ((constraints.maxWidth + spacing) / (minimumCardWidth + spacing))
-                .floor()
-                .clamp(1, 3);
-        final cardWidth =
-            (constraints.maxWidth - spacing * (columnCount - 1)) / columnCount;
-        final cardHeight = _gridCardHeight(context, cardWidth: cardWidth);
-        return GridView.builder(
-          key: ValueKey('${promptType.name}-grid-${categoryName ?? 'all'}'),
-          controller: controller,
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columnCount,
-            mainAxisSpacing: spacing,
-            crossAxisSpacing: spacing,
-            mainAxisExtent: cardHeight,
-          ),
-          itemCount: entries.length,
-          itemBuilder: (context, index) => _buildEntryTile(
-            entry: entries[index],
-            categoryColor: categoryColor,
-            libraryEntries: libraryEntries,
-            isListMode: false,
+        final trailing = trailingBuilder?.call(
+          constraints.maxWidth < 400 || usesLargeText,
+        );
+        return Padding(
+          padding: usesLargeText
+              ? const EdgeInsets.fromLTRB(8, 2, 4, 2)
+              : const EdgeInsets.fromLTRB(10, 8, 6, 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: _SectionTitle(
+                  icon: icon,
+                  label: label,
+                  count: count,
+                  color: color,
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildGroupHeaderActions({
+    required String keyPrefix,
+    required GlobalKey<_GroupedFixedTagCollectionState> groupsKey,
+    required bool iconOnly,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _GroupBulkAction(
+          key: ValueKey('$keyPrefix-expand-all'),
+          icon: Icons.unfold_more_rounded,
+          label: context.l10n.fixedTags_expandAll,
+          iconOnly: iconOnly,
+          onPressed: () => groupsKey.currentState?.setAllCollapsed(false),
+        ),
+        const SizedBox(width: 2),
+        _GroupBulkAction(
+          key: ValueKey('$keyPrefix-collapse-all'),
+          icon: Icons.unfold_less_rounded,
+          label: context.l10n.fixedTags_collapseAll,
+          iconOnly: iconOnly,
+          onPressed: () => groupsKey.currentState?.setAllCollapsed(true),
+        ),
+      ],
     );
   }
 
@@ -942,39 +801,14 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
 
   Widget _buildNegativeArea(
     ThemeData theme,
-    FixedTagsState fixedState,
     List<_TagSection> sections,
     List<TagLibraryEntry> libraryEntries,
     bool isListMode,
-    String activeCategoryId,
   ) {
-    final selectedSection = sections.cast<_TagSection?>().firstWhere(
-      (section) => section?.id == activeCategoryId,
-      orElse: () => null,
+    final entryCount = sections.fold<int>(
+      0,
+      (count, section) => count + section.entries.length,
     );
-    final entries = _visibleNegativeEntries(
-      fixedState,
-      sections,
-      activeCategoryId,
-    );
-    final color = selectedSection?.color ?? theme.colorScheme.error;
-    final destinations = [
-      FixedTagsRailDestination(
-        id: _allNegativeSectionId,
-        label: context.l10n.fixedTags_negativeTitle,
-        count: fixedState.negativeEntries.length,
-        icon: Icons.select_all_rounded,
-        color: theme.colorScheme.error,
-      ),
-      for (final section in sections)
-        FixedTagsRailDestination(
-          id: section.id,
-          label: section.name,
-          count: section.entries.length,
-          icon: Icons.folder_outlined,
-          color: theme.colorScheme.error,
-        ),
-    ];
     return _buildPaneCard(
       theme,
       key: const ValueKey('fixed-tags-negative-card'),
@@ -982,33 +816,47 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       header: _buildPaneHeader(
         icon: Icons.block_rounded,
         label: context.l10n.fixedTags_negativeTitle,
-        count: entries.length,
+        count: entryCount,
         color: theme.colorScheme.error,
+        trailingBuilder: _searchQuery.trim().isEmpty
+            ? (iconOnly) => _buildGroupHeaderActions(
+                keyPrefix: 'fixed-tags-negative',
+                groupsKey: _negativeGroupsKey,
+                iconOnly: iconOnly,
+              )
+            : null,
       ),
-      body: Row(
-        children: [
-          FixedTagsCategoryRail(
-            keyPrefix: 'fixed-tags-negative',
-            destinations: destinations,
-            selectedId: activeCategoryId,
-            onSelected: _selectNegativeCategory,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildEntryCollection(
-              entries: entries,
+      body: _GroupedFixedTagCollection(
+        key: _negativeGroupsKey,
+        keyPrefix: 'fixed-tags-negative',
+        sections: sections,
+        isListMode: isListMode,
+        forceExpanded: _searchQuery.trim().isNotEmpty,
+        controller: _negativeScrollController,
+        emptyText: _searchQuery.isEmpty
+            ? context.l10n.fixedTags_emptyNegative
+            : context.l10n.fixedTags_noMatchingNegative,
+        listPrototypeBuilder: (categoryColor) => _buildListEntryPrototype(
+          entry: sections.first.entries.first,
+          categoryColor: categoryColor,
+        ),
+        onVisibilityChanged: _scheduleLinkRepaint,
+        onReorder: (entries, oldIndex, newIndex) => ref
+            .read(fixedTagsNotifierProvider.notifier)
+            .reorderWithinVisibleIds(
               promptType: FixedTagPromptType.negative,
-              categoryColor: color,
-              categoryName: selectedSection?.name,
+              visibleIds: entries.map((entry) => entry.id).toList(),
+              oldIndex: oldIndex,
+              newIndex: newIndex,
+            ),
+        entryBuilder: (entry, categoryColor, dragHandleBuilder) =>
+            _buildEntryTile(
+              entry: entry,
+              categoryColor: categoryColor,
               libraryEntries: libraryEntries,
               isListMode: isListMode,
-              controller: _negativeScrollController,
-              emptyText: _searchQuery.isEmpty
-                  ? context.l10n.fixedTags_emptyNegative
-                  : context.l10n.fixedTags_noMatchingNegative,
+              dragHandleBuilder: dragHandleBuilder,
             ),
-          ),
-        ],
       ),
     );
   }
@@ -1050,7 +898,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       enabled: true,
     );
     return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
+      padding: const EdgeInsets.only(bottom: 4),
       child: SidebarEntryTile(
         entry: prototypeEntry,
         categoryColor: categoryColor,
@@ -1432,42 +1280,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     return sections;
   }
 
-  String _effectivePositiveCategoryId(List<_TagSection> sections) {
-    if (_activePositiveCategoryId == _enabledSectionId ||
-        sections.any((section) => section.id == _activePositiveCategoryId)) {
-      return _activePositiveCategoryId;
-    }
-    return _enabledSectionId;
-  }
-
-  String _effectiveNegativeCategoryId(List<_TagSection> sections) {
-    if (_activeNegativeCategoryId == _allNegativeSectionId ||
-        sections.any((section) => section.id == _activeNegativeCategoryId)) {
-      return _activeNegativeCategoryId;
-    }
-    return _allNegativeSectionId;
-  }
-
-  void _selectPositiveCategory(String categoryId) {
-    if (_activePositiveCategoryId == categoryId) return;
-    setState(() {
-      _activePositiveCategoryId = categoryId;
-    });
-    if (_positiveScrollController.hasClients) {
-      _positiveScrollController.jumpTo(0);
-    }
-  }
-
-  void _selectNegativeCategory(String categoryId) {
-    if (_activeNegativeCategoryId == categoryId) return;
-    setState(() {
-      _activeNegativeCategoryId = categoryId;
-    });
-    if (_negativeScrollController.hasClients) {
-      _negativeScrollController.jumpTo(0);
-    }
-  }
-
   List<FixedTagLink> _visibleLinks(FixedTagsState state) {
     final highlightedEntryId = _highlightedLinkEntryId;
     if (highlightedEntryId == null) return const [];
@@ -1561,6 +1373,317 @@ class _TagSection {
   final String name;
   final List<FixedTagEntry> entries;
   final Color color;
+}
+
+typedef _FixedTagGroupEntryBuilder =
+    Widget Function(
+      FixedTagEntry entry,
+      Color categoryColor,
+      SidebarDragHandleBuilder? dragHandleBuilder,
+    );
+
+typedef _FixedTagGroupReorderCallback =
+    void Function(List<FixedTagEntry> entries, int oldIndex, int newIndex);
+
+typedef _FixedTagListPrototypeBuilder = Widget Function(Color categoryColor);
+
+class _GroupedFixedTagCollection extends StatefulWidget {
+  const _GroupedFixedTagCollection({
+    super.key,
+    required this.keyPrefix,
+    required this.sections,
+    required this.isListMode,
+    required this.forceExpanded,
+    required this.controller,
+    required this.emptyText,
+    required this.listPrototypeBuilder,
+    required this.entryBuilder,
+    required this.onReorder,
+    required this.onVisibilityChanged,
+  });
+
+  final String keyPrefix;
+  final List<_TagSection> sections;
+  final bool isListMode;
+  final bool forceExpanded;
+  final ScrollController controller;
+  final String emptyText;
+  final _FixedTagListPrototypeBuilder listPrototypeBuilder;
+  final _FixedTagGroupEntryBuilder entryBuilder;
+  final _FixedTagGroupReorderCallback onReorder;
+  final VoidCallback onVisibilityChanged;
+
+  @override
+  State<_GroupedFixedTagCollection> createState() =>
+      _GroupedFixedTagCollectionState();
+}
+
+class _GroupedFixedTagCollectionState
+    extends State<_GroupedFixedTagCollection> {
+  final _collapsedSectionIds = <String>{};
+
+  @override
+  void didUpdateWidget(covariant _GroupedFixedTagCollection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final availableIds = widget.sections.map((section) => section.id).toSet();
+    _collapsedSectionIds.removeWhere((id) => !availableIds.contains(id));
+  }
+
+  void _setSectionCollapsed(String sectionId, bool collapsed) {
+    setState(() {
+      if (collapsed) {
+        _collapsedSectionIds.add(sectionId);
+      } else {
+        _collapsedSectionIds.remove(sectionId);
+      }
+    });
+    widget.onVisibilityChanged();
+  }
+
+  void setAllCollapsed(bool collapsed) {
+    setState(() {
+      if (collapsed) {
+        _collapsedSectionIds.addAll(
+          widget.sections.map((section) => section.id),
+        );
+      } else {
+        _collapsedSectionIds.clear();
+      }
+    });
+    widget.onVisibilityChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (widget.sections.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            widget.emptyText,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            key: ValueKey('${widget.keyPrefix}-group-list'),
+            controller: widget.controller,
+            padding: const EdgeInsets.fromLTRB(6, 2, 6, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final section in widget.sections)
+                  Builder(
+                    builder: (context) {
+                      final isCollapsed =
+                          !widget.forceExpanded &&
+                          _collapsedSectionIds.contains(section.id);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildSectionHeader(
+                              context,
+                              section: section,
+                              isCollapsed: isCollapsed,
+                            ),
+                            if (!isCollapsed)
+                              _buildSectionEntries(context, section),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required _TagSection section,
+    required bool isCollapsed,
+  }) {
+    final theme = Theme.of(context);
+    final canCollapse = !widget.forceExpanded;
+    return Material(
+      key: ValueKey('${widget.keyPrefix}-group-${section.id}'),
+      color: Color.alphaBlend(
+        section.color.withValues(alpha: 0.07),
+        theme.colorScheme.surfaceContainerLow,
+      ),
+      borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: canCollapse
+            ? () => _setSectionCollapsed(section.id, !isCollapsed)
+            : null,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 38),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              children: [
+                Icon(Icons.folder_rounded, size: 17, color: section.color),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    section.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: section.color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    section.entries.length.toString(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: section.color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  isCollapsed
+                      ? Icons.keyboard_arrow_right_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionEntries(BuildContext context, _TagSection section) {
+    if (widget.isListMode) {
+      return Padding(
+        key: ValueKey('${widget.keyPrefix}-group-${section.id}-body'),
+        padding: const EdgeInsets.only(top: 4),
+        child: ReorderableListView.builder(
+          key: ValueKey('${widget.keyPrefix}-group-${section.id}-entries'),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          itemCount: section.entries.length,
+          prototypeItem: widget.listPrototypeBuilder(section.color),
+          onReorderItem: (oldIndex, newIndex) =>
+              widget.onReorder(section.entries, oldIndex, newIndex),
+          itemBuilder: (context, index) {
+            final entry = section.entries[index];
+            return Padding(
+              key: ValueKey('${widget.keyPrefix}-entry-${entry.id}'),
+              padding: const EdgeInsets.only(bottom: 4),
+              child: widget.entryBuilder(
+                entry,
+                section.color,
+                section.entries.length > 1
+                    ? (child) => ReorderableDragStartListener(
+                        index: index,
+                        child: child,
+                      )
+                    : null,
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 7.0;
+        final largeText = MediaQuery.textScalerOf(context).scale(14) >= 20;
+        final minimumCardWidth = largeText ? 220.0 : 140.0;
+        final columnCount =
+            ((constraints.maxWidth + spacing) / (minimumCardWidth + spacing))
+                .floor()
+                .clamp(1, 3);
+        final cardWidth =
+            (constraints.maxWidth - spacing * (columnCount - 1)) / columnCount;
+        final cardHeight = _gridCardHeight(context, cardWidth: cardWidth);
+        return GridView.builder(
+          key: ValueKey('${widget.keyPrefix}-group-${section.id}-body'),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(top: 4),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columnCount,
+            mainAxisSpacing: spacing,
+            crossAxisSpacing: spacing,
+            mainAxisExtent: cardHeight,
+          ),
+          itemCount: section.entries.length,
+          itemBuilder: (context, index) =>
+              widget.entryBuilder(section.entries[index], section.color, null),
+        );
+      },
+    );
+  }
+}
+
+class _GroupBulkAction extends StatelessWidget {
+  const _GroupBulkAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.iconOnly,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool iconOnly;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (iconOnly) {
+      return IconButton(
+        tooltip: label,
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        visualDensity: VisualDensity.compact,
+      );
+    }
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      ),
+    );
+  }
 }
 
 class _SectionTitle extends StatelessWidget {
