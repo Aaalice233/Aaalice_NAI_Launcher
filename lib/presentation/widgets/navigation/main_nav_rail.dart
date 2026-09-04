@@ -191,16 +191,6 @@ class MainNavRail extends ConsumerWidget {
                     ),
                   ),
 
-                  // 随机配置
-                  _NavIcon(
-                    key: const Key('nav-branch-5'),
-                    icon: Icons.casino, // Random prompt config
-                    label: context.l10n.nav_randomConfig,
-                    isSelected: selectedIndex == 5,
-                    onTap: () =>
-                        navigationShell.goBranch(AppBranch.promptConfig.index),
-                  ),
-
                   // 词库
                   _NavIcon(
                     key: const Key('nav-branch-6'),
@@ -209,6 +199,16 @@ class MainNavRail extends ConsumerWidget {
                     isSelected: selectedIndex == 6,
                     onTap: () =>
                         navigationShell.goBranch(AppBranch.tagLibrary.index),
+                  ),
+
+                  // 随机配置
+                  _NavIcon(
+                    key: const Key('nav-branch-5'),
+                    icon: Icons.casino, // Random prompt config
+                    label: context.l10n.nav_randomConfig,
+                    isSelected: selectedIndex == 5,
+                    onTap: () =>
+                        navigationShell.goBranch(AppBranch.promptConfig.index),
                   ),
 
                   // 统计
