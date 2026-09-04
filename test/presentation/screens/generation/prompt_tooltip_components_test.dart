@@ -719,6 +719,26 @@ void main() {
       colors.mainPrompt,
       theme.colorScheme.tertiary,
     ]);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('prompt-composition-positive-suffix')),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is TranslatedPromptText && widget.prompt == 'detailed',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('prompt-composition-negative-suffix')),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is TranslatedPromptText && widget.prompt == 'watermark',
+        ),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
