@@ -144,7 +144,7 @@ class ImageGenerationCoordinator {
                 nonStreamOnly: false,
                 retryStreamFailures: command.totalImages > 1,
               )) {
-                if (signal.preview != null) yield signal.preview!;
+                if (signal.event != null) yield signal.event!;
                 if (signal.result != null) result = signal.result!;
               }
               batchImages.addAll(result.images);
@@ -178,7 +178,7 @@ class ImageGenerationCoordinator {
                   nonStreamOnly: nonStreamOnly,
                   retryStreamFailures: command.totalImages > 1,
                 )) {
-                  if (signal.preview != null) yield signal.preview!;
+                  if (signal.event != null) yield signal.event!;
                   if (signal.result != null) result = signal.result!;
                   if (signal.nonStreamOnly) nonStreamOnly = true;
                 }
@@ -315,7 +315,7 @@ class ImageGenerationCoordinator {
           final sample = chunk.sampleIndex.clamp(0, params.nSamples - 1);
           final imageNumber = startImage + sample;
           if (chunk.hasPreview) {
-            yield _RequestSignal.preview(
+            yield _RequestSignal.event(
               GenerationPreviewReceived(
                 runId: command.runId,
                 params: params,
@@ -331,14 +331,11 @@ class ImageGenerationCoordinator {
           }
           if (chunk.isComplete && chunk.hasFinalImage) {
             images[chunk.sampleIndex] = chunk.finalImage!;
-            yield _RequestSignal.preview(
-              GenerationPreviewReceived(
+            yield _RequestSignal.event(
+              GenerationImageFinalizing(
                 runId: command.runId,
-                params: params,
                 imageNumber: imageNumber,
                 totalImages: command.totalImages,
-                progress: 1,
-                bytes: Uint8List.fromList(chunk.finalImage!),
               ),
             );
           }
@@ -503,20 +500,16 @@ class _RequestResult {
 }
 
 class _RequestSignal {
-  const _RequestSignal._({
-    this.preview,
-    this.result,
-    this.nonStreamOnly = false,
-  });
+  const _RequestSignal._({this.event, this.result, this.nonStreamOnly = false});
 
-  factory _RequestSignal.preview(GenerationPreviewReceived preview) =>
-      _RequestSignal._(preview: preview);
+  factory _RequestSignal.event(GenerationEvent event) =>
+      _RequestSignal._(event: event);
   factory _RequestSignal.result(
     _RequestResult result, {
     bool nonStreamOnly = false,
   }) => _RequestSignal._(result: result, nonStreamOnly: nonStreamOnly);
 
-  final GenerationPreviewReceived? preview;
+  final GenerationEvent? event;
   final _RequestResult? result;
   final bool nonStreamOnly;
 }

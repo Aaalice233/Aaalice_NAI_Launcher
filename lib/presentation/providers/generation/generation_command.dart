@@ -138,6 +138,18 @@ class GenerationPreviewReceived extends GenerationEvent {
   final FocusedStreamPreviewPlacement? focusedPreviewPlacement;
 }
 
+/// 服务端已交付该样本的最终图，流正在收尾。
+class GenerationImageFinalizing extends GenerationEvent {
+  const GenerationImageFinalizing({
+    required super.runId,
+    required this.imageNumber,
+    required this.totalImages,
+  });
+
+  final int imageNumber;
+  final int totalImages;
+}
+
 class GenerationRequestCompleted extends GenerationEvent {
   const GenerationRequestCompleted({
     required super.runId,

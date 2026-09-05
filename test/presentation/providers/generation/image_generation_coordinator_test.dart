@@ -815,6 +815,48 @@ void main() {
     },
   );
 
+  test('the final chunk finalizes instead of posing as a preview', () async {
+    final apiService = _MockNAIImageGenerationApiService();
+    final preview = Uint8List.fromList([1, 2, 3]);
+    final finalImage = Uint8List.fromList([4, 5, 6]);
+    when(
+      () => apiService.generateImageStream(
+        any(),
+        focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+        minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+        focusedSelectionRect: any(named: 'focusedSelectionRect'),
+      ),
+    ).thenAnswer(
+      (_) => Stream<ImageStreamChunk>.fromIterable([
+        ImageStreamChunk.progress(progress: 0.5, previewImage: preview),
+        ImageStreamChunk.complete(finalImage),
+      ]),
+    );
+
+    final coordinator = ImageGenerationCoordinator(apiService: apiService);
+    final command = GenerationCommand(
+      runId: 1,
+      params: const ImageParams(prompt: 'test'),
+      batchCount: 1,
+      batchSize: 1,
+      prepareBatch: (_, params) async => params,
+    );
+    final handle = coordinator.start(command);
+
+    final events = await coordinator.execute(command, handle).toList();
+
+    final previews = events.whereType<GenerationPreviewReceived>().toList();
+    expect(previews, hasLength(1));
+    expect(previews.single.progress, lessThan(1));
+    final finalizing = events.whereType<GenerationImageFinalizing>().single;
+    expect(finalizing.imageNumber, 1);
+    expect(finalizing.totalImages, 1);
+    expect(
+      events.whereType<GenerationRequestCompleted>().single.images.single,
+      same(finalImage),
+    );
+  });
+
   test(
     'shared request keeps slot map semantics without image indexes',
     () async {

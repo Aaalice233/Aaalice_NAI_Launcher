@@ -105,10 +105,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   Timer? _historyPreheatTimer;
   Timer? _hoverPreheatTimer;
   bool _isHistoryScrolling = false;
-  bool _isTrackingGenerationPreviews = false;
   String? _lastSharePreparationMaintenanceKey;
-  final Map<int, Uint8List> _streamPreviewBytesByImageNumber = {};
-  final Map<String, Uint8List> _completionPreviewPlaceholders = {};
   final Map<String, bool> _favoriteStates = {};
   final Map<String, String?> _favoriteStatePaths = {};
   final Set<String> _favoriteStatusLoadingIds = {};
@@ -161,7 +158,6 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         clickBehavior == HistoryClickBehavior.selectPreview
         ? ref.watch(generationPreviewSelectionProvider)
         : null;
-    _syncCompletionPreviewPlaceholder(state);
     _scheduleSharePreparationMaintenance(state, stripMetadata);
 
     return Column(
@@ -549,53 +545,6 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         context.l10n.history_dragFileNotReady,
       ShareImagePreparationStatus.ready => '',
     };
-  }
-
-  void _syncCompletionPreviewPlaceholder(ImageGenerationState state) {
-    if (state.isGenerating && !_isTrackingGenerationPreviews) {
-      _streamPreviewBytesByImageNumber.clear();
-      _isTrackingGenerationPreviews = true;
-    } else if (!state.isGenerating) {
-      _isTrackingGenerationPreviews = false;
-    }
-
-    for (final slot in state.streamPreviewSlots) {
-      final previewBytes = slot.previewBytes;
-      if (previewBytes != null && previewBytes.isNotEmpty) {
-        _streamPreviewBytesByImageNumber[slot.imageNumber] = previewBytes;
-      }
-    }
-    final streamPreview = state.streamPreview;
-    if (streamPreview != null &&
-        streamPreview.isNotEmpty &&
-        state.currentImage > 0) {
-      _streamPreviewBytesByImageNumber[state.currentImage] = streamPreview;
-    }
-
-    _streamPreviewBytesByImageNumber.removeWhere((imageNumber, previewBytes) {
-      final imageIndex = imageNumber - 1;
-      if (imageIndex < 0 || imageIndex >= state.currentImages.length) {
-        return false;
-      }
-      final image = state.currentImages[imageIndex];
-      _completionPreviewPlaceholders.putIfAbsent(image.id, () => previewBytes);
-      return true;
-    });
-
-    final retainedIds = <String>{
-      for (final image in state.currentImages) image.id,
-      for (final image in state.history) image.id,
-    };
-    _completionPreviewPlaceholders.removeWhere(
-      (imageId, _) => !retainedIds.contains(imageId),
-    );
-  }
-
-  void _clearCompletionPreviewPlaceholder(String imageId) {
-    if (_completionPreviewPlaceholders.remove(imageId) == null || !mounted) {
-      return;
-    }
-    setState(() {});
   }
 
   List<StreamPreviewSlot> _visibleStreamPreviewSlots(
@@ -1018,9 +967,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           allowRepeatedModifierTaps: true,
           isFavorite: isFavorite,
           dragPreparationReady: dragPreparationReady,
-          completionPlaceholderBytes: _completionPreviewPlaceholders[image.id],
-          onCompletionPlaceholderSettled: () =>
-              _clearCompletionPreviewPlaceholder(image.id),
+          completionPreview: state.completionPreviews[image.id],
           enableSelection: image.canBulkSelect,
           enableSaveAction: image.canSave,
           enableCopyAction: image.canSave,

@@ -175,17 +175,15 @@ class ImageGenerationService {
             :final currentStep,
             :final totalSteps,
           ):
-            if (progress < 1) {
-              onProgress?.call(
-                imageNumber,
-                totalImages,
-                ((imageNumber - 1) + progress) / totalImages,
-                previewImage: bytes,
-              );
-              onStepProgress?.call(currentStep, totalSteps);
-            } else {
-              onCompleting?.call();
-            }
+            onProgress?.call(
+              imageNumber,
+              totalImages,
+              ((imageNumber - 1) + progress) / totalImages,
+              previewImage: bytes,
+            );
+            onStepProgress?.call(currentStep, totalSteps);
+          case GenerationImageFinalizing():
+            onCompleting?.call();
           case GenerationRequestCompleted(
             :final params,
             images: final bytes,

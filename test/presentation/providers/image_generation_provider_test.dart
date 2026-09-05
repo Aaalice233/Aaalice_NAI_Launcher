@@ -1309,6 +1309,200 @@ void main() {
       },
     );
 
+    test('最终图交付后把最后一帧转交给完成卡片并持续保留', () async {
+      final mockApiService = MockNAIImageGenerationApiService();
+      final controller = StreamController<ImageStreamChunk>();
+      addTearDown(() async {
+        if (!controller.isClosed) {
+          await controller.close();
+        }
+      });
+
+      when(
+        () => mockApiService.generateImage(
+          any(),
+          onProgress: any(named: 'onProgress'),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      ).thenAnswer((_) async => fail('stream delivered the final image'));
+      when(
+        () => mockApiService.generateImageStream(
+          any(),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      ).thenAnswer((_) => controller.stream);
+
+      container.dispose();
+      container = _createAuthenticatedContainer(
+        overrides: [
+          naiImageGenerationApiServiceProvider.overrideWithValue(
+            mockApiService,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      await container
+          .read(notificationSettingsNotifierProvider.notifier)
+          .setSoundEnabled(false);
+
+      final source = _validImageBytes(width: 640, height: 960);
+      final preview = _validImageBytes(width: 320, height: 320);
+      final finalImage = _validImageBytes(width: 640, height: 960);
+      final placement = FocusedStreamPreviewPlacement(
+        sourceImage: source,
+        maskImage: _validImageBytes(width: 320, height: 320),
+        xPercent: 0.25,
+        yPercent: 0.125,
+        widthPercent: 0.5,
+        heightPercent: 0.375,
+      );
+      final params = container
+          .read(generationParamsNotifierProvider)
+          .copyWith(width: 640, height: 960, nSamples: 1);
+
+      final generationFuture = container
+          .read(imageGenerationNotifierProvider.notifier)
+          .generate(params);
+      await Future<void>.delayed(Duration.zero);
+      controller.add(
+        ImageStreamChunk.progress(
+          progress: 0.4,
+          previewImage: preview,
+          focusedPreviewPlacement: placement,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final streamedSlot = container
+          .read(imageGenerationNotifierProvider)
+          .streamPreviewSlots
+          .single;
+      expect(streamedSlot.previewBytes, orderedEquals(preview));
+      expect(streamedSlot.focusedPreviewPlacement, same(placement));
+
+      controller.add(ImageStreamChunk.complete(finalImage));
+      await Future<void>.delayed(Duration.zero);
+
+      final finalizingState = container.read(imageGenerationNotifierProvider);
+      final finalizedSlot = finalizingState.streamPreviewSlots.single;
+      expect(finalizedSlot.progress, 1);
+      expect(finalizedSlot.previewBytes, same(streamedSlot.previewBytes));
+      expect(finalizedSlot.focusedPreviewPlacement, same(placement));
+      expect(finalizingState.streamPreview, same(streamedSlot.previewBytes));
+
+      await controller.close();
+      await generationFuture;
+
+      final completedState = container.read(imageGenerationNotifierProvider);
+      final image = completedState.currentImages.single;
+      final frame = completedState.completionPreviews[image.id];
+      expect(frame, isNotNull);
+      expect(frame!.bytes, same(streamedSlot.previewBytes));
+      expect(frame.placement, same(placement));
+
+      // 主预览区与历史面板共享同一条目，画完首帧的那张卡片不得把它删掉。
+      container
+          .read(imageGenerationNotifierProvider.notifier)
+          .updateDisplayImages(completedState.currentImages);
+      expect(
+        container.read(imageGenerationNotifierProvider).completionPreviews,
+        containsPair(image.id, same(frame)),
+      );
+    });
+
+    test('新一轮生成开始就丢掉上一轮的完成预览', () async {
+      final mockApiService = MockNAIImageGenerationApiService();
+      final controller = StreamController<ImageStreamChunk>();
+      addTearDown(() async {
+        if (!controller.isClosed) {
+          await controller.close();
+        }
+      });
+
+      when(
+        () => mockApiService.generateImageStream(
+          any(),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      ).thenAnswer((_) => controller.stream);
+      when(
+        () => mockApiService.generateImage(
+          any(),
+          onProgress: any(named: 'onProgress'),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      ).thenAnswer(
+        (_) async => (
+          [_validImageBytes(width: 640, height: 960)],
+          const <int, String>{},
+        ),
+      );
+
+      container.dispose();
+      container = _createAuthenticatedContainer(
+        overrides: [
+          naiImageGenerationApiServiceProvider.overrideWithValue(
+            mockApiService,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      await container
+          .read(notificationSettingsNotifierProvider.notifier)
+          .setSoundEnabled(false);
+
+      final notifier = container.read(imageGenerationNotifierProvider.notifier);
+      final stale = GeneratedImage.create(
+        _validImageBytes(width: 640, height: 960),
+        width: 640,
+        height: 960,
+      );
+      notifier.state = notifier.state.copyWith(
+        history: [stale],
+        completionPreviews: {
+          stale.id: StreamPreviewFrame(
+            bytes: _validImageBytes(width: 320, height: 320),
+          ),
+        },
+      );
+
+      final params = container
+          .read(generationParamsNotifierProvider)
+          .copyWith(width: 640, height: 960, nSamples: 1);
+      final generationFuture = notifier.generate(params);
+      for (var attempt = 0; attempt < 20; attempt++) {
+        if (container.read(imageGenerationNotifierProvider).status ==
+            GenerationStatus.generating) {
+          break;
+        }
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      final generatingState = container.read(imageGenerationNotifierProvider);
+      expect(generatingState.status, GenerationStatus.generating);
+      expect(generatingState.completionPreviews, isEmpty);
+
+      await controller.close();
+      await generationFuture;
+
+      expect(
+        container.read(imageGenerationNotifierProvider).completionPreviews,
+        isEmpty,
+      );
+    });
+
     test('generate 会在请求前自动编码待编码 Vibe 并回写当前状态', () async {
       final mockApiService = MockNAIImageGenerationApiService();
       final mockEnhancementApiService = FakeNAIImageEnhancementApiService();

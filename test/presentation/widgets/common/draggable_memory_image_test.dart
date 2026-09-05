@@ -7,10 +7,14 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
+import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_stream_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/transparency_background.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 void main() {
@@ -273,9 +277,12 @@ void main() {
 
   group('SelectableImageCard hover gating', () {
     testWidgets(
-        'keeps the last stream preview as the only image until completion is ready',
+        'keeps the completion preview until the completed image draws a frame',
         (tester) async {
-      var placeholderSettled = false;
+      final imageBytes = Uint8List.fromList(
+        img.encodePng(img.Image(width: 40, height: 40)),
+      );
+      final previewBytes = base64Decode(_oneByOnePngBase64);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -285,12 +292,12 @@ void main() {
                 width: 160,
                 height: 160,
                 child: SelectableImageCard(
-                  imageBytes: base64Decode(_oneByOnePngBase64),
-                  completionPlaceholderBytes: base64Decode(_oneByOnePngBase64),
+                  imageBytes: imageBytes,
+                  completionPreview: StreamPreviewFrame(bytes: previewBytes),
+                  underlay: const TransparencyBackgroundLayer(
+                    style: TransparencyBackgrounds.checker,
+                  ),
                   enableSelection: false,
-                  onCompletionPlaceholderSettled: () {
-                    placeholderSettled = true;
-                  },
                 ),
               ),
             ),
@@ -303,17 +310,27 @@ void main() {
       );
       expect(contentFinder, findsOneWidget);
       expect(find.byType(DecodedMemoryImage), findsOneWidget);
+      expect(find.byType(ImageCardStreamPreview), findsOneWidget);
+      expect(find.byType(TransparencyBackgroundLayer), findsNothing);
 
-      await tester.pump(const Duration(milliseconds: 899));
+      await tester.pump(const Duration(seconds: 2));
 
-      expect(placeholderSettled, isFalse);
-      expect(contentFinder, findsOneWidget);
-      expect(find.byType(DecodedMemoryImage), findsOneWidget);
+      expect(find.byType(ImageCardStreamPreview), findsOneWidget);
+      expect(find.byType(TransparencyBackgroundLayer), findsNothing);
 
-      await tester.pump(const Duration(milliseconds: 1));
-      await tester.pump();
+      // 解码只在真实事件循环里推进，pump 之间必须放行 runAsync。
+      for (var attempt = 0; attempt < 50; attempt++) {
+        if (find.byType(TransparencyBackgroundLayer).evaluate().isNotEmpty) {
+          break;
+        }
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump();
+      }
 
-      expect(placeholderSettled, isTrue);
+      expect(find.byType(ImageCardStreamPreview), findsNothing);
+      expect(find.byType(TransparencyBackgroundLayer), findsOneWidget);
       expect(contentFinder, findsOneWidget);
       expect(find.byType(DecodedMemoryImage), findsOneWidget);
     });
@@ -364,6 +381,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.byType(DecodedMemoryImage), findsOneWidget);
+      expect(find.byType(ImageCardStreamPreview), findsOneWidget);
     });
 
     testWidgets(

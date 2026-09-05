@@ -15,7 +15,7 @@ class ImageCardViewData {
     required this.statusBadgeLabel,
     required this.statusBadgeTooltip,
     required this.dragPreparationReady,
-    required this.completionPlaceholderBytes,
+    required this.completionPreview,
     required this.isFavorite,
     required this.underlay,
     required this.imageContent,
@@ -39,7 +39,7 @@ class ImageCardViewData {
   final String? statusBadgeLabel;
   final String? statusBadgeTooltip;
   final bool dragPreparationReady;
-  final Uint8List? completionPlaceholderBytes;
+  final StreamPreviewFrame? completionPreview;
   final bool isFavorite;
   final Widget? underlay;
   final Widget? imageContent;
@@ -87,7 +87,6 @@ class ImageCardCapabilities {
     required this.onOpenInExplorer,
     required this.onSaveToLibrary,
     required this.onFavoriteToggle,
-    required this.onCompletionPlaceholderSettled,
   });
 
   final bool allowRepeatedModifierTaps;
@@ -120,5 +119,4 @@ class ImageCardCapabilities {
   final VoidCallback? onOpenInExplorer;
   final void Function(Uint8List imageBytes, String prompt)? onSaveToLibrary;
   final VoidCallback? onFavoriteToggle;
-  final VoidCallback? onCompletionPlaceholderSettled;
 }

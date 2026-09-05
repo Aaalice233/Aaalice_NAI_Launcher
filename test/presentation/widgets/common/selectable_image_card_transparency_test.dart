@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
@@ -50,7 +51,7 @@ Future<void> _verifyAtomicReplacement(
       boundaryKey: boundaryKey,
       imageBytes: transparentResult,
       imageIdentity: 'new-transparent-result',
-      completionPlaceholderBytes: opaquePreview,
+      completionPreview: StreamPreviewFrame(bytes: opaquePreview),
     ),
   );
 
@@ -98,7 +99,7 @@ Widget _buildCard({
   required GlobalKey boundaryKey,
   required Uint8List imageBytes,
   required Object imageIdentity,
-  Uint8List? completionPlaceholderBytes,
+  StreamPreviewFrame? completionPreview,
 }) {
   return ProviderScope(
     child: MaterialApp(
@@ -112,7 +113,7 @@ Widget _buildCard({
               child: SelectableImageCard(
                 imageBytes: imageBytes,
                 imageIdentity: imageIdentity,
-                completionPlaceholderBytes: completionPlaceholderBytes,
+                completionPreview: completionPreview,
                 underlay: const ColoredBox(color: Color(0xff00ff00)),
                 enableSelection: false,
                 enableContextMenu: false,

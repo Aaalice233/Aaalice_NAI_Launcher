@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/generation/preview_selection_provider.dart';
@@ -432,43 +433,23 @@ void main() {
     expect(scrollable.position.pixels, greaterThan(0));
   });
 
-  testWidgets('maps each batch stream preview to its completed image', (
+  testWidgets('hands each completion preview to its own history card', (
     tester,
   ) async {
-    final firstPreview = _solidPng(255, 0, 0);
-    final secondPreview = _solidPng(0, 0, 255);
+    final firstFrame = StreamPreviewFrame(bytes: _solidPng(255, 0, 0));
+    final secondFrame = StreamPreviewFrame(bytes: _solidPng(0, 0, 255));
     final container = _createContainer([]);
     addTearDown(container.dispose);
+    final first = _image('batch-first');
+    final second = _image('batch-second');
     final notifier = container.read(imageGenerationNotifierProvider.notifier);
     notifier.state = notifier.state.copyWith(
-      status: GenerationStatus.generating,
-      currentImage: 2,
-      totalImages: 2,
-      streamPreview: secondPreview,
-      streamPreviewSlots: [
-        StreamPreviewSlot(
-          imageNumber: 1,
-          totalImages: 2,
-          progress: 0.9,
-          previewBytes: firstPreview,
-        ),
-        StreamPreviewSlot(
-          imageNumber: 2,
-          totalImages: 2,
-          progress: 0.8,
-          previewBytes: secondPreview,
-        ),
-      ],
+      status: GenerationStatus.completed,
+      currentImages: [first, second],
+      completionPreviews: {first.id: firstFrame, second.id: secondFrame},
     );
 
     await tester.pumpWidget(_historyApp(container));
-    await tester.pump();
-
-    notifier.state = notifier.state.copyWith(
-      status: GenerationStatus.completed,
-      currentImages: [_image('batch-first'), _image('batch-second')],
-      clearStreamPreview: true,
-    );
     await tester.pump();
 
     final firstCard = tester.widget<SelectableImageCard>(
@@ -477,80 +458,9 @@ void main() {
     final secondCard = tester.widget<SelectableImageCard>(
       find.byKey(const ValueKey('batch-second')),
     );
-    expect(
-      listEquals(firstCard.completionPlaceholderBytes, firstPreview),
-      isTrue,
-    );
-    expect(
-      listEquals(secondCard.completionPlaceholderBytes, secondPreview),
-      isTrue,
-    );
+    expect(firstCard.completionPreview, same(firstFrame));
+    expect(secondCard.completionPreview, same(secondFrame));
   });
-
-  testWidgets(
-    'does not reuse a cancelled run preview for the next generation',
-    (tester) async {
-      final cancelledPreview = _solidPng(255, 0, 0);
-      final nextPreview = _solidPng(0, 255, 0);
-      final container = _createContainer([]);
-      addTearDown(container.dispose);
-      final notifier = container.read(imageGenerationNotifierProvider.notifier);
-      notifier.state = notifier.state.copyWith(
-        status: GenerationStatus.generating,
-        currentImage: 1,
-        totalImages: 1,
-        streamPreview: cancelledPreview,
-        streamPreviewSlots: [
-          StreamPreviewSlot(
-            imageNumber: 1,
-            totalImages: 1,
-            progress: 0.8,
-            previewBytes: cancelledPreview,
-          ),
-        ],
-      );
-
-      await tester.pumpWidget(_historyApp(container));
-      await tester.pump();
-
-      notifier.state = notifier.state.copyWith(
-        status: GenerationStatus.cancelled,
-        currentImages: const [],
-        clearStreamPreview: true,
-      );
-      await tester.pump();
-      notifier.state = notifier.state.copyWith(
-        status: GenerationStatus.generating,
-        currentImage: 1,
-        totalImages: 1,
-        streamPreview: nextPreview,
-        streamPreviewSlots: [
-          StreamPreviewSlot(
-            imageNumber: 1,
-            totalImages: 1,
-            progress: 0.8,
-            previewBytes: nextPreview,
-          ),
-        ],
-      );
-      await tester.pump();
-      notifier.state = notifier.state.copyWith(
-        status: GenerationStatus.completed,
-        currentImages: [_image('after-cancel')],
-        clearStreamPreview: true,
-      );
-      await tester.pump();
-
-      final card = tester.widget<SelectableImageCard>(
-        find.byKey(const ValueKey('after-cancel')),
-      );
-      expect(listEquals(card.completionPlaceholderBytes, nextPreview), isTrue);
-      expect(
-        listEquals(card.completionPlaceholderBytes, cancelledPreview),
-        isFalse,
-      );
-    },
-  );
 }
 
 Uint8List _solidPng(int red, int green, int blue) {

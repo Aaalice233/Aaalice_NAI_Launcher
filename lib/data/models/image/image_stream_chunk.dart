@@ -52,6 +52,14 @@ class FocusedStreamPreviewPlacement {
   }
 }
 
+/// 生成中卡片的最后一帧：预览字节及其合成位置。
+class StreamPreviewFrame {
+  const StreamPreviewFrame({required this.bytes, this.placement});
+
+  final Uint8List bytes;
+  final FocusedStreamPreviewPlacement? placement;
+}
+
 /// 流式图像生成数据块
 ///
 /// NovelAI 的流式 API 使用 MessagePack 格式返回数据，
