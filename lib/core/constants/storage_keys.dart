@@ -48,6 +48,9 @@ class StorageKeys {
   static const String watermarkLogoPathV1 = 'watermark_logo_path_v1';
   static const String watermarkDerivativeRegistryV1 =
       'watermark_derivative_registry_v1';
+  static const String mosaicConfigV1 = 'mosaic_config_v1';
+  static const String mosaicDerivativeRegistryV1 =
+      'mosaic_derivative_registry_v1';
 
   // Gallery album migration flag (图库相簿一次性导入标记)
   static const String galleryAlbumImportDone = 'gallery_album_import_done_v1';

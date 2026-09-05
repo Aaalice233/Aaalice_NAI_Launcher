@@ -17,6 +17,7 @@ enum LocalImageContextAction {
   upscale,
   shareToDiscord,
   createWatermark,
+  createMosaic,
   importMetadata,
   copyPrompt,
   copySeed,
@@ -40,6 +41,8 @@ class LocalImageContextMenu {
     required bool isKritaConnected,
     bool watermarkEnabled = false,
     bool isWatermarkDerivative = false,
+    bool mosaicEnabled = false,
+    bool isMosaicDerivative = false,
   }) {
     return showMenu<LocalImageContextAction>(
       context: context,
@@ -54,6 +57,8 @@ class LocalImageContextMenu {
         isKritaConnected: isKritaConnected,
         watermarkEnabled: watermarkEnabled,
         isWatermarkDerivative: isWatermarkDerivative,
+        mosaicEnabled: mosaicEnabled,
+        isMosaicDerivative: isMosaicDerivative,
       ),
     );
   }
@@ -64,6 +69,8 @@ class LocalImageContextMenu {
     required bool isKritaConnected,
     bool watermarkEnabled = false,
     bool isWatermarkDerivative = false,
+    bool mosaicEnabled = false,
+    bool isMosaicDerivative = false,
   }) {
     return showMenu<LocalImageContextAction>(
       context: context,
@@ -75,6 +82,8 @@ class LocalImageContextMenu {
         isKritaConnected: isKritaConnected,
         watermarkEnabled: watermarkEnabled,
         isWatermarkDerivative: isWatermarkDerivative,
+        mosaicEnabled: mosaicEnabled,
+        isMosaicDerivative: isMosaicDerivative,
       ),
     );
   }
@@ -98,6 +107,8 @@ class LocalImageContextMenu {
     required bool isKritaConnected,
     bool watermarkEnabled = false,
     bool isWatermarkDerivative = false,
+    bool mosaicEnabled = false,
+    bool isMosaicDerivative = false,
   }) {
     final hasImageInfoActions = hasImportableMetadata || hasPrompt || hasSeed;
 
@@ -124,6 +135,15 @@ class LocalImageContextMenu {
           label: isWatermarkDerivative
               ? context.l10n.watermark_actionRegenerate
               : context.l10n.watermark_actionCreate,
+        ),
+      if (mosaicEnabled)
+        _item(
+          context,
+          value: LocalImageContextAction.createMosaic,
+          icon: Icons.grid_on_rounded,
+          label: isMosaicDerivative
+              ? context.l10n.mosaic_actionRegenerate
+              : context.l10n.mosaic_actionCreate,
         ),
       if (hasImageInfoActions) const PopupMenuDivider(),
       if (hasImportableMetadata)
@@ -177,6 +197,8 @@ class LocalImageContextMenu {
     required bool isKritaConnected,
     bool watermarkEnabled = false,
     bool isWatermarkDerivative = false,
+    bool mosaicEnabled = false,
+    bool isMosaicDerivative = false,
   }) {
     return [
       _item(
@@ -234,7 +256,7 @@ class LocalImageContextMenu {
         icon: Icons.send_rounded,
         label: context.l10n.discordShare_action,
       ),
-      if (watermarkEnabled) const PopupMenuDivider(),
+      if (watermarkEnabled || mosaicEnabled) const PopupMenuDivider(),
       if (watermarkEnabled)
         _item(
           context,
@@ -243,6 +265,15 @@ class LocalImageContextMenu {
           label: isWatermarkDerivative
               ? context.l10n.watermark_actionRegenerate
               : context.l10n.watermark_actionCreate,
+        ),
+      if (mosaicEnabled)
+        _item(
+          context,
+          value: LocalImageContextAction.createMosaic,
+          icon: Icons.grid_on_rounded,
+          label: isMosaicDerivative
+              ? context.l10n.mosaic_actionRegenerate
+              : context.l10n.mosaic_actionCreate,
         ),
     ];
   }

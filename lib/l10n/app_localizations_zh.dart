@@ -13886,6 +13886,210 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tagMode_drag => '长按标签并拖动排序';
+
+  @override
+  String get settings_mosaicTitle => '打码与隐私遮挡';
+
+  @override
+  String get settings_mosaicSubtitle => '用马赛克、模糊、纯色遮挡、矩形、椭圆和自由画笔制作隐私安全副本。';
+
+  @override
+  String get settings_mosaicEnable => '启用打码功能';
+
+  @override
+  String get settings_mosaicPreserveMetadata => '保留支持的生成元数据';
+
+  @override
+  String get settings_mosaicPreserveMetadataHint =>
+      '用于隐私发布时建议关闭，避免提示词、种子等信息随图片保留。';
+
+  @override
+  String get settings_mosaicRememberStyle => '记住上次打码样式';
+
+  @override
+  String get settings_mosaicRememberStyleHint => '保存副本后自动复用最近一次的效果参数。';
+
+  @override
+  String get settings_mosaicCreateFromImage => '选择图片并创建打码副本';
+
+  @override
+  String get settings_mosaicEditDefault => '编辑默认打码样式';
+
+  @override
+  String get settings_mosaicConfigCorrupted => '保存的打码配置无效，请先保存安全默认值后再启用。';
+
+  @override
+  String get settings_mosaicConfigMigrated => '打码配置已升级，请保存一次以完成迁移。';
+
+  @override
+  String get mosaic_actionCreate => '创建打码副本';
+
+  @override
+  String get mosaic_actionRegenerate => '重新创建打码副本';
+
+  @override
+  String get mosaic_editorTitle => '打码编辑器';
+
+  @override
+  String get mosaic_defaultsTitle => '默认打码样式';
+
+  @override
+  String get mosaic_sourceMissing => '找不到原图';
+
+  @override
+  String get mosaic_sourceMissingHint =>
+      '当前图片看起来是打码副本，但关联原图已不存在。请手动选择原图，避免重复叠加打码。';
+
+  @override
+  String get mosaic_chooseOriginal => '选择原图';
+
+  @override
+  String get mosaic_sourceLoadFailed => '无法载入图片，请选择其他静态图片或重试。';
+
+  @override
+  String get mosaic_drawTool => '遮罩绘制工具';
+
+  @override
+  String get mosaic_shapeRectangle => '矩形';
+
+  @override
+  String get mosaic_shapeEllipse => '椭圆';
+
+  @override
+  String get mosaic_shapeBrush => '画笔';
+
+  @override
+  String get mosaic_drawHint => '在预览空白处拖动即可新增区域；拖动区域可移动，拖动四角控制点可缩放。';
+
+  @override
+  String get mosaic_addRegion => '添加区域';
+
+  @override
+  String get mosaic_fullImage => '整图打码';
+
+  @override
+  String get mosaic_clearAll => '清空全部';
+
+  @override
+  String get mosaic_effect => '打码效果';
+
+  @override
+  String get mosaic_effectPixelate => '马赛克';
+
+  @override
+  String get mosaic_effectBlur => '模糊';
+
+  @override
+  String get mosaic_effectSolid => '纯色遮挡';
+
+  @override
+  String get mosaic_pixelSize => '马赛克块大小';
+
+  @override
+  String get mosaic_blurStrength => '模糊强度';
+
+  @override
+  String get mosaic_opacity => '效果不透明度';
+
+  @override
+  String get mosaic_color => '遮挡颜色';
+
+  @override
+  String get mosaic_cornerRadius => '矩形圆角';
+
+  @override
+  String get mosaic_brushSize => '画笔粗细';
+
+  @override
+  String get mosaic_invertMask => '打码区域外部';
+
+  @override
+  String get mosaic_invertMaskHint => '反转遮罩：选中的区域保持清晰，其余部分全部打码。';
+
+  @override
+  String get mosaic_showLabels => '显示区域编号';
+
+  @override
+  String get mosaic_regions => '打码区域';
+
+  @override
+  String get mosaic_noRegions => '还没有打码区域。可在预览图上拖动绘制，或使用上方按钮添加。';
+
+  @override
+  String get mosaic_regionEnabled => '启用当前区域';
+
+  @override
+  String get mosaic_regionLocked => '锁定当前区域';
+
+  @override
+  String get mosaic_positionX => '水平位置';
+
+  @override
+  String get mosaic_positionY => '垂直位置';
+
+  @override
+  String get mosaic_width => '宽度';
+
+  @override
+  String get mosaic_height => '高度';
+
+  @override
+  String get mosaic_duplicate => '复制区域';
+
+  @override
+  String get mosaic_delete => '删除区域';
+
+  @override
+  String get mosaic_keyboardHint =>
+      '快捷键：方向键移动，Shift+方向键快速移动，Delete 删除，Ctrl+D 复制，Ctrl+Z/Y 撤销或重做。';
+
+  @override
+  String get mosaic_canvasHint => '在空白处拖动绘制；区域可选择、移动、缩放、锁定、复制或暂时禁用。';
+
+  @override
+  String get mosaic_noRegionError => '请至少添加并启用一个打码区域后再保存。';
+
+  @override
+  String get mosaic_defaultSaved => '默认打码样式已保存。';
+
+  @override
+  String get mosaic_saveDefaults => '设为默认';
+
+  @override
+  String get mosaic_saveCopy => '保存打码副本';
+
+  @override
+  String get mosaic_saving => '正在保存…';
+
+  @override
+  String get mosaic_saved => '打码副本已保存';
+
+  @override
+  String get mosaic_open => '打开';
+
+  @override
+  String get mosaic_share => '分享';
+
+  @override
+  String get mosaic_cancelled => '已取消打码渲染。';
+
+  @override
+  String get mosaic_failedGeneric => '无法创建打码副本。';
+
+  @override
+  String get mosaic_galleryRefreshFailed => '文件已保存，但本地图库刷新失败。';
+
+  @override
+  String get mosaic_systemGalleryExportFailed => '应用内副本已保存，但导出到系统相册失败。';
+
+  @override
+  String get mosaic_undo => '撤销';
+
+  @override
+  String get mosaic_redo => '重做';
+
+  @override
+  String get mosaic_reset => '重置';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -27771,4 +27975,208 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get tagMode_drag => '長按標籤並拖動排序';
+
+  @override
+  String get settings_mosaicTitle => '打碼與隱私遮擋';
+
+  @override
+  String get settings_mosaicSubtitle => '用馬賽克、模糊、純色遮擋、矩形、橢圓和自由畫筆製作隱私安全副本。';
+
+  @override
+  String get settings_mosaicEnable => '啟用打碼功能';
+
+  @override
+  String get settings_mosaicPreserveMetadata => '保留支援的生成中繼資料';
+
+  @override
+  String get settings_mosaicPreserveMetadataHint =>
+      '用於隱私分享時建議關閉，避免提示詞、種子等資訊隨圖片保留。';
+
+  @override
+  String get settings_mosaicRememberStyle => '記住上次打碼樣式';
+
+  @override
+  String get settings_mosaicRememberStyleHint => '儲存副本後自動沿用最近一次的效果參數。';
+
+  @override
+  String get settings_mosaicCreateFromImage => '選擇圖片並建立打碼副本';
+
+  @override
+  String get settings_mosaicEditDefault => '編輯預設打碼樣式';
+
+  @override
+  String get settings_mosaicConfigCorrupted => '儲存的打碼設定無效，請先儲存安全預設值後再啟用。';
+
+  @override
+  String get settings_mosaicConfigMigrated => '打碼設定已升級，請儲存一次以完成遷移。';
+
+  @override
+  String get mosaic_actionCreate => '建立打碼副本';
+
+  @override
+  String get mosaic_actionRegenerate => '重新建立打碼副本';
+
+  @override
+  String get mosaic_editorTitle => '打碼編輯器';
+
+  @override
+  String get mosaic_defaultsTitle => '預設打碼樣式';
+
+  @override
+  String get mosaic_sourceMissing => '找不到原圖';
+
+  @override
+  String get mosaic_sourceMissingHint =>
+      '目前圖片看起來是打碼副本，但關聯原圖已不存在。請手動選擇原圖，避免重複疊加打碼。';
+
+  @override
+  String get mosaic_chooseOriginal => '選擇原圖';
+
+  @override
+  String get mosaic_sourceLoadFailed => '無法載入圖片，請選擇其他靜態圖片或重試。';
+
+  @override
+  String get mosaic_drawTool => '遮罩繪製工具';
+
+  @override
+  String get mosaic_shapeRectangle => '矩形';
+
+  @override
+  String get mosaic_shapeEllipse => '橢圓';
+
+  @override
+  String get mosaic_shapeBrush => '畫筆';
+
+  @override
+  String get mosaic_drawHint => '在預覽空白處拖曳即可新增區域；拖曳區域可移動，拖曳四角控制點可縮放。';
+
+  @override
+  String get mosaic_addRegion => '新增區域';
+
+  @override
+  String get mosaic_fullImage => '整圖打碼';
+
+  @override
+  String get mosaic_clearAll => '清空全部';
+
+  @override
+  String get mosaic_effect => '打碼效果';
+
+  @override
+  String get mosaic_effectPixelate => '馬賽克';
+
+  @override
+  String get mosaic_effectBlur => '模糊';
+
+  @override
+  String get mosaic_effectSolid => '純色遮擋';
+
+  @override
+  String get mosaic_pixelSize => '馬賽克塊大小';
+
+  @override
+  String get mosaic_blurStrength => '模糊強度';
+
+  @override
+  String get mosaic_opacity => '效果不透明度';
+
+  @override
+  String get mosaic_color => '遮擋顏色';
+
+  @override
+  String get mosaic_cornerRadius => '矩形圓角';
+
+  @override
+  String get mosaic_brushSize => '畫筆粗細';
+
+  @override
+  String get mosaic_invertMask => '打碼區域外部';
+
+  @override
+  String get mosaic_invertMaskHint => '反轉遮罩：選中的區域保持清晰，其餘部分全部打碼。';
+
+  @override
+  String get mosaic_showLabels => '顯示區域編號';
+
+  @override
+  String get mosaic_regions => '打碼區域';
+
+  @override
+  String get mosaic_noRegions => '還沒有打碼區域。可在預覽圖上拖曳繪製，或使用上方按鈕新增。';
+
+  @override
+  String get mosaic_regionEnabled => '啟用目前區域';
+
+  @override
+  String get mosaic_regionLocked => '鎖定目前區域';
+
+  @override
+  String get mosaic_positionX => '水平位置';
+
+  @override
+  String get mosaic_positionY => '垂直位置';
+
+  @override
+  String get mosaic_width => '寬度';
+
+  @override
+  String get mosaic_height => '高度';
+
+  @override
+  String get mosaic_duplicate => '複製區域';
+
+  @override
+  String get mosaic_delete => '刪除區域';
+
+  @override
+  String get mosaic_keyboardHint =>
+      '快捷鍵：方向鍵移動，Shift+方向鍵快速移動，Delete 刪除，Ctrl+D 複製，Ctrl+Z/Y 復原或重做。';
+
+  @override
+  String get mosaic_canvasHint => '在空白處拖曳繪製；區域可選擇、移動、縮放、鎖定、複製或暫時停用。';
+
+  @override
+  String get mosaic_noRegionError => '請至少新增並啟用一個打碼區域後再儲存。';
+
+  @override
+  String get mosaic_defaultSaved => '預設打碼樣式已儲存。';
+
+  @override
+  String get mosaic_saveDefaults => '設為預設';
+
+  @override
+  String get mosaic_saveCopy => '儲存打碼副本';
+
+  @override
+  String get mosaic_saving => '正在儲存…';
+
+  @override
+  String get mosaic_saved => '打碼副本已儲存';
+
+  @override
+  String get mosaic_open => '開啟';
+
+  @override
+  String get mosaic_share => '分享';
+
+  @override
+  String get mosaic_cancelled => '已取消打碼算繪。';
+
+  @override
+  String get mosaic_failedGeneric => '無法建立打碼副本。';
+
+  @override
+  String get mosaic_galleryRefreshFailed => '檔案已儲存，但本機圖庫重新整理失敗。';
+
+  @override
+  String get mosaic_systemGalleryExportFailed => '應用程式內副本已儲存，但匯出至系統相簿失敗。';
+
+  @override
+  String get mosaic_undo => '復原';
+
+  @override
+  String get mosaic_redo => '重做';
+
+  @override
+  String get mosaic_reset => '重設';
 }

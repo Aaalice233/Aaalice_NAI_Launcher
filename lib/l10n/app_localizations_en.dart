@@ -14516,4 +14516,223 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tagMode_drag => 'Long press and drag to reorder';
+
+  @override
+  String get settings_mosaicTitle => 'Redaction & mosaic';
+
+  @override
+  String get settings_mosaicSubtitle =>
+      'Create privacy-safe image copies with pixelation, blur, solid covers, shapes, and a freehand brush.';
+
+  @override
+  String get settings_mosaicEnable => 'Enable redaction tools';
+
+  @override
+  String get settings_mosaicPreserveMetadata =>
+      'Preserve supported generation metadata';
+
+  @override
+  String get settings_mosaicPreserveMetadataHint =>
+      'For privacy-sensitive sharing, keeping this off is recommended.';
+
+  @override
+  String get settings_mosaicRememberStyle =>
+      'Remember the last redaction style';
+
+  @override
+  String get settings_mosaicRememberStyleHint =>
+      'Automatically reuse the most recently saved effect settings.';
+
+  @override
+  String get settings_mosaicCreateFromImage =>
+      'Create a redacted copy from an image';
+
+  @override
+  String get settings_mosaicEditDefault => 'Edit default redaction style';
+
+  @override
+  String get settings_mosaicConfigCorrupted =>
+      'The saved redaction configuration is invalid. Save the safe defaults before enabling it.';
+
+  @override
+  String get settings_mosaicConfigMigrated =>
+      'The redaction configuration was upgraded. Save it once to finish migration.';
+
+  @override
+  String get mosaic_actionCreate => 'Create redacted copy';
+
+  @override
+  String get mosaic_actionRegenerate => 'Recreate redacted copy';
+
+  @override
+  String get mosaic_editorTitle => 'Redaction editor';
+
+  @override
+  String get mosaic_defaultsTitle => 'Default redaction style';
+
+  @override
+  String get mosaic_sourceMissing => 'Original image not found';
+
+  @override
+  String get mosaic_sourceMissingHint =>
+      'This appears to be a redacted derivative, but its original image is unavailable. Choose the original manually to avoid stacking effects.';
+
+  @override
+  String get mosaic_chooseOriginal => 'Choose original image';
+
+  @override
+  String get mosaic_sourceLoadFailed =>
+      'The source image could not be loaded. Choose another static image or try again.';
+
+  @override
+  String get mosaic_drawTool => 'Mask drawing tool';
+
+  @override
+  String get mosaic_shapeRectangle => 'Rectangle';
+
+  @override
+  String get mosaic_shapeEllipse => 'Ellipse';
+
+  @override
+  String get mosaic_shapeBrush => 'Brush';
+
+  @override
+  String get mosaic_drawHint =>
+      'Drag on an empty part of the preview to draw. Drag a region to move it; use corner handles to resize.';
+
+  @override
+  String get mosaic_addRegion => 'Add region';
+
+  @override
+  String get mosaic_fullImage => 'Whole image';
+
+  @override
+  String get mosaic_clearAll => 'Clear all';
+
+  @override
+  String get mosaic_effect => 'Redaction effect';
+
+  @override
+  String get mosaic_effectPixelate => 'Pixelate';
+
+  @override
+  String get mosaic_effectBlur => 'Blur';
+
+  @override
+  String get mosaic_effectSolid => 'Solid cover';
+
+  @override
+  String get mosaic_pixelSize => 'Pixel block size';
+
+  @override
+  String get mosaic_blurStrength => 'Blur strength';
+
+  @override
+  String get mosaic_opacity => 'Effect opacity';
+
+  @override
+  String get mosaic_color => 'Cover color';
+
+  @override
+  String get mosaic_cornerRadius => 'Corner radius';
+
+  @override
+  String get mosaic_brushSize => 'Brush size';
+
+  @override
+  String get mosaic_invertMask => 'Redact outside regions';
+
+  @override
+  String get mosaic_invertMaskHint =>
+      'Inverts the mask: selected regions remain visible and everything outside is redacted.';
+
+  @override
+  String get mosaic_showLabels => 'Show region numbers';
+
+  @override
+  String get mosaic_regions => 'Regions';
+
+  @override
+  String get mosaic_noRegions =>
+      'No regions yet. Drag on the preview or add one with the buttons above.';
+
+  @override
+  String get mosaic_regionEnabled => 'Region enabled';
+
+  @override
+  String get mosaic_regionLocked => 'Lock region';
+
+  @override
+  String get mosaic_positionX => 'Horizontal position';
+
+  @override
+  String get mosaic_positionY => 'Vertical position';
+
+  @override
+  String get mosaic_width => 'Width';
+
+  @override
+  String get mosaic_height => 'Height';
+
+  @override
+  String get mosaic_duplicate => 'Duplicate';
+
+  @override
+  String get mosaic_delete => 'Delete region';
+
+  @override
+  String get mosaic_keyboardHint =>
+      'Keyboard: arrows move, Shift+arrows move faster, Delete removes, Ctrl+D duplicates, Ctrl+Z/Y undo/redo.';
+
+  @override
+  String get mosaic_canvasHint =>
+      'Draw on empty space. Select, move, resize, lock, duplicate, or disable any region.';
+
+  @override
+  String get mosaic_noRegionError =>
+      'Add at least one enabled redaction region before saving.';
+
+  @override
+  String get mosaic_defaultSaved => 'Default redaction style saved.';
+
+  @override
+  String get mosaic_saveDefaults => 'Save as default';
+
+  @override
+  String get mosaic_saveCopy => 'Save redacted copy';
+
+  @override
+  String get mosaic_saving => 'Saving…';
+
+  @override
+  String get mosaic_saved => 'Redacted copy saved';
+
+  @override
+  String get mosaic_open => 'Open';
+
+  @override
+  String get mosaic_share => 'Share';
+
+  @override
+  String get mosaic_cancelled => 'Redaction rendering was cancelled.';
+
+  @override
+  String get mosaic_failedGeneric => 'The redacted copy could not be created.';
+
+  @override
+  String get mosaic_galleryRefreshFailed =>
+      'The file was saved, but the local gallery could not be refreshed.';
+
+  @override
+  String get mosaic_systemGalleryExportFailed =>
+      'The app copy was saved, but system gallery export failed.';
+
+  @override
+  String get mosaic_undo => 'Undo';
+
+  @override
+  String get mosaic_redo => 'Redo';
+
+  @override
+  String get mosaic_reset => 'Reset';
 }

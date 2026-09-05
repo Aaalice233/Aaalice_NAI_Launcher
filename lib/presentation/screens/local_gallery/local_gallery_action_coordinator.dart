@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as path;
 
+import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/database/database_providers.dart';
@@ -29,10 +30,12 @@ import '../../providers/gallery_category_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
+import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../router/app_routes.dart';
+import '../mosaic/mosaic_editor_launcher.dart';
 import '../watermark/watermark_editor_launcher.dart';
 import 'local_gallery_move_target.dart';
 import '../../services/image_workflow_launcher.dart';
@@ -160,6 +163,9 @@ class LocalGalleryActionCoordinator {
   WatermarkDerivativeRegistry get _watermarkRegistry =>
       WatermarkDerivativeRegistry(_ref.read(localStorageServiceProvider));
 
+  MosaicDerivativeRegistry get _mosaicRegistry =>
+      MosaicDerivativeRegistry(_ref.read(localStorageServiceProvider));
+
   Future<List<LocalImageRecord>> _selectedImages() async {
     final selectedIds = _ref
         .read(localGallerySelectionNotifierProvider)
@@ -224,6 +230,7 @@ class LocalGalleryActionCoordinator {
         if (await file.exists()) {
           await file.delete();
           await _watermarkRegistry.remove(image.path);
+          await _mosaicRegistry.remove(image.path);
           deletedCount++;
         }
       } catch (_) {
@@ -396,6 +403,10 @@ class LocalGalleryActionCoordinator {
         oldPath: image.path,
         newPath: newPath,
       );
+      await _mosaicRegistry.relocatePath(
+        oldPath: image.path,
+        newPath: newPath,
+      );
       movedCount++;
     }
     if (!_mounted()) return;
@@ -487,6 +498,13 @@ class LocalGalleryActionCoordinator {
       isWatermarkDerivative: WatermarkDerivativeRegistry(
         _ref.read(localStorageServiceProvider),
       ).isDerivative(record.path),
+      mosaicEnabled: _ref
+          .read(mosaicSettingsProvider)
+          .configuration
+          .enabled,
+      isMosaicDerivative: MosaicDerivativeRegistry(
+        _ref.read(localStorageServiceProvider),
+      ).isDerivative(record.path),
     );
     if (action == null || !_mounted()) return;
     await routeImageAction(
@@ -527,6 +545,11 @@ class LocalGalleryActionCoordinator {
         await _shareLocalImageToDiscord(record);
       case LocalImageContextAction.createWatermark:
         await WatermarkEditorLauncher.openForLocalPath(
+          context: _context(),
+          path: record.path,
+        );
+      case LocalImageContextAction.createMosaic:
+        await MosaicEditorLauncher.openForLocalPath(
           context: _context(),
           path: record.path,
         );
@@ -967,6 +990,7 @@ class LocalGalleryActionCoordinator {
       if (!await file.exists()) return;
       await file.delete();
       await _watermarkRegistry.remove(record.path);
+      await _mosaicRegistry.remove(record.path);
       await _ref.read(localGalleryNotifierProvider.notifier).refresh();
       if (_mounted()) {
         AppToast.success(_context(), _context().l10n.localGallery_imageDeleted);

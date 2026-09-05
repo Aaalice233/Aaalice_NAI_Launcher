@@ -76,7 +76,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 - Scan only the folders you choose, then find artwork by folder, album, favorite status, Prompt, or generation metadata.
 - Image details separate positive and negative Prompts, pinned tags, character content, and full parameters for all-at-once or selective copying.
-- Batch categorization, favorites, moving, and deletion sit alongside comparison, slideshows, watermarks, and several viewing modes.
+- Batch categorization, favorites, moving, and deletion sit alongside comparison, slideshows, watermarks, redacted copies, and several viewing modes.
 - Desktop gets context menus, hover previews, and drag-and-drop; touch devices get equivalent menus instead of losing features.
 - Local images can go directly to generation, Agent Chat, or Krita without repeated exports and file picking.
 

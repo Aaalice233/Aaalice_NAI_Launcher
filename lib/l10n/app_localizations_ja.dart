@@ -14139,4 +14139,213 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get tagMode_drag => 'タグを長押ししてドラッグで並べ替え';
+
+  @override
+  String get settings_mosaicTitle => 'モザイク・プライバシー保護';
+
+  @override
+  String get settings_mosaicSubtitle =>
+      'モザイク、ぼかし、単色塗り、矩形・楕円、フリーハンドで安全な複製を作成します。';
+
+  @override
+  String get settings_mosaicEnable => 'モザイク機能を有効にする';
+
+  @override
+  String get settings_mosaicPreserveMetadata => '対応する生成メタデータを保持';
+
+  @override
+  String get settings_mosaicPreserveMetadataHint =>
+      'プライバシー重視の共有では、プロンプトやシードを残さないためオフを推奨します。';
+
+  @override
+  String get settings_mosaicRememberStyle => '最後のスタイルを記憶';
+
+  @override
+  String get settings_mosaicRememberStyleHint => '最後に保存した効果設定を次回も使用します。';
+
+  @override
+  String get settings_mosaicCreateFromImage => '画像からモザイク済みコピーを作成';
+
+  @override
+  String get settings_mosaicEditDefault => '既定のモザイク設定を編集';
+
+  @override
+  String get settings_mosaicConfigCorrupted =>
+      '保存された設定が無効です。安全な既定値を保存してから有効にしてください。';
+
+  @override
+  String get settings_mosaicConfigMigrated => '設定が更新されました。移行を完了するため一度保存してください。';
+
+  @override
+  String get mosaic_actionCreate => 'モザイク済みコピーを作成';
+
+  @override
+  String get mosaic_actionRegenerate => 'モザイク済みコピーを再作成';
+
+  @override
+  String get mosaic_editorTitle => 'モザイク編集';
+
+  @override
+  String get mosaic_defaultsTitle => '既定のモザイク設定';
+
+  @override
+  String get mosaic_sourceMissing => '元画像が見つかりません';
+
+  @override
+  String get mosaic_sourceMissingHint =>
+      'モザイク済み派生画像ですが元画像を利用できません。効果の重ね掛けを避けるため元画像を選択してください。';
+
+  @override
+  String get mosaic_chooseOriginal => '元画像を選択';
+
+  @override
+  String get mosaic_sourceLoadFailed => '画像を読み込めません。別の静止画像を選択するか再試行してください。';
+
+  @override
+  String get mosaic_drawTool => 'マスク描画ツール';
+
+  @override
+  String get mosaic_shapeRectangle => '矩形';
+
+  @override
+  String get mosaic_shapeEllipse => '楕円';
+
+  @override
+  String get mosaic_shapeBrush => 'ブラシ';
+
+  @override
+  String get mosaic_drawHint =>
+      'プレビューの空白部分をドラッグして追加します。領域をドラッグして移動し、角のハンドルでサイズを変更できます。';
+
+  @override
+  String get mosaic_addRegion => '領域を追加';
+
+  @override
+  String get mosaic_fullImage => '画像全体';
+
+  @override
+  String get mosaic_clearAll => 'すべて消去';
+
+  @override
+  String get mosaic_effect => '処理効果';
+
+  @override
+  String get mosaic_effectPixelate => 'モザイク';
+
+  @override
+  String get mosaic_effectBlur => 'ぼかし';
+
+  @override
+  String get mosaic_effectSolid => '単色塗り';
+
+  @override
+  String get mosaic_pixelSize => 'ブロックサイズ';
+
+  @override
+  String get mosaic_blurStrength => 'ぼかし強度';
+
+  @override
+  String get mosaic_opacity => '効果の不透明度';
+
+  @override
+  String get mosaic_color => '塗りつぶし色';
+
+  @override
+  String get mosaic_cornerRadius => '角の丸み';
+
+  @override
+  String get mosaic_brushSize => 'ブラシサイズ';
+
+  @override
+  String get mosaic_invertMask => '領域の外側を処理';
+
+  @override
+  String get mosaic_invertMaskHint => 'マスクを反転し、選択領域を見える状態にして外側を処理します。';
+
+  @override
+  String get mosaic_showLabels => '領域番号を表示';
+
+  @override
+  String get mosaic_regions => '領域';
+
+  @override
+  String get mosaic_noRegions => '領域がありません。プレビュー上でドラッグするか、上のボタンで追加してください。';
+
+  @override
+  String get mosaic_regionEnabled => 'この領域を有効化';
+
+  @override
+  String get mosaic_regionLocked => 'この領域をロック';
+
+  @override
+  String get mosaic_positionX => '横位置';
+
+  @override
+  String get mosaic_positionY => '縦位置';
+
+  @override
+  String get mosaic_width => '幅';
+
+  @override
+  String get mosaic_height => '高さ';
+
+  @override
+  String get mosaic_duplicate => '複製';
+
+  @override
+  String get mosaic_delete => '領域を削除';
+
+  @override
+  String get mosaic_keyboardHint =>
+      'キー操作：矢印で移動、Shift+矢印で高速移動、Deleteで削除、Ctrl+Dで複製、Ctrl+Z/Yで元に戻す・やり直す。';
+
+  @override
+  String get mosaic_canvasHint => '空白部分で描画できます。領域は選択、移動、サイズ変更、ロック、複製、無効化が可能です。';
+
+  @override
+  String get mosaic_noRegionError => '保存する前に、有効な領域を1つ以上追加してください。';
+
+  @override
+  String get mosaic_defaultSaved => '既定のモザイク設定を保存しました。';
+
+  @override
+  String get mosaic_saveDefaults => '既定として保存';
+
+  @override
+  String get mosaic_saveCopy => 'モザイク済みコピーを保存';
+
+  @override
+  String get mosaic_saving => '保存中…';
+
+  @override
+  String get mosaic_saved => 'モザイク済みコピーを保存しました';
+
+  @override
+  String get mosaic_open => '開く';
+
+  @override
+  String get mosaic_share => '共有';
+
+  @override
+  String get mosaic_cancelled => '処理をキャンセルしました。';
+
+  @override
+  String get mosaic_failedGeneric => 'モザイク済みコピーを作成できませんでした。';
+
+  @override
+  String get mosaic_galleryRefreshFailed =>
+      'ファイルは保存されましたが、ローカルギャラリーを更新できませんでした。';
+
+  @override
+  String get mosaic_systemGalleryExportFailed =>
+      'アプリ内には保存されましたが、システムギャラリーへの書き出しに失敗しました。';
+
+  @override
+  String get mosaic_undo => '元に戻す';
+
+  @override
+  String get mosaic_redo => 'やり直す';
+
+  @override
+  String get mosaic_reset => 'リセット';
 }

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../../../core/storage/local_storage_service.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../../../data/models/gallery/local_image_record.dart';
 import '../../../../providers/local_gallery_provider.dart';
+import '../../../../providers/mosaic_settings_provider.dart';
 import '../../../../providers/watermark_settings_provider.dart';
 import '../../animated_favorite_button.dart';
 import '../image_detail_data.dart';
@@ -25,6 +27,7 @@ class DetailTopBar extends StatelessWidget {
   final VoidCallback? onCopyImage;
   final VoidCallback? onShare;
   final VoidCallback? onWatermark;
+  final VoidCallback? onMosaic;
   final VoidCallback? onSendToImg2Img;
   final VoidCallback? onSendToReversePrompt;
 
@@ -41,6 +44,7 @@ class DetailTopBar extends StatelessWidget {
     this.onCopyImage,
     this.onShare,
     this.onWatermark,
+    this.onMosaic,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
   });
@@ -116,6 +120,7 @@ class DetailTopBar extends StatelessWidget {
                 onCopyImage: onCopyImage,
                 onShare: onShare,
                 onWatermark: onWatermark,
+                onMosaic: onMosaic,
                 onSendToImg2Img: onSendToImg2Img,
                 onSendToReversePrompt: onSendToReversePrompt,
               ),
@@ -136,6 +141,7 @@ enum _DetailOverflowAction {
   reversePrompt,
   copy,
   watermark,
+  mosaic,
 }
 
 class _DetailTopBarActions extends ConsumerWidget {
@@ -149,6 +155,7 @@ class _DetailTopBarActions extends ConsumerWidget {
     this.onCopyImage,
     this.onShare,
     this.onWatermark,
+    this.onMosaic,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
   });
@@ -162,6 +169,7 @@ class _DetailTopBarActions extends ConsumerWidget {
   final VoidCallback? onCopyImage;
   final VoidCallback? onShare;
   final VoidCallback? onWatermark;
+  final VoidCallback? onMosaic;
   final VoidCallback? onSendToImg2Img;
   final VoidCallback? onSendToReversePrompt;
 
@@ -197,6 +205,17 @@ class _DetailTopBarActions extends ConsumerWidget {
     final watermarkLabel = isWatermarkDerivative
         ? l10n.watermark_actionRegenerate
         : l10n.watermark_actionCreate;
+    final mosaicEnabled = ref.watch(
+      mosaicSettingsProvider.select((state) => state.configuration.enabled),
+    );
+    final isMosaicDerivative =
+        currentImage is LocalImageDetailData &&
+        MosaicDerivativeRegistry(
+          ref.read(localStorageServiceProvider),
+        ).isDerivative(currentImage.identifier);
+    final mosaicLabel = isMosaicDerivative
+        ? l10n.mosaic_actionRegenerate
+        : l10n.mosaic_actionCreate;
     final favorite = currentImage.showFavoriteButton && onFavoriteToggle != null
         ? _buildFavorite(ref)
         : null;
@@ -275,6 +294,14 @@ class _DetailTopBarActions extends ConsumerWidget {
               title: Text(watermarkLabel),
             ),
           ),
+        if (mosaicEnabled && onMosaic != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.mosaic,
+            child: ListTile(
+              leading: const Icon(Icons.grid_on_rounded),
+              title: Text(mosaicLabel),
+            ),
+          ),
       ];
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -329,6 +356,9 @@ class _DetailTopBarActions extends ConsumerWidget {
                   case _DetailOverflowAction.watermark:
                     onWatermark?.call();
                     break;
+                  case _DetailOverflowAction.mosaic:
+                    onMosaic?.call();
+                    break;
                 }
               },
             ),
@@ -359,6 +389,12 @@ class _DetailTopBarActions extends ConsumerWidget {
             ),
             onPressed: onWatermark,
             tooltip: watermarkLabel,
+          ),
+        if (mosaicEnabled && onMosaic != null)
+          IconButton(
+            icon: const Icon(Icons.grid_on_rounded, color: Colors.white),
+            onPressed: onMosaic,
+            tooltip: mosaicLabel,
           ),
         if (hasMetadata && onReuseMetadata != null)
           IconButton(

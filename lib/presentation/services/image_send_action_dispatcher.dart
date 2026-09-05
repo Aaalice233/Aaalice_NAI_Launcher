@@ -15,6 +15,7 @@ import '../providers/fixed_tags_provider.dart';
 import '../providers/image_generation_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
 import '../router/app_routes.dart';
+import '../screens/mosaic/mosaic_editor_launcher.dart';
 import '../screens/watermark/watermark_editor_launcher.dart';
 import '../utils/fixed_tag_metadata_matcher.dart';
 import '../utils/krita_send_helper.dart';
@@ -87,6 +88,12 @@ class ImageSendActionDispatcher {
           await _shareToDiscord(context, ref, bytes, fileName);
         case LocalImageContextAction.createWatermark:
           await WatermarkEditorLauncher.open(
+            context: context,
+            sourceBytes: bytes,
+            sourceFileName: fileName,
+          );
+        case LocalImageContextAction.createMosaic:
+          await MosaicEditorLauncher.open(
             context: context,
             sourceBytes: bytes,
             sourceFileName: fileName,
