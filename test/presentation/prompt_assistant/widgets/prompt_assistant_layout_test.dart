@@ -31,6 +31,7 @@ Future<void> _pump(
       supportedLocales: AppLocalizations.supportedLocales,
       home: MediaQuery(
         data: MediaQueryData(
+          disableAnimations: true,
           size: const Size(800, 600),
           textScaler: TextScaler.linear(scale),
         ),

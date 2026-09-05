@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/localization_extension.dart';
 import 'prompt_assistant_processing_button.dart';
+import 'prompt_assistant_hover_icon.dart';
 import '../../widgets/common/card_action_buttons.dart';
 import '../../themes/core/layered_surface_style.dart';
 
@@ -154,10 +155,7 @@ class PromptAssistantToolbar extends StatelessWidget {
     BuildContext context,
     PromptAssistantToolbarAction action,
   ) {
-    final icon = Icon(
-      action.icon,
-      size: policy.shouldExposeTouchAlternatives ? 20 : 17,
-    );
+    final iconSize = policy.shouldExposeTouchAlternatives ? 20.0 : 17.0;
     final colors = Theme.of(context).colorScheme;
     final idle = !expanded && !processing;
     final style = ButtonStyle(
@@ -181,7 +179,7 @@ class PromptAssistantToolbar extends StatelessWidget {
             : RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
     );
-    return Tooltip(
+    Widget button(Widget icon) => Tooltip(
       message: action.tooltip,
       preferBelow: false,
       waitDuration: const Duration(milliseconds: 180),
@@ -203,5 +201,12 @@ class PromptAssistantToolbar extends StatelessWidget {
               ),
       ),
     );
+    return idle
+        ? PromptAssistantHoverIcon(
+            icon: action.icon,
+            size: iconSize,
+            buttonBuilder: button,
+          )
+        : button(Icon(action.icon, size: iconSize));
   }
 }
