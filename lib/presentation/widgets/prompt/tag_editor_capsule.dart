@@ -7,6 +7,7 @@ import 'prompt_translation_caption.dart';
 import 'prompt_translation_controller.dart';
 import 'tag_editor_session.dart';
 import 'tag_editor_weight_label.dart';
+import 'tag_editor_weight_style.dart';
 
 class TagEditorCapsule extends StatefulWidget {
   const TagEditorCapsule({
@@ -25,6 +26,7 @@ class TagEditorCapsule extends StatefulWidget {
     this.enableAutocomplete = true,
     this.selectTextOnEdit = true,
     this.autocompleteOverlay,
+    this.emphasisColor,
   });
   final PromptEditorTag tag;
   final bool selected;
@@ -40,6 +42,7 @@ class TagEditorCapsule extends StatefulWidget {
   final bool enableAutocomplete;
   final bool selectTextOnEdit;
   final AutocompleteOverlayHandle? autocompleteOverlay;
+  final Color? emphasisColor;
   @override
   State<TagEditorCapsule> createState() => _TagEditorCapsuleState();
 }
@@ -142,8 +145,13 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final span = widget.tag.span;
+    final emphasisColor = widget.emphasisColor;
     final background = widget.selected
         ? scheme.secondaryContainer
+        : emphasisColor != null && !span.disabled
+        ? TagEditorWeightStyle(
+            emphasisColor,
+          ).surface(scheme.surfaceContainerHigh)
         : scheme.surfaceContainerHigh;
     final style = theme.textTheme.bodyMedium?.copyWith(
       color: span.disabled ? scheme.onSurfaceVariant : scheme.onSurface,
@@ -163,7 +171,10 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
             else
               Text(span.label, style: style),
             if (span.prefix.isNotEmpty || span.suffix.isNotEmpty)
-              TagEditorWeightLabel(span: span),
+              TagEditorWeightLabel(
+                span: span,
+                emphasisColor: span.disabled ? null : emphasisColor,
+              ),
           ],
         ),
         if (widget.showTranslation)

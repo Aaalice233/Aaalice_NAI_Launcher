@@ -58,6 +58,35 @@ class NaiSyntaxController extends TextEditingController {
   /// 是否存在语法错误
   bool get hasSyntaxErrors => _syntaxErrors.isNotEmpty;
 
+  /// Tag surfaces use the same source-position emphasis as the text editor,
+  /// without search, alias or negative-block decorations changing weight color.
+  Map<int, Color> emphasisColorsAt(ThemeData theme, Iterable<int> offsets) {
+    if (!highlightEnabled || text.isEmpty) return const {};
+    final marks = List<_HighlightMark?>.filled(text.length, null);
+    var active = text;
+    final disabled = PromptEditDocument.disabledRanges(
+      text,
+      allowIncomplete: true,
+    );
+    for (final range in disabled.reversed) {
+      active = active.replaceRange(
+        range.$1,
+        range.$2,
+        ' ' * (range.$2 - range.$1),
+      );
+    }
+    _applyOfficialEmphasis(active, marks, []);
+    for (final range in disabled) {
+      marks.fillRange(range.$1, range.$2, null);
+    }
+    final colors = NaiSyntaxColors.fromTheme(theme);
+    return {
+      for (final offset in offsets)
+        if (offset >= 0 && offset < marks.length && marks[offset] != null)
+          offset: colors._getBackgroundColor(marks[offset]!),
+    };
+  }
+
   NaiSyntaxController({
     super.text,
     bool highlightEnabled = true,

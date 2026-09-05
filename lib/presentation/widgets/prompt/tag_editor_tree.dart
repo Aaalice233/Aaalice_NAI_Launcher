@@ -6,6 +6,8 @@ import 'prompt_translation_controller.dart';
 import 'tag_editor_capsule.dart';
 import 'tag_editor_session.dart';
 import 'tag_editor_weight_label.dart';
+import 'tag_editor_weight_style.dart';
+import 'nai_syntax_controller.dart';
 import 'tag_drag_preview.dart';
 import '../autocomplete/autocomplete_overlay_handle.dart';
 
@@ -54,6 +56,7 @@ class _TagEditorTreeState extends State<TagEditorTree> {
   String? _dragSource;
   int? _dropBefore;
   bool _showDrop = false;
+  Map<int, Color> _weightColors = const {};
 
   bool _canDrop(Set<int> ids) =>
       widget.enabled &&
@@ -120,22 +123,41 @@ class _TagEditorTreeState extends State<TagEditorTree> {
   }
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    children: [
-      ..._items(context, widget.session.tags, widget.width),
-      if (_showDrop && _dropBefore == null) _placeholder(context, null),
-      DragTarget<Set<int>>(
-        key: const ValueKey('tag-list-end-target'),
-        onWillAcceptWithDetails: (details) => _canDrop(details.data),
-        onMove: (_) => _hover(null),
-        onAcceptWithDetails: (details) => _drop(details.data, null),
-        builder: (context, _, _) => widget.addition,
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final source = widget.session.controller;
+    final syntax = source is NaiSyntaxController
+        ? source
+        : NaiSyntaxController(text: source.text);
+    Iterable<int> offsets(List<PromptEditorTag> tags) sync* {
+      for (final tag in tags) {
+        if (!tag.span.disabled && tag.span.complete) yield tag.span.editStart;
+        yield* offsets(tag.children);
+      }
+    }
+
+    _weightColors = syntax.emphasisColorsAt(
+      Theme.of(context),
+      offsets(widget.session.tags),
+    );
+    if (!identical(syntax, source)) syntax.dispose();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        ..._items(context, widget.session.tags, widget.width),
+        if (_showDrop && _dropBefore == null) _placeholder(context, null),
+        DragTarget<Set<int>>(
+          key: const ValueKey('tag-list-end-target'),
+          onWillAcceptWithDetails: (details) => _canDrop(details.data),
+          onMove: (_) => _hover(null),
+          onAcceptWithDetails: (details) => _drop(details.data, null),
+          builder: (context, _, _) => widget.addition,
+        ),
+      ],
+    );
+  }
+
   Widget _tag(BuildContext context, PromptEditorTag tag, double width) {
     final pending = widget.pendingAddition;
     if (pending != null &&
@@ -149,6 +171,9 @@ class _TagEditorTreeState extends State<TagEditorTree> {
   }
 
   Widget _group(BuildContext context, PromptEditorTag tag, double width) {
+    final theme = Theme.of(context);
+    final color = _weightColors[tag.span.editStart];
+    final weightStyle = color == null ? null : TagEditorWeightStyle(color);
     return Semantics(
       label: context.l10n.tagMode_group,
       child: Container(
@@ -156,11 +181,18 @@ class _TagEditorTreeState extends State<TagEditorTree> {
         constraints: BoxConstraints(maxWidth: width),
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          color:
+              weightStyle?.surface(
+                theme.colorScheme.surfaceContainerLow,
+                group: true,
+              ) ??
+              theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(8),
           border: BorderDirectional(
             start: BorderSide(
-              color: Theme.of(context).colorScheme.outlineVariant,
+              color:
+                  weightStyle?.accent(theme) ??
+                  theme.colorScheme.outlineVariant,
               width: 2,
             ),
           ),
@@ -169,7 +201,11 @@ class _TagEditorTreeState extends State<TagEditorTree> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TagEditorWeightLabel(span: tag.span),
+            TagEditorWeightLabel(
+              span: tag.span,
+              emphasisColor: color,
+              expandable: true,
+            ),
             const SizedBox(height: 4),
             Wrap(
               spacing: 6,
@@ -195,6 +231,7 @@ class _TagEditorTreeState extends State<TagEditorTree> {
       key: ValueKey(tag.id),
       autocompleteOverlay: widget.autocompleteOverlay,
       tag: tag,
+      emphasisColor: _weightColors[tag.span.editStart],
       selected: selected,
       editing: editing,
       maxWidth: (width - 20).clamp(0, width),
