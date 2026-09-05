@@ -76,8 +76,26 @@ class _MosaicEditorCanvasState extends State<MosaicEditorCanvas> {
         final imageRect = imageRectFor(viewport, widget.source);
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTapDown: (details) {
-            widget.onFocusRequested();
+          onPanDown: (details) {
+            final selected = _selectedRegion();
+            // Resolve handles before pan recognition moves beyond their bounds.
+            _dragMode =
+                selected != null &&
+                    !selected.locked &&
+                    selected.shape != MosaicShape.brush
+                ? _hitHandle(details.localPosition, imageRect, selected)
+                : _DragMode.none;
+          },
+          onTapDown: (_) => widget.onFocusRequested(),
+          onTapUp: (details) {
+            final selected = _selectedRegion();
+            if (selected != null &&
+                !selected.locked &&
+                selected.shape != MosaicShape.brush &&
+                _hitHandle(details.localPosition, imageRect, selected) !=
+                    _DragMode.none) {
+              return;
+            }
             if (!imageRect.contains(details.localPosition)) {
               widget.onSelected(null);
               return;
@@ -112,13 +130,12 @@ class _MosaicEditorCanvasState extends State<MosaicEditorCanvas> {
 
   void _startGesture(DragStartDetails details, Rect imageRect) {
     widget.onFocusRequested();
-    if (!imageRect.contains(details.localPosition)) return;
     final point = _normalize(details.localPosition, imageRect);
     final selected = _selectedRegion();
     if (selected != null &&
         selected.shape != MosaicShape.brush &&
         !selected.locked) {
-      final handle = _hitHandle(details.localPosition, imageRect, selected);
+      final handle = _dragMode;
       if (handle != _DragMode.none) {
         _dragMode = handle;
         _startPoint = point;
@@ -128,6 +145,7 @@ class _MosaicEditorCanvasState extends State<MosaicEditorCanvas> {
       }
     }
 
+    if (!imageRect.contains(details.localPosition)) return;
     final hit = _hitRegion(details.localPosition, imageRect, widget.regions);
     if (hit != null) {
       widget.onSelected(hit.id);

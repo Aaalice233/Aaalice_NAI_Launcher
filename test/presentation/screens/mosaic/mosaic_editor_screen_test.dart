@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,6 +35,87 @@ void main() {
     _preview = await MosaicRenderService.decodePreview(bytes);
   });
   tearDownAll(() => _preview.dispose());
+
+  for (final shape in [MosaicShape.roundedRectangle, MosaicShape.ellipse]) {
+    for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.touch]) {
+      for (final corner in [
+        const Offset(-1, -1),
+        const Offset(1, -1),
+        const Offset(-1, 1),
+        const Offset(1, 1),
+      ]) {
+        testWidgets(
+          '$shape $kind resizes from corner $corner after press delay',
+          (tester) async {
+            var region = MosaicRegion(
+              id: 'resize',
+              left: .25,
+              top: .25,
+              width: .5,
+              height: .5,
+              shape: shape,
+            );
+            String? selected = region.id;
+            var transforms = 0;
+            var created = 0;
+            await tester.pumpWidget(
+              MaterialApp(
+                home: Center(
+                  child: SizedBox(
+                    width: 320,
+                    height: 240,
+                    child: StatefulBuilder(
+                      builder: (context, setState) => MosaicEditorCanvas(
+                        source: _preview,
+                        processed: null,
+                        settings: const MosaicSettings(),
+                        regions: [region],
+                        selectedId: selected,
+                        drawShape: shape,
+                        selectionColor: Colors.blue,
+                        backgroundColor: Colors.black,
+                        onSelected: (value) => setState(() => selected = value),
+                        onBeginRegionTransform: () => transforms++,
+                        onRegionChanged: (value) =>
+                            setState(() => region = value),
+                        onRegionCreated: (_, __, ___) => created++,
+                        onFocusRequested: () {},
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+            final center = tester.getCenter(find.byType(MosaicEditorCanvas));
+            final start = center + Offset(80 * corner.dx, 60 * corner.dy);
+            final gesture = await tester.startGesture(start, kind: kind);
+            await tester.pump(const Duration(milliseconds: 150));
+            await gesture.moveBy(corner * 30);
+            await tester.pump();
+            await gesture.moveBy(corner * 20);
+            await tester.pump();
+            await gesture.up();
+            await tester.pump();
+            expect(selected, 'resize');
+            expect(transforms, 1);
+            expect(created, 0);
+            expect(region.width, closeTo(.5 + 50 / 320, .00001));
+            expect(region.height, closeTo(.5 + 50 / 240, .00001));
+            expect(
+              corner.dx < 0 ? region.left + region.width : region.left,
+              closeTo(corner.dx < 0 ? .75 : .25, .00001),
+            );
+            expect(
+              corner.dy < 0 ? region.top + region.height : region.top,
+              closeTo(corner.dy < 0 ? .75 : .25, .00001),
+            );
+            expect(tester.takeException(), isNull);
+            await tester.pumpWidget(const SizedBox.shrink());
+          },
+        );
+      }
+    }
+  }
 
   testWidgets(
     'saving freezes the displayed mask and cancellation restores editing',
