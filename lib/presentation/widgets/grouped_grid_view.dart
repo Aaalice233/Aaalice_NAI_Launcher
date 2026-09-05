@@ -124,65 +124,84 @@ class GroupedGridViewState extends ConsumerState<GroupedGridView> {
 
     if (groups.isEmpty) return const SizedBox.shrink();
 
-    final theme = Theme.of(context);
+    final lastIndex = groups.length - 1;
 
-    return ListView.builder(
+    // 分组必须是同一 viewport 下的 sliver：shrinkWrap 网格拿到无界主轴约束，
+    // 会为了算高度把整组图片一次性布局出来。
+    return CustomScrollView(
       controller: _scrollController,
-      padding: const EdgeInsets.all(12),
-      itemCount: groups.length,
-      itemBuilder: (context, groupIndex) {
-        final group = groups[groupIndex];
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              key: _groupKeys[group.category],
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              child: Row(
-                children: [
-                  Text(
-                    group.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${group.images.length}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
+      slivers: [
+        for (final (index, group) in groups.indexed) ...[
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(12, index == 0 ? 12 : 0, 12, 8),
+            sliver: SliverToBoxAdapter(
+              child: _GroupHeader(
+                key: _groupKeys[group.category],
+                title: group.title,
+                count: group.images.length,
               ),
             ),
-            const SizedBox(height: 8),
-            MasonryGridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+          ),
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              12,
+              0,
+              12,
+              index == lastIndex ? 28 : 16,
+            ),
+            sliver: SliverMasonryGrid.count(
               crossAxisCount: widget.columns,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              itemCount: group.images.length,
-              itemBuilder: (context, index) =>
-                  widget.buildCard(group.images[index]),
+              childCount: group.images.length,
+              itemBuilder: (context, itemIndex) =>
+                  widget.buildCard(group.images[itemIndex]),
             ),
-            const SizedBox(height: 16),
-          ],
-        );
-      },
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader({super.key, required this.title, required this.count});
+
+  final String title;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '$count',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
