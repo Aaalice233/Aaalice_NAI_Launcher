@@ -19,6 +19,7 @@ class FixedTagsDialogController extends ChangeNotifier {
   RenderBox? _linkLayer;
   String positiveSearchQuery = '';
   String negativeSearchQuery = '';
+  bool enabledOnly = false;
   FixedTagPromptType mobilePromptType = FixedTagPromptType.positive;
   int? _scheduledGeometryHash;
   bool _scrollRepaintScheduled = false;
@@ -60,6 +61,11 @@ class FixedTagsDialogController extends ChangeNotifier {
   void clearSearch(FixedTagPromptType promptType) {
     searchControllerFor(promptType).clear();
     setSearchQuery(promptType, '');
+  }
+
+  void toggleEnabledOnly() {
+    enabledOnly = !enabledOnly;
+    notifyListeners();
   }
 
   void selectMobilePromptType(FixedTagPromptType promptType) {

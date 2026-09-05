@@ -64,6 +64,7 @@ class FixedTagsDialogView extends StatelessWidget {
               child: Column(
                 children: [
                   FixedTagsDialogHeader(
+                    controller: controller,
                     data: data,
                     commands: commands,
                     isCompact: isCompact,

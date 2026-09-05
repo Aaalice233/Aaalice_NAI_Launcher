@@ -99,6 +99,98 @@ void main() {
     expect(tester.widget<ThemedSwitch>(entrySwitch).value, isTrue);
   });
 
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+    for (final scale in [1.0, 3.0]) {
+      testWidgets(
+        'enabled-only filter at $width / ${scale}x preserves entry state',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = Size(width, 1000);
+          addTearDown(tester.view.reset);
+          final storage = _SidebarTestStorage(
+            fixedEntries: [
+              for (final type in FixedTagPromptType.values)
+                for (final enabled in [true, false])
+                  FixedTagEntry.create(
+                    name: '${type.name}-$enabled',
+                    content: 'tag',
+                    promptType: type,
+                    enabled: enabled,
+                  ),
+            ],
+            categories: const [],
+            libraryEntries: const [],
+          );
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                localStorageServiceProvider.overrideWith((ref) => storage),
+              ],
+              child: MaterialApp(
+                locale: const Locale('zh'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: TextScaler.linear(scale)),
+                  child: child!,
+                ),
+                home: const Scaffold(body: FixedTagsDialog()),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final filter = find.byKey(const ValueKey('fixed-tags-enabled-only'));
+          expect(filter.hitTestable(), findsOneWidget);
+          await tester.tap(filter);
+          await tester.pumpAndSettle();
+          expect(tester.widget<IconButton>(filter).isSelected, isTrue);
+          expect(find.text('positive-true'), findsOneWidget);
+          expect(find.text('positive-false'), findsNothing);
+          final negativeTab = find.byKey(
+            const ValueKey('fixed-tags-mobile-tab-negative'),
+          );
+          if (negativeTab.evaluate().isNotEmpty) {
+            await tester.tap(negativeTab);
+            await tester.pumpAndSettle();
+          }
+          expect(find.text('negative-true'), findsOneWidget);
+          expect(find.text('negative-false'), findsNothing);
+          await tester.tap(filter);
+          await tester.pumpAndSettle();
+          await tester.scrollUntilVisible(
+            find.text('negative-false'),
+            120,
+            scrollable: find
+                .descendant(
+                  of: find.byType(ReorderableListView).last,
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
+          expect(find.text('negative-false'), findsOneWidget);
+          final tile = find.ancestor(
+            of: find.text('negative-false'),
+            matching: find.byType(FixedTagEntryTile),
+          );
+          expect(
+            tester
+                .widget<ThemedSwitch>(
+                  find.descendant(
+                    of: tile,
+                    matching: find.byType(ThemedSwitch),
+                  ),
+                )
+                .value,
+            isFalse,
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
   testWidgets('select-all action follows input hit targets', (tester) async {
     tester.view.physicalSize = const Size(320, 700);
     tester.view.devicePixelRatio = 1;

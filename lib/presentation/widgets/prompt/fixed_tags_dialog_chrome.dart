@@ -5,11 +5,13 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../common/themed_switch.dart';
 import 'fixed_tags_dialog_models.dart';
+import 'fixed_tags_dialog_controller.dart';
 
 enum FixedTagHeaderAction { undo, redo, toggleAll, clearAll }
 
 class FixedTagsDialogHeader extends StatelessWidget {
   const FixedTagsDialogHeader({
+    required this.controller,
     super.key,
     required this.data,
     required this.commands,
@@ -19,6 +21,7 @@ class FixedTagsDialogHeader extends StatelessWidget {
   final FixedTagsDialogViewData data;
   final FixedTagsDialogCommands commands;
   final bool isCompact;
+  final FixedTagsDialogController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +31,7 @@ class FixedTagsDialogHeader extends StatelessWidget {
     final totalCount = data.state.entries.length;
     if (isCompact) {
       return _CompactHeader(
+        controller: controller,
         data: data,
         commands: commands,
         enabledCount: enabledCount,
@@ -147,6 +151,7 @@ class FixedTagsDialogHeader extends StatelessWidget {
             ),
             const SizedBox(width: 8),
           ],
+          _EnabledOnlyToggle(controller: controller),
           IconButton(
             tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
             constraints: BoxConstraints.tightFor(
@@ -168,6 +173,7 @@ class FixedTagsDialogHeader extends StatelessWidget {
 
 class _CompactHeader extends StatelessWidget {
   const _CompactHeader({
+    required this.controller,
     required this.data,
     required this.commands,
     required this.enabledCount,
@@ -177,6 +183,7 @@ class _CompactHeader extends StatelessWidget {
   final FixedTagsDialogCommands commands;
   final int enabledCount;
   final int totalCount;
+  final FixedTagsDialogController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -230,6 +237,7 @@ class _CompactHeader extends StatelessWidget {
               ],
             ),
           ),
+          _EnabledOnlyToggle(controller: controller),
           PopupMenuButton<FixedTagHeaderAction>(
             tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
             onSelected: (action) {
@@ -283,6 +291,22 @@ class _CompactHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+class _EnabledOnlyToggle extends StatelessWidget {
+  const _EnabledOnlyToggle({required this.controller});
+
+  final FixedTagsDialogController controller;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    key: const ValueKey('fixed-tags-enabled-only'),
+    tooltip: context.l10n.fixedTags_enabledOnly,
+    isSelected: controller.enabledOnly,
+    icon: const Icon(Icons.filter_alt_outlined),
+    selectedIcon: const Icon(Icons.filter_alt),
+    onPressed: controller.toggleEnabledOnly,
+  );
 }
 
 class FixedTagsDialogFooter extends StatelessWidget {

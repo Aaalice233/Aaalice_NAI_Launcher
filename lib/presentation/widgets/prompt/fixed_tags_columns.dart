@@ -43,7 +43,11 @@ class FixedTagsColumns extends StatelessWidget {
           config: _configFor(
             context,
             FixedTagPromptType.positive,
-            entries: data.state.positiveEntries.sortedByOrder(),
+            entries: data.entriesFor(
+              FixedTagPromptType.positive,
+              '',
+              enabledOnly: controller.enabledOnly,
+            ),
             searchQuery: '',
           ),
           showLinkAnchors: false,
@@ -53,10 +57,12 @@ class FixedTagsColumns extends StatelessWidget {
     final positives = data.entriesFor(
       FixedTagPromptType.positive,
       controller.positiveSearchQuery,
+      enabledOnly: controller.enabledOnly,
     );
     final negatives = data.entriesFor(
       FixedTagPromptType.negative,
       controller.negativeSearchQuery,
+      enabledOnly: controller.enabledOnly,
     );
     controller.scheduleGeometryRefresh(
       positives: positives,
@@ -159,7 +165,11 @@ class FixedTagsColumns extends StatelessWidget {
       promptType: promptType,
       entries:
           entries ??
-          data.entriesFor(promptType, controller.searchQueryFor(promptType)),
+          data.entriesFor(
+            promptType,
+            controller.searchQueryFor(promptType),
+            enabledOnly: controller.enabledOnly,
+          ),
       allEntries: promptType == FixedTagPromptType.positive
           ? data.state.positiveEntries
           : data.state.negativeEntries,
@@ -206,6 +216,7 @@ class FixedTagColumnConfig {
   final bool compact;
 
   bool get hasSearch => searchQuery.trim().isNotEmpty;
+  bool get isFiltered => hasSearch || controller.enabledOnly;
   int get enabledCount => allEntries.where((entry) => entry.enabled).length;
 }
 
@@ -218,7 +229,7 @@ class FixedTagColumn extends StatelessWidget {
     final theme = Theme.of(context);
     final interactionPolicy = context.interactionPolicy;
     final controlExtent = interactionPolicy.minimumControlExtent;
-    final totalText = config.hasSearch
+    final totalText = config.isFiltered
         ? context.l10n.fixedTags_columnFilteredCount(
             config.enabledCount,
             config.allEntries.length,
@@ -349,7 +360,7 @@ class FixedTagColumn extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Text(
-            config.hasSearch
+            config.isFiltered
                 ? context.l10n.fixedTags_noMatching
                 : context.l10n.fixedTags_emptyTarget(config.title),
             textAlign: TextAlign.center,
@@ -375,7 +386,7 @@ class FixedTagColumn extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
-                      config.hasSearch
+                      config.isFiltered
                           ? context.l10n.fixedTags_noMatching
                           : context.l10n.fixedTags_emptyTarget(config.title),
                       textAlign: TextAlign.center,
@@ -457,7 +468,7 @@ class _EntryList extends StatelessWidget {
       );
     }
 
-    if (config.hasSearch) {
+    if (config.isFiltered) {
       return ListView.builder(
         controller: config.scrollController,
         shrinkWrap: true,

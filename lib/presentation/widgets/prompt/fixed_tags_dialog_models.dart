@@ -15,16 +15,21 @@ class FixedTagsDialogViewData {
   final FixedTagsState state;
   final List<TagLibraryEntry> libraryEntries;
 
-  List<FixedTagEntry> entriesFor(FixedTagPromptType promptType, String query) {
+  List<FixedTagEntry> entriesFor(
+    FixedTagPromptType promptType,
+    String query, {
+    bool enabledOnly = false,
+  }) {
     final entries =
         (promptType == FixedTagPromptType.positive
                 ? state.positiveEntries
                 : state.negativeEntries)
             .sortedByOrder();
     final normalized = query.trim().toLowerCase();
-    if (normalized.isEmpty) return entries;
+    if (normalized.isEmpty && !enabledOnly) return entries;
     return entries
         .where((entry) {
+          if (enabledOnly && !entry.enabled) return false;
           return entry.name.toLowerCase().contains(normalized) ||
               entry.content.toLowerCase().contains(normalized);
         })
