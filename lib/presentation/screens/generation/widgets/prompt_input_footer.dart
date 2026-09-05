@@ -10,6 +10,7 @@ import '../../../providers/prompt_token_counter_provider.dart';
 import '../../../widgets/prompt/prompt_token_count_bar.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 import 'generation_toggle_button.dart';
+import 'prompt_tag_mode_toggle.dart';
 
 class PromptInputFooter extends ConsumerWidget {
   const PromptInputFooter({
@@ -17,19 +18,11 @@ class PromptInputFooter extends ConsumerWidget {
     required this.target,
     required this.topPadding,
     this.leading,
-    this.assistant,
-    this.assistantExpanded = false,
-    this.assistantToolbarHeight = 0,
-    this.assistantExpandedWidth = 0,
   });
 
   final PromptTokenCountTarget target;
   final double topPadding;
   final Widget? leading;
-  final Widget? assistant;
-  final bool assistantExpanded;
-  final double assistantToolbarHeight;
-  final double assistantExpandedWidth;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,10 +43,11 @@ class PromptInputFooter extends ConsumerWidget {
       child: PromptTokenCountAsyncBar(usage: tokenUsage),
     );
 
-    final hasLeadingControls = showTransparentBackground || leading != null;
     final leadingControls = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        const PromptTagModeToggle(),
+        const SizedBox(width: 4),
         if (showTransparentBackground) ...[
           Tooltip(
             richMessage: WidgetSpan(
@@ -118,91 +112,24 @@ class PromptInputFooter extends ConsumerWidget {
       key: const ValueKey('generation_prompt_footer_supporting'),
       child: Row(
         children: [
-          if (hasLeadingControls) ...[
-            Expanded(
-              child: SingleChildScrollView(
-                key: const ValueKey('generation_prompt_footer_actions_scroll'),
-                scrollDirection: Axis.horizontal,
-                child: leadingControls,
-              ),
+          Expanded(
+            child: SingleChildScrollView(
+              key: const ValueKey('generation_prompt_footer_actions_scroll'),
+              scrollDirection: Axis.horizontal,
+              child: leadingControls,
             ),
-            const SizedBox(width: 8),
-          ] else
-            const Spacer(),
+          ),
+          const SizedBox(width: 8),
+
           tokenCount,
         ],
       ),
     );
 
-    final collapsedContent = Row(
-      children: [
-        Expanded(child: supportingContent),
-        if (assistant != null) ...[
-          const SizedBox(width: 8),
-          KeyedSubtree(
-            key: const ValueKey('generation_prompt_footer_assistant'),
-            child: assistant!,
-          ),
-        ],
-      ],
-    );
-    final contentHeight = assistantToolbarHeight > 0
-        ? leading != null && assistantToolbarHeight < kMinInteractiveDimension
-              ? kMinInteractiveDimension
-              : assistantToolbarHeight
-        : null;
-
     return Padding(
       key: const ValueKey('generation_prompt_footer'),
       padding: EdgeInsets.only(top: topPadding),
-      child: SizedBox(
-        width: double.infinity,
-        height: contentHeight,
-        child: assistant != null && assistantExpanded
-            ? LayoutBuilder(
-                builder: (context, constraints) {
-                  final expandedWidth = assistantExpandedWidth
-                      .clamp(0.0, constraints.maxWidth)
-                      .toDouble();
-                  final expandedAssistant = SizedBox(
-                    width: expandedWidth,
-                    child: KeyedSubtree(
-                      key: const ValueKey('generation_prompt_footer_assistant'),
-                      child: assistant!,
-                    ),
-                  );
-                  final remainingWidth =
-                      constraints.maxWidth - expandedWidth - 8;
-                  final canShareRow =
-                      remainingWidth >= kMinInteractiveDimension * 3;
-                  if (canShareRow) {
-                    return Row(
-                      children: [
-                        Expanded(child: supportingContent),
-                        const SizedBox(width: 8),
-                        expandedAssistant,
-                      ],
-                    );
-                  }
-                  return Stack(
-                    clipBehavior: Clip.hardEdge,
-                    children: [
-                      Positioned.fill(child: supportingContent),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Material(
-                          color: theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          clipBehavior: Clip.antiAlias,
-                          child: expandedAssistant,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              )
-            : collapsedContent,
-      ),
+      child: supportingContent,
     );
   }
 }

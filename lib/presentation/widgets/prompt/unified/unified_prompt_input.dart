@@ -96,6 +96,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
 
   /// 是否显示右下角助手
   final bool enableAssistant;
+  final bool showTagModeSwitch;
 
   /// 打开助手设置回调
   final VoidCallback? onOpenAssistantSettings;
@@ -123,6 +124,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.fitContent = false,
     this.sessionId,
     this.enableAssistant = true,
+    this.showTagModeSwitch = true,
     this.onOpenAssistantSettings,
     this.onComfyuiImport,
   });
@@ -1451,6 +1453,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     if (widget.config.enableTagMode) {
       clipboardAwareInput = TagModePromptField(
+        showModeSwitch: widget.showTagModeSwitch,
         controller: _effectiveController,
         sourceFocusNode: _effectiveFocusNode,
         tagFocusNode: _tagFocusNode,

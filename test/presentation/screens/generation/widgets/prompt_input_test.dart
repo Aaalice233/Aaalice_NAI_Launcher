@@ -725,12 +725,14 @@ void main() {
     );
     expect(
       tester.getTopLeft(toggle).dx,
-      closeTo(tester.getTopLeft(promptField).dx, 1),
+      greaterThan(tester.getTopLeft(promptField).dx),
     );
     expect(tester.widget<GenerationToggleButton>(toggle).isEnabled, isFalse);
 
     final assistant = find.byKey(
-      const ValueKey('generation_prompt_footer_assistant'),
+      const ValueKey(
+        'generation_prompt_assistant_${PromptHistorySessionIds.generationPrompt}',
+      ),
     );
     final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
     await tester.tap(
@@ -744,12 +746,12 @@ void main() {
     expect(toggle, findsOneWidget);
     expect(count, findsOneWidget);
     expect(
-      tester.getRect(toggle).right,
-      lessThan(tester.getRect(assistant).left),
+      tester.getRect(toggle).top,
+      greaterThanOrEqualTo(tester.getRect(assistant).bottom),
     );
     expect(
-      tester.getRect(count).right,
-      lessThan(tester.getRect(assistant).left),
+      tester.getRect(count).top,
+      greaterThanOrEqualTo(tester.getRect(assistant).bottom),
     );
 
     await tester.tap(
@@ -848,14 +850,16 @@ void main() {
       );
       final footer = find.byKey(const ValueKey('generation_prompt_footer'));
       final assistant = find.byKey(
-        const ValueKey('generation_prompt_footer_assistant'),
+        const ValueKey(
+          'generation_prompt_assistant_${PromptHistorySessionIds.generationPrompt}',
+        ),
       );
       expect(tester.getSize(responsiveToolbar).width, 320);
       expect(typeSwitch, findsOneWidget);
       expect(secondary, findsOneWidget);
       expect(
         tester.getRect(assistant).right,
-        closeTo(tester.getRect(footer).right, 0.1),
+        closeTo(tester.getRect(footer).right - 4, 0.1),
       );
 
       for (final key in const [
@@ -894,8 +898,16 @@ void main() {
         findsOneWidget,
       );
       expect(
-        tester.getRect(assistant).right,
-        closeTo(tester.getRect(footer).right, 0.1),
+        tester
+            .getRect(
+              find.byKey(
+                const ValueKey(
+                  'generation_prompt_assistant_${PromptHistorySessionIds.generationNegative}',
+                ),
+              ),
+            )
+            .right,
+        closeTo(tester.getRect(footer).right - 4, 0.1),
       );
 
       final settings = find.widgetWithIcon(IconButton, Icons.settings);
@@ -1162,7 +1174,7 @@ void main() {
     }
   });
 
-  testWidgets('手机提示词助手在 footer 同栏展开且不侵占编辑区', (tester) async {
+  testWidgets('手机提示词助手在输入区浮层展开且不改变文本布局', (tester) async {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.android,
     );
@@ -1236,7 +1248,9 @@ void main() {
     final footer = find.byKey(const ValueKey('generation_prompt_footer'));
     final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
     final assistant = find.byKey(
-      const ValueKey('generation_prompt_footer_assistant'),
+      const ValueKey(
+        'generation_prompt_assistant_${PromptHistorySessionIds.generationPrompt}',
+      ),
     );
     final toolbar = find.byKey(
       const ValueKey(
@@ -1261,12 +1275,12 @@ void main() {
     expect(toolbar, findsOneWidget);
     expect(
       tester.getRect(assistant).right,
-      closeTo(tester.getRect(footer).right, 0.1),
+      closeTo(tester.getRect(footer).right - 4, 0.1),
     );
     expect(textField.decoration?.contentPadding, const EdgeInsets.all(12));
     expect(
       find.descendant(
-        of: input,
+        of: footer,
         matching: find.byKey(const ValueKey('tag-mode-button')),
       ),
       findsOneWidget,
@@ -1280,17 +1294,19 @@ void main() {
       greaterThanOrEqualTo(tester.getRect(input).bottom),
     );
     expect(
-      tester.getRect(assistant).top,
-      greaterThanOrEqualTo(tester.getRect(input).bottom),
+      tester.getRect(assistant).bottom,
+      lessThanOrEqualTo(tester.getRect(input).bottom),
     );
     expect(
       find.byKey(const ValueKey('generation_prompt_footer_actions_scroll')),
       findsOneWidget,
     );
+    await tester.ensureVisible(transparent);
+    await tester.pump();
     expect(transparent.hitTestable(), findsOneWidget);
     expect(
-      tester.getRect(assistant).left - tester.getRect(count).right,
-      greaterThanOrEqualTo(8),
+      tester.getRect(count).top - tester.getRect(assistant).bottom,
+      greaterThanOrEqualTo(0),
     );
     expect(tester.getSize(toolbar).width, greaterThanOrEqualTo(48));
     expect(tester.getSize(toolbar).height, 48);
@@ -1318,8 +1334,8 @@ void main() {
     expect(assistant, findsOneWidget);
     expect(tester.getSize(footer).height, collapsedFooterHeight);
     expect(
-      tester.getRect(assistant).top,
-      greaterThanOrEqualTo(tester.getRect(input).bottom),
+      tester.getRect(assistant).bottom,
+      lessThanOrEqualTo(tester.getRect(input).bottom),
     );
     for (final icon in [
       Icons.translate,
@@ -1335,8 +1351,8 @@ void main() {
       await tester.ensureVisible(action);
       await tester.pump();
       expect(
-        tester.getRect(action).top,
-        greaterThanOrEqualTo(tester.getRect(input).bottom),
+        tester.getRect(action).bottom,
+        lessThanOrEqualTo(tester.getRect(input).bottom),
       );
       expect(
         tester.getRect(action).left,
@@ -1353,7 +1369,7 @@ void main() {
             find.widgetWithIcon(IconButton, Icons.keyboard_arrow_down_rounded),
           )
           .right,
-      closeTo(tester.getRect(footer).right, 0.1),
+      closeTo(tester.getRect(footer).right - 4, 0.1),
     );
 
     await tester.tap(
@@ -1375,8 +1391,8 @@ void main() {
     expect(transparent, findsOneWidget);
     expect(tester.getSize(footer).height, collapsedFooterHeight);
     expect(
-      tester.getRect(assistant).left - tester.getRect(count).right,
-      greaterThanOrEqualTo(8),
+      tester.getRect(count).top - tester.getRect(assistant).bottom,
+      greaterThanOrEqualTo(0),
     );
     expect(tester.takeException(), isNull);
   });

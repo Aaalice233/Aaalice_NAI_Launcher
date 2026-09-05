@@ -14078,6 +14078,9 @@ class AppLocalizationsJa extends AppLocalizations {
       '画像からのプロンプト作成、最適化、翻訳、キャラクター置換、カスタム書き換えで共通です。既定は5分。応答が遅いモデルでは延長でき、いつでもキャンセルできます。接続タイムアウトとエージェントチャットには影響しません。';
 
   @override
+  String get tagMode_label => 'タグモード';
+
+  @override
   String get tagMode_enter => 'タグモードに切り替え';
 
   @override

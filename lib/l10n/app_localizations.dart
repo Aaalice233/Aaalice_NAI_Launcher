@@ -25141,6 +25141,12 @@ abstract class AppLocalizations {
   /// **'Shared by reverse prompting, optimization, translation, character replacement, and custom rewriting. Defaults to 5 minutes; increase it for slower models. You can still cancel at any time. Connection timeouts and agent chat are unchanged.'**
   String get promptAssistant_responseTimeoutDescription;
 
+  /// No description provided for @tagMode_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag mode'**
+  String get tagMode_label;
+
   /// No description provided for @tagMode_enter.
   ///
   /// In en, this message translates to:

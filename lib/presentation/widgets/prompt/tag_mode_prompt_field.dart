@@ -28,6 +28,7 @@ class TagModePromptField extends ConsumerStatefulWidget {
     this.tagFocusNode,
     this.onClear,
     this.clearNeedsConfirm = false,
+    this.showModeSwitch = true,
   });
   final TextEditingController controller;
   final Widget child;
@@ -35,6 +36,7 @@ class TagModePromptField extends ConsumerStatefulWidget {
   final FocusNode? tagFocusNode;
   final VoidCallback? onClear;
   final bool clearNeedsConfirm;
+  final bool showModeSwitch;
   final Color? surfaceColor;
   final bool enabled;
   final bool enableAutocomplete;
@@ -185,7 +187,7 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
           ),
           const SizedBox(width: 4),
         ],
-        _modeSwitch(context),
+        if (widget.showModeSwitch) _modeSwitch(context),
       ],
     ),
   );

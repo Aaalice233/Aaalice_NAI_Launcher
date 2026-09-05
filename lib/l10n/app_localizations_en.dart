@@ -14453,6 +14453,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Shared by reverse prompting, optimization, translation, character replacement, and custom rewriting. Defaults to 5 minutes; increase it for slower models. You can still cancel at any time. Connection timeouts and agent chat are unchanged.';
 
   @override
+  String get tagMode_label => 'Tag mode';
+
+  @override
   String get tagMode_enter => 'Switch to tag mode';
 
   @override

@@ -13825,6 +13825,9 @@ class AppLocalizationsZh extends AppLocalizations {
       '反推、优化、翻译、角色替换和自定义改写共用。默认 5 分钟；模型思考较慢时可调长，仍可随时取消。不影响连接超时和智能体聊天。';
 
   @override
+  String get tagMode_label => '标签模式';
+
+  @override
   String get tagMode_enter => '切换到标签模式';
 
   @override
@@ -27912,6 +27915,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get promptAssistant_responseTimeoutDescription =>
       '反推、最佳化、翻譯、角色替換和自訂改寫共用。預設 5 分鐘；模型思考較慢時可延長，仍可隨時取消。不影響連線逾時和智慧體聊天。';
+
+  @override
+  String get tagMode_label => '標籤模式';
 
   @override
   String get tagMode_enter => '切換到標籤模式';
