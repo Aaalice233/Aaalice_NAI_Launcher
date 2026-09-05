@@ -374,12 +374,14 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  _buildPromptFooter(theme),
                 ],
               ),
             ),
           ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+          child: _buildPromptFooter(theme),
         ),
         SafeArea(
           top: false,

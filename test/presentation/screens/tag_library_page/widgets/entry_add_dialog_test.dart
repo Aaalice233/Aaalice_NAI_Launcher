@@ -11,6 +11,51 @@ import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 void main() {
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+    for (final scale in [1.0, 3.0]) {
+      testWidgets('footer stays fully visible at $width / ${scale}x with IME', (
+        tester,
+      ) async {
+        await _pumpLauncher(
+          tester,
+          size: Size(width, 700),
+          textScaler: TextScaler.linear(scale),
+          padding: const EdgeInsets.only(top: 24, bottom: 16),
+          viewInsets: const EdgeInsets.only(bottom: 180),
+        );
+        await tester.tap(find.text('打开'));
+        await tester.pumpAndSettle();
+        final footer = find.byKey(
+          const ValueKey('entry-add-dialog-content-footer'),
+        );
+        final form = find.byKey(const Key('entry-add-dialog-scroll'));
+        final before = tester.getRect(footer);
+        expect(before.top, greaterThanOrEqualTo(tester.getRect(form).bottom));
+        expect(
+          before.bottom,
+          lessThanOrEqualTo(
+            tester.getRect(find.widgetWithText(FilledButton, '保存')).top,
+          ),
+        );
+        expect(before.bottom, lessThanOrEqualTo(520));
+        expect(find.descendant(of: form, matching: footer), findsNothing);
+        final position = tester
+            .state<ScrollableState>(
+              find
+                  .descendant(of: form, matching: find.byType(Scrollable))
+                  .first,
+            )
+            .position;
+        position.jumpTo(position.maxScrollExtent);
+        await tester.pumpAndSettle();
+        expect(tester.getRect(footer), before);
+        position.jumpTo(0);
+        await tester.pumpAndSettle();
+        expect(tester.getRect(footer), before);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
   testWidgets('320px、3x 字号、IME 与 SafeArea 下 bottom sheet 全部操作可达', (
     tester,
   ) async {
@@ -59,7 +104,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Medium 在 IME 导致短高度时使用 bottom sheet', (tester) async {
+  testWidgets('Medium 在 IME 导致短高度时保留居中表单且避开键盘', (tester) async {
     await _pumpLauncher(
       tester,
       size: const Size(700, 720),
@@ -71,8 +116,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(Dialog), findsNothing);
-    expect(find.byKey(const ValueKey('adaptive-centered-form')), findsNothing);
-    final panelFinder = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
+    final panelFinder = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panelFinder, findsOneWidget);
     final panel = tester.getRect(panelFinder);
     expect(panel.top, greaterThanOrEqualTo(24));
@@ -139,7 +184,13 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(tester.getTopLeft(contentFooter).dy, closeTo(editor.bottom + 4, 1));
+    final formViewport = tester.getRect(
+      find.byKey(const Key('entry-add-dialog-scroll')),
+    );
+    expect(
+      tester.getTopLeft(contentFooter).dy,
+      closeTo(formViewport.bottom + 4, 1),
+    );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).floatOverEditor,
       false,
