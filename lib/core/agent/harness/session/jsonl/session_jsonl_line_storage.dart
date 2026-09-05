@@ -13,7 +13,10 @@ class SessionJsonlLineStorage {
   final io.File file;
   final int chunkSize;
 
-  Iterable<String> readCompleteLinesSync() {
+  /// Reads at most [maxLines] lines; a null bound reads to the end of file.
+  /// A non-positive bound yields nothing and touches no chunk.
+  Iterable<String> readCompleteLinesSync({int? maxLines}) {
+    if (maxLines != null && maxLines <= 0) return const [];
     if (!file.existsSync()) return const [];
     final lines = <String>[];
     final handle = file.openSync();
@@ -34,6 +37,7 @@ class SessionJsonlLineStorage {
             utf8.decode(bytes.sublist(0, length), allowMalformed: true),
           );
           start = index + 1;
+          if (maxLines != null && lines.length >= maxLines) return lines;
         }
         if (start < chunk.length) pending.add(chunk.sublist(start));
       }

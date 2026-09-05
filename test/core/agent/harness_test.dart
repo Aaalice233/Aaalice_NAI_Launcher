@@ -630,40 +630,55 @@ void main() {
       expect(details.modifiedFiles, ['new.txt']);
     });
 
-    test(
-      'listWithNames prefers persisted name over first user message',
-      () async {
-        final repo = JsonlSessionRepo(Directory(tmp.path));
+    test('listWithFileInfo reports header metadata and file stat', () async {
+      final repo = JsonlSessionRepo(Directory(tmp.path));
+      final a = await repo.create();
+      await a.appendMessage(UserMessage.text('first message text'));
+      final b = await repo.create();
+      await b.appendMessage(UserMessage.text('derive my name please'));
 
-        // 会话 A：setName 持久化名优先。
-        final a = await repo.create();
-        await a.appendMessage(UserMessage.text('first message text'));
-        await a.setName('custom name');
+      final aId = (await a.getMetadata()).id;
+      final bId = (await b.getMetadata()).id;
+      final expectedModifiedAt = DateTime(2026, 1, 2, 3, 4, 5);
+      final aFile = File(
+        '${tmp.path}${Platform.pathSeparator}agent_chat'
+        '${Platform.pathSeparator}sessions${Platform.pathSeparator}$aId.jsonl',
+      );
+      final bFile = File(
+        '${tmp.path}${Platform.pathSeparator}agent_chat'
+        '${Platform.pathSeparator}sessions${Platform.pathSeparator}$bId.jsonl',
+      );
+      await aFile.setLastModified(expectedModifiedAt);
+      await bFile.setLastModified(expectedModifiedAt.add(const Duration(days: 1)));
 
-        // 会话 B：未命名 → 回退首条用户消息。
-        final b = await repo.create();
-        await b.appendMessage(UserMessage.text('derive my name please'));
+      final listed = await repo.listWithFileInfo();
+      expect([for (final item in listed) item.metadata.id], [bId, aId]);
+      final byId = {for (final item in listed) item.metadata.id: item};
+      expect(
+        byId[aId]!.modifiedAt.millisecondsSinceEpoch,
+        expectedModifiedAt.millisecondsSinceEpoch,
+      );
+      expect(byId[aId]!.path, aFile.path);
+      expect(byId[aId]!.size, aFile.lengthSync());
+    });
 
-        final aId = (await a.getMetadata()).id;
-        final bId = (await b.getMetadata()).id;
-        final expectedUpdatedAt = DateTime(2026, 1, 2, 3, 4, 5);
-        final aFile = File(
-          '${tmp.path}${Platform.pathSeparator}agent_chat'
-          '${Platform.pathSeparator}sessions${Platform.pathSeparator}$aId.jsonl',
-        );
-        await aFile.setLastModified(expectedUpdatedAt);
-        final named = await repo.listWithNames();
-        final names = {for (final (m, n, _) in named) m.id: n};
-        final updatedAt = {
-          for (final (metadata, _, modified) in named) metadata.id: modified,
-        };
-        expect(names[aId], 'custom name');
-        expect(names[bId], 'derive my name please');
-        expect(
-          updatedAt[aId]?.millisecondsSinceEpoch,
-          expectedUpdatedAt.millisecondsSinceEpoch,
-        );
-      },
-    );
+    test('listWithFileInfo skips files without a header first line', () async {
+      final repo = JsonlSessionRepo(Directory(tmp.path));
+      final valid = await repo.create();
+      final validId = (await valid.getMetadata()).id;
+      final sessions = Directory(
+        '${tmp.path}${Platform.pathSeparator}agent_chat'
+        '${Platform.pathSeparator}sessions',
+      );
+      File(
+        '${sessions.path}${Platform.pathSeparator}blank-first-line.jsonl',
+      ).writeAsStringSync('\n{"op":"header","id":"late","createdAt":1}\n');
+      File(
+        '${sessions.path}${Platform.pathSeparator}not-a-header.jsonl',
+      ).writeAsStringSync('{"op":"entry"}\n');
+
+      final listed = await repo.listWithFileInfo();
+      expect([for (final item in listed) item.metadata.id], [validId]);
+    });
   });
 }
