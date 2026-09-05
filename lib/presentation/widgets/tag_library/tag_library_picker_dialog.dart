@@ -407,12 +407,16 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.check, size: 16, color: Colors.white),
+                        Icon(
+                          Icons.check,
+                          size: 16,
+                          color: theme.colorScheme.onPrimary,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           context.l10n.common_select,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: theme.colorScheme.onPrimary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
