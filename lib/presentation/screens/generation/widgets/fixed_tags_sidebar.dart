@@ -1310,12 +1310,19 @@ class _GroupedFixedTagCollection extends StatefulWidget {
 class _GroupedFixedTagCollectionState
     extends State<_GroupedFixedTagCollection> {
   final _collapsedSectionIds = <String>{};
+  // 条目在重排后会换 index，索引无关的 key 才能让 tile 的 hover 与动画状态跟着条目走。
+  final _entryItemKeys = <String, GlobalKey>{};
 
   @override
   void didUpdateWidget(covariant _GroupedFixedTagCollection oldWidget) {
     super.didUpdateWidget(oldWidget);
     final availableIds = widget.sections.map((section) => section.id).toSet();
     _collapsedSectionIds.removeWhere((id) => !availableIds.contains(id));
+    final entryIds = <String>{
+      for (final section in widget.sections)
+        for (final entry in section.entries) entry.id,
+    };
+    _entryItemKeys.removeWhere((id, _) => !entryIds.contains(id));
   }
 
   void _setSectionCollapsed(String sectionId, bool collapsed) {
@@ -1360,45 +1367,40 @@ class _GroupedFixedTagCollectionState
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            key: ValueKey('${widget.keyPrefix}-group-list'),
-            controller: widget.controller,
-            padding: const EdgeInsets.fromLTRB(6, 2, 6, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final section in widget.sections)
-                  Builder(
-                    builder: (context) {
-                      final isCollapsed =
-                          !widget.forceExpanded &&
-                          _collapsedSectionIds.contains(section.id);
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildSectionHeader(
-                              context,
-                              section: section,
-                              isCollapsed: isCollapsed,
-                            ),
-                            if (!isCollapsed)
-                              _buildSectionEntries(context, section),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
+    return CustomScrollView(
+      key: ValueKey('${widget.keyPrefix}-group-list'),
+      controller: widget.controller,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(6, 2, 6, 10),
+          sliver: SliverMainAxisGroup(
+            slivers: [
+              for (final section in widget.sections)
+                _buildSectionSliver(context, section),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSectionSliver(BuildContext context, _TagSection section) {
+    final isCollapsed =
+        !widget.forceExpanded && _collapsedSectionIds.contains(section.id);
+    return SliverPadding(
+      padding: const EdgeInsets.only(bottom: 6),
+      sliver: SliverMainAxisGroup(
+        slivers: [
+          SliverToBoxAdapter(
+            child: _buildSectionHeader(
+              context,
+              section: section,
+              isCollapsed: isCollapsed,
+            ),
+          ),
+          if (!isCollapsed) _buildSectionBodySliver(section),
+        ],
+      ),
     );
   }
 
@@ -1472,67 +1474,85 @@ class _GroupedFixedTagCollectionState
     );
   }
 
-  Widget _buildSectionEntries(BuildContext context, _TagSection section) {
-    if (widget.isListMode) {
-      return Padding(
-        key: ValueKey('${widget.keyPrefix}-group-${section.id}-body'),
-        padding: const EdgeInsets.only(top: 4),
-        child: ReorderableListView.builder(
-          key: ValueKey('${widget.keyPrefix}-group-${section.id}-entries'),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          buildDefaultDragHandles: false,
-          itemCount: section.entries.length,
-          prototypeItem: widget.listPrototypeBuilder(section.color),
-          onReorderItem: (oldIndex, newIndex) =>
-              widget.onReorder(section.entries, oldIndex, newIndex),
-          itemBuilder: (context, index) {
-            final entry = section.entries[index];
-            return Padding(
-              key: ValueKey('${widget.keyPrefix}-entry-${entry.id}'),
-              padding: const EdgeInsets.only(bottom: 4),
-              child: widget.entryBuilder(
-                entry,
-                section.color,
-                section.entries.length > 1
-                    ? (child) => ReorderableDragStartListener(
-                        index: index,
-                        child: child,
-                      )
-                    : null,
-              ),
-            );
-          },
-        ),
-      );
-    }
+  Widget _buildSectionBodySliver(_TagSection section) {
+    return SliverPadding(
+      key: ValueKey('${widget.keyPrefix}-group-${section.id}-body'),
+      padding: const EdgeInsets.only(top: 4),
+      sliver: widget.isListMode
+          ? _buildEntryListSliver(section)
+          : _buildEntryGridSliver(section),
+    );
+  }
 
-    return LayoutBuilder(
+  Widget _buildEntryListSliver(_TagSection section) {
+    return SliverReorderableList(
+      key: ValueKey('${widget.keyPrefix}-group-${section.id}-entries'),
+      itemCount: section.entries.length,
+      prototypeItem: widget.listPrototypeBuilder(section.color),
+      proxyDecorator: _buildDragProxy,
+      onReorderItem: (oldIndex, newIndex) =>
+          widget.onReorder(section.entries, oldIndex, newIndex),
+      itemBuilder: (context, index) {
+        final entry = section.entries[index];
+        return KeyedSubtree(
+          key: _entryItemKeys.putIfAbsent(entry.id, GlobalKey.new),
+          child: Padding(
+            key: ValueKey('${widget.keyPrefix}-entry-${entry.id}'),
+            padding: const EdgeInsets.only(bottom: 4),
+            child: widget.entryBuilder(
+              entry,
+              section.color,
+              section.entries.length > 1
+                  ? (child) =>
+                        ReorderableDragStartListener(index: index, child: child)
+                  : null,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEntryGridSliver(_TagSection section) {
+    return SliverLayoutBuilder(
       builder: (context, constraints) {
         const spacing = 7.0;
         final largeText = MediaQuery.textScalerOf(context).scale(14) >= 20;
         final minimumCardWidth = largeText ? 220.0 : 140.0;
         final columnCount =
-            ((constraints.maxWidth + spacing) / (minimumCardWidth + spacing))
+            ((constraints.crossAxisExtent + spacing) /
+                    (minimumCardWidth + spacing))
                 .floor()
                 .clamp(1, 3);
-        final cardHeight = _gridCardHeight(context);
-        return GridView.builder(
-          key: ValueKey('${widget.keyPrefix}-group-${section.id}-body'),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(top: 4),
+        return SliverGrid.builder(
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columnCount,
             mainAxisSpacing: spacing,
             crossAxisSpacing: spacing,
-            mainAxisExtent: cardHeight,
+            mainAxisExtent: _gridCardHeight(context),
           ),
           itemCount: section.entries.length,
           itemBuilder: (context, index) =>
               widget.entryBuilder(section.entries[index], section.color, null),
         );
       },
+    );
+  }
+
+  // SliverReorderableList 不带默认拖拽装饰，抬升要自己补回来。
+  Widget _buildDragProxy(Widget child, int index, Animation<double> animation) {
+    const draggingElevation = 6.0;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Material(elevation: draggingElevation, child: child);
+    }
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, proxyChild) => Material(
+        elevation:
+            draggingElevation * Curves.easeInOut.transform(animation.value),
+        child: proxyChild,
+      ),
+      child: child,
     );
   }
 }

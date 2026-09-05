@@ -2492,7 +2492,7 @@ void main() {
       const ValueKey('fixed-tags-positive-group-list'),
     );
     final controller = tester
-        .widget<SingleChildScrollView>(positiveGroupList)
+        .widget<CustomScrollView>(positiveGroupList)
         .controller!;
     controller.jumpTo(controller.position.maxScrollExtent);
     await tester.pumpAndSettle();
@@ -2523,7 +2523,7 @@ void main() {
         const ValueKey('fixed-tags-positive-group-list'),
       );
       final controller = tester
-          .widget<SingleChildScrollView>(positiveScrollView)
+          .widget<CustomScrollView>(positiveScrollView)
           .controller!;
       final initialMax = await _expectStableScrollMetrics(
         tester,
@@ -2560,7 +2560,7 @@ void main() {
         const ValueKey('fixed-tags-positive-group-list'),
       );
       final controller = tester
-          .widget<SingleChildScrollView>(positiveScrollView)
+          .widget<CustomScrollView>(positiveScrollView)
           .controller!;
       await _expectStableScrollMetrics(
         tester,
@@ -2657,7 +2657,7 @@ void main() {
     );
     expect(negativeList, findsOneWidget);
     final controller = tester
-        .widget<SingleChildScrollView>(negativeList)
+        .widget<CustomScrollView>(negativeList)
         .controller!;
     await _expectStableScrollMetrics(
       tester,
