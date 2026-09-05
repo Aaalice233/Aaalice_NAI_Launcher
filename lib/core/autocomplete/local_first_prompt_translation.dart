@@ -16,9 +16,7 @@ class LocalFirstPromptTranslationPipeline {
     String input, {
     String? targetLanguage,
     required MissingTagTranslator translateMissing,
-    int batchSize = 8,
   }) async {
-    assert(batchSize > 0);
     if (RegExp(r'[\u3400-\u9fff]').hasMatch(input)) return null;
     final requestedLanguage = targetLanguage?.trim().toLowerCase() ?? '';
     if (requestedLanguage.isNotEmpty &&
@@ -41,18 +39,9 @@ class LocalFirstPromptTranslationPipeline {
       return null;
     }
 
-    final delegated = <String, String>{};
-    for (
-      var offset = 0;
-      offset < plan.unresolvedTags.length;
-      offset += batchSize
-    ) {
-      final batch = plan.unresolvedTags
-          .skip(offset)
-          .take(batchSize)
-          .toList(growable: false);
-      delegated.addAll(await translateMissing(batch));
-    }
+    final delegated = plan.unresolvedTags.isEmpty
+        ? <String, String>{}
+        : await translateMissing(plan.unresolvedTags);
     _localTranslations.addTranslations(delegated);
     return plan.render(delegated);
   }

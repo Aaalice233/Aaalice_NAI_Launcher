@@ -45,6 +45,7 @@ import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/assistant_model_capability.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
@@ -1867,7 +1868,10 @@ void main() {
               apiKey: 'key',
               responseFormat: PromptAssistantResponseFormat.jsonObject,
               maxOutputTokens: 512,
-              reasoningMode: PromptAssistantReasoningMode.disabled,
+              reasoningRequest: AssistantModelCatalog.resolveProvider(
+                provider: ProviderPreset.deepseek.createConfig(),
+                model: 'deepseek-chat',
+              ).resolveReasoningRequest(null),
             ),
           )
           .toList();

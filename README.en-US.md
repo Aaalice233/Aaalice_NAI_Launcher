@@ -63,6 +63,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Disable and restore tags without losing their content. The `/*disabled:original fragment*/` notation is saved and cloud-synced with the Prompt, while disabled content is excluded from generation, effective previews, and Token counts. This is Launcher editing syntax; older clients and external tools may not recognize it. Choose “Copy effective prompt” from the menu for external use.
 - Local translation misses can be sent to a configured AI translation service.
 - Prompt Assistant tasks, including reverse prompting, optimization, and translation, share a configurable response wait timeout: 1, 2, 5, 10, 15, or 30 minutes, with a 5-minute default.
+- Each Prompt Assistant provider saves its own automatic or manual concurrency mode. Automatic mode starts at 5 concurrent requests, and independent tag batches translate in parallel. Each task offers the thinking levels supported by its model. Configure these local settings under Settings → Integrations → Prompt Assistant.
 
 ### 🧬 Vibe, Precise Reference, and image editing
 

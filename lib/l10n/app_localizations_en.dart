@@ -14749,4 +14749,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mosaic_reset => 'Reset';
+
+  @override
+  String get promptAssistant_concurrencyMode => 'Concurrency mode';
+
+  @override
+  String get promptAssistant_concurrencyAuto => 'Automatic';
+
+  @override
+  String get promptAssistant_concurrencyManual => 'Manual';
+
+  @override
+  String get promptAssistant_concurrencyCount => 'Maximum concurrent requests';
+
+  @override
+  String get promptAssistant_concurrencyInvalid => 'Enter a positive integer';
+
+  @override
+  String get promptAssistant_concurrencyAutoDescription =>
+      'Starts with 5 concurrent requests and adapts to responses. All prompt assistant tasks using this provider share the limit.';
+
+  @override
+  String get promptAssistant_thinkingLevel => 'Thinking level';
+
+  @override
+  String get promptAssistant_thinkingDefault => 'Model default';
+
+  @override
+  String get promptAssistant_thinkingUnavailable =>
+      'No adjustable thinking levels identified. Uses the model default.';
+
+  @override
+  String get promptAssistant_thinkingReset =>
+      'The saved level is unavailable for this model. Uses the model default.';
+
+  @override
+  String get promptAssistant_thinkingEnabled => 'On';
 }

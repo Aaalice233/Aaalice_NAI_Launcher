@@ -14104,6 +14104,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mosaic_reset => '重置';
+
+  @override
+  String get promptAssistant_concurrencyMode => '并发模式';
+
+  @override
+  String get promptAssistant_concurrencyAuto => '自动';
+
+  @override
+  String get promptAssistant_concurrencyManual => '手动';
+
+  @override
+  String get promptAssistant_concurrencyCount => '最大并发请求数';
+
+  @override
+  String get promptAssistant_concurrencyInvalid => '请输入大于 0 的整数';
+
+  @override
+  String get promptAssistant_concurrencyAutoDescription =>
+      '从 5 个并发开始，根据请求结果自动升降；该提供商的所有提示词助手任务共享额度。';
+
+  @override
+  String get promptAssistant_thinkingLevel => '思考等级';
+
+  @override
+  String get promptAssistant_thinkingDefault => '模型默认';
+
+  @override
+  String get promptAssistant_thinkingUnavailable => '未识别到可调思考等级，使用模型默认行为。';
+
+  @override
+  String get promptAssistant_thinkingReset => '原思考等级不适用于当前模型，本次使用模型默认。';
+
+  @override
+  String get promptAssistant_thinkingEnabled => '开启';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -28207,4 +28241,38 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get mosaic_reset => '重設';
+
+  @override
+  String get promptAssistant_concurrencyMode => '並行模式';
+
+  @override
+  String get promptAssistant_concurrencyAuto => '自動';
+
+  @override
+  String get promptAssistant_concurrencyManual => '手動';
+
+  @override
+  String get promptAssistant_concurrencyCount => '最大並行請求數';
+
+  @override
+  String get promptAssistant_concurrencyInvalid => '請輸入大於 0 的整數';
+
+  @override
+  String get promptAssistant_concurrencyAutoDescription =>
+      '從 5 個並行請求開始，根據請求結果自動調整；此提供商的所有提示詞助手任務共用額度。';
+
+  @override
+  String get promptAssistant_thinkingLevel => '思考等級';
+
+  @override
+  String get promptAssistant_thinkingDefault => '模型預設';
+
+  @override
+  String get promptAssistant_thinkingUnavailable => '未識別到可調思考等級，使用模型預設行為。';
+
+  @override
+  String get promptAssistant_thinkingReset => '原思考等級不適用於目前模型，本次使用模型預設。';
+
+  @override
+  String get promptAssistant_thinkingEnabled => '開啟';
 }

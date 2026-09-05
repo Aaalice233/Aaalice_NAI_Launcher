@@ -12,6 +12,7 @@ import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/searchable_model_picker.dart';
 import '../widgets/prompt_assistant_settings_forms.dart';
+import '../widgets/assistant_task_thinking_field.dart';
 import '../widgets/settings_card.dart';
 
 class PromptAssistantSettingsSection extends ConsumerWidget {
@@ -217,6 +218,17 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       context: context,
       title: _assistantTaskLabel(context, taskType),
       modelPickerKeyPrefix: 'prompt-route-${taskType.name}-model',
+      thinkingField: AssistantTaskThinkingField(
+        task: taskType,
+        provider: state.providers.where((p) => p.id == providerId).firstOrNull,
+        model: modelValue,
+        value: state.routing.thinkingFor(taskType),
+        onChanged: (level) => notifier.setRouting(
+          state.routing.copyWith(
+            thinkingLevels: {...state.routing.thinkingLevels, taskType: level},
+          ),
+        ),
+      ),
       providerValue: providerItems.any((item) => item.value == providerId)
           ? providerId
           : null,
@@ -269,6 +281,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     required BuildContext context,
     required String title,
     required String modelPickerKeyPrefix,
+    required Widget thinkingField,
     required String? providerValue,
     required List<DropdownMenuItem<String>> providerItems,
     required ValueChanged<String?> onProviderChanged,
@@ -320,6 +333,8 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
               isDense: true,
             ),
           ),
+          const SizedBox(height: 8),
+          thinkingField,
         ],
       ),
     );
@@ -598,6 +613,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       baseUrl: result.baseUrl,
       enabled: provider?.enabled ?? true,
       allowImageInput: result.allowImageInput,
+      concurrency: result.concurrency,
     );
 
     await notifier.upsertProvider(next);

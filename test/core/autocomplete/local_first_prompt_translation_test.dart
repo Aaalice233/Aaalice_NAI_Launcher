@@ -47,7 +47,7 @@ void main() {
     expect(result?.text, '杰作');
   });
 
-  test('未命中项按 AI 批量上限切分', () async {
+  test('完整委托未命中项由服务统一拆批调度', () async {
     final batches = <List<String>>[];
     final pipeline = LocalFirstPromptTranslationPipeline(
       TagTranslationLookup.fromResolver((tags) async => const {}),
@@ -62,7 +62,7 @@ void main() {
       },
     );
 
-    expect(batches.map((batch) => batch.length), [8, 2]);
+    expect(batches.map((batch) => batch.length), [10]);
     expect(result?.translatedTagCount, 10);
   });
 

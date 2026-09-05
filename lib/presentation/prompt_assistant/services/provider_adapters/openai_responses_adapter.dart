@@ -8,6 +8,7 @@ import '../../models/prompt_assistant_models.dart';
 import 'agent_wire_helpers.dart';
 import 'openai_chat_completions_adapter.dart';
 import 'prompt_assistant_adapter.dart';
+import 'reasoning_payload.dart';
 
 class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
   const OpenAiResponsesAdapter();
@@ -42,6 +43,15 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
         'model': request.model,
         'stream': false,
         'instructions': request.systemPrompt,
+        if (responsesReasoningEffort(request.reasoningRequest, null)
+            case final effort?)
+          'reasoning': {'effort': effort},
+        if (request.maxOutputTokens case final count?)
+          'max_output_tokens': count,
+        if (request.responseFormat == PromptAssistantResponseFormat.jsonObject)
+          'text': {
+            'format': {'type': 'json_object'},
+          },
         'input': [
           {'role': 'user', 'content': _inputParts(request.userParts)},
         ],
@@ -350,13 +360,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
     }
 
     final reasoning = request.reasoningRequest;
-    final effort = reasoning?.api == AgentReasoningApi.openAiResponses
-        ? reasoning!.enabled
-              ? reasoning.effort
-              : reasoning.sendWhenDisabled
-              ? reasoning.effort ?? 'none'
-              : null
-        : request.reasoning;
+    final effort = responsesReasoningEffort(reasoning, request.reasoning);
     return {
       'model': request.model,
       'stream': true,
@@ -457,7 +461,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
       if (output is List) {
         final parts = <String>[];
         for (final item in output) {
-          if (item is Map<String, dynamic>) {
+          if (item is Map<String, dynamic> && item['type'] == 'message') {
             final content = item['content'];
             if (content is List) {
               for (final part in content) {

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../../prompt_assistant/models/assistant_execution_settings.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
@@ -12,6 +15,7 @@ class PromptAssistantProviderFormResult {
     required this.apiKey,
     required this.preset,
     required this.allowImageInput,
+    required this.concurrency,
   });
 
   final String name;
@@ -19,6 +23,7 @@ class PromptAssistantProviderFormResult {
   final String apiKey;
   final ProviderPreset preset;
   final bool allowImageInput;
+  final AssistantConcurrencySettings concurrency;
 }
 
 class PromptAssistantProviderForm extends StatefulWidget {
@@ -43,11 +48,20 @@ class _PromptAssistantProviderFormState
   final TextEditingController _keyController = TextEditingController();
   late ProviderPreset _preset;
   late bool _allowImageInput;
+  late AssistantConcurrencyMode _concurrencyMode;
+  late final TextEditingController _concurrencyController;
+  bool _invalidConcurrency = false;
 
   @override
   void initState() {
     super.initState();
     final provider = widget.provider;
+    final concurrency =
+        provider?.concurrency ?? const AssistantConcurrencySettings();
+    _concurrencyMode = concurrency.mode;
+    _concurrencyController = TextEditingController(
+      text: concurrency.maxConcurrentRequests.toString(),
+    );
     _nameController = TextEditingController(text: provider?.name ?? '');
     _baseController = TextEditingController(text: provider?.baseUrl ?? '');
     _preset =
@@ -67,6 +81,7 @@ class _PromptAssistantProviderFormState
 
   @override
   void dispose() {
+    _concurrencyController.dispose();
     _nameController.dispose();
     _baseController.dispose();
     _keyController.dispose();
@@ -94,6 +109,12 @@ class _PromptAssistantProviderFormState
   }
 
   void _save() {
+    final count = int.tryParse(_concurrencyController.text);
+    if (_concurrencyMode == AssistantConcurrencyMode.manual &&
+        (count == null || count < 1)) {
+      setState(() => _invalidConcurrency = true);
+      return;
+    }
     Navigator.pop(
       context,
       PromptAssistantProviderFormResult(
@@ -102,6 +123,10 @@ class _PromptAssistantProviderFormState
         apiKey: _keyController.text,
         preset: _preset,
         allowImageInput: _allowImageInput,
+        concurrency: AssistantConcurrencySettings(
+          mode: _concurrencyMode,
+          maxConcurrentRequests: count != null && count > 0 ? count : 5,
+        ),
       ),
     );
   }
@@ -160,6 +185,54 @@ class _PromptAssistantProviderFormState
           },
         ),
         const SizedBox(height: 8),
+        DropdownButtonFormField<AssistantConcurrencyMode>(
+          key: const ValueKey('assistant-concurrency-mode'),
+          initialValue: _concurrencyMode,
+          isExpanded: true,
+          itemHeight: null,
+          decoration: InputDecoration(
+            labelText: context.l10n.promptAssistant_concurrencyMode,
+          ),
+          items: [
+            DropdownMenuItem(
+              value: AssistantConcurrencyMode.automatic,
+              child: Text(context.l10n.promptAssistant_concurrencyAuto),
+            ),
+            DropdownMenuItem(
+              value: AssistantConcurrencyMode.manual,
+              child: Text(context.l10n.promptAssistant_concurrencyManual),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _concurrencyMode = value;
+                _invalidConcurrency = false;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 8),
+        if (_concurrencyMode == AssistantConcurrencyMode.manual)
+          TextField(
+            key: const ValueKey('assistant-concurrency-count'),
+            controller: _concurrencyController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              labelText: context.l10n.promptAssistant_concurrencyCount,
+              errorText: _invalidConcurrency
+                  ? context.l10n.promptAssistant_concurrencyInvalid
+                  : null,
+              errorMaxLines: 3,
+            ),
+          )
+        else
+          Text(
+            context.l10n.promptAssistant_concurrencyAutoDescription,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        const SizedBox(height: 12),
         TextField(
           controller: _keyController,
           decoration: InputDecoration(

@@ -1,8 +1,8 @@
 import '../../../core/agent/agent_types.dart';
-import '../../prompt_assistant/models/agent_protocol.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
-import '../model/agent_reasoning_model_rule.dart';
-import '../model/pi_reasoning_model_catalog.dart';
+import 'agent_protocol.dart';
+import 'prompt_assistant_models.dart';
+import 'agent_reasoning_model_rule.dart';
+import 'pi_reasoning_model_catalog.dart';
 
 const _thinkingOrder = <ThinkingLevel>[
   ThinkingLevel.off,
@@ -14,15 +14,15 @@ const _thinkingOrder = <ThinkingLevel>[
   ThinkingLevel.max,
 ];
 
-class AgentChatModelMetadata {
-  const AgentChatModelMetadata({
+class AssistantModelMetadata {
+  const AssistantModelMetadata({
     required this.contextWindow,
     required this.maxOutputTokens,
     required this.thinkingLevels,
     this.reasoningRule,
   });
 
-  static const unknown = AgentChatModelMetadata(
+  static const unknown = AssistantModelMetadata(
     contextWindow: 0,
     maxOutputTokens: 0,
     thinkingLevels: <ThinkingLevel>[],
@@ -34,6 +34,30 @@ class AgentChatModelMetadata {
   final AgentReasoningModelRule? reasoningRule;
 
   bool get reasoning => thinkingLevels.isNotEmpty;
+
+  bool get thinkingIsToggle =>
+      thinkingLevels.where((level) => level != ThinkingLevel.off).length > 1 &&
+      selectableThinkingLevels
+              .where((level) => level != ThinkingLevel.off)
+              .length ==
+          1;
+
+  /// Keep the raw Pi levels for resolving old selections, but do not present
+  /// several effort choices when the provider only receives an on/off switch.
+  List<ThinkingLevel> get selectableThinkingLevels {
+    final choices = <(bool, String?, int?), ThinkingLevel>{};
+    for (final level in thinkingLevels) {
+      final request = resolveReasoningRequest(
+        level == ThinkingLevel.off ? null : level.name,
+      );
+      if (request == null) continue;
+      final control = (request.enabled, request.effort, request.budgetTokens);
+      if (!choices.containsKey(control) || level == ThinkingLevel.high) {
+        choices[control] = level;
+      }
+    }
+    return thinkingLevels.where(choices.values.contains).toList();
+  }
 
   AgentReasoningRequest? resolveReasoningRequest(String? selectedLevel) {
     final rule = reasoningRule;
@@ -142,8 +166,8 @@ class AgentChatModelMetadata {
   }
 }
 
-class AgentChatModelCatalog {
-  const AgentChatModelCatalog._();
+class AssistantModelCatalog {
+  const AssistantModelCatalog._();
 
   static const _legacyDeepSeekChat = AgentReasoningModelRule(
     api: AgentReasoningApi.deepSeek,
@@ -162,20 +186,30 @@ class AgentChatModelCatalog {
     maxOutputTokens: 65536,
   );
 
-  static AgentChatModelMetadata resolve(ProviderPreset? preset, String model) {
-    if (preset == null) return AgentChatModelMetadata.unknown;
+  static AssistantModelMetadata resolve(ProviderPreset? preset, String model) {
+    if (preset == null) return AssistantModelMetadata.unknown;
     return resolveProvider(
       provider: preset.createConfig(id: 'capability'),
       model: model,
     );
   }
 
-  static AgentChatModelMetadata resolveProvider({
+  static AssistantModelMetadata resolveProvider({
     required ProviderConfig provider,
     required String model,
   }) {
     final providerKey = _resolvePiProvider(provider, model);
     var rule = providerKey == null ? null : _lookupRule(providerKey, model);
+
+    // OpenAI exposes the same model efforts through both wire protocols.
+    // Pi's catalog lists Responses; Chat Completions needs its own field shape.
+    if (provider.protocol == ProviderProtocol.openaiChatCompletions &&
+        (providerKey == 'openai' || rule == null)) {
+      final openAiRule = _lookupRule('openai', model);
+      if (openAiRule?.api == AgentReasoningApi.openAiResponses) {
+        rule = openAiRule!.withApi(AgentReasoningApi.openAiCompletions);
+      }
+    }
 
     if (rule == null && provider.preset == ProviderPreset.deepseek) {
       rule = switch (model) {
@@ -189,7 +223,7 @@ class AgentChatModelCatalog {
       rule = null;
     }
     if (rule != null) {
-      return AgentChatModelMetadata(
+      return AssistantModelMetadata(
         contextWindow: rule.contextWindow,
         maxOutputTokens: rule.maxOutputTokens,
         thinkingLevels: rule.levels,
@@ -199,7 +233,7 @@ class AgentChatModelCatalog {
 
     if (provider.preset == ProviderPreset.openaiChat &&
         model.startsWith('gpt-4.1')) {
-      return const AgentChatModelMetadata(
+      return const AssistantModelMetadata(
         contextWindow: 1047576,
         maxOutputTokens: 32768,
         thinkingLevels: [],
@@ -212,12 +246,12 @@ class AgentChatModelCatalog {
   /// 通常原样透传，按名跨服务商回退能救回窗口。
   ///
   /// 同名窗口不一致时取最小值：低估只会提前压缩，高估会撑爆上下文。
-  static AgentChatModelMetadata _resolveByModelName(
+  static AssistantModelMetadata _resolveByModelName(
     ProviderProtocol protocol,
     String model,
   ) {
     final candidates = _rulesByModelName[model.trim().toLowerCase()];
-    if (candidates == null) return AgentChatModelMetadata.unknown;
+    if (candidates == null) return AssistantModelMetadata.unknown;
 
     AgentReasoningModelRule? compatible;
     AgentReasoningModelRule? fallback;
@@ -232,7 +266,7 @@ class AgentChatModelCatalog {
       }
     }
     if (compatible != null) {
-      return AgentChatModelMetadata(
+      return AssistantModelMetadata(
         contextWindow: compatible.contextWindow,
         maxOutputTokens: compatible.maxOutputTokens,
         thinkingLevels: compatible.levels,
@@ -241,7 +275,7 @@ class AgentChatModelCatalog {
     }
     // 协议对不上就只借窗口和最大输出，不借推理配置——否则会按这个网关并不
     // 支持的 API 形状发请求。
-    return AgentChatModelMetadata(
+    return AssistantModelMetadata(
       contextWindow: fallback!.contextWindow,
       maxOutputTokens: fallback.maxOutputTokens,
       thinkingLevels: const [],
@@ -367,12 +401,12 @@ class AgentChatModelCapability {
 
   final Model model;
   final List<ThinkingLevel> levels;
-  final AgentChatModelMetadata metadata;
+  final AssistantModelMetadata metadata;
 
   static const unavailable = AgentChatModelCapability(
     model: Model(id: '', name: '', api: '', provider: ''),
     levels: [],
-    metadata: AgentChatModelMetadata.unknown,
+    metadata: AssistantModelMetadata.unknown,
   );
 
   AgentReasoningRequest? resolveReasoningRequest(String? selectedLevel) =>
@@ -385,7 +419,7 @@ class AgentChatModelCapability {
     String modelId, {
     int? contextWindowOverride,
   }) {
-    final metadata = AgentChatModelCatalog.resolveProvider(
+    final metadata = AssistantModelCatalog.resolveProvider(
       provider: provider,
       model: modelId,
     );

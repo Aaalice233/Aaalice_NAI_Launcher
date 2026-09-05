@@ -6793,5 +6793,16 @@
   "mosaic_systemGalleryExportFailed": "The app copy was saved, but system gallery export failed.",
   "mosaic_undo": "Undo",
   "mosaic_redo": "Redo",
-  "mosaic_reset": "Reset"
+  "mosaic_reset": "Reset",
+  "promptAssistant_concurrencyMode": "Concurrency mode",
+  "promptAssistant_concurrencyAuto": "Automatic",
+  "promptAssistant_concurrencyManual": "Manual",
+  "promptAssistant_concurrencyCount": "Maximum concurrent requests",
+  "promptAssistant_concurrencyInvalid": "Enter a positive integer",
+  "promptAssistant_concurrencyAutoDescription": "Starts with 5 concurrent requests and adapts to responses. All prompt assistant tasks using this provider share the limit.",
+  "promptAssistant_thinkingLevel": "Thinking level",
+  "promptAssistant_thinkingDefault": "Model default",
+  "promptAssistant_thinkingUnavailable": "No adjustable thinking levels identified. Uses the model default.",
+  "promptAssistant_thinkingReset": "The saved level is unavailable for this model. Uses the model default.",
+  "promptAssistant_thinkingEnabled": "On"
 }
