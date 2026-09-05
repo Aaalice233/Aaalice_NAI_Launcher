@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
@@ -30,6 +32,7 @@ class GenerationToolbox {
     bool allowOutsideWorkspace = false,
     GenerationPreparationRuntime? runtime,
     AgentResourceResolver? resourceResolver,
+    Uint8List? Function(int index)? readAttachedImage,
   }) {
     final preparationRuntime = runtime ?? GenerationPreparationRuntime();
     final resolver = resourceResolver ?? AgentResourceResolver(ref);
@@ -65,7 +68,12 @@ class GenerationToolbox {
       executeQueue: queue.queueTask,
     );
     _definitions = GenerationToolDefinitions(
-      interrogation: GenerationInterrogationService(ref, pathResolver),
+      interrogation: GenerationInterrogationService(
+        ref,
+        pathResolver,
+        resourceResolver: resolver,
+        readAttachedImage: readAttachedImage,
+      ),
       preparation: preparation,
       status: GenerationStatusService(
         ref,

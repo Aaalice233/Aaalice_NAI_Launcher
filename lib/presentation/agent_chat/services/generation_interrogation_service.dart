@@ -13,11 +13,20 @@ import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapt
 import '../../prompt_assistant/services/prompt_assistant_service.dart';
 import 'generation_tool_results.dart';
 import 'generation_workspace_path_resolver.dart';
+import 'agent_resource_resolver.dart';
 
 class GenerationInterrogationService {
-  GenerationInterrogationService(this._ref, this._pathResolver);
+  GenerationInterrogationService(
+    this._ref,
+    this._pathResolver, {
+    required AgentResourceResolver resourceResolver,
+    Uint8List? Function(int index)? readAttachedImage,
+  }) : _resourceResolver = resourceResolver,
+       _readAttachedImage = readAttachedImage;
   final Ref _ref;
   final GenerationWorkspacePathResolver _pathResolver;
+  final AgentResourceResolver _resourceResolver;
+  final Uint8List? Function(int index)? _readAttachedImage;
 
   static bool agentChatSupportsImage({
     required AgentSettings settings,
@@ -47,20 +56,32 @@ class GenerationInterrogationService {
     AgentToolUpdateCallback? onUpdate,
   ]) async {
     throwIfAborted(signal);
-    final path = (args['path'] as String?)?.trim() ?? '';
-    if (path.isEmpty) {
-      return generationErrorResult('Parameter "path" is required.');
-    }
-    String resolvedPath;
+    final Uint8List bytes;
     try {
-      resolvedPath = await _pathResolver.resolveLocalImagePath(path);
-    } on Object {
-      return generationErrorResult('Image path is not permitted.');
+      bytes = await _loadImage(args);
+      throwIfAborted(signal);
+    } on FormatException catch (error) {
+      return generationErrorResult(error.message);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Interrogation image loading failed',
+        error,
+        stackTrace,
+        'AgentChat',
+      );
+      return generationErrorResult(
+        signal?.aborted == true
+            ? 'Interrogation cancelled.'
+            : 'Unable to read the selected image.',
+      );
     }
-    final file = File(resolvedPath);
-    if (!file.existsSync()) {
-      return generationErrorResult('Image not found.');
-    }
+    return _interrogateBytes(bytes, signal);
+  }
+
+  Future<AgentToolResult> _interrogateBytes(
+    Uint8List bytes,
+    AbortSignal? signal,
+  ) async {
     // 路由优先级：支持图片输入的对话模型直读 > 专用 reverse 模型（fallback）。
     final config = _ref.read(promptAssistantConfigProvider);
     final agentSettings = _ref.read(agentSettingsProvider).settings;
@@ -87,7 +108,6 @@ class GenerationInterrogationService {
       );
     }
     try {
-      final bytes = await file.readAsBytes();
       throwIfAborted(signal);
       final service = _ref.read(promptAssistantServiceProvider);
       void cancelInterrogation(String? _) {
@@ -145,6 +165,65 @@ class GenerationInterrogationService {
       }
       return generationErrorResult('Interrogation failed.');
     }
+  }
+
+  Future<Uint8List> _loadImage(Map<String, dynamic> args) async {
+    final sources = [
+      'path',
+      'resource_ref',
+      'attachment_index',
+    ].where((key) => args[key] != null);
+    if (sources.length != 1) {
+      throw const FormatException(
+        'Provide exactly one of path, resource_ref, or attachment_index.',
+      );
+    }
+    Uint8List? bytes;
+    if (args['attachment_index'] case final Object index) {
+      if (index is! int || index < 1) {
+        throw const FormatException(
+          'attachment_index must be a positive integer.',
+        );
+      }
+      bytes = _readAttachedImage?.call(index);
+      if (bytes == null || bytes.isEmpty) {
+        throw const FormatException(
+          'Image attachment not found in the latest user message.',
+        );
+      }
+    } else if (args['resource_ref'] case final Object rawReference) {
+      final reference = _resourceResolver.decode(rawReference);
+      await _resourceResolver.validateImageResource(reference);
+      final resolved = await _resourceResolver.resolve(reference);
+      bytes = resolved?.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        throw const FormatException(
+          'The referenced resource has no available image data.',
+        );
+      }
+    } else {
+      final path = args['path'];
+      if (path is! String || path.trim().isEmpty) {
+        throw const FormatException('path must be a non-empty string.');
+      }
+      final String resolvedPath;
+      try {
+        resolvedPath = await _pathResolver.resolveLocalImagePath(path.trim());
+      } on Object {
+        throw const FormatException('Image path is not permitted.');
+      }
+      final file = File(resolvedPath);
+      if (!await file.exists()) {
+        throw const FormatException('Image not found.');
+      }
+      bytes = await file.readAsBytes();
+    }
+    if (_imageMimeType(bytes) == 'application/octet-stream') {
+      throw const FormatException(
+        'Selected data is not a supported PNG, JPEG, or WebP image.',
+      );
+    }
+    return bytes;
   }
 
   Future<String> _collectAgentInterrogation(

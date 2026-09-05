@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Aaalice NAI Launcher</string>
-    <string name="generation_notification_channel">Image generation</string>
-    <string name="generation_notification_channel_description">Keeps active image generation running in the background</string>
-    <string name="generation_notification_title">Generating image</string>
-    <string name="generation_notification_text">Generation is running. Tap to return to the app.</string>
+    <string name="generation_notification_channel">AI tasks</string>
+    <string name="generation_notification_channel_description">Keeps active generation and Agent tasks running in the background</string>
+    <string name="generation_notification_title">AI task in progress</string>
+    <string name="generation_notification_text">Generation or Agent tasks are running. Tap to return to the app.</string>
 </resources>

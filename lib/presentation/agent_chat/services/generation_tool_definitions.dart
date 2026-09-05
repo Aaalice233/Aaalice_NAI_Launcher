@@ -42,18 +42,32 @@ class GenerationToolDefinitions {
             'current chat model directly when it supports image input; '
             'the dedicated "reverse" vision model (Settings > '
             'Integrations) is only a fallback and is NOT required. '
-            'Requirements: "path" must be an existing local image file '
-            '(workspace-relative or absolute).',
+            'Provide exactly one source: attachment_index for an inline image '
+            'in the latest user message (1-based in message order), '
+            'resource_ref for an application image, or path for an existing '
+            'local image file. Inline attachments have no file path; never '
+            'invent a path for them.',
         parameters: const {
           'type': 'object',
           'properties': {
+            'attachment_index': {
+              'type': 'integer',
+              'minimum': 1,
+              'description': '1-based image index in the latest user message.',
+            },
+            'resource_ref': {
+              'type': 'object',
+              'description':
+                  'Exact application image reference supplied by the user or a tool.',
+            },
             'path': {
               'type': 'string',
               'description':
                   'Image file path (workspace-relative or absolute).',
             },
           },
-          'required': ['path'],
+          'required': <String>[],
+          'additionalProperties': false,
         },
         executeWithControl: _interrogation.interrogate,
       ),

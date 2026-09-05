@@ -8,7 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/model_capabilities.dart';
 import '../../core/platform/platform_capabilities.dart';
-import '../../core/services/android_generation_foreground_service.dart';
+import '../../core/services/android_foreground_task_service.dart';
 import '../../core/services/android_media_store_service.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/services/character_conversion_service.dart';
@@ -94,7 +94,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   int _activeRunId = 0;
   GenerationRunHandle? _activeRun;
   ImageGenerationCoordinator? _coordinator;
-  final Set<int> _foregroundInvocationIds = <int>{};
   final Map<String, String?> _persistedHistoryFilePaths = <String, String?>{};
   final Map<String, _RememberedStreamPreview> _streamPreviews = {};
   final Set<String> _failedSnapshotKeys = {};
@@ -292,7 +291,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         : null;
     final invocationId = ++_invocationCounter;
     _activeInvocationId = invocationId;
-    var foregroundStarted = false;
+    Future<void> Function()? releaseForeground;
 
     try {
       if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
@@ -332,9 +331,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
 
       try {
-        await AndroidGenerationForegroundService.start();
-        foregroundStarted = AndroidGenerationForegroundService.isSupported;
-        if (foregroundStarted) _foregroundInvocationIds.add(invocationId);
+        releaseForeground = await ref
+            .read(androidForegroundTaskServiceProvider)
+            .acquire();
       } catch (error, stackTrace) {
         AppLogger.e(
           'Unable to start Android generation foreground service',
@@ -414,18 +413,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (identical(_generationInvocationSettled, invocationSettled)) {
         _generationInvocationSettled = null;
       }
-      if (foregroundStarted) {
-        _foregroundInvocationIds.remove(invocationId);
-        if (_foregroundInvocationIds.isEmpty) {
-          try {
-            await AndroidGenerationForegroundService.stop();
-          } catch (error, stackTrace) {
-            AppLogger.e(
-              'Unable to stop Android generation foreground service',
-              error,
-              stackTrace,
-            );
-          }
+      if (releaseForeground != null) {
+        try {
+          await releaseForeground();
+        } catch (error, stackTrace) {
+          AppLogger.e(
+            'Unable to stop Android generation foreground service',
+            error,
+            stackTrace,
+          );
         }
       }
       try {

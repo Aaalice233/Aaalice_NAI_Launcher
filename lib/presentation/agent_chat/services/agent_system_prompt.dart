@@ -35,7 +35,10 @@ String buildAgentSystemPrompt({
         'submit_generation with the preparation_id and confirmed=true. '
         'Use inspect/update/cancel_generation_preparation while pending. '
         'Never claim submission from a preparation result.',
-    '- interrogate_image reverse-engineers a prompt from an image file. '
+    '- interrogate_image reverse-engineers a prompt from an image. '
+        'For inline images use attachment_index (1-based in the latest user '
+        'message); for application images use the exact resource_ref. '
+        'Use path only for an existing file, never invent attachment paths. '
         'It uses the chat model directly when image input is supported; '
         'the dedicated "reverse" vision model is only a fallback.',
     '- For user-drawn inpaint masks, call create_manual_inpaint_draft. It '

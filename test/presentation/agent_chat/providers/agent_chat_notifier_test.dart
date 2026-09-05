@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart' show ThinkingLevel;
@@ -9,6 +10,7 @@ import 'package:nai_launcher/core/agent/harness/harness_types.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_types.dart';
 import 'package:nai_launcher/core/agent/llm_types.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/core/services/android_foreground_task_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/presentation/agent_chat/models/agent_chat_compaction_outcome.dart';
@@ -286,6 +288,8 @@ User instructions.
     late JsonlSessionRepo sessionRepo;
     late List<AgentChatRequest> requests;
     late AgentWireCompletion wireCompletion;
+    late List<String> foregroundCalls;
+    const foregroundChannel = MethodChannel('test/agent-foreground');
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp(
@@ -294,6 +298,12 @@ User instructions.
       storage = _MemoryLocalStorage();
       sessionRepo = JsonlSessionRepo(tempDir);
       requests = [];
+      foregroundCalls = [];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(foregroundChannel, (call) async {
+            foregroundCalls.add(call.method);
+            return null;
+          });
       wireCompletion = (request) {
         requests.add(request);
         return Stream<AgentWireEvent>.fromIterable(const [
@@ -315,6 +325,13 @@ User instructions.
       });
       container = ProviderContainer(
         overrides: [
+          androidForegroundTaskServiceProvider.overrideWithValue(
+            AndroidForegroundTaskService(
+              supported: true,
+              channel: foregroundChannel,
+              requestNotificationPermission: () async {},
+            ),
+          ),
           localStorageServiceProvider.overrideWithValue(storage),
           agentSettingsProvider.overrideWith(
             (ref) => AgentSettingsNotifier(
@@ -335,10 +352,95 @@ User instructions.
 
     tearDown(() async {
       container.dispose();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(foregroundChannel, null);
       if (await tempDir.exists()) {
         await tempDir.delete(recursive: true);
       }
     });
+
+    for (final outcome in ['success', 'error', 'cancelled', 'start_failure']) {
+      test(
+        'Agent holds foreground execution until response settles: $outcome',
+        () async {
+          final config = container.read(promptAssistantConfigProvider.notifier);
+          await config.upsertProvider(ProviderPreset.deepseek.createConfig());
+          await config.upsertModel(
+            const ModelConfig(
+              providerId: 'deepseek',
+              name: 'deepseek-chat',
+              displayName: 'DeepSeek Chat',
+              forTask: AssistantTaskType.chat,
+            ),
+          );
+          await container
+              .read(agentSettingsProvider.notifier)
+              .setModelReference(
+                const AgentModelReference(
+                  providerId: 'deepseek',
+                  model: 'deepseek-chat',
+                ),
+              );
+          if (outcome == 'start_failure') {
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+                .setMockMethodCallHandler(foregroundChannel, (call) async {
+                  foregroundCalls.add(call.method);
+                  throw PlatformException(code: 'foreground_start_failed');
+                });
+            await container.read(provider.notifier).send('start task');
+            expect(foregroundCalls, ['start']);
+            expect(requests, isEmpty);
+            expect(
+              container.read(provider).error,
+              contains('foreground_start_failed'),
+            );
+            expect(container.read(provider).status, AgentChatRunStatus.idle);
+            return;
+          }
+          final entered = Completer<void>();
+          final response = Completer<void>();
+          wireCompletion = (request) async* {
+            expect(foregroundCalls, ['start']);
+            entered.complete();
+            await response.future;
+            if (outcome == 'error') throw StateError('test network failure');
+            yield const AgentWireTextDelta('background response');
+            yield const AgentWireFinish(stopReason: StopReason.stop);
+          };
+          final send = container
+              .read(provider.notifier)
+              .send('continue in background');
+          await entered.future;
+          expect(foregroundCalls, ['start']);
+          final cancellation = outcome == 'cancelled'
+              ? container.read(provider.notifier).abort()
+              : null;
+          response.complete();
+          await cancellation;
+          await send;
+          expect(foregroundCalls, ['start', 'stop']);
+          final messages = container
+              .read(provider)
+              .messages
+              .whereType<AssistantMessage>();
+          if (outcome == 'error') {
+            expect(
+              container.read(provider).error,
+              contains('test network failure'),
+            );
+          } else if (outcome == 'success') {
+            expect(
+              messages.last.content
+                  .whereType<AssistantTextContent>()
+                  .single
+                  .text,
+              'background response',
+            );
+          }
+          expect(container.read(provider).status, AgentChatRunStatus.idle);
+        },
+      );
+    }
 
     test('配置新增服务商后立即刷新聊天路由', () async {
       final configNotifier = container.read(

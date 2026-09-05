@@ -20,6 +20,7 @@ import '../../../core/agent/resources/agent_chat_resource_draft_store.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/skill_catalog.dart';
 import '../../../core/storage/local_storage_service.dart';
+import '../../../core/services/android_foreground_task_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/agent/agent_settings.dart';
 import '../../../data/models/inpaint/inpaint_draft.dart';
@@ -257,6 +258,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       generationRuntime: _generationPreparationRuntime,
       queueRuntime: _queueControlRuntime,
       manualInpaintToolbox: _manualInpaintToolbox,
+      messages: () =>
+          _sessionControllerValue?.agent?.state.messages ?? const [],
       activeSessionId: () => state.activeSessionId,
       isMounted: () => mounted,
     );
@@ -1129,6 +1132,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     Future<void>? run;
     Agent? runAgent;
     var ownsRun = false;
+    Future<void> Function()? releaseForeground;
 
     try {
       await previousDispatch;
@@ -1208,6 +1212,9 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       _activeAgentSettings = agentSettings;
       _activePermissionMode = permissionMode;
       _activeRoute = _routeCache;
+      releaseForeground = await _ref
+          .read(androidForegroundTaskServiceProvider)
+          .acquire();
       final capability = _modelCapability(_activeRoute);
       agent.state.model = capability.model;
       if (!capability.levels.contains(agent.state.thinkingLevel)) {
@@ -1260,8 +1267,9 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       _preparingRun = false;
       await _draftController.consumePendingResources(attachedResources);
       await onAccepted?.call();
-    } catch (e) {
+    } catch (e, stackTrace) {
       _preparingRun = false;
+      AppLogger.e('Agent dispatch failed', e, stackTrace, 'AgentChat');
       if (ownsRun && run == null) {
         _activePermissionMode = null;
         _activeAgentSettings = null;
@@ -1276,6 +1284,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         _queueSettingsRefresh();
       }
     } finally {
+      if (run == null) await _releaseForegroundTask(releaseForeground);
       if (!dispatchDone.isCompleted) dispatchDone.complete();
     }
 
@@ -1283,10 +1292,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     var succeeded = true;
     try {
       await run;
-    } catch (e) {
+    } catch (e, stackTrace) {
       succeeded = false;
+      AppLogger.e('Agent run failed', e, stackTrace, 'AgentChat');
       state = state.copyWith(error: e.toString());
     } finally {
+      if (!await _releaseForegroundTask(releaseForeground)) succeeded = false;
       _activePermissionMode = null;
       _activeAgentSettings = null;
       _activeRoute = null;
@@ -1301,6 +1312,22 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       if (_settingsApplyPending) _queueSettingsRefresh();
     }
     return succeeded;
+  }
+
+  Future<bool> _releaseForegroundTask(Future<void> Function()? release) async {
+    try {
+      await release?.call();
+      return true;
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Agent foreground cleanup failed',
+        error,
+        stackTrace,
+        'AgentChat',
+      );
+      if (mounted) state = state.copyWith(error: error.toString());
+      return false;
+    }
   }
 
   List<AgentQueuedMessage> _queuedMessages(Agent agent) => [

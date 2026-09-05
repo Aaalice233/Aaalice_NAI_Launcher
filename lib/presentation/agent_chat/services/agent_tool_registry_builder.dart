@@ -13,6 +13,7 @@ import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../router/app_router_config.dart';
 import '../../router/app_routes.dart';
 import 'agent_image_observation_ledger.dart';
+import 'agent_attached_image.dart';
 import 'agent_resource_resolver.dart';
 import 'application_context_toolbox.dart';
 import 'execution_toolbox.dart';
@@ -61,6 +62,7 @@ class AgentToolRegistryBuilder {
     required ManualInpaintToolbox manualInpaintToolbox,
     required String Function() activeSessionId,
     required bool Function() isMounted,
+    required List<Message> Function() messages,
   }) : _ref = ref,
        _workspaceDir = workspaceDir,
        _skills = skills,
@@ -70,7 +72,8 @@ class AgentToolRegistryBuilder {
        _queueRuntime = queueRuntime,
        _manualInpaintToolbox = manualInpaintToolbox,
        _activeSessionId = activeSessionId,
-       _isMounted = isMounted;
+       _isMounted = isMounted,
+       _messages = messages;
 
   final Ref _ref;
   final String _workspaceDir;
@@ -82,6 +85,7 @@ class AgentToolRegistryBuilder {
   final ManualInpaintToolbox _manualInpaintToolbox;
   final String Function() _activeSessionId;
   final bool Function() _isMounted;
+  final List<Message> Function() _messages;
 
   /// 跨 build() 保留：权限模式切换不该抹掉本会话已经看过的图。
   final AgentImageObservationLedger _observationLedger =
@@ -195,6 +199,8 @@ class AgentToolRegistryBuilder {
         allowOutsideWorkspace: fullAccess,
         runtime: _generationRuntime,
         resourceResolver: resourceResolver,
+        readAttachedImage: (index) =>
+            readAgentAttachedImage(_messages(), index),
       ).tools(),
       ...QueueToolbox(_ref, _queueRuntime).tools(),
       ..._manualInpaintToolbox.tools(),

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Aaalice NAI Launcher</string>
-    <string name="generation_notification_channel">画像生成</string>
-    <string name="generation_notification_channel_description">進行中の画像生成をバックグラウンドで継続します</string>
-    <string name="generation_notification_title">画像を生成中</string>
-    <string name="generation_notification_text">生成処理を実行中です。タップしてアプリに戻ります。</string>
+    <string name="generation_notification_channel">AI タスク</string>
+    <string name="generation_notification_channel_description">進行中の画像生成と Agent タスクをバックグラウンドで継続します</string>
+    <string name="generation_notification_title">AI タスクを実行中</string>
+    <string name="generation_notification_text">画像生成または Agent タスクを実行中です。タップしてアプリに戻ります。</string>
 </resources>
