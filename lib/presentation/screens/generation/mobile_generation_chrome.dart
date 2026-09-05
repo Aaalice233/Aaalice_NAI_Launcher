@@ -16,6 +16,7 @@ import 'mobile_generation_gestures.dart';
 import 'mobile_generation_view_data.dart';
 import 'widgets/history_panel.dart';
 import 'widgets/parameter_panel.dart';
+import 'widgets/generation_controls/generate_button.dart';
 import 'widgets/generation_controls/random_mode_toggle.dart';
 
 class MobileGenerationChrome extends ConsumerWidget {
@@ -289,6 +290,11 @@ class _MobileGenerateButton extends StatelessWidget {
       generationState.currentImage > 0 &&
       generationState.totalImages > generationState.currentImage;
 
+  /// 已提交但还没开跑，此时按钮必须立刻反馈，否则点击会被静默吞掉。
+  bool get _isPreparing => generationState.isPreparing;
+
+  bool get _showCancelAction => showCancel || _isPreparing;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -300,15 +306,16 @@ class _MobileGenerateButton extends StatelessWidget {
         onPrimaryContainer: theme.colorScheme.onError,
       ),
     );
-    final isLoading = isGenerating && !showCancel;
+    // Krita 占用时启动器自身没有可取消的任务，只能转圈禁用等待。
+    final isLoading = isGenerating && !_showCancelAction;
     final primaryButton = AnimatedTheme(
-      data: showCancel ? cancelTheme : theme,
+      data: _showCancelAction ? cancelTheme : theme,
       duration: MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
           : const Duration(milliseconds: 160),
       curve: Curves.easeOut,
       child: ThemedButton(
-        onPressed: showCancel
+        onPressed: _showCancelAction
             ? onCancel
             : requiresLogin
             ? onGenerate
@@ -317,7 +324,7 @@ class _MobileGenerateButton extends StatelessWidget {
             : onGenerate,
         isLoading: isLoading,
         label: IndexedStack(
-          index: showCancel ? 1 : 0,
+          index: _showCancelAction ? 1 : 0,
           alignment: Alignment.center,
           children: [
             Row(
@@ -356,7 +363,10 @@ class _MobileGenerateButton extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.stop_circle_outlined),
+                if (_isPreparing)
+                  const GenerateButtonSpinner()
+                else
+                  const Icon(Icons.stop_circle_outlined),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(

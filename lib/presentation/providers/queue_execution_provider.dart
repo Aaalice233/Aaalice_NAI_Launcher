@@ -346,7 +346,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     final isKritaGenerating =
         PlatformCapabilities.current.supportsKritaBridge &&
         ref.read(kritaBridgeNotifierProvider).isBridgeGenerating;
-    if (generationState.isGenerating || isKritaGenerating) {
+    if (generationState.isBusy || isKritaGenerating) {
       return QueueStartResult.busy;
     }
 
@@ -445,7 +445,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       await generationNotifier.waitUntilGenerationInvocationSettled();
 
       if (state.status != QueueExecutionStatus.ready) return;
-      if (ref.read(imageGenerationNotifierProvider).isGenerating ||
+      if (ref.read(imageGenerationNotifierProvider).isBusy ||
           (PlatformCapabilities.current.supportsKritaBridge &&
               ref.read(kritaBridgeNotifierProvider).isBridgeGenerating)) {
         return;

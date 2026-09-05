@@ -67,11 +67,12 @@ class _WebStyleGenerationLayoutState
         PlatformCapabilities.current.supportsKritaBridge &&
         ref.watch(kritaBridgeNotifierProvider).isBridgeGenerating;
     final isLauncherGenerating = generationState.isGenerating;
-    final isGenerating = isLauncherGenerating || isKritaGenerating;
+    // 提交后到开跑之间同样不能再次触发，否则快捷键会被静默吞掉。
+    final isBusy = generationState.isBusy || isKritaGenerating;
 
     final shortcuts = <String, VoidCallback>{
       ShortcutIds.generateImage: () {
-        if (!isGenerating && !cooldownState.isActive) {
+        if (!isBusy && !cooldownState.isActive) {
           unawaited(generateWithProtection(context, ref));
         }
       },
