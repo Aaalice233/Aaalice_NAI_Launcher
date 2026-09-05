@@ -622,10 +622,7 @@ void main() {
     final assistant = find.byType(PromptAssistantOverlay);
     expect(contentFooter, findsOneWidget);
     expect(assistant, findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('quick-translate-button')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('tag-mode-button')), findsOneWidget);
     expect(
       tester.getTopLeft(contentFooter).dy,
       closeTo(tester.getBottomLeft(contentInput).dy + 4, 1),

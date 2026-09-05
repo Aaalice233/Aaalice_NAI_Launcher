@@ -1612,6 +1612,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prompt_appliedToMainPrompt => 'Applied to main prompt';
 
   @override
+  String get prompt_resizeHeight =>
+      'Drag to resize the editor; double-click or press Home to restore automatic height';
+
+  @override
   String get prompt_inputPrompt => 'Describe the image you want to create';
 
   @override
@@ -12701,35 +12705,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autocomplete_showTranslations => 'Show Chinese translations';
 
   @override
-  String get quickTranslate_show => 'Quick translation';
-
-  @override
-  String get quickTranslate_restore =>
-      'Restore the original prompt (preview edits will be discarded)';
-
-  @override
-  String get quickTranslate_previewSemantics =>
-      'Local Chinese translation preview. Edits here do not affect the original prompt.';
-
-  @override
-  String get quickTranslate_noMatches =>
-      'No translatable tags were found in the current content';
-
-  @override
-  String get quickTranslate_failed =>
-      'Quick translation failed. Check the translation dictionary and try again';
-
-  @override
-  String get quickTranslate_missingTitle => 'Translation dictionary required';
-
-  @override
-  String get quickTranslate_missingMessage =>
-      'Quick translation requires the ffdkj Simplified Chinese dictionary. Open Data & Cache settings and download it now?';
-
-  @override
-  String get quickTranslate_download => 'Open and download';
-
-  @override
   String get autocomplete_autoComma => 'Add a comma after insertion';
 
   @override
@@ -14486,4 +14461,69 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get promptAssistant_responseTimeoutDescription =>
       'Shared by reverse prompting, optimization, translation, character replacement, and custom rewriting. Defaults to 5 minutes; increase it for slower models. You can still cancel at any time. Connection timeouts and agent chat are unchanged.';
+
+  @override
+  String get tagMode_enter => 'Switch to tag mode';
+
+  @override
+  String get tagMode_exit => 'Switch to text mode';
+
+  @override
+  String get tagMode_add => 'Add tags…';
+
+  @override
+  String get tagMode_missingTranslation => 'No translation';
+
+  @override
+  String get tagMode_translationFailed => 'Translation failed · retry';
+
+  @override
+  String get tagMode_loadingTranslation => 'Looking up translation…';
+
+  @override
+  String get tagMode_invalidSyntax =>
+      'Incomplete prompt syntax; finish editing before moving or adjusting weights';
+
+  @override
+  String get tagMode_enable => 'Enable';
+
+  @override
+  String get tagMode_disable => 'Disable';
+
+  @override
+  String get tagMode_cut => 'Cut';
+
+  @override
+  String get tagMode_movePrevious => 'Move backward';
+
+  @override
+  String get tagMode_moveNext => 'Move forward';
+
+  @override
+  String get tagMode_moveFirst => 'Move to start';
+
+  @override
+  String get tagMode_moveLast => 'Move to end';
+
+  @override
+  String get tagMode_copyEffective => 'Copy effective prompt';
+
+  @override
+  String get tagMode_weight => 'Weight';
+
+  @override
+  String get tagMode_mixedWeights => 'Mixed';
+
+  @override
+  String get tagMode_dictionaryMissing =>
+      'Chinese translations require the local dictionary. Tags can still be edited.';
+
+  @override
+  String get tagMode_dictionaryAction => 'Open dictionary settings';
+
+  @override
+  String get tagMode_group => 'Prompt group';
+
+  @override
+  String get tagMode_drag => 'Long press and drag to reorder';
 }

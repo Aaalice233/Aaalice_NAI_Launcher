@@ -3023,6 +3023,12 @@ abstract class AppLocalizations {
   /// **'Applied to main prompt'**
   String get prompt_appliedToMainPrompt;
 
+  /// No description provided for @prompt_resizeHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to resize the editor; double-click or press Home to restore automatic height'**
+  String get prompt_resizeHeight;
+
   /// No description provided for @prompt_inputPrompt.
   ///
   /// In en, this message translates to:
@@ -22137,54 +22143,6 @@ abstract class AppLocalizations {
   /// **'Show Chinese translations'**
   String get autocomplete_showTranslations;
 
-  /// No description provided for @quickTranslate_show.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick translation'**
-  String get quickTranslate_show;
-
-  /// No description provided for @quickTranslate_restore.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore the original prompt (preview edits will be discarded)'**
-  String get quickTranslate_restore;
-
-  /// No description provided for @quickTranslate_previewSemantics.
-  ///
-  /// In en, this message translates to:
-  /// **'Local Chinese translation preview. Edits here do not affect the original prompt.'**
-  String get quickTranslate_previewSemantics;
-
-  /// No description provided for @quickTranslate_noMatches.
-  ///
-  /// In en, this message translates to:
-  /// **'No translatable tags were found in the current content'**
-  String get quickTranslate_noMatches;
-
-  /// No description provided for @quickTranslate_failed.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick translation failed. Check the translation dictionary and try again'**
-  String get quickTranslate_failed;
-
-  /// No description provided for @quickTranslate_missingTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Translation dictionary required'**
-  String get quickTranslate_missingTitle;
-
-  /// No description provided for @quickTranslate_missingMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick translation requires the ffdkj Simplified Chinese dictionary. Open Data & Cache settings and download it now?'**
-  String get quickTranslate_missingMessage;
-
-  /// No description provided for @quickTranslate_download.
-  ///
-  /// In en, this message translates to:
-  /// **'Open and download'**
-  String get quickTranslate_download;
-
   /// No description provided for @autocomplete_autoComma.
   ///
   /// In en, this message translates to:
@@ -25200,6 +25158,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shared by reverse prompting, optimization, translation, character replacement, and custom rewriting. Defaults to 5 minutes; increase it for slower models. You can still cancel at any time. Connection timeouts and agent chat are unchanged.'**
   String get promptAssistant_responseTimeoutDescription;
+
+  /// No description provided for @tagMode_enter.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to tag mode'**
+  String get tagMode_enter;
+
+  /// No description provided for @tagMode_exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to text mode'**
+  String get tagMode_exit;
+
+  /// No description provided for @tagMode_add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tags…'**
+  String get tagMode_add;
+
+  /// No description provided for @tagMode_missingTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'No translation'**
+  String get tagMode_missingTranslation;
+
+  /// No description provided for @tagMode_translationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation failed · retry'**
+  String get tagMode_translationFailed;
+
+  /// No description provided for @tagMode_loadingTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking up translation…'**
+  String get tagMode_loadingTranslation;
+
+  /// No description provided for @tagMode_invalidSyntax.
+  ///
+  /// In en, this message translates to:
+  /// **'Incomplete prompt syntax; finish editing before moving or adjusting weights'**
+  String get tagMode_invalidSyntax;
+
+  /// No description provided for @tagMode_enable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get tagMode_enable;
+
+  /// No description provided for @tagMode_disable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable'**
+  String get tagMode_disable;
+
+  /// No description provided for @tagMode_cut.
+  ///
+  /// In en, this message translates to:
+  /// **'Cut'**
+  String get tagMode_cut;
+
+  /// No description provided for @tagMode_movePrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Move backward'**
+  String get tagMode_movePrevious;
+
+  /// No description provided for @tagMode_moveNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Move forward'**
+  String get tagMode_moveNext;
+
+  /// No description provided for @tagMode_moveFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to start'**
+  String get tagMode_moveFirst;
+
+  /// No description provided for @tagMode_moveLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to end'**
+  String get tagMode_moveLast;
+
+  /// No description provided for @tagMode_copyEffective.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy effective prompt'**
+  String get tagMode_copyEffective;
+
+  /// No description provided for @tagMode_weight.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight'**
+  String get tagMode_weight;
+
+  /// No description provided for @tagMode_mixedWeights.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixed'**
+  String get tagMode_mixedWeights;
+
+  /// No description provided for @tagMode_dictionaryMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Chinese translations require the local dictionary. Tags can still be edited.'**
+  String get tagMode_dictionaryMissing;
+
+  /// No description provided for @tagMode_dictionaryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open dictionary settings'**
+  String get tagMode_dictionaryAction;
+
+  /// No description provided for @tagMode_group.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt group'**
+  String get tagMode_group;
+
+  /// No description provided for @tagMode_drag.
+  ///
+  /// In en, this message translates to:
+  /// **'Long press and drag to reorder'**
+  String get tagMode_drag;
 }
 
 class _AppLocalizationsDelegate

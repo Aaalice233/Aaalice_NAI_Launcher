@@ -1,4 +1,5 @@
 import 'tag_normalizer.dart';
+import 'prompt_edit_document.dart';
 
 /// SD权重语法到NAI V4数值语法的转换工具
 ///
@@ -108,6 +109,10 @@ class SdToNaiConverter {
   /// 注意：只负责 SD 语法转换，不做通用空格转换
   /// 是否将空格转换为下划线由 NaiPromptFormatter 统一负责
   static String convert(String text) {
+    return PromptEditDocument.mapActiveText(text, _convertActive);
+  }
+
+  static String _convertActive(String text) {
     // 只转换带数值的 SD 权重；普通括号属于合法 NAI 提示词内容。
     if (hasSDWeightSyntax(text)) {
       final parsed = _parsePromptAttention(text);

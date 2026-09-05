@@ -25,7 +25,7 @@ import '../common/themed_input.dart';
 import '../common/themed_slider.dart';
 import '../prompt/nai_syntax_controller.dart';
 import '../prompt/prompt_formatter_wrapper.dart';
-import '../prompt/quick_translate_prompt_field.dart';
+import '../prompt/tag_mode_prompt_field.dart';
 
 /// 固定词编辑对话框
 class FixedTagEditDialog extends ConsumerStatefulWidget {
@@ -379,7 +379,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
       focusNode: _contentFocusNode,
       enableAutoFormat: ref.watch(autoFormatPromptSettingsProvider),
       child: AutocompleteWrapper.withAlias(
-        controller: _contentController,
+        controller: _contentController.displayController,
         focusNode: _contentFocusNode,
         ref: ref,
         expands: true,
@@ -390,7 +390,9 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
         ),
         child: ThemedInput(
           key: const ValueKey('fixed-tag-content-input'),
-          controller: _contentController,
+          controller: _contentController.displayController,
+          contextMenuBuilder:
+              _contentController.displayController.buildContextMenu,
           focusNode: _contentFocusNode,
           decoration: InputDecoration(
             hintText: context.l10n.fixedTags_contentHint,
@@ -401,7 +403,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
         ),
       ),
     );
-    return QuickTranslatePromptField(
+    return TagModePromptField(
       controller: _contentController,
       sourceFocusNode: _contentFocusNode,
       child: promptEditor,

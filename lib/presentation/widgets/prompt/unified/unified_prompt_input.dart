@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../core/utils/nai_prompt_formatter.dart';
+import '../../../../core/utils/prompt_edit_document.dart';
 import '../../../../core/utils/prompt_regex_replacer.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
@@ -29,7 +31,7 @@ import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/prompt_regex_rules_provider.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
-import '../quick_translate_prompt_field.dart';
+import '../tag_mode_prompt_field.dart';
 import 'unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
@@ -133,9 +135,14 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 语法高亮控制器
   NaiSyntaxController? _syntaxController;
   bool _syncingControllerValue = false;
+  bool _tagMode = false;
 
   /// 焦点节点
   FocusNode? _internalFocusNode;
+  final FocusNode _tagFocusNode = FocusNode();
+  // Opening search reparents the input under a Column. Keep its editing session
+  // and viewport instead of recreating the text/tag mode container.
+  final GlobalKey _inputStackKey = GlobalKey();
 
   StreamSubscription<StreamingChunk>? _assistantStreamSub;
   late String _sessionId;
@@ -244,6 +251,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 获取有效的文本控制器
   TextEditingController get _effectiveController => _syntaxController!;
+  TextEditingController get _textFieldController => widget.config.enableTagMode
+      ? _syntaxController!.displayController
+      : _effectiveController;
 
   /// 获取有效的焦点节点
   FocusNode get _effectiveFocusNode {
@@ -339,6 +349,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _syntaxController?.removeListener(_syncToExternalController);
     _syntaxController?.dispose();
     _internalFocusNode?.dispose();
+    _tagFocusNode.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _replaceController.dispose();
@@ -424,6 +435,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 焦点变化回调
   void _onFocusChanged() {
     if (!_effectiveFocusNode.hasFocus) {
+      if (_tagMode) return;
       _formatOnBlur();
       ref
           .read(promptAssistantHistoryProvider.notifier)
@@ -640,7 +652,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       _activeSearchMatchIndex = -1;
     });
     _clearSearchHighlights();
-    _effectiveFocusNode.requestFocus();
+    (_tagMode ? _tagFocusNode : _effectiveFocusNode).requestFocus();
   }
 
   void _toggleReplaceVisible() {
@@ -935,8 +947,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 开关关闭、没有选区、选区里不含可解析的 `<词库名>`。
   /// 未在词库中找到的引用由 [AliasResolverService] 原样保留，同样走默认路径。
   bool _handleExpandedClipboardAction({required bool isCut}) {
-    if (!ref.read(resolveAliasOnCopySettingsProvider)) return false;
-
     final controller = _effectiveController;
     final selection = controller.selection;
     if (!selection.isValid || selection.isCollapsed) return false;
@@ -945,15 +955,29 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     final selectedText = selection.textInside(text);
     if (selectedText.isEmpty) return false;
 
-    final expanded = ref
-        .read(aliasResolverServiceProvider.notifier)
-        .resolveAliases(selectedText);
-    if (expanded == selectedText) return false;
+    final display = widget.config.enableTagMode
+        ? _syntaxController!.displayController
+        : null;
+    final expanded = ref.read(resolveAliasOnCopySettingsProvider)
+        ? PromptEditDocument.mapActiveText(
+            selectedText,
+            ref.read(aliasResolverServiceProvider.notifier).resolveAliases,
+          )
+        : selectedText;
+    if (expanded == selectedText &&
+        !(display?.hasProjectedSelection ?? false)) {
+      return false;
+    }
 
     unawaited(Clipboard.setData(ClipboardData(text: expanded)));
 
     // 剪切需要自行删除选中文本：默认实现会连带再写一次剪贴板，不能复用
     if (isCut && !widget.config.readOnly) {
+      if (display != null) {
+        display.deleteSelection();
+        _handleTextChanged(controller.text);
+        return true;
+      }
       final newValue = TextEditingValue(
         text: selection.textBefore(text) + selection.textAfter(text),
         selection: TextSelection.collapsed(offset: selection.start),
@@ -1058,6 +1082,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
 
     final inputStack = Stack(
+      key: _inputStackKey,
       fit: widget.fitContent ? StackFit.loose : StackFit.expand,
       children: [
         result,
@@ -1375,7 +1400,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     // 否则 TextField 会创建自己的内部 focusNode，
     // 导致 _onFocusChanged 监听不到失焦事件
     final baseInput = ThemedInput(
-      controller: _effectiveController,
+      controller: _textFieldController,
       focusNode: _effectiveFocusNode,
       decoration: effectiveDecoration,
       surfaceColor: widget.surfaceColor,
@@ -1401,8 +1426,10 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
                 );
               }),
             ],
-      onChanged: widget.config.enableAutocomplete ? null : _handleTextChanged,
-      onSubmitted: widget.onSubmitted,
+      onChanged: widget.config.enableAutocomplete
+          ? null
+          : (_) => _handleTextChanged(_effectiveController.text),
+      onSubmitted: (_) => widget.onSubmitted?.call(_effectiveController.text),
       showClearButton: widget.config.showClearButton,
       onClearPressed: widget.config.showClearButton ? _handleClear : null,
       clearNeedsConfirm: widget.config.clearNeedsConfirm,
@@ -1415,12 +1442,19 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       child: baseInput,
     );
 
-    if (widget.config.enableQuickTranslation) {
-      clipboardAwareInput = QuickTranslatePromptField(
+    if (widget.config.enableTagMode) {
+      clipboardAwareInput = TagModePromptField(
         controller: _effectiveController,
         sourceFocusNode: _effectiveFocusNode,
+        tagFocusNode: _tagFocusNode,
+        onClear: widget.config.showClearButton ? _handleClear : null,
+        clearNeedsConfirm: widget.config.clearNeedsConfirm,
         surfaceColor: widget.surfaceColor,
         enabled: !widget.config.readOnly,
+        enableAutocomplete: widget.config.enableAutocomplete,
+        onChanged: _handleTextChanged,
+        onModeChanged: (value) => setState(() => _tagMode = value),
+        onSearch: (replace) => _openSearch(showReplace: replace),
         child: clipboardAwareInput,
       );
     }
@@ -1430,17 +1464,18 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       controller: _effectiveController,
       focusNode: _effectiveFocusNode,
       enableWheelAdjustment: enableWheelAdjustment,
+      enabled: !_tagMode && !widget.config.readOnly,
       child: clipboardAwareInput,
     );
 
     // 如果启用自动补全，使用 AutocompleteWrapper 包装
     if (widget.config.enableAutocomplete) {
       result = AutocompleteWrapper(
-        controller: _effectiveController,
+        controller: _textFieldController,
         focusNode: _effectiveFocusNode,
         config: widget.config.autocompleteConfig,
-        enabled: !widget.config.readOnly,
-        onChanged: _handleTextChanged,
+        enabled: !widget.config.readOnly && !_tagMode,
+        onChanged: (_) => _handleTextChanged(_effectiveController.text),
         contentPadding: effectiveDecoration.contentPadding,
         maxLines: widget.maxLines,
         expands: widget.expands,
@@ -1448,7 +1483,16 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       );
     }
 
-    return result;
+    return Listener(onPointerSignal: _containEditorScroll, child: result);
+  }
+
+  void _containEditorScroll(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    // Inner scrolling and weight adjustment register first. At an edge Flutter
+    // leaves the signal unclaimed; consume it here before the outer page can.
+    GestureBinding.instance.pointerSignalResolver.register(event, (resolved) {
+      resolved.respond(allowPlatformDefault: false);
+    });
   }
 
   EdgeInsetsGeometry _withBottomActionClearance(

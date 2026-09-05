@@ -2,10 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/alias_parser.dart';
 import '../../../core/utils/character_prompt_block_parser.dart';
+import '../../../core/utils/prompt_edit_document.dart';
+import 'prompt_display_controller.dart';
 
 /// NAI 语法高亮控制器
 /// 继承 TextEditingController，重写 buildTextSpan 实现语法着色
 class NaiSyntaxController extends TextEditingController {
+  PromptDisplayController? _displayController;
+  PromptDisplayController get displayController =>
+      _displayController ??= PromptDisplayController(this);
+
+  @override
+  void dispose() {
+    _displayController?.dispose();
+    super.dispose();
+  }
+
   bool _highlightEnabled;
   bool _numericEmphasisEnabled;
 
@@ -172,7 +184,12 @@ class NaiSyntaxController extends TextEditingController {
           TextSpan(
             text: spanText.substring(start - spanStart, end - spanStart),
             style: composed
-                ? spanStyle.copyWith(decoration: TextDecoration.underline)
+                ? spanStyle.copyWith(
+                    decoration: TextDecoration.combine([
+                      if (spanStyle.decoration != null) spanStyle.decoration!,
+                      TextDecoration.underline,
+                    ]),
+                  )
                 : spanStyle,
           ),
         );
@@ -279,16 +296,28 @@ class NaiSyntaxController extends TextEditingController {
     final pipeMarks = List<_PipeMark?>.filled(text.length, null);
     final negativeMarks = List<_NegativeMark?>.filled(text.length, null);
     final errors = <String>[];
+    final disabled = PromptEditDocument.disabledRanges(
+      text,
+      allowIncomplete: true,
+    );
+    var active = text;
+    for (final range in disabled.reversed) {
+      active = active.replaceRange(
+        range.$1,
+        range.$2,
+        ' ' * (range.$2 - range.$1),
+      );
+    }
 
     if (includeEmphasis) {
-      _applyOfficialEmphasis(text, backgroundMarks, errors);
-      _applyAliasHighlights(text, backgroundMarks);
+      _applyOfficialEmphasis(active, backgroundMarks, errors);
+      _applyAliasHighlights(active, backgroundMarks);
     }
-    _applyOfficialPipeHighlights(text, pipeMarks);
-    _applyCharacterNegativeHighlights(text, negativeMarks, errors);
+    _applyOfficialPipeHighlights(active, pipeMarks);
+    _applyCharacterNegativeHighlights(active, negativeMarks, errors);
     _syntaxErrors = errors;
 
-    return _buildHighlightedSpans(
+    final spans = _buildHighlightedSpans(
       text,
       baseStyle,
       colors,
@@ -296,6 +325,45 @@ class NaiSyntaxController extends TextEditingController {
       pipeMarks,
       negativeMarks,
     );
+    return _styleDisabled(spans, disabled, baseStyle);
+  }
+
+  List<TextSpan> _styleDisabled(
+    List<TextSpan> spans,
+    List<(int, int)> ranges,
+    TextStyle baseStyle,
+  ) {
+    if (ranges.isEmpty) return spans;
+    final result = <TextSpan>[];
+    var offset = 0;
+    for (final span in spans) {
+      final content = span.text ?? '';
+      final end = offset + content.length;
+      final cuts = <int>{offset, end};
+      for (final range in ranges) {
+        if (range.$1 > offset && range.$1 < end) cuts.add(range.$1);
+        if (range.$2 > offset && range.$2 < end) cuts.add(range.$2);
+      }
+      final sorted = cuts.toList()..sort();
+      for (var i = 0; i + 1 < sorted.length; i++) {
+        final disabled = ranges.any(
+          (range) => sorted[i] >= range.$1 && sorted[i] < range.$2,
+        );
+        result.add(
+          TextSpan(
+            text: content.substring(sorted[i] - offset, sorted[i + 1] - offset),
+            style: disabled
+                ? baseStyle.copyWith(
+                    decoration: TextDecoration.lineThrough,
+                    color: baseStyle.color?.withValues(alpha: 0.7),
+                  )
+                : span.style,
+          ),
+        );
+      }
+      offset = end;
+    }
+    return result;
   }
 
   void _applyCharacterNegativeHighlights(

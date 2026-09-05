@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/alias_parser.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/prompt_edit_document.dart';
 import '../../presentation/providers/tag_library_page_provider.dart';
 import '../models/tag_library/tag_library_entry.dart';
 
@@ -28,6 +29,7 @@ class AliasResolverService extends _$AliasResolverService {
   /// [text] 包含别名的原始文本
   /// 返回解析后的文本（别名被替换为实际内容）
   String resolveAliases(String text) {
+    text = PromptEditDocument.effectiveText(text);
     if (text.isEmpty) return text;
 
     final references = AliasParser.parse(text);
@@ -41,13 +43,14 @@ class AliasResolverService extends _$AliasResolverService {
     for (final ref in sortedRefs) {
       final resolvedContent = _resolveReference(ref);
       if (resolvedContent != null) {
-        result = result.replaceRange(ref.start, ref.end, resolvedContent);
+        result = result.replaceRange(
+          ref.start,
+          ref.end,
+          PromptEditDocument.effectiveText(resolvedContent),
+        );
       } else {
         // 别名未找到，记录警告
-        AppLogger.w(
-          '别名未找到: ${ref.rawText}，请检查词库中是否存在该条目',
-          'AliasResolver',
-        );
+        AppLogger.w('别名未找到: ${ref.rawText}，请检查词库中是否存在该条目', 'AliasResolver');
       }
     }
 

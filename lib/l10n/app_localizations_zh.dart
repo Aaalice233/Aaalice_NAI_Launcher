@@ -1556,6 +1556,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_appliedToMainPrompt => '已应用到主提示词';
 
   @override
+  String get prompt_resizeHeight => '拖动调整输入框高度，双击或按 Home 恢复自动高度';
+
+  @override
   String get prompt_inputPrompt => '描述你想生成的画面';
 
   @override
@@ -12179,31 +12182,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autocomplete_showTranslations => '显示中文汉化';
 
   @override
-  String get quickTranslate_show => '快速翻译';
-
-  @override
-  String get quickTranslate_restore => '还原原提示词（预览中的修改将被丢弃）';
-
-  @override
-  String get quickTranslate_previewSemantics => '本地汉化预览。此处修改不会影响原提示词。';
-
-  @override
-  String get quickTranslate_noMatches => '当前内容中没有找到可汉化的标签';
-
-  @override
-  String get quickTranslate_failed => '快速翻译失败，请检查汉化词库后重试';
-
-  @override
-  String get quickTranslate_missingTitle => '需要汉化词库';
-
-  @override
-  String get quickTranslate_missingMessage =>
-      '快速翻译需要 ffdkj 简体中文汉化库。是否前往数据与缓存设置并立即下载？';
-
-  @override
-  String get quickTranslate_download => '前往并下载';
-
-  @override
   String get autocomplete_autoComma => '插入后自动添加逗号';
 
   @override
@@ -13856,6 +13834,69 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get promptAssistant_responseTimeoutDescription =>
       '反推、优化、翻译、角色替换和自定义改写共用。默认 5 分钟；模型思考较慢时可调长，仍可随时取消。不影响连接超时和智能体聊天。';
+
+  @override
+  String get tagMode_enter => '切换到标签模式';
+
+  @override
+  String get tagMode_exit => '切换到文本模式';
+
+  @override
+  String get tagMode_add => '添加标签…';
+
+  @override
+  String get tagMode_missingTranslation => '暂无译文';
+
+  @override
+  String get tagMode_translationFailed => '翻译失败 · 重试';
+
+  @override
+  String get tagMode_loadingTranslation => '正在查询译文…';
+
+  @override
+  String get tagMode_invalidSyntax => '提示词语法不完整，请完成编辑后再排序或调整权重';
+
+  @override
+  String get tagMode_enable => '启用';
+
+  @override
+  String get tagMode_disable => '禁用';
+
+  @override
+  String get tagMode_cut => '剪切';
+
+  @override
+  String get tagMode_movePrevious => '前移';
+
+  @override
+  String get tagMode_moveNext => '后移';
+
+  @override
+  String get tagMode_moveFirst => '移至开头';
+
+  @override
+  String get tagMode_moveLast => '移至末尾';
+
+  @override
+  String get tagMode_copyEffective => '复制有效提示词';
+
+  @override
+  String get tagMode_weight => '权重';
+
+  @override
+  String get tagMode_mixedWeights => '多个权重';
+
+  @override
+  String get tagMode_dictionaryMissing => '中文译文需要本地汉化库，仍可正常编辑标签。';
+
+  @override
+  String get tagMode_dictionaryAction => '打开汉化库设置';
+
+  @override
+  String get tagMode_group => '提示词分组';
+
+  @override
+  String get tagMode_drag => '长按标签并拖动排序';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -15408,6 +15449,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get prompt_appliedToMainPrompt => '已應用到主提示詞';
+
+  @override
+  String get prompt_resizeHeight => '拖動調整輸入框高度，按兩下或按 Home 恢復自動高度';
 
   @override
   String get prompt_inputPrompt => '描述你想生成的畫面';
@@ -26033,31 +26077,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get autocomplete_showTranslations => '顯示中文漢化';
 
   @override
-  String get quickTranslate_show => '快速翻譯';
-
-  @override
-  String get quickTranslate_restore => '還原原提示詞（預覽中的修改將被捨棄）';
-
-  @override
-  String get quickTranslate_previewSemantics => '本機漢化預覽。在此修改不會影響原提示詞。';
-
-  @override
-  String get quickTranslate_noMatches => '目前內容中沒有找到可漢化的標籤';
-
-  @override
-  String get quickTranslate_failed => '快速翻譯失敗，請檢查漢化詞庫後重試';
-
-  @override
-  String get quickTranslate_missingTitle => '需要漢化詞庫';
-
-  @override
-  String get quickTranslate_missingMessage =>
-      '快速翻譯需要 ffdkj 簡體中文漢化庫。是否前往資料與快取設定並立即下載？';
-
-  @override
-  String get quickTranslate_download => '前往並下載';
-
-  @override
   String get autocomplete_autoComma => '插入後自動新增逗號';
 
   @override
@@ -27711,4 +27730,67 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get promptAssistant_responseTimeoutDescription =>
       '反推、最佳化、翻譯、角色替換和自訂改寫共用。預設 5 分鐘；模型思考較慢時可延長，仍可隨時取消。不影響連線逾時和智慧體聊天。';
+
+  @override
+  String get tagMode_enter => '切換到標籤模式';
+
+  @override
+  String get tagMode_exit => '切換到文字模式';
+
+  @override
+  String get tagMode_add => '新增標籤…';
+
+  @override
+  String get tagMode_missingTranslation => '暫無譯文';
+
+  @override
+  String get tagMode_translationFailed => '翻譯失敗 · 重試';
+
+  @override
+  String get tagMode_loadingTranslation => '正在查詢譯文…';
+
+  @override
+  String get tagMode_invalidSyntax => '提示詞語法不完整，請完成編輯後再排序或調整權重';
+
+  @override
+  String get tagMode_enable => '啟用';
+
+  @override
+  String get tagMode_disable => '停用';
+
+  @override
+  String get tagMode_cut => '剪下';
+
+  @override
+  String get tagMode_movePrevious => '前移';
+
+  @override
+  String get tagMode_moveNext => '後移';
+
+  @override
+  String get tagMode_moveFirst => '移至開頭';
+
+  @override
+  String get tagMode_moveLast => '移至末尾';
+
+  @override
+  String get tagMode_copyEffective => '複製有效提示詞';
+
+  @override
+  String get tagMode_weight => '權重';
+
+  @override
+  String get tagMode_mixedWeights => '多個權重';
+
+  @override
+  String get tagMode_dictionaryMissing => '中文譯文需要本機漢化庫，仍可正常編輯標籤。';
+
+  @override
+  String get tagMode_dictionaryAction => '開啟漢化庫設定';
+
+  @override
+  String get tagMode_group => '提示詞分組';
+
+  @override
+  String get tagMode_drag => '長按標籤並拖動排序';
 }

@@ -1,5 +1,6 @@
 import '../../data/models/prompt/prompt_preset_mode.dart';
 import '../constants/api_constants.dart';
+import 'prompt_edit_document.dart';
 
 class PromptPresetResolution {
   const PromptPresetResolution({
@@ -28,6 +29,14 @@ PromptPresetResolution resolvePromptPresetSettings({
   required String? ucPresetContent,
   required bool useCustomUcPreset,
 }) {
+  prompt = PromptEditDocument.effectiveText(prompt);
+  negativePrompt = PromptEditDocument.effectiveText(negativePrompt);
+  if (qualityContent != null) {
+    qualityContent = PromptEditDocument.effectiveText(qualityContent);
+  }
+  if (ucPresetContent != null) {
+    ucPresetContent = PromptEditDocument.effectiveText(ucPresetContent);
+  }
   final resolvedPrompt = switch (qualityMode) {
     PromptPresetMode.custom => _joinPromptParts([prompt, qualityContent]),
     PromptPresetMode.naiDefault || PromptPresetMode.none => prompt,

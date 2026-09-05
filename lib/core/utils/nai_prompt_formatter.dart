@@ -1,5 +1,6 @@
 import 'character_prompt_block_parser.dart';
 import 'text_space_converter.dart';
+import 'prompt_edit_document.dart';
 
 /// NAI 提示词格式化工具
 /// 简化版：只做中文逗号转英文和空格转下划线
@@ -20,6 +21,10 @@ class NaiPromptFormatter {
   /// - 将标签中的空格转换为下划线（保留逗号后的空格和尖括号内的空格）
   /// - 保留用户用于分组的换行、空行和行首缩进
   static String format(String prompt) {
+    return PromptEditDocument.mapActiveText(prompt, _formatActive);
+  }
+
+  static String _formatActive(String prompt) {
     if (prompt.isEmpty) return prompt;
 
     // Format block contents through the same path as positive tags while the

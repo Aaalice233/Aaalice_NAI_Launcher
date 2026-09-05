@@ -11,6 +11,21 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
 void main() {
+  test(
+    'request boundary rejects unprocessed disabled markers before encoding',
+    () async {
+      var encoded = false;
+      final builder = NAIImageRequestBuilder(
+        params: const ImageParams(prompt: 'cat, /*disabled:dog*/'),
+        encodeVibe: (bytes, {required model, informationExtracted = 1}) async {
+          encoded = true;
+          return '';
+        },
+      );
+      await expectLater(builder.build(sampler: 'k_euler'), throwsStateError);
+      expect(encoded, isFalse);
+    },
+  );
   group('NAIImageRequestBuilder.build', () {
     test('should keep provided sampler and stream mode difference', () async {
       const params = ImageParams(model: 'nai-diffusion-4-full');

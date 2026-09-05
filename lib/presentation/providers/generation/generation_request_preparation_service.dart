@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../core/utils/prompt_preset_resolution.dart';
+import '../../../core/utils/prompt_edit_document.dart';
+import '../../../core/utils/prompt_effective_params.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 
@@ -113,16 +115,22 @@ class GenerationRequestPreparationService {
 
   Future<GenerationPreparationResult> prepareInitial(ImageParams params) async {
     final promptPreparation = dependencies.prompt;
-    var effective = params;
+    var effective = effectivePromptParams(params);
     if (promptPreparation.randomModeActive) {
       final prompt = await promptPreparation.generateAndApplyRandomPrompt(
         params.model,
       );
-      if (prompt.isNotEmpty) effective = effective.copyWith(prompt: prompt);
+      if (prompt.isNotEmpty) {
+        effective = effective.copyWith(
+          prompt: PromptEditDocument.effectiveText(prompt),
+        );
+      }
     }
 
     final resolvedPrompt = CharacterPromptBlockParser.parse(
-      promptPreparation.resolveAliases(effective.prompt),
+      PromptEditDocument.effectiveText(
+        promptPreparation.resolveAliases(effective.prompt),
+      ),
     ).positivePrompt;
     final promptWithFixedTags = promptPreparation.applyFixedPositiveTags(
       resolvedPrompt,
@@ -151,7 +159,9 @@ class GenerationRequestPreparationService {
         useCoords: characters.useCoords,
       );
     }
-    effective = await dependencies.vibes.prepare(effective);
+    effective = await dependencies.vibes.prepare(
+      effectivePromptParams(effective),
+    );
     return GenerationPreparationResult(
       params: effective,
       randomModeActive: promptPreparation.randomModeActive,
@@ -162,14 +172,20 @@ class GenerationRequestPreparationService {
 
   Future<ImageParams> prepareSubsequentBatch(ImageParams currentParams) async {
     final promptPreparation = dependencies.prompt;
-    if (!promptPreparation.randomModeActive) return currentParams;
+    if (!promptPreparation.randomModeActive) {
+      return effectivePromptParams(currentParams);
+    }
     final prompt = await promptPreparation.generateAndApplyRandomPrompt(
       currentParams.model,
     );
-    if (prompt.isEmpty) return currentParams;
+    if (prompt.isEmpty) return effectivePromptParams(currentParams);
 
     final resolvedPrompt = CharacterPromptBlockParser.parse(
-      promptPreparation.resolveAliases(prompt),
+      PromptEditDocument.effectiveText(
+        promptPreparation.resolveAliases(
+          PromptEditDocument.effectiveText(prompt),
+        ),
+      ),
     ).positivePrompt;
     var preparedPrompt = promptPreparation.applyFixedPositiveTags(
       resolvedPrompt,
@@ -180,13 +196,17 @@ class GenerationRequestPreparationService {
         )
         .prompt;
     if (preserveCharacterSnapshot) {
-      return currentParams.copyWith(prompt: preparedPrompt);
+      return effectivePromptParams(
+        currentParams.copyWith(prompt: preparedPrompt),
+      );
     }
     final characters = dependencies.characters.read(currentParams.model);
-    return currentParams.copyWith(
-      prompt: preparedPrompt,
-      characters: characters.characters,
-      useCoords: characters.useCoords,
+    return effectivePromptParams(
+      currentParams.copyWith(
+        prompt: preparedPrompt,
+        characters: characters.characters,
+        useCoords: characters.useCoords,
+      ),
     );
   }
 }

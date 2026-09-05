@@ -1,5 +1,6 @@
 import '../../data/models/prompt/prompt_regex_rule.dart';
 import 'app_logger.dart';
+import 'prompt_edit_document.dart';
 
 /// 正则替换执行结果
 class PromptRegexResult {
@@ -74,9 +75,12 @@ class PromptRegexReplacer {
         continue;
       }
 
-      final next = current.replaceAllMapped(
-        regExp,
-        (match) => expandReplacement(rule.replacement, match),
+      final next = PromptEditDocument.mapActiveText(
+        current,
+        (active) => active.replaceAllMapped(
+          regExp,
+          (match) => expandReplacement(rule.replacement, match),
+        ),
       );
 
       if (next.length > maxOutputLength) {
