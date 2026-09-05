@@ -4093,11 +4093,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get weight_tagNameHint => 'タグ名を入力してください...';
 
   @override
-  String tag_selected(Object count) {
-    return '$count が選択されました';
-  }
-
-  @override
   String get tag_enable => '有効にする';
 
   @override
@@ -4108,21 +4103,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get tag_addTag => 'タグを追加';
-
-  @override
-  String get tag_add => '追加';
-
-  @override
-  String get tag_inputHint => 'タグを入力してください...';
-
-  @override
-  String get tag_copiedToClipboard => 'クリップボードにコピーされました';
-
-  @override
-  String get tag_emptyHint => '希望の画像を説明するタグを追加します';
-
-  @override
-  String get tag_emptyHintSub => 'タグを手動で参照、検索、追加できます';
 
   @override
   String get tagCategory_artist => 'アーティスト';
@@ -5260,24 +5240,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vibeParseFailed => 'Vibe ファイルの解析に失敗しました';
-
-  @override
-  String get tag_categoryGeneral => '一般';
-
-  @override
-  String get tag_categoryArtist => 'アーティスト';
-
-  @override
-  String get tag_categoryCopyright => '著作権';
-
-  @override
-  String get tag_categoryCharacter => 'キャラクター';
-
-  @override
-  String get tag_categoryMeta => 'メタ';
-
-  @override
-  String get tag_countBadgeBreakdown => 'タグの内訳';
 
   @override
   String get localGallery_progressiveLoadError => '画像のロードに失敗しました';

@@ -4199,11 +4199,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get weight_tagNameHint => 'Enter tag name...';
 
   @override
-  String tag_selected(Object count) {
-    return 'Selected $count';
-  }
-
-  @override
   String get tag_enable => 'Enable';
 
   @override
@@ -4214,21 +4209,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tag_addTag => 'Add Tag';
-
-  @override
-  String get tag_add => 'Add';
-
-  @override
-  String get tag_inputHint => 'Enter tag...';
-
-  @override
-  String get tag_copiedToClipboard => 'Copied to clipboard';
-
-  @override
-  String get tag_emptyHint => 'Add tags to describe your desired image';
-
-  @override
-  String get tag_emptyHintSub => 'You can browse, search, or add tags manually';
 
   @override
   String get tagCategory_artist => 'Artist';
@@ -5396,24 +5376,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibeParseFailed => 'Failed to parse Vibe file';
-
-  @override
-  String get tag_categoryGeneral => 'General';
-
-  @override
-  String get tag_categoryArtist => 'Artist';
-
-  @override
-  String get tag_categoryCopyright => 'Copyright';
-
-  @override
-  String get tag_categoryCharacter => 'Character';
-
-  @override
-  String get tag_categoryMeta => 'Meta';
-
-  @override
-  String get tag_countBadgeBreakdown => 'Tag Breakdown';
 
   @override
   String get localGallery_progressiveLoadError => 'Failed to load image';

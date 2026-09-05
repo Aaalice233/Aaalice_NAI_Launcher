@@ -1726,16 +1726,10 @@
   "weight_editTag": "編輯標籤",
   "weight_tagName": "標籤名稱",
   "weight_tagNameHint": "輸入標籤名稱...",
-  "tag_selected": "已選 {count}",
   "tag_enable": "啟用",
   "tag_disable": "禁用",
   "tag_delete": "刪除",
   "tag_addTag": "新增標籤",
-  "tag_add": "新增",
-  "tag_inputHint": "輸入標籤...",
-  "tag_copiedToClipboard": "已複製到剪貼簿",
-  "tag_emptyHint": "新增標籤來描述你想要的畫面",
-  "tag_emptyHintSub": "你可以瀏覽、搜尋或手動新增標籤",
   "tagCategory_artist": "藝術家",
   "tagCategory_copyright": "版權",
   "tagCategory_character": "角色",
@@ -2668,12 +2662,6 @@
   "layer_rename": "重新命名",
   "layer_moveUp": "上移",
   "layer_moveDown": "下移",
-  "tag_categoryGeneral": "通用",
-  "tag_categoryArtist": "畫師",
-  "tag_categoryCopyright": "版權",
-  "tag_categoryCharacter": "角色",
-  "tag_categoryMeta": "後設資料",
-  "tag_countBadgeBreakdown": "標籤分類統計",
   "localGallery_advancedFilters": "高階篩選",
   "localGallery_filterByModel": "按模型篩選",
   "localGallery_filterBySampler": "按取樣器篩選",
@@ -6011,11 +5999,6 @@
   "@settings_version": {
     "placeholders": {
       "version": {}
-    }
-  },
-  "@tag_selected": {
-    "placeholders": {
-      "count": {}
     }
   },
   "@vibe_cleared": {

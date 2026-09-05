@@ -1704,16 +1704,10 @@
   "weight_tagName": "标签名称",
   "weight_tagNameHint": "输入标签名称...",
 
-  "tag_selected": "已选 {count}",
   "tag_enable": "启用",
   "tag_disable": "禁用",
   "tag_delete": "删除",
   "tag_addTag": "添加标签",
-  "tag_add": "添加",
-  "tag_inputHint": "输入标签...",
-  "tag_copiedToClipboard": "已复制到剪贴板",
-  "tag_emptyHint": "添加标签来描述你想要的画面",
-  "tag_emptyHintSub": "你可以浏览、搜索或手动添加标签",
 
   "tagCategory_artist": "艺术家",
   "tagCategory_copyright": "版权",
@@ -2656,12 +2650,6 @@
 
 
 
-  "tag_categoryGeneral": "通用",
-  "tag_categoryArtist": "画师",
-  "tag_categoryCopyright": "版权",
-  "tag_categoryCharacter": "角色",
-  "tag_categoryMeta": "元数据",
-  "tag_countBadgeBreakdown": "标签分类统计",
   "localGallery_advancedFilters": "高级筛选",
   "localGallery_filterByModel": "按模型筛选",
   "localGallery_filterBySampler": "按采样器筛选",
@@ -5873,11 +5861,6 @@
   "@settings_version": {
     "placeholders": {
       "version": {}
-    }
-  },
-  "@tag_selected": {
-    "placeholders": {
-      "count": {}
     }
   },
   "@vibe_cleared": {
