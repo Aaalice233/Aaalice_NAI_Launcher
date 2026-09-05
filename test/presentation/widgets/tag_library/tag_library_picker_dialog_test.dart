@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,65 @@ import 'package:nai_launcher/presentation/widgets/tag_library/tag_library_picker
 import '../../../helpers/light_theme_contrast.dart';
 
 void main() {
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+    for (final scale in [1.0, 3.0]) {
+      testWidgets('translated cards grow naturally at $width / ${scale}x', (
+        tester,
+      ) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final ready = Completer<void>();
+        final lookup = TagTranslationLookup.fromResolver((tags) async {
+          await ready.future;
+          return {for (final tag in tags) tag: '这是用于验证双语预览布局的长翻译'};
+        });
+        addTearDown(lookup.dispose);
+        final entries = List.generate(
+          8,
+          (index) => TagLibraryEntry.create(
+            name: '长文本预设 $index',
+            content:
+                'limegreen_hair, green_eyes, long_hair, one_side_up, medium_breasts, black_ribbon, hair_ribbon',
+          ).copyWith(id: 'entry-$index'),
+        );
+        TagLibraryEntry? selected;
+        await tester.pumpWidget(
+          _buildTestApp(
+            textScaler: TextScaler.linear(scale),
+            entries: entries,
+            lookup: lookup,
+            onSelected: (entry) => selected = entry,
+          ),
+        );
+        await tester.tap(find.text('打开'));
+        await tester.pumpAndSettle();
+        final first = find.byKey(
+          const ValueKey('tag-library-picker-entry-entry-0'),
+        );
+        final before = tester.getSize(first).height;
+        ready.complete();
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(tester.getSize(first).height, greaterThan(before));
+        final translation = find.descendant(
+          of: first,
+          matching: find.byKey(const ValueKey('translated-prompt-translation')),
+        );
+        expect(translation, findsOneWidget);
+        expect(
+          tester.getRect(translation).bottom,
+          lessThanOrEqualTo(tester.getRect(first).bottom),
+        );
+        await tester.tap(first);
+        await tester.pumpAndSettle();
+        expect(selected, entries.first);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
+  }
+
   testWidgets('320 宽 3x 字体与 IME 下使用 SafeArea bottom sheet 且无溢出', (
     tester,
   ) async {
@@ -94,9 +155,12 @@ Widget _buildTestApp({
   required List<TagLibraryEntry> entries,
   TextScaler textScaler = TextScaler.noScaling,
   ValueChanged<TagLibraryEntry?>? onSelected,
+  TagTranslationLookup? lookup,
 }) {
   return ProviderScope(
     overrides: [
+      if (lookup != null)
+        tagTranslationLookupProvider.overrideWithValue(lookup),
       localStorageServiceProvider.overrideWith(
         (ref) => InMemoryLocalStorageService(),
       ),

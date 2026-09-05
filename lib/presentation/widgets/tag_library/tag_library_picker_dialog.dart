@@ -204,22 +204,32 @@ class _TagLibraryPickerDialogState
             ((constraints.maxWidth + spacing) / (minimumCardWidth + spacing))
                 .floor()
                 .clamp(1, 4);
-        return GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: 0.85,
-            crossAxisSpacing: spacing,
-            mainAxisSpacing: spacing,
+        // A lazy row sizes itself from its actual text, including translations
+        // that arrive later. Fixed-aspect tiles cannot reserve that height.
+        return ListView.separated(
+          itemCount: (entries.length / crossAxisCount).ceil(),
+          separatorBuilder: (context, index) => const SizedBox(height: spacing),
+          itemBuilder: (context, rowIndex) => Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var column = 0; column < crossAxisCount; column++) ...[
+                if (column > 0) const SizedBox(width: spacing),
+                Expanded(
+                  child: rowIndex * crossAxisCount + column < entries.length
+                      ? _EntrySelectCard(
+                          key: ValueKey(
+                            'tag-library-picker-entry-${entries[rowIndex * crossAxisCount + column].id}',
+                          ),
+                          entry: entries[rowIndex * crossAxisCount + column],
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pop(entries[rowIndex * crossAxisCount + column]),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ],
           ),
-          itemCount: entries.length,
-          itemBuilder: (context, index) {
-            final entry = entries[index];
-            return _EntrySelectCard(
-              key: ValueKey('tag-library-picker-entry-${entry.id}'),
-              entry: entry,
-              onTap: () => Navigator.of(context).pop(entry),
-            );
-          },
         );
       },
     );
@@ -333,13 +343,14 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
                     : null,
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 预览图区域
-                  Expanded(flex: 3, child: _buildThumbnail(theme, entry)),
-
-                  // 信息区域
-                  Expanded(flex: 2, child: _buildInfo(theme, entry)),
+                  AspectRatio(
+                    aspectRatio: 1.4,
+                    child: _buildThumbnail(theme, entry),
+                  ),
+                  _buildInfo(theme, entry),
                 ],
               ),
             ),
@@ -463,15 +474,13 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
           const SizedBox(height: 4),
 
           // 内容预览
-          Expanded(
-            child: TranslatedPromptText(
-              entry.contentPreview,
-              selectable: false,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 2,
+          TranslatedPromptText(
+            entry.contentPreview,
+            selectable: false,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
+            maxLines: 2,
           ),
         ],
       ),
