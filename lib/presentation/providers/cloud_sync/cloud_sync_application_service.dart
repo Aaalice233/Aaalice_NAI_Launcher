@@ -301,24 +301,49 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
       _gate.tryRunLifecycle((_) => _restorePersisted());
 
   Future<void> _restorePersisted() async {
+    if (!_connectionStore.hasConfiguration) return;
+    final previousStatus = _state.connectionStatus;
+    if (!_state.isConnected) {
+      _set(
+        _state.copyWith(connectionStatus: CloudSyncConnectionStatus.restoring),
+      );
+    }
     try {
       await initialize();
       final persisted = await _connectionStore.load();
-      if (persisted == null) return;
-      final knownRevision = _state.isConnected
+      if (persisted == null) {
+        _set(_state.copyWith(connectionStatus: previousStatus));
+        return;
+      }
+      _set(
+        _state.copyWith(
+          backend: persisted.draft.backend,
+          accountId: persisted.draft.accountId,
+          accountLabel: persisted.draft.accountLabel,
+          lastSync: _state.lastSync ?? persisted.lastSync,
+          contentSelection: persisted.contentSelection,
+          clearError: true,
+        ),
+      );
+      final knownRevision =
+          previousStatus == CloudSyncConnectionStatus.connected
           ? _state.remoteRevision
           : persisted.remoteRevision;
+      String? currentRevision;
       if (_backend == null || _coordinator == null) {
         await _detectRemote(persisted.draft, readOnlyWebDavValidation: true);
+        currentRevision = _state.remoteRevision;
         _coordinator = await _coordinatorFactory(
           _backend!,
           persisted.dataKinds,
           persisted.contentSelection,
           persisted.draft,
         );
+      } else {
+        final head = await _backend!.readHead();
+        currentRevision = cloudSyncSnapshotId(head);
+        _set(_state.copyWith(remoteExists: head != null));
       }
-      final head = await _backend!.readHead();
-      final currentRevision = cloudSyncSnapshotId(head);
       _set(
         _state.copyWith(
           connectionStatus: CloudSyncConnectionStatus.connected,
@@ -326,9 +351,11 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
           lastSync: _state.lastSync ?? persisted.lastSync,
           contentSelection: persisted.contentSelection,
           clearProgress: true,
+          clearError: true,
         ),
       );
     } catch (error) {
+      _set(_state.copyWith(connectionStatus: previousStatus));
       _errorReporter.record(error);
       rethrow;
     }

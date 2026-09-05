@@ -8,6 +8,7 @@ import 'data_source.dart';
 import 'journal.dart';
 import 'models.dart';
 import 'operation.dart';
+import 'snapshot_upload_plan.dart';
 import 'sync_types.dart';
 import 'telemetry.dart';
 
@@ -37,27 +38,16 @@ class ResumableSnapshotUploader {
     SyncProgressCallback? onProgress,
   }) async {
     var current = journal;
-    final records = snapshot.records.values.toList()
-      ..sort((left, right) => left.id.compareTo(right.id));
-    final refs = <SnapshotRecordRef>[];
-    final uniquePayloads = <String, CloudSyncPayload>{};
-    for (final record in records) {
-      final payload = record.deleted ? null : record.payload;
-      refs.add(
-        SnapshotRecordRef(
-          recordId: record.id,
-          kind: record.kind,
-          binary: record.binary,
-          deleted: record.deleted,
-          objectId: payload?.sha256,
-          size: payload?.length,
-          tombstoneIdentity: record.tombstoneIdentity,
-        ),
-      );
-      if (payload != null) {
-        uniquePayloads.putIfAbsent(payload.sha256, () => payload);
-      }
-    }
+    final plan = await SnapshotUploadPlan.prepare(
+      dataSource: dataSource,
+      snapshot: snapshot,
+      operationId: current.operationId,
+      snapshotId: current.snapshotId,
+      now: now,
+      token: token,
+    );
+    final uniquePayloads = plan.payloads;
+    final manifestBytes = plan.manifestBytes;
     final objectIds = uniquePayloads.keys.toList(growable: false);
     _validateCompletedSet(current, objectIds);
     final verificationDataSource =
@@ -98,30 +88,6 @@ class ResumableSnapshotUploader {
       );
     }
 
-    var manifestBytes = await dataSource.readUploadArtifact(
-      current.operationId,
-      'manifest.json',
-    );
-    if (manifestBytes == null) {
-      manifestBytes = SnapshotManifest(
-        snapshotId: current.snapshotId,
-        createdAt: now().toUtc(),
-        records: refs,
-      ).encode();
-      await dataSource.writeUploadArtifact(
-        current.operationId,
-        'manifest.json',
-        manifestBytes,
-      );
-    } else {
-      final persisted = SnapshotManifest.decode(manifestBytes);
-      if (persisted.snapshotId != current.snapshotId ||
-          !_sameRefs(persisted.records, refs)) {
-        throw const CloudFormatException(
-          'pending manifest does not match staged snapshot',
-        );
-      }
-    }
     final manifestSha = hashes.sha256.convert(manifestBytes).toString();
     if (current.manifestSha256 != null &&
         current.manifestSha256 != manifestSha) {
@@ -267,6 +233,7 @@ class ResumableSnapshotUploader {
       'head.json',
     );
     headBytes ??= SnapshotHead(
+      version: plan.manifest.version,
       snapshotId: current.snapshotId,
       manifestSha256: manifestSha,
       updatedAt: now().toUtc(),
@@ -435,23 +402,5 @@ class ResumableSnapshotUploader {
         'journal checkpoint contains an unknown object',
       );
     }
-  }
-
-  bool _sameRefs(List<SnapshotRecordRef> left, List<SnapshotRecordRef> right) {
-    if (left.length != right.length) return false;
-    for (var index = 0; index < left.length; index++) {
-      final a = left[index];
-      final b = right[index];
-      if (a.recordId != b.recordId ||
-          a.kind != b.kind ||
-          a.binary != b.binary ||
-          a.deleted != b.deleted ||
-          a.objectId != b.objectId ||
-          a.size != b.size ||
-          a.tombstoneIdentity != b.tombstoneIdentity) {
-        return false;
-      }
-    }
-    return true;
   }
 }

@@ -40,6 +40,12 @@ class CloudSyncConnectionStore {
   final String Function() _deviceIdFactory;
   static const _configurationVersion = 3;
 
+  bool get hasConfiguration =>
+      _localStorage.getSetting<String>(StorageKeys.cloudDriveConfiguration) !=
+          null ||
+      _localStorage.getSetting<String>(StorageKeys.cloudSyncConfiguration) !=
+          null;
+
   Future<CloudSyncUiState> initializeState(CloudSyncUiState state) async {
     final deviceId = await ensureDeviceId();
     return state.copyWith(
@@ -134,10 +140,21 @@ class CloudSyncConnectionStore {
     final publicText =
         cloudDriveText ??
         _localStorage.getSetting<String>(StorageKeys.cloudSyncConfiguration);
-    final secretText = await _secureStorage.getCloudSyncCredentials();
-    if (publicText == null || secretText == null) return null;
+    if (publicText == null) return null;
     final public = Map<String, Object?>.from(jsonDecode(publicText) as Map);
-    final secret = jsonDecode(secretText) as Map;
+    final backend = CloudSyncBackendKind.values.byName(
+      public['backend'] as String,
+    );
+    // OAuth tokens have their own provider store. Account display must not wait
+    // on the unrelated WebDAV/GitHub credential slot.
+    final Map secret;
+    if (backend.usesOAuth) {
+      secret = const <String, Object?>{};
+    } else {
+      final secretText = await _secureStorage.getCloudSyncCredentials();
+      if (secretText == null) return null;
+      secret = jsonDecode(secretText) as Map;
+    }
     final version = public['version'] as int? ?? 1;
     if (version < 1 || version > _configurationVersion) {
       throw const FormatException('Unsupported cloud sync configuration.');
@@ -158,9 +175,7 @@ class CloudSyncConnectionStore {
         .toSet();
     return PersistedCloudSyncConnection(
       draft: CloudSyncConnectionDraft(
-        backend: CloudSyncBackendKind.values.byName(
-          public['backend'] as String,
-        ),
+        backend: backend,
         serverUrl: public['serverUrl'] as String? ?? '',
         username: secret['username'] as String? ?? '',
         secret: secret['secret'] as String? ?? '',

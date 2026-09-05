@@ -12653,6 +12653,17 @@ class AppLocalizationsZh extends AppLocalizations {
       '将设置、提示词等内容推送到你自己的 WebDAV 或 GitHub，或从云端备份拉取到当前设备。';
 
   @override
+  String get cloudSync_restoringConnection => '正在恢复连接';
+
+  @override
+  String get cloudSync_restoringConnectionDescription =>
+      '正在检查此设备保存的账号，请稍候，无需重新登录。';
+
+  @override
+  String get cloudSync_googleDriveUnavailable =>
+      'Google Drive 暂不可用：应用授权审核尚未通过。';
+
+  @override
   String get cloudSync_disconnected => '尚未连接';
 
   @override
@@ -26743,6 +26754,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get cloudSync_description =>
       '將設定、提示詞等內容推送到你自己的 WebDAV 或 GitHub，或從雲端備份拉取到目前裝置。';
+
+  @override
+  String get cloudSync_restoringConnection => '正在恢復連線';
+
+  @override
+  String get cloudSync_restoringConnectionDescription =>
+      '正在檢查此裝置儲存的帳號，請稍候，無需重新登入。';
+
+  @override
+  String get cloudSync_googleDriveUnavailable =>
+      'Google Drive 暫不可用：應用程式授權審核尚未通過。';
 
   @override
   String get cloudSync_disconnected => '尚未連線';

@@ -10,8 +10,50 @@ import 'package:nai_launcher/core/cloud_sync/backend/onedrive_cloud_sync_backend
 import 'package:nai_launcher/core/cloud_sync/operation.dart';
 
 import 'cloud_sync_backend_contract.dart';
+import '../packed_snapshot_contract.dart';
 
 void main() {
+  test(
+    'two clients reuse concurrently created folders and identical objects',
+    () async {
+      final api = _FakeOneDriveApi();
+      final bytes = Uint8List.fromList([4, 2]);
+      final id = sha256.convert(bytes).toString();
+      final results = await Future.wait([
+        _backend(api).putObject(id, bytes, sha256: id),
+        _backend(api).putObject(id, bytes, sha256: id),
+      ]);
+      expect(results, hasLength(2));
+      expect((await _backend(api).readObject(id))!.bytes, bytes);
+      expect(api.folders.where((path) => path == 'cloud'), hasLength(1));
+      expect(
+        api.folders.where((path) => path == 'cloud/objects'),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'transient approot provisioning failure completes without a second login',
+    () async {
+      final api = _FakeOneDriveApi()
+        ..appRootFailureStatus = 503
+        ..appRootFailuresRemaining = 1;
+      final capability = await _backend(api).testCapability();
+      expect(capability.supportsBidirectional, isTrue);
+      expect(api.appRootRequests, 2);
+      expect(api.requests.every((request) => request.method == 'GET'), isTrue);
+    },
+  );
+
+  test(
+    'packed configuration roundtrip preserves legacy OneDrive backups',
+    () async {
+      final api = _FakeOneDriveApi();
+      await verifyPackedSnapshotRoundTrip(_backend(api), _backend(api));
+    },
+  );
+
   runCloudSyncBackendContract(
     provider: 'OneDrive',
     createBackend: () => _backend(_FakeOneDriveApi()),
@@ -106,7 +148,11 @@ void main() {
     expect(folderCreateRequest.uri.queryParameters, isEmpty);
     final folderCreateBody =
         jsonDecode(folderCreateRequest.data as String) as Map<String, dynamic>;
-    expect(folderCreateBody, {'name': 'cloud', 'folder': <String, Object?>{}});
+    expect(folderCreateBody, {
+      'name': 'cloud',
+      'folder': <String, Object?>{},
+      '@microsoft.graph.conflictBehavior': 'fail',
+    });
     expect(
       api.requests.any(
         (request) => request.uri.path.contains(
@@ -163,7 +209,7 @@ void main() {
               request.method == 'POST' &&
               request.uri.path.endsWith('/children'),
         ),
-        hasLength(2),
+        isEmpty,
       );
       expect(
         api.requests.where(
@@ -467,31 +513,34 @@ void main() {
     expect(api.metadataRateLimitResponses, 2);
   });
 
-  test('reports approot Graph errors without delaying setup retries', () async {
-    final api = _FakeOneDriveApi()
-      ..appRootFailureStatus = 503
-      ..appRootFailureCode = 'serviceNotAvailable'
-      ..appRootInnerFailureCode = 'itemDisabledDueToPendingProvisioning';
+  test(
+    'reports persistent approot provisioning errors after bounded retries',
+    () async {
+      final api = _FakeOneDriveApi()
+        ..appRootFailureStatus = 503
+        ..appRootFailureCode = 'serviceNotAvailable'
+        ..appRootInnerFailureCode = 'itemDisabledDueToPendingProvisioning';
 
-    await expectLater(
-      _backend(api).testCapability(),
-      throwsA(
-        isA<CloudBackendException>()
-            .having(
-              (error) => error.kind,
-              'kind',
-              CloudBackendErrorKind.network,
-            )
-            .having((error) => error.statusCode, 'statusCode', 503)
-            .having(
-              (error) => error.message,
-              'message',
-              contains('正在为此账号开通 OneDrive 应用目录'),
-            ),
-      ),
-    );
-    expect(api.appRootRequests, 1);
-  });
+      await expectLater(
+        _backend(api).testCapability(),
+        throwsA(
+          isA<CloudBackendException>()
+              .having(
+                (error) => error.kind,
+                'kind',
+                CloudBackendErrorKind.network,
+              )
+              .having((error) => error.statusCode, 'statusCode', 503)
+              .having(
+                (error) => error.message,
+                'message',
+                contains('正在为此账号开通 OneDrive 应用目录'),
+              ),
+        ),
+      );
+      expect(api.appRootRequests, 3);
+    },
+  );
 
   test('includes a bounded Microsoft error message in diagnostics', () async {
     final api = _FakeOneDriveApi()
@@ -621,6 +670,7 @@ class _RateLimitedDownloadOneDriveApi extends _FakeOneDriveApi {
 }
 
 class _FakeOneDriveApi implements HttpClientAdapter {
+  int? appRootFailuresRemaining;
   final Map<String, _StoredFile> files = {};
   final Set<String> folders = {};
   final Map<String, _UploadSession> sessions = {};
@@ -700,7 +750,12 @@ class _FakeOneDriveApi implements HttpClientAdapter {
       if (request.method == 'GET') {
         appRootRequests++;
         final failureStatus = appRootFailureStatus;
-        if (failureStatus != null) {
+        if (failureStatus != null &&
+            (appRootFailuresRemaining == null ||
+                appRootFailuresRemaining! > 0)) {
+          if (appRootFailuresRemaining != null) {
+            appRootFailuresRemaining = appRootFailuresRemaining! - 1;
+          }
           return _FakeResponse.json(failureStatus, {
             'error': {
               'code': appRootFailureCode,

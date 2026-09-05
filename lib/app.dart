@@ -83,11 +83,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
       } else {
         unawaited(_mountProductionIdleEffects());
       }
-      unawaited(
-        _restoreCloudBackupConnection(
-          minimumDelay: const Duration(seconds: 10),
-        ),
-      );
+      unawaited(_restoreCloudBackupConnection());
     });
   }
 
@@ -191,9 +187,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     await ref.read(queueExecutionNotifierProvider.notifier).resume();
   }
 
-  Future<void> _restoreCloudBackupConnection({
-    Duration minimumDelay = Duration.zero,
-  }) async {
+  Future<void> _restoreCloudBackupConnection() async {
     if (_cloudSyncLifecycleRunning) return;
     _cloudSyncLifecycleRunning = true;
     try {
@@ -203,15 +197,8 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
         return;
       }
 
-      await InteractiveWorkGate.instance.runWhenIdle(
-        minimumDelay: minimumDelay,
-        action: () async {
-          if (!mounted) return;
-          await ref
-              .read(cloudSyncApplicationServiceProvider)
-              .restorePersisted();
-        },
-      );
+      if (!mounted) return;
+      await ref.read(cloudSyncApplicationServiceProvider).restorePersisted();
     } catch (error) {
       AppLogger.w(
         'Cloud backup connection restore failed: $error',

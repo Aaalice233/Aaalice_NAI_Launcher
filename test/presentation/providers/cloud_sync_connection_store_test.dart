@@ -11,6 +11,27 @@ import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_pro
 
 void main() {
   test(
+    'OAuth account restoration does not read unrelated provider credentials',
+    () async {
+      final local = _MemoryLocalStorage();
+      final secure = _MemorySecureStorage()..failCredentialRead = true;
+      final store = CloudSyncConnectionStore(
+        localStorage: local,
+        secureStorage: secure,
+      );
+      await store.save(
+        const CloudSyncConnectionDraft(
+          backend: CloudSyncBackendKind.oneDrive,
+          accountId: 'account',
+          accountLabel: 'saved@example.test',
+        ),
+        {CloudSyncDataKind.settings},
+      );
+      expect((await store.load())!.draft.accountLabel, 'saved@example.test');
+    },
+  );
+
+  test(
     'service construction does not persist device id synchronously',
     () async {
       final local = _MemoryLocalStorage();
@@ -208,6 +229,7 @@ class _MemoryLocalStorage extends LocalStorageService {
 }
 
 class _MemorySecureStorage extends SecureStorageService {
+  bool failCredentialRead = false;
   String? credentials;
   bool cleared = false;
   int credentialWrites = 0;
@@ -219,7 +241,12 @@ class _MemorySecureStorage extends SecureStorageService {
   }
 
   @override
-  Future<String?> getCloudSyncCredentials() async => credentials;
+  Future<String?> getCloudSyncCredentials() async {
+    if (failCredentialRead) {
+      throw StateError('unrelated credential slot was read');
+    }
+    return credentials;
+  }
 
   @override
   Future<void> clearCloudSyncSecrets() async {

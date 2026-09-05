@@ -59,13 +59,21 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
             children: [
               _destinationChip(CloudSyncBackendKind.webDav, 'WebDAV'),
               _destinationChip(CloudSyncBackendKind.github, 'GitHub'),
-              _destinationChip(
-                CloudSyncBackendKind.googleDrive,
-                'Google Drive',
+              Tooltip(
+                message: context.l10n.cloudSync_googleDriveUnavailable,
+                child: _destinationChip(
+                  CloudSyncBackendKind.googleDrive,
+                  'Google Drive',
+                ),
               ),
               _destinationChip(CloudSyncBackendKind.oneDrive, 'OneDrive'),
             ],
           ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          context.l10n.cloudSync_googleDriveUnavailable,
+          style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 20),
         if (backend == CloudSyncBackendKind.webDav) ...[
@@ -155,7 +163,7 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
       ChoiceChip(
         label: Text(label),
         selected: backend == value,
-        onSelected: oauthBusy
+        onSelected: oauthBusy || !value.acceptsNewConnections
             ? null
             : (selected) {
                 if (selected) onBackendChanged(value);
@@ -214,7 +222,7 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
               key: ValueKey('cloud-sync-authorize-${backend.name}'),
               onPressed: oauthBusy
                   ? onCancelOAuth
-                  : oauthConfigured
+                  : oauthConfigured && backend.acceptsNewConnections
                   ? onAuthorizeOAuth
                   : null,
               icon: Icon(

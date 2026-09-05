@@ -110,7 +110,7 @@ NAI Launcher 面向經常使用 NovelAI 的圖像創作者。生成、改圖、P
 
 ### ☁️ 同步與備份
 
-- 支援 Google Drive、OneDrive、GitHub 與 WebDAV；連接帳號不會自動上傳、下載或覆蓋內容。
+- 支援 OneDrive、GitHub 與 WebDAV；Google Drive 因授權審核尚未通過，暫時停用新增連線入口。連接帳號不會自動上傳、下載或覆蓋內容。
 - 推送、拉取和還原都由你主動開始，並可預覽差異與處理衝突。
 - 可分別選擇設定、Prompt 與詞庫、詞庫預覽圖、線上圖庫設定與收藏、本機相簿、智慧代理 Prompt 與 Skill，以及可選的 Vibe、Precise Reference。
 - 本機圖庫原圖、遠端圖庫原圖、帳號憑證、快取和日誌不會進入備份。

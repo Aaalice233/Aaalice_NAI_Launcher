@@ -13215,6 +13215,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Push settings, prompts, and more to your own WebDAV or GitHub storage, or pull a cloud backup onto this device.';
 
   @override
+  String get cloudSync_restoringConnection => 'Restoring connection';
+
+  @override
+  String get cloudSync_restoringConnectionDescription =>
+      'Checking the account saved on this device. Please wait; you do not need to sign in again.';
+
+  @override
+  String get cloudSync_googleDriveUnavailable =>
+      'Google Drive is unavailable while app authorization approval is pending.';
+
+  @override
   String get cloudSync_disconnected => 'Not connected';
 
   @override

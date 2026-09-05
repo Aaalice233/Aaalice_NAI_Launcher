@@ -12873,6 +12873,17 @@ class AppLocalizationsJa extends AppLocalizations {
       '設定やプロンプトなどを自分の WebDAV または GitHub へプッシュするか、クラウドのバックアップをこのデバイスへプルします。';
 
   @override
+  String get cloudSync_restoringConnection => '接続を復元中';
+
+  @override
+  String get cloudSync_restoringConnectionDescription =>
+      'この端末に保存されたアカウントを確認しています。再ログインせず、そのままお待ちください。';
+
+  @override
+  String get cloudSync_googleDriveUnavailable =>
+      'Google Drive はアプリの認可審査が完了していないため、現在利用できません。';
+
+  @override
   String get cloudSync_disconnected => '未接続';
 
   @override

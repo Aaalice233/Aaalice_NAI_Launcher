@@ -12,8 +12,20 @@ import 'package:nai_launcher/core/cloud_sync/telemetry.dart';
 
 import 'backend_test_support.dart';
 import 'cloud_sync_backend_contract.dart';
+import '../packed_snapshot_contract.dart';
 
 void main() {
+  test(
+    'packed configuration roundtrip preserves legacy WebDAV backups',
+    () async {
+      final api = _StatefulWebDavApi();
+      await verifyPackedSnapshotRoundTrip(
+        _backend(RecordingAdapter(api.handle)),
+        _backend(RecordingAdapter(api.handle)),
+      );
+    },
+  );
+
   runCloudSyncBackendContract(
     provider: 'WebDAV',
     createBackend: _statefulBackend,
@@ -902,7 +914,7 @@ class _StatefulWebDavApi {
       case 'GET':
         final bytes = _files[path];
         if (bytes == null) return const TestHttpResponse(404);
-        return TestHttpResponse(200, latin1.decode(bytes), {
+        return TestHttpResponse(200, bytes, {
           'etag': [_etags[path]!],
         });
       case 'HEAD':

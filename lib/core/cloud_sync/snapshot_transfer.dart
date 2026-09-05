@@ -54,25 +54,20 @@ class CloudSnapshotTransfer {
     OperationToken token,
     SyncProgressCallback? onProgress,
   ) async {
-    final materializer = dataSource is CloudSyncPayloadMaterializer
-        ? dataSource as CloudSyncPayloadMaterializer
-        : null;
-    final localResolver = dataSource is CloudSyncLocalPayloadResolver
-        ? dataSource as CloudSyncLocalPayloadResolver
-        : null;
-    final objectSizes = <String, int>{};
-    for (final ref in manifest.records) {
-      final objectId = ref.objectId;
-      final size = ref.size;
-      if (objectId == null || size == null) continue;
-      final previous = objectSizes[objectId];
-      if (previous != null && previous != size) {
-        throw const CloudFormatException('shared object has conflicting sizes');
+    final objectSizes = {
+      for (final ref in manifest.records)
+        if (!ref.deleted) ref.objectId!: ref.size!,
+    };
+    final transportSizes = {...objectSizes};
+    for (final pack in manifest.packs.entries) {
+      var length = 0;
+      for (final id in pack.value) {
+        length += transportSizes.remove(id)!;
       }
-      objectSizes[objectId] = size;
+      transportSizes[pack.key] = length;
     }
-    final entries = objectSizes.entries.toList(growable: false);
-    final total = objectSizes.values.fold<int>(0, (sum, size) => sum + size);
+    final entries = transportSizes.entries.toList(growable: false);
+    final total = transportSizes.values.fold<int>(0, (sum, size) => sum + size);
     var bytesCompleted = 0;
     var objectsCompleted = 0;
     onProgress?.call(
@@ -95,42 +90,7 @@ class CloudSnapshotTransfer {
           ],
           token: token,
           transfer: (entry) async {
-            CloudSyncPayload? payload;
-            Uint8List? bytes;
-            if (localResolver != null) {
-              payload = await localResolver.resolveLocalPayload(
-                expectedLength: entry.value,
-                expectedSha256: entry.key,
-              );
-            }
-            if (payload == null) {
-              final read = await backend.readObject(entry.key);
-              if (read == null) {
-                throw CloudFormatException('object ${entry.key} is missing');
-              }
-              if (materializer != null) {
-                payload = await materializer.materializeRemotePayload(
-                  read.bytes,
-                  expectedLength: entry.value,
-                  expectedSha256: entry.key,
-                );
-                if (payload.length != entry.value ||
-                    payload.sha256 != entry.key) {
-                  throw const CloudFormatException(
-                    'materialized payload identity mismatch',
-                  );
-                }
-              } else {
-                CloudSyncTelemetry.recordHashPass();
-                if (read.bytes.length != entry.value ||
-                    hashes.sha256.convert(read.bytes).toString() != entry.key) {
-                  throw CloudFormatException(
-                    'object ${entry.key} failed size or SHA-256 validation',
-                  );
-                }
-                bytes = read.bytes;
-              }
-            }
+            final object = await _readObject(entry.key, entry.value);
             bytesCompleted += entry.value;
             objectsCompleted++;
             onProgress?.call(
@@ -143,7 +103,7 @@ class CloudSnapshotTransfer {
                 bytesTotal: total,
               ),
             );
-            return _DownloadedObject(payload: payload, bytes: bytes);
+            return object;
           },
         );
     onProgress?.call(
@@ -159,7 +119,82 @@ class CloudSnapshotTransfer {
       for (var index = 0; index < entries.length; index++)
         entries[index].key: downloaded[index],
     };
+    await _expandPacks(manifest, objects, objectSizes, token);
+    return _buildSnapshot(manifest, objects);
+  }
 
+  Future<_DownloadedObject> _readObject(String id, int size) async {
+    if (dataSource case final CloudSyncLocalPayloadResolver resolver) {
+      final payload = await resolver.resolveLocalPayload(
+        expectedLength: size,
+        expectedSha256: id,
+      );
+      if (payload != null) {
+        _verifyPayloadIdentity(payload, id, size);
+        return _DownloadedObject(payload: payload, bytes: null);
+      }
+    }
+    final read = await backend.readObject(id);
+    if (read == null) throw CloudFormatException('object $id is missing');
+    return _materializeObject(id, size, read.bytes);
+  }
+
+  Future<_DownloadedObject> _materializeObject(
+    String id,
+    int size,
+    Uint8List bytes,
+  ) async {
+    if (dataSource case final CloudSyncPayloadMaterializer materializer) {
+      final payload = await materializer.materializeRemotePayload(
+        bytes,
+        expectedLength: size,
+        expectedSha256: id,
+      );
+      _verifyPayloadIdentity(payload, id, size);
+      return _DownloadedObject(payload: payload, bytes: null);
+    }
+    CloudSyncTelemetry.recordHashPass();
+    if (bytes.length != size || hashes.sha256.convert(bytes).toString() != id) {
+      throw CloudFormatException(
+        'object $id failed size or SHA-256 validation',
+      );
+    }
+    return _DownloadedObject(payload: null, bytes: bytes);
+  }
+
+  void _verifyPayloadIdentity(CloudSyncPayload payload, String id, int size) {
+    if (payload.length != size || payload.sha256 != id) {
+      throw const CloudFormatException(
+        'materialized payload identity mismatch',
+      );
+    }
+  }
+
+  Future<void> _expandPacks(
+    SnapshotManifest manifest,
+    Map<String, _DownloadedObject> objects,
+    Map<String, int> objectSizes,
+    OperationToken token,
+  ) async {
+    for (final pack in manifest.packs.entries) {
+      await token.checkpoint();
+      final object = objects.remove(pack.key)!;
+      final bytes = object.bytes ?? await object.payload!.readBytes();
+      var offset = 0;
+      for (final id in pack.value) {
+        await token.checkpoint();
+        final size = objectSizes[id]!;
+        final member = Uint8List.sublistView(bytes, offset, offset + size);
+        offset += size;
+        objects[id] = await _materializeObject(id, size, member);
+      }
+    }
+  }
+
+  CloudSyncSnapshotData _buildSnapshot(
+    SnapshotManifest manifest,
+    Map<String, _DownloadedObject> objects,
+  ) {
     final records = <CloudSyncRecord>[];
     for (final ref in manifest.records) {
       if (ref.deleted) {
