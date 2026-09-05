@@ -97,8 +97,9 @@ void main() {
 
       for (final scenario in const [
         (width: 320.0, textScale: 1.0, singleLine: false),
-        (width: 438.0, textScale: 1.0, singleLine: false),
-        (width: 475.0, textScale: 1.0, singleLine: false),
+        (width: 400.0, textScale: 1.0, singleLine: true),
+        (width: 438.0, textScale: 1.0, singleLine: true),
+        (width: 475.0, textScale: 1.0, singleLine: true),
         (width: 497.0, textScale: 1.0, singleLine: true),
         (width: 590.0, textScale: 1.0, singleLine: true),
         (width: 700.0, textScale: 1.0, singleLine: true),
@@ -229,7 +230,14 @@ void main() {
             closeTo(footerRect.right, 0.01),
             reason: reason,
           );
-          expect(primaryRect.width, greaterThanOrEqualTo(160), reason: reason);
+          // 主按钮不再有固定下限，下限即自身内容宽度：标签必须完整落在按钮内。
+          final labelRect = tester.getRect(find.text('生成'));
+          expect(
+            primaryRect.inflate(0.01).contains(labelRect.topLeft) &&
+                primaryRect.inflate(0.01).contains(labelRect.bottomRight),
+            isTrue,
+            reason: '$reason 主按钮被压到放不下标签',
+          );
         } else {
           expect(
             primaryRect.left,
@@ -577,6 +585,68 @@ void main() {
     expect(find.text('LOGIN_SCREEN_OPENED'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Opus 配额徽章出现时不把生成按钮挤到单独一行', (tester) async {
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.autoSaveImages: false,
+      StorageKeys.showRandomPromptTools: true,
+    });
+
+    for (final width in const [497.0, 520.0, 590.0]) {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+            localStorageServiceProvider.overrideWith((ref) => storage),
+            kritaBridgeNotifierProvider.overrideWith(
+              (ref) => _TestKritaBridgeNotifier(),
+            ),
+            replicationQueueNotifierProvider.overrideWith(
+              _TestReplicationQueueNotifier.new,
+            ),
+            queueExecutionNotifierProvider.overrideWith(
+              _TestQueueExecutionNotifier.new,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              _OpusSubscriptionNotifier.new,
+            ),
+            estimatedCostProvider.overrideWith((ref) => 0),
+            isFreeGenerationProvider.overrideWith((ref) => true),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: SizedBox(
+                width: width,
+                height: 240,
+                child: const GenerationControls(compact: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final reason = 'width=$width';
+      final primaryRect = tester.getRect(
+        find.byKey(const ValueKey('generation-footer-primary-action')),
+      );
+      final opusRect = tester.getRect(find.byType(OpusUsageChip));
+      final anlasRect = tester.getRect(find.byType(AnlasBalanceChip));
+
+      expect(opusRect.width, greaterThan(0), reason: reason);
+      expect(
+        anlasRect.center.dy,
+        closeTo(primaryRect.center.dy, 0.01),
+        reason: '$reason 生成按钮被挤到单独一行',
+      );
+      expect(anlasRect.right, lessThan(primaryRect.left), reason: reason);
+      expect(find.text('生成'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
 }
 
 class _AuthenticatedAuthNotifier extends AuthNotifier {
@@ -650,6 +720,19 @@ class _TestSubscriptionNotifier extends SubscriptionNotifier {
       tier: 1,
       active: true,
       trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
+    ),
+  );
+}
+
+/// tier 3 且带配额，才会让 Opus 徽章真正占位（默认模型 V5 有配额上限）。
+class _OpusSubscriptionNotifier extends SubscriptionNotifier {
+  @override
+  SubscriptionState build() => const SubscriptionState.loaded(
+    UserSubscription(
+      tier: 3,
+      active: true,
+      trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
+      usage: OpusUsageInfo(percent: 67),
     ),
   );
 }
