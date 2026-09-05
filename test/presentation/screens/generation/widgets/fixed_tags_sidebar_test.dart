@@ -683,13 +683,13 @@ void main() {
         tester
             .widget<SegmentedButton<FixedTagPromptType>>(promptTypeSelector)
             .direction,
-        Axis.vertical,
+        Axis.horizontal,
       );
       expect(
         tester
             .widget<SegmentedButton<FixedTagPosition>>(positionSelector)
             .direction,
-        Axis.vertical,
+        Axis.horizontal,
       );
       expect(tester.takeException(), isNull);
 

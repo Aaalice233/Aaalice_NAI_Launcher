@@ -277,6 +277,7 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 - **Style**：默认无 side，普通背景使用 `surfaceContainerHighest`，selected 使用 `primaryContainer`；短标签采用 4px 圆角与 8×4px padding。
 - **State**：互斥模式优先 segmented control 或 tab；chip 只表示短标签、状态或可移除条件。
+- **分段选项方向**：同一组模式保持横向排列；不要因弹窗局部宽度落入页面级 Compact 断点或文字放大而切成竖排。需要兼容窄屏的分段选项复用 `HorizontalSegmentedControl`，空间不足时横向滚动并保留完整标签与选择状态。
 - **Touch parity**：删除按钮桌面可紧凑，触屏命中区保持 48×48px。
 
 ### Cards / Containers

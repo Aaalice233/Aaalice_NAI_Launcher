@@ -20,6 +20,7 @@ import '../autocomplete/autocomplete.dart';
 import '../common/adaptive_dialog_frame.dart';
 import '../common/keyboard_dismiss_region.dart';
 import '../common/prefix_suffix_switch.dart';
+import '../common/horizontal_segmented_control.dart';
 import '../common/themed_input.dart';
 import '../common/themed_slider.dart';
 import '../prompt/nai_syntax_controller.dart';
@@ -408,17 +409,14 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   }
 
   Widget _buildSettingsPane(ThemeData theme) {
-    final stackOptions = MediaQuery.textScalerOf(context).scale(1) >= 2;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(context.l10n.fixedTags_scope, style: theme.textTheme.labelLarge),
         const SizedBox(height: 8),
-        SizedBox(
+        HorizontalSegmentedControl(
           key: const ValueKey('fixed-tag-prompt-type-selector'),
-          width: double.infinity,
           child: SegmentedButton<FixedTagPromptType>(
-            direction: stackOptions ? Axis.vertical : Axis.horizontal,
             segments: [
               ButtonSegment(
                 value: FixedTagPromptType.positive,
@@ -441,36 +439,13 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 8),
-        if (!stackOptions)
-          PrefixSuffixSwitch(
-            key: const ValueKey('fixed-tag-position-selector'),
-            value: _position,
-            onChanged: (value) => setState(() => _position = value),
-            prefixLabel: context.l10n.fixedTags_prefix,
-            suffixLabel: context.l10n.fixedTags_suffix,
-          )
-        else
-          SizedBox(
-            key: const ValueKey('fixed-tag-position-selector'),
-            width: double.infinity,
-            child: SegmentedButton<FixedTagPosition>(
-              direction: Axis.vertical,
-              segments: [
-                ButtonSegment(
-                  value: FixedTagPosition.prefix,
-                  label: Text(context.l10n.fixedTags_prefix),
-                ),
-                ButtonSegment(
-                  value: FixedTagPosition.suffix,
-                  label: Text(context.l10n.fixedTags_suffix),
-                ),
-              ],
-              selected: {_position},
-              onSelectionChanged: (selection) {
-                setState(() => _position = selection.first);
-              },
-            ),
-          ),
+        PrefixSuffixSwitch(
+          key: const ValueKey('fixed-tag-position-selector'),
+          value: _position,
+          onChanged: (value) => setState(() => _position = value),
+          prefixLabel: context.l10n.fixedTags_prefix,
+          suffixLabel: context.l10n.fixedTags_suffix,
+        ),
         const SizedBox(height: 20),
         _buildWeightControl(theme),
         const SizedBox(height: 12),

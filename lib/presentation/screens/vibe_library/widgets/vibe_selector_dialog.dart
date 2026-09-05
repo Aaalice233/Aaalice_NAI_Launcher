@@ -9,6 +9,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../presentation/providers/vibe_library_provider.dart';
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../widgets/common/horizontal_segmented_control.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 import 'vibe_card.dart';
@@ -1099,7 +1100,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
             constraints.maxWidth < 420 ||
             MediaQuery.textScalerOf(context).scale(1) >= 2;
         final replaceControl = SegmentedButton<bool>(
-          direction: useStackedFooter ? Axis.vertical : Axis.horizontal,
           segments: [
             ButtonSegment(
               value: false,
@@ -1142,7 +1142,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (widget.showReplaceOption && _selectedIds.isNotEmpty) ...[
-              SizedBox(width: double.infinity, child: replaceControl),
+              HorizontalSegmentedControl(child: replaceControl),
               const SizedBox(height: 12),
             ],
             if (useStackedFooter) ...[

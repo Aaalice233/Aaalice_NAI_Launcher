@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import 'horizontal_segmented_control.dart';
 
 /// 与表单中其他分段选择器保持一致的前缀/后缀开关。
 class PrefixSuffixSwitch extends StatelessWidget {
@@ -20,8 +21,7 @@ class PrefixSuffixSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
+    return HorizontalSegmentedControl(
       child: SegmentedButton<FixedTagPosition>(
         segments: [
           ButtonSegment(

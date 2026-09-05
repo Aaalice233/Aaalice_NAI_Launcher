@@ -123,7 +123,17 @@ void main() {
     final modeControl = tester.widget<SegmentedButton<PromptLibraryWriteMode>>(
       find.byKey(const ValueKey('prompt-library-write-mode')),
     );
-    expect(modeControl.direction, Axis.vertical);
+    expect(modeControl.direction, Axis.horizontal);
+    final segmentLabels = modeControl.segments
+        .map((segment) => segment.label!)
+        .toList();
+    final firstCenter = tester.getCenter(find.byWidget(segmentLabels.first));
+    for (final label in segmentLabels.skip(1)) {
+      expect(
+        tester.getCenter(find.byWidget(label)).dy,
+        closeTo(firstCenter.dy, 0.1),
+      );
+    }
     expect(
       find.byKey(const ValueKey('prompt-library-actions-vertical')),
       findsOneWidget,
@@ -202,10 +212,13 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(find.byType(AdaptiveDialogFrame), findsOneWidget);
     final surfaceRect = tester.getRect(
-      find.byKey(const ValueKey('adaptive-bottom-sheet')),
+      find.byKey(const ValueKey('adaptive-centered-form')),
     );
     expect(surfaceRect.width, lessThanOrEqualTo(700));
     expect(surfaceRect.height, lessThanOrEqualTo(900));

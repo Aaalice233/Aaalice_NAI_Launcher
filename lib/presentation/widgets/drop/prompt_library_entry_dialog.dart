@@ -8,6 +8,7 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/window_size_class.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/adaptive_dialog_frame.dart';
+import '../common/horizontal_segmented_control.dart';
 import '../common/translated_tag_text.dart';
 import '../common/app_toast.dart';
 import '../common/safe_dropdown.dart';
@@ -239,36 +240,35 @@ class _PromptLibraryEntryDialogState
                     style: theme.textTheme.labelLarge,
                   ),
                   const SizedBox(height: 8),
-                  SegmentedButton<PromptLibraryWriteMode>(
-                    key: const ValueKey('prompt-library-write-mode'),
-                    direction: useCompactLayout
-                        ? Axis.vertical
-                        : Axis.horizontal,
-                    segments: [
-                      ButtonSegment(
-                        value: PromptLibraryWriteMode.create,
-                        icon: const Icon(Icons.add, size: 18),
-                        label: Text(context.l10n.drop_promptLibraryCreate),
-                      ),
-                      ButtonSegment(
-                        value: PromptLibraryWriteMode.append,
-                        icon: const Icon(Icons.playlist_add, size: 18),
-                        label: Text(context.l10n.drop_promptLibraryAppend),
-                      ),
-                      ButtonSegment(
-                        value: PromptLibraryWriteMode.overwrite,
-                        icon: const Icon(Icons.find_replace, size: 18),
-                        label: Text(context.l10n.drop_promptLibraryOverwrite),
-                      ),
-                    ],
-                    selected: {_mode},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (selection) {
-                      setState(() {
-                        _mode = selection.single;
-                        _targetEntryId = null;
-                      });
-                    },
+                  HorizontalSegmentedControl(
+                    child: SegmentedButton<PromptLibraryWriteMode>(
+                      key: const ValueKey('prompt-library-write-mode'),
+                      segments: [
+                        ButtonSegment(
+                          value: PromptLibraryWriteMode.create,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: Text(context.l10n.drop_promptLibraryCreate),
+                        ),
+                        ButtonSegment(
+                          value: PromptLibraryWriteMode.append,
+                          icon: const Icon(Icons.playlist_add, size: 18),
+                          label: Text(context.l10n.drop_promptLibraryAppend),
+                        ),
+                        ButtonSegment(
+                          value: PromptLibraryWriteMode.overwrite,
+                          icon: const Icon(Icons.find_replace, size: 18),
+                          label: Text(context.l10n.drop_promptLibraryOverwrite),
+                        ),
+                      ],
+                      selected: {_mode},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (selection) {
+                        setState(() {
+                          _mode = selection.single;
+                          _targetEntryId = null;
+                        });
+                      },
+                    ),
                   ),
                   const SizedBox(height: 20),
                   if (_mode == PromptLibraryWriteMode.create) ...[
