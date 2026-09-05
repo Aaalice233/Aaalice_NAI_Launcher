@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../data/services/anlas_statistics_service.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/content_sized_adaptive_form.dart';
 import '../cards/chart_card.dart';
 
 enum AnlasStatisticsPeriod { week, month, threeMonths, year, all, custom }
@@ -574,11 +575,10 @@ class _CustomDaysFormState extends State<_CustomDaysForm> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
-    return ListView(
-      controller: widget.scrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
       padding: const EdgeInsets.all(20),
-      children: [
+      content: [
         Form(
           key: _formKey,
           child: TextFormField(

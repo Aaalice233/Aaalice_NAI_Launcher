@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_detail/components/selection_copy_shortcuts.dart';
 import '../../widgets/common/themed_divider.dart';
@@ -311,12 +312,11 @@ class ImageDestinationDialog extends ConsumerWidget {
       context: context,
       title: context.l10n.drop_metadataErrorDetails,
       dialogWidth: 600,
-      builder: (panelContext, scrollController) => ListView(
-        key: const ValueKey('metadata-error-details-scroll'),
-        controller: scrollController,
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      builder: (panelContext, scrollController) => ContentSizedAdaptiveForm(
+        scrollViewKey: const ValueKey('metadata-error-details-scroll'),
+        scrollController: scrollController,
         padding: const EdgeInsets.all(20),
-        children: [
+        content: [
           SelectableText(
             metadataParseError!,
             key: const ValueKey('metadata-error-details-text'),

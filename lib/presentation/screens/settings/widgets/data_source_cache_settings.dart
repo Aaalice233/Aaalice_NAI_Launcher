@@ -10,6 +10,7 @@ import '../../../../core/autocomplete/zh_dictionary_models.dart';
 import '../../../../core/utils/byte_format.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart'
     as generation_settings;
@@ -377,10 +378,10 @@ class _CooccurrenceDataPackStatus extends ConsumerWidget {
       context: context,
       title: context.l10n.autocomplete_cooccurrenceRemoveTitle,
       builder: (context, scrollController) => StatefulBuilder(
-        builder: (context, setState) => ListView(
-          controller: scrollController,
+        builder: (context, setState) => ContentSizedAdaptiveForm(
+          scrollController: scrollController,
           padding: const EdgeInsets.all(20),
-          children: [
+          content: [
             Text(context.l10n.autocomplete_cooccurrenceRemoveConfirm),
             const SizedBox(height: 12),
             CheckboxListTile(

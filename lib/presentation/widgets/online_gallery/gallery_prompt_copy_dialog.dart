@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import '../common/prompt_selection_tile.dart';
 
 class GalleryPromptCopyDialog extends StatefulWidget {
@@ -55,11 +56,10 @@ class _GalleryPromptCopyDialogState extends State<GalleryPromptCopyDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final options = _options(context);
-    return ListView(
-      controller: widget.scrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-      children: [
+      content: [
         Text(
           context.l10n.onlineGallery_promptCopyDescription,
           style: theme.textTheme.bodyMedium?.copyWith(

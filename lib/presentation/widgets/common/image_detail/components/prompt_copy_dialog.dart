@@ -4,6 +4,7 @@ import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../../data/models/gallery/nai_prompt_export_codec.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/content_sized_adaptive_form.dart';
 import '../../prompt_selection_tile.dart';
 
 /// Reuses the image-metadata prompt categories for both privacy-safe positive
@@ -125,11 +126,11 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      key: const Key('prompt-copy-options-list'),
-      controller: widget.scrollController,
+    return ContentSizedAdaptiveForm(
+      scrollViewKey: const Key('prompt-copy-options-list'),
+      scrollController: widget.scrollController,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      children: [
+      content: [
         if (widget.exportMode) _buildExportOptions() else _buildSafeOptions(),
         const SizedBox(height: 20),
         Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),

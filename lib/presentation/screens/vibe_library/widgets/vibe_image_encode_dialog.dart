@@ -7,6 +7,7 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
 import '../../../widgets/common/editable_double_field.dart';
 import '../../../widgets/common/themed_slider.dart';
@@ -634,12 +635,11 @@ class VibeImageEncodeErrorDialog extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
-    return ListView(
-      key: const Key('vibe-image-encode-error-content'),
-      controller: scrollController,
+    return ContentSizedAdaptiveForm(
+      scrollViewKey: const Key('vibe-image-encode-error-content'),
+      scrollController: scrollController,
       padding: const EdgeInsets.all(20),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      children: [
+      content: [
         Text(l10n.vibe_encodeErrorImage(fileName)),
         const SizedBox(height: 8),
         SelectableText(

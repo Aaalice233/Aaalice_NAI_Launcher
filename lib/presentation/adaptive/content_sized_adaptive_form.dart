@@ -11,14 +11,16 @@ class ContentSizedAdaptiveForm extends StatelessWidget {
     super.key,
     required this.scrollController,
     required this.content,
-    required this.footer,
+    this.footer,
     this.scrollViewKey,
     this.padding = const EdgeInsets.all(16),
   });
 
   final ScrollController? scrollController;
   final List<Widget> content;
-  final Widget footer;
+
+  /// Omit when actions should scroll together with the content on short screens.
+  final Widget? footer;
   final Key? scrollViewKey;
   final EdgeInsetsGeometry padding;
 
@@ -38,7 +40,7 @@ class ContentSizedAdaptiveForm extends StatelessWidget {
             children: content,
           ),
         ),
-        footer,
+        if (footer != null) footer!,
       ],
     );
   }

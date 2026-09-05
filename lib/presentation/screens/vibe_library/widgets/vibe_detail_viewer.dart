@@ -10,6 +10,7 @@ import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../adaptive/window_size_class.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -121,12 +122,11 @@ class _VibeRenameFormState extends State<_VibeRenameForm> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      key: const ValueKey('vibe-rename-form'),
-      controller: widget.scrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    return ContentSizedAdaptiveForm(
+      scrollViewKey: const ValueKey('vibe-rename-form'),
+      scrollController: widget.scrollController,
       padding: const EdgeInsets.all(20),
-      children: [
+      content: [
         TextField(
           key: const ValueKey('vibe-rename-field'),
           controller: _controller,

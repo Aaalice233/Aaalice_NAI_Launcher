@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 
 /// 选择导出的 ZIP 是否保留图片元数据。
 class ZipExportMetadataDialog extends StatefulWidget {
@@ -31,11 +32,11 @@ class _ZipExportMetadataDialogState extends State<ZipExportMetadataDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return ListView(
-      key: const ValueKey('zip-export-metadata-options'),
-      controller: widget.scrollController,
+    return ContentSizedAdaptiveForm(
+      scrollViewKey: const ValueKey('zip-export-metadata-options'),
+      scrollController: widget.scrollController,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      children: [
+      content: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

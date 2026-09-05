@@ -16,6 +16,7 @@ import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../router/app_branch.dart';
 import '../../router/app_routes.dart';
 import '../../themes/theme_extension.dart';
@@ -1495,11 +1496,11 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
       context: context,
       title: context.l10n.auth_addAccount,
       dialogWidth: 450,
-      builder: (panelContext, scrollController) => ListView(
-        key: const Key('main-nav-add-account-form'),
-        controller: scrollController,
+      builder: (panelContext, scrollController) => ContentSizedAdaptiveForm(
+        scrollViewKey: const Key('main-nav-add-account-form'),
+        scrollController: scrollController,
         padding: const EdgeInsets.fromLTRB(8, 16, 8, 32),
-        children: [
+        content: [
           LoginFormContainer(onLoginSuccess: () => Navigator.pop(panelContext)),
         ],
       ),

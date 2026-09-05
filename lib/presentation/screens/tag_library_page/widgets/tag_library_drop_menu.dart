@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
 
 /// 词库拖拽操作类型
 enum TagLibraryDropAction {
@@ -100,12 +101,11 @@ class TagLibraryDropMenu extends StatelessWidget {
         ? (prompt!.length > 50 ? '${prompt!.substring(0, 50)}...' : prompt!)
         : null;
 
-    return ListView(
-      key: const ValueKey('tag-library-drop-menu-scroll'),
-      controller: scrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    return ContentSizedAdaptiveForm(
+      scrollViewKey: const ValueKey('tag-library-drop-menu-scroll'),
+      scrollController: scrollController,
       padding: const EdgeInsets.all(24),
-      children: [
+      content: [
         _ActionButton(
           icon: Icons.add_box_outlined,
           title: l10n.tagLibrary_createEntryFromImage,

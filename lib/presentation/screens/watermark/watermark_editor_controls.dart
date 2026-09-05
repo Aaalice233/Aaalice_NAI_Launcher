@@ -4,6 +4,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/watermark/watermark_font_catalog.dart';
 import '../../../data/models/watermark/watermark_settings.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../widgets/image_editor/widgets/color_picker.dart';
 
 class WatermarkEditorControls extends StatelessWidget {
@@ -476,11 +477,11 @@ class _WatermarkColorFormState extends State<_WatermarkColorForm> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      key: const ValueKey('watermark-color-form'),
-      controller: widget.scrollController,
+    return ContentSizedAdaptiveForm(
+      scrollViewKey: const ValueKey('watermark-color-form'),
+      scrollController: widget.scrollController,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      children: [
+      content: [
         HSVColorPicker(
           color: widget.initial,
           hexLabel: context.l10n.editor_colorHex,

@@ -19,6 +19,7 @@ import '../../../data/services/image_metadata_service.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
@@ -109,11 +110,10 @@ class _VibeLibraryNamingFormState extends State<_VibeLibraryNamingForm> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final isBundle = widget.vibes.length > 1;
-    return ListView(
-      controller: widget.scrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
       padding: const EdgeInsets.all(20),
-      children: [
+      content: [
         if (isBundle) ...[
           Text(
             '${l10n.vibe_saveToLibrary_saveAsBundleDescription(widget.vibes.length)}:\n'
