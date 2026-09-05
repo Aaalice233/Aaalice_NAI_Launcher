@@ -24,20 +24,14 @@ void main() {
       find.byType(AnimatedContainer),
     );
     final decoration = container.decoration! as BoxDecoration;
-    expect(
-      decoration.color,
-      Color.alphaBlend(
-        theme.promptSemanticColors.positiveFixedTag.withValues(alpha: 0.07),
-        controlSurfaceColor(theme.colorScheme),
-      ),
-    );
+    expect(decoration.color, controlSurfaceColor(theme.colorScheme));
     expect(decoration.color, isNot(theme.colorScheme.surface));
     expect(decoration.border, isNull);
     expect(decoration.boxShadow, isNull);
     expect(tester.getSize(find.byType(Switch)).width, greaterThanOrEqualTo(48));
 
     final nameStyle = tester.widget<Text>(find.text('禁用固定词')).style!;
-    expect(nameStyle.color, theme.colorScheme.onSurface.withValues(alpha: 0.5));
+    expect(nameStyle.color, theme.colorScheme.onSurfaceVariant);
     expect(nameStyle.decoration, TextDecoration.lineThrough);
     expect(
       nameStyle.decorationColor,
@@ -48,10 +42,7 @@ void main() {
     final contentStyle = tester
         .widget<Text>(find.text('1girl, blue eyes'))
         .style!;
-    expect(
-      contentStyle.color,
-      theme.colorScheme.outline.withValues(alpha: 0.5),
-    );
+    expect(contentStyle.color, theme.colorScheme.onSurfaceVariant);
     expect(contentStyle.decoration, TextDecoration.lineThrough);
     expect(
       contentStyle.decorationColor,
@@ -118,7 +109,7 @@ void main() {
     final positiveColor = await surfaceColor(positive);
     final theme = Theme.of(tester.element(find.byType(FixedTagEntryTile)));
     final expectedPositive = Color.alphaBlend(
-      theme.promptSemanticColors.positiveFixedTag.withValues(alpha: 0.12),
+      theme.promptSemanticColors.positiveFixedTag.withValues(alpha: 0.22),
       controlSurfaceColor(theme.colorScheme),
     );
     expect(positiveColor, expectedPositive);
@@ -129,7 +120,7 @@ void main() {
     );
     final expectedNegative = Color.alphaBlend(
       negativeTheme.promptSemanticColors.negativeFixedTag.withValues(
-        alpha: 0.12,
+        alpha: 0.22,
       ),
       controlSurfaceColor(negativeTheme.colorScheme),
     );
