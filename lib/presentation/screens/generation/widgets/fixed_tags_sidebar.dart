@@ -26,6 +26,44 @@ import 'sidebar_link_painter.dart';
 const _uncategorizedSectionId = '__uncategorized__';
 const _linkDetachDistance = 36.0;
 
+bool _paneHeaderUsesLargeText(BuildContext context) =>
+    MediaQuery.textScalerOf(context).scale(14) >= 28;
+
+EdgeInsets _paneHeaderPadding(BuildContext context) =>
+    _paneHeaderUsesLargeText(context)
+    ? const EdgeInsets.fromLTRB(8, 2, 4, 2)
+    : const EdgeInsets.fromLTRB(10, 8, 6, 6);
+
+double _scaledLineExtent(BuildContext context, TextStyle? style) {
+  final fontSize = MediaQuery.textScalerOf(
+    context,
+  ).scale(style?.fontSize ?? 14);
+  return fontSize * (style?.height ?? 1.45);
+}
+
+// 标题行取名称与计数徽标中较高者，徽标另算自身竖向内边距。
+double _paneHeaderTitleExtent(BuildContext context) {
+  final textTheme = Theme.of(context).textTheme;
+  return math.max(
+    _scaledLineExtent(context, textTheme.labelLarge),
+    _scaledLineExtent(context, textTheme.labelSmall) + 4,
+  );
+}
+
+// 文字缩放器可能非线性，就地按标题字号取斜率，压缩比才落在标题真实行高上。
+double _paneHeaderTextScaleFactor(BuildContext context) {
+  final fontSize = Theme.of(context).textTheme.labelLarge?.fontSize ?? 14;
+  return MediaQuery.textScalerOf(context).scale(fontSize) / fontSize;
+}
+
+// 高度预算与 _buildPaneHeader 的实际布局必须同源：预算低估会让 _buildPaneCard 的 Column 溢出。
+double _paneHeaderExtent(BuildContext context) =>
+    math.max(
+      _paneHeaderTitleExtent(context),
+      context.interactionPolicy.minimumControlExtent,
+    ) +
+    _paneHeaderPadding(context).vertical;
+
 double _gridCardHeight(BuildContext context) {
   final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
   // 底行取链接锚点与操作按钮中较高者：前者看有无精确指针，后者看有无触摸，两条规则会错配。
@@ -338,8 +376,10 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                 .toDouble();
         final hasPositiveEntries = fixedState.positiveEntries.isNotEmpty;
         final hasNegativeEntries = fixedState.negativeEntries.isNotEmpty;
+        // 面板头跟随文字缩放，正文下限保持定值：跟着放大会在大字号下抢走用户拖出来的分栏高度。
+        final paneHeaderMinimumHeight = _paneHeaderExtent(context);
         const populatedMinimumHeight = 138.0;
-        const emptyMinimumHeight = 64.0;
+        final emptyMinimumHeight = paneHeaderMinimumHeight;
         final desiredPositiveMinimum = !hasPositiveEntries
             ? emptyMinimumHeight
             : isListMode
@@ -348,8 +388,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         final desiredNegativeMinimum = !hasNegativeEntries
             ? emptyMinimumHeight
             : populatedMinimumHeight;
-        const paneHeaderMinimumHeight = 64.0;
-        const headerMinimumTotal = paneHeaderMinimumHeight * 2;
+        final headerMinimumTotal = paneHeaderMinimumHeight * 2;
         final bodyBudget = math.max(0.0, usableHeight - headerMinimumTotal);
         final desiredPositiveBody = math.max(
           0.0,
@@ -401,6 +440,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                   positiveSections,
                   libraryEntries,
                   isListMode,
+                  positiveHeight,
                 ),
               ),
               _buildNegativeResizeDivider(
@@ -416,6 +456,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                   negativeSections,
                   libraryEntries,
                   isListMode,
+                  negativeHeight,
                 ),
               ),
             ],
@@ -430,6 +471,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     List<_TagSection> sections,
     List<TagLibraryEntry> libraryEntries,
     bool isListMode,
+    double paneHeight,
   ) {
     final entryCount = sections.fold<int>(
       0,
@@ -440,11 +482,13 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       theme,
       key: const ValueKey('fixed-tags-positive-card'),
       accent: theme.colorScheme.primary,
-      header: _buildPaneHeader(
+      paneHeight: paneHeight,
+      headerBuilder: (headerExtent) => _buildPaneHeader(
         icon: Icons.add_circle_outline_rounded,
         label: context.l10n.fixedTags_positiveTitle,
         count: entryCount,
         color: theme.colorScheme.primary,
+        maxExtent: headerExtent,
         trailingBuilder: (iconOnly) => _buildGroupHeaderActions(
           keyPrefix: 'fixed-tags-positive',
           groupsKey: _positiveGroupsKey,
@@ -498,12 +542,19 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     ThemeData theme, {
     required Key key,
     required Color accent,
-    required Widget header,
+    required double paneHeight,
+    required Widget Function(double headerExtent) headerBuilder,
     required Widget body,
   }) {
     final baseColor = sectionSurfaceColor(theme.colorScheme);
     final cardTint = theme.brightness == Brightness.dark ? 0.04 : 0.025;
     final headerTint = theme.brightness == Brightness.dark ? 0.09 : 0.065;
+    // 面板头不超过整格高度，否则下面的 Expanded 拿到 0 仍会把 Column 撑破；
+    // 下界是操作按钮命中区，压过头等于缩小操作入口。
+    final headerExtent = math.max(
+      context.interactionPolicy.minimumControlExtent,
+      math.min(_paneHeaderExtent(context), paneHeight),
+    );
     return Material(
       key: key,
       color: Color.alphaBlend(accent.withValues(alpha: cardTint), baseColor),
@@ -517,7 +568,10 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
               accent.withValues(alpha: headerTint),
               baseColor,
             ),
-            child: header,
+            child: SizedBox(
+              height: headerExtent,
+              child: headerBuilder(headerExtent),
+            ),
           ),
           Expanded(child: body),
         ],
@@ -530,26 +584,49 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     required String label,
     required int count,
     required Color color,
+    required double maxExtent,
     Widget Function(bool iconOnly)? trailingBuilder,
   }) {
-    final usesLargeText = MediaQuery.textScalerOf(context).scale(14) >= 28;
+    final usesLargeText = _paneHeaderUsesLargeText(context);
+    final padding = _paneHeaderPadding(context);
+    final titleExtent = _paneHeaderTitleExtent(context);
+    final actionExtent = context.interactionPolicy.minimumControlExtent;
+    // 分到的高度不够时先收内边距再压标题字号，操作按钮命中区不参与压缩。
+    final verticalPadding = (maxExtent - math.max(titleExtent, actionExtent))
+        .clamp(0.0, padding.vertical)
+        .toDouble();
+    final paddingScale = padding.vertical == 0
+        ? 1.0
+        : verticalPadding / padding.vertical;
+    final contentExtent = math.max(0.0, maxExtent - verticalPadding);
+    final titleScaleFactor = _paneHeaderTextScaleFactor(context);
+    final titleMaxScaleFactor = contentExtent >= titleExtent
+        ? titleScaleFactor
+        : titleScaleFactor * contentExtent / titleExtent;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final trailing = trailingBuilder?.call(
           constraints.maxWidth < 360 || usesLargeText,
         );
         return Padding(
-          padding: usesLargeText
-              ? const EdgeInsets.fromLTRB(8, 2, 4, 2)
-              : const EdgeInsets.fromLTRB(10, 8, 6, 6),
+          padding: EdgeInsets.fromLTRB(
+            padding.left,
+            padding.top * paddingScale,
+            padding.right,
+            padding.bottom * paddingScale,
+          ),
           child: Row(
             children: [
               Expanded(
-                child: _SectionTitle(
-                  icon: icon,
-                  label: label,
-                  count: count,
-                  color: color,
+                child: MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: titleMaxScaleFactor,
+                  child: _SectionTitle(
+                    icon: icon,
+                    label: label,
+                    count: count,
+                    color: color,
+                  ),
                 ),
               ),
               if (trailing != null) trailing,
@@ -687,6 +764,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     List<_TagSection> sections,
     List<TagLibraryEntry> libraryEntries,
     bool isListMode,
+    double paneHeight,
   ) {
     final entryCount = sections.fold<int>(
       0,
@@ -696,11 +774,13 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       theme,
       key: const ValueKey('fixed-tags-negative-card'),
       accent: theme.colorScheme.error,
-      header: _buildPaneHeader(
+      paneHeight: paneHeight,
+      headerBuilder: (headerExtent) => _buildPaneHeader(
         icon: Icons.block_rounded,
         label: context.l10n.fixedTags_negativeTitle,
         count: entryCount,
         color: theme.colorScheme.error,
+        maxExtent: headerExtent,
         trailingBuilder: (iconOnly) => _buildGroupHeaderActions(
           keyPrefix: 'fixed-tags-negative',
           groupsKey: _negativeGroupsKey,
