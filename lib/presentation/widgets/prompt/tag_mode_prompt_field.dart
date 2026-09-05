@@ -22,6 +22,7 @@ class TagModePromptField extends ConsumerStatefulWidget {
     this.sessionId,
     this.assistant,
     this.bottomPadding = 58,
+    this.fitContent = false,
     this.surfaceColor,
     this.enabled = true,
     this.onModeChanged,
@@ -39,6 +40,9 @@ class TagModePromptField extends ConsumerStatefulWidget {
   /// A shared assistant mount that belongs inside the editor Stack.
   final Widget? assistant;
   final double bottomPadding;
+
+  /// In content sizing, only the active editor contributes layout height.
+  final bool fitContent;
   final Widget child;
   final FocusNode? sourceFocusNode;
   final FocusNode? tagFocusNode;
@@ -157,15 +161,26 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
           fit: StackFit.passthrough,
           clipBehavior: Clip.hardEdge,
           children: [
-            Visibility(
-              visible: !_session.tagMode,
-              maintainSize: true,
-              maintainAnimation: true,
-              maintainState: true,
-              child: widget.child,
+            // Keep the same editing subtree in both sizing modes. Offstage
+            // removes its height contribution without losing native state.
+            Offstage(
+              offstage: widget.fitContent && _session.tagMode,
+              child: Visibility(
+                visible: !_session.tagMode,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: widget.child,
+              ),
             ),
+            // Null insets use normal Stack sizing without reparenting the
+            // tag editor when switching between manual and content heights.
             if (_session.tagMode)
-              Positioned.fill(
+              Positioned(
+                left: widget.fitContent ? null : 0,
+                right: widget.fitContent ? null : 0,
+                top: widget.fitContent ? null : 0,
+                bottom: widget.fitContent ? null : 0,
                 child: TagEditorView(
                   key: ValueKey(_modeId),
                   bottomPadding: widget.bottomPadding,

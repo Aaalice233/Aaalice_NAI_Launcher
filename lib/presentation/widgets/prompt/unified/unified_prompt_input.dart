@@ -1482,6 +1482,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     if (widget.config.enableTagMode) {
       clipboardAwareInput = TagModePromptField(
         sessionId: _modeId,
+        fitContent: widget.fitContent && !widget.expands,
         bottomPadding: widget.enableAssistant || widget.config.showClearButton
             ? 58
             : 12,

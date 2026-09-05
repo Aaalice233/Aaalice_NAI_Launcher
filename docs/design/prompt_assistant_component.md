@@ -26,6 +26,10 @@
 
 页面只有在产品需要避让助手时才使用 `PromptAssistantToolbarMetrics.contentBottomClearance` 为正文预留空间；主提示词框使用覆盖式交互，不预留正文空间。不要在页面再次添加与展开状态相关的 `SizedBox`、`Padding`、`Material` 或 `ClipRRect` 来包装助手。
 
+## 编辑器尺寸边界
+
+`UnifiedPromptInput.fitContent` 将自动高度意图传递给 `TagModePromptField`：文本模式由文本编辑器自然布局，标签模式由实际标签视图自然布局。隐藏模式保留编辑状态，但不参与自动高度；不得用文本行数、标签数量估算或额外高度缓存代替当前视图的布局结果。手动高度和父级限制只约束视口，内容超出时由当前模式内部滚动；恢复自动高度只解除手动约束，不重建编辑器。
+
 ## 验证
 
 共享契约见 `test/presentation/prompt_assistant/widgets/prompt_assistant_layout_test.dart`，覆盖挂载位置、鼠标/触屏、图标/文字入口、大字号、状态切换、高度与点击区域。入口集成测试分别位于 generation、character 和 tag_library_page 的对应测试目录。修改共享控件后同时检查其调用方，并保留各入口的会话标识、翻译语义和业务回调。
