@@ -4752,24 +4752,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get sync_done => '同期が完了しました';
 
   @override
-  String get download_tags_data => 'タグ データをダウンロードしています...';
-
-  @override
-  String get download_cooccurrence_data => '共起データをダウンロードしています...';
-
-  @override
-  String get download_parsing_data => 'データを解析しています...';
-
-  @override
-  String get download_readingFile => 'ファイルを読み取り中...';
-
-  @override
-  String get download_mergingData => 'データを結合しています...';
-
-  @override
-  String get download_loadComplete => '読み込みが完了しました';
-
-  @override
   String get time_just_now => 'ただいま';
 
   @override

@@ -2157,12 +2157,6 @@
   },
   "sync_filtering": "正在篩選標籤...",
   "sync_done": "同步完成",
-  "download_tags_data": "正在下載標籤資料...",
-  "download_cooccurrence_data": "正在下載共現標籤資料...",
-  "download_parsing_data": "正在解析資料...",
-  "download_readingFile": "正在讀取檔案...",
-  "download_mergingData": "正在合併資料...",
-  "download_loadComplete": "載入完成",
   "time_just_now": "剛剛",
   "time_minutes_ago": "{n}分鐘前",
   "@time_minutes_ago": {

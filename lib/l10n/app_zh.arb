@@ -2134,12 +2134,6 @@
   "sync_filtering": "正在筛选标签...",
   "sync_done": "同步完成",
 
-  "download_tags_data": "正在下载标签数据...",
-  "download_cooccurrence_data": "正在下载共现标签数据...",
-  "download_parsing_data": "正在解析数据...",
-  "download_readingFile": "正在读取文件...",
-  "download_mergingData": "正在合并数据...",
-  "download_loadComplete": "加载完成",
 
   "time_just_now": "刚刚",
   "time_minutes_ago": "{n}分钟前",

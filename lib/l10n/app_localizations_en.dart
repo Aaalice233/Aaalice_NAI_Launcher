@@ -4869,24 +4869,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sync_done => 'Sync completed';
 
   @override
-  String get download_tags_data => 'Downloading tags data...';
-
-  @override
-  String get download_cooccurrence_data => 'Downloading cooccurrence data...';
-
-  @override
-  String get download_parsing_data => 'Parsing data...';
-
-  @override
-  String get download_readingFile => 'Reading file...';
-
-  @override
-  String get download_mergingData => 'Merging data...';
-
-  @override
-  String get download_loadComplete => 'Loading complete';
-
-  @override
   String get time_just_now => 'Just now';
 
   @override

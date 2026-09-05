@@ -8682,42 +8682,6 @@ abstract class AppLocalizations {
   /// **'Sync completed'**
   String get sync_done;
 
-  /// No description provided for @download_tags_data.
-  ///
-  /// In en, this message translates to:
-  /// **'Downloading tags data...'**
-  String get download_tags_data;
-
-  /// No description provided for @download_cooccurrence_data.
-  ///
-  /// In en, this message translates to:
-  /// **'Downloading cooccurrence data...'**
-  String get download_cooccurrence_data;
-
-  /// No description provided for @download_parsing_data.
-  ///
-  /// In en, this message translates to:
-  /// **'Parsing data...'**
-  String get download_parsing_data;
-
-  /// No description provided for @download_readingFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Reading file...'**
-  String get download_readingFile;
-
-  /// No description provided for @download_mergingData.
-  ///
-  /// In en, this message translates to:
-  /// **'Merging data...'**
-  String get download_mergingData;
-
-  /// No description provided for @download_loadComplete.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading complete'**
-  String get download_loadComplete;
-
   /// No description provided for @time_just_now.
   ///
   /// In en, this message translates to:

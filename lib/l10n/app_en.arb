@@ -2119,12 +2119,6 @@
   "sync_filtering": "Filtering tags...",
   "sync_done": "Sync completed",
 
-  "download_tags_data": "Downloading tags data...",
-  "download_cooccurrence_data": "Downloading cooccurrence data...",
-  "download_parsing_data": "Parsing data...",
-  "download_readingFile": "Reading file...",
-  "download_mergingData": "Merging data...",
-  "download_loadComplete": "Loading complete",
 
   "time_just_now": "Just now",
   "time_minutes_ago": "{n} minutes ago",

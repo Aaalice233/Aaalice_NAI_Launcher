@@ -2092,12 +2092,6 @@
   },
   "sync_filtering": "タグをフィルタリングしています...",
   "sync_done": "同期が完了しました",
-  "download_tags_data": "タグ データをダウンロードしています...",
-  "download_cooccurrence_data": "共起データをダウンロードしています...",
-  "download_parsing_data": "データを解析しています...",
-  "download_readingFile": "ファイルを読み取り中...",
-  "download_mergingData": "データを結合しています...",
-  "download_loadComplete": "読み込みが完了しました",
   "time_just_now": "ただいま",
   "time_minutes_ago": "{n} 分前",
   "@time_minutes_ago": {

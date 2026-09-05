@@ -4664,24 +4664,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sync_done => '同步完成';
 
   @override
-  String get download_tags_data => '正在下载标签数据...';
-
-  @override
-  String get download_cooccurrence_data => '正在下载共现标签数据...';
-
-  @override
-  String get download_parsing_data => '正在解析数据...';
-
-  @override
-  String get download_readingFile => '正在读取文件...';
-
-  @override
-  String get download_mergingData => '正在合并数据...';
-
-  @override
-  String get download_loadComplete => '加载完成';
-
-  @override
   String get time_just_now => '刚刚';
 
   @override
@@ -18607,24 +18589,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get sync_done => '同步完成';
-
-  @override
-  String get download_tags_data => '正在下載標籤資料...';
-
-  @override
-  String get download_cooccurrence_data => '正在下載共現標籤資料...';
-
-  @override
-  String get download_parsing_data => '正在解析資料...';
-
-  @override
-  String get download_readingFile => '正在讀取檔案...';
-
-  @override
-  String get download_mergingData => '正在合併資料...';
-
-  @override
-  String get download_loadComplete => '載入完成';
 
   @override
   String get time_just_now => '剛剛';
