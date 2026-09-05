@@ -15,7 +15,7 @@ import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
 import 'prompt_input_controller.dart';
 import 'prompt_input_models.dart';
-import 'prompt_footer_style.dart';
+import '../../../widgets/prompt/prompt_footer_style.dart';
 import 'prompt_type_switch.dart';
 
 class PromptInputToolbar extends ConsumerWidget {

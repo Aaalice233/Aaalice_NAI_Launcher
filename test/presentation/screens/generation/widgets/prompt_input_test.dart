@@ -118,6 +118,7 @@ void main() {
       const ValueKey('generation_prompt_negative_input'),
     );
     expect(tester.getSize(negative).height, tagHeight);
+    expect(find.byType(TagEditorView), findsNothing);
     expect(tester.takeException(), isNull);
     // Settle the double-tap recognizer and the existing toolbar blur delay.
     await tester.pump(const Duration(milliseconds: 250));
@@ -126,14 +127,24 @@ void main() {
       storage.getSetting<double>(StorageKeys.promptEditorManualHeight),
       tagHeight,
     );
-    expect(storage.getSetting<bool>(StorageKeys.promptTagMode), isTrue);
+    expect(
+      storage.getSetting<bool>(
+        '${StorageKeys.promptTagMode}.generation_prompt_main',
+      ),
+      isTrue,
+    );
     await tester.pumpWidget(app);
     await tester.pump();
     expect(tester.getSize(positive).height, tagHeight);
     expect(find.byType(TagEditorView), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
     await tester.pump();
-    expect(storage.getSetting<bool>(StorageKeys.promptTagMode), isFalse);
+    expect(
+      storage.getSetting<bool>(
+        '${StorageKeys.promptTagMode}.generation_prompt_main',
+      ),
+      isFalse,
+    );
     Focus.of(tester.element(handle)).requestFocus();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.home);

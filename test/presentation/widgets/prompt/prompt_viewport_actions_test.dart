@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -102,7 +103,7 @@ void main() {
           if (!tagMode) {
             await tester.tap(button);
             await tester.pumpAndSettle();
-            expect(find.byIcon(Icons.sell), findsOneWidget);
+            expect(find.byType(TagEditorView), findsOneWidget);
           }
         }
         page.jumpTo(1300);

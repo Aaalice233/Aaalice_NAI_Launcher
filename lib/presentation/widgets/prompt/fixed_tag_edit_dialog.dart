@@ -9,7 +9,7 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/window_size_class.dart';
 import '../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
-import '../../prompt_assistant/widgets/prompt_assistant_dock.dart';
+import 'prompt_editor_control_row.dart';
 import '../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../themes/core/input_surface_style.dart';
@@ -71,6 +71,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   late double _weight;
   late bool _enabled;
   late final String _assistantSessionId;
+  Object get _modeId =>
+      widget.entry == null ? _contentController : _assistantSessionId;
   bool _saveToLibrary = false;
   String? _selectedCategoryId;
 
@@ -282,7 +284,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
       color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(6),
     ),
-    child: PromptAssistantDock(
+    child: PromptEditorControlRow(
+      sessionId: _modeId,
       leading: Text(
         context.l10n.fixedTags_syntaxHelp,
         maxLines: 1,
@@ -291,14 +294,6 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
           fontSize: 12,
         ),
-      ),
-      assistant: PromptAssistantOverlay(
-        sessionId: _assistantSessionId,
-        controller: _contentController,
-        placement: PromptAssistantPlacement.inline,
-        supportsTagMode: true,
-        stripFixedTagsFromInput: false,
-        onOpenSettings: () => PromptAssistantQuickSettings.show(context),
       ),
     ),
   );
@@ -354,7 +349,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           focusNode: _contentFocusNode,
           decoration: InputDecoration(
             hintText: context.l10n.fixedTags_contentHint,
-            contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 60),
           ),
           maxLines: null,
           expands: true,
@@ -362,6 +357,17 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
       ),
     );
     return TagModePromptField(
+      sessionId: _modeId,
+      showModeSwitch: false,
+      assistant: PromptAssistantOverlay(
+        sessionId: _assistantSessionId,
+        controller: _contentController,
+        iconOnly: true,
+        tagModeSessionId: _modeId,
+        supportsTagMode: true,
+        stripFixedTagsFromInput: false,
+        onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+      ),
       controller: _contentController,
       sourceFocusNode: _contentFocusNode,
       child: promptEditor,

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
-import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_tag_mode_toggle.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/prompt_tag_mode_toggle.dart';
 
 import '../../../../helpers/memory_local_storage.dart';
 
@@ -92,7 +92,7 @@ void main() {
                         ),
                         const Align(
                           alignment: Alignment.centerLeft,
-                          child: PromptTagModeToggle(),
+                          child: PromptTagModeToggle(sessionId: 'test'),
                         ),
                       ],
                     ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
@@ -9,8 +10,8 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_token_counter_provider.dart';
 import '../../../widgets/prompt/prompt_token_count_bar.dart';
 import '../../../widgets/common/translated_tag_text.dart';
-import 'prompt_footer_style.dart';
-import 'prompt_tag_mode_toggle.dart';
+import '../../../widgets/prompt/prompt_footer_style.dart';
+import '../../../widgets/prompt/prompt_tag_mode_toggle.dart';
 
 class PromptInputFooter extends ConsumerWidget {
   const PromptInputFooter({
@@ -128,7 +129,11 @@ class PromptInputFooter extends ConsumerWidget {
           ),
           const SizedBox(width: 4),
         ],
-        const PromptTagModeToggle(),
+        PromptTagModeToggle(
+          sessionId: target == PromptTokenCountTarget.negative
+              ? PromptHistorySessionIds.generationNegative
+              : PromptHistorySessionIds.generationPrompt,
+        ),
         if (leading != null) const SizedBox(width: 4),
         if (leading != null) leading!,
       ],

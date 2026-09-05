@@ -8,8 +8,7 @@ import '../../../data/models/character/character_prompt.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
-import '../../prompt_assistant/widgets/prompt_assistant_dock.dart';
-import '../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import '../prompt/prompt_editor_control_row.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/generation/character_editor_layout_provider.dart';
 import '../../providers/image_generation_provider.dart';
@@ -143,7 +142,7 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildAssistantHeader(l10n, assistantSessionId),
+        _buildEditorHeader(l10n, assistantSessionId),
         const SizedBox(height: 6),
         if (_tabIndex == 0)
           _buildPromptEditor(
@@ -166,14 +165,13 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
     );
   }
 
-  Widget _buildAssistantHeader(AppLocalizations l10n, String sessionId) {
+  Widget _buildEditorHeader(AppLocalizations l10n, String sessionId) {
     final positive = _tabIndex == 0;
     final currentController = positive
         ? _promptController
         : _negativeController;
-    return PromptAssistantDock(
-      minimumLeadingWidth:
-          136 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
+    return PromptEditorControlRow(
+      sessionId: sessionId,
       leading: Row(
         children: [
           Flexible(
@@ -199,7 +197,7 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
           ),
         ],
       ),
-      leadingAction: currentController.text.isEmpty
+      action: currentController.text.isEmpty
           ? null
           : IconButton(
               key: const ValueKey('character-prompt-clear-button'),
@@ -207,22 +205,6 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
               onPressed: _clearCurrentPrompt,
               icon: const Icon(Icons.clear, size: 20),
             ),
-      assistant: PromptAssistantOverlay(
-        key: const ValueKey('character-prompt-assistant-slot'),
-        sessionId: sessionId,
-        controller: currentController,
-        placement: PromptAssistantPlacement.inline,
-        supportsTagMode: true,
-        compactDesktopToolbar: true,
-        tapRegionGroupId: CharacterPromptEditor.tapRegionGroupId(
-          widget.character.id,
-        ),
-        onChanged: (value) => _updateCharacter(
-          positive
-              ? widget.character.copyWith(prompt: value)
-              : widget.character.copyWith(negativePrompt: value),
-        ),
-      ),
     );
   }
 
@@ -283,7 +265,11 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
             sessionId: isNegative
                 ? PromptHistorySessionIds.characterNegative(widget.character.id)
                 : PromptHistorySessionIds.characterPrompt(widget.character.id),
-            enableAssistant: false,
+            enableAssistant: true,
+            showTagModeSwitch: false,
+            assistantTapRegionGroupId: CharacterPromptEditor.tapRegionGroupId(
+              widget.character.id,
+            ),
             onChanged: onChanged,
             onCleared: () => onChanged(''),
             expands: true,

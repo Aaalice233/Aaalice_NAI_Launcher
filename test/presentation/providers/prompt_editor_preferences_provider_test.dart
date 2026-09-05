@@ -23,15 +23,25 @@ void main() {
       await Hive.openBox(StorageKeys.settingsBox);
       var container = ProviderContainer();
       final storage = LocalStorageService();
-      expect(container.read(promptTagModeProvider), isFalse);
-      await container.read(promptTagModeProvider.notifier).setEnabled(true);
+      expect(container.read(promptTagModeProvider('positive')), isFalse);
+      await container
+          .read(promptTagModeProvider('positive').notifier)
+          .setEnabled(true);
+      expect(container.read(promptTagModeProvider('negative')), isFalse);
+      expect(container.read(promptTagModeProvider('character-a')), isFalse);
+      await container
+          .read(promptTagModeProvider('character-a').notifier)
+          .setEnabled(true);
+      expect(container.read(promptTagModeProvider('character-b')), isFalse);
       await storage.setSetting(StorageKeys.promptEditorManualHeight, 237.5);
       container.dispose();
       await Hive.close();
 
       await Hive.openBox(StorageKeys.settingsBox);
       container = ProviderContainer();
-      expect(container.read(promptTagModeProvider), isTrue);
+      expect(container.read(promptTagModeProvider('positive')), isTrue);
+      expect(container.read(promptTagModeProvider('negative')), isFalse);
+      expect(container.read(promptTagModeProvider('character-a')), isTrue);
       expect(
         storage.getSetting<double>(StorageKeys.promptEditorManualHeight),
         237.5,
@@ -40,7 +50,9 @@ void main() {
         await SettingsCloudSyncAdapter(storage).exportRecords().toList(),
         isEmpty,
       );
-      await container.read(promptTagModeProvider.notifier).setEnabled(false);
+      await container
+          .read(promptTagModeProvider('positive').notifier)
+          .setEnabled(false);
       await storage.deleteSetting(StorageKeys.promptEditorManualHeight);
       container.dispose();
       await Hive.close();
@@ -48,7 +60,7 @@ void main() {
       await Hive.openBox(StorageKeys.settingsBox);
       container = ProviderContainer();
       addTearDown(container.dispose);
-      expect(container.read(promptTagModeProvider), isFalse);
+      expect(container.read(promptTagModeProvider('positive')), isFalse);
       expect(
         storage.getSetting<double>(StorageKeys.promptEditorManualHeight),
         isNull,

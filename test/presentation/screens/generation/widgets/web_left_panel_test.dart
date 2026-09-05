@@ -124,7 +124,9 @@ void main() {
       resizing: resizing,
       prompt: 'cat, dog',
     );
-    final toggle = find.byKey(const ValueKey('tag-mode-button')).hitTestable();
+    final toggle = find.byKey(const ValueKey('tag-mode-button'));
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     final capsule = find.byType(TagEditorCapsule).first;

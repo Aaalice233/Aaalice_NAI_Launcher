@@ -45,6 +45,8 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
 
   /// Whether the input owns its default bottom-right assistant entry.
   final bool enableAssistant;
+  final bool showTagModeSwitch;
+  final Object? assistantTapRegionGroupId;
 
   /// 随机按钮点击回调
   final VoidCallback? onRandomPressed;
@@ -92,6 +94,8 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
     this.onChanged,
     this.sessionId,
     this.enableAssistant = true,
+    this.showTagModeSwitch = true,
+    this.assistantTapRegionGroupId,
     this.onRandomPressed,
     this.onRandomLongPressed,
     this.onFullscreenPressed,
@@ -199,6 +203,8 @@ class _PromptEditorWithToolbarState
             onChanged: widget.onChanged,
             sessionId: widget.sessionId,
             enableAssistant: widget.enableAssistant,
+            showTagModeSwitch: widget.showTagModeSwitch,
+            assistantTapRegionGroupId: widget.assistantTapRegionGroupId,
             maxLines: widget.maxLines,
             minLines: widget.minLines,
             expands: widget.expands,

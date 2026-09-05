@@ -173,7 +173,7 @@ void main() {
         .decoration!
         .contentPadding!
         .resolve(TextDirection.ltr);
-    expect(contentPadding.bottom, 12);
+    expect(contentPadding.bottom, 60);
     final contentFooter = find.byKey(
       const ValueKey('entry-add-dialog-content-footer'),
     );
@@ -183,7 +183,7 @@ void main() {
     final collapsedAssistantHeight = tester.getSize(assistant).height;
     expect(
       find.descendant(
-        of: find.byKey(const Key('entry-add-dialog-content-editor')),
+        of: contentFooter,
         matching: find.byKey(const ValueKey('tag-mode-button')),
       ),
       findsOneWidget,
@@ -197,7 +197,7 @@ void main() {
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).placement,
-      PromptAssistantPlacement.inline,
+      PromptAssistantPlacement.editor,
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
@@ -205,7 +205,7 @@ void main() {
     );
     expect(
       tester.getTopRight(assistant).dx,
-      closeTo(tester.getTopRight(contentFooter).dx - 4, 1),
+      closeTo(tester.getTopRight(contentInput).dx - 8, 1),
     );
 
     final dialogScrollable = find
@@ -228,7 +228,7 @@ void main() {
       expandedAssistantRect.height,
       closeTo(collapsedAssistantHeight, .01),
     );
-    final footerRect = tester.getRect(contentFooter);
+    final footerRect = tester.getRect(contentInput);
     expect(expandedAssistantRect.left, greaterThanOrEqualTo(footerRect.left));
     expect(expandedAssistantRect.right, lessThanOrEqualTo(footerRect.right));
     expect(expandedAssistantRect.top, greaterThanOrEqualTo(footerRect.top));

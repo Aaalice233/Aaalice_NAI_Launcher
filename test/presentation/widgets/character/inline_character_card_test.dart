@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
@@ -60,6 +62,73 @@ void main() {
         ),
       ),
     );
+  }
+
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+    for (final scale in [1.0, 3.0]) {
+      testWidgets(
+        'character control mounting and per-field mode $width/$scale',
+        (tester) async {
+          await tester.binding.setSurfaceSize(Size(width, 600));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: buildOverrides(),
+              child: MaterialApp(
+                locale: const Locale('en'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: MediaQuery(
+                  data: MediaQueryData(
+                    size: Size(width, 600),
+                    textScaler: TextScaler.linear(scale),
+                  ),
+                  child: const Scaffold(
+                    body: SingleChildScrollView(
+                      child: CharacterPromptEditor(character: character),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final toggle = find.byKey(const ValueKey('tag-mode-button'));
+          final area = find.byKey(
+            const ValueKey('character-prompt-editor-area-positive'),
+          );
+          expect(
+            tester.getRect(toggle).bottom,
+            lessThanOrEqualTo(tester.getRect(area).top),
+          );
+          final assistant = find.byType(PromptAssistantOverlay);
+          expect(
+            tester.widget<PromptAssistantOverlay>(assistant).tapRegionGroupId,
+            CharacterPromptEditor.tapRegionGroupId(character.id),
+          );
+          expect(
+            tester.getRect(assistant).bottom,
+            lessThanOrEqualTo(tester.getRect(area).bottom),
+          );
+          expect(
+            tester.getRect(assistant).right,
+            lessThanOrEqualTo(tester.getRect(area).right),
+          );
+          await tester.tap(toggle);
+          await tester.pumpAndSettle();
+          expect(find.byType(TagEditorView), findsOneWidget);
+          final l10n = AppLocalizations.of(tester.element(toggle))!;
+          await tester.tap(find.text(l10n.prompt_negativePrompt));
+          await tester.pumpAndSettle();
+          expect(find.byType(TagEditorView), findsNothing);
+          await tester.tap(find.text(l10n.prompt_positivePrompt));
+          await tester.pumpAndSettle();
+          expect(find.byType(TagEditorView), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+        },
+      );
+    }
   }
 
   group('InlineCharacterCard', () {

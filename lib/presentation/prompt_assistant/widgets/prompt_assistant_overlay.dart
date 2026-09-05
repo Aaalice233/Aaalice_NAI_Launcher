@@ -58,6 +58,7 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
     this.interactionPolicy,
     this.stripFixedTagsFromInput = true,
     this.supportsTagMode = false,
+    this.tagModeSessionId,
   });
 
   final String sessionId;
@@ -73,6 +74,7 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
   final InteractionPolicy? interactionPolicy;
   final bool stripFixedTagsFromInput;
   final bool supportsTagMode;
+  final Object? tagModeSessionId;
 
   bool isVisible(BuildContext context, WidgetRef ref) {
     final config = ref.watch(promptAssistantConfigProvider);
@@ -131,7 +133,11 @@ class _PromptAssistantOverlayState
 
   Future<void> _runTranslate() async {
     final inputText = _assistantInputText();
-    final tagMode = widget.supportsTagMode && ref.read(promptTagModeProvider);
+    final tagMode =
+        widget.supportsTagMode &&
+        ref.read(
+          promptTagModeProvider(widget.tagModeSessionId ?? widget.sessionId),
+        );
     await _runAction(
       context.l10n.promptAssistant_translateProcessing,
       inputText,

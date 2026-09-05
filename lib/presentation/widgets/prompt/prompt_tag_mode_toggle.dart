@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/localization_extension.dart';
-import '../../../providers/prompt_editor_preferences_provider.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../providers/prompt_editor_preferences_provider.dart';
 import 'prompt_footer_style.dart';
 
 class PromptTagModeToggle extends ConsumerWidget {
-  const PromptTagModeToggle({super.key});
+  const PromptTagModeToggle({
+    super.key,
+    required this.sessionId,
+    this.enabled = true,
+  });
+
+  final Object sessionId;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(promptTagModeProvider);
+    final enabled = ref.watch(promptTagModeProvider(sessionId));
     final colors = Theme.of(context).colorScheme;
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
@@ -25,8 +32,13 @@ class PromptTagModeToggle extends ConsumerWidget {
         label: context.l10n.tagMode_label,
         child: TextButton(
           key: const ValueKey('tag-mode-button'),
-          onPressed: () =>
-              ref.read(promptTagModeProvider.notifier).setEnabled(!enabled),
+          onPressed: this.enabled || enabled
+              ? () {
+                  ref
+                      .read(promptTagModeProvider(sessionId).notifier)
+                      .setEnabled(!enabled);
+                }
+              : null,
           style: PromptFooterStyle.button(context, width: 88).copyWith(
             padding: const WidgetStatePropertyAll(EdgeInsets.all(3)),
             backgroundColor: WidgetStatePropertyAll(

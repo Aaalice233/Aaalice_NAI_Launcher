@@ -119,6 +119,7 @@ void main() {
                   SizedBox(
                     height: 300,
                     child: TagModePromptField(
+                      sessionId: 'test',
                       controller: source,
                       enableAutocomplete: false,
                       child: TextField(controller: source),

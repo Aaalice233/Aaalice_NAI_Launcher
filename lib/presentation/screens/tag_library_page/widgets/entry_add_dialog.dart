@@ -17,7 +17,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
-import '../../../prompt_assistant/widgets/prompt_assistant_dock.dart';
+import '../../../widgets/prompt/prompt_editor_control_row.dart';
 import '../../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
@@ -130,6 +130,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   late final NaiSyntaxController _contentController;
   late final TextEditingController _tagsController;
   late final String _assistantSessionId;
+  Object get _modeId =>
+      widget.entry == null ? _contentController : _assistantSessionId;
   final _nameFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
   final _tagsFocusNode = FocusNode();
@@ -336,6 +338,18 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                     key: const Key('entry-add-dialog-content-editor'),
                     height: 176,
                     child: TagModePromptField(
+                      sessionId: _modeId,
+                      showModeSwitch: false,
+                      assistant: PromptAssistantOverlay(
+                        sessionId: _assistantSessionId,
+                        controller: _contentController,
+                        iconOnly: true,
+                        tagModeSessionId: _modeId,
+                        supportsTagMode: true,
+                        stripFixedTagsFromInput: false,
+                        onOpenSettings: () =>
+                            PromptAssistantQuickSettings.show(context),
+                      ),
                       controller: _contentController,
                       sourceFocusNode: _contentFocusNode,
                       child: PromptFormatterWrapper(
@@ -366,7 +380,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                                 12,
                                 12,
                                 12,
-                                12,
+                                60,
                               ),
                             ),
                             maxLines: null,
@@ -428,7 +442,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
       color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(6),
     ),
-    child: PromptAssistantDock(
+    child: PromptEditorControlRow(
+      sessionId: _modeId,
       leading: Text(
         context.l10n.tagLibrary_characterNegativeSyntaxHelp,
         maxLines: 1,
@@ -437,14 +452,6 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
           color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
           fontSize: 12,
         ),
-      ),
-      assistant: PromptAssistantOverlay(
-        sessionId: _assistantSessionId,
-        controller: _contentController,
-        placement: PromptAssistantPlacement.inline,
-        supportsTagMode: false,
-        stripFixedTagsFromInput: false,
-        onOpenSettings: () => PromptAssistantQuickSettings.show(context),
       ),
     ),
   );

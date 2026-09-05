@@ -7,12 +7,11 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_state_provider.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_dock.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 
 import '../../../helpers/memory_local_storage.dart';
 
-enum _Mount { inline, editor, viewport, dock }
+enum _Mount { inline, editor, viewport }
 
 Future<void> _pump(
   WidgetTester tester,
@@ -67,13 +66,6 @@ Future<void> _pump(
                     _Mount.editor => Stack(children: [assistant]),
                     _Mount.viewport => Stack(
                       children: [Positioned.fill(child: assistant)],
-                    ),
-                    _Mount.dock => Align(
-                      alignment: Alignment.bottomRight,
-                      child: PromptAssistantDock(
-                        assistant: assistant,
-                        leading: const Text('Metadata'),
-                      ),
                     ),
                   },
                 );

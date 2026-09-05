@@ -39,6 +39,7 @@ class TagEditorView extends ConsumerStatefulWidget {
     super.key,
     required this.session,
     this.surfaceColor,
+    this.bottomPadding = 58,
     this.enabled = true,
     this.enableAutocomplete = true,
     this.onSearch,
@@ -46,6 +47,7 @@ class TagEditorView extends ConsumerStatefulWidget {
   });
   final TagEditorSession session;
   final Color? surfaceColor;
+  final double bottomPadding;
   final bool enabled;
   final bool enableAutocomplete;
   final ValueChanged<bool>? onSearch;
@@ -772,36 +774,39 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
         _boxSelecting = false;
         _refresh();
       },
-      child: SingleChildScrollView(
-        key: TagEditorView.scrollViewKey,
-        controller: _scroll,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 58),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TagEditorTree(
-                autocompleteOverlay: _autocomplete,
-                addition: _buildAddition(),
-                onDraggingChanged: (dragging) {
-                  _draggingTags = dragging;
-                  _refresh();
-                },
-                session: session,
-                pendingAddition: _pendingAddRange,
-                width: width,
-                keys: _keys,
-                enabled: widget.enabled,
-                enableAutocomplete: widget.enableAutocomplete,
-                showTranslation: _chinese,
-                translations: _translations?.values,
-                onRetryTranslation: () => _translations?.retry(),
-                onSelect: _select,
-                onEdit: _edit,
-                onMenu: (position, tag) => _menu(position, tag: tag),
-                onWheel: (event, id) => _wheel(event, tagId: id),
-              ),
-            ],
+      child: SizedBox(
+        width: constraints.maxWidth,
+        child: SingleChildScrollView(
+          key: TagEditorView.scrollViewKey,
+          controller: _scroll,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(12, 12, 12, widget.bottomPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TagEditorTree(
+                  autocompleteOverlay: _autocomplete,
+                  addition: _buildAddition(),
+                  onDraggingChanged: (dragging) {
+                    _draggingTags = dragging;
+                    _refresh();
+                  },
+                  session: session,
+                  pendingAddition: _pendingAddRange,
+                  width: width,
+                  keys: _keys,
+                  enabled: widget.enabled,
+                  enableAutocomplete: widget.enableAutocomplete,
+                  showTranslation: _chinese,
+                  translations: _translations?.values,
+                  onRetryTranslation: () => _translations?.retry(),
+                  onSelect: _select,
+                  onEdit: _edit,
+                  onMenu: (position, tag) => _menu(position, tag: tag),
+                  onWheel: (event, id) => _wheel(event, tagId: id),
+                ),
+              ],
+            ),
           ),
         ),
       ),

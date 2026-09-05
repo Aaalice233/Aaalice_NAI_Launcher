@@ -94,6 +94,83 @@ Future<void> pumpEditor(
 );
 
 void main() {
+  testWidgets('fields keep independent modes when controllers and IDs switch', (
+    tester,
+  ) async {
+    final source = TextEditingController(text: 'cat');
+    final other = TextEditingController(text: 'dog');
+    addTearDown(source.dispose);
+    addTearDown(other.dispose);
+    final storage = MemoryLocalStorage();
+    var sessionId = 'character-a-positive';
+    late StateSetter rebuild;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                rebuild = setState;
+                return Column(
+                  children: [
+                    SizedBox(
+                      width: 600,
+                      height: 200,
+                      child: TagModePromptField(
+                        sessionId: sessionId,
+                        controller: source,
+                        enableAutocomplete: false,
+                        child: TextField(
+                          controller: source,
+                          maxLines: null,
+                          expands: true,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 600,
+                      height: 200,
+                      child: TagModePromptField(
+                        sessionId: 'main',
+                        controller: other,
+                        enableAutocomplete: false,
+                        child: TextField(
+                          controller: other,
+                          maxLines: null,
+                          expands: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('tag-mode-button')).first);
+    await tester.pumpAndSettle();
+    expect(find.byType(TagEditorView), findsOneWidget);
+    final scroll = tester.getRect(find.byKey(TagEditorView.scrollViewKey));
+    final editor = tester.getRect(find.byType(TagEditorView));
+    expect(scroll.left, closeTo(editor.left, .01));
+    expect(scroll.right, closeTo(editor.right, .01));
+    rebuild(() => sessionId = 'character-a-negative');
+    await tester.pumpAndSettle();
+    expect(find.byType(TagEditorView), findsNothing);
+    rebuild(() => sessionId = 'character-a-positive');
+    await tester.pumpAndSettle();
+    expect(find.byType(TagEditorView), findsOneWidget);
+    expect(source.text, 'cat');
+    expect(other.text, 'dog');
+    expect(tester.takeException(), isNull);
+  });
+
   for (final boxSelect in [false, true]) {
     testWidgets(
       'whole group weight from ${boxSelect ? 'box selection' : 'header click'}',
@@ -146,7 +223,9 @@ void main() {
         );
         await tester.sendEventToBinding(
           PointerScrollEvent(
-            position: tester.getCenter(find.text(boxSelect ? 'cat' : '{{{…}}}')),
+            position: tester.getCenter(
+              find.text(boxSelect ? 'cat' : '{{{…}}}'),
+            ),
             scrollDelta: const Offset(0, -20),
           ),
         );
@@ -211,36 +290,25 @@ void main() {
     });
   }
 
-  testWidgets('tag mode only changes the icon when enabled', (tester) async {
+  testWidgets('tag mode shares the dual-icon animated switch', (tester) async {
     final source = TextEditingController(text: 'cat');
     addTearDown(source.dispose);
     await pumpEditor(tester, source);
     final toggle = find.byKey(const ValueKey('tag-mode-button'));
-    Color? background() =>
-        tester.widget<IconButton>(toggle).style!.backgroundColor!.resolve({});
-    expect(background(), Colors.transparent);
+    final thumb = find.byKey(const ValueKey('tag-mode-thumb'));
+    final before = tester.getTopLeft(thumb);
     expect(
-      tester
-          .widget<Icon>(
-            find.descendant(of: toggle, matching: find.byType(Icon)),
-          )
-          .icon,
-      Icons.sell_outlined,
+      find.descendant(of: toggle, matching: find.byIcon(Icons.text_fields)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: toggle, matching: find.byIcon(Icons.sell_outlined)),
+      findsOneWidget,
     );
     await tester.tap(toggle);
     await tester.pumpAndSettle();
-    expect(background(), Colors.transparent);
-    expect(
-      tester
-          .widget<Icon>(
-            find.descendant(of: toggle, matching: find.byType(Icon)),
-          )
-          .icon,
-      Icons.sell,
-    );
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(background(), Colors.transparent);
+    expect(tester.getTopLeft(thumb).dx, greaterThan(before.dx));
+    expect(find.byType(TagEditorView), findsOneWidget);
     expect(source.text, 'cat');
   });
 
@@ -1003,7 +1071,7 @@ void main() {
     await pumpEditor(tester, source, enabled: false);
     expect(
       tester
-          .widget<IconButton>(find.byKey(const ValueKey('tag-mode-button')))
+          .widget<TextButton>(find.byKey(const ValueKey('tag-mode-button')))
           .onPressed,
       isNull,
     );

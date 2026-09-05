@@ -7,6 +7,7 @@ import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../providers/prompt_editor_preferences_provider.dart';
+import '../prompt_tag_mode_toggle.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/prompt_edit_document.dart';
 import '../../../../core/utils/prompt_regex_replacer.dart';
@@ -98,6 +99,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 是否显示右下角助手
   final bool enableAssistant;
   final bool showTagModeSwitch;
+  final Object? assistantTapRegionGroupId;
 
   /// 打开助手设置回调
   final VoidCallback? onOpenAssistantSettings;
@@ -126,6 +128,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.sessionId,
     this.enableAssistant = true,
     this.showTagModeSwitch = true,
+    this.assistantTapRegionGroupId,
     this.onOpenAssistantSettings,
     this.onComfyuiImport,
   });
@@ -140,8 +143,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 语法高亮控制器
   NaiSyntaxController? _syntaxController;
   bool _syncingControllerValue = false;
+  Object get _modeId => widget.sessionId ?? _effectiveController;
   bool get _tagMode =>
-      widget.config.enableTagMode && ref.read(promptTagModeProvider);
+      widget.config.enableTagMode && ref.read(promptTagModeProvider(_modeId));
 
   /// 焦点节点
   FocusNode? _internalFocusNode;
@@ -1077,7 +1081,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.config.enableTagMode) ref.watch(promptTagModeProvider);
+    if (widget.config.enableTagMode) ref.watch(promptTagModeProvider(_modeId));
     Widget result = _buildTextField();
 
     // 如果启用 ComfyUI 导入，包装 ComfyuiImportWrapper
@@ -1098,6 +1102,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         if (widget.enableAssistant)
           PromptAssistantOverlay(
             supportsTagMode: widget.config.enableTagMode,
+            tagModeSessionId: _modeId,
+            tapRegionGroupId: widget.assistantTapRegionGroupId,
+            iconOnly: true,
             sessionId: _sessionId,
             controller: _effectiveController,
             interactionPolicy: context.interactionPolicy,
@@ -1107,8 +1114,27 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       ],
     );
 
+    final editor = widget.config.enableTagMode && widget.showTagModeSwitch
+        ? Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Flexible(
+                fit: widget.expands ? FlexFit.tight : FlexFit.loose,
+                child: inputStack,
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PromptTagModeToggle(
+                  sessionId: _modeId,
+                  enabled: !widget.config.readOnly,
+                ),
+              ),
+            ],
+          )
+        : inputStack;
     if (!_searchVisible) {
-      return inputStack;
+      return editor;
     }
 
     if (widget.expands) {
@@ -1117,7 +1143,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         children: [
           _buildSearchToolbar(context),
           const SizedBox(height: 8),
-          Expanded(child: inputStack),
+          Expanded(child: editor),
         ],
       );
     }
@@ -1128,7 +1154,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       children: [
         _buildSearchToolbar(context),
         const SizedBox(height: 8),
-        inputStack,
+        editor,
       ],
     );
   }
@@ -1455,7 +1481,11 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     if (widget.config.enableTagMode) {
       clipboardAwareInput = TagModePromptField(
-        showModeSwitch: widget.showTagModeSwitch,
+        sessionId: _modeId,
+        bottomPadding: widget.enableAssistant || widget.config.showClearButton
+            ? 58
+            : 12,
+        showModeSwitch: false,
         controller: _effectiveController,
         sourceFocusNode: _effectiveFocusNode,
         tagFocusNode: _tagFocusNode,

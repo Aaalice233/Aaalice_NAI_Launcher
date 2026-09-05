@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/prompt_editor_preferences_provider.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../adaptive/interaction_policy.dart';
+import 'prompt_tag_mode_toggle.dart';
 import 'tag_editor_scope.dart';
 import 'tag_editor_session.dart';
 import 'tag_editor_view.dart';
@@ -19,6 +19,9 @@ class TagModePromptField extends ConsumerStatefulWidget {
     required this.controller,
     required this.child,
     this.sourceFocusNode,
+    this.sessionId,
+    this.assistant,
+    this.bottomPadding = 58,
     this.surfaceColor,
     this.enabled = true,
     this.onModeChanged,
@@ -31,6 +34,11 @@ class TagModePromptField extends ConsumerStatefulWidget {
     this.showModeSwitch = true,
   });
   final TextEditingController controller;
+  final Object? sessionId;
+
+  /// A shared assistant mount that belongs inside the editor Stack.
+  final Widget? assistant;
+  final double bottomPadding;
   final Widget child;
   final FocusNode? sourceFocusNode;
   final FocusNode? tagFocusNode;
@@ -50,6 +58,7 @@ class TagModePromptField extends ConsumerStatefulWidget {
 class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
   late TagEditorSession _session;
   String _lastText = '';
+  Object get _modeId => widget.sessionId ?? widget.controller;
   @override
   void initState() {
     super.initState();
@@ -58,7 +67,7 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
 
   void _attach() {
     _session = TagEditorSession(widget.controller)
-      ..tagMode = ref.read(promptTagModeProvider)
+      ..tagMode = ref.read(promptTagModeProvider(_modeId))
       ..addListener(_changed);
     _lastText = widget.controller.text;
   }
@@ -74,7 +83,8 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
   @override
   void didUpdateWidget(TagModePromptField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
+    if (oldWidget.controller != widget.controller ||
+        oldWidget.sessionId != widget.sessionId) {
       _session.dispose();
       _attach();
     }
@@ -87,10 +97,9 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
     super.dispose();
   }
 
-  void _toggle() {
+  void _modeChanged(bool tagMode) {
     _session.endEdit();
-    _session.tagMode = !_session.tagMode;
-    ref.read(promptTagModeProvider.notifier).setEnabled(_session.tagMode);
+    _session.tagMode = tagMode;
     widget.onModeChanged?.call(_session.tagMode);
     if (_session.tagMode) {
       widget.sourceFocusNode?.unfocus();
@@ -119,11 +128,10 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(promptTagModeProvider, (_, tagMode) {
-      if (_session.tagMode != tagMode) _session.endEdit();
-      _session.tagMode = tagMode;
+    ref.listen(promptTagModeProvider(_modeId), (_, tagMode) {
+      if (_session.tagMode != tagMode) _modeChanged(tagMode);
     });
-    final tagMode = ref.watch(promptTagModeProvider);
+    final tagMode = ref.watch(promptTagModeProvider(_modeId));
     _session.tagMode = tagMode;
     return TagEditorScope(
       session: _session,
@@ -159,6 +167,8 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
             if (_session.tagMode)
               Positioned.fill(
                 child: TagEditorView(
+                  key: ValueKey(_modeId),
+                  bottomPadding: widget.bottomPadding,
                   session: _session,
                   surfaceColor: widget.surfaceColor,
                   enabled: widget.enabled,
@@ -168,6 +178,7 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
                 ),
               ),
             Positioned.fill(child: _viewportActions(context)),
+            if (widget.assistant != null) widget.assistant!,
           ],
         ),
       ),
@@ -192,38 +203,6 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
     ),
   );
 
-  Widget _modeSwitch(BuildContext context) {
-    final extent = context.interactionPolicy.minimumControlExtent.clamp(
-      44.0,
-      double.infinity,
-    );
-    final tooltip = _session.tagMode
-        ? context.l10n.tagMode_exit
-        : context.l10n.tagMode_enter;
-    return SizedBox(
-      width: extent,
-      height: extent,
-      child: Semantics(
-        button: true,
-        toggled: _session.tagMode,
-        label: tooltip,
-        child: IconButton(
-          key: const ValueKey('tag-mode-button'),
-          tooltip: tooltip,
-          onPressed: widget.enabled || _session.tagMode ? _toggle : null,
-          style: IconButton.styleFrom(
-            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-            backgroundColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-          icon: Icon(
-            _session.tagMode ? Icons.sell : Icons.sell_outlined,
-            size: 19,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _modeSwitch(BuildContext context) =>
+      PromptTagModeToggle(sessionId: _modeId, enabled: widget.enabled);
 }
