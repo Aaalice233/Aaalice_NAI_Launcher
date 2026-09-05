@@ -6818,5 +6818,16 @@
   "mosaic_systemGalleryExportFailed": "アプリ内には保存されましたが、システムギャラリーへの書き出しに失敗しました。",
   "mosaic_undo": "元に戻す",
   "mosaic_redo": "やり直す",
-  "mosaic_reset": "リセット"
+  "mosaic_reset": "リセット",
+  "promptAssistant_concurrencyMode": "同時リクエストモード",
+  "promptAssistant_concurrencyAuto": "自動",
+  "promptAssistant_concurrencyManual": "手動",
+  "promptAssistant_concurrencyCount": "最大同時リクエスト数",
+  "promptAssistant_concurrencyInvalid": "1 以上の整数を入力してください",
+  "promptAssistant_concurrencyAutoDescription": "同時リクエスト数 5 から開始し、応答に応じて自動調整します。このプロバイダーのすべてのプロンプトアシスタントタスクで上限を共有します。",
+  "promptAssistant_thinkingLevel": "思考レベル",
+  "promptAssistant_thinkingDefault": "モデルの既定値",
+  "promptAssistant_thinkingUnavailable": "調整可能な思考レベルが確認できないため、モデルの既定動作を使用します。",
+  "promptAssistant_thinkingReset": "保存されたレベルはこのモデルでは使用できないため、既定値を使用します。",
+  "promptAssistant_thinkingEnabled": "オン"
 }

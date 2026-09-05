@@ -14362,4 +14362,40 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get mosaic_reset => 'リセット';
+
+  @override
+  String get promptAssistant_concurrencyMode => '同時リクエストモード';
+
+  @override
+  String get promptAssistant_concurrencyAuto => '自動';
+
+  @override
+  String get promptAssistant_concurrencyManual => '手動';
+
+  @override
+  String get promptAssistant_concurrencyCount => '最大同時リクエスト数';
+
+  @override
+  String get promptAssistant_concurrencyInvalid => '1 以上の整数を入力してください';
+
+  @override
+  String get promptAssistant_concurrencyAutoDescription =>
+      '同時リクエスト数 5 から開始し、応答に応じて自動調整します。このプロバイダーのすべてのプロンプトアシスタントタスクで上限を共有します。';
+
+  @override
+  String get promptAssistant_thinkingLevel => '思考レベル';
+
+  @override
+  String get promptAssistant_thinkingDefault => 'モデルの既定値';
+
+  @override
+  String get promptAssistant_thinkingUnavailable =>
+      '調整可能な思考レベルが確認できないため、モデルの既定動作を使用します。';
+
+  @override
+  String get promptAssistant_thinkingReset =>
+      '保存されたレベルはこのモデルでは使用できないため、既定値を使用します。';
+
+  @override
+  String get promptAssistant_thinkingEnabled => 'オン';
 }

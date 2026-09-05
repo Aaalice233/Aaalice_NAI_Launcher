@@ -7,6 +7,7 @@ import '../../models/agent_protocol.dart';
 import '../../models/prompt_assistant_models.dart';
 import 'agent_wire_helpers.dart';
 import 'prompt_assistant_adapter.dart';
+import 'reasoning_payload.dart';
 
 class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
   const GeminiGenerateContentAdapter();
@@ -46,6 +47,16 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
         'contents': [
           {'role': 'user', 'parts': _parts(request.userParts)},
         ],
+        'generationConfig': {
+          if (geminiThinkingConfig(request.reasoningRequest)
+              case final thinking?)
+            'thinkingConfig': thinking,
+          if (request.maxOutputTokens case final count?)
+            'maxOutputTokens': count,
+          if (request.responseFormat ==
+              PromptAssistantResponseFormat.jsonObject)
+            'responseMimeType': 'application/json',
+        },
       },
       options: Options(
         headers: _headers(request.apiKey),
@@ -348,23 +359,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       }
     }
 
-    final reasoning = request.reasoningRequest;
-    final thinkingConfig = switch (reasoning?.api) {
-      AgentReasoningApi.geminiBudget =>
-        reasoning!.enabled
-            ? {
-                'includeThoughts': true,
-                'thinkingBudget': reasoning.budgetTokens,
-              }
-            : {'thinkingBudget': 0},
-      AgentReasoningApi.geminiLevel =>
-        reasoning!.enabled
-            ? {'includeThoughts': true, 'thinkingLevel': reasoning.effort}
-            : reasoning.sendWhenDisabled
-            ? {'thinkingLevel': reasoning.effort}
-            : null,
-      _ => null,
-    };
+    final thinkingConfig = geminiThinkingConfig(request.reasoningRequest);
     return {
       if (request.systemPrompt.isNotEmpty)
         'systemInstruction': {
@@ -463,13 +458,17 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
             if (content is Map<String, dynamic>) {
               final rawParts = content['parts'];
               if (rawParts is List) {
-                parts.addAll(rawParts.map(contentToText));
+                parts.addAll(
+                  rawParts
+                      .where((part) => part is! Map || part['thought'] != true)
+                      .map(contentToText),
+                );
               }
             }
           }
         }
         final joined = parts.where((e) => e.isNotEmpty).join();
-        if (joined.isNotEmpty) return joined;
+        return joined;
       }
     }
     return contentToText(raw);

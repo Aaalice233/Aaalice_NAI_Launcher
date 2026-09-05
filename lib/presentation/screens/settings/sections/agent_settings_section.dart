@@ -3,14 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/agent/agent_settings.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../agent_chat/services/agent_chat_model_capability.dart';
+import '../../../prompt_assistant/models/assistant_model_capability.dart';
 import '../../../agent_settings/providers/agent_settings_provider.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/searchable_model_picker.dart';
-import '../../settings/widgets/settings_card.dart';
-import '../../settings/widgets/settings_page_layout.dart';
+import '../widgets/settings_card.dart';
+import '../widgets/settings_page_layout.dart';
 import 'web_access_settings.dart';
 import 'agent/agent_profile_actions.dart';
 import 'agent/context_window_field.dart';
@@ -251,7 +251,7 @@ class _ModelCard extends ConsumerWidget {
         .where((item) => item.id == reference.providerId)
         .firstOrNull;
     if (provider == null) return 0;
-    return AgentChatModelCatalog.resolveProvider(
+    return AssistantModelCatalog.resolveProvider(
       provider: provider,
       model: reference.model,
     ).contextWindow;

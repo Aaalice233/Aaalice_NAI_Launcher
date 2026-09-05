@@ -43,7 +43,7 @@ import '../services/agent_chat_draft_controller.dart';
 import '../services/agent_chat_event_controller.dart';
 import '../services/agent_chat_session_controller.dart';
 import '../services/agent_chat_session_recovery.dart';
-import '../services/agent_chat_model_capability.dart';
+import '../../prompt_assistant/models/assistant_model_capability.dart';
 import '../services/agent_stream_bridge.dart';
 import '../services/agent_system_prompt.dart';
 import '../services/agent_resource_resolver.dart';

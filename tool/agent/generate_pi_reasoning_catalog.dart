@@ -63,7 +63,7 @@ void main(List<String> arguments) {
     _generate(root, package['version'] as String),
   );
   final target = File(
-    'lib/presentation/agent_chat/model/pi_reasoning_model_catalog.dart',
+    'lib/presentation/prompt_assistant/models/pi_reasoning_model_catalog.dart',
   );
   if (check) {
     if (!target.existsSync() || target.readAsStringSync() != output) {
@@ -135,7 +135,7 @@ String _generate(Directory root, String version) {
     )
     ..writeln()
     ..writeln("import '../../../core/agent/agent_types.dart';")
-    ..writeln("import '../../prompt_assistant/models/agent_protocol.dart';")
+    ..writeln("import 'agent_protocol.dart';")
     ..writeln("import 'agent_reasoning_model_rule.dart';")
     ..writeln()
     ..writeln(
@@ -175,9 +175,7 @@ String _generate(Directory root, String version) {
             'ThinkingLevel.$level: '
                 '${emittedLevelMap[level] == null ? 'null' : _quote(emittedLevelMap[level] as String)}',
       ];
-      final supportsEffort =
-          compat['supportsReasoningEffort'] as bool? ??
-          api == 'openAiCompletions';
+      final supportsEffort = _supportsReasoningEffort(model, compat);
       final thinkingBudgets = _thinkingBudgets(api, model['id'] as String);
       final disabledEffort = _disabledEffort(api, model['id'] as String);
       output.writeln(
@@ -202,12 +200,46 @@ String _generate(Directory root, String version) {
   return output.toString();
 }
 
+bool _supportsReasoningEffort(
+  Map<String, dynamic> model,
+  Map<String, dynamic> compat,
+) {
+  if (compat['supportsReasoningEffort'] case final bool value) return value;
+  if (model['api'] != 'openai-completions') return false;
+  // Pi resolves omitted compatibility fields from the endpoint, not from the
+  // derived thinking format. Keep explicit provider overrides authoritative.
+  final provider = model['provider'] as String;
+  final url = model['baseUrl'] as String;
+  return !(provider == 'xai' ||
+      url.contains('api.x.ai') ||
+      provider == 'zai' ||
+      provider == 'zai-coding-cn' ||
+      url.contains('api.z.ai') ||
+      url.contains('open.bigmodel.cn') ||
+      provider == 'moonshotai' ||
+      provider == 'moonshotai-cn' ||
+      url.contains('api.moonshot.') ||
+      provider == 'together' ||
+      url.contains('api.together.ai') ||
+      url.contains('api.together.xyz') ||
+      provider == 'cloudflare-ai-gateway' ||
+      url.contains('gateway.ai.cloudflare.com') ||
+      provider == 'nvidia' ||
+      url.contains('integrate.api.nvidia.com') ||
+      provider == 'ant-ling' ||
+      url.contains('api.ant-ling.com'));
+}
+
 bool _supportsLevel(
   String api,
   String modelId,
   String level,
   Map<String, dynamic> levelMap,
 ) {
+  // Google's documented 2.5 Pro budget starts at 128; zero is not supported.
+  if (api == 'geminiBudget' && modelId.contains('2.5-pro') && level == 'off') {
+    return false;
+  }
   if (api == 'geminiLevel' &&
       level == 'minimal' &&
       _geminiMinimumLevel(modelId) == 'LOW') {
@@ -288,7 +320,10 @@ String _reasoningApi(Map<String, dynamic> model, Map<String, dynamic> compat) {
         : 'anthropicBudget';
   }
   if (api == 'google-generative-ai') {
-    return id.startsWith('gemini-3') || id.startsWith('gemma-4')
+    return id.startsWith('gemini-3') ||
+            id.startsWith('gemma-4') ||
+            id == 'gemini-flash-latest' ||
+            id == 'gemini-flash-lite-latest'
         ? 'geminiLevel'
         : 'geminiBudget';
   }

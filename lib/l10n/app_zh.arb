@@ -6862,5 +6862,16 @@
   "mosaic_systemGalleryExportFailed": "应用内副本已保存，但导出到系统相册失败。",
   "mosaic_undo": "撤销",
   "mosaic_redo": "重做",
-  "mosaic_reset": "重置"
+  "mosaic_reset": "重置",
+  "promptAssistant_concurrencyMode": "并发模式",
+  "promptAssistant_concurrencyAuto": "自动",
+  "promptAssistant_concurrencyManual": "手动",
+  "promptAssistant_concurrencyCount": "最大并发请求数",
+  "promptAssistant_concurrencyInvalid": "请输入大于 0 的整数",
+  "promptAssistant_concurrencyAutoDescription": "从 5 个并发开始，根据请求结果自动升降；该提供商的所有提示词助手任务共享额度。",
+  "promptAssistant_thinkingLevel": "思考等级",
+  "promptAssistant_thinkingDefault": "模型默认",
+  "promptAssistant_thinkingUnavailable": "未识别到可调思考等级，使用模型默认行为。",
+  "promptAssistant_thinkingReset": "原思考等级不适用于当前模型，本次使用模型默认。",
+  "promptAssistant_thinkingEnabled": "开启"
 }

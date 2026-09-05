@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'assistant_execution_settings.dart';
+
 enum AssistantTaskType {
   llm,
   translate,
@@ -514,6 +516,7 @@ extension ProviderPresetDefaults on ProviderPreset {
 }
 
 class ProviderConfig {
+  final AssistantConcurrencySettings concurrency;
   final String id;
   final String name;
   final ProviderType type;
@@ -524,6 +527,7 @@ class ProviderConfig {
   final bool allowImageInput;
 
   const ProviderConfig({
+    this.concurrency = const AssistantConcurrencySettings(),
     required this.id,
     required this.name,
     this.type = ProviderType.openaiCompatible,
@@ -535,6 +539,7 @@ class ProviderConfig {
   });
 
   ProviderConfig copyWith({
+    AssistantConcurrencySettings? concurrency,
     String? id,
     String? name,
     ProviderType? type,
@@ -546,6 +551,7 @@ class ProviderConfig {
     bool? allowImageInput,
   }) {
     return ProviderConfig(
+      concurrency: concurrency ?? this.concurrency,
       id: id ?? this.id,
       name: name ?? this.name,
       type: type ?? this.type,
@@ -566,6 +572,7 @@ class ProviderConfig {
     'baseUrl': baseUrl,
     'enabled': enabled,
     'allowImageInput': allowImageInput,
+    'concurrency': concurrency.toJson(),
   };
 
   factory ProviderConfig.fromJson(Map<String, dynamic> json) {
@@ -580,6 +587,9 @@ class ProviderConfig {
       preset: preset,
     );
     return ProviderConfig(
+      concurrency: AssistantConcurrencySettings.fromJson(
+        json['concurrency'] as Map<String, dynamic>? ?? const {},
+      ),
       id: json['id'] as String,
       name: json['name'] as String,
       type: type,
@@ -755,6 +765,10 @@ class ModelConfig {
 }
 
 class TaskRoutingConfig {
+  final Map<AssistantTaskType, AssistantThinkingLevel> thinkingLevels;
+
+  AssistantThinkingLevel thinkingFor(AssistantTaskType task) =>
+      thinkingLevels[task] ?? AssistantThinkingLevel.automatic;
   final String llmProviderId;
   final String llmModel;
   final String translateProviderId;
@@ -769,6 +783,7 @@ class TaskRoutingConfig {
   final String chatModel;
 
   const TaskRoutingConfig({
+    this.thinkingLevels = const {},
     required this.llmProviderId,
     required this.llmModel,
     required this.translateProviderId,
@@ -784,6 +799,7 @@ class TaskRoutingConfig {
   });
 
   TaskRoutingConfig copyWith({
+    Map<AssistantTaskType, AssistantThinkingLevel>? thinkingLevels,
     String? llmProviderId,
     String? llmModel,
     String? translateProviderId,
@@ -798,6 +814,7 @@ class TaskRoutingConfig {
     String? chatModel,
   }) {
     return TaskRoutingConfig(
+      thinkingLevels: thinkingLevels ?? this.thinkingLevels,
       llmProviderId: llmProviderId ?? this.llmProviderId,
       llmModel: llmModel ?? this.llmModel,
       translateProviderId: translateProviderId ?? this.translateProviderId,
@@ -854,6 +871,20 @@ class TaskRoutingConfig {
     required String providerId,
     required String model,
   }) {
+    if (providerIdFor(taskType) != providerId || modelFor(taskType) != model) {
+      final nextLevels = {...thinkingLevels}..remove(taskType);
+      return copyWith(
+        thinkingLevels: nextLevels,
+      )._copyRoute(taskType, providerId, model);
+    }
+    return _copyRoute(taskType, providerId, model);
+  }
+
+  TaskRoutingConfig _copyRoute(
+    AssistantTaskType taskType,
+    String providerId,
+    String model,
+  ) {
     switch (taskType) {
       case AssistantTaskType.llm:
         return copyWith(llmProviderId: providerId, llmModel: model);
@@ -874,6 +905,10 @@ class TaskRoutingConfig {
   }
 
   Map<String, dynamic> toJson() => {
+    'thinkingLevels': {
+      for (final entry in thinkingLevels.entries)
+        entry.key.name: entry.value.name,
+    },
     'llmProviderId': llmProviderId,
     'llmModel': llmModel,
     'translateProviderId': translateProviderId,
@@ -891,7 +926,17 @@ class TaskRoutingConfig {
   factory TaskRoutingConfig.fromJson(Map<String, dynamic> json) {
     final llmProviderId = _routingString(json, 'llmProviderId');
     final llmModel = _routingString(json, 'llmModel');
+    final thinking =
+        json['thinkingLevels'] as Map<String, dynamic>? ?? const {};
     return TaskRoutingConfig(
+      thinkingLevels: {
+        for (final task in AssistantTaskType.values)
+          if (thinking.containsKey(task.name))
+            task: AssistantThinkingLevel.values.firstWhere(
+              (level) => level.name == thinking[task.name],
+              orElse: () => AssistantThinkingLevel.automatic,
+            ),
+      },
       llmProviderId: llmProviderId,
       llmModel: llmModel,
       translateProviderId: _routingString(json, 'translateProviderId'),

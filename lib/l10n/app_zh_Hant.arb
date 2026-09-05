@@ -7140,5 +7140,16 @@
   "mosaic_systemGalleryExportFailed": "應用程式內副本已儲存，但匯出至系統相簿失敗。",
   "mosaic_undo": "復原",
   "mosaic_redo": "重做",
-  "mosaic_reset": "重設"
+  "mosaic_reset": "重設",
+  "promptAssistant_concurrencyMode": "並行模式",
+  "promptAssistant_concurrencyAuto": "自動",
+  "promptAssistant_concurrencyManual": "手動",
+  "promptAssistant_concurrencyCount": "最大並行請求數",
+  "promptAssistant_concurrencyInvalid": "請輸入大於 0 的整數",
+  "promptAssistant_concurrencyAutoDescription": "從 5 個並行請求開始，根據請求結果自動調整；此提供商的所有提示詞助手任務共用額度。",
+  "promptAssistant_thinkingLevel": "思考等級",
+  "promptAssistant_thinkingDefault": "模型預設",
+  "promptAssistant_thinkingUnavailable": "未識別到可調思考等級，使用模型預設行為。",
+  "promptAssistant_thinkingReset": "原思考等級不適用於目前模型，本次使用模型預設。",
+  "promptAssistant_thinkingEnabled": "開啟"
 }

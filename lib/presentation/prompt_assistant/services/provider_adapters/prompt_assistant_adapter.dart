@@ -25,9 +25,15 @@ class PromptAssistantRequest {
     ),
     this.responseFormat = PromptAssistantResponseFormat.text,
     this.maxOutputTokens,
-    this.reasoningMode = PromptAssistantReasoningMode.automatic,
+    this.modelMaxOutputTokens,
+    this.reasoningRequest,
+    this.cancelToken,
+    this.allowConcurrentInSession = false,
   });
 
+  final AgentReasoningRequest? reasoningRequest;
+  final CancelToken? cancelToken;
+  final bool allowConcurrentInSession;
   final Duration responseTimeout;
   final String sessionId;
   final ProviderConfig provider;
@@ -37,12 +43,10 @@ class PromptAssistantRequest {
   final String? apiKey;
   final PromptAssistantResponseFormat responseFormat;
   final int? maxOutputTokens;
-  final PromptAssistantReasoningMode reasoningMode;
+  final int? modelMaxOutputTokens;
 }
 
 enum PromptAssistantResponseFormat { text, jsonObject }
-
-enum PromptAssistantReasoningMode { automatic, disabled }
 
 abstract class PromptAssistantContentPart {
   const PromptAssistantContentPart();
@@ -63,10 +67,7 @@ class PromptAssistantTextPart extends PromptAssistantContentPart {
 }
 
 class PromptAssistantImagePart extends PromptAssistantContentPart {
-  const PromptAssistantImagePart({
-    required this.bytes,
-    required this.mimeType,
-  });
+  const PromptAssistantImagePart({required this.bytes, required this.mimeType});
 
   final Uint8List bytes;
   final String mimeType;
@@ -155,7 +156,10 @@ Future<PromptAssistantRequest> optimizePromptAssistantRequestImagesForUpload(
     responseTimeout: request.responseTimeout,
     responseFormat: request.responseFormat,
     maxOutputTokens: request.maxOutputTokens,
-    reasoningMode: request.reasoningMode,
+    modelMaxOutputTokens: request.modelMaxOutputTokens,
+    reasoningRequest: request.reasoningRequest,
+    cancelToken: request.cancelToken,
+    allowConcurrentInSession: request.allowConcurrentInSession,
   );
 }
 
@@ -322,10 +326,7 @@ String? detectImageMime(Uint8List bytes) {
 ({Uint8List bytes, String mimeType})? parseDataUriImage(String value) {
   final match = RegExp(r'^data:([^;]+);base64,(.+)$').firstMatch(value);
   if (match == null) return null;
-  return (
-    bytes: base64Decode(match.group(2)!),
-    mimeType: match.group(1)!,
-  );
+  return (bytes: base64Decode(match.group(2)!), mimeType: match.group(1)!);
 }
 
 _OptimizedPromptAssistantImage? _optimizePromptAssistantImageBytes(
@@ -338,10 +339,7 @@ _OptimizedPromptAssistantImage? _optimizePromptAssistantImageBytes(
 
   final oversized = job.maxBytes > 0 && job.bytes.length > job.maxBytes;
   final initialScale = oversized
-      ? math.min(
-          0.95,
-          math.sqrt(job.maxBytes / job.bytes.length) * 0.98,
-        )
+      ? math.min(0.95, math.sqrt(job.maxBytes / job.bytes.length) * 0.98)
       : 1.0;
   var targetWidth = _scaledImageDimension(source.width, initialScale);
   var targetHeight = _scaledImageDimension(source.height, initialScale);
@@ -423,11 +421,7 @@ img.Image _flattenToRgb(img.Image source) {
   return output;
 }
 
-img.Image _resizeLanczos3(
-  img.Image source,
-  int targetWidth,
-  int targetHeight,
-) {
+img.Image _resizeLanczos3(img.Image source, int targetWidth, int targetHeight) {
   final xContributors = _buildLanczosContributors(
     sourceSize: source.width,
     targetSize: targetWidth,
@@ -452,13 +446,16 @@ img.Image _resizeLanczos3(
         final alpha = source.hasAlpha
             ? (pixel.a.toDouble() / channelMax).clamp(0.0, 1.0)
             : 1.0;
-        red += (pixel.r.toDouble() * channelScale * alpha +
+        red +=
+            (pixel.r.toDouble() * channelScale * alpha +
                 255.0 * (1.0 - alpha)) *
             column.weight;
-        green += (pixel.g.toDouble() * channelScale * alpha +
+        green +=
+            (pixel.g.toDouble() * channelScale * alpha +
                 255.0 * (1.0 - alpha)) *
             column.weight;
-        blue += (pixel.b.toDouble() * channelScale * alpha +
+        blue +=
+            (pixel.b.toDouble() * channelScale * alpha +
                 255.0 * (1.0 - alpha)) *
             column.weight;
       }
@@ -518,20 +515,14 @@ List<List<_LanczosContributor>> _buildLanczosContributors({
         continue;
       }
       contributors.add(
-        _LanczosContributor(
-          sourceIndex.clamp(0, sourceSize - 1),
-          weight,
-        ),
+        _LanczosContributor(sourceIndex.clamp(0, sourceSize - 1), weight),
       );
       totalWeight += weight;
     }
 
     if (contributors.isEmpty || totalWeight.abs() < _minimumLanczosWeight) {
       return [
-        _LanczosContributor(
-          center.round().clamp(0, sourceSize - 1),
-          1.0,
-        ),
+        _LanczosContributor(center.round().clamp(0, sourceSize - 1), 1.0),
       ];
     }
 

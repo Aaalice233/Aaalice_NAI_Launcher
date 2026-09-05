@@ -25692,6 +25692,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset'**
   String get mosaic_reset;
+
+  /// No description provided for @promptAssistant_concurrencyMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Concurrency mode'**
+  String get promptAssistant_concurrencyMode;
+
+  /// No description provided for @promptAssistant_concurrencyAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get promptAssistant_concurrencyAuto;
+
+  /// No description provided for @promptAssistant_concurrencyManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get promptAssistant_concurrencyManual;
+
+  /// No description provided for @promptAssistant_concurrencyCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum concurrent requests'**
+  String get promptAssistant_concurrencyCount;
+
+  /// No description provided for @promptAssistant_concurrencyInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a positive integer'**
+  String get promptAssistant_concurrencyInvalid;
+
+  /// No description provided for @promptAssistant_concurrencyAutoDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts with 5 concurrent requests and adapts to responses. All prompt assistant tasks using this provider share the limit.'**
+  String get promptAssistant_concurrencyAutoDescription;
+
+  /// No description provided for @promptAssistant_thinkingLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking level'**
+  String get promptAssistant_thinkingLevel;
+
+  /// No description provided for @promptAssistant_thinkingDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Model default'**
+  String get promptAssistant_thinkingDefault;
+
+  /// No description provided for @promptAssistant_thinkingUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No adjustable thinking levels identified. Uses the model default.'**
+  String get promptAssistant_thinkingUnavailable;
+
+  /// No description provided for @promptAssistant_thinkingReset.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved level is unavailable for this model. Uses the model default.'**
+  String get promptAssistant_thinkingReset;
+
+  /// No description provided for @promptAssistant_thinkingEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get promptAssistant_thinkingEnabled;
 }
 
 class _AppLocalizationsDelegate

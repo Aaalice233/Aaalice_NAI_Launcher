@@ -1,5 +1,5 @@
 import '../../../core/agent/agent_types.dart';
-import '../../prompt_assistant/models/agent_protocol.dart';
+import 'agent_protocol.dart';
 
 /// Pi model-registry reasoning metadata distilled from the installed pi-ai
 /// package. Missing map entries use the API's default level name; explicit null
@@ -35,4 +35,19 @@ class AgentReasoningModelRule {
       levelMap.containsKey(level) && levelMap[level] == null;
 
   String mappedLevel(ThinkingLevel level) => levelMap[level] ?? level.name;
+
+  AgentReasoningModelRule withApi(AgentReasoningApi value) =>
+      AgentReasoningModelRule(
+        api: value,
+        levels: levels,
+        contextWindow: contextWindow,
+        maxOutputTokens: maxOutputTokens,
+        levelMap: levelMap,
+        supportsReasoningEffort: supportsReasoningEffort,
+        requiresReasoningContent: requiresReasoningContent,
+        allowEmptySignature: allowEmptySignature,
+        alwaysIncludeEncryptedReasoning: alwaysIncludeEncryptedReasoning,
+        thinkingBudgets: thinkingBudgets,
+        disabledEffort: disabledEffort,
+      );
 }

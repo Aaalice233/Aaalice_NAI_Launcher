@@ -517,7 +517,7 @@ User instructions.
           AgentReasoningApi.deepSeek,
         );
         expect(requests.single.reasoningRequest?.enabled, isTrue);
-        expect(requests.single.reasoningRequest?.effort, isNull);
+        expect(requests.single.reasoningRequest?.effort, 'high');
         expect(requests.single.maxOutputTokens, 384000);
         expect(requests.single.modelMaxOutputTokens, 384000);
         expect(

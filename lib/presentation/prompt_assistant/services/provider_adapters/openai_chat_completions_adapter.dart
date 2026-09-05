@@ -7,6 +7,7 @@ import '../../models/agent_protocol.dart';
 import '../../models/prompt_assistant_models.dart';
 import 'agent_wire_helpers.dart';
 import 'prompt_assistant_adapter.dart';
+import 'reasoning_payload.dart';
 
 class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
   const OpenAiChatCompletionsAdapter({this.ollamaTagsFallback = false});
@@ -76,10 +77,11 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       if (request.responseFormat == PromptAssistantResponseFormat.jsonObject)
         'response_format': {'type': 'json_object'},
       if (request.maxOutputTokens case final maxOutputTokens?)
-        _maxTokensField(request.provider): maxOutputTokens,
-      if (request.provider.preset == ProviderPreset.deepseek &&
-          request.reasoningMode == PromptAssistantReasoningMode.disabled)
-        'thinking': {'type': 'disabled'},
+        _maxTokensField(
+          request.provider,
+          reasoningApi: request.reasoningRequest?.api,
+        ): maxOutputTokens,
+      ...chatReasoningPayload(request.reasoningRequest),
     };
 
     final response = await _postWithFallback(
@@ -401,36 +403,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       return const {};
     }
 
-    return switch (reasoning.api) {
-      AgentReasoningApi.deepSeek => {
-        if (reasoning.enabled || reasoning.sendWhenDisabled)
-          'thinking': {'type': reasoning.enabled ? 'enabled' : 'disabled'},
-        if (reasoning.enabled)
-          if (reasoning.effort case final effort?) 'reasoning_effort': effort,
-      },
-      AgentReasoningApi.qwen => {
-        'enable_thinking': reasoning.enabled,
-        if (reasoning.effort case final effort?) 'reasoning_effort': effort,
-      },
-      AgentReasoningApi.openRouter => {
-        if (reasoning.enabled || reasoning.sendWhenDisabled)
-          'reasoning': {
-            'effort': reasoning.enabled
-                ? reasoning.effort
-                : reasoning.effort ?? 'none',
-          },
-      },
-      AgentReasoningApi.openAiCompletions => {
-        if (reasoning.effort case final effort?) 'reasoning_effort': effort,
-      },
-      AgentReasoningApi.mistralPromptMode => {
-        if (reasoning.enabled) 'prompt_mode': 'reasoning',
-      },
-      AgentReasoningApi.mistralEffort => {
-        if (reasoning.enabled) 'reasoning_effort': reasoning.effort ?? 'high',
-      },
-      _ => const {},
-    };
+    return chatReasoningPayload(reasoning);
   }
 
   List<Map<String, dynamic>> _buildAgentMessages(AgentChatRequest request) {

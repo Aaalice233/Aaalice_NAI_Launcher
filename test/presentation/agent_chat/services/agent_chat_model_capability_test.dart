@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
-import 'package:nai_launcher/presentation/agent_chat/model/agent_reasoning_model_rule.dart';
-import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_model_capability.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/agent_reasoning_model_rule.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/assistant_model_capability.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 
@@ -222,7 +222,7 @@ void main() {
     }
   });
 
-  test('preserves Pi aliases even when native requests are equal', () {
+  test('maps DeepSeek effort and preserves Mistral level aliases', () {
     final deepSeek = AgentChatModelCapability.resolve(
       const ProviderConfig(
         id: 'deepseek',
@@ -260,7 +260,7 @@ void main() {
       deepSeek.resolveReasoningRequest('high'),
       isA<AgentReasoningRequest>()
           .having((request) => request.api, 'api', AgentReasoningApi.deepSeek)
-          .having((request) => request.effort, 'effort', isNull),
+          .having((request) => request.effort, 'effort', 'high'),
     );
   });
 
@@ -353,7 +353,7 @@ void main() {
   });
 
   test('Mistral effort keeps model-specific level mappings', () {
-    const metadata = AgentChatModelMetadata(
+    const metadata = AssistantModelMetadata(
       contextWindow: 1,
       maxOutputTokens: 1,
       thinkingLevels: [ThinkingLevel.off, ThinkingLevel.low],

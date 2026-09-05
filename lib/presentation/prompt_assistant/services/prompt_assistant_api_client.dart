@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
 import '../../../core/utils/app_logger.dart';
 import '../models/prompt_assistant_models.dart';
+import 'assistant_cancellation.dart';
+import 'assistant_request_scheduler.dart';
 import 'provider_adapters/anthropic_messages_adapter.dart';
 import 'provider_adapters/gemini_generate_content_adapter.dart';
 import 'provider_adapters/openai_chat_completions_adapter.dart';
@@ -18,19 +21,29 @@ class PromptAssistantApiClient {
 
   final Dio _dio;
   final int imageUploadMaxBytes;
-  final Map<String, CancelToken> _cancelTokens = {};
+  final Map<String, Set<CancelToken>> _cancelTokens = {};
+  final scheduler = AssistantRequestScheduler();
+
+  void dispose() {
+    cancelCurrentRequest();
+    scheduler.dispose();
+  }
 
   void cancelCurrentRequest({String? sessionId}) {
     if (sessionId == null || sessionId.isEmpty) {
-      for (final token in _cancelTokens.values) {
-        token.cancel('cancelled by user');
+      for (final tokens in _cancelTokens.values) {
+        for (final token in tokens) {
+          token.cancel('cancelled by user');
+        }
       }
       _cancelTokens.clear();
       return;
     }
 
-    final token = _cancelTokens.remove(sessionId);
-    token?.cancel('cancelled by user');
+    final tokens = _cancelTokens.remove(sessionId);
+    for (final token in tokens ?? <CancelToken>{}) {
+      token.cancel('cancelled by user');
+    }
   }
 
   Future<List<String>> fetchModels({
@@ -46,9 +59,18 @@ class PromptAssistantApiClient {
   Stream<StreamingChunk> complete({
     required PromptAssistantRequest request,
   }) async* {
-    _cancelTokens.remove(request.sessionId)?.cancel('replaced by new request');
+    request.cancelToken?.throwIfCancelled();
+    if (!request.allowConcurrentInSession) {
+      cancelCurrentRequest(sessionId: request.sessionId);
+    }
     final cancelToken = CancelToken();
-    _cancelTokens[request.sessionId] = cancelToken;
+    final tokens = _cancelTokens.putIfAbsent(request.sessionId, () => {});
+    tokens.add(cancelToken);
+    if (request.cancelToken case final operationToken?) {
+      unawaited(
+        operationToken.whenCancel.then((error) => cancelToken.cancel(error)),
+      );
+    }
 
     try {
       AppLogger.d(
@@ -61,9 +83,14 @@ class PromptAssistantApiClient {
         request,
         maxBytes: imageUploadMaxBytes,
       );
-      final content = await _adapterFor(
-        uploadRequest.provider,
-      ).complete(dio: _dio, request: uploadRequest, cancelToken: cancelToken);
+      final content = await scheduler.run(
+        provider: uploadRequest.provider,
+        cancelToken: cancelToken,
+        request: () => _adapterFor(
+          uploadRequest.provider,
+        ).complete(dio: _dio, request: uploadRequest, cancelToken: cancelToken),
+      );
+      cancelToken.throwIfCancelled();
       final trimmed = content.trim();
       if (trimmed.isEmpty) {
         throw StateError(
@@ -80,9 +107,11 @@ class PromptAssistantApiClient {
       yield StreamingChunk(delta: trimmed);
       yield const StreamingChunk(delta: '', done: true);
     } on DioException catch (e) {
-      throw StateError(_formatDioException(e, request));
+      throw PromptAssistantRequestException(_formatDioException(e, request), e);
     } finally {
-      if (identical(_cancelTokens[request.sessionId], cancelToken)) {
+      tokens.remove(cancelToken);
+      if (tokens.isEmpty &&
+          identical(_cancelTokens[request.sessionId], tokens)) {
         _cancelTokens.remove(request.sessionId);
       }
     }
@@ -177,4 +206,9 @@ class PromptAssistantApiClient {
     final query = uri.hasQuery ? '?<redacted>' : '';
     return '${uri.path}$query';
   }
+}
+
+class PromptAssistantRequestException extends StateError {
+  PromptAssistantRequestException(super.message, this.cause);
+  final DioException cause;
 }
