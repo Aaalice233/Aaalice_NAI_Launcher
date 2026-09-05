@@ -7859,6 +7859,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shortcut_action_navigate_to_settings => '设置页面';
 
   @override
+  String get shortcut_action_navigate_to_vibe_library => 'Vibe 库页面';
+
+  @override
   String get shortcut_action_generate_image => '生成图像';
 
   @override
@@ -8034,6 +8037,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shortcut_action_toggle_theme => '切换主题';
+
+  @override
+  String get shortcut_action_vibe_import => '导入 Vibe';
+
+  @override
+  String get shortcut_action_vibe_export => '导出 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_send_to_generation => '发送到生成页';
+
+  @override
+  String get shortcut_action_vibe_detail_export => '导出';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => '重命名';
+
+  @override
+  String get shortcut_action_vibe_detail_delete => '删除';
+
+  @override
+  String get shortcut_action_vibe_detail_toggle_favorite => '收藏切换';
+
+  @override
+  String get shortcut_action_vibe_detail_prev_sub_vibe => '上一个子 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_next_sub_vibe => '下一个子 Vibe';
 
   @override
   String get shortcut_settings_title => '键盘快捷键';
@@ -9275,9 +9305,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shortcut_context_vibe_detail => 'Vibe 详情';
-
-  @override
-  String get shortcut_action_vibe_detail_rename => '重命名';
 
   @override
   String get vibeSelectorFilterFavorites => '收藏';
@@ -21716,6 +21743,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get shortcut_action_navigate_to_settings => '設定頁面';
 
   @override
+  String get shortcut_action_navigate_to_vibe_library => 'Vibe 庫頁面';
+
+  @override
   String get shortcut_action_generate_image => '生成影象';
 
   @override
@@ -21891,6 +21921,33 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get shortcut_action_toggle_theme => '切換主題';
+
+  @override
+  String get shortcut_action_vibe_import => '匯入 Vibe';
+
+  @override
+  String get shortcut_action_vibe_export => '匯出 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_send_to_generation => '傳送到生成頁';
+
+  @override
+  String get shortcut_action_vibe_detail_export => '匯出';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => '重新命名';
+
+  @override
+  String get shortcut_action_vibe_detail_delete => '刪除';
+
+  @override
+  String get shortcut_action_vibe_detail_toggle_favorite => '收藏切換';
+
+  @override
+  String get shortcut_action_vibe_detail_prev_sub_vibe => '上一個子 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_next_sub_vibe => '下一個子 Vibe';
 
   @override
   String get shortcut_settings_title => '鍵盤快捷鍵';
@@ -23132,9 +23189,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get shortcut_context_vibe_detail => 'Vibe 詳情';
-
-  @override
-  String get shortcut_action_vibe_detail_rename => '重新命名';
 
   @override
   String get vibeSelectorFilterFavorites => '收藏';

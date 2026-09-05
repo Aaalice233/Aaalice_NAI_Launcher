@@ -8,6 +8,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/shortcuts_provider.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/shortcuts/shortcut_binding_editor.dart';
+import '../../../widgets/shortcuts/shortcut_display_names.dart';
 import '../../../widgets/shortcuts/shortcut_help_dialog.dart';
 
 /// 快捷键设置面板
@@ -296,7 +297,7 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
             color: theme.colorScheme.primary,
           ),
           title: Text(
-            _getContextDisplayName(shortcutContext),
+            shortcutContextDisplayName(context.l10n, shortcutContext),
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.primary,
@@ -356,7 +357,10 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
     final titleBlock = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_getActionDisplayName(binding), style: theme.textTheme.bodyMedium),
+        Text(
+          shortcutActionDisplayName(context.l10n, binding.actionKey),
+          style: theme.textTheme.bodyMedium,
+        ),
         if (binding.hasCustomShortcut)
           Text(
             context.l10n.shortcut_settings_defaultShortcut(
@@ -490,172 +494,5 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
     );
     if (!confirmed) return;
     await ref.read(shortcutConfigNotifierProvider.notifier).resetAllToDefault();
-  }
-
-  String _getActionDisplayName(ShortcutBinding binding) {
-    final l10n = context.l10n;
-    final key = binding.actionKey;
-
-    switch (key) {
-      case 'shortcut_action_navigate_to_generation':
-        return l10n.shortcut_action_navigate_to_generation;
-      case 'shortcut_action_navigate_to_local_gallery':
-        return l10n.shortcut_action_navigate_to_local_gallery;
-      case 'shortcut_action_navigate_to_online_gallery':
-        return l10n.shortcut_action_navigate_to_online_gallery;
-      case 'shortcut_action_navigate_to_random_config':
-        return l10n.shortcut_action_navigate_to_random_config;
-      case 'shortcut_action_navigate_to_tag_library':
-        return l10n.shortcut_action_navigate_to_tag_library;
-      case 'shortcut_action_navigate_to_statistics':
-        return l10n.shortcut_action_navigate_to_statistics;
-      case 'shortcut_action_navigate_to_settings':
-        return l10n.shortcut_action_navigate_to_settings;
-      case 'shortcut_action_generate_image':
-        return l10n.shortcut_action_generate_image;
-      case 'shortcut_action_generation_prev_image':
-        return l10n.shortcut_action_generation_prev_image;
-      case 'shortcut_action_generation_next_image':
-        return l10n.shortcut_action_generation_next_image;
-      case 'shortcut_action_cancel_generation':
-        return l10n.shortcut_action_cancel_generation;
-      case 'shortcut_action_add_to_queue':
-        return l10n.shortcut_action_add_to_queue;
-      case 'shortcut_action_random_prompt':
-        return l10n.shortcut_action_random_prompt;
-      case 'shortcut_action_clear_prompt':
-        return l10n.shortcut_action_clear_prompt;
-      case 'shortcut_action_toggle_prompt_mode':
-        return l10n.shortcut_action_toggle_prompt_mode;
-      case 'shortcut_action_open_tag_library':
-        return l10n.shortcut_action_open_tag_library;
-      case 'shortcut_action_save_image':
-        return l10n.shortcut_action_save_image;
-      case 'shortcut_action_upscale_image':
-        return l10n.shortcut_action_upscale_image;
-      case 'shortcut_action_copy_image':
-        return l10n.shortcut_action_copy_image;
-      case 'shortcut_action_fullscreen_preview':
-        return l10n.shortcut_action_fullscreen_preview;
-      case 'shortcut_action_open_params_panel':
-        return l10n.shortcut_action_open_params_panel;
-      case 'shortcut_action_open_history_panel':
-        return l10n.shortcut_action_open_history_panel;
-      case 'shortcut_action_reuse_params':
-        return l10n.shortcut_action_reuse_params;
-      case 'shortcut_action_previous_image':
-        return l10n.shortcut_action_previous_image;
-      case 'shortcut_action_next_image':
-        return l10n.shortcut_action_next_image;
-      case 'shortcut_action_zoom_in':
-        return l10n.shortcut_action_zoom_in;
-      case 'shortcut_action_zoom_out':
-        return l10n.shortcut_action_zoom_out;
-      case 'shortcut_action_reset_zoom':
-        return l10n.shortcut_action_reset_zoom;
-      case 'shortcut_action_toggle_fullscreen':
-        return l10n.shortcut_action_toggle_fullscreen;
-      case 'shortcut_action_close_viewer':
-        return l10n.shortcut_action_close_viewer;
-      case 'shortcut_action_toggle_favorite':
-        return l10n.shortcut_action_toggle_favorite;
-      case 'shortcut_action_copy_prompt':
-        return l10n.shortcut_action_copy_prompt;
-      case 'shortcut_action_reuse_gallery_params':
-        return l10n.shortcut_action_reuse_gallery_params;
-      case 'shortcut_action_delete_image':
-        return l10n.shortcut_action_delete_image;
-      case 'shortcut_action_previous_page':
-        return l10n.shortcut_action_previous_page;
-      case 'shortcut_action_next_page':
-        return l10n.shortcut_action_next_page;
-      case 'shortcut_action_refresh_gallery':
-        return l10n.shortcut_action_refresh_gallery;
-      case 'shortcut_action_focus_search':
-        return l10n.shortcut_action_focus_search;
-      case 'shortcut_action_enter_selection_mode':
-        return l10n.shortcut_action_enter_selection_mode;
-      case 'shortcut_action_open_filter_panel':
-        return l10n.shortcut_action_open_filter_panel;
-      case 'shortcut_action_clear_filter':
-        return l10n.shortcut_action_clear_filter;
-      case 'shortcut_action_toggle_category_panel':
-        return l10n.shortcut_action_toggle_category_panel;
-      case 'shortcut_action_jump_to_date':
-        return l10n.shortcut_action_jump_to_date;
-      case 'shortcut_action_open_folder':
-        return l10n.shortcut_action_open_folder;
-      case 'shortcut_action_select_all_tags':
-        return l10n.shortcut_action_select_all_tags;
-      case 'shortcut_action_deselect_all_tags':
-        return l10n.shortcut_action_deselect_all_tags;
-      case 'shortcut_action_new_category':
-        return l10n.shortcut_action_new_category;
-      case 'shortcut_action_new_tag':
-        return l10n.shortcut_action_new_tag;
-      case 'shortcut_action_search_tags':
-        return l10n.shortcut_action_search_tags;
-      case 'shortcut_action_batch_delete_tags':
-        return l10n.shortcut_action_batch_delete_tags;
-      case 'shortcut_action_batch_copy_tags':
-        return l10n.shortcut_action_batch_copy_tags;
-      case 'shortcut_action_send_to_home':
-        return l10n.shortcut_action_send_to_home;
-      case 'shortcut_action_exit_selection_mode':
-        return l10n.shortcut_action_exit_selection_mode;
-      case 'shortcut_action_sync_danbooru':
-        return l10n.shortcut_action_sync_danbooru;
-      case 'shortcut_action_generate_preview':
-        return l10n.shortcut_action_generate_preview;
-      case 'shortcut_action_search_presets':
-        return l10n.shortcut_action_search_presets;
-      case 'shortcut_action_new_preset':
-        return l10n.shortcut_action_new_preset;
-      case 'shortcut_action_duplicate_preset':
-        return l10n.shortcut_action_duplicate_preset;
-      case 'shortcut_action_delete_preset':
-        return l10n.shortcut_action_delete_preset;
-      case 'shortcut_action_close_config':
-        return l10n.shortcut_action_close_config;
-      case 'shortcut_action_show_shortcut_help':
-        return l10n.shortcut_action_show_shortcut_help;
-      case 'shortcut_action_minimize_to_tray':
-        return l10n.shortcut_action_minimize_to_tray;
-      case 'shortcut_action_quit_app':
-        return l10n.shortcut_action_quit_app;
-      case 'shortcut_action_toggle_queue':
-        return l10n.shortcut_action_toggle_queue;
-      case 'shortcut_action_toggle_queue_pause':
-        return l10n.shortcut_action_toggle_queue_pause;
-      case 'shortcut_action_toggle_theme':
-        return l10n.shortcut_action_toggle_theme;
-      default:
-        return key.replaceAll('shortcut_action_', '');
-    }
-  }
-
-  String _getContextDisplayName(ShortcutContext shortcutContext) {
-    final l10n = context.l10n;
-
-    switch (shortcutContext) {
-      case ShortcutContext.global:
-        return l10n.shortcut_context_global;
-      case ShortcutContext.generation:
-        return l10n.shortcut_context_generation;
-      case ShortcutContext.gallery:
-        return l10n.shortcut_context_gallery;
-      case ShortcutContext.viewer:
-        return l10n.shortcut_context_viewer;
-      case ShortcutContext.tagLibrary:
-        return l10n.shortcut_context_tag_library;
-      case ShortcutContext.randomConfig:
-        return l10n.shortcut_context_random_config;
-      case ShortcutContext.settings:
-        return l10n.shortcut_context_settings;
-      case ShortcutContext.input:
-        return l10n.shortcut_context_input;
-      case ShortcutContext.vibeDetail:
-        return l10n.shortcut_context_vibe_detail;
-    }
   }
 }

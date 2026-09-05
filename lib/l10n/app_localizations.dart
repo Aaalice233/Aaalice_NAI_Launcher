@@ -14475,6 +14475,12 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get shortcut_action_navigate_to_settings;
 
+  /// No description provided for @shortcut_action_navigate_to_vibe_library.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe Library'**
+  String get shortcut_action_navigate_to_vibe_library;
+
   /// No description provided for @shortcut_action_generate_image.
   ///
   /// In en, this message translates to:
@@ -14828,6 +14834,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Toggle Theme'**
   String get shortcut_action_toggle_theme;
+
+  /// No description provided for @shortcut_action_vibe_import.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Vibe'**
+  String get shortcut_action_vibe_import;
+
+  /// No description provided for @shortcut_action_vibe_export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Vibe'**
+  String get shortcut_action_vibe_export;
+
+  /// No description provided for @shortcut_action_vibe_detail_send_to_generation.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Generation'**
+  String get shortcut_action_vibe_detail_send_to_generation;
+
+  /// No description provided for @shortcut_action_vibe_detail_export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get shortcut_action_vibe_detail_export;
+
+  /// No description provided for @shortcut_action_vibe_detail_rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get shortcut_action_vibe_detail_rename;
+
+  /// No description provided for @shortcut_action_vibe_detail_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get shortcut_action_vibe_detail_delete;
+
+  /// No description provided for @shortcut_action_vibe_detail_toggle_favorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle Favorite'**
+  String get shortcut_action_vibe_detail_toggle_favorite;
+
+  /// No description provided for @shortcut_action_vibe_detail_prev_sub_vibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous Child Vibe'**
+  String get shortcut_action_vibe_detail_prev_sub_vibe;
+
+  /// No description provided for @shortcut_action_vibe_detail_next_sub_vibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Child Vibe'**
+  String get shortcut_action_vibe_detail_next_sub_vibe;
 
   /// No description provided for @shortcut_settings_title.
   ///
@@ -16952,12 +17012,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Vibe Detail'**
   String get shortcut_context_vibe_detail;
-
-  /// No description provided for @shortcut_action_vibe_detail_rename.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename'**
-  String get shortcut_action_vibe_detail_rename;
 
   /// No description provided for @vibeSelectorFilterFavorites.
   ///
