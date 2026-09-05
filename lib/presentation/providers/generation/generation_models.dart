@@ -257,6 +257,9 @@ class ImageGenerationState {
   final int? displayWidth;
   final int? displayHeight;
 
+  /// 一次生成调用是否仍在进行：从点击到整条调用结算（含读盘、编码、跑批与收尾）。
+  final bool isSubmitting;
+
   const ImageGenerationState({
     this.status = GenerationStatus.idle,
     this.currentImages = const [],
@@ -273,6 +276,7 @@ class ImageGenerationState {
     this.displayImages = const [],
     this.displayWidth,
     this.displayHeight,
+    this.isSubmitting = false,
   });
 
   ImageGenerationState copyWith({
@@ -293,6 +297,7 @@ class ImageGenerationState {
     List<GeneratedImage>? displayImages,
     int? displayWidth,
     int? displayHeight,
+    bool? isSubmitting,
   }) {
     return ImageGenerationState(
       status: status ?? this.status,
@@ -317,10 +322,18 @@ class ImageGenerationState {
       displayImages: displayImages ?? this.displayImages,
       displayWidth: displayWidth ?? this.displayWidth,
       displayHeight: displayHeight ?? this.displayHeight,
+      isSubmitting: isSubmitting ?? this.isSubmitting,
     );
   }
 
   bool get isGenerating => status == GenerationStatus.generating;
+
+  /// 已提交但还没开跑：读盘、Vibe 编码、随机词都发生在这一段。
+  bool get isPreparing => isSubmitting && !isGenerating;
+
+  /// 忙区间，用于挡住重复提交、队列启动与 Krita 插队。
+  bool get isBusy => isSubmitting || isGenerating;
+
   bool get hasImages => displayImages.isNotEmpty;
 
   /// 是否有流式预览图像

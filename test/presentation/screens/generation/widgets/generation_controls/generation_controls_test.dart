@@ -340,6 +340,83 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('preparing footer offers a cancel entry instead of a dead tap', (
+    tester,
+  ) async {
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.autoSaveImages: false,
+      StorageKeys.showRandomPromptTools: true,
+    });
+    late ProviderContainer container;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+          imageGenerationNotifierProvider.overrideWith(
+            _TestImageGenerationNotifier.new,
+          ),
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          kritaBridgeNotifierProvider.overrideWith(
+            (ref) => _TestKritaBridgeNotifier(),
+          ),
+          replicationQueueNotifierProvider.overrideWith(
+            _TestReplicationQueueNotifier.new,
+          ),
+          queueExecutionNotifierProvider.overrideWith(
+            _TestQueueExecutionNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _TestSubscriptionNotifier.new,
+          ),
+          estimatedCostProvider.overrideWith((ref) => 0),
+          isFreeGenerationProvider.overrideWith((ref) => true),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) {
+            container = ProviderScope.containerOf(context);
+            return const MaterialApp(
+              locale: Locale('zh'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: 475,
+                    height: 180,
+                    child: GenerationControls(compact: true),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('生成'), findsOneWidget);
+
+    final notifier =
+        container.read(imageGenerationNotifierProvider.notifier)
+            as _TestImageGenerationNotifier;
+    notifier.setPreparing();
+    // 转圈是无限动画，只能定量 pump，不能 pumpAndSettle。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('取消'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byIcon(Icons.stop_circle_outlined), findsNothing);
+
+    await tester.tap(find.text('取消'));
+    await tester.pump();
+
+    expect(notifier.cancelCount, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('batch settings desktop form follows its content height', (
     tester,
   ) async {
@@ -513,6 +590,8 @@ class _UnauthenticatedAuthNotifier extends AuthNotifier {
 }
 
 class _TestImageGenerationNotifier extends ImageGenerationNotifier {
+  int cancelCount = 0;
+
   @override
   ImageGenerationState build() => const ImageGenerationState();
 
@@ -520,6 +599,16 @@ class _TestImageGenerationNotifier extends ImageGenerationNotifier {
     state = ImageGenerationState(
       status: value ? GenerationStatus.generating : GenerationStatus.idle,
     );
+  }
+
+  void setPreparing() {
+    state = const ImageGenerationState(isSubmitting: true);
+  }
+
+  @override
+  void cancel() {
+    cancelCount += 1;
+    state = const ImageGenerationState();
   }
 }
 

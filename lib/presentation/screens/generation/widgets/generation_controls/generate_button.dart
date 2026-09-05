@@ -42,6 +42,11 @@ class GenerateButtonWithCost extends ConsumerWidget {
       generationState.currentImage > 0 &&
       generationState.totalImages > generationState.currentImage;
 
+  /// 已提交但还没开跑，此时按钮必须立刻反馈，否则点击会被静默吞掉。
+  bool get _isPreparing => generationState.isPreparing;
+
+  bool get _showCancelAction => showCancel || _isPreparing;
+
   String _progressText() =>
       '${generationState.currentImage}/${generationState.totalImages}';
 
@@ -103,9 +108,10 @@ class GenerateButtonWithCost extends ConsumerWidget {
         onPrimaryContainer: theme.colorScheme.onError,
       ),
     );
-    final isLoading = isGenerating && !showCancel;
+    // Krita 占用时启动器自身没有可取消的任务，只能转圈禁用等待。
+    final isLoading = isGenerating && !_showCancelAction;
 
-    final buttonTheme = showCancel ? cancelTheme : theme;
+    final buttonTheme = _showCancelAction ? cancelTheme : theme;
     final effectiveTheme = compact
         ? buttonTheme.copyWith(
             filledButtonTheme: FilledButtonThemeData(
@@ -131,7 +137,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
           : const Duration(milliseconds: 160),
       curve: Curves.easeOut,
       child: ThemedButton(
-        onPressed: showCancel
+        onPressed: _showCancelAction
             ? onCancel
             : requiresLogin
             ? onGenerate
@@ -140,7 +146,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
             : onGenerate,
         isLoading: isLoading,
         label: IndexedStack(
-          index: showCancel ? 1 : 0,
+          index: _showCancelAction ? 1 : 0,
           alignment: Alignment.center,
           children: [
             Row(
@@ -168,7 +174,10 @@ class GenerateButtonWithCost extends ConsumerWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.stop_circle_outlined),
+                if (_isPreparing)
+                  const GenerateButtonSpinner()
+                else
+                  const Icon(Icons.stop_circle_outlined),
                 const SizedBox(width: 8),
                 Text(context.l10n.common_cancel),
               ],
@@ -176,6 +185,22 @@ class GenerateButtonWithCost extends ConsumerWidget {
           ],
         ),
         style: ThemedButtonStyle.filled,
+      ),
+    );
+  }
+}
+
+/// 跟随按钮前景色的小转圈，供准备期的可取消态复用。
+class GenerateButtonSpinner extends StatelessWidget {
+  const GenerateButtonSpinner({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: 16,
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: IconTheme.of(context).color,
       ),
     );
   }

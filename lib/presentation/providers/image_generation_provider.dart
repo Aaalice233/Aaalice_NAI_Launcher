@@ -86,7 +86,6 @@ class _RememberedStreamPreview {
 class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<void>? _historyRestoreInFlight;
   bool _hasRestoredHistory = false;
-  bool _generationInvocationStarting = false;
   Completer<void>? _generationInvocationSettled;
   int _invocationCounter = 0;
   int _activeInvocationId = 0;
@@ -107,7 +106,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     ref.onDispose(() {
       _isDisposed = true;
       _lifecycleEpoch++;
-      _generationInvocationStarting = false;
       _activeComparisonSource = null;
       final invocationSettled = _generationInvocationSettled;
       _generationInvocationSettled = null;
@@ -123,6 +121,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   bool _isCurrentLifecycle(int epoch) =>
       !_isDisposed && epoch == _lifecycleEpoch;
+
+  /// copyWith 省略 errorMessage 等于清空，切换提交标志时必须原样带回。
+  void _setSubmitting(bool value) {
+    if (state.isSubmitting == value) return;
+    state = state.copyWith(
+      isSubmitting: value,
+      errorMessage: state.errorMessage,
+    );
+  }
 
   GenerationResultLifecycleService _lifecycle() {
     final gallery = ref.read(localGalleryNotifierProvider.notifier);
@@ -278,10 +285,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     bool preserveCharacterSnapshot = false,
     GenerationFocusedSnapshot? focusedOverride,
   }) async {
-    if (_isDisposed || _generationInvocationStarting || state.isGenerating) {
+    if (_isDisposed || state.isBusy) {
       return;
     }
-    _generationInvocationStarting = true;
+    _setSubmitting(true);
     final invocationSettled = Completer<void>();
     _generationInvocationSettled = invocationSettled;
     final epoch = _lifecycleEpoch;
@@ -401,9 +408,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         await _reduce(event, epoch);
       }
     } finally {
+      // 归属判断不可省：被取消后新一次提交已经接管标志，这里不能替它复位。
       if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
         _activeInvocationId = 0;
-        _generationInvocationStarting = false;
+        _setSubmitting(false);
         _activeComparisonSource = null;
         _activeFixedTagUsageSnapshot = null;
       }
@@ -832,19 +840,21 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (_isDisposed) return;
     final runId = _activeRunId;
     _activeInvocationId = 0;
-    _generationInvocationStarting = false;
     _activeComparisonSource = null;
     _appendFailedSnapshots(runId);
     final coordinator = _coordinator;
     final handle = _activeRun;
     if (coordinator != null && handle != null) coordinator.cancel(handle);
     _activeRunId = ++_runCounter;
+    // 图已出完、只剩落盘收尾时点取消，不该把已有结果改标成已取消。
+    final settled = state.status == GenerationStatus.completed;
     state = state.copyWith(
-      status: GenerationStatus.cancelled,
-      progress: 0,
+      status: settled ? state.status : GenerationStatus.cancelled,
+      progress: settled ? state.progress : 0,
       currentImage: 0,
       totalImages: 0,
       clearStreamPreview: true,
+      isSubmitting: false,
     );
   }
 

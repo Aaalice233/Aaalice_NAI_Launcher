@@ -78,13 +78,14 @@ class _DesktopGenerationLayoutState
         PlatformCapabilities.current.supportsKritaBridge &&
         ref.watch(kritaBridgeNotifierProvider).isBridgeGenerating;
     final isLauncherGenerating = generationState.isGenerating;
-    final isGenerating = isLauncherGenerating || isKritaGenerating;
+    // 提交后到开跑之间同样不能再次触发，否则快捷键会被静默吞掉。
+    final isBusy = generationState.isBusy || isKritaGenerating;
 
     // 定义快捷键动作映射（使用 ShortcutIds 常量）
     final shortcuts = <String, VoidCallback>{
       // 生成图像
       ShortcutIds.generateImage: () {
-        if (!isGenerating && !cooldownState.isActive) {
+        if (!isBusy && !cooldownState.isActive) {
           unawaited(generateWithProtection(context, ref));
         }
       },
