@@ -246,6 +246,7 @@ class _TagEditorTreeState extends State<TagEditorTree> {
       onTapOutside: session.clearSelection,
     );
     return DragTarget<Set<int>>(
+      key: ValueKey(tag.id),
       onWillAcceptWithDetails: (details) =>
           _canDrop(details.data) && !details.data.contains(tag.id),
       onMove: (details) {
@@ -253,25 +254,35 @@ class _TagEditorTreeState extends State<TagEditorTree> {
       },
       onAcceptWithDetails: (details) => _drop(details.data, tag.id),
       builder: (context, _, _) => Container(
-        key: widget.keys.putIfAbsent(tag.id, GlobalKey.new),
         constraints: BoxConstraints(maxWidth: width),
-        child: Listener(
-          onPointerSignal: (event) => widget.onWheel(event, tag.id),
-          onPointerDown: (event) {
-            if (event.buttons == kMiddleMouseButton && widget.enabled) {
-              session.toggleEnabled([tag.id]);
-            }
-          },
-          child: GestureDetector(
-            onSecondaryTapDown: (details) =>
-                widget.onMenu(details.globalPosition, tag),
-            child: Semantics(
-              hint: widget.enabled && session.structureComplete && !editing
-                  ? context.l10n.tagMode_drag
-                  : null,
-              child: _draggable(tag, width, dragData, capsule),
+        child: Stack(
+          children: [
+            // Only the geometry anchor may move across source groups. Moving
+            // a visible Tooltip portal during layout mutates the root overlay.
+            Positioned.fill(
+              child: SizedBox(
+                key: widget.keys.putIfAbsent(tag.id, GlobalKey.new),
+              ),
             ),
-          ),
+            Listener(
+              onPointerSignal: (event) => widget.onWheel(event, tag.id),
+              onPointerDown: (event) {
+                if (event.buttons == kMiddleMouseButton && widget.enabled) {
+                  session.toggleEnabled([tag.id]);
+                }
+              },
+              child: GestureDetector(
+                onSecondaryTapDown: (details) =>
+                    widget.onMenu(details.globalPosition, tag),
+                child: Semantics(
+                  hint: widget.enabled && session.structureComplete && !editing
+                      ? context.l10n.tagMode_drag
+                      : null,
+                  child: _draggable(tag, width, dragData, capsule),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
