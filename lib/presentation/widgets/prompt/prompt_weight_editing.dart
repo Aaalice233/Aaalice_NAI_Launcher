@@ -153,14 +153,13 @@ class PromptWeightEditing {
     String source,
     double weight, {
     bool numericEmphasisEnabled = true,
-    bool preserveGroup = false,
   }) {
     final spans = PromptEditDocument.parse(source);
     final disabled = spans.length == 1 && spans.single.disabled;
     final parsed = parseWeightSyntax(source);
     final value = weight.clamp(0.1, 3.0);
     String text;
-    if ((value - 1).abs() < 0.00001 && !preserveGroup) {
+    if ((value - 1).abs() < 0.00001) {
       text = parsed.baseText;
     } else if (numericEmphasisEnabled) {
       text = '${value.toStringAsFixed(2)}::${parsed.baseText}::';
@@ -168,9 +167,7 @@ class PromptWeightEditing {
       final depth = (math.log(value).abs() / math.log(1.05)).round();
       final opening = value > 1 ? '{' : '[';
       final closing = value > 1 ? '}' : ']';
-      text = depth == 0 && preserveGroup
-          ? '{[${parsed.baseText}]}'
-          : '${opening * depth}${parsed.baseText}${closing * depth}';
+      text = '${opening * depth}${parsed.baseText}${closing * depth}';
     }
     return disabled ? PromptEditDocument.disable(text) : text;
   }

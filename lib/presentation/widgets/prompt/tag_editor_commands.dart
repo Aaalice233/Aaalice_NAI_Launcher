@@ -96,7 +96,6 @@ class TagEditorCommands {
         '${group.span.prefix}x${group.span.suffix}',
         value ?? weight! + step!,
         numericEmphasisEnabled: _useNumericWeight(group, numeric),
-        preserveGroup: true,
       );
       final split = shell.indexOf('x');
       session.apply([
@@ -119,8 +118,8 @@ class TagEditorCommands {
         'x',
         value ?? 1 + step!,
         numericEmphasisEnabled: numeric && plan.numericEmphasisAllowed,
-        preserveGroup: true,
       );
+      if (shell == 'x') return;
       final split = shell.indexOf('x');
       session.groupSelected(
         plan,

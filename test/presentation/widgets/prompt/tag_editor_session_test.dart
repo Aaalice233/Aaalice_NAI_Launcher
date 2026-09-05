@@ -46,6 +46,45 @@ void main() {
     expect(source.text, '1.25::cat, dog::, bird');
   });
 
+  test('reset removes single tag weight and supports undo and redo', () {
+    for (final weighted in ['1.00::cat::', '1.25::cat::', '{{cat}}', '[cat]']) {
+      create('$weighted, dog');
+      session.setSelection([session.leaves.first.id]);
+      TagEditorCommands(session).adjustWeight(value: 1);
+      expect(source.text, 'cat, dog');
+      session.undo();
+      expect(source.text, '$weighted, dog');
+      session.redo();
+      expect(source.text, 'cat, dog');
+    }
+  });
+
+  test('neutral multi-selection does not gather unrelated tags', () {
+    create('cat, fox, dog');
+    session.setSelection([session.leaves.first.id, session.leaves.last.id]);
+    TagEditorCommands(session).adjustWeight(value: 1);
+    expect(source.text, 'cat, fox, dog');
+    expect(session.canUndo, isFalse);
+  });
+
+  test('neutral bracket-only group unwraps and retains member weights', () {
+    final controller = NaiSyntaxController(
+      text: '{{cat}, dog}, bird',
+      numericEmphasisEnabled: false,
+    );
+    final editor = TagEditorSession(controller);
+    addTearDown(() {
+      editor.dispose();
+      controller.dispose();
+    });
+    editor.selectGroup(editor.tags.first);
+    TagEditorCommands(editor).adjustWeight(value: 1);
+    expect(controller.text, '{cat}, dog, bird');
+    expect(editor.selectedGroup, isNull);
+    editor.undo();
+    expect(controller.text, '{{cat}, dog}, bird');
+  });
+
   test(
     'single selections adjust leaves and multiple selections form a group',
     () {
@@ -90,8 +129,8 @@ void main() {
       commands.adjustWeight(step: 0.05);
       expect(source.text, '1.50::{cat, dog}, fox::, bird');
       commands.adjustWeight(value: 1);
-      expect(source.text, '1.50::{[cat, dog]}, fox::, bird');
-      expect(session.selectedGroup, isNotNull);
+      expect(source.text, '1.50::cat, dog, fox::, bird');
+      expect(session.selectedGroup, isNull);
       expect(commands.weight, 1);
       commands.adjustWeight(step: -0.05);
       expect(source.text, '1.50::[cat, dog], fox::, bird');
@@ -119,31 +158,38 @@ void main() {
     },
   );
 
-  test(
-    'group survives neutral weight and repeated steps in both directions',
-    () {
-      create('{cat, dog}, bird');
-      final ids = session.tags.first.leaves.map((tag) => tag.id).toSet();
-      session.setSelection(ids);
-      final commands = TagEditorCommands(session);
-      for (final expected in [1.0, 0.95, 0.90]) {
-        commands.adjustWeight(step: -0.05);
-        expect(source.text, '${expected.toStringAsFixed(2)}::cat, dog::, bird');
-        expect(session.selected, ids);
-        expect(session.selectedGroup, isNotNull);
-      }
-      for (final expected in [0.95, 1.0, 1.05]) {
-        commands.adjustWeight(step: 0.05);
-        expect(source.text, '${expected.toStringAsFixed(2)}::cat, dog::, bird');
-      }
-    },
-  );
+  test('neutral weight ungroups while selection survives repeated steps', () {
+    create('{cat, dog}, bird');
+    final ids = session.tags.first.leaves.map((tag) => tag.id).toSet();
+    session.setSelection(ids);
+    final commands = TagEditorCommands(session);
+    for (final expected in [1.0, 0.95, 0.90]) {
+      commands.adjustWeight(step: -0.05);
+      expect(
+        source.text,
+        expected == 1
+            ? 'cat, dog, bird'
+            : '${expected.toStringAsFixed(2)}::cat, dog::, bird',
+      );
+      expect(session.selected, ids);
+      expect(session.selectedGroup, expected == 1 ? isNull : isNotNull);
+    }
+    for (final expected in [0.95, 1.0, 1.05]) {
+      commands.adjustWeight(step: 0.05);
+      expect(
+        source.text,
+        expected == 1
+            ? 'cat, dog, bird'
+            : '${expected.toStringAsFixed(2)}::cat, dog::, bird',
+      );
+    }
+  });
 
   test('numeric root group preserves bracket subgroups and outside colors', () {
     create('{{[backlighting],rim_light}}, plain');
     session.selectGroup(session.tags.first);
     TagEditorCommands(session).adjustWeight(value: 1);
-    expect(source.text, '1.00::[backlighting],rim_light::, plain');
+    expect(source.text, '[backlighting],rim_light, plain');
     final syntax = NaiSyntaxController(text: source.text);
     addTearDown(syntax.dispose);
     final colors = syntax.emphasisColorsAt(ThemeData.dark(), [
