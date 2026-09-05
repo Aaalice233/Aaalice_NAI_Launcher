@@ -45,6 +45,7 @@ import 'generation/generation_result_lifecycle_service.dart';
 import 'generation/generation_settings_notifiers.dart';
 import 'generation/image_generation_coordinator.dart';
 import 'generation/image_workflow_controller.dart';
+import 'generation/stream_preview_snapshot.dart';
 import 'image_save_settings_provider.dart';
 import 'local_gallery_provider.dart';
 import 'prompt_config_provider.dart';
@@ -70,18 +71,6 @@ export 'generation/retry_policy_notifier.dart';
 
 part 'image_generation_provider.g.dart';
 
-class _RememberedStreamPreview {
-  const _RememberedStreamPreview({
-    required this.bytes,
-    required this.params,
-    this.focusedPreviewPlacement,
-  });
-
-  final Uint8List bytes;
-  final ImageParams params;
-  final FocusedStreamPreviewPlacement? focusedPreviewPlacement;
-}
-
 @Riverpod(keepAlive: true)
 class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<void>? _historyRestoreInFlight;
@@ -94,7 +83,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   GenerationRunHandle? _activeRun;
   ImageGenerationCoordinator? _coordinator;
   final Map<String, String?> _persistedHistoryFilePaths = <String, String?>{};
-  final Map<String, _RememberedStreamPreview> _streamPreviews = {};
+  final StreamPreviewSnapshotStore _streamPreviews =
+      StreamPreviewSnapshotStore();
   final Set<String> _failedSnapshotKeys = {};
   ImageComparisonSource? _activeComparisonSource;
   FixedTagUsageSnapshot? _activeFixedTagUsageSnapshot;
@@ -107,6 +97,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       _isDisposed = true;
       _lifecycleEpoch++;
       _activeComparisonSource = null;
+      _streamPreviews.clear();
       final invocationSettled = _generationInvocationSettled;
       _generationInvocationSettled = null;
       if (invocationSettled != null && !invocationSettled.isCompleted) {
@@ -615,14 +606,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           clearStreamPreview: true,
         );
         for (var i = 0; i < max(images.length, params.nSamples); i++) {
-          _streamPreviews.remove(_snapshotKey(event.runId, startImage + i));
+          _streamPreviews.release(event.runId, startImage + i);
         }
         _saveVibeEncodings(vibeEncodings);
         _retainHistoryCaches();
       case GenerationRequestSkipped(:final startImage, :final requestSize):
         _appendFailedSnapshots(event.runId);
         for (var i = 0; i < requestSize; i++) {
-          _streamPreviews.remove(_snapshotKey(event.runId, startImage + i));
+          _streamPreviews.release(event.runId, startImage + i);
         }
         state = state.copyWith(clearStreamPreview: true);
       case GenerationRequestFailed(:final error, :final isTerminal):
@@ -641,6 +632,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       case GenerationCompleted(:final params):
         final images = List<GeneratedImage>.from(state.currentImages);
         _activeComparisonSource = null;
+        _streamPreviews.clear();
         state = state.copyWith(
           status: GenerationStatus.completed,
           displayImages: images,
@@ -664,6 +656,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
       case GenerationCancelled():
         _appendFailedSnapshots(event.runId);
+        _streamPreviews.clear();
         _activeComparisonSource = null;
         state = state.copyWith(
           status: GenerationStatus.cancelled,
@@ -674,6 +667,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
       case GenerationFailed(:final error):
         _appendFailedSnapshots(event.runId);
+        _streamPreviews.clear();
         _activeComparisonSource = null;
         state = state.copyWith(
           status: GenerationStatus.error,
@@ -686,6 +680,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
   }
 
+  // 预览帧字节由解码与协调层逐帧新建，不会被复用，直接持有即可。
   void _rememberPreview(
     int runId,
     int imageNumber,
@@ -693,19 +688,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     ImageParams params,
     FocusedStreamPreviewPlacement? placement,
   ) {
-    if (bytes.isEmpty) return;
-    _streamPreviews[_snapshotKey(
-      runId,
-      imageNumber,
-    )] = _RememberedStreamPreview(
-      bytes: Uint8List.fromList(bytes),
+    _streamPreviews.remember(
+      runId: runId,
+      imageNumber: imageNumber,
+      bytes: bytes,
       params: params,
-      focusedPreviewPlacement: placement?.copyWith(
-        sourceImage: Uint8List.fromList(placement.sourceImage),
-        maskImage: placement.maskImage == null
-            ? null
-            : Uint8List.fromList(placement.maskImage!),
-      ),
+      placement: placement,
     );
   }
 
@@ -719,7 +707,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         : const <int>[];
     for (final number in numbers.reversed) {
       final key = _snapshotKey(runId, number);
-      final preview = _streamPreviews[key];
+      final preview = _streamPreviews.preview(runId, number);
       if (preview == null || !_failedSnapshotKeys.add(key)) continue;
       final bytes = _materializePreview(preview);
       final size =
@@ -743,12 +731,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           ...state.history,
         ].take(GenerationResultLifecycleService.historyLimit).toList(),
       );
-      _streamPreviews.remove(key);
+      _streamPreviews.release(runId, number);
     }
     _retainHistoryCaches();
   }
 
-  Uint8List _materializePreview(_RememberedStreamPreview preview) {
+  Uint8List _materializePreview(RememberedStreamPreview preview) {
     final placement = preview.focusedPreviewPlacement;
     if (placement == null || !placement.isValid) return preview.bytes;
     final source = img.decodeImage(placement.sourceImage);
@@ -842,6 +830,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     _activeInvocationId = 0;
     _activeComparisonSource = null;
     _appendFailedSnapshots(runId);
+    _streamPreviews.clear();
     final coordinator = _coordinator;
     final handle = _activeRun;
     if (coordinator != null && handle != null) coordinator.cancel(handle);
