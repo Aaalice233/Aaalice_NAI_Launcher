@@ -430,7 +430,11 @@ void main() {
         of: positiveArea,
         matching: find.byKey(const ValueKey('tag-mode-button')),
       ),
-      findsOneWidget,
+      findsNothing,
+    );
+    expect(
+      tester.getRect(find.byKey(const ValueKey('tag-mode-button'))).bottom,
+      lessThanOrEqualTo(tester.getRect(positiveArea).top),
     );
 
     await tester.drag(positiveHandle, const Offset(0, 96));
@@ -465,9 +469,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('角色助手收起显示入口，展开后复用同一行', (tester) async {
+  testWidgets('角色助手在编辑区内展开且不挤动页签和清空入口', (tester) async {
     final container = createContainer();
-
+    container.read(localStorageServiceProvider).setAutoFormatPrompt(false);
     await tester.pumpWidget(
       subject(
         container,
@@ -491,83 +495,35 @@ void main() {
     );
     await tester.pump();
 
-    final slot = find.byKey(const ValueKey('character-prompt-assistant-slot'));
-    final collapsedToolbar = find.byKey(
+    final toolbar = find.byKey(
       const ValueKey(
         'prompt_assistant_toolbar_generation_character_alice_prompt',
       ),
     );
-    final editor = find.byType(CharacterPromptEditor);
-    final collapsedSlotRect = tester.getRect(slot);
-    final editorRect = tester.getRect(editor);
-    final collapsedAreaTop = tester
-        .getRect(
-          find.byKey(const ValueKey('character-prompt-editor-area-positive')),
-        )
-        .top;
+    final area = find.byKey(
+      const ValueKey('character-prompt-editor-area-positive'),
+    );
+    final clear = find.byKey(const ValueKey('character-prompt-clear-button'));
+    final originalArea = tester.getRect(area);
+    final originalClear = tester.getRect(clear);
+    final collapsedRect = tester.getRect(toolbar);
+    expect(collapsedRect.size, const Size(44, 44));
+    expect(originalArea.contains(collapsedRect.topLeft), isTrue);
+    expect(originalArea.contains(collapsedRect.bottomRight), isTrue);
+    expect(originalClear.bottom, lessThanOrEqualTo(originalArea.top));
+    expect(find.text('助手'), findsNothing);
 
-    expect(collapsedSlotRect.right, closeTo(editorRect.right, 0.1));
-    expect(collapsedSlotRect.height, 32);
-    expect(collapsedSlotRect.width, inInclusiveRange(64, 95));
-    final collapsedButton = find.byKey(
-      const ValueKey('prompt_assistant_collapsed_button'),
+    await tester.tap(
+      find.byIcon(Icons.auto_awesome_rounded),
+      kind: PointerDeviceKind.mouse,
     );
-    final collapsedButtonRect = tester.getRect(collapsedButton);
-    expect(collapsedButtonRect.left, closeTo(collapsedSlotRect.left, 0.1));
-    expect(collapsedButtonRect.right, closeTo(collapsedSlotRect.right, 0.1));
-    expect(collapsedButtonRect.top, closeTo(collapsedSlotRect.top, 0.1));
-    expect(collapsedButtonRect.bottom, closeTo(collapsedSlotRect.bottom, 0.1));
-    expect(
-      find.descendant(
-        of: collapsedToolbar,
-        matching: find.byIcon(Icons.auto_awesome_rounded),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: collapsedToolbar, matching: find.text('助手')),
-      findsOneWidget,
-    );
-    final clearButton = find.byKey(
-      const ValueKey('character-prompt-clear-button'),
-    );
-    final clearButtonRect = tester.getRect(clearButton);
-    expect(clearButton, findsOneWidget);
-    expect(clearButtonRect.top, closeTo(collapsedSlotRect.top, 0.1));
-    expect(clearButtonRect.bottom, closeTo(collapsedSlotRect.bottom, 0.1));
-    expect(clearButtonRect.right, lessThan(collapsedSlotRect.left));
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('character-prompt-editor-area-positive')),
-        matching: clearButton,
-      ),
-      findsNothing,
-    );
-
-    await tester.tap(collapsedButton, kind: PointerDeviceKind.mouse);
     await tester.pumpAndSettle();
-
-    final expandedToolbar = find.byKey(
-      const ValueKey(
-        'prompt_assistant_toolbar_generation_character_alice_prompt',
-      ),
-    );
-    final expandedToolbarRect = tester.getRect(expandedToolbar);
-    final expandedSlotRect = tester.getRect(slot);
-    expect(
-      find.ancestor(of: expandedToolbar, matching: editor),
-      findsOneWidget,
-    );
-    expect(expandedSlotRect.right, closeTo(editorRect.right, 0.1));
-    expect(expandedSlotRect.width, 192);
-    expect(expandedSlotRect.height, 32);
-    expect(expandedToolbarRect.top, closeTo(collapsedSlotRect.top, 0.1));
-    expect(expandedToolbarRect.left, greaterThanOrEqualTo(editorRect.left));
-    expect(expandedToolbarRect.right, lessThanOrEqualTo(editorRect.right));
-    expect(find.text('正向提示词').hitTestable(), findsOneWidget);
-    expect(find.text('负向提示词').hitTestable(), findsOneWidget);
-    expect(clearButton, findsOneWidget);
-    expect(tester.getRect(clearButton).right, lessThan(expandedSlotRect.left));
+    final expandedRect = tester.getRect(toolbar);
+    expect(tester.getRect(area), originalArea);
+    expect(tester.getRect(clear), originalClear);
+    expect(expandedRect.right, closeTo(collapsedRect.right, 0.1));
+    expect(expandedRect.bottom, closeTo(collapsedRect.bottom, 0.1));
+    expect(expandedRect.left, greaterThanOrEqualTo(originalArea.left));
     for (final icon in [
       Icons.translate,
       Icons.auto_fix_high,
@@ -576,85 +532,32 @@ void main() {
       Icons.more_horiz,
       Icons.keyboard_arrow_down_rounded,
     ]) {
-      final action = find.descendant(
-        of: expandedToolbar,
-        matching: find.byIcon(icon),
+      expect(
+        find.descendant(of: toolbar, matching: find.byIcon(icon)).hitTestable(),
+        findsOneWidget,
       );
-      expect(action, findsOneWidget);
-      final actionRect = tester.getRect(action);
-      expect(actionRect.left, greaterThanOrEqualTo(expandedSlotRect.left));
-      expect(actionRect.right, lessThanOrEqualTo(expandedSlotRect.right));
     }
-    final expandedCollapseButton = find.ancestor(
-      of: find.descendant(
-        of: expandedToolbar,
-        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
-      ),
-      matching: find.byType(IconButton),
-    );
-    expect(
-      tester.getRect(expandedCollapseButton).right,
-      closeTo(expandedSlotRect.right, 0.1),
-    );
-    expect(
-      find.descendant(of: expandedToolbar, matching: find.byIcon(Icons.undo)),
-      findsNothing,
-    );
-    expect(
-      find.descendant(of: expandedToolbar, matching: find.byIcon(Icons.redo)),
-      findsNothing,
-    );
-    expect(
-      tester
-          .getRect(
-            find.byKey(const ValueKey('character-prompt-editor-area-positive')),
-          )
-          .top,
-      closeTo(collapsedAreaTop, 0.1),
-    );
+    expect(find.text('正向提示词').hitTestable(), findsOneWidget);
+    expect(find.text('负向提示词').hitTestable(), findsOneWidget);
 
-    final collapseAssistantIcon = find.descendant(
-      of: expandedToolbar,
-      matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+    await tester.tap(
+      find.byIcon(Icons.keyboard_arrow_down_rounded),
+      kind: PointerDeviceKind.mouse,
     );
-    final collapseAssistantButton = find.ancestor(
-      of: collapseAssistantIcon,
-      matching: find.byType(IconButton),
-    );
-    final collapseAction = tester
-        .widget<IconButton>(collapseAssistantButton)
-        .onPressed;
-    expect(collapseAction, isNotNull);
-    collapseAction!();
     await tester.pump();
-    expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
-    expect(find.text('助手'), findsOneWidget);
-    expect(clearButton, findsOneWidget);
-    expect(tester.getRect(slot).size, collapsedSlotRect.size);
-    expect(
-      tester
-          .getRect(
-            find.byKey(const ValueKey('character-prompt-editor-area-positive')),
-          )
-          .top,
-      closeTo(collapsedAreaTop, 0.1),
-    );
-    final clearAction = tester.widget<IconButton>(clearButton).onPressed;
-    expect(clearAction, isNotNull);
-    clearAction!();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(tester.getRect(toolbar), collapsedRect);
+
+    await tester.tap(clear, kind: PointerDeviceKind.mouse);
     await tester.pumpAndSettle();
     expect(find.text('确定要清空输入内容吗？'), findsOneWidget);
     await tester.tap(find.text('清除').last, kind: PointerDeviceKind.mouse);
     await tester.pumpAndSettle();
-    expect(clearButton, findsNothing);
+    expect(clear, findsNothing);
     final editable = tester.widget<EditableText>(
-      find.descendant(
-        of: find.byKey(const ValueKey('character-prompt-editor-area-positive')),
-        matching: find.byType(EditableText),
-      ),
+      find.descendant(of: area, matching: find.byType(EditableText)),
     );
     expect(editable.controller.text, isEmpty);
-    await tester.pump(const Duration(seconds: 4));
     expect(tester.takeException(), isNull);
   });
 
@@ -736,15 +639,27 @@ void main() {
     );
     await tester.pump();
 
-    final slot = find.byKey(const ValueKey('character-prompt-assistant-slot'));
+    final slot = find.byKey(
+      const ValueKey(
+        'prompt_assistant_toolbar_generation_character_alice_prompt',
+      ),
+    );
     expect(tester.getSize(slot), const Size(48, 48));
     final clearButton = find.byKey(
       const ValueKey('character-prompt-clear-button'),
     );
     expect(tester.getSize(clearButton), const Size(48, 48));
     expect(
-      tester.getRect(clearButton).right,
-      lessThan(tester.getRect(slot).left),
+      tester.getRect(clearButton).bottom,
+      lessThanOrEqualTo(
+        tester
+            .getRect(
+              find.byKey(
+                const ValueKey('character-prompt-editor-area-positive'),
+              ),
+            )
+            .top,
+      ),
     );
     await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
     await tester.pump();
@@ -756,7 +671,7 @@ void main() {
       ),
     );
     final toolbarRect = tester.getRect(toolbar);
-    expect(clearButton, findsNothing);
+    expect(clearButton, findsOneWidget);
     expect(toolbarRect.left, greaterThanOrEqualTo(8));
     expect(toolbarRect.right, lessThanOrEqualTo(312));
     for (final icon in [

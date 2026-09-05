@@ -11980,12 +11980,6 @@ abstract class AppLocalizations {
   /// **'The current custom-task provider does not have image input enabled'**
   String get promptAssistant_imageInputDisabled;
 
-  /// No description provided for @promptAssistant_needCharacter.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a valid character in the reverse-prompt character library first'**
-  String get promptAssistant_needCharacter;
-
   /// No description provided for @promptAssistant_assistantSettings.
   ///
   /// In en, this message translates to:
@@ -12003,12 +11997,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rule Settings'**
   String get promptAssistant_ruleSettings;
-
-  /// No description provided for @promptAssistant_cancelCurrentTask.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel Current Task'**
-  String get promptAssistant_cancelCurrentTask;
 
   /// No description provided for @promptAssistant_collapseAssistant.
   ///

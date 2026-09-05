@@ -84,7 +84,7 @@ void main() {
     );
     final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
     final assistant = find.byKey(
-      const ValueKey('generation_prompt_footer_assistant'),
+      const ValueKey('prompt_assistant_toolbar_generation_prompt_main'),
     );
 
     expect(transparent, findsOneWidget);
@@ -99,8 +99,8 @@ void main() {
       lessThanOrEqualTo(tester.getRect(count).left),
     );
     expect(
-      tester.getRect(assistant).left - tester.getRect(count).right,
-      greaterThanOrEqualTo(8),
+      tester.getRect(assistant).bottom,
+      lessThanOrEqualTo(tester.getRect(input).bottom),
     );
     expect(tester.takeException(), isNull);
   });
@@ -161,7 +161,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('紧凑输入操作栏位于编辑面外且保留完整触控区域', (tester) async {
+  testWidgets('紧凑输入助手位于编辑面内且底栏保留完整触控区域', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -214,7 +214,8 @@ void main() {
     expect(assistantButton, findsOneWidget);
     expect(fullscreenButton, findsOneWidget);
     expect(clearButton, findsOneWidget);
-    expect(assistantRect.top, greaterThanOrEqualTo(inputRect.bottom));
+    expect(assistantRect.top, greaterThanOrEqualTo(inputRect.top));
+    expect(assistantRect.bottom, lessThanOrEqualTo(inputRect.bottom));
     expect(fullscreenRect.top, greaterThanOrEqualTo(inputRect.bottom));
     expect(clearRect.top, greaterThanOrEqualTo(inputRect.bottom));
     expect(assistantRect.size, const Size(48, 48));
@@ -224,7 +225,14 @@ void main() {
     await tester.tap(assistantButton);
     await tester.pumpAndSettle();
 
-    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.byIcon(Icons.translate), findsOneWidget);
+    expect(
+      tester.getRect(
+        find.byKey(const ValueKey('generation_prompt_compact_input')),
+      ),
+      inputRect,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -262,7 +270,16 @@ void main() {
       find.byKey(const ValueKey('generation_prompt_compact_input')),
       findsOneWidget,
     );
-    expect(find.text('0 / 512'), findsNothing);
+    expect(find.text('0 / 512'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('generation_prompt_footer_count')),
+    );
+    await tester.pump();
+    expect(find.text('0 / 512').hitTestable(), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('tag-mode-button')).hitTestable(),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

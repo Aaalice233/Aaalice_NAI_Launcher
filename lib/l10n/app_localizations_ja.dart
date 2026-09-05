@@ -6580,10 +6580,6 @@ class AppLocalizationsJa extends AppLocalizations {
       '現在のカスタム タスク プロバイダーでは画像入力が有効になっていません';
 
   @override
-  String get promptAssistant_needCharacter =>
-      '先にリバースプロンプトのキャラクターライブラリに有効なキャラクターを追加してください';
-
-  @override
   String get promptAssistant_assistantSettings => 'アシスタントの設定';
 
   @override
@@ -6591,9 +6587,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get promptAssistant_ruleSettings => 'ルール設定';
-
-  @override
-  String get promptAssistant_cancelCurrentTask => '現在のタスクをキャンセル';
 
   @override
   String get promptAssistant_collapseAssistant => 'アシスタントを折りたたむ';

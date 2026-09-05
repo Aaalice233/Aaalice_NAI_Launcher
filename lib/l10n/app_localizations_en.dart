@@ -6747,10 +6747,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The current custom-task provider does not have image input enabled';
 
   @override
-  String get promptAssistant_needCharacter =>
-      'Add a valid character in the reverse-prompt character library first';
-
-  @override
   String get promptAssistant_assistantSettings => 'Assistant Settings';
 
   @override
@@ -6758,9 +6754,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get promptAssistant_ruleSettings => 'Rule Settings';
-
-  @override
-  String get promptAssistant_cancelCurrentTask => 'Cancel Current Task';
 
   @override
   String get promptAssistant_collapseAssistant => 'Collapse Assistant';

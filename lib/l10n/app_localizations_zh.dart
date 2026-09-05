@@ -6469,9 +6469,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get promptAssistant_imageInputDisabled => '当前自定义任务服务商未启用图片输入';
 
   @override
-  String get promptAssistant_needCharacter => '请先在反推角色库中添加有效角色';
-
-  @override
   String get promptAssistant_assistantSettings => '助手设置';
 
   @override
@@ -6479,9 +6476,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get promptAssistant_ruleSettings => '规则设置';
-
-  @override
-  String get promptAssistant_cancelCurrentTask => '取消当前任务';
 
   @override
   String get promptAssistant_collapseAssistant => '收起助手';
@@ -20611,9 +20605,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get promptAssistant_imageInputDisabled => '當前自定義任務服務商未啟用圖片輸入';
 
   @override
-  String get promptAssistant_needCharacter => '請先在反推角色庫中新增有效角色';
-
-  @override
   String get promptAssistant_assistantSettings => '助手設定';
 
   @override
@@ -20621,9 +20612,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get promptAssistant_ruleSettings => '規則設定';
-
-  @override
-  String get promptAssistant_cancelCurrentTask => '取消當前任務';
 
   @override
   String get promptAssistant_collapseAssistant => '收起助手';

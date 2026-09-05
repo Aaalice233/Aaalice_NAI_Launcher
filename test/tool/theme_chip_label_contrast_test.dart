@@ -1,6 +1,4 @@
-/// Chip 标签对比度守卫：chip 底色由内部 `Ink` 的 ShapeDecoration 绘制，外层
-/// Material 的 color 是 null，只读 Material 的探针会把页面 surface 当成 chip
-/// 底色，量不到未选中 chip 真正贴着的 surfaceContainerHighest。
+/// 未选中 Chip 保持透明，标签对比度按实际绘制色叠加页面 surface 验证。
 library;
 
 import 'package:flutter/material.dart';
@@ -37,11 +35,10 @@ void main() {
             final label = '${style.name}/${brightness.name}/${probe.key}';
             final measured = _measureChip(tester, theme);
 
-            if (measured == null ||
-                measured.fill != theme.colorScheme.surfaceContainerHighest) {
+            if (measured == null || measured.fill != Colors.transparent) {
               wrongSurface.add(
                 '  $label: 期望 '
-                '${hexOf(theme.colorScheme.surfaceContainerHighest)}，'
+                '${hexOf(Colors.transparent)}，'
                 '实际 ${measured == null ? '未量到 chip 自身底色' : hexOf(measured.fill)}',
               );
               continue;
@@ -61,7 +58,7 @@ void main() {
         wrongSurface,
         isEmpty,
         reason:
-            '这些 chip 没有贴在最高阶中性色面上，本用例量到的就不再是设计约定的\n'
+            '这些 chip 没有贴在页面中性色面上，本用例量到的就不再是设计约定的\n'
             '配对。若确实改了 chipTheme.backgroundColor，请同步更新本守卫：\n'
             '${wrongSurface.join('\n')}',
       );
@@ -70,7 +67,7 @@ void main() {
         isEmpty,
         reason:
             '以下 chip 标签读不清。标签色取 onSurfaceVariant，底色取\n'
-            'surfaceContainerHighest，两者必须在各自调色板里配到 AA：\n'
+            'surface，两者必须在各自调色板里配到 AA：\n'
             '${offenders.join('\n')}',
       );
     });

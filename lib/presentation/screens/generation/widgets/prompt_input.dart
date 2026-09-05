@@ -8,6 +8,7 @@ import '../../../providers/pending_prompt_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
 import '../../../providers/prompt_token_counter_provider.dart';
 import '../../../providers/queue_execution_provider.dart';
+import '../../../widgets/prompt/prompt_footer_style.dart';
 import 'prompt_input_controller.dart';
 import 'prompt_input_coordinator.dart';
 import 'prompt_input_editor.dart';
@@ -378,65 +379,78 @@ class _CompactPromptInput extends ConsumerWidget {
       final negative = controller.isNegativeMode;
 
       final showModeSwitch = constraints.maxHeight >= 180;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (showModeSwitch) ...[
-            ListenableBuilder(
-              listenable: Listenable.merge([
-                controller.promptController,
-                controller.negativeController,
-              ]),
-              builder: (context, _) => _CompactPromptModeSwitch(
-                negative: negative,
-                positiveCount: controller.promptCount,
-                negativeCount: controller.negativePromptCount,
-                onChanged: commands.setNegativeMode,
-              ),
-            ),
-            const SizedBox(height: 6),
-          ],
-          Expanded(
-            child: PromptInputEditor(
-              key: editorKey,
-              controller: controller,
-              commands: commands,
-              viewData: viewData,
-              compact: true,
-            ),
-          ),
-
-          PromptInputFooter(
-            target: negative
-                ? PromptTokenCountTarget.negative
-                : PromptTokenCountTarget.positive,
-            topPadding: 4,
-            leading: Row(
-              key: const ValueKey('generation_prompt_compact_actions'),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (viewData.showMaximizeButton)
-                  IconButton(
-                    icon: const Icon(Icons.fullscreen),
-                    tooltip: context.l10n.tooltip_fullscreenEdit,
-                    onPressed: commands.toggleMaximize,
+      final minimumEditorHeight =
+          MediaQuery.textScalerOf(context).scale(16) * 1.5 + 24;
+      final footerHeight = PromptFooterStyle.height(
+        context,
+      ).clamp(kMinInteractiveDimension, double.infinity);
+      final minimumHeight = minimumEditorHeight + footerHeight + 4;
+      return SingleChildScrollView(
+        key: const ValueKey('generation_prompt_compact_scroll'),
+        primary: false,
+        child: SizedBox(
+          height: constraints.maxHeight.clamp(minimumHeight, double.infinity),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (showModeSwitch) ...[
+                ListenableBuilder(
+                  listenable: Listenable.merge([
+                    controller.promptController,
+                    controller.negativeController,
+                  ]),
+                  builder: (context, _) => _CompactPromptModeSwitch(
+                    negative: negative,
+                    positiveCount: controller.promptCount,
+                    negativeCount: controller.negativePromptCount,
+                    onChanged: commands.setNegativeMode,
                   ),
-                if ((negative
-                        ? controller.negativeController
-                        : controller.promptController)
-                    .text
-                    .isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    tooltip: context.l10n.common_clear,
-                    onPressed: negative
-                        ? commands.clearNegativePrompt
-                        : commands.clearPrompt,
-                  ),
+                ),
+                const SizedBox(height: 6),
               ],
-            ),
+              Expanded(
+                child: PromptInputEditor(
+                  key: editorKey,
+                  controller: controller,
+                  commands: commands,
+                  viewData: viewData,
+                  compact: true,
+                ),
+              ),
+
+              PromptInputFooter(
+                target: negative
+                    ? PromptTokenCountTarget.negative
+                    : PromptTokenCountTarget.positive,
+                topPadding: 4,
+                leading: Row(
+                  key: const ValueKey('generation_prompt_compact_actions'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (viewData.showMaximizeButton)
+                      IconButton(
+                        icon: const Icon(Icons.fullscreen),
+                        tooltip: context.l10n.tooltip_fullscreenEdit,
+                        onPressed: commands.toggleMaximize,
+                      ),
+                    if ((negative
+                            ? controller.negativeController
+                            : controller.promptController)
+                        .text
+                        .isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        tooltip: context.l10n.common_clear,
+                        onPressed: negative
+                            ? commands.clearNegativePrompt
+                            : commands.clearPrompt,
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       );
     },
   );

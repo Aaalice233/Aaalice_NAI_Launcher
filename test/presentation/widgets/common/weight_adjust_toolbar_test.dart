@@ -45,6 +45,30 @@ void _registerCleanup(
 }
 
 void main() {
+  testWidgets('disposing after focus loss cancels pending toolbar dismissal', (
+    tester,
+  ) async {
+    final prompt = TextEditingController(text: 'cat');
+    final focus = FocusNode();
+    final page = ScrollController(initialScrollOffset: 100);
+    addTearDown(prompt.dispose);
+    addTearDown(focus.dispose);
+    addTearDown(page.dispose);
+    await _pumpHarness(
+      tester,
+      prompt: prompt,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+    );
+    focus.requestFocus();
+    await tester.pump();
+    focus.unfocus();
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('repeated wheel steps replace the multiline selection weight', (
     tester,
   ) async {
