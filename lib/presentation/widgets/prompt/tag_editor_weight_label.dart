@@ -12,11 +12,13 @@ class TagEditorWeightLabel extends StatefulWidget {
     required this.span,
     this.emphasisColor,
     this.expandable = false,
+    this.onSelect,
   });
 
   final PromptEditSpan span;
   final Color? emphasisColor;
   final bool expandable;
+  final VoidCallback? onSelect;
 
   @override
   State<TagEditorWeightLabel> createState() => _TagEditorWeightLabelState();
@@ -77,7 +79,9 @@ class _TagEditorWeightLabelState extends State<TagEditorWeightLabel> {
             message:
                 '${context.l10n.weight_title}: ${span.prefix}…${span.suffix}',
             child: InkWell(
-              onTap: () => setState(() => _expanded = !_expanded),
+              onTap:
+                  widget.onSelect ??
+                  () => setState(() => _expanded = !_expanded),
               borderRadius: BorderRadius.circular(4),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
@@ -93,9 +97,24 @@ class _TagEditorWeightLabelState extends State<TagEditorWeightLabel> {
                     spacing: 4,
                     children: [
                       badge,
-                      Icon(
-                        _expanded ? Icons.expand_less : Icons.expand_more,
-                        size: 16,
+                      IconButton(
+                        tooltip: _expanded
+                            ? context.l10n.common_collapse
+                            : context.l10n.common_expand,
+                        style: IconButton.styleFrom(
+                          minimumSize: Size.square(touch ? 44 : 24),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => setState(() => _expanded = !_expanded),
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints.tightFor(
+                          width: touch ? 44 : 24,
+                          height: touch ? 44 : 24,
+                        ),
+                        icon: Icon(
+                          _expanded ? Icons.expand_less : Icons.expand_more,
+                          size: 16,
+                        ),
                         color: accent,
                       ),
                     ],

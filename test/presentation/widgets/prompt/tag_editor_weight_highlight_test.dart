@@ -137,7 +137,7 @@ void main() {
         expect(surface('cat'), isNot(surface('bird')));
         final header = find.byType(TagEditorWeightLabel).first;
         await tester.ensureVisible(header);
-        await tester.tap(find.text('×1.3'));
+        await tester.tap(find.byIcon(Icons.expand_more).first);
         await tester.pumpAndSettle();
         expect(
           find.text('1.3::cat, dog::', findRichText: true),
@@ -145,7 +145,7 @@ void main() {
         );
         expect(source.text, text);
         expect(tester.takeException(), isNull);
-        await tester.tap(find.text('×1.3'));
+        await tester.tap(find.byIcon(Icons.expand_less).first);
         await tester.pumpAndSettle();
         expect(find.text('1.3::cat, dog::', findRichText: true), findsNothing);
         expect(tester.takeException(), isNull);

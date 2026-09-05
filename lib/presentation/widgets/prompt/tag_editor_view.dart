@@ -224,6 +224,11 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
 
   void _select(PromptEditorTag tag) {
     if (!widget.enabled) return;
+    if (tag.children.isNotEmpty) {
+      _focus.requestFocus();
+      session.selectGroup(tag);
+      return;
+    }
     final keyboard = HardwareKeyboard.instance;
     if (session.selected.length == 1 &&
         session.selected.contains(tag.id) &&
@@ -357,6 +362,11 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
     final surface = _surfaceKey.currentContext?.findRenderObject();
     if (surface is! RenderBox) return false;
     final local = surface.globalToLocal(globalPosition);
+    final group = session.selectedGroup;
+    if (group != null &&
+        (_tagRect(group.id, surface)?.contains(local) ?? false)) {
+      return true;
+    }
     return session.selected.any(
       (id) => _tagRect(id, surface)?.contains(local) ?? false,
     );

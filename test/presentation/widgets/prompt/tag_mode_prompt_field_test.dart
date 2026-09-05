@@ -34,9 +34,7 @@ Future<void> pumpEditor(
 }) => tester.pumpWidget(
   ProviderScope(
     overrides: [
-      localStorageServiceProvider.overrideWith(
-        (ref) => MemoryLocalStorage(),
-      ),
+      localStorageServiceProvider.overrideWith((ref) => MemoryLocalStorage()),
       zhDictionaryServiceProvider.overrideWith(
         (ref) => dictionary ?? _Dictionary(),
       ),
@@ -96,6 +94,77 @@ Future<void> pumpEditor(
 );
 
 void main() {
+  for (final boxSelect in [false, true]) {
+    testWidgets(
+      'whole group weight from ${boxSelect ? 'box selection' : 'header click'}',
+      (tester) async {
+        final source = TextEditingController(text: '1.20::cat, dog::, bird');
+        addTearDown(source.dispose);
+        await pumpEditor(
+          tester,
+          source,
+          locale: const Locale('en'),
+          policy: const InteractionPolicy(
+            modality: InteractionModality.pointer,
+            touchAvailable: false,
+            precisePointerAvailable: true,
+          ),
+        );
+        await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+        await tester.pumpAndSettle();
+        if (boxSelect) {
+          final cat = tester.getRect(
+            find.ancestor(
+              of: find.text('cat'),
+              matching: find.byType(TagEditorCapsule),
+            ),
+          );
+          final dog = tester.getRect(
+            find.ancestor(
+              of: find.text('dog'),
+              matching: find.byType(TagEditorCapsule),
+            ),
+          );
+          final drag = await tester.startGesture(
+            Offset(cat.left - 3, cat.bottom + 3),
+            kind: PointerDeviceKind.mouse,
+          );
+          await drag.moveBy(const Offset(0, -20));
+          await tester.pump();
+          await drag.moveTo(Offset(dog.right + 3, dog.top - 3));
+          await tester.pump();
+          await drag.up();
+        } else {
+          await tester.tap(find.text('×1.20'));
+        }
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widgetList<TagEditorCapsule>(find.byType(TagEditorCapsule))
+              .where((tag) => tag.selected),
+          hasLength(2),
+        );
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            position: tester.getCenter(find.text(boxSelect ? 'cat' : '×1.20')),
+            scrollDelta: const Offset(0, -20),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(source.text, '1.25::cat, dog::, bird');
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            position: tester.getCenter(find.text('dog')),
+            scrollDelta: const Offset(0, -20),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(source.text, '1.30::cat, dog::, bird');
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('weighted capsules preserve group boundaries at $width', (
       tester,

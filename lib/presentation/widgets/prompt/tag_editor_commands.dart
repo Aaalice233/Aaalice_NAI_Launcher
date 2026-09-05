@@ -69,6 +69,12 @@ class TagEditorCommands {
   bool get canAdjust =>
       session.structureComplete && session.selectedTags.isNotEmpty;
   double? get weight {
+    final group = session.selectedGroup;
+    if (group != null) {
+      return PromptWeightEditing.parseWeightSyntax(
+        '${group.span.prefix}x${group.span.suffix}',
+      ).weight;
+    }
     final weights = session.selectedTags
         .map(
           (tag) => PromptWeightEditing.parseWeightSyntax(tag.span.text).weight,
@@ -82,6 +88,29 @@ class TagEditorCommands {
     final controller = session.controller;
     final numeric =
         controller is! NaiSyntaxController || controller.numericEmphasisEnabled;
+    final group = session.selectedGroup;
+    if (group != null) {
+      // Rewrite only this wrapper; nested weights and leaf identities survive.
+      final shell = PromptWeightEditing.withWeight(
+        '${group.span.prefix}x${group.span.suffix}',
+        value ?? weight! + step!,
+        numericEmphasisEnabled: numeric,
+      );
+      final split = shell.indexOf('x');
+      session.apply([
+        PromptTextPatch(
+          group.span.start,
+          group.span.editStart,
+          shell.substring(0, split),
+        ),
+        PromptTextPatch(
+          group.span.editEnd,
+          group.span.end,
+          shell.substring(split + 1),
+        ),
+      ]);
+      return;
+    }
     session.apply([
       for (final tag in session.selectedTags)
         PromptTextPatch(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/utils/prompt_edit_document.dart';
 import 'tag_editor_projection.dart';
@@ -38,6 +39,9 @@ class TagEditorSession extends ChangeNotifier {
   late TextEditingValue _previous;
   List<PromptEditorTag> tags = [];
   final Set<int> selected = {};
+  // Wrapper IDs are rebuilt after edits; the structural path distinguishes
+  // nested groups with identical leaves while repeated wheel edits change text.
+  List<int>? _selectedGroupPath;
   final List<TextEditingValue> _past = [];
   final List<TextEditingValue> _future = [];
   int _nextId = 0;
@@ -59,6 +63,47 @@ class TagEditorSession extends ChangeNotifier {
   List<PromptEditorTag> get selectedTags =>
       leaves.where((tag) => selected.contains(tag.id)).toList();
   bool get structureComplete => tags.every((tag) => tag.span.complete);
+
+  PromptEditorTag? get selectedGroup {
+    PromptEditorTag? match;
+    PromptEditorTag? explicitMatch;
+    void visit(List<PromptEditorTag> siblings, List<int> parent) {
+      for (var i = 0; i < siblings.length; i++) {
+        final tag = siblings[i];
+        if (tag.children.isEmpty) continue;
+        final path = [...parent, i];
+        final ids = tag.leaves.map((leaf) => leaf.id).toSet();
+        if (ids.length == selected.length && ids.containsAll(selected)) {
+          match = tag;
+          if (listEquals(path, _selectedGroupPath)) explicitMatch = tag;
+        }
+        visit(tag.children, path);
+      }
+    }
+
+    visit(tags, const []);
+    return explicitMatch ?? match;
+  }
+
+  void selectGroup(PromptEditorTag group) {
+    List<int>? locate(List<PromptEditorTag> siblings, List<int> parent) {
+      for (var i = 0; i < siblings.length; i++) {
+        final path = [...parent, i];
+        if (identical(siblings[i], group)) return path;
+        final nested = locate(siblings[i].children, path);
+        if (nested != null) return nested;
+      }
+      return null;
+    }
+
+    _endEditing();
+    _selectedGroupPath = locate(tags, const []);
+    selected
+      ..clear()
+      ..addAll(group.leaves.map((tag) => tag.id));
+    notifyListeners();
+  }
+
   PromptEditorTag? byId(int id) {
     for (final tag in leaves) {
       if (tag.id == id) return tag;
@@ -157,6 +202,7 @@ class TagEditorSession extends ChangeNotifier {
   }
 
   void select(int id, {bool additive = false, bool range = false}) {
+    _selectedGroupPath = null;
     _endEditing();
     if (range && anchor != null) {
       final list = leaves.toList();
@@ -183,6 +229,7 @@ class TagEditorSession extends ChangeNotifier {
   }
 
   void selectAll() {
+    _selectedGroupPath = null;
     _endEditing();
     editing = null;
     selected
@@ -200,6 +247,7 @@ class TagEditorSession extends ChangeNotifier {
   }
 
   void clearSelection() {
+    _selectedGroupPath = null;
     _endEditing();
     selected.clear();
     editing = null;
@@ -428,6 +476,7 @@ class TagEditorSession extends ChangeNotifier {
   }
 
   void setSelection(Iterable<int> ids) {
+    _selectedGroupPath = null;
     selected
       ..clear()
       ..addAll(ids.where((id) => byId(id) != null));

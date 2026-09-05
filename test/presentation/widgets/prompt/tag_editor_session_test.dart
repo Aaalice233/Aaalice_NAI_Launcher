@@ -16,6 +16,44 @@ void main() {
     });
   }
 
+  test('selecting all group leaves changes only the enclosing wrapper', () {
+    create('1.20::cat, 0.80::dog::::, bird');
+    final ids = session.tags.first.leaves.map((tag) => tag.id).toList();
+    session.setSelection(ids);
+    final commands = TagEditorCommands(session);
+    expect(commands.weight, 1.2);
+    commands.adjustWeight(step: 0.05);
+    expect(source.text, '1.25::cat, 0.80::dog::::, bird');
+    expect(session.selected, ids.toSet());
+    commands.adjustWeight(step: 0.05);
+    expect(source.text, '1.30::cat, 0.80::dog::::, bird');
+    session.undo();
+    expect(source.text, '1.25::cat, 0.80::dog::::, bird');
+  });
+
+  test('explicit nested group selection preserves other wrapper levels', () {
+    create('{{cat, dog}}, bird');
+    session.selectGroup(session.tags.first);
+    TagEditorCommands(session).adjustWeight(step: 0.05);
+    expect(source.text, '1.10::{cat, dog}::, bird');
+    TagEditorCommands(session).adjustWeight(step: 0.05);
+    expect(source.text, '1.15::{cat, dog}::, bird');
+    session.setSelection(session.tags.first.leaves.map((tag) => tag.id));
+    TagEditorCommands(session).adjustWeight(step: 0.05);
+    expect(source.text, '1.15::1.10::cat, dog::::, bird');
+  });
+
+  test('partial and cross-group selections still adjust leaves', () {
+    create('{cat, dog}, bird');
+    session.setSelection([session.leaves.first.id]);
+    TagEditorCommands(session).adjustWeight(step: 0.05);
+    expect(source.text, '{1.05::cat::, dog}, bird');
+    session.selectAll();
+    expect(session.selectedGroup, isNull);
+    TagEditorCommands(session).adjustWeight(step: 0.05);
+    expect(source.text, '{1.10::cat::, 1.05::dog::}, 1.05::bird::');
+  });
+
   test(
     'editing one repeated weighted tag preserves other bytes and identity',
     () {

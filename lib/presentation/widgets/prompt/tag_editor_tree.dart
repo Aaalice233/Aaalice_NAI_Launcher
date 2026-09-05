@@ -174,49 +174,76 @@ class _TagEditorTreeState extends State<TagEditorTree> {
     final theme = Theme.of(context);
     final color = _weightColors[tag.span.editStart];
     final weightStyle = color == null ? null : TagEditorWeightStyle(color);
+    final selected = identical(widget.session.selectedGroup, tag);
     return Semantics(
       label: context.l10n.tagMode_group,
-      child: Container(
-        key: ValueKey('tag-weight-group-${tag.id}'),
-        constraints: BoxConstraints(maxWidth: width),
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color:
-              weightStyle?.surface(
-                theme.colorScheme.surfaceContainerLow,
-                group: true,
-              ) ??
-              theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(8),
-          border: BorderDirectional(
-            start: BorderSide(
-              color:
-                  weightStyle?.accent(theme) ??
-                  theme.colorScheme.outlineVariant,
-              width: 2,
+      selected: selected,
+      child: Listener(
+        onPointerSignal: selected
+            ? (event) => widget.onWheel(event, tag.leaves.first.id)
+            : null,
+        child: GestureDetector(
+          onTap: widget.enabled ? () => widget.onSelect(tag) : null,
+          child: Container(
+            key: ValueKey('tag-weight-group-${tag.id}'),
+            constraints: BoxConstraints(maxWidth: width),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: selected
+                  ? Color.alphaBlend(
+                      theme.colorScheme.secondary.withValues(alpha: 0.12),
+                      theme.colorScheme.surfaceContainerLow,
+                    )
+                  : weightStyle?.surface(
+                          theme.colorScheme.surfaceContainerLow,
+                          group: true,
+                        ) ??
+                        theme.colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(8),
+              border: BorderDirectional(
+                start: BorderSide(
+                  color: selected
+                      ? theme.colorScheme.secondary
+                      : weightStyle?.accent(theme) ??
+                            theme.colorScheme.outlineVariant,
+                  width: 2,
+                ),
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: SizedBox(
+                    key: widget.keys.putIfAbsent(tag.id, GlobalKey.new),
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TagEditorWeightLabel(
+                      span: tag.span,
+                      emphasisColor: color,
+                      expandable: true,
+                      onSelect: widget.enabled
+                          ? () => widget.onSelect(tag)
+                          : null,
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: _items(
+                        context,
+                        tag.children,
+                        (width - 14).clamp(0, width),
+                      ).toList(),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TagEditorWeightLabel(
-              span: tag.span,
-              emphasisColor: color,
-              expandable: true,
-            ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: _items(
-                context,
-                tag.children,
-                (width - 14).clamp(0, width),
-              ).toList(),
-            ),
-          ],
         ),
       ),
     );
