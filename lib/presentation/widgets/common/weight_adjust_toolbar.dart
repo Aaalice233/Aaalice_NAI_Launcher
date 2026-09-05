@@ -9,6 +9,7 @@ import '../../../core/utils/prompt_edit_document.dart';
 import '../prompt/prompt_action_overlay.dart';
 import '../prompt/prompt_weight_controls.dart';
 import '../prompt/prompt_translation_caption.dart';
+import '../prompt/tag_editor_scope.dart';
 
 /// 权重调整工具条包装器
 ///
@@ -87,6 +88,14 @@ class _WeightAdjustToolbarWrapperState
   @override
   void didUpdateWidget(WeightAdjustToolbarWrapper oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.enabled && !widget.enabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !widget.enabled) _hideToolbar();
+      });
+    }
+    if (!oldWidget.enabled && widget.enabled) {
+      _scheduleControllerSelectionSync(widget.controller);
+    }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onSelectionChanged);
       widget.controller.addListener(_onSelectionChanged);
@@ -363,6 +372,9 @@ class _WeightAdjustToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selection = controller.selection;
+    final session = TagEditorScope.maybeOf(context);
+    final tags = session?.textSelectionTags ?? [];
+    final enable = tags.isNotEmpty && tags.every((tag) => tag.span.disabled);
     final selected = PromptEditDocument.singleSelected(
       controller.text,
       selection.start,
@@ -395,7 +407,21 @@ class _WeightAdjustToolbar extends StatelessWidget {
                 onWeight: _weight,
                 onStep: _step,
                 trailing: [
-                  if (selected != null)
+                  if (tags.isNotEmpty)
+                    IconButton(
+                      key: const ValueKey('text-selection-enabled-button'),
+                      tooltip: enable
+                          ? context.l10n.tagMode_enable
+                          : context.l10n.tagMode_disable,
+                      onPressed: () => session!.setTextSelectionEnabled(enable),
+                      icon: Icon(
+                        enable
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 18,
+                      ),
+                    )
+                  else if (session == null && selected != null)
                     IconButton(
                       tooltip: selected.disabled
                           ? context.l10n.tagMode_enable

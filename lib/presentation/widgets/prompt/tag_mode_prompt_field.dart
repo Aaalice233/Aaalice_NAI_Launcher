@@ -10,6 +10,7 @@ import 'tag_editor_view.dart';
 import 'nai_syntax_controller.dart';
 import 'prompt_viewport_actions.dart';
 import '../common/themed_confirm_dialog.dart';
+import '../common/weight_adjust_toolbar.dart';
 
 /// Keeps the text editor mounted so its viewport and native editing state
 /// survive mode switches. Tag edits are transactions on the same controller.
@@ -33,6 +34,7 @@ class TagModePromptField extends ConsumerStatefulWidget {
     this.onClear,
     this.clearNeedsConfirm = false,
     this.showModeSwitch = true,
+    this.enableWheelAdjustment = true,
   });
   final TextEditingController controller;
   final Object? sessionId;
@@ -49,6 +51,7 @@ class TagModePromptField extends ConsumerStatefulWidget {
   final VoidCallback? onClear;
   final bool clearNeedsConfirm;
   final bool showModeSwitch;
+  final bool enableWheelAdjustment;
   final Color? surfaceColor;
   final bool enabled;
   final bool enableAutocomplete;
@@ -70,9 +73,15 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
   }
 
   void _attach() {
-    _session = TagEditorSession(widget.controller)
-      ..tagMode = ref.read(promptTagModeProvider(_modeId))
-      ..addListener(_changed);
+    _session =
+        TagEditorSession(
+            widget.controller,
+            onCommandChanged: (text) {
+              if (!_session.tagMode) widget.onChanged?.call(text);
+            },
+          )
+          ..tagMode = ref.read(promptTagModeProvider(_modeId))
+          ..addListener(_changed);
     _lastText = widget.controller.text;
   }
 
@@ -170,7 +179,13 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
                 maintainSize: true,
                 maintainAnimation: true,
                 maintainState: true,
-                child: widget.child,
+                child: WeightAdjustToolbarWrapper(
+                  controller: widget.controller,
+                  focusNode: widget.sourceFocusNode,
+                  enabled: widget.enabled && !_session.tagMode,
+                  enableWheelAdjustment: widget.enableWheelAdjustment,
+                  child: widget.child,
+                ),
               ),
             ),
             // Null insets use normal Stack sizing without reparenting the

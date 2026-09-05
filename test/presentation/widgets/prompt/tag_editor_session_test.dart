@@ -19,6 +19,33 @@ void main() {
     });
   }
 
+  test(
+    'text selection toggles whole mixed tags without changing group shells',
+    () {
+      const original = '{cat, /*disabled:dog*/}, bird';
+      create(original);
+      source.selection = TextSelection(
+        baseOffset: original.indexOf('dog') + 2,
+        extentOffset: original.indexOf('cat') + 1,
+      );
+      final selection = source.selection;
+      expect(session.textSelectionTags, hasLength(2));
+      session.setTextSelectionEnabled(false);
+      expect(source.text, '{/*disabled:cat*/, /*disabled:dog*/}, bird');
+      expect(
+        source.selection.baseOffset,
+        greaterThan(source.selection.extentOffset),
+      );
+      session.setTextSelectionEnabled(true);
+      expect(source.text, '{cat, dog}, bird');
+      session.undo();
+      expect(source.text, '{/*disabled:cat*/, /*disabled:dog*/}, bird');
+      session.undo();
+      expect(source.text, original);
+      expect(source.selection, selection);
+    },
+  );
+
   test('selecting all group leaves changes only the enclosing wrapper', () {
     create('1.20::cat, 0.80::dog::::, bird');
     final ids = session.tags.first.leaves.map((tag) => tag.id).toList();

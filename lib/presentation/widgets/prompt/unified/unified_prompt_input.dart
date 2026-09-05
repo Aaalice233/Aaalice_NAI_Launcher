@@ -34,6 +34,7 @@ import '../../../providers/prompt_regex_rules_provider.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import '../tag_mode_prompt_field.dart';
+import '../prompt_text_selection_actions.dart';
 import 'unified_prompt_config.dart';
 import 'prompt_scroll_coordinator.dart';
 import '../prompt_weight_editing.dart';
@@ -1056,6 +1057,12 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       );
     }
 
+    final enabledAction = promptTextSelectionEnabledAction(
+      context,
+      editableTextState,
+    );
+    if (enabledAction != null) buttonItems.insert(0, enabledAction);
+
     return buildThemedTextSelectionToolbar(
       context,
       anchors: editableTextState.contextMenuAnchors,
@@ -1495,6 +1502,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         surfaceColor: widget.surfaceColor,
         enabled: !widget.config.readOnly,
         enableAutocomplete: widget.config.enableAutocomplete,
+        enableWheelAdjustment: enableWheelAdjustment,
         onChanged: _handleTextChanged,
         onSearch: (replace) => _openSearch(showReplace: replace),
         child: clipboardAwareInput,
@@ -1502,13 +1510,15 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
 
     // 包装权重调整工具条
-    Widget result = WeightAdjustToolbarWrapper(
-      controller: _effectiveController,
-      focusNode: _effectiveFocusNode,
-      enableWheelAdjustment: enableWheelAdjustment,
-      enabled: !_tagMode && !widget.config.readOnly,
-      child: clipboardAwareInput,
-    );
+    Widget result = widget.config.enableTagMode
+        ? clipboardAwareInput
+        : WeightAdjustToolbarWrapper(
+            controller: _effectiveController,
+            focusNode: _effectiveFocusNode,
+            enableWheelAdjustment: enableWheelAdjustment,
+            enabled: !_tagMode && !widget.config.readOnly,
+            child: clipboardAwareInput,
+          );
 
     // 如果启用自动补全，使用 AutocompleteWrapper 包装
     if (widget.config.enableAutocomplete) {

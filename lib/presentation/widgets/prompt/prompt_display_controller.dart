@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../common/themed_text_selection_toolbar.dart';
 import 'prompt_text_projection.dart';
+import 'prompt_text_selection_actions.dart';
 
 /// A native editing view over a source controller. All persistent edits and
 /// undo transactions still belong to the source; only offsets are projected.
@@ -68,6 +69,8 @@ class PromptDisplayController extends TextEditingController {
         },
       );
     }).toList();
+    final enabledAction = promptTextSelectionEnabledAction(context, editable);
+    if (enabledAction != null) items.insert(0, enabledAction);
     return buildThemedTextSelectionToolbar(
       context,
       anchors: editable.contextMenuAnchors,

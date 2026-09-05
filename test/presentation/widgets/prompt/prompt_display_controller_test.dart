@@ -9,6 +9,48 @@ import 'package:nai_launcher/presentation/widgets/prompt/nai_syntax_controller.d
 import 'package:nai_launcher/presentation/widgets/prompt/tag_mode_prompt_field.dart';
 
 void main() {
+  for (final readOnly in [false, true]) {
+    testWidgets('standalone native menu respects readOnly=$readOnly', (
+      tester,
+    ) async {
+      const original = 'cat, /*disabled:dog*/';
+      final source = NaiSyntaxController(text: original);
+      addTearDown(source.dispose);
+      await _pump(tester, source, readOnly: readOnly);
+      await tester.tap(find.byType(TextField));
+      source.displayController.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 8,
+      );
+      await tester.pumpAndSettle();
+      final editable = tester.state<EditableTextState>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is EditableText &&
+              identical(widget.controller, source.displayController),
+        ),
+      );
+      expect(editable.showToolbar(), isTrue);
+      await tester.pumpAndSettle();
+      final label = AppLocalizations.of(editable.context)!.tagMode_disable;
+      if (readOnly) {
+        expect(find.text(label), findsNothing);
+        expect(
+          find.byKey(const ValueKey('text-selection-enabled-button')),
+          findsNothing,
+        );
+        expect(source.text, original);
+      } else {
+        await tester.tap(find.text(label));
+        await tester.pumpAndSettle();
+        expect(source.text, '/*disabled:cat*/, /*disabled:dog*/');
+        expect(source.displayController.text, 'cat, dog');
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 250));
+    });
+  }
   testWidgets(
     'copy cut and paste preserve disabled source while displaying plain labels',
     (tester) async {
@@ -250,24 +292,30 @@ void main() {
   });
 }
 
-Future<void> _pump(WidgetTester tester, NaiSyntaxController source) =>
-    tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(
-              height: 200,
-              child: TagModePromptField(
-                controller: source,
-                child: ThemedInput(
-                  controller: source.displayController,
-                  maxLines: null,
-                ),
-              ),
+Future<void> _pump(
+  WidgetTester tester,
+  NaiSyntaxController source, {
+  bool readOnly = false,
+}) => tester.pumpWidget(
+  ProviderScope(
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: SizedBox(
+          height: 200,
+          child: TagModePromptField(
+            controller: source,
+            enabled: !readOnly,
+            child: ThemedInput(
+              controller: source.displayController,
+              readOnly: readOnly,
+              contextMenuBuilder: source.displayController.buildContextMenu,
+              maxLines: null,
             ),
           ),
         ),
       ),
-    );
+    ),
+  ),
+);

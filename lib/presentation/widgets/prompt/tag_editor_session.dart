@@ -31,12 +31,13 @@ class PromptTextPatch {
 /// UI identity, selection and undo belong to the editor, while the controller
 /// remains the only owner of prompt content. Both views use these transactions.
 class TagEditorSession extends ChangeNotifier {
-  TagEditorSession(this.controller) {
+  TagEditorSession(this.controller, {this.onCommandChanged}) {
     _previous = controller.value;
     _reparse(const {});
     controller.addListener(_changed);
   }
   final TextEditingController controller;
+  final ValueChanged<String>? onCommandChanged;
   late TextEditingValue _previous;
   List<PromptEditorTag> tags = [];
   List<PromptEditorTag> _leaves = [];
@@ -69,6 +70,34 @@ class TagEditorSession extends ChangeNotifier {
   List<PromptEditorTag> get selectedTags =>
       leaves.where((tag) => selected.contains(tag.id)).toList();
   bool get structureComplete => tags.every((tag) => tag.span.complete);
+
+  List<PromptEditorTag> get textSelectionTags {
+    final range = controller.selection;
+    if (!structureComplete || !range.isValid || range.isCollapsed) return [];
+    return leaves
+        .where(
+          (tag) => tag.span.start < range.end && tag.span.end > range.start,
+        )
+        .toList();
+  }
+
+  void setTextSelectionEnabled(bool enabled) {
+    final before = controller.selection;
+    final ids = textSelectionTags.map((tag) => tag.id).toList();
+    if (ids.isEmpty) return;
+    toggleEnabled(ids, enabled: enabled);
+    final targets = ids.map(byId).whereType<PromptEditorTag>().toList();
+    if (targets.isEmpty) return;
+    // Operate on whole tags, preserving their weight shells and delimiters.
+    // Retain the selected range so the same toolbar can reverse the action.
+    final start = targets.first.span.start;
+    final end = targets.last.span.end;
+    final forward = before.baseOffset <= before.extentOffset;
+    controller.selection = before.copyWith(
+      baseOffset: forward ? start : end,
+      extentOffset: forward ? end : start,
+    );
+  }
 
   PromptEditorTag? get selectedGroup {
     PromptEditorTag? match;
@@ -378,6 +407,7 @@ class TagEditorSession extends ChangeNotifier {
       _applying = false;
     }
     notifyListeners();
+    onCommandChanged?.call(controller.text);
   }
 
   void replaceLabel(int id, String label, {bool composing = false}) {
@@ -620,6 +650,7 @@ class TagEditorSession extends ChangeNotifier {
     } finally {
       _restoring = false;
     }
+    onCommandChanged?.call(controller.text);
   }
 
   @override
