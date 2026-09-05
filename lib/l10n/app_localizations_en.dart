@@ -8212,6 +8212,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shortcut_action_navigate_to_settings => 'Settings';
 
   @override
+  String get shortcut_action_navigate_to_vibe_library => 'Vibe Library';
+
+  @override
   String get shortcut_action_generate_image => 'Generate Image';
 
   @override
@@ -8389,6 +8392,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shortcut_action_toggle_theme => 'Toggle Theme';
+
+  @override
+  String get shortcut_action_vibe_import => 'Import Vibe';
+
+  @override
+  String get shortcut_action_vibe_export => 'Export Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_send_to_generation =>
+      'Send to Generation';
+
+  @override
+  String get shortcut_action_vibe_detail_export => 'Export';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => 'Rename';
+
+  @override
+  String get shortcut_action_vibe_detail_delete => 'Delete';
+
+  @override
+  String get shortcut_action_vibe_detail_toggle_favorite => 'Toggle Favorite';
+
+  @override
+  String get shortcut_action_vibe_detail_prev_sub_vibe => 'Previous Child Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_next_sub_vibe => 'Next Child Vibe';
 
   @override
   String get shortcut_settings_title => 'Keyboard Shortcuts';
@@ -9673,9 +9704,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shortcut_context_vibe_detail => 'Vibe Detail';
-
-  @override
-  String get shortcut_action_vibe_detail_rename => 'Rename';
 
   @override
   String get vibeSelectorFilterFavorites => 'Favorites';

@@ -20,6 +20,8 @@ String shortcutActionDisplayName(AppLocalizations l10n, String actionKey) {
       return l10n.shortcut_action_navigate_to_statistics;
     case 'shortcut_action_navigate_to_settings':
       return l10n.shortcut_action_navigate_to_settings;
+    case 'shortcut_action_navigate_to_vibe_library':
+      return l10n.shortcut_action_navigate_to_vibe_library;
     case 'shortcut_action_generate_image':
       return l10n.shortcut_action_generate_image;
     case 'shortcut_action_generation_prev_image':
@@ -138,10 +140,31 @@ String shortcutActionDisplayName(AppLocalizations l10n, String actionKey) {
       return l10n.shortcut_action_toggle_queue_pause;
     case 'shortcut_action_toggle_theme':
       return l10n.shortcut_action_toggle_theme;
+    case 'shortcut_action_vibe_import':
+      return l10n.shortcut_action_vibe_import;
+    case 'shortcut_action_vibe_export':
+      return l10n.shortcut_action_vibe_export;
+    case 'shortcut_action_vibe_detail_send_to_generation':
+      return l10n.shortcut_action_vibe_detail_send_to_generation;
+    case 'shortcut_action_vibe_detail_export':
+      return l10n.shortcut_action_vibe_detail_export;
+    case 'shortcut_action_vibe_detail_rename':
+      return l10n.shortcut_action_vibe_detail_rename;
+    case 'shortcut_action_vibe_detail_delete':
+      return l10n.shortcut_action_vibe_detail_delete;
+    case 'shortcut_action_vibe_detail_toggle_favorite':
+      return l10n.shortcut_action_vibe_detail_toggle_favorite;
+    case 'shortcut_action_vibe_detail_prev_sub_vibe':
+      return l10n.shortcut_action_vibe_detail_prev_sub_vibe;
+    case 'shortcut_action_vibe_detail_next_sub_vibe':
+      return l10n.shortcut_action_vibe_detail_next_sub_vibe;
     default:
-      return actionKey.replaceAll('shortcut_action_', '');
+      return shortcutActionFallbackName(actionKey);
   }
 }
+
+String shortcutActionFallbackName(String actionKey) =>
+    actionKey.replaceAll('shortcut_action_', '');
 
 String shortcutContextDisplayName(
   AppLocalizations l10n,

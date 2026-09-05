@@ -8016,6 +8016,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shortcut_action_navigate_to_settings => '設定';
 
   @override
+  String get shortcut_action_navigate_to_vibe_library => 'Vibe ライブラリ';
+
+  @override
   String get shortcut_action_generate_image => '画像の生成';
 
   @override
@@ -8191,6 +8194,33 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get shortcut_action_toggle_theme => 'テーマの切り替え';
+
+  @override
+  String get shortcut_action_vibe_import => 'Vibe をインポート';
+
+  @override
+  String get shortcut_action_vibe_export => 'Vibe をエクスポート';
+
+  @override
+  String get shortcut_action_vibe_detail_send_to_generation => '生成ページに送信';
+
+  @override
+  String get shortcut_action_vibe_detail_export => 'エクスポート';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => '名前の変更';
+
+  @override
+  String get shortcut_action_vibe_detail_delete => '削除';
+
+  @override
+  String get shortcut_action_vibe_detail_toggle_favorite => 'お気に入りの切り替え';
+
+  @override
+  String get shortcut_action_vibe_detail_prev_sub_vibe => '前の子 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_next_sub_vibe => '次の子 Vibe';
 
   @override
   String get shortcut_settings_title => 'キーボード ショートカット';
@@ -9455,9 +9485,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get shortcut_context_vibe_detail => 'Vibe 詳細';
-
-  @override
-  String get shortcut_action_vibe_detail_rename => '名前の変更';
 
   @override
   String get vibeSelectorFilterFavorites => 'お気に入り';

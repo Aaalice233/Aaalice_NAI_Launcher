@@ -33,7 +33,7 @@ class _SharedShortcutConfigNotifier extends ShortcutConfigNotifier {
 void main() {
   group('文案解析', () {
     for (final locale in _locales) {
-      test('${locale.languageCode} 下默认绑定的动作与分类都有非空文案', () {
+      test('${locale.languageCode} 下默认绑定的动作与分类都有译文', () {
         final l10n = lookupAppLocalizations(locale);
         final config = ShortcutConfig.createDefault();
 
@@ -45,6 +45,24 @@ void main() {
             reason: binding.actionKey,
           );
         }
+
+        final untranslated =
+            config.bindings.values
+                .map((binding) => binding.actionKey)
+                .where(
+                  (actionKey) =>
+                      shortcutActionDisplayName(l10n, actionKey) ==
+                      shortcutActionFallbackName(actionKey),
+                )
+                .toList()
+              ..sort();
+
+        expect(
+          untranslated,
+          isEmpty,
+          reason: '默认绑定必须收录进 shortcutActionDisplayName，不能退回裸键名：$untranslated',
+        );
+
         for (final shortcutContext in ShortcutContext.values) {
           expect(
             shortcutContextDisplayName(l10n, shortcutContext),
