@@ -42,6 +42,7 @@ class _PromptAssistantProcessingButtonState
               foregroundColor: Colors.white,
               hoverColor: const Color(0x24FFFFFF),
               padding: EdgeInsets.zero,
+              shape: const CircleBorder(),
             ),
             icon: Semantics(
               label: widget.label,

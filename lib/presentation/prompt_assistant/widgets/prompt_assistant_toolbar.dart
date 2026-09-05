@@ -124,7 +124,9 @@ class PromptAssistantToolbar extends StatelessWidget {
             : expanded
             ? overlaySurfaceColor(colors).withValues(alpha: 1)
             : ImageOverlayControlStyle.surface,
-        shape: idle
+        shape: processing
+            ? const CircleBorder()
+            : idle
             ? const StadiumBorder()
             : RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         clipBehavior: Clip.antiAlias,
