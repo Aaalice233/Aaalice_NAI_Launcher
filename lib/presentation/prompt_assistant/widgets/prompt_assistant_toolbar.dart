@@ -4,6 +4,7 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/localization_extension.dart';
 import 'prompt_assistant_processing_button.dart';
 import '../../widgets/common/card_action_buttons.dart';
+import '../../themes/core/layered_surface_style.dart';
 
 /// Geometry is shared by every mounting surface and both expansion states.
 class PromptAssistantToolbarMetrics {
@@ -106,6 +107,8 @@ class PromptAssistantToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final idle = !expanded && !processing;
+    final colors = Theme.of(context).colorScheme;
     return SizedBox(
       key: ValueKey('prompt_assistant_toolbar_$sessionId'),
       height: metrics.extent,
@@ -115,13 +118,14 @@ class PromptAssistantToolbar extends StatelessWidget {
           ? metrics.expandedWidth
           : metrics.collapsedWidth,
       child: Material(
-        color: expanded
-            ? ImageOverlayControlStyle.toolbarSurface
+        color: idle
+            ? Colors.transparent
+            : expanded
+            ? overlaySurfaceColor(colors).withValues(alpha: 1)
             : ImageOverlayControlStyle.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: ImageOverlayControlStyle.border),
-        ),
+        shape: idle
+            ? const StadiumBorder()
+            : RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         clipBehavior: Clip.antiAlias,
         child: processing
             ? PromptAssistantProcessingButton(
@@ -154,18 +158,27 @@ class PromptAssistantToolbar extends StatelessWidget {
       action.icon,
       size: policy.shouldExposeTouchAlternatives ? 20 : 17,
     );
+    final colors = Theme.of(context).colorScheme;
+    final idle = !expanded && !processing;
     final style = ButtonStyle(
+      backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
       foregroundColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.disabled)
-            ? Colors.white54
-            : Colors.white,
+            ? colors.onSurface.withValues(alpha: 0.38)
+            : colors.onSurface,
       ),
-      overlayColor: const WidgetStatePropertyAll(Color(0x24FFFFFF)),
+      overlayColor: WidgetStatePropertyAll(
+        colors.onSurface.withValues(alpha: 0.1),
+      ),
       padding: const WidgetStatePropertyAll(EdgeInsets.zero),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.standard,
       shape: WidgetStatePropertyAll(
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        idle
+            ? action.label == null
+                  ? const CircleBorder()
+                  : const StadiumBorder()
+            : RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
     );
     return Tooltip(
