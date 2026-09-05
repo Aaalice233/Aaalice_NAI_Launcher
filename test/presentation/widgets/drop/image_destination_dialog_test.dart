@@ -104,7 +104,10 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
     expect(find.byType(Dialog), findsNothing);
     final dialogContext = tester.element(find.byType(ImageDestinationDialog));
     final l10n = AppLocalizations.of(dialogContext)!;
@@ -338,7 +341,7 @@ void main() {
             .state<ScrollableState>(detailsScrollable)
             .position;
         expect(scrollPosition.maxScrollExtent, greaterThan(0));
-        final presentationKey = scenario.size.width < 840
+        final presentationKey = scenario.size.width < 600
             ? const ValueKey('adaptive-bottom-sheet')
             : const ValueKey('adaptive-centered-form');
         expect(find.byKey(presentationKey), findsNWidgets(2));
@@ -388,8 +391,7 @@ void main() {
       );
       expect(find.text('Metadata could not be parsed'), findsOneWidget);
       expect(target.hitTestable(), findsOneWidget);
-      final availableHeight = scenario.size.height - scenario.keyboard;
-      final presentation = scenario.size.width < 600 || availableHeight < 560
+      final presentation = scenario.size.width < 600
           ? find.byKey(const ValueKey('adaptive-bottom-sheet'))
           : find.byKey(const ValueKey('adaptive-centered-form'));
       expect(presentation, findsOneWidget);
@@ -426,7 +428,7 @@ void main() {
 
         final presentation = find.byKey(
           ValueKey(
-            width < 840 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
+            width < 600 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
           ),
         );
         expect(presentation, findsOneWidget);

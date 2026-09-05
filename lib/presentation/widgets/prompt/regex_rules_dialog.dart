@@ -140,10 +140,10 @@ class _RegexRulesDialogState extends ConsumerState<RegexRulesDialog> {
               const SizedBox(height: 16),
               _buildTestSection(theme, colorScheme, rules),
               const SizedBox(height: 12),
+              _buildFooter(theme, colorScheme),
             ],
           ),
         ),
-        _buildFooter(theme, colorScheme),
       ],
     );
   }

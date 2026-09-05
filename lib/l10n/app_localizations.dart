@@ -1643,12 +1643,6 @@ abstract class AppLocalizations {
   /// **'Set as default account'**
   String get settings_setAsDefaultSuccess;
 
-  /// No description provided for @generation_title.
-  ///
-  /// In en, this message translates to:
-  /// **'Generate'**
-  String get generation_title;
-
   /// No description provided for @generation_gestureEditPrompt.
   ///
   /// In en, this message translates to:
@@ -8454,12 +8448,6 @@ abstract class AppLocalizations {
   /// **'{enabled} / {total} enabled'**
   String characterTooltip_enabledSummary(int enabled, int total);
 
-  /// No description provided for @characterTooltip_more.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} more characters'**
-  String characterTooltip_more(int count);
-
   /// No description provided for @tagLibrary_generatedCharacters.
   ///
   /// In en, this message translates to:
@@ -9234,12 +9222,6 @@ abstract class AppLocalizations {
   /// **'Reset to default configuration'**
   String get randomManager_resetDefaultDone;
 
-  /// No description provided for @randomManager_generatePreview.
-  ///
-  /// In en, this message translates to:
-  /// **'Generate Preview'**
-  String get randomManager_generatePreview;
-
   /// No description provided for @randomManager_importExport.
   ///
   /// In en, this message translates to:
@@ -9594,59 +9576,11 @@ abstract class AppLocalizations {
   /// **'No sample generated yet'**
   String get randomManager_previewHint;
 
-  /// No description provided for @randomManager_generateNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Generate Now'**
-  String get randomManager_generateNow;
-
   /// No description provided for @randomManager_moreActions.
   ///
   /// In en, this message translates to:
   /// **'More Actions'**
   String get randomManager_moreActions;
-
-  /// No description provided for @randomManager_deleteSelected.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete Selected'**
-  String get randomManager_deleteSelected;
-
-  /// No description provided for @randomManager_keyboardShortcuts.
-  ///
-  /// In en, this message translates to:
-  /// **'Keyboard Shortcuts'**
-  String get randomManager_keyboardShortcuts;
-
-  /// No description provided for @randomManager_generalShortcuts.
-  ///
-  /// In en, this message translates to:
-  /// **'General'**
-  String get randomManager_generalShortcuts;
-
-  /// No description provided for @randomManager_presetActions.
-  ///
-  /// In en, this message translates to:
-  /// **'Preset Actions'**
-  String get randomManager_presetActions;
-
-  /// No description provided for @randomManager_selectionActions.
-  ///
-  /// In en, this message translates to:
-  /// **'Selection Actions'**
-  String get randomManager_selectionActions;
-
-  /// No description provided for @randomManager_closeWindow.
-  ///
-  /// In en, this message translates to:
-  /// **'Close Window'**
-  String get randomManager_closeWindow;
-
-  /// No description provided for @randomManager_refreshOrSync.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh / Sync'**
-  String get randomManager_refreshOrSync;
 
   /// No description provided for @scope_global.
   ///
@@ -11454,12 +11388,6 @@ abstract class AppLocalizations {
   /// **'Suffix'**
   String get fixedTags_suffix;
 
-  /// No description provided for @fixedTags_disabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled'**
-  String get fixedTags_disabled;
-
   /// No description provided for @fixedTags_weight.
   ///
   /// In en, this message translates to:
@@ -11717,12 +11645,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Click to manage, long-press sidebar'**
   String get fixedTags_clickManageLongPressCompact;
-
-  /// No description provided for @fixedTags_linked.
-  ///
-  /// In en, this message translates to:
-  /// **'Linked'**
-  String get fixedTags_linked;
 
   /// No description provided for @fixedTags_linkCount.
   ///
@@ -13161,12 +13083,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} skipped'**
   String tagLibrary_skippedCount(Object count);
-
-  /// No description provided for @tagLibrary_dragToCategoryHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Drag to the category panel to file'**
-  String get tagLibrary_dragToCategoryHint;
 
   /// No description provided for @tagLibrary_unknownCategory.
   ///
@@ -15573,12 +15489,6 @@ abstract class AppLocalizations {
   /// **'New Category'**
   String get vibeLibrary_createCategoryTitle;
 
-  /// No description provided for @vibeLibrary_createSubCategoryTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'New Subcategory'**
-  String get vibeLibrary_createSubCategoryTitle;
-
   /// No description provided for @vibeLibrary_categoryNameHint.
   ///
   /// In en, this message translates to:
@@ -15650,12 +15560,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Refresh'**
   String get vibeLibrary_refresh;
-
-  /// No description provided for @vibeLibrary_loading.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading...'**
-  String get vibeLibrary_loading;
 
   /// No description provided for @vibeLibrary_totalCount.
   ///
@@ -15752,18 +15656,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Importing...'**
   String get vibeLibrary_importing;
-
-  /// No description provided for @vibeLibrary_pageIndicator.
-  ///
-  /// In en, this message translates to:
-  /// **'{current} / {total} pages'**
-  String vibeLibrary_pageIndicator(Object current, Object total);
-
-  /// No description provided for @vibeLibrary_itemsPerPage.
-  ///
-  /// In en, this message translates to:
-  /// **'Per page:'**
-  String get vibeLibrary_itemsPerPage;
 
   /// No description provided for @vibeLibrary_tooManyTitle.
   ///
@@ -20727,12 +20619,6 @@ abstract class AppLocalizations {
   /// **'Delete failed. The entry and original image were kept; try again later'**
   String get preciseRefLib_deleteFailed;
 
-  /// No description provided for @preciseRefLib_favoritesOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Favorites only'**
-  String get preciseRefLib_favoritesOnly;
-
   /// No description provided for @preciseRefLib_sortBy.
   ///
   /// In en, this message translates to:
@@ -21957,12 +21843,6 @@ abstract class AppLocalizations {
   /// **'Failed to re-encode Vibe: {name}'**
   String vibe_import_reencodeFailed(String name);
 
-  /// No description provided for @randomManager_keyboardShortcutsHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Keyboard Shortcuts (press ? to view)'**
-  String get randomManager_keyboardShortcutsHint;
-
   /// No description provided for @galleryScan_skipped.
   ///
   /// In en, this message translates to:
@@ -22825,12 +22705,6 @@ abstract class AppLocalizations {
   /// **'Random library'**
   String get randomManager_workspaceTitle;
 
-  /// No description provided for @randomManager_workspaceSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Build reusable recipes from the complete offline catalog'**
-  String get randomManager_workspaceSubtitle;
-
   /// No description provided for @randomManager_recipeTitle.
   ///
   /// In en, this message translates to:
@@ -22848,12 +22722,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Generation setup'**
   String get randomManager_inspectorTitle;
-
-  /// No description provided for @randomManager_inspectorSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Adjust character distribution and global output behavior for this preset'**
-  String get randomManager_inspectorSubtitle;
 
   /// No description provided for @randomManager_previewEmptyDescription.
   ///
@@ -23322,12 +23190,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Branch (usually main)'**
   String get cloudSync_branch;
-
-  /// No description provided for @cloudSync_testFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection test failed'**
-  String get cloudSync_testFailed;
 
   /// No description provided for @cloudSync_operationFailed.
   ///

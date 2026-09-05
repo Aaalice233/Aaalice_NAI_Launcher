@@ -537,9 +537,7 @@ void main() {
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
-        final filterPanel = find.byKey(
-          const ValueKey('adaptive-centered-form'),
-        );
+        final filterPanel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
         expect(filterPanel, findsOneWidget);
         expect(
           find.descendant(

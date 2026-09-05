@@ -304,7 +304,6 @@
   "settings_avatarUpdated": "アバターが更新されました",
   "settings_avatarRemoved": "アバターが削除されました",
   "settings_setAsDefaultSuccess": "デフォルトのアカウントとして設定",
-  "generation_title": "生成",
   "generation_gestureEditPrompt": "下にスワイプしてプロンプトを編集",
   "generation_gestureOpenAgent": "上にスワイプして AI アシスタントを開く",
   "generation_promptOverviewCharacters": "{count} 文字",
@@ -2004,12 +2003,6 @@
       "total": {"type": "int"}
     }
   },
-  "characterTooltip_more": "他 {count} 人のキャラクター",
-  "@characterTooltip_more": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
   "tagLibrary_generatedCharacters": "{count} キャラクターを生成しました",
   "@tagLibrary_generatedCharacters": {
     "placeholders": {
@@ -2229,7 +2222,6 @@
   "randomManager_resetDefaultContent": "公式のデフォルト構成を復元します。\nカスタム タグ グループは保持されますが、無効になります。",
   "randomManager_resetDefaultConfirm": "リセット",
   "randomManager_resetDefaultDone": "デフォルト構成にリセット",
-  "randomManager_generatePreview": "プレビューの生成",
   "randomManager_importExport": "インポート / エクスポート",
   "randomManager_syncDanbooruTags": "Danbooru タグを同期",
   "randomManager_unknownError": "不明なエラー",
@@ -2314,15 +2306,7 @@
     }
   },
   "randomManager_previewHint": "サンプルはまだ生成されていません",
-  "randomManager_generateNow": "今すぐ生成",
   "randomManager_moreActions": "その他のアクション",
-  "randomManager_deleteSelected": "選択したものを削除",
-  "randomManager_keyboardShortcuts": "キーボード ショートカット",
-  "randomManager_generalShortcuts": "一般",
-  "randomManager_presetActions": "プリセットアクション",
-  "randomManager_selectionActions": "選択アクション",
-  "randomManager_closeWindow": "ウィンドウを閉じる",
-  "randomManager_refreshOrSync": "更新/同期",
   "scope_global": "メイン",
   "scope_globalTooltip": "プロンプトはメイン プロンプト領域に表示されます\n適した用途: 背景、シーン、スタイルなど。",
   "scope_character": "キャラクター",
@@ -2865,7 +2849,6 @@
   "fixedTags_openLibrary": "ライブラリを開く",
   "fixedTags_prefix": "プレフィックス",
   "fixedTags_suffix": "サフィックス",
-  "fixedTags_disabled": "無効",
   "fixedTags_weight": "ウェイト",
   "fixedTags_position": "位置",
   "fixedTags_name": "名前",
@@ -2925,7 +2908,6 @@
   "fixedTags_uncategorized": "未分類",
   "fixedTags_clickManageLongPressSidebar": "クリックして管理し、長押ししてサイドバーを開きます",
   "fixedTags_clickManageLongPressCompact": "クリックしてサイドバーを長押しして管理します",
-  "fixedTags_linked": "リンクされました",
   "fixedTags_linkCount": "{count} リンクされました",
   "@fixedTags_linkCount": {
     "placeholders": {
@@ -3333,7 +3315,6 @@
       "count": {}
     }
   },
-  "tagLibrary_dragToCategoryHint": "カテゴリ パネルにドラッグしてファイルします",
   "tagLibrary_unknownCategory": "不明なカテゴリ",
   "tagLibrary_selectEntryToUpdate": "更新するエントリを選択してください",
   "tagLibrary_updatePreview": "プレビューを更新",
@@ -3997,7 +3978,6 @@
   "vibeLibrary_title": "バイブライブラリ",
   "vibeLibrary_categories": "カテゴリ",
   "vibeLibrary_createCategoryTitle": "新しいカテゴリ",
-  "vibeLibrary_createSubCategoryTitle": "新しいサブカテゴリ",
   "vibeLibrary_categoryNameHint": "カテゴリ名を入力してください",
   "vibeLibrary_createCategoryConfirm": "作成",
   "vibeLibrary_deleteCategoryTitle": "削除の確認",
@@ -4010,7 +3990,6 @@
   "vibeLibrary_exportTooltip": "Vibe をファイルにエクスポート",
   "vibeLibrary_openFolderTooltip": "バイブライブラリフォルダーを開く",
   "vibeLibrary_refresh": "更新",
-  "vibeLibrary_loading": "読み込み中...",
   "vibeLibrary_totalCount": "{count} 件の Vibe",
   "@vibeLibrary_totalCount": {
     "placeholders": {
@@ -4053,14 +4032,6 @@
   },
   "vibeLibrary_dropImportHint": ".naiv4vibe/.naiv4vibebundle/.png/.jpg/.jpeg/.webp ファイルまたはフォルダーをここにドロップしてインポートします",
   "vibeLibrary_importing": "インポート中...",
-  "vibeLibrary_pageIndicator": "{current} / {total} ページ",
-  "@vibeLibrary_pageIndicator": {
-    "placeholders": {
-      "current": {},
-      "total": {}
-    }
-  },
-  "vibeLibrary_itemsPerPage": "ページごと:",
   "vibeLibrary_tooManyTitle": "Vibe が多すぎます",
   "vibeLibrary_tooManySelectedContent": "{count} 件の Vibe が選択されています。一度に使用できるのは最大 16 件です。\n\n選択数を減らして再試行してください。",
   "@vibeLibrary_tooManySelectedContent": {
@@ -5660,7 +5631,6 @@
   "preciseRefLib_imageMissing": "元画像ファイルが見つかりません",
   "preciseRefLib_invalidImage": "画像形式を認識できないか、ファイルが破損しています",
   "preciseRefLib_deleteFailed": "削除に失敗しました。項目と元画像は保持されています。後でもう一度お試しください",
-  "preciseRefLib_favoritesOnly": "お気に入りのみ",
   "preciseRefLib_sortBy": "並び替え",
   "preciseRefLib_sortCreatedAt": "作成日時",
   "preciseRefLib_sortLastUsed": "最終使用",
@@ -6092,8 +6062,6 @@
     }
   },
 
-  "randomManager_keyboardShortcutsHint": "キーボードショートカット（? キーで表示）",
-
   "galleryScan_skipped": "スキップ {count}",
   "@galleryScan_skipped": {
     "placeholders": {
@@ -6329,11 +6297,9 @@
   "randomManager_searchCategories": "カテゴリ、グループ、タグを検索（Ctrl+F）",
   "randomManager_searchCategoriesCompact": "カテゴリ、グループ、タグを検索",
   "randomManager_workspaceTitle": "ランダムライブラリ",
-  "randomManager_workspaceSubtitle": "完全なオフラインカタログから再利用可能な生成レシピを構成します",
   "randomManager_recipeTitle": "生成レシピ",
   "randomManager_recipeSubtitle": "各ステージで意味カテゴリごとの発動確率と抽出範囲を設定します",
   "randomManager_inspectorTitle": "生成設定",
-  "randomManager_inspectorSubtitle": "現在のプリセットのキャラクター分布と出力動作を調整します",
   "randomManager_previewEmptyDescription": "プロンプトのサンプルを生成して、現在のレシピの出力を確認します。",
   "randomManager_category_composition": "構図",
   "randomManager_category_camera": "カメラアングル",
@@ -6423,7 +6389,6 @@
   "cloudSync_owner": "GitHub ユーザーまたは組織",
   "cloudSync_repository": "リポジトリ",
   "cloudSync_branch": "ブランチ（通常は main）",
-  "cloudSync_testFailed": "接続テストに失敗しました",
   "cloudSync_operationFailed": "クラウド同期操作に失敗しました",
   "cloudSync_manualBackupOnly": "手動プッシュとプルのみ",
   "cloudSync_manualBackupOnlyDescription": "このサービスでは複数デバイスからの同時変更を安全に処理できません。自動的な統合や上書きは行わず、選択したプッシュまたはプルだけを実行します。",

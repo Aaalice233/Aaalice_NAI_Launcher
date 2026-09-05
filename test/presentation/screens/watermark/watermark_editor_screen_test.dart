@@ -142,7 +142,7 @@ void main() {
     (tester) async {
       for (final scenario in <({double width, String surfaceKey})>[
         (width: 320, surfaceKey: 'adaptive-bottom-sheet'),
-        (width: 700, surfaceKey: 'adaptive-bottom-sheet'),
+        (width: 700, surfaceKey: 'adaptive-centered-form'),
         (width: 1200, surfaceKey: 'adaptive-centered-form'),
       ]) {
         await tester.binding.setSurfaceSize(Size(scenario.width, 760));
@@ -250,7 +250,7 @@ void main() {
     final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     final rect = tester.getRect(surface);
     expect(find.byType(Dialog), findsNothing);
-    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
     expect(rect.left, greaterThanOrEqualTo(8));
     expect(rect.top, greaterThanOrEqualTo(24));
     expect(rect.right, lessThanOrEqualTo(352));

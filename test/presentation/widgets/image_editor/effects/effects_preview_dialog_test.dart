@@ -100,7 +100,7 @@ void main() {
     (
       name: 'Medium',
       size: const Size(700, 800),
-      surfaceKey: const ValueKey('adaptive-bottom-sheet'),
+      surfaceKey: const ValueKey('adaptive-centered-form'),
     ),
     (
       name: 'Expanded',

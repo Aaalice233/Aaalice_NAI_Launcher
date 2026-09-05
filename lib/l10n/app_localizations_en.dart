@@ -840,9 +840,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_setAsDefaultSuccess => 'Set as default account';
 
   @override
-  String get generation_title => 'Generate';
-
-  @override
   String get generation_gestureEditPrompt => 'Swipe down to edit prompt';
 
   @override
@@ -4733,11 +4730,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String characterTooltip_more(int count) {
-    return '$count more characters';
-  }
-
-  @override
   String tagLibrary_generatedCharacters(Object count) {
     return 'Generated $count characters';
   }
@@ -5176,9 +5168,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_resetDefaultDone => 'Reset to default configuration';
 
   @override
-  String get randomManager_generatePreview => 'Generate Preview';
-
-  @override
   String get randomManager_importExport => 'Import / Export';
 
   @override
@@ -5378,31 +5367,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_previewHint => 'No sample generated yet';
 
   @override
-  String get randomManager_generateNow => 'Generate Now';
-
-  @override
   String get randomManager_moreActions => 'More Actions';
-
-  @override
-  String get randomManager_deleteSelected => 'Delete Selected';
-
-  @override
-  String get randomManager_keyboardShortcuts => 'Keyboard Shortcuts';
-
-  @override
-  String get randomManager_generalShortcuts => 'General';
-
-  @override
-  String get randomManager_presetActions => 'Preset Actions';
-
-  @override
-  String get randomManager_selectionActions => 'Selection Actions';
-
-  @override
-  String get randomManager_closeWindow => 'Close Window';
-
-  @override
-  String get randomManager_refreshOrSync => 'Refresh / Sync';
 
   @override
   String get scope_global => 'Main';
@@ -6436,9 +6401,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixedTags_suffix => 'Suffix';
 
   @override
-  String get fixedTags_disabled => 'Disabled';
-
-  @override
   String get fixedTags_weight => 'Weight';
 
   @override
@@ -6580,9 +6542,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get fixedTags_clickManageLongPressCompact =>
       'Click to manage, long-press sidebar';
-
-  @override
-  String get fixedTags_linked => 'Linked';
 
   @override
   String fixedTags_linkCount(Object count) {
@@ -7409,10 +7368,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String tagLibrary_skippedCount(Object count) {
     return '$count skipped';
   }
-
-  @override
-  String get tagLibrary_dragToCategoryHint =>
-      'Drag to the category panel to file';
 
   @override
   String get tagLibrary_unknownCategory => 'Unknown Category';
@@ -8769,9 +8724,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibeLibrary_createCategoryTitle => 'New Category';
 
   @override
-  String get vibeLibrary_createSubCategoryTitle => 'New Subcategory';
-
-  @override
   String get vibeLibrary_categoryNameHint => 'Enter category name';
 
   @override
@@ -8808,9 +8760,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibeLibrary_refresh => 'Refresh';
-
-  @override
-  String get vibeLibrary_loading => 'Loading...';
 
   @override
   String vibeLibrary_totalCount(Object count) {
@@ -8871,14 +8820,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibeLibrary_importing => 'Importing...';
-
-  @override
-  String vibeLibrary_pageIndicator(Object current, Object total) {
-    return '$current / $total pages';
-  }
-
-  @override
-  String get vibeLibrary_itemsPerPage => 'Per page:';
 
   @override
   String get vibeLibrary_tooManyTitle => 'Too Many Vibes';
@@ -11866,9 +11807,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Delete failed. The entry and original image were kept; try again later';
 
   @override
-  String get preciseRefLib_favoritesOnly => 'Favorites only';
-
-  @override
   String get preciseRefLib_sortBy => 'Sort by';
 
   @override
@@ -12582,10 +12520,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomManager_keyboardShortcutsHint =>
-      'Keyboard Shortcuts (press ? to view)';
-
-  @override
   String galleryScan_skipped(int count) {
     return 'Skipped $count';
   }
@@ -13124,10 +13058,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_workspaceTitle => 'Random library';
 
   @override
-  String get randomManager_workspaceSubtitle =>
-      'Build reusable recipes from the complete offline catalog';
-
-  @override
   String get randomManager_recipeTitle => 'Generation recipe';
 
   @override
@@ -13136,10 +13066,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomManager_inspectorTitle => 'Generation setup';
-
-  @override
-  String get randomManager_inspectorSubtitle =>
-      'Adjust character distribution and global output behavior for this preset';
 
   @override
   String get randomManager_previewEmptyDescription =>
@@ -13416,9 +13342,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_branch => 'Branch (usually main)';
-
-  @override
-  String get cloudSync_testFailed => 'Connection test failed';
 
   @override
   String get cloudSync_operationFailed => 'Cloud sync operation failed';

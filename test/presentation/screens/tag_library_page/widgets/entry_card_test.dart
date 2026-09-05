@@ -180,7 +180,7 @@ void main() {
     addTearDown(mouse.removePointer);
     await mouse.addPointer();
     await mouse.moveTo(tester.getCenter(find.byType(EntryCard)));
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
 
     const previewKey = ValueKey('tag-library-entry-preview-overlay');
     expect(find.byKey(previewKey), findsOneWidget);

@@ -59,15 +59,8 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find
-                  .byKey(const ValueKey('adaptive-bottom-sheet'))
-                  .evaluate()
-                  .isNotEmpty ||
-              find
-                  .byKey(const ValueKey('adaptive-bottom-sheet'))
-                  .evaluate()
-                  .isNotEmpty,
-          isTrue,
+          find.byKey(const ValueKey('adaptive-bottom-sheet')),
+          findsOneWidget,
           reason: label,
         );
         expect(tester.takeException(), isNull, reason: label);

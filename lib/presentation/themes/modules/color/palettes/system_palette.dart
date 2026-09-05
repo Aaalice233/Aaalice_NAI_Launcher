@@ -36,7 +36,7 @@ class SystemPalette extends BaseColorModule {
     onTertiary: Color(0xFF5C3600),
     surface: _lightSurface,
     onSurface: Color(0xFF1D1D1F),
-    onSurfaceVariant: Color(0xFF667080), // Gray-500 调深，保证对 surface 达 AA
+    onSurfaceVariant: Color(0xFF555F6F), // 保证最高容器色面上的次要文字对比度
     surfaceContainerHighest: _lightCard,
     outline: Color(0xFFD1D5DB), // Gray-300 for borders
     error: Color(0xFFFF3B30),

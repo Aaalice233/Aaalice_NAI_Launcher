@@ -861,12 +861,12 @@ void main() {
         (
           size: const Size(600, 500),
           scale: 2,
-          surface: 'adaptive-bottom-sheet',
+          surface: 'adaptive-centered-form',
         ),
         (
           size: const Size(839.9, 700),
           scale: 1,
-          surface: 'adaptive-bottom-sheet',
+          surface: 'adaptive-centered-form',
         ),
         (
           size: const Size(840, 500),

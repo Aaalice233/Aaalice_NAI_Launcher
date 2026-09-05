@@ -29,7 +29,7 @@ class BrutalistPalette extends BaseColorModule {
     onTertiary: Colors.white,
     surface: _surface,
     onSurface: _primary,
-    onSurfaceVariant: Color(0xFF232A23), // Blue-gray 700
+    onSurfaceVariant: Color(0xFF141C14), // 保证最高容器色面上的次要文字对比度
     surfaceContainerHighest: _card,
     outline: Color(0xFF607060), // LCD border green
     error: Color(0xFFB71C1C),

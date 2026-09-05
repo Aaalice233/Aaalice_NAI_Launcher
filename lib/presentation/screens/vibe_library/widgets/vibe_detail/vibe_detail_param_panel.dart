@@ -83,84 +83,85 @@ class VibeDetailParamPanel extends StatelessWidget {
               color: theme.colorScheme.surface.withValues(
                 alpha: DesignTokens.glassOpacity,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTitleBar(
-                    context,
-                    theme,
-                    compact: compactVerticalChrome,
-                  ),
-
-                  // 参数滑块区域（使用 Flexible 避免无界高度约束崩溃）
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(DesignTokens.spacingMd),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSliderSection(
-                            context,
-                            labelKey: 'strength',
-                            value: strength,
-                            onChanged: onStrengthChanged,
-                            enabled: parametersEditable,
-                            description:
-                                context.l10n.vibeDetail_strengthDescription,
+              child: compactVerticalChrome
+                  ? ListView(
+                      children: [
+                        _buildTitleBar(context, theme, compact: true),
+                        Padding(
+                          padding: const EdgeInsets.all(DesignTokens.spacingMd),
+                          child: _buildParameterContent(context, theme),
+                        ),
+                        _buildActionBar(context, theme, compact: true),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTitleBar(context, theme, compact: false),
+                        Flexible(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(
+                              DesignTokens.spacingMd,
+                            ),
+                            child: _buildParameterContent(context, theme),
                           ),
-                          if (showInfoExtractedControl) ...[
-                            const SizedBox(height: DesignTokens.spacingLg),
-                            _buildSliderSection(
-                              context,
-                              labelKey: 'infoExtracted',
-                              value: infoExtracted,
-                              onChanged: onInfoExtractedChanged,
-                              enabled: parametersEditable,
-                              description: context
-                                  .l10n
-                                  .vibeDetail_infoExtractedDescription,
-                            ),
-                          ],
-                          if (parameterHint != null) ...[
-                            const SizedBox(height: DesignTokens.spacingMd),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(
-                                DesignTokens.spacingSm,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.2),
-                                borderRadius: DesignTokens.borderRadiusMd,
-                              ),
-                              child: Text(
-                                parameterHint!,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: DesignTokens.spacingLg),
-                          // 统计信息
-                          _buildStatsSection(context, theme),
-                        ],
-                      ),
+                        ),
+                        _buildActionBar(context, theme, compact: false),
+                      ],
                     ),
-                  ),
-
-                  // 操作按钮区域
-                  _buildActionBar(
-                    context,
-                    theme,
-                    compact: compactVerticalChrome,
-                  ),
-                ],
-              ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildParameterContent(BuildContext context, ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSliderSection(
+          context,
+          labelKey: 'strength',
+          value: strength,
+          onChanged: onStrengthChanged,
+          enabled: parametersEditable,
+          description: context.l10n.vibeDetail_strengthDescription,
+        ),
+        if (showInfoExtractedControl) ...[
+          const SizedBox(height: DesignTokens.spacingLg),
+          _buildSliderSection(
+            context,
+            labelKey: 'infoExtracted',
+            value: infoExtracted,
+            onChanged: onInfoExtractedChanged,
+            enabled: parametersEditable,
+            description: context.l10n.vibeDetail_infoExtractedDescription,
+          ),
+        ],
+        if (parameterHint != null) ...[
+          const SizedBox(height: DesignTokens.spacingMd),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(DesignTokens.spacingSm),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.2,
+              ),
+              borderRadius: DesignTokens.borderRadiusMd,
+            ),
+            child: Text(
+              parameterHint!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: DesignTokens.spacingLg),
+        // 统计信息
+        _buildStatsSection(context, theme),
+      ],
     );
   }
 

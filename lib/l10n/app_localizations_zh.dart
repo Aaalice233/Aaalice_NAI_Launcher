@@ -809,9 +809,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_setAsDefaultSuccess => '已设为默认账号';
 
   @override
-  String get generation_title => '生成';
-
-  @override
   String get generation_gestureEditPrompt => '下滑编辑提示词';
 
   @override
@@ -4529,11 +4526,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String characterTooltip_more(int count) {
-    return '还有 $count 个角色';
-  }
-
-  @override
   String tagLibrary_generatedCharacters(Object count) {
     return '已生成 $count 个角色';
   }
@@ -4960,9 +4952,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_resetDefaultDone => '已重置为默认配置';
 
   @override
-  String get randomManager_generatePreview => '生成预览';
-
-  @override
   String get randomManager_importExport => '导入/导出';
 
   @override
@@ -5150,31 +5139,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_previewHint => '尚未生成样例';
 
   @override
-  String get randomManager_generateNow => '立即生成';
-
-  @override
   String get randomManager_moreActions => '更多操作';
-
-  @override
-  String get randomManager_deleteSelected => '删除选中';
-
-  @override
-  String get randomManager_keyboardShortcuts => '键盘快捷键';
-
-  @override
-  String get randomManager_generalShortcuts => '通用';
-
-  @override
-  String get randomManager_presetActions => '预设操作';
-
-  @override
-  String get randomManager_selectionActions => '选择操作';
-
-  @override
-  String get randomManager_closeWindow => '关闭窗口';
-
-  @override
-  String get randomManager_refreshOrSync => '刷新/同步';
 
   @override
   String get scope_global => '主提示词';
@@ -6179,9 +6144,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fixedTags_suffix => '后缀';
 
   @override
-  String get fixedTags_disabled => '已禁用';
-
-  @override
   String get fixedTags_weight => '权重';
 
   @override
@@ -6315,9 +6277,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get fixedTags_clickManageLongPressCompact => '点击管理，长按侧栏';
-
-  @override
-  String get fixedTags_linked => '联动';
 
   @override
   String fixedTags_linkCount(Object count) {
@@ -7117,9 +7076,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String tagLibrary_skippedCount(Object count) {
     return '$count 跳过';
   }
-
-  @override
-  String get tagLibrary_dragToCategoryHint => '拖到左侧分类归档';
 
   @override
   String get tagLibrary_unknownCategory => '未知分类';
@@ -8436,9 +8392,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibeLibrary_createCategoryTitle => '新建分类';
 
   @override
-  String get vibeLibrary_createSubCategoryTitle => '新建子分类';
-
-  @override
   String get vibeLibrary_categoryNameHint => '请输入分类名称';
 
   @override
@@ -8475,9 +8428,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibeLibrary_refresh => '刷新';
-
-  @override
-  String get vibeLibrary_loading => '加载中...';
 
   @override
   String vibeLibrary_totalCount(Object count) {
@@ -8537,14 +8487,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibeLibrary_importing => '正在导入...';
-
-  @override
-  String vibeLibrary_pageIndicator(Object current, Object total) {
-    return '$current / $total 页';
-  }
-
-  @override
-  String get vibeLibrary_itemsPerPage => '每页:';
 
   @override
   String get vibeLibrary_tooManyTitle => 'Vibe数量过多';
@@ -11379,9 +11321,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preciseRefLib_deleteFailed => '删除失败，条目与原图已保留，请稍后重试';
 
   @override
-  String get preciseRefLib_favoritesOnly => '只看收藏';
-
-  @override
   String get preciseRefLib_sortBy => '排序方式';
 
   @override
@@ -12063,9 +12002,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get randomManager_keyboardShortcutsHint => '键盘快捷键（按 ? 查看）';
-
-  @override
   String galleryScan_skipped(int count) {
     return '跳过 $count';
   }
@@ -12570,9 +12506,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_workspaceTitle => '随机词库';
 
   @override
-  String get randomManager_workspaceSubtitle => '用完整离线 catalog 组合可复用的随机生成配方';
-
-  @override
   String get randomManager_recipeTitle => '生成配方';
 
   @override
@@ -12580,9 +12513,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get randomManager_inspectorTitle => '生成设置';
-
-  @override
-  String get randomManager_inspectorSubtitle => '调整当前预设的角色分布与全局输出行为';
 
   @override
   String get randomManager_previewEmptyDescription => '生成一组提示词样例，检查当前配方的实际输出。';
@@ -12845,9 +12775,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSync_branch => '分支（通常为 main）';
-
-  @override
-  String get cloudSync_testFailed => '连接测试失败';
 
   @override
   String get cloudSync_operationFailed => '云同步操作失败';
@@ -14734,9 +14661,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_setAsDefaultSuccess => '已設為預設賬號';
-
-  @override
-  String get generation_title => '生成';
 
   @override
   String get generation_gestureEditPrompt => '下滑編輯提示詞';
@@ -18456,11 +18380,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String characterTooltip_more(int count) {
-    return '還有 $count 個角色';
-  }
-
-  @override
   String tagLibrary_generatedCharacters(Object count) {
     return '已生成 $count 個角色';
   }
@@ -18887,9 +18806,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_resetDefaultDone => '已重置為預設配置';
 
   @override
-  String get randomManager_generatePreview => '生成預覽';
-
-  @override
   String get randomManager_importExport => '匯入/匯出';
 
   @override
@@ -19077,31 +18993,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_previewHint => '尚未生成範例';
 
   @override
-  String get randomManager_generateNow => '立即生成';
-
-  @override
   String get randomManager_moreActions => '更多操作';
-
-  @override
-  String get randomManager_deleteSelected => '刪除選中';
-
-  @override
-  String get randomManager_keyboardShortcuts => '鍵盤快捷鍵';
-
-  @override
-  String get randomManager_generalShortcuts => '通用';
-
-  @override
-  String get randomManager_presetActions => '預設操作';
-
-  @override
-  String get randomManager_selectionActions => '選擇操作';
-
-  @override
-  String get randomManager_closeWindow => '關閉視窗';
-
-  @override
-  String get randomManager_refreshOrSync => '重新整理/同步';
 
   @override
   String get scope_global => '主提示詞';
@@ -20106,9 +19998,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get fixedTags_suffix => '字尾';
 
   @override
-  String get fixedTags_disabled => '已禁用';
-
-  @override
   String get fixedTags_weight => '權重';
 
   @override
@@ -20242,9 +20131,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get fixedTags_clickManageLongPressCompact => '點選管理，長按側欄';
-
-  @override
-  String get fixedTags_linked => '聯動';
 
   @override
   String fixedTags_linkCount(Object count) {
@@ -21044,9 +20930,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String tagLibrary_skippedCount(Object count) {
     return '$count 跳過';
   }
-
-  @override
-  String get tagLibrary_dragToCategoryHint => '拖到左側分類歸檔';
 
   @override
   String get tagLibrary_unknownCategory => '未知分類';
@@ -22363,9 +22246,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get vibeLibrary_createCategoryTitle => '新建分類';
 
   @override
-  String get vibeLibrary_createSubCategoryTitle => '新建子分類';
-
-  @override
   String get vibeLibrary_categoryNameHint => '請輸入分類名稱';
 
   @override
@@ -22402,9 +22282,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get vibeLibrary_refresh => '重新整理';
-
-  @override
-  String get vibeLibrary_loading => '載入中...';
 
   @override
   String vibeLibrary_totalCount(Object count) {
@@ -22464,14 +22341,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get vibeLibrary_importing => '正在匯入...';
-
-  @override
-  String vibeLibrary_pageIndicator(Object current, Object total) {
-    return '$current / $total 頁';
-  }
-
-  @override
-  String get vibeLibrary_itemsPerPage => '每頁:';
 
   @override
   String get vibeLibrary_tooManyTitle => 'Vibe數量過多';
@@ -25306,9 +25175,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get preciseRefLib_deleteFailed => '刪除失敗，條目與原圖已保留，請稍後重試';
 
   @override
-  String get preciseRefLib_favoritesOnly => '只看收藏';
-
-  @override
   String get preciseRefLib_sortBy => '排序方式';
 
   @override
@@ -25990,9 +25856,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get randomManager_keyboardShortcutsHint => '鍵盤快捷鍵（按 ? 檢視）';
-
-  @override
   String galleryScan_skipped(int count) {
     return '跳過 $count';
   }
@@ -26497,9 +26360,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_workspaceTitle => '隨機詞庫';
 
   @override
-  String get randomManager_workspaceSubtitle => '用完整離線 catalog 組合可重用的隨機生成配方';
-
-  @override
   String get randomManager_recipeTitle => '生成配方';
 
   @override
@@ -26507,9 +26367,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_inspectorTitle => '生成設定';
-
-  @override
-  String get randomManager_inspectorSubtitle => '調整目前預設的角色分佈與全域輸出行為';
 
   @override
   String get randomManager_previewEmptyDescription => '生成一組提示詞範例，檢查目前配方的實際輸出。';
@@ -26773,9 +26630,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_branch => '分支（通常為 main）';
-
-  @override
-  String get cloudSync_testFailed => '連線測試失敗';
 
   @override
   String get cloudSync_operationFailed => '雲端同步操作失敗';

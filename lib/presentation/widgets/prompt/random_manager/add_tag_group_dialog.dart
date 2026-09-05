@@ -57,16 +57,6 @@ class AddTagGroupDialog extends ConsumerStatefulWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Text(
-                  panelContext.l10n.randomManager_addTagGroupSubtitle(
-                    panelContext.l10n.randomCategoryName(category),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(panelContext).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(panelContext).colorScheme.onSurfaceVariant,
-                  ),
-                ),
               ],
             ),
           ),
@@ -186,6 +176,17 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
             controller: widget.scrollController,
             padding: EdgeInsets.zero,
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Text(
+                  context.l10n.randomManager_addTagGroupSubtitle(
+                    context.l10n.randomCategoryName(widget.category),
+                  ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
               _buildNameSection(context),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),

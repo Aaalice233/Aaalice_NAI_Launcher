@@ -297,7 +297,6 @@
   "settings_avatarUpdated": "頭像已更新",
   "settings_avatarRemoved": "頭像已移除",
   "settings_setAsDefaultSuccess": "已設為預設賬號",
-  "generation_title": "生成",
   "generation_gestureEditPrompt": "下滑編輯提示詞",
   "generation_gestureOpenAgent": "上滑開啟 AI 助手",
   "generation_promptOverviewCharacters": "{count} 字",
@@ -2069,12 +2068,6 @@
       "total": {"type": "int"}
     }
   },
-  "characterTooltip_more": "還有 {count} 個角色",
-  "@characterTooltip_more": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
   "tagLibrary_generatedCharacters": "已生成 {count} 個角色",
   "@tagLibrary_generatedCharacters": {
     "placeholders": {
@@ -2294,7 +2287,6 @@
   "randomManager_resetDefaultContent": "將恢復官方預設配置。\n您新增的自定義片語會被保留但禁用。",
   "randomManager_resetDefaultConfirm": "確認重置",
   "randomManager_resetDefaultDone": "已重置為預設配置",
-  "randomManager_generatePreview": "生成預覽",
   "randomManager_importExport": "匯入/匯出",
   "randomManager_syncDanbooruTags": "同步 Danbooru 標籤",
   "randomManager_unknownError": "未知錯誤",
@@ -2379,15 +2371,7 @@
     }
   },
   "randomManager_previewHint": "尚未生成範例",
-  "randomManager_generateNow": "立即生成",
   "randomManager_moreActions": "更多操作",
-  "randomManager_deleteSelected": "刪除選中",
-  "randomManager_keyboardShortcuts": "鍵盤快捷鍵",
-  "randomManager_generalShortcuts": "通用",
-  "randomManager_presetActions": "預設操作",
-  "randomManager_selectionActions": "選擇操作",
-  "randomManager_closeWindow": "關閉視窗",
-  "randomManager_refreshOrSync": "重新整理/同步",
   "scope_global": "主提示詞",
   "scope_globalTooltip": "提示詞將出現在主提示詞區域\n適合：背景、場景、畫面風格等",
   "scope_character": "角色",
@@ -2952,7 +2936,6 @@
   "fixedTags_openLibrary": "開啟詞庫",
   "fixedTags_prefix": "字首",
   "fixedTags_suffix": "字尾",
-  "fixedTags_disabled": "已禁用",
   "fixedTags_weight": "權重",
   "fixedTags_position": "位置",
   "fixedTags_name": "名稱",
@@ -3012,7 +2995,6 @@
   "fixedTags_uncategorized": "未分類",
   "fixedTags_clickManageLongPressSidebar": "點選管理，長按開啟側欄",
   "fixedTags_clickManageLongPressCompact": "點選管理，長按側欄",
-  "fixedTags_linked": "聯動",
   "fixedTags_linkCount": "{count} 個聯動",
   "@fixedTags_linkCount": {
     "placeholders": {
@@ -3420,7 +3402,6 @@
       "count": {}
     }
   },
-  "tagLibrary_dragToCategoryHint": "拖到左側分類歸檔",
   "tagLibrary_unknownCategory": "未知分類",
   "tagLibrary_selectEntryToUpdate": "選擇要更新的詞條",
   "tagLibrary_updatePreview": "更新預覽圖",
@@ -3967,7 +3948,6 @@
   "vibeLibrary_title": "Vibe 庫",
   "vibeLibrary_categories": "分類",
   "vibeLibrary_createCategoryTitle": "新建分類",
-  "vibeLibrary_createSubCategoryTitle": "新建子分類",
   "vibeLibrary_categoryNameHint": "請輸入分類名稱",
   "vibeLibrary_createCategoryConfirm": "建立",
   "vibeLibrary_deleteCategoryTitle": "確認刪除",
@@ -3980,7 +3960,6 @@
   "vibeLibrary_exportTooltip": "匯出 Vibe 到檔案",
   "vibeLibrary_openFolderTooltip": "開啟 Vibe 庫資料夾",
   "vibeLibrary_refresh": "重新整理",
-  "vibeLibrary_loading": "載入中...",
   "vibeLibrary_totalCount": "共 {count} 個 Vibe",
   "@vibeLibrary_totalCount": {
     "placeholders": {
@@ -4023,14 +4002,6 @@
   },
   "vibeLibrary_dropImportHint": "拖拽 .naiv4vibe/.naiv4vibebundle/.png/.jpg/.jpeg/.webp 檔案或資料夾到此處匯入",
   "vibeLibrary_importing": "正在匯入...",
-  "vibeLibrary_pageIndicator": "{current} / {total} 頁",
-  "@vibeLibrary_pageIndicator": {
-    "placeholders": {
-      "current": {},
-      "total": {}
-    }
-  },
-  "vibeLibrary_itemsPerPage": "每頁:",
   "vibeLibrary_tooManyTitle": "Vibe數量過多",
   "vibeLibrary_tooManySelectedContent": "選中了 {count} 個Vibe，但最多隻能同時使用16個。\n\n請減少選擇數量後再試。",
   "@vibeLibrary_tooManySelectedContent": {
@@ -5523,7 +5494,6 @@
   "preciseRefLib_imageMissing": "原圖檔案丟失",
   "preciseRefLib_invalidImage": "無法識別圖片格式，或圖片檔案已經損壞",
   "preciseRefLib_deleteFailed": "刪除失敗，條目與原圖已保留，請稍後重試",
-  "preciseRefLib_favoritesOnly": "只看收藏",
   "preciseRefLib_sortBy": "排序方式",
   "preciseRefLib_sortCreatedAt": "建立時間",
   "preciseRefLib_sortLastUsed": "最近使用",
@@ -6274,7 +6244,6 @@
       }
     }
   },
-  "randomManager_keyboardShortcutsHint": "鍵盤快捷鍵（按 ? 檢視）",
   "galleryScan_skipped": "跳過 {count}",
   "@galleryScan_skipped": {
     "placeholders": {
@@ -6650,11 +6619,9 @@
   "randomManager_searchCategories": "搜尋類別、詞組或標籤（Ctrl+F）",
   "randomManager_searchCategoriesCompact": "搜尋類別、詞組或標籤",
   "randomManager_workspaceTitle": "隨機詞庫",
-  "randomManager_workspaceSubtitle": "用完整離線 catalog 組合可重用的隨機生成配方",
   "randomManager_recipeTitle": "生成配方",
   "randomManager_recipeSubtitle": "每個階段獨立控制一類語義標籤的觸發機率與抽取範圍",
   "randomManager_inspectorTitle": "生成設定",
-  "randomManager_inspectorSubtitle": "調整目前預設的角色分佈與全域輸出行為",
   "randomManager_previewEmptyDescription": "生成一組提示詞範例，檢查目前配方的實際輸出。",
   "randomManager_category_composition": "構圖",
   "randomManager_category_camera": "視角",
@@ -6744,7 +6711,6 @@
   "cloudSync_owner": "GitHub 使用者或組織",
   "cloudSync_repository": "儲存庫",
   "cloudSync_branch": "分支（通常為 main）",
-  "cloudSync_testFailed": "連線測試失敗",
   "cloudSync_operationFailed": "雲端同步操作失敗",
   "cloudSync_manualBackupOnly": "只支援手動推送與拉取",
   "cloudSync_manualBackupOnlyDescription": "此服務無法可靠處理多台裝置同時修改。這裡不會自動合併或覆蓋，只按你的選擇推送或拉取。",

@@ -91,7 +91,7 @@ void main() {
         );
         await _openDialog(tester);
 
-        final surfaceFinder = size.width < 840
+        final surfaceFinder = size.width < 600
             ? find.byKey(const ValueKey('adaptive-bottom-sheet'))
             : find.byKey(const ValueKey('adaptive-centered-form'));
         expect(surfaceFinder, findsOneWidget);

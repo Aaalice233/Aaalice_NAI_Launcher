@@ -29,7 +29,7 @@ class AppleLightPalette extends BaseColorModule {
     onTertiary: Color(0xFF4D2100),
     surface: _surface,
     onSurface: Color(0xFF1A1A1A),
-    onSurfaceVariant: Color(0xFF667080), // Gray-500 调深，保证对 surface 达 AA
+    onSurfaceVariant: Color(0xFF555F6F), // 保证最高容器色面上的次要文字对比度
     surfaceContainerHighest: _card,
     outline: Color(0xFFD1D5DB), // Gray-300
     error: Color(0xFFD32F2F),

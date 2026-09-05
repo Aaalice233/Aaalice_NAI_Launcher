@@ -121,7 +121,7 @@ void main() {
       await tester.tap(find.text('打开'));
       await tester.pumpAndSettle();
 
-      final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+      final panel = find.byKey(const ValueKey('adaptive-centered-form'));
       expect(panel, findsOneWidget);
       expect(tester.getSize(panel).width, lessThanOrEqualTo(700));
 
@@ -130,7 +130,10 @@ void main() {
 
       expect(completed, isTrue);
       expect(result, isNull);
-      expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('adaptive-centered-form')),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
     },
   );

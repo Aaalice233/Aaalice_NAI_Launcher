@@ -63,7 +63,7 @@ void main() {
       await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
 
-      final presentation = width < 840
+      final presentation = width < 600
           ? find.byKey(const ValueKey('adaptive-bottom-sheet'))
           : find.byKey(const ValueKey('adaptive-centered-form'));
       expect(presentation, findsOneWidget, reason: 'width=$width');

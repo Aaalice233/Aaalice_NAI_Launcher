@@ -31,8 +31,11 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
-    _expectBoundedDialog(tester, surfaceKey: 'adaptive-bottom-sheet');
+    expect(
+      find.byKey(const ValueKey('adaptive-centered-form')),
+      findsOneWidget,
+    );
+    _expectBoundedDialog(tester, surfaceKey: 'adaptive-centered-form');
     expect(
       find.byKey(const ValueKey('adaptive-panel-header-divider')),
       findsNothing,

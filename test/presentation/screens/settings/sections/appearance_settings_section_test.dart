@@ -123,7 +123,7 @@ void main() {
   });
 
   for (final formFactor in [
-    (width: 700.0, surface: 'adaptive-bottom-sheet'),
+    (width: 700.0, surface: 'adaptive-centered-form'),
     (width: 1200.0, surface: 'adaptive-centered-form'),
   ]) {
     testWidgets(

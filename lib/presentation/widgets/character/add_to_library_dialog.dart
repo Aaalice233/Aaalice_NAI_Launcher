@@ -168,10 +168,10 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
               ),
               const SizedBox(height: 16),
               _buildContentPreview(theme, colorScheme, l10n),
+              _buildFooter(theme, colorScheme, l10n),
             ],
           ),
         ),
-        _buildFooter(theme, colorScheme, l10n),
       ],
     );
   }

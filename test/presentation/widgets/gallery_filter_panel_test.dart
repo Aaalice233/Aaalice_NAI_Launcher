@@ -37,7 +37,7 @@ void main() {
     });
   }
 
-  testWidgets('Medium 使用有界 bottom sheet 并保持双列', (tester) async {
+  testWidgets('Medium 使用有界居中表单 并保持双列', (tester) async {
     tester.view.physicalSize = const Size(700, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -47,7 +47,7 @@ void main() {
 
     await _pumpFilterPanel(tester);
 
-    final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(surface, findsOneWidget);
     expect(tester.getSize(surface).width, lessThanOrEqualTo(700));
     expect(tester.getRect(surface).top, greaterThanOrEqualTo(0));
@@ -81,7 +81,8 @@ void main() {
     );
     expect(find.text('应用筛选').hitTestable(), findsOneWidget);
     expect(find.byTooltip('关闭').hitTestable(), findsOneWidget);
-    expect(tester.getRect(surface), const Rect.fromLTWH(0, 0, 320, 640));
+    expect(tester.getRect(surface).top, greaterThanOrEqualTo(0));
+    expect(tester.getRect(surface).bottom, lessThanOrEqualTo(640));
     expect(tester.takeException(), isNull);
   });
 

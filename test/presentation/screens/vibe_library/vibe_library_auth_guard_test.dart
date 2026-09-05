@@ -153,7 +153,7 @@ Future<void> _tapEncodeConfirm(WidgetTester tester) async {
 }
 
 Future<void> _startRawImageImport(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.file_download_outlined));
+  await tester.tap(find.byKey(const ValueKey('vibe-library-empty-import')));
   await tester.pump();
   await tester.pump(const Duration(seconds: 6));
   await tester.pump();

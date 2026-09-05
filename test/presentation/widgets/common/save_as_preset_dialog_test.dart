@@ -33,7 +33,17 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '保存'));
+    await tester.scrollUntilVisible(
+      find.text('保存'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
     final preset = notifier.saved!;
     expect(preset.name, 'very long promp..._42');
@@ -104,7 +114,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
-    expect(find.byType(SingleChildScrollView), findsWidgets);
+    expect(find.byType(ListView), findsOneWidget);
+    final save = find.text('保存');
+    await tester.scrollUntilVisible(
+      save,
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    expect(save.hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

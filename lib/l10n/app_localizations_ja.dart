@@ -826,9 +826,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_setAsDefaultSuccess => 'デフォルトのアカウントとして設定';
 
   @override
-  String get generation_title => '生成';
-
-  @override
   String get generation_gestureEditPrompt => '下にスワイプしてプロンプトを編集';
 
   @override
@@ -4617,11 +4614,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String characterTooltip_more(int count) {
-    return '他 $count 人のキャラクター';
-  }
-
-  @override
   String tagLibrary_generatedCharacters(Object count) {
     return '$count キャラクターを生成しました';
   }
@@ -5052,9 +5044,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_resetDefaultDone => 'デフォルト構成にリセット';
 
   @override
-  String get randomManager_generatePreview => 'プレビューの生成';
-
-  @override
   String get randomManager_importExport => 'インポート / エクスポート';
 
   @override
@@ -5243,31 +5232,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_previewHint => 'サンプルはまだ生成されていません';
 
   @override
-  String get randomManager_generateNow => '今すぐ生成';
-
-  @override
   String get randomManager_moreActions => 'その他のアクション';
-
-  @override
-  String get randomManager_deleteSelected => '選択したものを削除';
-
-  @override
-  String get randomManager_keyboardShortcuts => 'キーボード ショートカット';
-
-  @override
-  String get randomManager_generalShortcuts => '一般';
-
-  @override
-  String get randomManager_presetActions => 'プリセットアクション';
-
-  @override
-  String get randomManager_selectionActions => '選択アクション';
-
-  @override
-  String get randomManager_closeWindow => 'ウィンドウを閉じる';
-
-  @override
-  String get randomManager_refreshOrSync => '更新/同期';
 
   @override
   String get scope_global => 'メイン';
@@ -6281,9 +6246,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fixedTags_suffix => 'サフィックス';
 
   @override
-  String get fixedTags_disabled => '無効';
-
-  @override
   String get fixedTags_weight => 'ウェイト';
 
   @override
@@ -6418,9 +6380,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get fixedTags_clickManageLongPressCompact => 'クリックしてサイドバーを長押しして管理します';
-
-  @override
-  String get fixedTags_linked => 'リンクされました';
 
   @override
   String fixedTags_linkCount(Object count) {
@@ -7235,9 +7194,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String tagLibrary_skippedCount(Object count) {
     return '$count はスキップされました';
   }
-
-  @override
-  String get tagLibrary_dragToCategoryHint => 'カテゴリ パネルにドラッグしてファイルします';
 
   @override
   String get tagLibrary_unknownCategory => '不明なカテゴリ';
@@ -8563,9 +8519,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibeLibrary_createCategoryTitle => '新しいカテゴリ';
 
   @override
-  String get vibeLibrary_createSubCategoryTitle => '新しいサブカテゴリ';
-
-  @override
   String get vibeLibrary_categoryNameHint => 'カテゴリ名を入力してください';
 
   @override
@@ -8602,9 +8555,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vibeLibrary_refresh => '更新';
-
-  @override
-  String get vibeLibrary_loading => '読み込み中...';
 
   @override
   String vibeLibrary_totalCount(Object count) {
@@ -8664,14 +8614,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vibeLibrary_importing => 'インポート中...';
-
-  @override
-  String vibeLibrary_pageIndicator(Object current, Object total) {
-    return '$current / $total ページ';
-  }
-
-  @override
-  String get vibeLibrary_itemsPerPage => 'ページごと:';
 
   @override
   String get vibeLibrary_tooManyTitle => 'Vibe が多すぎます';
@@ -11581,9 +11523,6 @@ class AppLocalizationsJa extends AppLocalizations {
       '削除に失敗しました。項目と元画像は保持されています。後でもう一度お試しください';
 
   @override
-  String get preciseRefLib_favoritesOnly => 'お気に入りのみ';
-
-  @override
   String get preciseRefLib_sortBy => '並び替え';
 
   @override
@@ -12268,9 +12207,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get randomManager_keyboardShortcutsHint => 'キーボードショートカット（? キーで表示）';
-
-  @override
   String galleryScan_skipped(int count) {
     return 'スキップ $count';
   }
@@ -12784,10 +12720,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_workspaceTitle => 'ランダムライブラリ';
 
   @override
-  String get randomManager_workspaceSubtitle =>
-      '完全なオフラインカタログから再利用可能な生成レシピを構成します';
-
-  @override
   String get randomManager_recipeTitle => '生成レシピ';
 
   @override
@@ -12795,9 +12727,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_inspectorTitle => '生成設定';
-
-  @override
-  String get randomManager_inspectorSubtitle => '現在のプリセットのキャラクター分布と出力動作を調整します';
 
   @override
   String get randomManager_previewEmptyDescription =>
@@ -13069,9 +12998,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_branch => 'ブランチ（通常は main）';
-
-  @override
-  String get cloudSync_testFailed => '接続テストに失敗しました';
 
   @override
   String get cloudSync_operationFailed => 'クラウド同期操作に失敗しました';

@@ -312,7 +312,6 @@
   "settings_avatarRemoved": "Avatar removed",
   "settings_setAsDefaultSuccess": "Set as default account",
 
-  "generation_title": "Generate",
   "generation_gestureEditPrompt": "Swipe down to edit prompt",
   "generation_gestureOpenAgent": "Swipe up to open AI assistant",
   "generation_promptOverviewCharacters": "{count} chars",
@@ -2024,13 +2023,6 @@
       "total": {"type": "int"}
     }
   },
-  "characterTooltip_more": "{count} more characters",
-  "@characterTooltip_more": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-
   "tagLibrary_generatedCharacters": "Generated {count} characters",
   "@tagLibrary_generatedCharacters": {
     "placeholders": {
@@ -2260,7 +2252,6 @@
   "randomManager_resetDefaultContent": "Restore the official default configuration.\nCustom tag groups will be kept but disabled.",
   "randomManager_resetDefaultConfirm": "Reset",
   "randomManager_resetDefaultDone": "Reset to default configuration",
-  "randomManager_generatePreview": "Generate Preview",
   "randomManager_importExport": "Import / Export",
   "randomManager_syncDanbooruTags": "Sync Danbooru Tags",
   "randomManager_unknownError": "Unknown error",
@@ -2345,16 +2336,7 @@
     }
   },
   "randomManager_previewHint": "No sample generated yet",
-  "randomManager_generateNow": "Generate Now",
   "randomManager_moreActions": "More Actions",
-  "randomManager_deleteSelected": "Delete Selected",
-  "randomManager_keyboardShortcuts": "Keyboard Shortcuts",
-  "randomManager_generalShortcuts": "General",
-  "randomManager_presetActions": "Preset Actions",
-  "randomManager_selectionActions": "Selection Actions",
-  "randomManager_closeWindow": "Close Window",
-  "randomManager_refreshOrSync": "Refresh / Sync",
-
   "scope_global": "Main",
   "scope_globalTooltip": "Prompt will appear in main prompt area\nSuitable for: background, scene, style, etc.",
   "scope_character": "Char",
@@ -2913,7 +2895,6 @@
   "fixedTags_openLibrary": "Open Library",
   "fixedTags_prefix": "Prefix",
   "fixedTags_suffix": "Suffix",
-  "fixedTags_disabled": "Disabled",
   "fixedTags_weight": "Weight",
   "fixedTags_position": "Position",
   "fixedTags_name": "Name",
@@ -2973,7 +2954,6 @@
   "fixedTags_uncategorized": "Uncategorized",
   "fixedTags_clickManageLongPressSidebar": "Click to manage, long-press to open sidebar",
   "fixedTags_clickManageLongPressCompact": "Click to manage, long-press sidebar",
-  "fixedTags_linked": "Linked",
   "fixedTags_linkCount": "{count} linked",
   "@fixedTags_linkCount": {
     "placeholders": {
@@ -3386,7 +3366,6 @@
       "count": {}
     }
   },
-  "tagLibrary_dragToCategoryHint": "Drag to the category panel to file",
   "tagLibrary_unknownCategory": "Unknown Category",
   "tagLibrary_selectEntryToUpdate": "Select Entry to Update",
   "tagLibrary_updatePreview": "Update Preview",
@@ -4049,7 +4028,6 @@
   "vibeLibrary_title": "Vibe Library",
   "vibeLibrary_categories": "Categories",
   "vibeLibrary_createCategoryTitle": "New Category",
-  "vibeLibrary_createSubCategoryTitle": "New Subcategory",
   "vibeLibrary_categoryNameHint": "Enter category name",
   "vibeLibrary_createCategoryConfirm": "Create",
   "vibeLibrary_deleteCategoryTitle": "Confirm Delete",
@@ -4062,7 +4040,6 @@
   "vibeLibrary_exportTooltip": "Export Vibe to file",
   "vibeLibrary_openFolderTooltip": "Open Vibe library folder",
   "vibeLibrary_refresh": "Refresh",
-  "vibeLibrary_loading": "Loading...",
   "vibeLibrary_totalCount": "{count} Vibes",
   "@vibeLibrary_totalCount": {
     "placeholders": {
@@ -4105,14 +4082,6 @@
   },
   "vibeLibrary_dropImportHint": "Drop .naiv4vibe/.naiv4vibebundle/.png/.jpg/.jpeg/.webp files or folders here to import",
   "vibeLibrary_importing": "Importing...",
-  "vibeLibrary_pageIndicator": "{current} / {total} pages",
-  "@vibeLibrary_pageIndicator": {
-    "placeholders": {
-      "current": {},
-      "total": {}
-    }
-  },
-  "vibeLibrary_itemsPerPage": "Per page:",
   "vibeLibrary_tooManyTitle": "Too Many Vibes",
   "vibeLibrary_tooManySelectedContent": "Selected {count} Vibes, but at most 16 can be used at once.\n\nPlease reduce the selection and try again.",
   "@vibeLibrary_tooManySelectedContent": {
@@ -5678,7 +5647,6 @@
   "preciseRefLib_imageMissing": "Image file is missing",
   "preciseRefLib_invalidImage": "The image format is unsupported or the file is corrupt",
   "preciseRefLib_deleteFailed": "Delete failed. The entry and original image were kept; try again later",
-  "preciseRefLib_favoritesOnly": "Favorites only",
   "preciseRefLib_sortBy": "Sort by",
   "preciseRefLib_sortCreatedAt": "Created",
   "preciseRefLib_sortLastUsed": "Last used",
@@ -6069,8 +6037,6 @@
     }
   },
 
-  "randomManager_keyboardShortcutsHint": "Keyboard Shortcuts (press ? to view)",
-
   "galleryScan_skipped": "Skipped {count}",
   "@galleryScan_skipped": {
     "placeholders": {
@@ -6306,11 +6272,9 @@
   "randomManager_searchCategories": "Search categories, groups, or tags (Ctrl+F)",
   "randomManager_searchCategoriesCompact": "Search categories, groups, or tags",
   "randomManager_workspaceTitle": "Random library",
-  "randomManager_workspaceSubtitle": "Build reusable recipes from the complete offline catalog",
   "randomManager_recipeTitle": "Generation recipe",
   "randomManager_recipeSubtitle": "Each stage controls the chance and sampling range of one semantic tag group",
   "randomManager_inspectorTitle": "Generation setup",
-  "randomManager_inspectorSubtitle": "Adjust character distribution and global output behavior for this preset",
   "randomManager_previewEmptyDescription": "Generate a prompt sample to inspect the actual output of this recipe.",
   "randomManager_category_composition": "Composition",
   "randomManager_category_camera": "Camera angle",
@@ -6400,7 +6364,6 @@
   "cloudSync_owner": "GitHub user or organization",
   "cloudSync_repository": "Repository",
   "cloudSync_branch": "Branch (usually main)",
-  "cloudSync_testFailed": "Connection test failed",
   "cloudSync_operationFailed": "Cloud sync operation failed",
   "cloudSync_manualBackupOnly": "Manual push and pull only",
   "cloudSync_manualBackupOnlyDescription": "This service cannot reliably handle changes from multiple devices at once. Nothing is merged or overwritten automatically; data moves only when you choose push or pull.",

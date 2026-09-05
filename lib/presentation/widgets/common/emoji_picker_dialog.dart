@@ -10,9 +10,7 @@ import 'adaptive_dialog_frame.dart';
 /// 用于选择 emoji 图标，支持搜索和分类浏览
 /// 点击 emoji 即选中并返回，无需二次确认
 class EmojiPickerDialog extends StatelessWidget {
-  const EmojiPickerDialog({super.key, this.presentationManaged = false});
-
-  final bool presentationManaged;
+  const EmojiPickerDialog({super.key});
 
   /// 显示 emoji 选择器对话框
   ///
@@ -22,8 +20,7 @@ class EmojiPickerDialog extends StatelessWidget {
       context: context,
       title: context.l10n.category_selectEmoji,
       dialogWidth: 440,
-      builder: (context, scrollController) =>
-          const EmojiPickerDialog(presentationManaged: true),
+      builder: (context, scrollController) => const EmojiPickerDialog(),
     );
   }
 
@@ -34,9 +31,9 @@ class EmojiPickerDialog extends StatelessWidget {
     final picker = AdaptiveDialogFrame(
       maxWidth: 400,
       maxHeight: 420,
-      reservedVerticalSpace: presentationManaged ? 80 : 140,
+      reservedVerticalSpace: 80,
       scaleReservedVerticalSpace: true,
-      horizontalMargin: presentationManaged ? 0 : 24,
+      horizontalMargin: 0,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth < 280 ? 5 : 8;
@@ -88,16 +85,6 @@ class EmojiPickerDialog extends StatelessWidget {
       onPressed: () => Navigator.pop(context),
       child: Text(context.l10n.common_cancel),
     );
-
-    if (!presentationManaged) {
-      return AlertDialog(
-        scrollable: true,
-        title: Text(context.l10n.category_selectEmoji),
-        contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        content: picker,
-        actions: [cancel],
-      );
-    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),

@@ -414,7 +414,7 @@ void main() {
       await _openAddAccountForm(tester);
 
       final surfaceKey = ValueKey(
-        width < 840 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
+        width < 600 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
       );
       final surface = find.byKey(surfaceKey);
       expect(surface, findsOneWidget);

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_library_category.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
@@ -28,6 +29,9 @@ const List<int> _kTransparentPng = <int>[
 class _ProbeStorage extends VibeLibraryStorageService {
   final List<String> thumbnailFetches = <String>[];
   final Map<String, Uint8List> _memory = {};
+
+  @override
+  Future<List<VibeLibraryCategory>> getAllCategories() async => [];
 
   @override
   Uint8List? peekDisplayThumbnail(String id) => _memory[id];
@@ -194,9 +198,8 @@ void main() {
             const SizedBox(width: 200),
             Expanded(
               child: Navigator(
-                onGenerateRoute: (_) => PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => content,
-                ),
+                onGenerateRoute: (_) =>
+                    PageRouteBuilder(pageBuilder: (_, __, ___) => content),
               ),
             ),
           ],

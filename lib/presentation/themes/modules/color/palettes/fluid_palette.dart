@@ -31,7 +31,7 @@ class FluidPalette extends BaseColorModule {
     onTertiary: Colors.white,
     surface: Colors.white,
     onSurface: Colors.black87,
-    onSurfaceVariant: Color(0xFF6B7280), // Gray-500
+    onSurfaceVariant: Color(0xFF59606D), // 保证最高容器色面上的次要文字对比度
     outline: Color(0xFFD1D5DB), // Gray-300
   );
 

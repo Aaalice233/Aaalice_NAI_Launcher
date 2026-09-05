@@ -17,7 +17,6 @@ void main() {
 
         final surfaceKey = switch (width) {
           < 600 => 'adaptive-bottom-sheet',
-          < 840 => 'adaptive-bottom-sheet',
           _ => 'adaptive-centered-form',
         };
         final surface = find.byKey(ValueKey(surfaceKey));

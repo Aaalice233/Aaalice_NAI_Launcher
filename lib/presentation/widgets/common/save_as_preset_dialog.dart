@@ -15,7 +15,7 @@ import '../../../../data/models/prompt/weighted_tag.dart';
 import '../../../../presentation/providers/random_preset_provider.dart'
     show randomPresetNotifierProvider;
 import '../../adaptive/adaptive_presenter.dart';
-import 'adaptive_dialog_frame.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import 'app_toast.dart';
 
 /// 保存为预设对话框
@@ -284,192 +284,189 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return _AdaptiveFormBody(
-      content: AdaptiveDialogFrame(
-        maxWidth: 420,
-        maxHeight: 520,
-        reservedVerticalSpace: 140,
-        scaleReservedVerticalSpace: true,
-        child: SingleChildScrollView(
-          controller: widget.scrollController,
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(
-            children: [
-              // 预设名称
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: l10n.preset_presetName,
-                  hintText: l10n.savePreset_nameHint,
-                  prefixIcon: const Icon(Icons.edit),
-                  border: const OutlineInputBorder(),
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
+      content: [
+        // 预设名称
+        TextField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: l10n.preset_presetName,
+            hintText: l10n.savePreset_nameHint,
+            prefixIcon: const Icon(Icons.edit),
+            border: const OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        const SizedBox(height: 12),
+
+        // 可滚动的选项列表
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                TextButton.icon(
+                  onPressed: _selectAll,
+                  icon: const Icon(Icons.select_all, size: 18),
+                  label: Text(l10n.common_selectAll),
                 ),
-                autofocus: true,
+                TextButton.icon(
+                  onPressed: _deselectAll,
+                  icon: const Icon(Icons.deselect, size: 18),
+                  label: Text(l10n.common_clear),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // 提示词分组
+            _buildSectionTitle(
+              l10n.metadataImport_promptsSection,
+              Icons.text_fields,
+            ),
+            const SizedBox(height: 8),
+            _buildCheckbox(
+              label: l10n.metadataImport_mainPrompt,
+              value: _includePrompt,
+              hasData: widget.metadata.prompt.isNotEmpty,
+              onChanged: (v) => setState(() => _includePrompt = v),
+            ),
+            if (widget.metadata.hasSeparatedFields) ...[
+              _buildCheckbox(
+                label: l10n.metadataImport_fixedTags,
+                value: _includeFixedTags,
+                hasData:
+                    widget.metadata.fixedPrefixTags.isNotEmpty ||
+                    widget.metadata.fixedSuffixTags.isNotEmpty ||
+                    widget.metadata.fixedNegativePrefixTags.isNotEmpty ||
+                    widget.metadata.fixedNegativeSuffixTags.isNotEmpty,
+                onChanged: (v) => setState(() => _includeFixedTags = v),
               ),
-              const SizedBox(height: 12),
-
-              // 可滚动的选项列表
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      TextButton.icon(
-                        onPressed: _selectAll,
-                        icon: const Icon(Icons.select_all, size: 18),
-                        label: Text(l10n.common_selectAll),
-                      ),
-                      TextButton.icon(
-                        onPressed: _deselectAll,
-                        icon: const Icon(Icons.deselect, size: 18),
-                        label: Text(l10n.common_clear),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 提示词分组
-                  _buildSectionTitle(
-                    l10n.metadataImport_promptsSection,
-                    Icons.text_fields,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildCheckbox(
-                    label: l10n.metadataImport_mainPrompt,
-                    value: _includePrompt,
-                    hasData: widget.metadata.prompt.isNotEmpty,
-                    onChanged: (v) => setState(() => _includePrompt = v),
-                  ),
-                  if (widget.metadata.hasSeparatedFields) ...[
-                    _buildCheckbox(
-                      label: l10n.metadataImport_fixedTags,
-                      value: _includeFixedTags,
-                      hasData:
-                          widget.metadata.fixedPrefixTags.isNotEmpty ||
-                          widget.metadata.fixedSuffixTags.isNotEmpty ||
-                          widget.metadata.fixedNegativePrefixTags.isNotEmpty ||
-                          widget.metadata.fixedNegativeSuffixTags.isNotEmpty,
-                      onChanged: (v) => setState(() => _includeFixedTags = v),
-                    ),
-                    _buildCheckbox(
-                      label: l10n.qualityTags_label,
-                      value: _includeQualityTags,
-                      hasData: widget.metadata.qualityTags.isNotEmpty,
-                      onChanged: (v) => setState(() => _includeQualityTags = v),
-                    ),
-                  ],
-                  _buildCheckbox(
-                    label: l10n.prompt_negativePrompt,
-                    value: _includeNegativePrompt,
-                    hasData: widget.metadata.negativePrompt.isNotEmpty,
-                    onChanged: (v) =>
-                        setState(() => _includeNegativePrompt = v),
-                  ),
-
-                  const SizedBox(height: 16),
-                  Divider(color: colorScheme.outlineVariant),
-                  const SizedBox(height: 8),
-
-                  // 生成参数分组
-                  _buildSectionTitle(
-                    l10n.metadataImport_generationSection,
-                    Icons.tune,
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      _buildCompactCheckbox(
-                        label: l10n.generation_seed,
-                        value: _includeSeed,
-                        hasData: widget.metadata.seed != null,
-                        onChanged: (v) => setState(() => _includeSeed = v),
-                      ),
-                      _buildCompactCheckbox(
-                        label: l10n.gallery_metaSteps,
-                        value: _includeSteps,
-                        hasData: widget.metadata.steps != null,
-                        onChanged: (v) => setState(() => _includeSteps = v),
-                      ),
-                      _buildCompactCheckbox(
-                        label: 'CFG',
-                        value: _includeScale,
-                        hasData: widget.metadata.scale != null,
-                        onChanged: (v) => setState(() => _includeScale = v),
-                      ),
-                      _buildCompactCheckbox(
-                        label: l10n.queue_size,
-                        value: _includeSize,
-                        hasData:
-                            widget.metadata.width != null &&
-                            widget.metadata.height != null,
-                        onChanged: (v) => setState(() => _includeSize = v),
-                      ),
-                      _buildCompactCheckbox(
-                        label: l10n.generation_sampler,
-                        value: _includeSampler,
-                        hasData: widget.metadata.sampler != null,
-                        onChanged: (v) => setState(() => _includeSampler = v),
-                      ),
-                      _buildCompactCheckbox(
-                        label: l10n.generation_model,
-                        value: _includeModel,
-                        hasData: widget.metadata.model != null,
-                        onChanged: (v) => setState(() => _includeModel = v),
-                      ),
-                      _buildCompactCheckbox(
-                        label: 'SMEA',
-                        value: _includeSmea,
-                        hasData:
-                            widget.metadata.smea == true ||
-                            widget.metadata.smeaDyn == true,
-                        onChanged: (v) => setState(() => _includeSmea = v),
-                      ),
-                    ],
-                  ),
-
-                  if (widget.metadata.vibeReferences.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Divider(color: colorScheme.outlineVariant),
-                    const SizedBox(height: 8),
-                    _buildCheckbox(
-                      label: l10n.savePreset_vibeData(
-                        widget.metadata.vibeReferences.length,
-                      ),
-                      value: _includeVibe,
-                      hasData: true,
-                      onChanged: (v) => setState(() => _includeVibe = v),
-                    ),
-                  ],
-                ],
+              _buildCheckbox(
+                label: l10n.qualityTags_label,
+                value: _includeQualityTags,
+                hasData: widget.metadata.qualityTags.isNotEmpty,
+                onChanged: (v) => setState(() => _includeQualityTags = v),
               ),
             ],
-          ),
+            _buildCheckbox(
+              label: l10n.prompt_negativePrompt,
+              value: _includeNegativePrompt,
+              hasData: widget.metadata.negativePrompt.isNotEmpty,
+              onChanged: (v) => setState(() => _includeNegativePrompt = v),
+            ),
+
+            const SizedBox(height: 16),
+            Divider(color: colorScheme.outlineVariant),
+            const SizedBox(height: 8),
+
+            // 生成参数分组
+            _buildSectionTitle(
+              l10n.metadataImport_generationSection,
+              Icons.tune,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                _buildCompactCheckbox(
+                  label: l10n.generation_seed,
+                  value: _includeSeed,
+                  hasData: widget.metadata.seed != null,
+                  onChanged: (v) => setState(() => _includeSeed = v),
+                ),
+                _buildCompactCheckbox(
+                  label: l10n.gallery_metaSteps,
+                  value: _includeSteps,
+                  hasData: widget.metadata.steps != null,
+                  onChanged: (v) => setState(() => _includeSteps = v),
+                ),
+                _buildCompactCheckbox(
+                  label: 'CFG',
+                  value: _includeScale,
+                  hasData: widget.metadata.scale != null,
+                  onChanged: (v) => setState(() => _includeScale = v),
+                ),
+                _buildCompactCheckbox(
+                  label: l10n.queue_size,
+                  value: _includeSize,
+                  hasData:
+                      widget.metadata.width != null &&
+                      widget.metadata.height != null,
+                  onChanged: (v) => setState(() => _includeSize = v),
+                ),
+                _buildCompactCheckbox(
+                  label: l10n.generation_sampler,
+                  value: _includeSampler,
+                  hasData: widget.metadata.sampler != null,
+                  onChanged: (v) => setState(() => _includeSampler = v),
+                ),
+                _buildCompactCheckbox(
+                  label: l10n.generation_model,
+                  value: _includeModel,
+                  hasData: widget.metadata.model != null,
+                  onChanged: (v) => setState(() => _includeModel = v),
+                ),
+                _buildCompactCheckbox(
+                  label: 'SMEA',
+                  value: _includeSmea,
+                  hasData:
+                      widget.metadata.smea == true ||
+                      widget.metadata.smeaDyn == true,
+                  onChanged: (v) => setState(() => _includeSmea = v),
+                ),
+              ],
+            ),
+
+            if (widget.metadata.vibeReferences.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Divider(color: colorScheme.outlineVariant),
+              const SizedBox(height: 8),
+              _buildCheckbox(
+                label: l10n.savePreset_vibeData(
+                  widget.metadata.vibeReferences.length,
+                ),
+                value: _includeVibe,
+                hasData: true,
+                onChanged: (v) => setState(() => _includeVibe = v),
+              ),
+            ],
+          ],
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton.icon(
-          onPressed: _isSaving ? null : _save,
-          icon: _isSaving
-              ? SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    value: MediaQuery.disableAnimationsOf(context)
-                        ? 0.72
-                        : null,
-                  ),
-                )
-              : const Icon(Icons.save, size: 18),
-          label: Text(_isSaving ? l10n.common_saving : l10n.common_save),
+
+        const Divider(),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            TextButton(
+              onPressed: _isSaving
+                  ? null
+                  : () => Navigator.of(context).pop(false),
+              child: Text(l10n.common_cancel),
+            ),
+            FilledButton.icon(
+              onPressed: _isSaving ? null : _save,
+              icon: _isSaving
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.72
+                            : null,
+                      ),
+                    )
+                  : const Icon(Icons.save, size: 18),
+              label: Text(_isSaving ? l10n.common_saving : l10n.common_save),
+            ),
+          ],
         ),
       ],
     );
@@ -544,35 +541,6 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
       disabledColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
-    );
-  }
-}
-
-class _AdaptiveFormBody extends StatelessWidget {
-  const _AdaptiveFormBody({required this.content, required this.actions});
-
-  final Widget content;
-  final List<Widget> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(child: content),
-        Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: actions,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

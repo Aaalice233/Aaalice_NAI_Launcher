@@ -88,7 +88,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Compact 管理页使用共享全高 bottom sheet 并保留搜索编辑状态', (tester) async {
+  testWidgets('Compact 管理页使用共享有界 bottom sheet 并保留搜索编辑状态', (tester) async {
     tester.view.physicalSize = const Size(320, 480);
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(
@@ -136,7 +136,7 @@ void main() {
     final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
-    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
 
     await tester.enterText(find.byType(TextField), 'generation');
     tester.view.viewInsets = const FakeViewPadding(bottom: 120);

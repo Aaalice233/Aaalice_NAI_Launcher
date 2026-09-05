@@ -123,7 +123,7 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    final panel = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+    final panel = find.byKey(const ValueKey('adaptive-centered-form'));
     expect(panel, findsOneWidget);
     expect(tester.getSize(panel).width, lessThanOrEqualTo(700));
     expect(tester.getSize(panel).height, lessThanOrEqualTo(800));

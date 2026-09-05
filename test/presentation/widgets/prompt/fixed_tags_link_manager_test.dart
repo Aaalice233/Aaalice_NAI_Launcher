@@ -111,10 +111,7 @@ void main() {
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('adaptive-centered-form')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     final frame = find.byType(AdaptiveDialogFrame);
     expect(frame, findsOneWidget);
     expect(tester.getSize(frame).width, lessThanOrEqualTo(420));
@@ -123,7 +120,7 @@ void main() {
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('adaptive-centered-form')), findsNothing);
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

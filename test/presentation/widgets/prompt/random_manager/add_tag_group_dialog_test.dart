@@ -16,7 +16,7 @@ void main() {
   );
 
   testWidgets(
-    '320dp 3x text with IME and SafeArea uses a full-height bottom sheet',
+    '320dp 3x text with IME and SafeArea keeps the form and actions scrollable',
     (tester) async {
       final errors = FlutterErrorCollector.install(tester);
       addTearDown(errors.restoreAndAssertNoErrors);
@@ -102,14 +102,35 @@ void main() {
       expect(find.text('Danbooru Pool'), findsOneWidget);
       expect(tester.widget<TabBar>(find.byType(TabBar)).isScrollable, isTrue);
       expect(find.byType(TextFormField), findsNWidgets(2));
+      final formScrollable = find
+          .descendant(
+            of: find.byKey(const ValueKey('add-tag-group-form-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(
+        find.text('Cancel'),
+        200,
+        scrollable: formScrollable,
+      );
       expect(find.text('Cancel'), findsOneWidget);
       final addButton = find.ancestor(
         of: find.text('Add'),
         matching: find.byType(FilledButton),
       );
       expect(tester.widget<FilledButton>(addButton).onPressed, isNull);
+      await tester.scrollUntilVisible(
+        find.byType(TextFormField).first,
+        -200,
+        scrollable: formScrollable,
+      );
       await tester.enterText(find.byType(TextFormField).first, 'My group');
       await tester.pump();
+      await tester.scrollUntilVisible(
+        find.text('Add'),
+        200,
+        scrollable: formScrollable,
+      );
       expect(tester.widget<FilledButton>(addButton).onPressed, isNotNull);
       expect(tester.takeException(), isNull);
     },

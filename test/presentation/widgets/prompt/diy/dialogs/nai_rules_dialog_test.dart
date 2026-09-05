@@ -12,7 +12,6 @@ void main() {
 
       final expectedSurface = switch (width) {
         < 600 => 'adaptive-bottom-sheet',
-        < 840 => 'adaptive-bottom-sheet',
         _ => 'adaptive-centered-form',
       };
       final surface = tester.getRect(find.byKey(ValueKey(expectedSurface)));
