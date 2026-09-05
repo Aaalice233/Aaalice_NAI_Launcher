@@ -166,12 +166,24 @@ void main() {
     ),
     (
       name: 'Expanded',
-      size: const Size(1000, 800),
+      size: const Size(1000, 1400),
       scale: 1.0,
       keyboard: 0.0,
       padding: EdgeInsets.zero,
       surfaceKey: const ValueKey('adaptive-centered-form'),
     ),
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0])
+      for (final scale in [1.0, 3.0])
+        (
+          name: '$width px / ${scale}x',
+          size: Size(width, 900),
+          scale: scale,
+          keyboard: 300.0,
+          padding: const EdgeInsets.only(top: 24, bottom: 16),
+          surfaceKey: ValueKey(
+            width < 600 ? 'adaptive-bottom-sheet' : 'adaptive-centered-form',
+          ),
+        ),
   ]) {
     testWidgets('${scenario.name} 可验证并进入分享编辑器', (tester) async {
       tester.view.devicePixelRatio = 1;
@@ -243,6 +255,9 @@ void main() {
 
       final surface = find.byKey(scenario.surfaceKey);
       expect(surface, findsOneWidget);
+      if (scenario.name == 'Expanded') {
+        expect(tester.getSize(surface).height, lessThan(700));
+      }
       expect(find.byType(Dialog), findsNothing);
       final verify = find.widgetWithText(FilledButton, 'Verify with Discord');
       await tester.ensureVisible(verify);
@@ -259,6 +274,20 @@ void main() {
         expect(tester.getBottomRight(surface).dy, lessThanOrEqualTo(600));
       }
       expect(tester.takeException(), isNull);
+
+      if (scenario.name == 'Expanded') {
+        expect(tester.getSize(surface).height, lessThan(900));
+        final scrollable = find
+            .descendant(
+              of: find.byKey(const ValueKey('discord-share-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        expect(
+          tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
+          0,
+        );
+      }
 
       expect(await tester.binding.handlePopRoute(), isTrue);
       await tester.pumpAndSettle();

@@ -13,6 +13,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/discord_share_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../common/app_toast.dart';
 
@@ -443,18 +444,17 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
     final theme = Theme.of(context);
     return Material(
       color: Colors.transparent,
-      child: Column(
-        children: [
-          Expanded(
-            child: _initializing
-                ? const Center(child: CircularProgressIndicator())
-                : _session == null
-                ? _buildVerificationState(theme)
-                : _buildEditor(theme),
-          ),
-          if (_session != null) ...[const Divider(height: 1), _buildActions()],
-        ],
-      ),
+      child: _initializing
+          ? const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(
+                heightFactor: 1,
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : _session == null
+          ? _buildVerificationState(theme)
+          : _buildEditor(theme),
     );
   }
 
@@ -592,24 +592,29 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
         final compact = constraints.maxWidth < 760;
         final preview = _buildImagePreview(theme, compact: compact);
         final form = _buildShareForm(theme);
-        return SingleChildScrollView(
-          key: const ValueKey('discord-share-scroll'),
-          controller: widget.scrollController,
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        return ContentSizedAdaptiveForm(
+          scrollViewKey: const ValueKey('discord-share-scroll'),
+          scrollController: widget.scrollController,
           padding: const EdgeInsets.all(20),
-          child: compact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [preview, const SizedBox(height: 18), form],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(width: 260, child: preview),
-                    const SizedBox(width: 22),
-                    Expanded(child: form),
-                  ],
-                ),
+          footer: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [const Divider(height: 1), _buildActions()],
+          ),
+          content: [
+            compact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [preview, const SizedBox(height: 18), form],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(width: 260, child: preview),
+                      const SizedBox(width: 22),
+                      Expanded(child: form),
+                    ],
+                  ),
+          ],
         );
       },
     );
