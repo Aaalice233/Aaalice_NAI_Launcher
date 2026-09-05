@@ -60,6 +60,12 @@ class _TagEditorWeightLabelState extends State<TagEditorWeightLabel> {
         child: badge,
       );
     }
+    return _buildGroup(context, badge, accent);
+  }
+
+  Widget _buildGroup(BuildContext context, Widget badge, Color accent) {
+    final theme = Theme.of(context);
+    final span = widget.span;
     final touch = InteractionPolicyScope.of(context).touchAvailable;
     return Column(
       mainAxisSize: MainAxisSize.min,
