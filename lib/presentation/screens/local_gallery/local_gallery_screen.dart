@@ -233,7 +233,11 @@ class _LocalGalleryShell extends ConsumerWidget {
     if (gallery.isLoading && gallery.currentImages.isEmpty) {
       return const GalleryLoadingView();
     }
-    if (gallery.currentImages.isEmpty) return const GalleryEmptyView();
+    if (gallery.currentImages.isEmpty) {
+      return gallery.hasFilters
+          ? const GalleryNoResultsView()
+          : const GalleryEmptyView();
+    }
 
     return LocalGalleryContentView(
       use3DCardView: true,
