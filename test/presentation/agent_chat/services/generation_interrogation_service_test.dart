@@ -42,9 +42,8 @@ void main() {
   late List<Map<String, dynamic>> requests;
 
   setUp(() async {
-    root = await Directory(
-      'tool/.tmp/issue-257',
-    ).createTemp('interrogation-test-');
+    final temporaryRoot = await Directory('tool/.tmp').create(recursive: true);
+    root = await temporaryRoot.createTemp('agent-interrogation-test-');
     requests = [];
     final dio = _Dio();
     when(
