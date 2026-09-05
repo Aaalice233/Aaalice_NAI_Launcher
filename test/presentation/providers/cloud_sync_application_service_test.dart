@@ -85,6 +85,39 @@ void main() {
   );
 
   test(
+    'first push waits for foreground OneDrive check and uploads once',
+    () async {
+      final fixture = await _Fixture.create();
+      addTearDown(fixture.dispose);
+      await fixture.service.connect(
+        const CloudSyncConnectRequest(
+          connection: CloudSyncConnectionDraft(
+            backend: CloudSyncBackendKind.oneDrive,
+            accountId: 'saved-id',
+            path: 'backup',
+          ),
+          dataKinds: {CloudSyncDataKind.settings},
+        ),
+      );
+      final backend = fixture.backend
+        ..headReadGate = Completer<void>()
+        ..headReadStarted = Completer<void>();
+      final restoration = fixture.service.restorePersisted();
+      await backend.headReadStarted.future;
+      final push = fixture.service.pushNow();
+      final completed = expectLater(push, completes);
+      expect(backend.events, isEmpty);
+      backend.headReadGate!.complete();
+      await restoration;
+      await completed;
+      expect(fixture.states.last.remoteExists, isTrue);
+      expect(fixture.states.last.error, isNull);
+      expect(fixture.states.last.lastSync, isNotNull);
+      expect(backend.events.where((event) => event == 'head'), hasLength(1));
+    },
+  );
+
+  test(
     'successful lifecycle retry clears a previous connection error',
     () async {
       final backend = _ApplicationBackend()
@@ -507,7 +540,7 @@ class _Fixture {
 class _ApplicationBackend extends CoordinatorTestBackend
     implements ReadOnlyCloudSyncBackendValidation {
   Completer<void>? headReadGate;
-  final headReadStarted = Completer<void>();
+  var headReadStarted = Completer<void>();
   Object? headReadError;
   int headReads = 0;
 
