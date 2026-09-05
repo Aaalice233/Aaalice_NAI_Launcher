@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/character_prompt_block_parser.dart';
@@ -95,61 +97,21 @@ class PromptWeightEditing {
       }
     }
 
-    // 括号权重语法 {text} 或 [text]
-    var braceCount = 0;
-    var bracketCount = 0;
-
-    var i = 0;
-    while (i < trimmed.length) {
-      if (trimmed[i] == '{') {
-        braceCount++;
-        i++;
-      } else if (trimmed[i] == '[') {
-        bracketCount++;
-        i++;
-      } else {
-        break;
+    // Peel only complete enclosing shells; edge brackets may belong to
+    // different tags (for example `{cat}, {dog}`) and must stay intact.
+    final spans = PromptEditDocument.parse(trimmed);
+    if (spans.length == 1) {
+      final span = spans.single;
+      final prefix = span.prefix;
+      if (prefix.isNotEmpty && RegExp(r'^[\{\[]+$').hasMatch(prefix)) {
+        final exponent = prefix
+            .split('')
+            .fold<int>(0, (value, char) => value + (char == '{' ? 1 : -1));
+        weight = math.pow(1.05, exponent).toDouble();
+        baseText = span.label;
       }
     }
-
-    var j = trimmed.length - 1;
-    var closeBraceCount = 0;
-    var closeBracketCount = 0;
-    while (j >= i) {
-      if (trimmed[j] == '}') {
-        closeBraceCount++;
-        j--;
-      } else if (trimmed[j] == ']') {
-        closeBracketCount++;
-        j--;
-      } else {
-        break;
-      }
-    }
-
-    final effectiveBraces = braceCount < closeBraceCount
-        ? braceCount
-        : closeBraceCount;
-    final effectiveBrackets = bracketCount < closeBracketCount
-        ? bracketCount
-        : closeBracketCount;
-
-    if (effectiveBraces > 0) {
-      weight = 1.0 + (effectiveBraces * 0.05);
-      baseText = trimmed
-          .substring(effectiveBraces, trimmed.length - effectiveBraces)
-          .trim();
-    } else if (effectiveBrackets > 0) {
-      weight = 1.0 - (effectiveBrackets * 0.05);
-      baseText = trimmed
-          .substring(effectiveBrackets, trimmed.length - effectiveBrackets)
-          .trim();
-    }
-
-    return PromptWeightValue(
-      baseText: baseText.trim(),
-      weight: weight.clamp(0.1, 3.0),
-    );
+    return PromptWeightValue(baseText: baseText.trim(), weight: weight);
   }
 
   static bool applyWeight(TextEditingController controller, double newWeight) {
@@ -189,18 +151,19 @@ class PromptWeightEditing {
     String source,
     double weight, {
     bool numericEmphasisEnabled = true,
+    bool preserveGroup = false,
   }) {
     final spans = PromptEditDocument.parse(source);
     final disabled = spans.length == 1 && spans.single.disabled;
     final parsed = parseWeightSyntax(source);
     final value = weight.clamp(0.1, 3.0);
     String text;
-    if ((value - 1).abs() < 0.00001) {
+    if ((value - 1).abs() < 0.00001 && !preserveGroup) {
       text = parsed.baseText;
     } else if (numericEmphasisEnabled) {
       text = '${value.toStringAsFixed(2)}::${parsed.baseText}::';
     } else {
-      final depth = ((value - 1).abs() / 0.05).round();
+      final depth = (math.log(value).abs() / math.log(1.05)).round();
       final opening = value > 1 ? '{' : '[';
       final closing = value > 1 ? '}' : ']';
       text = '${opening * depth}${parsed.baseText}${closing * depth}';

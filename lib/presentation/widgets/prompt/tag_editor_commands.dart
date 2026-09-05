@@ -95,6 +95,7 @@ class TagEditorCommands {
         '${group.span.prefix}x${group.span.suffix}',
         value ?? weight! + step!,
         numericEmphasisEnabled: _useNumericWeight(group, numeric),
+        preserveGroup: true,
       );
       final split = shell.indexOf('x');
       session.apply([
@@ -130,10 +131,12 @@ class TagEditorCommands {
   bool _useNumericWeight(PromptEditorTag target, bool supported) {
     if (!supported) return false;
     // Numeric separators reset emphasis rather than restoring an outer scope.
-    // Keep existing numeric wrappers, but never introduce one inside a group
-    // or replace a bracket group's balanced boundary with a reset.
+    // Keep existing numeric wrappers, but never introduce one inside a group.
+    // A root group owns its complete boundary and can safely end with a reset.
     if (target.span.prefix.trim().endsWith('::')) return true;
-    if (target.children.isNotEmpty) return false;
+    if (target.children.any((child) => child.span.raw.contains('::'))) {
+      return false;
+    }
     bool nested(List<PromptEditorTag> tags, bool weighted) {
       for (final tag in tags) {
         if (identical(tag, target)) return weighted;

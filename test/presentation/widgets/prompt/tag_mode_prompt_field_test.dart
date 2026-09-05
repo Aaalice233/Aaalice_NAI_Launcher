@@ -98,7 +98,7 @@ void main() {
     testWidgets(
       'whole group weight from ${boxSelect ? 'box selection' : 'header click'}',
       (tester) async {
-        final source = TextEditingController(text: '1.20::cat, dog::, bird');
+        final source = TextEditingController(text: '{{{cat, dog}}}, bird');
         addTearDown(source.dispose);
         await pumpEditor(
           tester,
@@ -135,7 +135,7 @@ void main() {
           await tester.pump();
           await drag.up();
         } else {
-          await tester.tap(find.text('×1.20'));
+          await tester.tap(find.text('{{{…}}}'));
         }
         await tester.pumpAndSettle();
         expect(
@@ -146,12 +146,12 @@ void main() {
         );
         await tester.sendEventToBinding(
           PointerScrollEvent(
-            position: tester.getCenter(find.text(boxSelect ? 'cat' : '×1.20')),
+            position: tester.getCenter(find.text(boxSelect ? 'cat' : '{{{…}}}')),
             scrollDelta: const Offset(0, -20),
           ),
         );
         await tester.pumpAndSettle();
-        expect(source.text, '1.25::cat, dog::, bird');
+        expect(source.text, '1.21::cat, dog::, bird');
         await tester.sendEventToBinding(
           PointerScrollEvent(
             position: tester.getCenter(find.text('dog')),
@@ -159,7 +159,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(source.text, '1.30::cat, dog::, bird');
+        expect(source.text, '1.26::cat, dog::, bird');
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       },

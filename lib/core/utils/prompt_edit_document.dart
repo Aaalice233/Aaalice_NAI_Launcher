@@ -209,6 +209,21 @@ class PromptEditDocument {
     if (children.any((child) => !child.complete)) {
       return PromptEditSpan(start, end, raw);
     }
+    // Consecutive bracket shells describe one weight, not separate groups.
+    // Keep numeric resets and real subgroups as distinct editing boundaries.
+    if (children.length == 1 &&
+        RegExp(r'^[\{\[]+$').hasMatch(raw.substring(0, innerStart - start)) &&
+        RegExp(r'^[\{\[]+$').hasMatch(children.single.prefix)) {
+      final child = children.single;
+      return PromptEditSpan(
+        start,
+        end,
+        raw,
+        children: child.children,
+        contentStart: child.editStart,
+        contentEnd: child.editEnd,
+      );
+    }
     // A single weighted tag stays a single capsule; nested groups retain their
     // actual boundaries instead of distributing a group weight over its tags.
     if (children.length == 1 &&

@@ -34,16 +34,16 @@ void main() {
     expect(source.text, '1.25::cat, 0.80::dog::::, bird');
   });
 
-  test('explicit nested group selection preserves other wrapper levels', () {
+  test('repeated bracket shells adjust as one numeric group', () {
     create('{{cat, dog}}, bird');
     session.selectGroup(session.tags.first);
     TagEditorCommands(session).adjustWeight(step: 0.05);
-    expect(source.text, '{{{cat, dog}}}, bird');
+    expect(source.text, '1.15::cat, dog::, bird');
     TagEditorCommands(session).adjustWeight(step: 0.05);
-    expect(source.text, '{{{{cat, dog}}}}, bird');
+    expect(source.text, '1.20::cat, dog::, bird');
     session.setSelection(session.tags.first.leaves.map((tag) => tag.id));
     TagEditorCommands(session).adjustWeight(step: 0.05);
-    expect(source.text, '{{{{{cat, dog}}}}}, bird');
+    expect(source.text, '1.25::cat, dog::, bird');
   });
 
   test('partial and cross-group selections still adjust leaves', () {
@@ -55,6 +55,41 @@ void main() {
     expect(session.selectedGroup, isNull);
     TagEditorCommands(session).adjustWeight(step: 0.05);
     expect(source.text, '{{{cat}}, {dog}}, 1.05::bird::');
+  });
+
+  test(
+    'group survives neutral weight and repeated steps in both directions',
+    () {
+      create('{cat, dog}, bird');
+      final ids = session.tags.first.leaves.map((tag) => tag.id).toSet();
+      session.setSelection(ids);
+      final commands = TagEditorCommands(session);
+      for (final expected in [1.0, 0.95, 0.90]) {
+        commands.adjustWeight(step: -0.05);
+        expect(source.text, '${expected.toStringAsFixed(2)}::cat, dog::, bird');
+        expect(session.selected, ids);
+        expect(session.selectedGroup, isNotNull);
+      }
+      for (final expected in [0.95, 1.0, 1.05]) {
+        commands.adjustWeight(step: 0.05);
+        expect(source.text, '${expected.toStringAsFixed(2)}::cat, dog::, bird');
+      }
+    },
+  );
+
+  test('numeric root group preserves bracket subgroups and outside colors', () {
+    create('{{[backlighting],rim_light}}, plain');
+    session.selectGroup(session.tags.first);
+    TagEditorCommands(session).adjustWeight(value: 1);
+    expect(source.text, '1.00::[backlighting],rim_light::, plain');
+    final syntax = NaiSyntaxController(text: source.text);
+    addTearDown(syntax.dispose);
+    final colors = syntax.emphasisColorsAt(ThemeData.dark(), [
+      source.text.indexOf('plain'),
+    ]);
+    expect(colors, isEmpty);
+    session.undo();
+    expect(source.text, '{{[backlighting],rim_light}}, plain');
   });
 
   test(
