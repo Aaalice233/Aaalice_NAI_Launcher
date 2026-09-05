@@ -3402,6 +3402,12 @@
       "count": {}
     }
   },
+  "tagLibrary_importRejectedCount": "{count} 未匯入",
+  "@tagLibrary_importRejectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "tagLibrary_unknownCategory": "未知分類",
   "tagLibrary_selectEntryToUpdate": "選擇要更新的詞條",
   "tagLibrary_updatePreview": "更新預覽圖",
