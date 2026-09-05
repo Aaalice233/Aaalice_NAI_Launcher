@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart' as crypto;
 
 const cloudSyncProtocol = 'aaalice-cloud-sync';
-const cloudSyncSchemaVersion = 2;
+const cloudSyncSchemaVersion = 3;
 
 /// Hard limit for each object sent to or received from a backend.
 const maxCloudObjectBytes = 4 * 1024 * 1024;
@@ -130,9 +130,15 @@ class SnapshotManifest {
     required this.snapshotId,
     required this.createdAt,
     required List<SnapshotRecordRef> records,
+    Map<String, List<String>> packs = const {},
     this.version = cloudSyncSchemaVersion,
-  }) : records = UnmodifiableListView(List.of(records)) {
-    if (version != cloudSyncSchemaVersion) {
+  }) : records = UnmodifiableListView(List.of(records)),
+       packs = Map.unmodifiable(
+         packs.map(
+           (id, entries) => MapEntry(id, List<String>.unmodifiable(entries)),
+         ),
+       ) {
+    if (version != 2 && version != cloudSyncSchemaVersion) {
       throw const CloudFormatException('unsupported manifest version');
     }
     _requireIdentity(snapshotId, 'snapshotId');
@@ -145,12 +151,44 @@ class SnapshotManifest {
         throw const CloudFormatException('manifest records are not canonical');
       }
     }
+    if (version == 2 && packs.isNotEmpty) {
+      throw const CloudFormatException('legacy manifest cannot contain packs');
+    }
+    final sizes = <String, int>{};
+    for (final record in records) {
+      if (record.deleted) continue;
+      final previous = sizes[record.objectId];
+      if (previous != null && previous != record.size) {
+        throw const CloudFormatException('shared object has conflicting sizes');
+      }
+      sizes[record.objectId!] = record.size!;
+    }
+    final packed = <String>{};
+    for (final pack in packs.entries) {
+      _requireSha(pack.key);
+      if (pack.value.length < 2 || sizes.containsKey(pack.key)) {
+        throw const CloudFormatException('invalid packed object identity');
+      }
+      var length = 0;
+      for (final id in pack.value) {
+        if (!sizes.containsKey(id) || !packed.add(id)) {
+          throw const CloudFormatException(
+            'unknown or duplicate packed object',
+          );
+        }
+        length += sizes[id]!;
+      }
+      if (length > maxCloudObjectBytes) {
+        throw const CloudFormatException('packed object is too large');
+      }
+    }
   }
 
   final int version;
   final String snapshotId;
   final DateTime createdAt;
   final List<SnapshotRecordRef> records;
+  final Map<String, List<String>> packs;
 
   factory SnapshotManifest.decode(List<int> bytes) {
     if (bytes.length > 1024 * 1024) {
@@ -174,6 +212,7 @@ class SnapshotManifest {
       'snapshotId',
       'createdAt',
       'records',
+      if (value['version'] == cloudSyncSchemaVersion) 'packs',
     });
     final rawRecords = json['records'];
     if (rawRecords is! List) {
@@ -184,6 +223,7 @@ class SnapshotManifest {
       snapshotId: _string(json, 'snapshotId'),
       createdAt: _date(json, 'createdAt'),
       records: rawRecords.map(SnapshotRecordRef.fromJson).toList(),
+      packs: value['version'] == 2 ? const {} : _decodePacks(json['packs']),
     );
   }
 
@@ -192,6 +232,7 @@ class SnapshotManifest {
     'snapshotId': snapshotId,
     'createdAt': createdAt.toUtc().toIso8601String(),
     'records': records.map((record) => record.toJson()).toList(),
+    if (version != 2) 'packs': packs,
   };
 
   List<int> encode() => utf8.encode(jsonEncode(toJson()));
@@ -204,7 +245,7 @@ class SnapshotHead {
     required this.updatedAt,
     this.version = cloudSyncSchemaVersion,
   }) {
-    if (version != cloudSyncSchemaVersion) {
+    if (version != 2 && version != cloudSyncSchemaVersion) {
       throw const CloudFormatException('unsupported head version');
     }
     _requireIdentity(snapshotId, 'snapshotId');
@@ -265,6 +306,18 @@ class SnapshotHead {
 
 Map<String, Object?> strictJsonMap(Object? value, Set<String> keys) =>
     _strictMap(value, keys);
+
+Map<String, List<String>> _decodePacks(Object? value) {
+  if (value is! Map<String, dynamic>) {
+    throw const CloudFormatException('packs must be an object');
+  }
+  return value.map((id, entries) {
+    if (entries is! List || entries.any((entry) => entry is! String)) {
+      throw const CloudFormatException('pack entries must be object ids');
+    }
+    return MapEntry(id, entries.cast<String>());
+  });
+}
 
 Map<String, Object?> _strictMap(Object? value, Set<String> keys) {
   if (value is! Map<String, dynamic>) {

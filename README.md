@@ -110,7 +110,7 @@ NAI Launcher 面向经常使用 NovelAI 的图像创作者。生成、改图、P
 
 ### ☁️ 同步与备份
 
-- 支持 Google Drive、OneDrive、GitHub 与 WebDAV；连接账号不会自动上传、下载或覆盖内容。
+- 支持 OneDrive、GitHub 与 WebDAV；Google Drive 因授权审核尚未通过，暂时禁用新增连接入口。连接账号不会自动上传、下载或覆盖内容。
 - 推送、拉取和恢复都由你主动开始，并可预览差异与处理冲突。
 - 可分别选择设置、Prompt 与词库、词库预览图、在线画廊设置与收藏、本地相簿、智能代理 Prompt 与 Skill，以及可选的 Vibe、Precise Reference。
 - 本地图库原图、远程图库原图、账号凭据、缓存和日志不会进入备份。

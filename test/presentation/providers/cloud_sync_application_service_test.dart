@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -19,6 +20,101 @@ import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_pro
 import '../../core/cloud_sync/coordinator_test_backend.dart';
 
 void main() {
+  test(
+    'lifecycle without a saved account leaves the editable setup untouched',
+    () async {
+      final fixture = await _Fixture.create();
+      addTearDown(fixture.dispose);
+      await fixture.service.restorePersisted();
+      expect(fixture.states, isEmpty);
+      expect(fixture.backend.headReads, 0);
+    },
+  );
+
+  test(
+    'connected lifecycle refresh does not replace the dashboard with setup',
+    () async {
+      final fixture = await _Fixture.create();
+      addTearDown(fixture.dispose);
+      await fixture.service.connect(
+        const CloudSyncConnectRequest(
+          connection: _draft,
+          dataKinds: {CloudSyncDataKind.settings},
+        ),
+      );
+      fixture.states.clear();
+      await fixture.service.restorePersisted();
+      expect(fixture.states.every((state) => state.isConnected), isTrue);
+    },
+  );
+
+  test(
+    'restoration displays saved account before network and reads HEAD once',
+    () async {
+      final backend = _ApplicationBackend()..headReadGate = Completer<void>();
+      final fixture = await _Fixture.create(backend: backend);
+      addTearDown(fixture.dispose);
+      await CloudSyncConnectionStore(
+        localStorage: fixture.local,
+        secureStorage: fixture.secure,
+      ).save(
+        const CloudSyncConnectionDraft(
+          backend: CloudSyncBackendKind.oneDrive,
+          accountId: 'saved-id',
+          accountLabel: 'saved@example.test',
+          path: 'backup',
+        ),
+        {CloudSyncDataKind.settings},
+      );
+      final restoration = fixture.service.restorePersisted();
+      await backend.headReadStarted.future;
+      expect(
+        fixture.states.last.connectionStatus,
+        CloudSyncConnectionStatus.restoring,
+      );
+      expect(fixture.states.last.accountLabel, 'saved@example.test');
+      expect(fixture.states.last.isBusy, isTrue);
+      expect(await fixture.service.restorePersisted(), isFalse);
+      backend.headReadGate!.complete();
+      expect(await restoration, isTrue);
+      expect(backend.headReads, 1);
+      expect(fixture.states.last.isConnected, isTrue);
+      expect(fixture.states.last.isBusy, isFalse);
+      expect(backend.events, isEmpty);
+    },
+  );
+
+  test(
+    'successful lifecycle retry clears a previous connection error',
+    () async {
+      final backend = _ApplicationBackend()
+        ..headReadError = const CloudBackendException(
+          CloudBackendErrorKind.network,
+          'offline',
+        );
+      final fixture = await _Fixture.create(backend: backend);
+      addTearDown(fixture.dispose);
+      await CloudSyncConnectionStore(
+        localStorage: fixture.local,
+        secureStorage: fixture.secure,
+      ).save(_draft, {CloudSyncDataKind.settings});
+      await expectLater(
+        fixture.service.restorePersisted(),
+        throwsA(isA<CloudBackendException>()),
+      );
+      expect(fixture.states.last.error, 'backend.network');
+      expect(fixture.states.last.isBusy, isFalse);
+      backend.headReadError = null;
+      await fixture.service.restorePersisted();
+      expect(fixture.states.last.isConnected, isTrue);
+      expect(fixture.states.last.error, isNull);
+      expect(
+        fixture.local.values[StorageKeys.cloudSyncConfiguration],
+        isNotNull,
+      );
+    },
+  );
+
   test('new connection only saves configuration and does not upload', () async {
     final fixture = await _Fixture.create();
     addTearDown(fixture.dispose);
@@ -410,6 +506,20 @@ class _Fixture {
 
 class _ApplicationBackend extends CoordinatorTestBackend
     implements ReadOnlyCloudSyncBackendValidation {
+  Completer<void>? headReadGate;
+  final headReadStarted = Completer<void>();
+  Object? headReadError;
+  int headReads = 0;
+
+  @override
+  Future<CloudHeadRead?> readHead() async {
+    headReads++;
+    if (!headReadStarted.isCompleted) headReadStarted.complete();
+    await headReadGate?.future;
+    if (headReadError case final error?) throw error;
+    return super.readHead();
+  }
+
   int capabilityChecks = 0;
   int readOnlyValidationChecks = 0;
   int historyListCalls = 0;

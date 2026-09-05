@@ -1,5 +1,7 @@
 # Google Drive / OneDrive OAuth 开发者配置
 
+Google Drive 的应用授权审核尚未通过，产品暂时禁用新增连接按钮；已有连接及历史备份代码保留。以下 Google 配置说明仍用于维护现有集成，不能据此认为正式用户入口已开放。
+
 本文只描述云盘 OAuth 基础设施和人工控制台配置。仓库中不得提交真实 client ID、Google Windows Desktop client secret、token、`google-services.json` 或下载的 Google plist。
 
 ## 安全模型

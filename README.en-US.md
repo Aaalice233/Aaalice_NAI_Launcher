@@ -110,7 +110,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 ### ☁️ Sync and backup
 
-- Supports Google Drive, OneDrive, GitHub, and WebDAV. Connecting an account never uploads, downloads, or overwrites content by itself.
+- Supports OneDrive, GitHub, and WebDAV. New Google Drive connections are temporarily disabled pending authorization approval. Connecting an account never uploads, downloads, or overwrites content by itself.
 - Push, pull, and restore start only when requested, with change previews and conflict handling.
 - Select settings, Prompts and libraries, previews, online-gallery settings and favorites, local albums, Agent Prompts and Skills, and optional Vibe or Precise Reference content independently.
 - Original local and remote gallery images, credentials, caches, and logs never enter a backup.

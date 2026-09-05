@@ -28,12 +28,80 @@ void main() {
       expect(find.text('WebDAV'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
       expect(find.text('Google Drive'), findsOneWidget);
+      expect(
+        tester
+            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Google Drive'))
+            .onSelected,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'WebDAV'))
+            .onSelected,
+        isNotNull,
+      );
+      expect(find.text('Google Drive 暂不可用：应用授权审核尚未通过。'), findsOneWidget);
       expect(find.text('OneDrive'), findsOneWidget);
       expect(find.text('保存连接'), findsOneWidget);
       expect(tester.takeException(), isNull, reason: 'width=$width');
     }
     await tester.binding.setSurfaceSize(null);
   });
+
+  testWidgets(
+    'Google Drive is visibly disabled and cannot change the destination',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(700, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final port = _FakePort();
+      await tester.pumpWidget(_subject(port: port));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Google Drive'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'WebDAV'))
+            .selected,
+        isTrue,
+      );
+      expect(
+        find.byKey(const ValueKey('cloud-sync-authorize-googleDrive')),
+        findsNothing,
+      );
+      expect(port.request, isNull);
+    },
+  );
+
+  testWidgets(
+    'restoring account remains visible without a duplicate login entry',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 420));
+        await tester.pumpWidget(
+          _subject(
+            textScale: 3,
+            state: const CloudSyncUiState(
+              connectionStatus: CloudSyncConnectionStatus.restoring,
+              backend: CloudSyncBackendKind.oneDrive,
+              accountLabel: 'saved-account-with-a-long-name@example.test',
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(find.text('正在恢复连接'), findsOneWidget);
+        expect(
+          find.text('saved-account-with-a-long-name@example.test'),
+          findsOneWidget,
+        );
+        expect(find.byType(LinearProgressIndicator), findsOneWidget);
+        expect(find.text('尚未连接'), findsNothing);
+        expect(find.text('连接账号'), findsNothing);
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets('WebDAV 只填写服务商字段即可保存连接', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));

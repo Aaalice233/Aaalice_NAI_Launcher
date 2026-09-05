@@ -6,7 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:crypto/crypto.dart';
 import 'package:nai_launcher/core/cloud_sync/cloud_sync.dart';
 import 'package:nai_launcher/core/cloud_sync/telemetry.dart';
+import 'package:nai_launcher/core/cloud_sync/snapshot_transfer.dart';
+import 'package:nai_launcher/core/cloud_sync/snapshot_uploader.dart';
 import 'package:nai_launcher/data/cloud_sync/cloud_sync.dart';
+
+import '../../core/cloud_sync/coordinator_test_backend.dart';
+import '../../core/cloud_sync/packed_snapshot_contract.dart';
 
 void main() {
   late Directory root;
@@ -18,6 +23,71 @@ void main() {
   tearDown(() async {
     if (await root.exists()) await root.delete(recursive: true);
   });
+
+  test(
+    'packed download persists original payloads across reconstruction',
+    () async {
+      final adapter = _Adapter();
+      adapter.exported = [
+        for (var index = 0; index < 80; index++)
+          PortableSyncRecord(
+            adapterId: adapter.id,
+            id: 'config-$index',
+            kind: 'item',
+            data: {'value': index},
+          ),
+      ];
+      final registry = CloudSyncDataAdapterRegistry([adapter]);
+      final writer = AppCloudSyncDataSource(
+        registry: registry,
+        root: Directory('${root.path}/writer'),
+      );
+      final snapshot = await writer.captureLocal();
+      final backend = CoordinatorTestBackend();
+      await ResumableSnapshotUploader(
+        backend: backend,
+        dataSource: writer,
+        now: () => DateTime.utc(2026),
+      ).resume(
+        journal: uploadJournal(),
+        snapshot: snapshot,
+        token: OperationToken(),
+        checkpoint: (_) async {},
+      );
+      final head = SnapshotHead.decode((await backend.readHead())!.bytes);
+      final manifest = SnapshotManifest.decode(
+        (await backend.readSnapshotManifest(head.snapshotId))!.bytes,
+      );
+      expect(manifest.packs, hasLength(1));
+      final readerRoot = Directory('${root.path}/reader');
+      final reader = AppCloudSyncDataSource(
+        registry: registry,
+        root: readerRoot,
+      );
+      final downloaded = await CloudSnapshotTransfer(
+        backend: backend,
+        dataSource: reader,
+      ).downloadHead(head, OperationToken(), null);
+      expect(downloaded.records, snapshot.records);
+      expect(
+        downloaded.records.values.every((record) => record.bytes == null),
+        isTrue,
+      );
+      await reader.saveBase(downloaded, head.snapshotId);
+      final rebuilt = AppCloudSyncDataSource(
+        registry: registry,
+        root: readerRoot,
+      );
+      final base = (await rebuilt.readBase())!;
+      expect(base.records, snapshot.records);
+      for (final record in snapshot.records.values) {
+        expect(
+          await base.records[record.id]!.readBytes(),
+          await record.readBytes(),
+        );
+      }
+    },
+  );
 
   test('verified remote object revisions survive reconstruction', () async {
     final registry = CloudSyncDataAdapterRegistry([_Adapter()]);

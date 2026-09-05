@@ -25,7 +25,28 @@ class CloudSyncScreen extends ConsumerWidget {
             message: localizeCloudSyncError(context, state.error!),
             warning: true,
           ),
-        if (state.isConnected)
+        if (state.connectionStatus == CloudSyncConnectionStatus.restoring)
+          Semantics(
+            liveRegion: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                CloudSyncStatusBanner(
+                  icon: Icons.cloud_sync_outlined,
+                  title: context.l10n.cloudSync_restoringConnection,
+                  message:
+                      context.l10n.cloudSync_restoringConnectionDescription,
+                ),
+                if (state.accountLabel?.isNotEmpty ?? false)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(state.accountLabel!),
+                  ),
+                const LinearProgressIndicator(),
+              ],
+            ),
+          )
+        else if (state.isConnected)
           CloudSyncDashboard(state: state)
         else
           const CloudSyncSetup(),

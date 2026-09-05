@@ -9,6 +9,10 @@ import 'cloud_sync_provider_wiring.dart';
 enum CloudSyncBackendKind { webDav, github, googleDrive, oneDrive }
 
 extension CloudSyncBackendKindX on CloudSyncBackendKind {
+  // Keep the implementation and persisted account format while OAuth review
+  // prevents offering Google Drive to new users.
+  bool get acceptsNewConnections => this != CloudSyncBackendKind.googleDrive;
+
   bool get usesOAuth =>
       this == CloudSyncBackendKind.googleDrive ||
       this == CloudSyncBackendKind.oneDrive;
@@ -20,7 +24,7 @@ extension CloudSyncBackendKindX on CloudSyncBackendKind {
   };
 }
 
-enum CloudSyncConnectionStatus { disconnected, connected }
+enum CloudSyncConnectionStatus { disconnected, restoring, connected }
 
 enum CloudSyncActivityStatus { idle, syncing, paused }
 
@@ -296,7 +300,9 @@ class CloudSyncUiState {
   bool get isConnected =>
       connectionStatus == CloudSyncConnectionStatus.connected;
   bool get needsConflictResolution => conflicts.isNotEmpty;
-  bool get isBusy => activityStatus != CloudSyncActivityStatus.idle;
+  bool get isBusy =>
+      connectionStatus == CloudSyncConnectionStatus.restoring ||
+      activityStatus != CloudSyncActivityStatus.idle;
   bool get needsPreviewConfirmation => pendingPreview != null;
 
   void ensureNoPendingPreview() {

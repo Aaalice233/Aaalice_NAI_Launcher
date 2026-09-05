@@ -136,7 +136,13 @@ void main() {
       backend: backend,
       local: CloudSyncSnapshotData([
         for (var index = 0; index < 12; index++)
-          _record('record-$index', [index]),
+          CloudSyncRecord(
+            id: 'record-$index',
+            kind: 'resource',
+            binary: true,
+            deleted: false,
+            bytes: Uint8List.fromList([index]),
+          ),
       ]),
     );
     addTearDown(fixture.dispose);
@@ -691,9 +697,14 @@ void main() {
   test('out-of-order upload checkpoints resume as a safe object set', () async {
     final backend = _OutOfOrderFailureBackend();
     final snapshot = CloudSyncSnapshotData([
-      _record('a', [1]),
-      _record('b', [2]),
-      _record('c', [3]),
+      for (final entry in {'a': 1, 'b': 2, 'c': 3}.entries)
+        CloudSyncRecord(
+          id: entry.key,
+          kind: 'resource',
+          binary: true,
+          deleted: false,
+          bytes: Uint8List.fromList([entry.value]),
+        ),
     ]);
     final source = _MemorySource(snapshot);
     var journal = SyncJournal(
@@ -800,7 +811,7 @@ void main() {
   );
 
   test(
-    '10k-record benchmark scales unchanged uploads with changed objects',
+    '10k small records share one pack and unchanged uploads reuse it',
     () async {
       CloudSyncSnapshotData snapshot({int? changedIndex}) =>
           CloudSyncSnapshotData([
@@ -831,22 +842,22 @@ void main() {
       int payloadAttempts() => fixture.backend.putAttempts.entries
           .where((entry) => !entry.key.startsWith('snapshot.'))
           .fold(0, (total, entry) => total + entry.value.length);
-      expect(payloadIds(), 10000);
-      expect(payloadAttempts(), 10000);
+      expect(payloadIds(), 1);
+      expect(payloadAttempts(), 1);
 
       watch.reset();
       await fixture.coordinator.uploadLocal();
       final unchangedUpload = watch.elapsed;
-      expect(payloadIds(), 10000);
-      expect(payloadAttempts(), 10000);
+      expect(payloadIds(), 1);
+      expect(payloadAttempts(), 1);
 
       fixture.source.local = snapshot(changedIndex: 5000);
       watch.reset();
       await fixture.coordinator.uploadLocal();
       final oneChangedUpload = watch.elapsed;
-      expect(payloadIds(), 10001);
-      expect(payloadAttempts(), 10001);
-      // Timings are diagnostic only; deterministic assertions enforce O(C) writes.
+      expect(payloadIds(), 2);
+      expect(payloadAttempts(), 2);
+      // A changed setting replaces its pack; unchanged snapshots reuse it.
       // ignore: avoid_print
       print(
         'cloud-sync 10k benchmark: first=${firstUpload.inMilliseconds}ms, '

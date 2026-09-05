@@ -166,18 +166,28 @@ class OneDriveApiClient {
         'OneDrive 父目录响应缺少 id。',
       );
     }
+    final existing = await metadata(path);
+    if (existing != null) return _requireFolder(existing, name);
     final response = await _graphRequest(
       'POST',
       'me/drive/items/${Uri.encodeComponent(parentId)}/children',
       action: '创建 OneDrive 应用目录',
       accepted: const {201},
-      data: {'name': name, 'folder': <String, Object?>{}},
+      data: {
+        'name': name,
+        'folder': <String, Object?>{},
+        '@microsoft.graph.conflictBehavior': 'fail',
+      },
       allowConflict: true,
       retryable: false,
     );
     final folder = response == null
         ? await metadata(path)
         : _decodeItem(_decodeMap(response, 'OneDrive 目录创建结果'));
+    return _requireFolder(folder, name);
+  }
+
+  OneDriveItem _requireFolder(OneDriveItem? folder, String name) {
     if (folder == null ||
         !folder.isFolder ||
         folder.name != name ||
@@ -213,7 +223,6 @@ class OneDriveApiClient {
       'GET',
       _appRoot,
       action: '初始化 OneDrive 应用目录',
-      retryable: false,
     );
     final item = _decodeItem(_decodeMap(response!, 'OneDrive 应用目录'));
     if (!item.isFolder || item.id == null || item.id!.isEmpty) {

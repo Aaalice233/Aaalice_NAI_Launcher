@@ -13,8 +13,22 @@ import 'package:nai_launcher/core/cloud_sync/snapshot_transfer.dart';
 import 'package:nai_launcher/core/cloud_sync/snapshot_uploader.dart';
 
 import 'github_fake_api.dart';
+import '../packed_snapshot_contract.dart';
 
 void main() {
+  test(
+    'packed configuration roundtrip preserves legacy GitHub backups',
+    () async {
+      final api = FakeGitHubApi();
+      await verifyPackedSnapshotRoundTrip(_backend(api), _backend(api));
+      expect(api.snapshotCommitCount, 2);
+      expect(
+        api.requests.any((request) => request.uri.path.contains('/contents/')),
+        isFalse,
+      );
+    },
+  );
+
   for (final empty in [false, true]) {
     for (final defaultBranch in ['sync', 'main']) {
       test(

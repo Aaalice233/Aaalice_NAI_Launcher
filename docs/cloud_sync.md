@@ -8,6 +8,7 @@
 |---|---|
 | 协议模型与限制 | [models.dart](../lib/core/cloud_sync/models.dart) |
 | 同步协调、上传与下载 | [coordinator.dart](../lib/core/cloud_sync/coordinator.dart)、[snapshot_uploader.dart](../lib/core/cloud_sync/snapshot_uploader.dart)、[snapshot_transfer.dart](../lib/core/cloud_sync/snapshot_transfer.dart) |
+| 小对象打包与上传产物 | [snapshot_object_packer.dart](../lib/core/cloud_sync/snapshot_object_packer.dart)、[snapshot_upload_plan.dart](../lib/core/cloud_sync/snapshot_upload_plan.dart) |
 | 有界调度 | [bounded_transfer_scheduler.dart](../lib/core/cloud_sync/bounded_transfer_scheduler.dart) |
 | 后端契约与四种实现 | [backend/](../lib/core/cloud_sync/backend/) |
 | 本地准备与持久化 | [app_cloud_sync_data_source.dart](../lib/data/cloud_sync/app_cloud_sync_data_source.dart)、[verified_blob_store.dart](../lib/data/cloud_sync/verified_blob_store.dart) |
@@ -18,6 +19,12 @@
 ## 协议与数据身份
 
 远端 namespace 内使用 `HEAD.json`、`snapshots/<snapshotId>.json` 和 `objects/<sha256>`。对象保存明文 payload，内容 SHA-256 是对象身份；manifest 保存记录身份与对象引用，HEAD 是可变的快照入口。
+
+当前写入 schema 3，继续读取 schema 2 的 HEAD 和 manifest，namespace 不变。schema 3 的 `packs` 将一个传输对象映射到按顺序拼接的记录 payload SHA-256 列表；每个成员的长度仍来自原始记录引用。小于等于 64 KiB 的文本/元数据对象按约 1 MiB 分包，单个二进制资源和大记录继续独立传输。打包只减少网络对象数，不改变记录 ID、删除标记、内容 SHA-256 或逐条合并语义，也不增加总备份大小上限。
+
+- 下载先校验完整对象，再按声明长度拆分并逐个校验成员；重复引用、未知成员、错误长度或哈希不匹配必须报错。
+- 未完成上传复用已经持久化的 manifest 与分包顺序；schema 2 未完成上传继续提交 schema 2 HEAD，不在恢复过程中切换格式。
+- 历史对象与快照不会因升级自动删除、迁移或重写。新版可拉取和恢复旧备份；旧客户端不支持 schema 3 新备份，跨设备使用新备份前需更新客户端。
 
 - 发布顺序为不可变 objects → immutable manifest → HEAD。条件提交冲突必须显式处理，不能令 HEAD 指向不完整快照。
 - manifest/HEAD 按当前模型严格解析；损坏、缺失或不匹配的对象必须在应用前报错。
@@ -41,8 +48,8 @@
 
 | 后端 | 维护约束 |
 |---|---|
-| OneDrive | 复用目录与分页 inventory；immutable 写使用明确冲突语义，HEAD 保持条件更新；模糊响应读回校验 |
-| Google Drive | 复用 operation-scoped inventory；保持 `manualBackupOnly`，不把 version/headRevisionId 当作强 CAS |
+| OneDrive | 已有目录先只读解析，缺失时按明确的 fail 冲突语义创建并处理并发创建；复用分页 inventory；HEAD 保持条件更新，模糊响应读回校验 |
+| Google Drive | 授权审核未通过，新增连接入口暂时禁用；保留已保存连接、备份读取和后端实现。保持 `manualBackupOnly`，不把 version/headRevisionId 当作强 CAS |
 | GitHub | 读取固定 commit/tree；对象通过 Git Database API 组织，tree/commit/ref 一次发布，禁止逐文件 Contents API 替代原子提交 |
 | WebDAV | 根据实际 ETag/条件写能力决定模式；能力不足保持手动备份；坚果云单并发，不自动合并或恢复历史 |
 | WebDAV 远端维护 | 不执行自动 GC；缺少可证明安全的删除协调时不能猜测共享对象已无引用 |
@@ -50,6 +57,8 @@
 重试须区分不可变对象与可变提交；429、Retry-After、响应丢失、409/412 等保留原始错误与上下文。不能盲目重放 HEAD 提交。
 
 保存连接仅保存并验证配置，不自动上传、下载、恢复或续跑待处理操作。OAuth/账户凭据和设备专属状态不进备份；本地图库图像字节不参与云备份。
+
+启动时立即开始恢复已保存连接，账号信息先于网络校验显示，首次恢复期间不显示重复登录入口；无已保存连接时不得重建正在编辑的设置表单。已连接时的前台刷新保留 Dashboard，首次恢复只读取一次 HEAD，成功后清除先前失败状态。自动上传、自动拉取仍未启用。
 
 ## 验证方式
 
