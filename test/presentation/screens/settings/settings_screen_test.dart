@@ -185,9 +185,11 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     await tester.pumpAndSettle();
 
-    final labels = rail.destinations
-        .map((destination) => (destination.label as Text).data)
-        .toList();
+    // 标签按等宽包装以避免导航项横向抖动，取文本要穿过包装层。
+    final labels = rail.destinations.map((destination) {
+      final label = destination.label;
+      return ((label is SizedBox ? label.child : label) as Text).data;
+    }).toList();
     expect(labels, const [
       '账户',
       '外观',
@@ -289,6 +291,77 @@ void main() {
       '集成',
     );
     expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita']);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('导航项在长短标签混排的语言下保持左缘对齐', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    // 中文标签长度接近，抖动只在英文/日文这类长短悬殊的语言下暴露。
+    for (final locale in const [Locale('en'), Locale('ja')]) {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(storage),
+            secureStorageServiceProvider.overrideWithValue(
+              _MemorySecureStorage(),
+            ),
+            agentSettingsProvider.overrideWith(
+              (ref) => AgentSettingsNotifier(
+                ref,
+                supportDirectory: Directory.systemTemp,
+                workspaceDirectory: Directory.systemTemp,
+                environment: const {},
+                skillCatalogService: const _EmptySkillCatalogService(),
+              ),
+            ),
+            authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+            accountManagerNotifierProvider.overrideWith(
+              _FakeAccountManagerNotifier.new,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              _FakeSubscriptionNotifier.new,
+            ),
+          ],
+          child: MaterialApp(
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const SettingsScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final railFinder = find.byType(NavigationRail);
+      final iconLefts = tester
+          .widgetList<Icon>(
+            find.descendant(of: railFinder, matching: find.byType(Icon)),
+          )
+          .map(
+            (icon) => tester
+                .getTopLeft(
+                  find.descendant(
+                    of: railFinder,
+                    matching: find.byWidget(icon),
+                  ),
+                )
+                .dx,
+          )
+          .toList();
+
+      expect(iconLefts.length, 11, reason: '$locale');
+      for (final left in iconLefts) {
+        expect(
+          left,
+          closeTo(iconLefts.first, 0.01),
+          reason: '$locale 导航项图标未对齐：$iconLefts',
+        );
+      }
+      expect(tester.takeException(), isNull, reason: '$locale');
+    }
     debugDefaultTargetPlatformOverride = null;
   });
 
