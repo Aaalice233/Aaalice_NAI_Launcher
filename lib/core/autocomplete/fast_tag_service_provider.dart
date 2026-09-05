@@ -25,9 +25,19 @@ final zhDictionaryServiceProvider = ChangeNotifierProvider<ZhDictionaryService>(
   },
 );
 
-final fastTagServiceProvider = Provider<FastTagService>(
-  (ref) => FastTagService(
+final fastTagServiceProvider = Provider<FastTagService>((ref) {
+  // Download/check progress does not change translation content or its cache.
+  ref.watch(
+    zhDictionaryServiceProvider.select(
+      (service) => (
+        service.state.isInstalled,
+        service.state.version,
+        service.state.tagCount,
+      ),
+    ),
+  );
+  return FastTagService(
     catalog: ref.watch(tagCatalogRepositoryProvider),
-    dictionary: ref.watch(zhDictionaryServiceProvider),
-  ),
-);
+    dictionary: ref.watch(zhDictionaryServiceProvider.notifier),
+  );
+});

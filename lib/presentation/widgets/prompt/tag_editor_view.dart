@@ -62,6 +62,8 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
   final GlobalKey _boxKey = GlobalKey();
   final Map<int, GlobalKey> _keys = {};
   final OverlayPortalController _overlay = OverlayPortalController();
+  final _toolbarRevision = ValueNotifier<int>(0);
+  bool _toolbarRefreshPending = false;
   final AutocompleteOverlayHandle _autocomplete = AutocompleteOverlayHandle();
   late final ScrollController _scroll;
   PromptTranslationController? _translations;
@@ -118,7 +120,12 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
 
   void _scrolled() {
     session.scrollOffset = _scroll.offset;
-    if (_overlay.isShowing) _refresh();
+    if (!_overlay.isShowing || _toolbarRefreshPending) return;
+    _toolbarRefreshPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _toolbarRefreshPending = false;
+      if (mounted) _toolbarRevision.value++;
+    });
   }
 
   void _refresh() {
@@ -149,9 +156,11 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
       _insertOffset = null;
       _clearAddition();
     }
+    if (source != _lastSourceText) {
+      _keys.removeWhere((id, _) => session.nodeById(id) == null);
+      _syncTranslations();
+    }
     _lastSourceText = source;
-    _keys.removeWhere((id, _) => session.byId(id) == null);
-    _syncTranslations();
     _refresh();
     final selection = session.controller.selection;
     if (selection != _lastSourceSelection &&
@@ -216,6 +225,7 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
     );
     _translations?.dispose();
     _scroll.dispose();
+    _toolbarRevision.dispose();
     if (widget.focusNode == null) _focus.dispose();
     _addFocus.dispose();
     _add.dispose();
@@ -248,9 +258,10 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
   }
 
   void _edit(PromptEditorTag tag, TextEditingValue value) {
+    final previousText = session.controller.text;
     _composing = value.composing.isValid && !value.composing.isCollapsed;
     session.replaceLabel(tag.id, value.text, composing: _composing);
-    _syncTranslations();
+    if (previousText == session.controller.text) _syncTranslations();
     if (_composing) return;
     final parsed = PromptEditDocument.parse(value.text);
     if (parsed.length > 1 ||
@@ -833,7 +844,10 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
         onKeyEvent: _key,
         child: OverlayPortal.overlayChildLayoutBuilder(
           controller: _overlay,
-          overlayChildBuilder: _toolbar,
+          overlayChildBuilder: (context, info) => ValueListenableBuilder<int>(
+            valueListenable: _toolbarRevision,
+            builder: (context, _, _) => _toolbar(context, info),
+          ),
           child: Material(
             key: _surfaceKey,
             borderRadius:

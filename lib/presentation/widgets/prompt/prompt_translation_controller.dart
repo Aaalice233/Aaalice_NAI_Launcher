@@ -22,6 +22,7 @@ class PromptTranslationController extends ChangeNotifier {
   Set<String> _texts = {};
   Timer? _timer;
   int _generation = 0;
+  final Map<String, int> _inFlight = {};
   bool _disposed = false;
   bool _composing = false;
 
@@ -35,32 +36,39 @@ class PromptTranslationController extends ChangeNotifier {
     if (!force && setEquals(next, _texts) && composing == _composing) return;
     _composing = composing;
     _timer?.cancel();
-    final generation = ++_generation;
     _texts = next;
+    _inFlight.removeWhere((text, _) => force || !next.contains(text));
     values = {
       for (final text in next)
-        text:
-            !force && values[text]?.status == PromptTranslationStatus.translated
+        text: !force && values.containsKey(text)
             ? values[text]!
             : const PromptTranslation(PromptTranslationStatus.pending),
     };
     notifyListeners();
-    if (composing || next.isEmpty) return;
+    final pending = next
+        .where(
+          (text) =>
+              values[text]!.status == PromptTranslationStatus.pending &&
+              !_inFlight.containsKey(text),
+        )
+        .toSet();
+    if (composing || pending.isEmpty) return;
     if (immediate) {
-      unawaited(_query(generation, next));
+      unawaited(_query(pending));
     } else {
-      _timer = Timer(
-        const Duration(milliseconds: 150),
-        () => _query(generation, next),
-      );
+      _timer = Timer(const Duration(milliseconds: 150), () => _query(pending));
     }
   }
 
-  Future<void> _query(int generation, Set<String> texts) async {
+  Future<void> _query(Set<String> texts) async {
+    final generation = ++_generation;
+    for (final text in texts) {
+      _inFlight[text] = generation;
+    }
+    Map<String, PromptTranslation> resolved;
     try {
       final translations = await lookup.translateBatch(texts.toList());
-      if (_disposed || generation != _generation) return;
-      values = {
+      resolved = {
         for (final text in texts)
           text: _translation(
             translations[TagTranslationLookup.normalizeTag(text)],
@@ -68,12 +76,20 @@ class PromptTranslationController extends ChangeNotifier {
       };
     } catch (error, stack) {
       AppLogger.e('Prompt tag translation failed', error, stack);
-      if (_disposed || generation != _generation) return;
-      values = {
+      resolved = {
         for (final text in texts)
           text: const PromptTranslation(PromptTranslationStatus.failed),
       };
     }
+    if (_disposed) return;
+    final accepted = <String, PromptTranslation>{};
+    for (final entry in resolved.entries) {
+      if (_inFlight[entry.key] != generation) continue;
+      _inFlight.remove(entry.key);
+      accepted[entry.key] = entry.value;
+    }
+    if (accepted.isEmpty) return;
+    values = {...values, ...accepted};
     notifyListeners();
   }
 

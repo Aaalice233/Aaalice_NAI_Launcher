@@ -52,11 +52,13 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
   final FocusNode _focus = FocusNode();
   bool _syncing = false;
   String? _lastSubmitted;
+  TextEditingValue _lastReported = TextEditingValue.empty;
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.tag.span.label)
       ..addListener(_inputChanged);
+    _lastReported = _controller.value;
     if (widget.editing) _requestFocus();
   }
 
@@ -72,6 +74,12 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
 
   void _inputChanged() {
     if (_syncing || !widget.editing) return;
+    final value = _controller.value;
+    if (value.text == _lastReported.text &&
+        value.composing == _lastReported.composing) {
+      return;
+    }
+    _lastReported = value;
     _lastSubmitted = _controller.text;
     setState(() {});
     widget.onChanged(_controller.value);
@@ -96,6 +104,7 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
         ),
       );
       _syncing = false;
+      _lastReported = _controller.value;
     }
   }
 

@@ -5,6 +5,47 @@ import 'package:nai_launcher/presentation/widgets/prompt/prompt_translation_cont
 
 void main() {
   testWidgets(
+    'editing one tag keeps completed and missing entries and pending requests',
+    (tester) async {
+      final requests = <List<String>>[];
+      final slow = Completer<Map<String, String>>();
+      final controller = PromptTranslationController(
+        TagTranslationLookup.fromResolver((tags) {
+          requests.add(tags);
+          if (tags.contains('slow')) return slow.future;
+          return Future.value({
+            for (final tag in tags.where((tag) => tag != 'missing'))
+              tag: '译文 $tag',
+          });
+        }),
+      );
+      addTearDown(controller.dispose);
+      controller.update(['cat', 'missing'], immediate: true);
+      await tester.pump();
+      final cat = controller.values['cat'];
+      final missing = controller.values['missing'];
+      controller.update(['cat', 'missing', 'slow'], immediate: true);
+      controller.update(['cat', 'missing', 'slow', 'dog'], immediate: true);
+      await tester.pump();
+      expect(controller.values['cat'], same(cat));
+      expect(controller.values['missing'], same(missing));
+      expect(
+        controller.values['missing']!.status,
+        PromptTranslationStatus.missing,
+      );
+      expect(requests, [
+        ['cat', 'missing'],
+        ['slow'],
+        ['dog'],
+      ]);
+      slow.complete({'slow': '慢'});
+      await tester.pump();
+      expect(controller.values['slow']!.text, '慢');
+      expect(controller.values['dog']!.text, '译文 dog');
+      expect(controller.values['cat'], same(cat));
+    },
+  );
+  testWidgets(
     'debounces committed input, deduplicates and rejects stale responses',
     (tester) async {
       final requests = <String, Completer<Map<String, String>>>{};

@@ -38,9 +38,12 @@ class TagEditorSession extends ChangeNotifier {
   final TextEditingController controller;
   late TextEditingValue _previous;
   List<PromptEditorTag> tags = [];
+  List<PromptEditorTag> _leaves = [];
+  Map<int, PromptEditorTag> _leafIndex = {};
+  Map<int, PromptEditorTag> _nodeIndex = {};
   final Set<int> selected = {};
-  // Wrapper IDs are rebuilt after edits; the structural path distinguishes
-  // nested groups with identical leaves while repeated wheel edits change text.
+  // The structural path distinguishes nested groups with identical leaves,
+  // including weight edits that replace a wrapper.
   List<int>? _selectedGroupPath;
   final List<TextEditingValue> _past = [];
   final List<TextEditingValue> _future = [];
@@ -59,7 +62,9 @@ class TagEditorSession extends ChangeNotifier {
 
   bool get canUndo => _past.isNotEmpty;
   bool get canRedo => _future.isNotEmpty;
-  Iterable<PromptEditorTag> get leaves => tags.expand((tag) => tag.leaves);
+  Iterable<PromptEditorTag> get leaves => _leaves;
+  Iterable<PromptEditorTag> get nodes => _nodeIndex.values;
+  PromptEditorTag? nodeById(int id) => _nodeIndex[id];
   List<PromptEditorTag> get selectedTags =>
       leaves.where((tag) => selected.contains(tag.id)).toList();
   bool get structureComplete => tags.every((tag) => tag.span.complete);
@@ -105,10 +110,7 @@ class TagEditorSession extends ChangeNotifier {
   }
 
   PromptEditorTag? byId(int id) {
-    for (final tag in leaves) {
-      if (tag.id == id) return tag;
-    }
-    return null;
+    return _leafIndex[id];
   }
 
   void _reparse(Map<int, int> identities) {
@@ -132,7 +134,18 @@ class TagEditorSession extends ChangeNotifier {
     }
 
     tags = spans.map(build).toList();
-    final ids = leaves.map((tag) => tag.id).toSet();
+    _leaves = tags.expand((tag) => tag.leaves).toList();
+    _leafIndex = {for (final tag in _leaves) tag.id: tag};
+    _nodeIndex = {};
+    void index(List<PromptEditorTag> siblings) {
+      for (final tag in siblings) {
+        _nodeIndex[tag.id] = tag;
+        index(tag.children);
+      }
+    }
+
+    index(tags);
+    final ids = _leafIndex.keys.toSet();
     selected.removeWhere((id) => !ids.contains(id));
     if (!ids.contains(editing)) editing = null;
   }
@@ -160,7 +173,7 @@ class TagEditorSession extends ChangeNotifier {
       }
       final delta = value.text.length - before.length;
       final identities = <int, int>{};
-      for (final tag in leaves) {
+      for (final tag in nodes) {
         final start = tag.span.start;
         if (tag.span.end <= prefix) {
           identities[start] = tag.id;
@@ -280,7 +293,7 @@ class TagEditorSession extends ChangeNotifier {
     editing = null;
     _editingRange = null;
     _draftSpan = null;
-    if (hadDraft) _reparse({for (final tag in leaves) tag.span.start: tag.id});
+    if (hadDraft) _reparse({for (final tag in nodes) tag.span.start: tag.id});
     _lastTyping = null;
   }
 
@@ -311,7 +324,7 @@ class TagEditorSession extends ChangeNotifier {
     _lastTyping = typing ? now : null;
     _future.clear();
     final identities = <int, int>{};
-    for (final tag in leaves) {
+    for (final tag in nodes) {
       var offset = tag.span.start;
       var removed = false;
       for (final patch in ordered) {
@@ -399,7 +412,7 @@ class TagEditorSession extends ChangeNotifier {
           : PromptTextPatch(start, end, label),
     ], typing: true);
     if (previousText == controller.text) {
-      _reparse({for (final tag in leaves) tag.span.start: tag.id});
+      _reparse({for (final tag in nodes) tag.span.start: tag.id});
       notifyListeners();
     }
   }
@@ -529,7 +542,7 @@ class TagEditorSession extends ChangeNotifier {
       position += tag.span.raw.length + 2;
     }
     apply([...deletions, patch]);
-    final identities = {for (final tag in leaves) tag.span.start: tag.id};
+    final identities = {for (final tag in nodes) tag.span.start: tag.id};
     identities.removeWhere((_, id) => selectedList.any((tag) => tag.id == id));
     identities.addAll(movedIdentities);
     _reparse(identities);

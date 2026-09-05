@@ -57,6 +57,25 @@ class _TagEditorTreeState extends State<TagEditorTree> {
   int? _dropBefore;
   bool _showDrop = false;
   Map<int, Color> _weightColors = const {};
+  final _capsules = <int, (Object, Widget)>{};
+  final _fallbackSyntax = NaiSyntaxController();
+  Object? _weightSignature;
+  PromptEditorTag? _selectedGroup;
+
+  @override
+  void didUpdateWidget(TagEditorTree oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.session != widget.session) {
+      _capsules.clear();
+      _weightSignature = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _fallbackSyntax.dispose();
+    super.dispose();
+  }
 
   bool _canDrop(Set<int> ids) =>
       widget.enabled &&
@@ -125,9 +144,10 @@ class _TagEditorTreeState extends State<TagEditorTree> {
   @override
   Widget build(BuildContext context) {
     final source = widget.session.controller;
-    final syntax = source is NaiSyntaxController
-        ? source
-        : NaiSyntaxController(text: source.text);
+    if (_fallbackSyntax.text != source.text && source is! NaiSyntaxController) {
+      _fallbackSyntax.text = source.text;
+    }
+    final syntax = source is NaiSyntaxController ? source : _fallbackSyntax;
     Iterable<int> offsets(List<PromptEditorTag> tags) sync* {
       for (final tag in tags) {
         if (!tag.span.disabled && tag.span.complete) yield tag.span.editStart;
@@ -135,11 +155,21 @@ class _TagEditorTreeState extends State<TagEditorTree> {
       }
     }
 
-    _weightColors = syntax.emphasisColorsAt(
+    final signature = (
+      source.text,
+      syntax.highlightEnabled,
+      syntax.numericEmphasisEnabled,
       Theme.of(context),
-      offsets(widget.session.tags),
     );
-    if (!identical(syntax, source)) syntax.dispose();
+    if (_weightSignature != signature) {
+      _weightSignature = signature;
+      _weightColors = syntax.emphasisColorsAt(
+        Theme.of(context),
+        offsets(widget.session.tags),
+      );
+    }
+    _capsules.removeWhere((id, _) => widget.session.byId(id) == null);
+    _selectedGroup = widget.session.selectedGroup;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -174,7 +204,7 @@ class _TagEditorTreeState extends State<TagEditorTree> {
     final theme = Theme.of(context);
     final color = _weightColors[tag.span.editStart];
     final weightStyle = color == null ? null : TagEditorWeightStyle(color);
-    final selected = identical(widget.session.selectedGroup, tag);
+    final selected = identical(_selectedGroup, tag);
     return Semantics(
       label: context.l10n.tagMode_group,
       selected: selected,
@@ -254,24 +284,47 @@ class _TagEditorTreeState extends State<TagEditorTree> {
     final selected = session.selected.contains(tag.id);
     final editing = session.editing == tag.id;
     final dragData = {...session.selected, tag.id};
-    final capsule = TagEditorCapsule(
-      key: ValueKey(tag.id),
-      autocompleteOverlay: widget.autocompleteOverlay,
-      tag: tag,
-      emphasisColor: _weightColors[tag.span.editStart],
-      selected: selected,
-      editing: editing,
-      maxWidth: (width - 20).clamp(0, width),
-      selectTextOnEdit: session.selectTextOnEdit,
-      enableAutocomplete: widget.enableAutocomplete,
-      showTranslation: widget.showTranslation,
-      translation: widget.translations?[tag.span.label],
-      onRetryTranslation: widget.onRetryTranslation,
-      onTap: () => widget.onSelect(tag),
-      onChanged: (value) => widget.onEdit(tag, value),
-      onSubmitted: session.endEdit,
-      onTapOutside: session.clearSelection,
+    final signature = (
+      tag.span.raw,
+      tag.span.label,
+      tag.span.prefix,
+      tag.span.suffix,
+      tag.span.complete,
+      selected,
+      editing,
+      session.selectTextOnEdit,
+      width,
+      widget.enableAutocomplete,
+      widget.showTranslation,
+      widget.translations?[tag.span.label],
+      _weightColors[tag.span.editStart],
+      widget.autocompleteOverlay,
     );
+    // Only visual changes rebuild a capsule. Its callbacks always resolve the
+    // current source span, since edits to earlier tags can shift its offsets.
+    final cached = _capsules[tag.id];
+    final capsule = cached?.$1 == signature
+        ? cached!.$2
+        : TagEditorCapsule(
+            key: ValueKey(tag.id),
+            autocompleteOverlay: widget.autocompleteOverlay,
+            tag: tag,
+            emphasisColor: _weightColors[tag.span.editStart],
+            selected: selected,
+            editing: editing,
+            maxWidth: (width - 20).clamp(0, width),
+            selectTextOnEdit: session.selectTextOnEdit,
+            enableAutocomplete: widget.enableAutocomplete,
+            showTranslation: widget.showTranslation,
+            translation: widget.translations?[tag.span.label],
+            onRetryTranslation: () => widget.onRetryTranslation(),
+            onTap: () => widget.onSelect(widget.session.byId(tag.id)!),
+            onChanged: (value) =>
+                widget.onEdit(widget.session.byId(tag.id)!, value),
+            onSubmitted: session.endEdit,
+            onTapOutside: session.clearSelection,
+          );
+    _capsules[tag.id] = (signature, capsule);
     return DragTarget<Set<int>>(
       key: ValueKey(tag.id),
       onWillAcceptWithDetails: (details) =>
