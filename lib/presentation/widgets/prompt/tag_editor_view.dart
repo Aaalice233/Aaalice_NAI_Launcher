@@ -611,7 +611,8 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
 
   Widget _toolbar(BuildContext context, OverlayChildLayoutInfo info) {
     final surface = _surfaceKey.currentContext?.findRenderObject();
-    final id = session.selected.firstOrNull;
+    // Group actions must clear the header as well as the selected leaves.
+    final id = session.selectedGroup?.id ?? session.selected.firstOrNull;
     final local = id != null && surface is RenderBox
         ? _tagRect(id, surface)
         : null;
