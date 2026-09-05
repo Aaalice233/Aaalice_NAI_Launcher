@@ -43,6 +43,58 @@ void main() {
     expect(await service.validateDatabaseFile(file.path), 1000);
   });
 
+  test(
+    'concurrent initialization waits for the installed dictionary',
+    () async {
+      final directory = Directory(p.join(temp.path, 'autocomplete', 'ffdkj'));
+      await directory.create(recursive: true);
+      _createDictionary(p.join(directory.path, 'tag.sqlite'), rows: 1000);
+      final supportDirectory = Completer<Directory>();
+      var directoryRequests = 0;
+      service.dispose();
+      service = ZhDictionaryService(
+        applicationSupportDirectory: () {
+          directoryRequests++;
+          return supportDirectory.future;
+        },
+      );
+      final startup = service.initialize();
+      final editorHint = service.initialize();
+      supportDirectory.complete(temp);
+      expect(editorHint, same(startup));
+      expect(directoryRequests, 1);
+      expect(service.state.isInstalled, isFalse);
+      await editorHint;
+      expect(service.state.isInstalled, isTrue);
+      expect(service.state.tagCount, 1000);
+      expect(await service.resolve(['tag_0'], locale: 'zh-CN'), {
+        'tag_0': '标签0',
+      });
+      await service.initialize();
+      expect(directoryRequests, 1);
+    },
+  );
+
+  test('initialization failures remain visible and can be retried', () async {
+    var attempts = 0;
+    service.dispose();
+    service = ZhDictionaryService(
+      applicationSupportDirectory: () {
+        if (++attempts == 1) {
+          throw const FileSystemException('support directory unavailable');
+        }
+        return Future.value(temp);
+      },
+    );
+    await expectLater(
+      service.initialize(),
+      throwsA(isA<FileSystemException>()),
+    );
+    await service.initialize();
+    expect(attempts, 2);
+    expect(service.state.isInstalled, isFalse);
+  });
+
   test('searches the Simplified dictionary with Traditional input', () async {
     final dictionaryDirectory = Directory(
       p.join(temp.path, 'autocomplete', 'ffdkj'),

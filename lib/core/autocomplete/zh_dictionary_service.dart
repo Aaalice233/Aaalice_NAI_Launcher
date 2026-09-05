@@ -49,13 +49,21 @@ class ZhDictionaryService extends ChangeNotifier
   String? _metadataPath;
   ZhDictionaryState _state = const ZhDictionaryState();
   ZhDictionarySource? _pendingUpdateSource;
+  Future<void>? _initialization;
 
   ZhDictionaryDownloader get _downloader => ZhDictionaryDownloader(dio: _dio);
 
   ZhDictionaryState get state => _state;
 
-  Future<void> initialize() async {
-    if (_databasePath != null) return;
+  // A resolved path does not mean the installed database has been validated.
+  // Startup lookups and editor hints must wait for the same installed state.
+  Future<void> initialize() =>
+      _initialization ??= _initialize().onError<Object>((error, stack) {
+        _initialization = null;
+        Error.throwWithStackTrace(error, stack);
+      });
+
+  Future<void> _initialize() async {
     final appDir = await _applicationSupportDirectory();
     final directory = Directory(p.join(appDir.path, 'autocomplete', 'ffdkj'));
     await directory.create(recursive: true);
