@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
@@ -9,6 +10,47 @@ import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_weight_label
 import 'tag_mode_prompt_field_test.dart' show pumpEditor;
 
 void main() {
+  testWidgets(
+    'reducing selected inner tags does not tint unselected siblings or outside tags',
+    (tester) async {
+      final source = NaiSyntaxController(text: '{{cat, dog, fox}}, bird');
+      addTearDown(source.dispose);
+      await pumpEditor(tester, source, locale: const Locale('en'));
+      await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+      await tester.pumpAndSettle();
+      Color? color(String label) => tester
+          .widgetList<TagEditorCapsule>(find.byType(TagEditorCapsule))
+          .firstWhere((tag) => tag.tag.span.label == label)
+          .emphasisColor;
+      final foxBefore = color('fox');
+      expect(color('bird'), isNull);
+      await tester.tap(find.text('cat'));
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.tap(find.text('dog'));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 3; i++) {
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            position: tester.getCenter(find.text('cat')),
+            scrollDelta: const Offset(0, 20),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(color('fox'), foxBefore);
+        expect(color('bird'), isNull);
+        expect(
+          tester
+              .widgetList<TagEditorCapsule>(find.byType(TagEditorCapsule))
+              .where((tag) => tag.selected)
+              .map((tag) => tag.tag.span.label),
+          ['cat', 'dog'],
+        );
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
   testWidgets(
     'desktop group header stays compact and selection stays visible',
     (tester) async {

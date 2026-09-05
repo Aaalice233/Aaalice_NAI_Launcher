@@ -94,7 +94,7 @@ class TagEditorCommands {
       final shell = PromptWeightEditing.withWeight(
         '${group.span.prefix}x${group.span.suffix}',
         value ?? weight! + step!,
-        numericEmphasisEnabled: numeric,
+        numericEmphasisEnabled: _useNumericWeight(group, numeric),
       );
       final split = shell.indexOf('x');
       session.apply([
@@ -121,10 +121,37 @@ class TagEditorCommands {
             value ??
                 PromptWeightEditing.parseWeightSyntax(tag.span.text).weight +
                     step!,
-            numericEmphasisEnabled: numeric,
+            numericEmphasisEnabled: _useNumericWeight(tag, numeric),
           ),
         ),
     ]);
+  }
+
+  bool _useNumericWeight(PromptEditorTag target, bool supported) {
+    if (!supported) return false;
+    // Numeric separators reset emphasis rather than restoring an outer scope.
+    // Keep existing numeric wrappers, but never introduce one inside a group
+    // or replace a bracket group's balanced boundary with a reset.
+    if (target.span.prefix.trim().endsWith('::')) return true;
+    if (target.children.isNotEmpty) return false;
+    bool nested(List<PromptEditorTag> tags, bool weighted) {
+      for (final tag in tags) {
+        if (identical(tag, target)) return weighted;
+        final prefix = tag.span.prefix.trim();
+        if (nested(
+          tag.children,
+          weighted ||
+              prefix.endsWith('::') ||
+              prefix.endsWith('{') ||
+              prefix.endsWith('['),
+        )) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    return !nested(session.tags, false);
   }
 
   bool available(TagEditorAction action) => switch (action) {
