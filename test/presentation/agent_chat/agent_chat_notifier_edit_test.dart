@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -111,15 +112,45 @@ Future<void> _configureRoute(ProviderContainer container) async {
   await Future<void>.delayed(const Duration(milliseconds: 20));
 }
 
+// Chat can report initialized while agent settings are still loading, and
+// settings reject every write until their own load finishes.
 Future<void> _waitForInitialized(
   ProviderContainer container,
   StateNotifierProvider<AgentChatNotifier, AgentChatState> provider,
 ) async {
-  for (var attempt = 0; attempt < 200; attempt++) {
-    if (container.read(provider).initialized) return;
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+  await _waitForProviderState<AgentChatState>(
+    container,
+    provider,
+    (state) => state.initialized,
+    'AgentChatNotifier did not initialize',
+  );
+  await _waitForProviderState<AgentSettingsState>(
+    container,
+    agentSettingsProvider,
+    (state) => state.initialized,
+    'AgentSettingsNotifier did not initialize',
+  );
+  expect(container.read(agentSettingsProvider).error, isEmpty);
+}
+
+Future<void> _waitForProviderState<T>(
+  ProviderContainer container,
+  ProviderListenable<T> provider,
+  bool Function(T state) isReady,
+  String failureMessage,
+) async {
+  final ready = Completer<void>();
+  final subscription = container.listen<T>(provider, (_, next) {
+    if (isReady(next) && !ready.isCompleted) ready.complete();
+  }, fireImmediately: true);
+  try {
+    await ready.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => fail(failureMessage),
+    );
+  } finally {
+    subscription.close();
   }
-  fail('AgentChatNotifier did not initialize');
 }
 
 class _MemoryStorage extends LocalStorageService {

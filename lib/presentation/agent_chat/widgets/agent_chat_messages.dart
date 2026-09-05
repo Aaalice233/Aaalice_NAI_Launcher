@@ -882,31 +882,27 @@ class _AssistantActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
+    // 两个图标与同行的时间戳一样属于消息附属信息，不承载独立层级，
+    // 因此不铺色面；按钮自身的 hover 与按压反馈已足够表达可点。
+    return Row(
       key: ValueKey('agent-assistant-message-actions-$messageIndex'),
-      color: theme.colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _MessageActionButton(
-            key: ValueKey('agent-assistant-message-copy-$messageIndex'),
-            tooltip: context.l10n.common_copy,
-            icon: Icons.copy_all_outlined,
-            largeHitArea: true,
-            onPressed: onCopy,
-          ),
-          _MessageActionButton(
-            key: ValueKey('agent-assistant-message-retry-$messageIndex'),
-            tooltip: context.l10n.common_retry,
-            icon: Icons.refresh_rounded,
-            largeHitArea: true,
-            onPressed: onRetry,
-          ),
-        ],
-      ),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _MessageActionButton(
+          key: ValueKey('agent-assistant-message-copy-$messageIndex'),
+          tooltip: context.l10n.common_copy,
+          icon: Icons.copy_all_outlined,
+          largeHitArea: true,
+          onPressed: onCopy,
+        ),
+        _MessageActionButton(
+          key: ValueKey('agent-assistant-message-retry-$messageIndex'),
+          tooltip: context.l10n.common_retry,
+          icon: Icons.refresh_rounded,
+          largeHitArea: true,
+          onPressed: onRetry,
+        ),
+      ],
     );
   }
 }
