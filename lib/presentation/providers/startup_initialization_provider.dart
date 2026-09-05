@@ -160,14 +160,12 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
         final hivePath = await HiveStorageHelper.instance.getPath();
         await Future.wait([
           _openHiveBoxIfNeeded(StorageKeys.historyBox, hivePath: hivePath),
-          _openHiveBoxIfNeeded(StorageKeys.tagCacheBox, hivePath: hivePath),
           _openHiveBoxIfNeeded(StorageKeys.galleryBox, hivePath: hivePath),
           _openHiveBoxIfNeeded(
             StorageKeys.localFavoritesBox,
             hivePath: hivePath,
           ),
           _openHiveBoxIfNeeded(StorageKeys.tagsBox, hivePath: hivePath),
-          _openHiveBoxIfNeeded(StorageKeys.searchIndexBox, hivePath: hivePath),
           _openHiveBoxIfNeeded(
             StorageKeys.statisticsCacheBox,
             hivePath: hivePath,

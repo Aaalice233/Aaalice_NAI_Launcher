@@ -483,10 +483,6 @@ class _GenericGalleryContentViewState<T>
   }
 }
 
-// ============================================
-// 向后兼容的 LocalImageRecord 专用版本
-// ============================================
-
 /// 本地画廊状态适配器
 class _LocalGalleryStateAdapter implements GalleryState<LocalImageRecord> {
   final LocalGalleryState _state;
@@ -532,7 +528,7 @@ class _LocalSelectionStateAdapter implements SelectionState {
   Set<String> get selectedIds => _state.selectedIds;
 }
 
-/// 向后兼容的画廊内容视图
+/// 本地画廊内容视图
 class LocalGalleryContentView extends ConsumerWidget {
   final bool use3DCardView;
   final int columns;
@@ -693,6 +689,3 @@ class LocalGalleryContentView extends ConsumerWidget {
     );
   }
 }
-
-// 向后兼容的类型别名
-typedef GalleryContentView = LocalGalleryContentView;

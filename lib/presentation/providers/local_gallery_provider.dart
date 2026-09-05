@@ -130,12 +130,6 @@ class LocalGalleryState with _$LocalGalleryState {
   /// 是否可以加载更多
   bool get canLoadMore => currentPage < totalPages - 1;
 
-  /// 所有文件列表（兼容旧代码）
-  List<LocalImageRecord> get allFiles => currentImages;
-
-  /// 过滤后的文件列表（兼容旧代码）
-  List<LocalImageRecord> get filteredFiles => currentImages;
-
   /// 是否是第一页
   bool get isFirstPage => currentPage == 0;
 

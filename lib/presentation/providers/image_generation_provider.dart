@@ -66,7 +66,6 @@ export 'generation/generation_result_lifecycle_service.dart';
 export 'generation/image_generation_service.dart';
 export 'generation/batch_generation_notifier.dart';
 export 'generation/stream_generation_notifier.dart';
-export 'generation/metadata_preload_notifier.dart';
 export 'generation/retry_policy_notifier.dart';
 
 part 'image_generation_provider.g.dart';

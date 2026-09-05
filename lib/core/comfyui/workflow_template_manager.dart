@@ -35,9 +35,7 @@ class WorkflowTemplateManager {
   /// 初始化：加载内置模板 + 用户自定义模板
   Future<void> loadAllTemplates() async {
     _templates.clear();
-    for (final builtin in BuiltinWorkflows.all) {
-      _templates.add(builtin);
-    }
+    _templates.addAll(BuiltinWorkflows.all);
     await _loadCustomTemplates();
     AppLogger.i(
       'Loaded ${_templates.length} workflow(s): '
@@ -45,15 +43,6 @@ class WorkflowTemplateManager {
       '${customTemplates.length} custom',
       _tag,
     );
-  }
-
-  /// 兼容旧接口（同步，仅加载内置模板）
-  void loadBuiltinTemplates() {
-    _templates.clear();
-    for (final builtin in BuiltinWorkflows.all) {
-      _templates.add(builtin);
-    }
-    AppLogger.i('Loaded ${_templates.length} builtin workflow(s)', _tag);
   }
 
   /// 添加用户自定义模板并持久化
@@ -76,11 +65,10 @@ class WorkflowTemplateManager {
 
   /// 根据 ID 获取模板
   WorkflowTemplate? getById(String id) {
-    try {
-      return _templates.firstWhere((t) => t.id == id);
-    } catch (_) {
-      return null;
+    for (final template in _templates) {
+      if (template.id == id) return template;
     }
+    return null;
   }
 
   /// 准备可执行的工作流 JSON

@@ -166,7 +166,6 @@ class ImageMetadataService {
     String path, {
     ParseCancelToken? cancelToken,
   }) async {
-    // AppLogger.i('[MetadataFlow] getMetadataImmediate START: path=$path', 'ImageMetadataService');
     final stopwatch = Stopwatch()..start();
 
     // 检查取消
@@ -236,8 +235,6 @@ class ImageMetadataService {
       if (!taskCompleter.isCompleted) {
         taskCompleter.complete(result);
       }
-
-      // AppLogger.i('[MetadataFlow] Parse completed (${stopwatch.elapsedMilliseconds}ms): hasData=${result?.hasData}', 'ImageMetadataService');
 
       return result;
     } on _ParseCancelledException {
@@ -480,16 +477,8 @@ class ImageMetadataService {
     _preloader.enqueue(taskId: taskId, filePath: filePath, bytes: bytes);
   }
 
-  /// 批量添加预加载任务
-  void enqueuePreloadBatch(List<GeneratedImageInfo> images) {
-    for (final image in images) {
-      enqueuePreload(taskId: image.id, filePath: image.filePath, bytes: image.bytes);
-    }
-  }
-
   /// 从缓存获取元数据（同步检查）
   NaiImageMetadata? getCached(String path) {
-    // AppLogger.d('[MetadataFlow] getCached called: path=$path', 'ImageMetadataService');
 
     final hash = _hashCalculator.getHashForPath(path);
     if (hash == null) return null;
@@ -528,7 +517,6 @@ class ImageMetadataService {
   Future<void> clearCache() async {
     await _cacheManager.clear();
     _hashCalculator.clearCache();
-    // AppLogger.i('All caches cleared', 'ImageMetadataService');
   }
 
   /// 清除持久化缓存
@@ -543,9 +531,6 @@ class ImageMetadataService {
 
   /// 预加载（简写）
   void preload(String path) => enqueuePreload(taskId: path, filePath: path);
-
-  /// 批量预加载
-  void preloadBatch(List<GeneratedImageInfo> images) => enqueuePreloadBatch(images);
 
   // ==================== 统计信息 ====================
 
@@ -576,7 +561,6 @@ class ImageMetadataService {
     _hashCalculator.resetStatistics();
     _preloader.resetStatistics();
     _statistics.reset();
-    // AppLogger.i('ImageMetadataService statistics reset', 'ImageMetadataService');
   }
 
   /// 获取完整统计
@@ -605,7 +589,6 @@ class ImageMetadataService {
     if (task != null && !task.completer.isCompleted) {
       task.completer.complete(null);
       _cleanupTask(hash);
-      // AppLogger.d('Parse task cancelled for hash: $hash', 'ImageMetadataService');
     }
   }
 
@@ -633,7 +616,6 @@ class ImageMetadataService {
         _statistics.recordFailure('file_not_found', totalStopwatch.elapsed);
         return null;
       }
-      // AppLogger.d('[MetadataFlow] File exists, size=${await file.length()} bytes', 'ImageMetadataService');
 
       _checkCancelled(cancelToken);
 
@@ -730,15 +712,6 @@ class ImageMetadataService {
       return null;
     }
   }
-}
-
-/// 生成图像信息
-class GeneratedImageInfo {
-  final String id;
-  final String? filePath;
-  final Uint8List? bytes;
-
-  GeneratedImageInfo({required this.id, this.filePath, this.bytes});
 }
 
 /// 解析取消异常

@@ -161,7 +161,7 @@ class _LocalGalleryShell extends ConsumerWidget {
         body: _buildBody(context, ref),
         footer:
             !gallery.isIndexing &&
-                gallery.filteredFiles.isNotEmpty &&
+                gallery.currentImages.isNotEmpty &&
                 gallery.totalPages > 0
             ? PaginationBar(
                 currentPage: gallery.currentPage,
@@ -230,12 +230,12 @@ class _LocalGalleryShell extends ConsumerWidget {
             ref.read(localGalleryNotifierProvider.notifier).refresh(),
       );
     }
-    if (gallery.isLoading && gallery.allFiles.isEmpty) {
+    if (gallery.isLoading && gallery.currentImages.isEmpty) {
       return const GalleryLoadingView();
     }
-    if (gallery.allFiles.isEmpty) return const GalleryEmptyView();
+    if (gallery.currentImages.isEmpty) return const GalleryEmptyView();
 
-    return GalleryContentView(
+    return LocalGalleryContentView(
       use3DCardView: true,
       columns: viewModel.columns,
       itemWidth: viewModel.itemWidth,

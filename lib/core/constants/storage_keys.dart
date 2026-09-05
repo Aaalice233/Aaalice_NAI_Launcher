@@ -28,14 +28,12 @@ class StorageKeys {
   static const String settingsBox = 'settings';
   static const String historyBox = 'history';
   static const String cacheBox = 'cache';
-  static const String tagCacheBox = 'tag_cache';
   static const String galleryBox = 'gallery';
   static const String localMetadataCacheBox = 'local_metadata_cache';
   static const String warmupMetricsBox = 'warmup_metrics';
   static const String tagFavoritesBox = 'tag_favorites';
   static const String tagTemplatesBox = 'tag_templates';
   static const String localFavoritesBox = 'local_favorites';
-  static const String searchIndexBox = 'search_index';
   static const String favoritesBox = 'favorites';
   static const String tagsBox = 'tags';
   static const String collectionsBox = 'collections';
@@ -172,9 +170,6 @@ class StorageKeys {
   static const String generationHistory = 'generation_history';
   static const String historyIndex = 'history_index';
   static const String favoriteImages = 'favorite_images';
-
-  // Tag Cache Keys (标签缓存相关)
-  static const String tagCacheData = 'tag_cache_data';
 
   // Tag Favorites Keys (标签收藏相关)
   static const String tagFavoritesData = 'tag_favorites_data';

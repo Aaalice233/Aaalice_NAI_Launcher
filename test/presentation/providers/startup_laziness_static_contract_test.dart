@@ -15,8 +15,6 @@ void main() {
 
     for (final forbidden in <String>[
       'IsolateMetadataService.instance.initialize',
-      'searchIndexServiceProvider).init',
-      'tagCacheServiceProvider).init',
       'getTotalImageCount()',
       'ProxyService.testNovelAIConnection',
       'GoogleFonts.pendingFonts',
@@ -112,16 +110,5 @@ void main() {
       bootstrapSource,
       isNot(contains('Positioned.fill(child: _buildSplash')),
     );
-
-    for (final servicePath in <String>[
-      'lib/core/cache/tag_cache_service.dart',
-      'lib/data/services/search_index_service.dart',
-    ]) {
-      expect(
-        File(servicePath).readAsStringSync(),
-        contains('@Riverpod(keepAlive: true)'),
-        reason: '$servicePath 应在首次按需使用后复用同一实例',
-      );
-    }
   });
 }

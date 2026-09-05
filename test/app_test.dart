@@ -30,14 +30,11 @@ import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/tag/local_tag.dart';
-import 'package:nai_launcher/data/models/tag/tag_suggestion.dart'
-    hide TagCategory;
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_service.dart';
 import 'package:nai_launcher/data/services/statistics_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/danbooru_suggestion_provider.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
@@ -779,8 +776,10 @@ void main() {
     });
 
     test('injects native SeedVR2 model, VAE, scale, tiles, and seed', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2NativeUpscaleTemplateId)!;
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2NativeUpscaleTemplateId,
+      );
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -822,8 +821,10 @@ void main() {
     });
 
     test('injects SeedVR2 target resolution into the upscaler node', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2LegacyUpscaleTemplateId)!;
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyUpscaleTemplateId,
+      );
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -834,8 +835,10 @@ void main() {
     });
 
     test('injects SeedVR2 VAE tile size into encode and decode fields', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2LegacyUpscaleTemplateId)!;
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyUpscaleTemplateId,
+      );
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -850,8 +853,10 @@ void main() {
     });
 
     test('injects SeedVR2 block swap settings into the DiT loader node', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2LegacyUpscaleTemplateId)!;
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyUpscaleTemplateId,
+      );
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -865,10 +870,10 @@ void main() {
     });
 
     test('injects SeedVR2 block swap settings into the tiled workflow', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(
-        comfySeedvr2LegacyTiledUpscaleTemplateId,
-      )!;
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyTiledUpscaleTemplateId,
+      );
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -880,8 +885,9 @@ void main() {
     });
 
     test('includes RTX upscale workflow using Nvidia RTX nodes', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById('builtin_rtx_upscale')!;
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == 'builtin_rtx_upscale',
+      );
       final nodeTypes = extractWorkflowNodeTypes(workflow.workflowJson);
 
       expect(nodeTypes, contains('RTXVideoSuperResolution'));
@@ -893,8 +899,10 @@ void main() {
     });
 
     test('includes SeedVR2 tiled workflow with tile size controls', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById('builtin_seedvr2_tiled_upscale')!;
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == 'builtin_seedvr2_tiled_upscale',
+      );
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -2572,9 +2580,6 @@ Future<void> _pumpOnlineGalleryScreen(WidgetTester tester) async {
         onlineGalleryNotifierProvider.overrideWith(
           _FakeOnlineGalleryNotifier.new,
         ),
-        danbooruSuggestionNotifierProvider.overrideWith(
-          _FakeDanbooruSuggestionNotifier.new,
-        ),
         autocompleteLocalSourcesProvider.overrideWithValue(const [
           _FakeCompletionSource(),
         ]),
@@ -2641,28 +2646,6 @@ class _FakeOnlineGalleryNotifier extends OnlineGalleryNotifier {
       dateRangeEnd: end,
       clearDateRange: start == null && end == null,
     );
-  }
-}
-
-class _FakeDanbooruSuggestionNotifier extends DanbooruSuggestionNotifier {
-  @override
-  TagSuggestionState build() => const TagSuggestionState();
-
-  @override
-  void search(String query, {bool immediate = false}) {
-    final suggestion = switch (query) {
-      'foot_focus' => const TagSuggestion(tag: 'foot_focus'),
-      'lo' => const TagSuggestion(tag: 'long_hair'),
-      _ => null,
-    };
-    if (suggestion == null) return;
-
-    state = TagSuggestionState(suggestions: [suggestion], currentQuery: query);
-  }
-
-  @override
-  void clear() {
-    state = const TagSuggestionState();
   }
 }
 
