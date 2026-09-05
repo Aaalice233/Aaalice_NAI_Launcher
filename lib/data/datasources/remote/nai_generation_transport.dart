@@ -167,10 +167,9 @@ class NaiGenerationTransport {
 
   /// Encodes the official multipart layout while preserving image-part order.
   static FormData buildGenerationFormData(Map<String, dynamic> requestData) {
-    final transformedRequest = jsonDecode(jsonEncode(requestData));
-    if (transformedRequest is! Map<String, dynamic>) {
-      throw ArgumentError.value(requestData, 'requestData', 'Expected a map');
-    }
+    // Copies only the rewritten containers: encoding and parsing every base64
+    // payload again just to obtain a writable copy costs more than the request.
+    final transformedRequest = Map<String, dynamic>.of(requestData);
 
     final formData = FormData();
     final partNamesByPayload = <String, String>{};
@@ -244,20 +243,31 @@ class NaiGenerationTransport {
     ) {
       final cachedValues = parameters[cachedKey];
       if (cachedValues is! List) return;
+      final extractedValues = <dynamic>[];
       for (var index = 0; index < cachedValues.length; index += 1) {
         final cachedValue = cachedValues[index];
-        if (cachedValue is! Map<String, dynamic>) continue;
+        if (cachedValue is! Map) {
+          extractedValues.add(cachedValue);
+          continue;
+        }
         final data = cachedValue['data'];
-        if (data is! String || data.isEmpty) continue;
-        cachedValue['data'] = appendImagePart(data, '$partPrefix$index');
+        if (data is! String || data.isEmpty) {
+          extractedValues.add(cachedValue);
+          continue;
+        }
+        final extractedValue = _copyStringKeyedMap(cachedValue, cachedKey);
+        extractedValue['data'] = appendImagePart(data, '$partPrefix$index');
+        extractedValues.add(extractedValue);
       }
+      parameters[cachedKey] = extractedValues;
     }
 
     final parametersValue = transformedRequest['parameters'];
-    final parameters = parametersValue is Map<String, dynamic>
-        ? parametersValue
+    final parameters = parametersValue is Map
+        ? _copyStringKeyedMap(parametersValue, 'parameters')
         : null;
     if (parameters != null) {
+      transformedRequest['parameters'] = parameters;
       prepareCachedValue(parameters, 'image', 'image_cache_secret_key');
       prepareCachedValue(parameters, 'mask', 'mask_cache_secret_key');
       prepareCachedValue(
@@ -306,6 +316,22 @@ class NaiGenerationTransport {
       ),
     );
     return formData;
+  }
+
+  /// Copies one JSON object container; nested values stay shared with [source].
+  static Map<String, dynamic> _copyStringKeyedMap(
+    Map<dynamic, dynamic> source,
+    String name,
+  ) {
+    final copy = <String, dynamic>{};
+    for (final entry in source.entries) {
+      final key = entry.key;
+      if (key is! String) {
+        throw ArgumentError.value(key, name, 'Expected string keys');
+      }
+      copy[key] = entry.value;
+    }
+    return copy;
   }
 
   static String _imageCacheSecretKey(String encodedImage) {
