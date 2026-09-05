@@ -50,6 +50,40 @@ void main() {
     });
   });
 
+  group('LogicalKeyboardKey 反查 ShortcutKey', () {
+    test('每个枚举值都能原样往返', () {
+      for (final key in ShortcutKey.values) {
+        expect(key.logicalKeyboardKey.shortcutKey, key, reason: key.name);
+      }
+    });
+
+    test('符号键全部可反查，不再是录制盲区', () {
+      final symbols = <LogicalKeyboardKey, ShortcutKey>{
+        LogicalKeyboardKey.comma: ShortcutKey.comma,
+        LogicalKeyboardKey.period: ShortcutKey.period,
+        LogicalKeyboardKey.slash: ShortcutKey.slash,
+        LogicalKeyboardKey.semicolon: ShortcutKey.semicolon,
+        LogicalKeyboardKey.quoteSingle: ShortcutKey.quote,
+        LogicalKeyboardKey.bracketLeft: ShortcutKey.bracketleft,
+        LogicalKeyboardKey.bracketRight: ShortcutKey.bracketright,
+        LogicalKeyboardKey.backslash: ShortcutKey.backslash,
+        LogicalKeyboardKey.minus: ShortcutKey.minus,
+        LogicalKeyboardKey.equal: ShortcutKey.equal,
+        LogicalKeyboardKey.backquote: ShortcutKey.backquote,
+      };
+
+      symbols.forEach((logical, expected) {
+        expect(logical.shortcutKey, expected, reason: logical.keyLabel);
+      });
+    });
+
+    test('枚举没覆盖的物理按键返回 null', () {
+      expect(LogicalKeyboardKey.controlLeft.shortcutKey, isNull);
+      expect(LogicalKeyboardKey.numpadAdd.shortcutKey, isNull);
+      expect(LogicalKeyboardKey.f13.shortcutKey, isNull);
+    });
+  });
+
   group('ParsedShortcut.logicalKeys', () {
     test('同时包含修饰键与主键', () {
       final parsed = ShortcutParser.parse('ctrl+shift+alt+meta+comma')!;

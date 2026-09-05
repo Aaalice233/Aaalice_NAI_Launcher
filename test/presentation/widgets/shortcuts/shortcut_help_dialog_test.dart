@@ -43,25 +43,18 @@ void main() {
   });
 
   for (final scenario in [
-    (
-      name: 'Medium',
-      size: const Size(700, 800),
-      surfaceKey: const ValueKey('adaptive-centered-form'),
-    ),
-    (
-      name: 'Expanded',
-      size: const Size(1000, 800),
-      surfaceKey: const ValueKey('adaptive-centered-form'),
-    ),
+    (name: 'Medium', size: const Size(700, 800)),
+    (name: 'Expanded', size: const Size(1000, 800)),
   ]) {
-    testWidgets('${scenario.name} 使用共享有界面板', (tester) async {
+    testWidgets('${scenario.name} 使用共享居中有界面板', (tester) async {
       await _pumpHost(tester, size: scenario.size);
 
       await tester.tap(find.byKey(const ValueKey('open-shortcut-help')));
       await tester.pumpAndSettle();
 
-      final surface = find.byKey(scenario.surfaceKey);
+      final surface = find.byKey(const ValueKey('adaptive-centered-form'));
       expect(surface, findsOneWidget);
+      expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
       expect(tester.getSize(surface).width, lessThan(scenario.size.width));
       expect(find.text('快捷键帮助'), findsOneWidget);
       expect(

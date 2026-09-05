@@ -90,6 +90,16 @@ extension ShortcutKeyLogicalMapping on ShortcutKey {
   };
 }
 
+extension LogicalKeyboardKeyShortcutMapping on LogicalKeyboardKey {
+  /// 录制快捷键时反查枚举值，表由正向映射取反，两个方向不会各自漂移
+  ShortcutKey? get shortcutKey => _shortcutKeysByLogicalKey[this];
+}
+
+/// 正向映射是单射的，取反不会丢键
+final Map<LogicalKeyboardKey, ShortcutKey> _shortcutKeysByLogicalKey = {
+  for (final key in ShortcutKey.values) key.logicalKeyboardKey: key,
+};
+
 extension ShortcutModifierLogicalMapping on ShortcutModifier {
   /// 用左右不敏感的合成键，保证任意一侧修饰键都能命中
   LogicalKeyboardKey get logicalKeyboardKey => switch (this) {
