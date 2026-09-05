@@ -86,6 +86,8 @@ class PromptWeightEditing {
     // NAI 数值权重语法: weight::text:: 或 weight::text
     final naiWeightMatch = RegExp(
       r'^(-?\d+\.?\d*)::(.+?)(?:::$|$)',
+      // Selections can span paragraphs; subsequent edits must replace this shell.
+      dotAll: true,
     ).firstMatch(trimmed);
 
     if (naiWeightMatch != null) {

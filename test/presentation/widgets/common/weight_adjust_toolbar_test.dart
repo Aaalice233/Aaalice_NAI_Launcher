@@ -45,6 +45,47 @@ void _registerCleanup(
 }
 
 void main() {
+  testWidgets('repeated wheel steps replace the multiline selection weight', (
+    tester,
+  ) async {
+    const body = 'cat, blue eyes,\n\nsoft light, garden';
+    final prompt = TextEditingController(text: body);
+    final focus = FocusNode();
+    final page = ScrollController(initialScrollOffset: 100);
+    _registerCleanup(tester, prompt, focus, page);
+
+    await _pumpHarness(
+      tester,
+      prompt: prompt,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+      scrollPhysics: WeightAdjustScrollPhysics(
+        controllerProvider: () => prompt,
+      ),
+    );
+    focus.requestFocus();
+    prompt.selection = const TextSelection(
+      baseOffset: 0,
+      extentOffset: body.length,
+    );
+    await tester.pump();
+    final pageOffset = page.offset;
+
+    for (final expected in ['0.95', '0.90', '0.85']) {
+      await _sendWheel(tester);
+      await tester.pump();
+      expect(prompt.text, '$expected::$body::');
+    }
+    for (final expected in ['0.90', '0.95', '1.00', '1.05']) {
+      await _sendWheel(tester, delta: const Offset(0, -40));
+      await tester.pump();
+      expect(prompt.text, expected == '1.00' ? body : '$expected::$body::');
+    }
+    expect(page.offset, pageOffset);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('selected prompt adjusts weight without scrolling the page', (
     tester,
   ) async {
