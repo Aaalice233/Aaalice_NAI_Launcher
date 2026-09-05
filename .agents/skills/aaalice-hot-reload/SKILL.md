@@ -24,7 +24,7 @@ description: 为 Aaalice NAI Launcher 修改代码后选择并执行 Windows/And
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Logs -Target All -Last 200
 ```
 
-3. 按判定触发并读取更新后的控制台：
+3. 已按 [MCP 调试](../../../docs/mcp_debugging.md) 连接目标时，使用 MCP `hot_reload` / `hot_restart` 并显式指定实际 `appUri`；检查工具返回结果和 `get_runtime_errors`。需要准备会话或 MCP 尚未连通时，按判定触发并读取更新后的控制台：
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Reload -Target All
@@ -35,4 +35,4 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/
 
 必须分别确认每个目标出现本次 reload/restart 完成信息，且没有新的编译失败、Flutter exception、`RenderFlex overflow`、`LateInitializationError` 或原生崩溃。某一端失败时保留另一端真实结果并给出失败端的原始错误；“输入已发送”本身不算完成。
 
-用户可以直接在独立窗口手动按 `r`/`R`。Codex 自动操作统一使用本 skill 的 `scripts/control.ps1`；脚本会先用 session marker、进程启动时间、仓库路径和 Flutter 子进程验证目标，再向其控制台发送输入，不依赖窗口标题或固定窗口句柄。
+用户可以直接在独立窗口手动按 `r`/`R`。Codex 优先通过已连接的 MCP 刷新应用；会话准备使用本 skill 的 `scripts/control.ps1`，它会先用 session marker、进程启动时间、仓库路径和 Flutter 子进程验证目标，再向其控制台发送输入，不依赖窗口标题或固定窗口句柄。不要同时通过两个入口重复触发刷新。

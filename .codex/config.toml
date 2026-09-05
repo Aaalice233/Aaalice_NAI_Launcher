@@ -1,0 +1,6 @@
+[mcp_servers.dart]
+command = "pwsh"
+args = ["-NoProfile", "-Command", "& (Join-Path (git rev-parse --show-toplevel) 'scripts/start_dart_mcp.ps1')"]
+env_vars = ["FLUTTER_SDK", "SystemDrive", "LOCALAPPDATA", "APPDATA", "USERPROFILE", "TEMP", "TMP"]
+startup_timeout_sec = 30
+tool_timeout_sec = 120

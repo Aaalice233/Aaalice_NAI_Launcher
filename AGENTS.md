@@ -156,7 +156,7 @@ Material 3 的中性色面必须在 `ThemeComposer` 中补全并作为跨端唯�
 用户要求自动化验收，即授权为本次成果启动或复用必要的热重载会话、正确刷新、进入相关页面、操作控件和查看截图，无需再询问是否启动或是否点击。普通 UI/文档修改不默认触发真实运行验收。
 
 - 执行流程统一见 [aaalice-runtime-verify](.agents/skills/aaalice-runtime-verify/SKILL.md)：先 Status，缺失会话由开发会话 skill 启动；确认构建日志和真实应用进程后继续操作，不能停在“窗口已打开”。
-- Windows 使用 Computer Use，Android 使用 ADB；不依赖项目级 Dart MCP。Windows 操作可能占用键鼠和焦点，开始前说明，完成后交还控制权。
+- 应用内调试与操作统一使用项目级 Dart/Flutter MCP，不使用 Computer Use 或系统键鼠注入。配置与连接流程见 [MCP 调试](docs/mcp_debugging.md)；Android 系统界面按需使用 ADB。
 - 指定平台时仅验收该端；共享 UI 未限定平台时覆盖 Windows 与 Android。按本次影响建立“页面 × 子部件 × 状态 × 展开层级”矩阵，实际打开相关菜单、弹窗和编辑态，不把局部任务扩大为全应用遍历。
 - 当前 Agent 必须逐张查看截图，检查四边、工具栏首尾、文字/图标、对齐、对比、命中区、滚动及 IME/SafeArea；同时验证操作结果和增量日志。只读 UI 树或无异常日志不能替代视觉验收。
 - 发现本次引起的问题后修复、刷新并复测受影响平台；恢复本次临时编辑、尺寸和方向状态。未执行的平台/场景明确标注，不借用旧测试结论。

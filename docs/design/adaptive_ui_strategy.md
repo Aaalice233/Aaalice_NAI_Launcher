@@ -211,4 +211,4 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/test_affected.ps1 -Path "<
 flutter analyze
 ```
 
-用户明确要求自动化运行验收时，按[运行验收技能](../../.agents/skills/aaalice-runtime-verify/SKILL.md) 自动启动或复用热重载，再执行 Windows Computer Use / Android ADB 操作、截图检查与增量日志验证。普通修改不默认启动运行验收。
+用户明确要求自动化运行验收时，按[运行验收技能](../../.agents/skills/aaalice-runtime-verify/SKILL.md) 自动启动或复用热重载，通过[项目级 MCP](../mcp_debugging.md) 执行应用内操作、截图检查与运行错误验证；Android 系统界面按需使用 ADB。普通修改不默认启动运行验收。

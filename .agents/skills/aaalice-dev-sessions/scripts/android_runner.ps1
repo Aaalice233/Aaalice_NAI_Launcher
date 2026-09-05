@@ -545,6 +545,7 @@ $currentProcess = Get-Process -Id $PID
 
 try {
     $flutterArguments = @(
+        '--print-dtd',
         'run',
         '--debug',
         '-d',

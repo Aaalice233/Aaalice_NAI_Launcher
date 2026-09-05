@@ -181,6 +181,7 @@ try {
     Write-Host 'Hot reload: r    Hot restart: R    Quit: q' -ForegroundColor DarkGray
     Write-SessionMarker -State 'running'
     $flutterArguments = @(
+        '--print-dtd',
         'run',
         '-d',
         'windows',

@@ -12,7 +12,8 @@
 | 测试 | [test/README.md](../test/README.md) | 受控测试入口、证据范围和运行验收的区别 |
 | 开发会话 | [aaalice-dev-sessions](../.agents/skills/aaalice-dev-sessions/SKILL.md) | Windows/Android 热重载窗口的启动、复用与关闭 |
 | 刷新应用 | [aaalice-hot-reload](../.agents/skills/aaalice-hot-reload/SKILL.md) | Reload、Restart、完整重建的选择与日志验证 |
-| 自动化验收 | [aaalice-runtime-verify](../.agents/skills/aaalice-runtime-verify/SKILL.md) | 自动启动会话，Windows Computer Use、Android ADB 操作与视觉检查 |
+| MCP 调试 | [MCP 调试](mcp_debugging.md) | 项目级 Codex 配置、SDK 解析、运行中应用的连接与工具边界 |
+| 自动化验收 | [aaalice-runtime-verify](../.agents/skills/aaalice-runtime-verify/SKILL.md) | 自动启动会话，通过 MCP 操作应用并检查截图与运行错误 |
 | 云备份 | [协议与验证](cloud_sync.md)、[OAuth 配置](cloud_drive_oauth.md) | 持久化、传输、恢复、后端能力和平台注册 |
 | 应用发布 | [aaalice-launcher-release](../.agents/skills/aaalice-launcher-release/SKILL.md) | 版本号、更新日志、发布检查与 tag |
 | 标签数据 | [标签目录](../tool/tag_catalog/README.md)、[随机词库](../tool/random_tag_library/README.md) | 锁定来源、构建与校验 |

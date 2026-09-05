@@ -187,13 +187,13 @@ tool/tag_catalog/.tmp/
 # ===========================================================================
 
 # AI 编程助手
-.codex
 .serena/
 .playwright-mcp/
 .spec-workflow/
 .qoder/
 .codex_tmp/
-.codex/
+.codex/*
+!.codex/config.toml
 .kiro
 .claude/
 .gemini/

@@ -31,6 +31,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-session
 
 `start.ps1` 先查找当前 worktree 对应的 Runner 进程，只为缺失目标创建可见的独立 PowerShell 窗口。创建后轮询 `Status` 与 `Logs`：Windows 需看到原生构建成功/启动标记且存在真实 `nai_launcher` 进程；Android 需看到应用启动完成且目标设备上存在包进程。仅有窗口、marker 或 PID 不代表启动成功。
 
+两个 Runner 均传入 `--print-dtd` 和 `--dart-define=ENABLE_FLUTTER_DRIVER=true`，供[项目级 MCP](../../../docs/mcp_debugging.md) 发现并操作现有应用。连接 MCP 时复用这些会话，不通过 `launch_app` 另开第二个应用。
+
 规则：
 
 - Android 项目会话必须使用基于 `system-images;android-35;google_apis_playstore;x86_64` 的 `-EmulatorId Aaalice_API35`，确保 Google Drive 登录所需的 Google Play Services 可用；Runner 在冷启动前会启用 AVD 的 host hardware keyboard，确保物理键盘输入可用。不要把临时的 `emulator-5554` 写成固定 `-DeviceId`；`-DeviceId` 只用于明确复用外部设备。
