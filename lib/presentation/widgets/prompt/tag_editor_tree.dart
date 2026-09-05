@@ -204,6 +204,7 @@ class _TagEditorTreeState extends State<TagEditorTree> {
       onTap: () => widget.onSelect(tag),
       onChanged: (value) => widget.onEdit(tag, value),
       onSubmitted: session.endEdit,
+      onTapOutside: session.clearSelection,
     );
     return DragTarget<Set<int>>(
       onWillAcceptWithDetails: (details) =>

@@ -19,6 +19,7 @@ class TagEditorCapsule extends StatefulWidget {
     required this.onTap,
     required this.onChanged,
     required this.onSubmitted,
+    required this.onTapOutside,
     required this.maxWidth,
     this.enableAutocomplete = true,
     this.selectTextOnEdit = true,
@@ -33,6 +34,7 @@ class TagEditorCapsule extends StatefulWidget {
   final VoidCallback onTap;
   final ValueChanged<TextEditingValue> onChanged;
   final VoidCallback onSubmitted;
+  final VoidCallback onTapOutside;
   final double maxWidth;
   final bool enableAutocomplete;
   final bool selectTextOnEdit;
@@ -46,7 +48,6 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
   final FocusNode _focus = FocusNode();
   bool _syncing = false;
   String? _lastSubmitted;
-  double? _editingHeight;
   @override
   void initState() {
     super.initState();
@@ -76,11 +77,8 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
   void didUpdateWidget(TagEditorCapsule oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.editing && widget.editing) {
-      final box = context.findRenderObject();
-      _editingHeight = box is RenderBox && box.hasSize ? box.size.height : null;
       _requestFocus();
     }
-    if (oldWidget.editing && !widget.editing) _editingHeight = null;
     final text = widget.tag.span.label;
     if (_controller.text != text &&
         !(widget.editing && _lastSubmitted?.trim() == text.trim())) {
@@ -112,7 +110,6 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
       constraints: BoxConstraints(
         minWidth: availableWidth.clamp(1.0, 24.0),
         maxWidth: availableWidth,
-        minHeight: (_editingHeight ?? 44) - 16,
       ),
       child: IntrinsicWidth(
         child: AutocompleteWrapper(
@@ -132,6 +129,7 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
             textInputAction: TextInputAction.done,
             decoration: null,
             onSubmitted: (_) => widget.onSubmitted(),
+            onTapOutside: (_) => widget.onTapOutside(),
           ),
         ),
       ),
@@ -150,35 +148,34 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
       color: span.disabled ? scheme.onSurfaceVariant : scheme.onSurface,
       decoration: span.disabled ? TextDecoration.lineThrough : null,
     );
-    final content = widget.editing
-        ? _buildEditor(style)
-        : Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(span.label, style: style),
-              if (span.prefix.isNotEmpty || span.suffix.isNotEmpty)
-                Text(
-                  '${span.prefix}…${span.suffix}',
-                  style: theme.textTheme.labelSmall,
-                ),
-              if (widget.showTranslation)
-                Padding(
-                  padding: const EdgeInsets.only(top: 3),
-                  child: PromptTranslationLabel(
-                    value: widget.translation,
-                    onRetry: widget.onRetryTranslation,
-                  ),
-                ),
-              if (!span.complete)
-                Text(
-                  context.l10n.tagMode_invalidSyntax,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.error,
-                  ),
-                ),
-            ],
-          );
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.editing)
+          _buildEditor(style)
+        else
+          Text(span.label, style: style),
+        if (span.prefix.isNotEmpty || span.suffix.isNotEmpty)
+          Text(
+            '${span.prefix}…${span.suffix}',
+            style: theme.textTheme.labelSmall,
+          ),
+        if (widget.showTranslation)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: PromptTranslationLabel(
+              value: widget.translation,
+              onRetry: widget.onRetryTranslation,
+            ),
+          ),
+        if (!span.complete)
+          Text(
+            context.l10n.tagMode_invalidSyntax,
+            style: theme.textTheme.bodySmall?.copyWith(color: scheme.error),
+          ),
+      ],
+    );
     return Semantics(
       selected: widget.selected,
       label: span.disabled ? context.l10n.common_disabled : null,

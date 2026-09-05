@@ -86,8 +86,59 @@ Future<void> pumpEditor(
 );
 
 void main() {
+  for (final policy in [
+    InteractionPolicy.touchFirst,
+    const InteractionPolicy(
+      modality: InteractionModality.pointer,
+      touchAvailable: false,
+      precisePointerAvailable: true,
+    ),
+  ]) {
+    testWidgets(
+      'blank taps finish tag editing and clear selection (${policy.minimumControlExtent})',
+      (tester) async {
+        final source = TextEditingController(text: 'cat, dog');
+        addTearDown(source.dispose);
+        await pumpEditor(tester, source, policy: policy);
+        await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+        await tester.pumpAndSettle();
+        for (final outside in [false, true]) {
+          final capsule = find.byType(TagEditorCapsule).first;
+          await tester.tap(capsule);
+          await tester.pumpAndSettle();
+          await tester.tap(capsule);
+          await tester.pumpAndSettle();
+          final field = find.byKey(const ValueKey('tag-input-0'));
+          expect(field, findsOneWidget);
+          await tester.enterText(field, 'kitten');
+          await tester.pumpAndSettle();
+          final blank = outside
+              ? const Offset(10, 20)
+              : tester.getRect(find.byType(TagEditorView)).bottomLeft +
+                    const Offset(20, -30);
+          await tester.tapAt(blank);
+          await tester.pumpAndSettle();
+          expect(field, findsNothing);
+          expect(
+            tester
+                .widgetList<TagEditorCapsule>(find.byType(TagEditorCapsule))
+                .every((tag) => !tag.selected && !tag.editing),
+            isTrue,
+          );
+          expect(source.text, 'kitten, dog');
+          expect(
+            find.byKey(const ValueKey('tag-action-toolbar')),
+            findsNothing,
+          );
+        }
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
   testWidgets(
-    'editing hides translation and resizes the capsule with its text',
+    'editing retains translation and resizes the capsule with its text',
     (tester) async {
       final source = TextEditingController(text: 'cat, dog');
       addTearDown(source.dispose);
@@ -107,10 +158,13 @@ void main() {
       expect(tester.getSize(capsule).height, before.height);
       expect(
         find.descendant(of: capsule, matching: find.text('猫')),
-        findsNothing,
+        findsOneWidget,
       );
       final field = find.byKey(const ValueKey('tag-input-0'));
-      expect(tester.getSize(field).height, closeTo(before.height - 16, 1));
+      expect(
+        tester.getRect(field).bottom,
+        lessThan(tester.getRect(find.text('猫')).top),
+      );
       await tester.enterText(field, 'longer_tag_name');
       await tester.pumpAndSettle();
       final expanded = tester.getSize(capsule);
@@ -777,7 +831,7 @@ void main() {
       await tester.enterText(find.byKey(const ValueKey('tag-input-0')), 'bird');
       await tester.pumpAndSettle();
       expect(source.text, 'bird, dog');
-      expect(find.text('译文 bird'), findsNothing);
+      expect(find.text('译文 bird'), findsOneWidget);
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
       expect(find.text('译文 bird'), findsOneWidget);
