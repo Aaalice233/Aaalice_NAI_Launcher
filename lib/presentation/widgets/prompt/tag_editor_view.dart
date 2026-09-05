@@ -27,6 +27,14 @@ import 'tag_editor_commands.dart';
 import 'tag_editor_session.dart';
 
 class TagEditorView extends ConsumerStatefulWidget {
+  static const scrollViewKey = ValueKey('tag-editor-scroll-view');
+
+  static bool claimsWeightWheel(BuildContext context, Offset globalPosition) =>
+      context
+          .findAncestorStateOfType<_TagEditorViewState>()
+          ?._claimsWeightWheel(globalPosition) ??
+      false;
+
   const TagEditorView({
     super.key,
     required this.session,
@@ -341,12 +349,23 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
     if (added != null) session.edit(added.id, selectText: false);
   }
 
+  bool get _wheelAdjustmentEnabled =>
+      widget.enabled && commands.canAdjust && session.editing == null;
+
+  bool _claimsWeightWheel(Offset globalPosition) {
+    if (!_wheelAdjustmentEnabled) return false;
+    final surface = _surfaceKey.currentContext?.findRenderObject();
+    if (surface is! RenderBox) return false;
+    final local = surface.globalToLocal(globalPosition);
+    return session.selected.any(
+      (id) => _tagRect(id, surface)?.contains(local) ?? false,
+    );
+  }
+
   void _wheel(PointerSignalEvent event, {int? tagId}) {
-    if (!widget.enabled ||
+    if (!_wheelAdjustmentEnabled ||
         event is! PointerScrollEvent ||
         event.scrollDelta.dy == 0 ||
-        !commands.canAdjust ||
-        session.editing != null ||
         (tagId != null && !session.selected.contains(tagId))) {
       return;
     }
@@ -732,6 +751,7 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
         _refresh();
       },
       child: SingleChildScrollView(
+        key: TagEditorView.scrollViewKey,
         controller: _scroll,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 58),

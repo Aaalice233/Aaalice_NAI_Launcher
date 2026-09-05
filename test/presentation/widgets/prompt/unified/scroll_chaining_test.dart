@@ -6,6 +6,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/unified/prompt_scroll_coordinator.dart';
 
 void main() {
   for (final scenario in [
@@ -17,7 +18,7 @@ void main() {
     (name: 'short read-only text', tags: false, short: true, readOnly: true),
   ]) {
     testWidgets(
-      '${scenario.name} passes wheel scrolling to the page at editor edges',
+      '${scenario.name} contains overflow and reveals clipped editor edges',
       (tester) async {
         final prompt = TextEditingController(
           text: scenario.short
@@ -25,6 +26,8 @@ void main() {
               : List.generate(120, (i) => 'tag_$i').join(',\n'),
         );
         final page = ScrollController(initialScrollOffset: 100);
+        final height = ValueNotifier<double>(160);
+        addTearDown(height.dispose);
         await tester.pumpWidget(
           ProviderScope(
             child: MaterialApp(
@@ -37,8 +40,10 @@ void main() {
                   child: Column(
                     children: [
                       const SizedBox(height: 200),
-                      SizedBox(
-                        height: 160,
+                      ValueListenableBuilder<double>(
+                        valueListenable: height,
+                        builder: (context, value, child) =>
+                            SizedBox(height: value, child: child),
                         child: UnifiedPromptInput(
                           controller: prompt,
                           expands: true,
@@ -67,7 +72,7 @@ void main() {
         final pointer = TestPointer(1, PointerDeviceKind.mouse)
           ..hover(tester.getCenter(editor));
         final initialPageOffset = page.offset;
-        Future<void> wheel(double delta, {bool innerScrolls = false}) async {
+        Future<void> wheel(double delta) async {
           final beforePageOffset = page.offset;
           pointer.hover(tester.getCenter(editor));
           bool? platformDefault;
@@ -79,7 +84,7 @@ void main() {
             ),
           );
           await tester.pump();
-          if (!innerScrolls) {
+          if (scenario.short) {
             expect(
               page.offset,
               delta > 0
@@ -103,7 +108,7 @@ void main() {
               )
               .firstWhere((state) => state.position.maxScrollExtent > 0);
           final before = inner.position.pixels;
-          await wheel(60, innerScrolls: true);
+          await wheel(60);
           expect(inner.position.pixels, greaterThan(before));
           inner.position.jumpTo(inner.position.maxScrollExtent);
         }
@@ -123,6 +128,136 @@ void main() {
           page.jumpTo(initialPageOffset);
           await tester.pump();
           await wheel(-60);
+
+          final inner = tester
+              .stateList<ScrollableState>(
+                find.descendant(
+                  of: scenario.tags ? find.byType(TagEditorView) : editor,
+                  matching: find.byType(Scrollable),
+                ),
+              )
+              .firstWhere((state) => state.position.maxScrollExtent > 0);
+          inner.position.jumpTo(100);
+          final coordinator = find.byType(PromptScrollCoordinator);
+          final top = tester.getTopLeft(coordinator).dy;
+          page.jumpTo(page.offset + top + 30);
+          await tester.pump();
+          final clippedPage = page.offset;
+          pointer.hover(Offset(tester.getCenter(coordinator).dx, 20));
+          await tester.sendEventToBinding(pointer.scroll(const Offset(0, -60)));
+          await tester.pump();
+          expect(page.offset, closeTo(clippedPage - 30, .01));
+          expect(inner.position.pixels, closeTo(70, .01));
+          expect(tester.getTopLeft(coordinator).dy, closeTo(0, .01));
+          pointer.hover(tester.getCenter(coordinator));
+          inner.position.jumpTo(0);
+          await tester.pump();
+          final revealedPage = page.offset;
+          await tester.sendEventToBinding(pointer.scroll(const Offset(0, -60)));
+          await tester.pump();
+          expect(page.offset, revealedPage);
+
+          inner.position.jumpTo(100);
+          final trackpad = await tester.createGesture(
+            kind: PointerDeviceKind.trackpad,
+          );
+          await trackpad.panZoomStart(tester.getCenter(coordinator));
+          await trackpad.panZoomUpdate(
+            tester.getCenter(coordinator),
+            pan: const Offset(0, -40),
+          );
+          await tester.pump();
+          await trackpad.panZoomUpdate(
+            tester.getCenter(coordinator),
+            pan: const Offset(0, -70),
+          );
+          await tester.pump();
+          await trackpad.panZoomEnd();
+          await tester.pumpAndSettle();
+          expect(page.offset, revealedPage);
+          expect(inner.position.pixels, closeTo(170, .01));
+
+          page.jumpTo(page.offset + 30);
+          inner.position.jumpTo(100);
+          await tester.pump();
+          await trackpad.panZoomStart(const Offset(400, 20));
+          await trackpad.panZoomUpdate(
+            const Offset(400, 20),
+            pan: const Offset(0, 60),
+          );
+          await tester.pump();
+          await trackpad.panZoomEnd();
+          await tester.pumpAndSettle();
+          expect(page.offset, closeTo(revealedPage, .01));
+          expect(inner.position.pixels, closeTo(70, .01));
+
+          // A short landscape viewport clips the bottom of the same editor.
+          await tester.binding.setSurfaceSize(const Size(800, 240));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          page.jumpTo(0);
+          inner.position.jumpTo(100);
+          await tester.pumpAndSettle();
+          final hiddenBottom = tester.getBottomRight(coordinator).dy - 240;
+          expect(hiddenBottom, greaterThan(0));
+          pointer.hover(const Offset(400, 220));
+          await tester.sendEventToBinding(
+            pointer.scroll(Offset(0, hiddenBottom + 35)),
+          );
+          await tester.pump();
+          expect(page.offset, closeTo(hiddenBottom, .01));
+          expect(inner.position.pixels, closeTo(135, .01));
+          expect(tester.getBottomRight(coordinator).dy, closeTo(240, .01));
+          await tester.binding.setSurfaceSize(null);
+          await tester.pumpAndSettle();
+
+          // Manual height changes update the live viewport, not cached extents.
+          height.value = 900;
+          page.jumpTo(200);
+          await tester.pumpAndSettle();
+          inner.position.jumpTo(100);
+          final hiddenTallBottom = tester.getBottomRight(coordinator).dy - 600;
+          final tallPage = page.offset;
+          pointer.hover(const Offset(400, 300));
+          await tester.sendEventToBinding(
+            pointer.scroll(Offset(0, hiddenTallBottom + 25)),
+          );
+          await tester.pump();
+          expect(page.offset, closeTo(tallPage + hiddenTallBottom, .01));
+          expect(inner.position.pixels, closeTo(125, .01));
+          height.value = 120;
+          page.jumpTo(100);
+          await tester.pumpAndSettle();
+          inner.position.jumpTo(inner.position.maxScrollExtent);
+          await wheel(60);
+
+          if (!scenario.readOnly) {
+            inner.position.jumpTo(0);
+            await tester.pump();
+            if (scenario.tags) {
+              await tester.tap(find.text('tag_0'));
+            } else {
+              prompt.selection = const TextSelection(
+                baseOffset: 0,
+                extentOffset: 5,
+              );
+            }
+            await tester.pumpAndSettle();
+            final beforeWeight = prompt.text;
+            final beforeWeightPage = page.offset;
+            final beforeWeightInner = inner.position.pixels;
+            pointer.hover(
+              scenario.tags
+                  ? tester.getCenter(find.text('tag_0'))
+                  : tester.getCenter(coordinator),
+            );
+            await tester.sendEventToBinding(
+              pointer.scroll(const Offset(0, -20)),
+            );
+            await tester.pumpAndSettle();
+            expect(prompt.text, isNot(beforeWeight));
+            expect(page.offset, beforeWeightPage);
+            expect(inner.position.pixels, beforeWeightInner);
+          }
         }
 
         final beforeOutsideScroll = page.offset;

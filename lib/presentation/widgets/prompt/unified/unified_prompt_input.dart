@@ -32,6 +32,8 @@ import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import '../tag_mode_prompt_field.dart';
 import 'unified_prompt_config.dart';
+import 'prompt_scroll_coordinator.dart';
+import '../prompt_weight_editing.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
 
@@ -1482,7 +1484,15 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       );
     }
 
-    return result;
+    return PromptScrollCoordinator(
+      tagMode: _tagMode,
+      textWheelAdjustmentActive: () =>
+          !widget.config.readOnly &&
+          enableWheelAdjustment &&
+          PromptWeightEditing.hasSelection(_effectiveController) &&
+          PromptWeightEditing.protectNegativeBlockSyntax(_effectiveController),
+      child: result,
+    );
   }
 
   EdgeInsetsGeometry _withBottomActionClearance(
