@@ -1,82 +1,76 @@
 ---
 name: aaalice-runtime-verify
-description: 对 Aaalice NAI Launcher 的 Windows 桌面端和 Android 端执行不抢占用户键鼠的 Flutter 原生 AI 自动化、截图、布局检查与异常日志验证。用户要求自动化测试、点击操作、检查布局、双端 UI 验收、Android emulator 或 PC 窗口测试时使用。
+description: 用户要求自动化运行验收、界面操作、截图检查或双端 UI 测试时，自动启动或复用 Aaalice NAI Launcher 热重载会话，使用 Windows Computer Use 和 Android ADB 验证相关成果。
 ---
 
 # Aaalice 双端运行时验收
 
-运行环境需要 Dart 3.9+、Dart and Flutter MCP server、ADB，且对应 Flutter 开发会话已启动。
+## 触发与范围
 
-先加载 `aaalice-dev-sessions` 与 `aaalice-hot-reload`，确认目标会话已运行并完成正确的 `r`/`R`。
+用户要求自动化验收，即授权为本次验收启动或复用目标热重载会话、刷新应用、进入相关界面、执行可撤销操作和查看截图，无需再次询问是否启动或是否点击。普通代码/文档修改不自动触发运行验收。
 
-## 强制边界
+按请求和改动范围选择目标：指定 PC 或安卓时只操作对应端；共享 UI 且未限定平台时覆盖 Windows 与 Android。验收相关页面及其可达子状态；只有用户要求全应用验收时才遍历全应用。macOS 未实际运行时不得借用 Windows 结果声称已验收。
 
-- 禁止使用 Computer Use、Win32 鼠标注入或任何会抢占用户键盘、鼠标、焦点和桌面操作权的方案。
-- Windows 与普通 Flutter UI 使用官方 Dart and Flutter MCP server 驱动现有 App。
-- Android 系统 UI 使用 ADB；不得从 Windows emulator 窗口坐标推算设备坐标。
-- Flutter MCP 无法控制的 Windows 原生弹窗或 platform view 由用户手动验收，不以后台模拟结果冒充。
+## 自动准备会话
 
-## Flutter MCP 准备
+1. 加载 [aaalice-dev-sessions](../aaalice-dev-sessions/SKILL.md) 与 [aaalice-hot-reload](../aaalice-hot-reload/SKILL.md)，先检查 `Status`。
+2. 缺少目标会话时直接由 `start.ps1` 启动；已有会话按 worktree、进程和设备复用，每个平台最多一个 `flutter run`。不得另开 `flutter attach` 或 Codex task。
+3. 以 Runner 预检决定是否需要依赖解析或代码生成。先启动所需环境，不为启动先跑全仓库测试或生成器；预检阻塞时按开发会话技能处理。
+4. 读取控制台，确认真实构建/启动日志、Windows Debug App 进程或 Android 包进程；窗口、marker 和 `running` 状态字段不能单独证明应用就绪。
+5. 已有会话按改动选择 Reload、Restart 或完整重建；刚从当前代码成功启动的会话无需再重复刷新。
 
-项目 runner 使用 `--dart-define=ENABLE_FLUTTER_DRIVER=true`，`lib/main.dart` 只在该开发标志存在时启用 `enableFlutterDriverExtension()`，正式构建不会启用驱动。
+双端启动示例；单端将 `All` 换成 `Windows` 或 `Android`：
 
-使用前：
+~~~powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Status
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-sessions/scripts/start.ps1 -Target All -EmulatorId Aaalice_API35
+pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Logs -Target All -Last 200
+~~~
 
-1. 确认当前 Codex 会话已经提供 `dart` server 的 MCP tools；若配置刚变更但当前会话尚未发现，重启 Codex 后重试。仍不可用时明确报告阻塞，不要改用 Computer Use 绕过。
-2. 搜索并描述与 DTD、running Flutter app、`flutter_driver_command`、screenshot/tap/text/scroll 有关的真实工具，按返回 schema 调用，不凭记忆猜参数。
-3. 连接当前 worktree 的运行中 Flutter App；Windows 和 Android 同时运行时，依据设备/进程信息选择明确目标，禁止对不确定目标发送操作。
+## 工具与目标
 
-## 通用验收顺序
+- Windows 使用当前可用的 Computer Use skill；操作前读取其运行时、目标窗口和确认规则。通过实时窗口列表选定当前 worktree 的 Debug App，不能只凭标题选择可能同时运行的安装版。
+- Computer Use 可截图、查看可用 UI 树、点击、输入、滚动和操作原生弹窗；缺少语义节点时使用当前截图定位。输入可能占用用户键鼠和焦点，开始前说明，结束后交还控制权。
+- Android 使用 ADB 操作 App 与系统界面。依据 runner 的实际设备 ID 和当前 Activity 选择目标；坐标来自本次设备截图或 `uiautomator dump` 的 bounds，不从 Windows 模拟器窗口坐标换算。
+- 项目验收不依赖 Dart MCP 配置。保留的 Flutter Driver 开发扩展不是 Computer Use/ADB 的前置条件，也不需要为此开启文本输入模拟。
+- 工具不可用、目标不明确或控件无法操作时，保留原始错误并报告具体未验收项，不以模拟结果代替。
 
-1. 热重载前读取目标独立控制台并保留日志基线。
-2. 通过 `aaalice-hot-reload` 执行正确动作。
-3. 对比更新后的控制台，确认本次更新完成且没有新异常。
-4. 通过 Flutter MCP 获取当前 screenshot/语义状态，再执行 tap、输入或滚动。
-5. 每次改变 UI 后重新截图并读取状态，分别验证可见文本、控件状态、布局和增量日志。
-6. 可复现且长期有价值的流程固化为 `integration_test/` 下的 Flutter `integration_test`，使用 `flutter test integration_test/<name>_test.dart -d windows` 或 Android 目标运行。
-7. 产物统一放入 `tool/.tmp/`，验收完成后删除，不得提交。
+## 覆盖矩阵与操作
 
-## Windows 自动化
+开始前按“页面 × 子部件 × 状态 × 展开层级”列出本次范围。使用 [自适应覆盖清单](../../../docs/design/adaptive_ui_inventory.md) 寻找入口，不能用只访问首页代替相关流程。
 
-Windows 普通 Flutter Widget 交互全部通过 Dart and Flutter MCP server 完成：截图、按文本/语义定位、tap、输入、滚动和热重载都不接管系统鼠标。
+- 实际打开相关选项卡、模式、折叠区、抽屉、菜单、筛选、详情、弹窗和编辑态，并验证操作后的状态或数据回写。
+- 布局变化涉及空态/有数据态、loading/error、长文案、窄屏、短横屏、3x 文本、IME、SafeArea 或系统返回时分别覆盖。不要把 widget test 中的尺寸组合声称为设备上实际操作过。
+- 修改生成页时按影响范围覆盖文生图/图生图、正负提示词、参数、固定词、角色 0/1/多角色及编辑、随机模式、历史和 Agent。
+- 热重载前保留控制台日志基线；Android 场景开始前清理或记录 logcat 基线，结束后读取本次增量日志。
+- 修改用户输入、选择、临时角色、窗口尺寸或横竖屏等状态后恢复；退出编辑应使用正常取消/返回路径，不清空用户数据。
+- 自动化验收不包含真实扣除 Anlas 的生成、Vibe 编码等付费请求，也不包含对外发送、云端上传/恢复、删除用户数据等额外动作；这些操作遵循用户已明确授权的范围，缺少授权时验收到提交前并说明边界。
 
-需要确定性窗口截图作为额外证据时可运行只读捕获脚本：
+## 逐张视觉检查与修复
 
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-runtime-verify/scripts/capture_windows.ps1 -OutputPath tool/.tmp/windows-e2e/<name>.png -NoActivate
-```
+截图生成后，当前 Agent 必须实际查看每张相关截图，按 [DESIGN.md](../../../DESIGN.md) 检查：
 
-`-NoActivate` 不抢前台焦点。布局至少检查：目标是 Debug App、关键文案/控件存在、没有截断/遮挡/重叠、滚动与弹窗边界正确、最新日志无 `RenderFlex overflow`、Flutter exception 或 crash。响应式场景优先写成可设置 surface size 的 widget/integration test；不主动拖动用户窗口。
+- 页面四边、标题栏、导航、工具栏首尾、卡片、输入区、底栏及弹窗的截断、重叠、对齐和间距。
+- 文字和图标对比、完整标签、Tooltip、触屏命中区、键盘焦点、选中与禁用状态。
+- 展开/折叠、滚动、弹窗与键盘出现前后的内容可达性；真实操作后目标窗口/Activity 仍正确。
+- 增量日志中无本次引起的 RenderFlex overflow、Flutter exception 或原生崩溃。
 
-## Android 自动化
+不能只确认截图文件存在、只读 UI 树、只找黄色溢出条或只检查日志。发现属于本次改动的问题后修复、正确刷新、重走失败场景，并复查共享改动影响的另一端。新一轮未出现相关问题后结束；无关问题单独报告，不扩大修复范围。不强制创建审查子代理。
 
-Flutter App 内普通 Widget 优先使用 Flutter MCP。涉及系统界面、Activity、软键盘、权限、文件选择器等场景使用 ADB，并先实时获取 `uiautomator dump`、截图与 Activity。快速场景：
+## Android 快速场景与系统输入
 
-```powershell
+~~~powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-runtime-verify/scripts/android_verify.ps1 -Name <scenario> -HotReload -Action "tap:x,y","wait:500"
-```
+~~~
 
-`-HotReload` 通过 `aaalice-hot-reload` 控制现有独立 Android 控制台；也可先单独完成更新与控制台检查后省略该参数。脚本支持 `tap`、`text`、`key`、`swipe`、`wait`，产出 screenshot、window tree、Activity 和有界日志到 `tool/.tmp/android-e2e/`，发现 rendering exception、overflow 或原生崩溃时失败。
+`-HotReload` 通过现有独立控制台刷新应用；已单独刷新并确认完成时省略。脚本支持 `tap`、`text`、`key`、`swipe`、`wait`，产出截图、窗口树、Activity 与有界日志。只需恢复前台时使用 `-Foreground`，不用 `am force-stop` 破坏正在运行的 Flutter 会话。
 
-### Android 软键盘与手动输入
+横竖屏、软键盘、返回手势、文件选择器、分享、相册、权限和更新安装涉及 Android 系统行为时，必须实际操作相应系统界面。键盘验证同时检查截图中键盘可见、字符进入输入框及 `dumpsys input_method` 状态，不能只看光标。不要通过禁用、重置 LatinIME 或反复点击旧坐标掩盖输入连接问题。
 
-开发 runner 启用了 Flutter Driver extension，但 `lib/main.dart` 必须通过 `enableTextEntryEmulation: false` 默认保留真实平台输入通道。文本输入模拟一旦开启，输入框可以获得焦点并显示光标，但系统 IME 不会正常接管；此时修改 `show_ime_with_hard_keyboard` 或重复点击输入框都不能解决问题。
+## 结果与清理
 
-- 自动化确需使用 `enter_text` 时，先对目标 App 显式执行 `set_text_entry_emulation(enabled: true)`；场景结束后立即恢复 `false`。
-- 用户需要亲自使用模拟器键盘时，先确认输入模拟为 `false`。如果输入框曾在模拟模式下获得焦点，应让它真实失焦后重新点击；无法可靠重建平台输入连接时，热重启现有 runner，不在残留的模拟连接上继续尝试。
-- 使用 Flutter Widget 的实时 `ValueKey`/语义定位点击目标输入框，不使用旧截图坐标。
-- 同时确认新截图中键盘实际可见、按键后字符确实进入目标输入框，并检查 `dumpsys input_method` 的 `mInputShown=true`、`mIsInputViewShown=true`；仅有焦点、光标、键盘外观或命令成功都不能判定输入链路正常。
-- 将控制权交还用户并停止自动操作。
+分别报告实际验收的平台、场景、操作和可见结果，区分已通过、失败、未执行及原因。静态检查不替代运行验收；一次成功操作不外推到全部尺寸和状态。
 
-不要为此 `am force-stop`、禁用或重置 LatinIME，也不要发送返回键、切换页面或使用过期坐标尝试“唤醒”键盘。
+截图、UI 树与日志放在 `tool/.tmp/windows-e2e/` 或 `tool/.tmp/android-e2e/`，查看并报告后清理本次产物，不提交或删除其他任务的证据。开发会话默认保留供用户继续使用；按明确要求关闭，Android emulator 默认保留暖缓存。
 
-规则：
-
-- 坐标只能来自本次设备 tree 的 bounds 或设备截图。
-- 只需恢复前台时用 `-Foreground`，不使用 `am force-stop` 破坏 `flutter run`。
-- 横竖屏、系统文件选择器、分享、相册、权限和更新安装必须实际走系统界面。
-- 未获用户明确授权不得发起真实扣除 Anlas 的生成请求。
-
-## 结论要求
-
-分别报告 Windows 与 Android：执行过的动作、可见结果、截图/树/日志路径、新增异常。任一端未实际运行或操作未验证时明确标记未验收，不以静态分析或“命令已发送”代替真实 UI 结果。
+稳定且可重复的流程适合固化到 `integration_test/`；运行时必须设置总时限和进程树清理，不能把没有设备执行记录的测试文件当作验收结果。

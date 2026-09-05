@@ -143,10 +143,6 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
   </tr>
 </table>
 
-### 📱 Android
-
-Android screenshots are being prepared. A small set of representative phone views will be added later.
-
 ## 💻 Platform support
 
 | Platform | Current status | Notes |
@@ -196,6 +192,7 @@ NAI Launcher does not host your account or artwork on a project-operated server.
 
 - NovelAI Tokens, OAuth access/refresh tokens, WebDAV passwords, and GitHub Tokens use device secure storage and are never written into backups.
 - Local Prompts, gallery indexes, tags, resource libraries, and Agent sessions stay on the device by default.
+- Cloud backups store selected data in plaintext. Local gallery image files are not uploaded; albums, categories, and membership references can sync as lightweight data.
 - Online galleries can contain third-party content. Rating filters do not replace user judgment.
 - WebDAV security depends on the server and transport you configure. Keep a local copy of important data.
 

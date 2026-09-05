@@ -5,7 +5,7 @@ description: 为 Aaalice NAI Launcher 修改代码后选择并执行 Windows/And
 
 # Aaalice 双端热重载
 
-先加载 `aaalice-dev-sessions`，确认目标独立 PowerShell 窗口已运行；缺失时由该 skill 创建。不得启动第二个 `flutter run`、`flutter attach` 或新的 Codex task。
+先加载 [aaalice-dev-sessions](../aaalice-dev-sessions/SKILL.md)，确认目标独立 PowerShell 窗口已运行；缺失时由该 skill 创建。用户已要求自动化验收时直接完成这些准备，刷新完成后继续 [aaalice-runtime-verify](../aaalice-runtime-verify/SKILL.md) 的界面操作与截图检查。不得启动第二个 `flutter run`、`flutter attach` 或新的 Codex task。
 
 ## 判定动作
 
@@ -17,7 +17,7 @@ description: 为 Aaalice NAI Launcher 修改代码后选择并执行 Windows/And
 
 ## 执行与验证
 
-1. 默认先运行匹配范围的格式化、affected tests 和 scoped analyze。用户明确要求立即刷新时先 reload/restart，再补最小验证。纯 Dart/UI 改动不得预先运行 `build_runner`。
+1. 按变更风险选择必要的定向测试、格式与静态检查，不把三者机械当作每次刷新前置步骤。用户要求立即刷新或启动自动化验收时，先完成会话准备与正确刷新，再补相关最小验证；纯 Dart/UI 改动不得预先运行 `build_runner`。
 2. 触发前读取目标控制台，保留本次日志基线：
 
 ```powershell

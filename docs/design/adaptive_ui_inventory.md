@@ -1,80 +1,62 @@
-# 自适应 UI 清单与证据索引
+# 自适应 UI 覆盖清单
 
-> 最后复核：2026-09-02。本文只定义覆盖边界、领域索引和验证口径；逐项 UI 单元见四份领域台账。实现策略见 [`adaptive_ui_strategy.md`](adaptive_ui_strategy.md)。
+本文件用于确定本次改动的入口和验收范围，不是历史通过报告。布局规则见 [自适应策略](adaptive_ui_strategy.md)，视觉规则见 [DESIGN.md](../../DESIGN.md)，真实界面操作见 [运行验收技能](../../.agents/skills/aaalice-runtime-verify/SKILL.md)。
 
-## 1. 覆盖契约
+## 如何建立本次矩阵
 
-- 统一宽度级别：Compact `<600`、Medium `600–839`、Expanded `840–1179`、Wide `>=1180`。
-- 页面级分类来自 `WindowSizeClass`；局部重排依据 `LayoutBuilder` constraints，不依据平台名、设备型号或横竖屏标签。
-- 触屏、精细指针和键盘由 `InteractionPolicyScope` 决定；混合输入设备同时保留触屏等价入口与键鼠效率入口。
-- 复杂长表单统一走 `AdaptivePresenter.showForm`：Compact 全屏，Medium 居中有界，Expanded/Wide 侧栏；短确认、短通知和单选器可以使用有界 Dialog。
-- 业务组件、Provider、路由状态和命令跨端共享；断点切换保持输入、选择、焦点、滚动和未提交状态。
-- Compact 最坏组合基准为 320px 宽、3x 文本、SafeArea 与 IME 同时存在；触屏核心命中区至少 48×48。
-- Reduce Motion 必须停止装饰性无限动画并直接呈现稳定终态。
+从当前页面代码向下追踪可达的 Screen、Dialog、Sheet、Panel、Menu、Overlay 和编辑态，逐项记录入口、状态、尺寸、操作与预期结果。下面是领域入口，不代表列出的全部功能已完成测试。
 
-## 2. 逐项 UI 单元台账
-
-以下台账按稳定业务边界拆分，不按文件数量机械切片。每个 Screen、Dialog、Sheet、Panel、Menu、Overlay 或独立编辑态单列真实入口、实现路径、关键状态、响应条件和直接证据：
-
-| 领域 | 台账 | 单元数/范围 | 用途 |
-|---|---|---|---|
-| 生成、Prompt、角色与图片编辑 | [`adaptive_ui_surfaces_generation.md`](adaptive_ui_surfaces_generation.md) | Generation、Prompt Config、Director、Prompt Assistant、角色、Image Editor | 生成工作台及其全部可达子表面 |
-| 画廊、资源库与统计 | [`adaptive_ui_surfaces_gallery_resources.md`](adaptive_ui_surfaces_gallery_resources.md) | Local/Online Gallery、Tag/Vibe/Precise Ref Library、Statistics | 内容浏览、资源管理、扫描与统计 |
-| 设置、同步与工具 | [`adaptive_ui_surfaces_settings_tools.md`](adaptive_ui_surfaces_settings_tools.md) | Settings、Cloud Sync、Auth、Watermark、Model3D、Shortcuts、Metadata、Discord、Queue | 配置、同步、编辑器与任务管理 |
-| Shell、全局反馈、Agent 与共享组件 | [`adaptive_ui_surfaces_shell_shared.md`](adaptive_ui_surfaces_shell_shared.md) | App/Router/Splash、导航壳层、Banner/Toast/Drop、Agent Chat、Common Widgets | 全局容器、反馈与复用表面 |
-
-台账中的证据等级只表示自动化证据强度：父级测试不得外推为子单元直接证据；“缺直接证据”也不等价于实现不可用。最终真实视觉与完整业务流程仍由 Windows/Android 运行验收确认。
-
-## 3. 共享基础
-
-| 能力 | 实现 | 代表性测试 |
+| 领域 | 代码入口 | 需要按改动展开的场景 |
 |---|---|---|
-| 可用子屏与窗口分类 | `lib/presentation/adaptive/window_size_class.dart` | `test/presentation/adaptive/window_size_class_test.dart` |
-| 插槽布局与内容限宽 | `lib/presentation/adaptive/adaptive_layout.dart` | `test/presentation/adaptive/adaptive_layout_test.dart` |
-| 动态输入能力 | `lib/presentation/adaptive/interaction_policy.dart` | `test/presentation/adaptive/interaction_policy_test.dart` |
-| Panel/Form 呈现 | `lib/presentation/adaptive/adaptive_presenter.dart` | `test/presentation/adaptive/adaptive_presenter_test.dart` |
-| 通用 Dialog 视口 | `lib/presentation/widgets/common/adaptive_dialog_frame.dart` | `test/presentation/widgets/common/adaptive_dialog_frame_test.dart` |
-| 主题、对比度与 Motion | `lib/presentation/themes/**` | `test/tool/theme_color_contrast_test.dart` |
-| 架构边界 | presentation 不从 OS 推导输入模式；长表单不绕过共享 Presenter | `test/presentation/adaptive/responsive_ui_contract_test.dart` |
+| Shell 与导航 | [router/](../../lib/presentation/router/) | 目的地、更多菜单、Rail 折叠、Agent/队列面板、返回层级、最小化恢复 |
+| 启动与登录 | [splash/](../../lib/presentation/screens/splash/)、[auth/](../../lib/presentation/screens/auth/) | 预热、未登录、自动登录失败、恢复入口、账号切换 |
+| 生成工作台 | [generation/](../../lib/presentation/screens/generation/) | 经典/官网式布局、文生图/图生图、正负 Prompt、参数、历史、随机模式 |
+| 角色 | [character/](../../lib/presentation/widgets/character/) | 0/1/多角色、添加、选择、编辑、折叠、移动端独立入口 |
+| Prompt 与固定词 | [prompt/](../../lib/presentation/widgets/prompt/)、[prompt_config/](../../lib/presentation/screens/prompt_config/) | 文本/标签模式、补全、权重、搜索替换、固定词、预设、DIY、导入导出 |
+| Prompt Assistant | [prompt_assistant/](../../lib/presentation/prompt_assistant/) | 输入、历史、菜单、配置、取消、错误与长输出 |
+| 图像编辑与 Director | [image_editor/](../../lib/presentation/widgets/image_editor/)、[director_tools/](../../lib/presentation/screens/director_tools/) | 工具、图层、选区、参数面板、退出/保存、系统文件入口 |
+| 本地图库 | [local_gallery/](../../lib/presentation/screens/local_gallery/) | 扫描、分类/相簿、搜索、筛选、排序、分页、选择、批量操作、详情 |
+| 在线画廊 | [online_gallery/](../../lib/presentation/screens/online_gallery/) | 来源/模式/分级、全局工具、来源筛选、登录、加载/取消/失败、详情与多选 |
+| 词库 | [tag_library_page/](../../lib/presentation/screens/tag_library_page/) | 分类树、排序、选择、新增/编辑、缩略图、独立选择器、批量操作 |
+| Vibe 与精准参考 | [vibe_library/](../../lib/presentation/screens/vibe_library/)、[precise_ref_library/](../../lib/presentation/screens/precise_ref_library/) | 分类、卡片菜单、导入/导出、详情、选择、编辑、模型可用性 |
+| 统计 | [statistics/](../../lib/presentation/screens/statistics/) | 周期、自定义日期、筛选、图表、空数据、导出 |
+| 设置与云备份 | [settings/](../../lib/presentation/screens/settings/)、[cloud_sync/](../../lib/presentation/screens/cloud_sync/) | 分类→详情、长表单、主题/语言、账户、选择内容、连接、预览/取消、进度/错误 |
+| Agent | [agent_chat/](../../lib/presentation/agent_chat/)、[agent_settings/](../../lib/presentation/agent_settings/) | 会话、Composer、模型/权限菜单、附件、工具结果、停止、长消息与滚动恢复 |
+| 队列 | [queue/](../../lib/presentation/widgets/queue/) | 列表、空态、编辑、排序、选择、取消与进度；启动任务受付费授权约束 |
+| 水印与 3D | [watermark/](../../lib/presentation/screens/watermark/)、[model3d_editor/](../../lib/presentation/widgets/model3d_editor/) | 画布、工具、参数、材质/资源选择、保存与退出 |
+| 共享反馈与系统入口 | [common/](../../lib/presentation/widgets/common/)、[drop/](../../lib/presentation/widgets/drop/)、[metadata/](../../lib/presentation/widgets/metadata/)、[discord_share/](../../lib/presentation/widgets/discord_share/) | 提示、菜单、文件选择、拖放、元数据、分享提交前确认 |
+| 沉浸查看 | [slideshow_screen.dart](../../lib/presentation/screens/slideshow_screen.dart)、[image_comparison_screen.dart](../../lib/presentation/screens/image_comparison_screen.dart) | 翻页、缩放、元数据、操作显隐、返回、键鼠与触屏等价入口 |
 
-## 4. 本轮明确回归单元
+## 尺寸、状态与输入
 
-| UI 单元 | 生产入口 | 直接证据 |
+共享 UI 按适用范围覆盖 320、600、840、1180、1600 logical pixels，补充短横屏、3x 文本、SafeArea、IME、Reduce Motion 和长本地化。边界判断另测 599.9/600、839.9/840、1179.9/1180；不能靠单个设备截图证明全部断点。
+
+每个独立子表面至少考虑：
+
+- 空态、有数据、loading、error、disabled、success，以及最长有效内容。
+- 展开前后、菜单/弹窗打开、编辑提交/取消、选择与未提交状态。
+- 鼠标/键盘/触屏入口、焦点恢复、滚动、返回与窗口变化后的状态保持。
+- 预期操作是否真实完成；请求有成本或外部写入时按已有授权确定终点。
+
+在线画廊额外覆盖 700、840、1180、1600；所有全局控件保持第一行职责和纵向中心，QuickTagCloud 单列回归。
+
+## 共享实现与回归入口
+
+| 能力 | 实现 | 测试 |
 |---|---|---|
-| `AddTagGroupDialog` | Prompt Config → Category → 添加标签组 | `add_tag_group_dialog_test.dart`：320/3x/IME/SafeArea、宽屏、名称输入后提交状态 |
-| `EntryAddDialog` / `EntrySelectorDialog` | Tag Library 新增/编辑与词库选择 | `entry_add_dialog_test.dart`、`entry_selector_dialog_test.dart` |
-| `PostProcessRulePanel` | Prompt Config → Tag Group → DIY → 后处理 | `post_process_rule_panel_test.dart`：320/3x 纵排、宽屏横排、预设回调 |
-| `PreviewGeneratorPanel` | Prompt Config → 预览 | `preview_generator_panel_test.dart`：320/3x 标题、统计和操作重排 |
-| `GalleryScanProgressPanel` | Local Gallery 分类栏与分类树扫描状态 | `gallery_scan_progress_panel_test.dart`：Reduce Motion、正常动画与边界 |
-| Queue Task Edit | Queue → 任务 → 编辑 | `queue_management_page_test.dart`：320/3x/IME/SafeArea、700、1600、返回 |
-| Splash | AppBootstrap 预热 | `splash_screen_responsive_test.dart`：320/3x/SafeArea/IME |
-| Generation 组合 | `/generation` | `generation_screen_responsive_test.dart`：断点切换、输入策略、320/3x/SafeArea/IME |
+| 尺寸分类 | [window_size_class.dart](../../lib/presentation/adaptive/window_size_class.dart) | [window_size_class_test.dart](../../test/presentation/adaptive/window_size_class_test.dart) |
+| 布局与限宽 | [adaptive_layout.dart](../../lib/presentation/adaptive/adaptive_layout.dart) | [adaptive_layout_test.dart](../../test/presentation/adaptive/adaptive_layout_test.dart) |
+| 输入策略 | [interaction_policy.dart](../../lib/presentation/adaptive/interaction_policy.dart) | [interaction_policy_test.dart](../../test/presentation/adaptive/interaction_policy_test.dart) |
+| 模态呈现 | [adaptive_presenter.dart](../../lib/presentation/adaptive/adaptive_presenter.dart) | [adaptive_presenter_test.dart](../../test/presentation/adaptive/adaptive_presenter_test.dart) |
+| Dialog 视口 | [adaptive_dialog_frame.dart](../../lib/presentation/widgets/common/adaptive_dialog_frame.dart) | [adaptive_dialog_frame_test.dart](../../test/presentation/widgets/common/adaptive_dialog_frame_test.dart) |
+| 主题与色面 | [themes/](../../lib/presentation/themes/) | [theme_color_contrast_test.dart](../../test/tool/theme_color_contrast_test.dart) |
+| 架构契约 | [adaptive/](../../lib/presentation/adaptive/) | [responsive_ui_contract_test.dart](../../test/presentation/adaptive/responsive_ui_contract_test.dart) |
+| 在线画廊顶栏 | [online_gallery_screen.dart](../../lib/presentation/screens/online_gallery/online_gallery_screen.dart) | [online_gallery_source_auth_test.dart](../../test/presentation/screens/online_gallery/online_gallery_source_auth_test.dart) |
 
-## 5. 组合流程边界
+领域测试从 `test/presentation/` 对应路径定位，检查实际断言而不是仅凭文件名判断覆盖。优先用 `scripts/test_affected.ps1 -ListOnly` 查看选择结果。
 
-已建立自动化证据的组合包括：
+## 证据要求
 
-- Generation 在 839↔840 切换时复用稳定 Prompt 编辑器 owner，保持文本、正/负模式、selection、focus 与 IME composing；角色位置画布开关不卸载编辑器，Compact/中横屏可直接切换正负 Prompt。
-- Queue Task Edit 在 Compact/Medium/Wide 之间保持完整任务快照和取消/系统返回语义。
-- Random Mode 的 Selector、Popup、Indicator、Compact Sheet 与 Wide Sheet 使用同一状态命令。
-- Gallery Filter、Tag Library 长表单、Cloud Sync 各自有组件或入口级响应证据。
+源码审查、Widget 断言、真实设备操作和视觉检查分别报告。父组件测试不能外推为子菜单直接证据；测试文件存在不等于本次执行通过；UI 树不能代替逐张查看截图。
 
-未执行 Windows/Android 自动化运行验收，因此不把 widget test 声称为真机视觉证明；用户将进行真实双端验收。没有触发任何 Anlas 消耗操作。
-
-## 6. 验证记录
-
-主任务实现与收敛阶段执行过以下检查；四份逐项台账的编写子任务只审计现有代码和测试文件，没有把编写时未重跑的测试冒充新证据：
-
-- `flutter analyze --no-pub`（最新整合结果通过）
-- `git diff --check`（最新整合结果通过）
-- 项目受控全量测试 `scripts/run_flutter_tests.ps1`，以及每轮根因修复后的对应定向回归
-- 路由、Director Tools、随机模式、Splash、Generation、Tag Library、Prompt DIY、Gallery Scan 等专项 widget tests
-
-测试通过只证明对应断言，不替代四份逐项台账，也不替代真实运行验收。
-
-## 7. 维护规则
-
-- 新增或删除可达 UI 单元时，同步更新对应领域台账；不得只修改本索引。
-- 一行只对应一个可独立呈现或编辑的 UI 单元；父级证据不得自动升级子单元状态。
-- 新增复杂长表单、输入能力分支、动画或固定尺寸前，先复用共享 Presenter、InteractionPolicy、WindowSizeClass 与 Motion 契约。
-- 文档状态只陈述可核验事实，不使用“界面族已覆盖”替代逐项实现与测试证据。
+一次验收记录至少说明平台、代码版本、入口、尺寸/状态、实际操作、可见结果与增量日志。临时矩阵和截图只属于本次任务，不把“本轮通过/未测/阻塞”长期写回本清单。新增或移动入口时更新上述索引；细节以当前代码和本次矩阵为准。

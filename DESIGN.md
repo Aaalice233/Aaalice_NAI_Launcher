@@ -119,13 +119,15 @@ components:
 
 # Design System: Aaalice NAI Launcher
 
+本文件维护产品视觉与交互契约；[PRODUCT.md](PRODUCT.md) 定义用户与产品边界，[自适应策略](docs/design/adaptive_ui_strategy.md) 定义共享 API 与状态保持，[覆盖清单](docs/design/adaptive_ui_inventory.md) 帮助选择本次验收场景。工程操作与授权规则见 [AGENTS.md](AGENTS.md)，不在设计文档复制工具参数或历史通过结论。
+
 ## Overview
 
 **Creative North Star: "Quiet Layered Utility / 静谧层叠工具界面"**
 
 Aaalice NAI Launcher 是高频创作工具，而不是视觉陈列品。Prompt、图像、参数、状态和操作是视觉主体；容器、主题装饰与品牌表达退到背景，只在帮助理解任务时出现。整体气质克制、专业、内容优先，默认状态安静，交互状态清楚而及时。
 
-系统以 Flutter Material 3 为行为基础，以 `ColorScheme`、`TextTheme`、`AppThemeExtension`、`PromptSemanticColors` 和公共组件表达稳定语义。主题可以改变颜色、字体、形状与轻量动效，但不能改变信息架构、操作顺序、密度边界、可访问性或桌面与 Android 的能力等价。默认 frontmatter 记录 Grunge Collage 暗色主题的真实锚点；其他主题必须沿用同一语义角色，而不是创建另一套组件规则。
+系统以 Flutter Material 3 为行为基础，以 `ColorScheme`、`TextTheme`、`AppThemeExtension`、`PromptSemanticColors` 和公共组件表达稳定语义。主题可以改变颜色、字体、形状与轻量动效，但不能改变信息架构、操作顺序、密度边界、可访问性或桌面与 Android 的能力等价。frontmatter 记录 Grunge Collage 暗色主题的设计锚点，供阅读与设计参考，不是可直接复制的运行时配置；最终数值以 `ThemeComposer`、palette、typography、shape preset 和公共组件为准，变更时同步核对。其他主题沿用同一语义角色，不创建另一套组件规则。
 
 **Key Characteristics:**
 
@@ -308,8 +310,8 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 - Dialog 用于需要完成、取消或确认后才能返回的短时模态流程，例如设置表单、内容选择与风险决策；标题直接说明任务，风险流程的正文先说结果，再说原因。
 - Dialog / adaptive panel 标题区使用无边框 Section 色面与正文建立层级，禁止用横向分隔线切开标题和内容。
 - 操作顺序保持低强调取消在前、主操作在后；Esc 与系统返回可关闭并恢复合理焦点。
-- Medium / Expanded / Wide 使用位于视口中央、宽高受限的独立模态 Dialog；标题与底部操作区固定，正文独立滚动，弹窗四周必须保留可见遮罩空间，不得贴靠窗口侧边呈现。
-- Compact 在居中弹窗无法保持可用边距时使用避开 SafeArea 与软键盘的 bottom sheet，并保持与桌面 Dialog 相同的字段语义、状态和操作结果。
+- 表单使用 `AdaptivePresenter.showForm`：Medium / Expanded / Wide 为位于视口中央、宽高受限的独立模态 Dialog；标题与操作区按内容需要固定，正文独立滚动，四周保留可见遮罩空间，不得贴靠窗口侧边呈现。
+- `showForm` 在 Compact 使用避开 SafeArea 与软键盘的 bottom sheet；`showPanel` / `showPicker` 在 Compact / Medium 使用 sheet，在 Expanded / Wide 居中。短确认可使用有界 Dialog。容器差异保持字段语义、状态和操作结果一致，不能将模态任务改为常驻侧栏。
 - Dialog 与 bottom sheet 默认按实际内容取自然高度，只设置视口内的最大高度；只有长清单、长表单、可拖拽展开面板或明确需要稳定工作区的内容才占满上限。禁止用固定高度、默认最大高度或紧约束的 `Expanded` 人为撑高短内容弹窗。
 - `AdaptivePresenter.showForm` 的短表单、操作菜单与说明正文统一复用 `ContentSizedAdaptiveForm`，由其管理收缩、最大高度内滚动和可选固定 footer；仅设置 `maxHeight` 或 `FlexFit.loose` 不能阻止默认 `ListView` 占满视口。动作需要随正文滚动时放入 `content`；长集合保持惰性视口，不为收缩而全量测量。高度回归必须同时断言短内容无大块留白、长内容可滚动，并覆盖内容增减、窗口缩放和 IME 后的恢复。
 - Side panel 只承载常驻、非模态的工作区辅助内容；设置表单、内容选择、确认和其他需要用户完成或取消的流程不得使用 side sheet。
@@ -335,6 +337,16 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 动效由 `AppThemeExtension` 驱动。高频状态通常处于 100–200ms，面板和页面变化可延长到 200–300ms。界面禁止使用弹簧、回弹、过冲、弹跳、缩放弹出或会让元素方向反复变化的进出场动画；面板、弹窗、选择器和导航容器优先使用短淡入淡出，确需位移时只允许单向、无过冲的减速过渡。不得在重建时重置 Tween 起点造成横向跳动，Reduce Motion 下必须立即到达终态。
 
 连续拖拽调宽属于高频直接操作。pointer move 不得逐次调用页面级 `setState`、写入 Provider 或重建工作区；宽度变化必须限制在对应分栏的 RenderObject / layout 边界内，由 Flutter 帧调度合并布局，并保持两侧昂贵子树的 Widget identity。拖拽过程中禁止对宽度做补间动画，面板必须一比一跟随指针；需要持久化宽度时只在 drag end 提交最终值。回归测试应同时验证宽度边界、无 overflow，以及拖动期间稳定子树没有 rebuild。
+
+## 视觉与交互验收
+
+用户要求自动化验收时，按 [aaalice-runtime-verify](.agents/skills/aaalice-runtime-verify/SKILL.md) 自动启动或复用热重载，Windows 使用 Computer Use 操作并查看当前 Debug App，Android 使用 ADB 操作与截图。工具准备、授权边界和日志流程由技能维护；本节只定义应观察的设计结果。
+
+- 按本次相关页面、子部件、状态和展开层级建立矩阵，实际打开菜单、弹窗、筛选和编辑态，确认操作结果；不能只访问顶级页面。
+- 当前 Agent 逐张查看截图，检查页面四边、工具栏首尾、标题层级、文字/图标对比、对齐间距、命中区、裁切遮挡与滚动可达性；不以截图文件存在、UI 树或日志正常代替视觉检查。
+- 同时比较展开/折叠、键盘出现、宽度变化、长文案和选中/禁用前后的几何稳定性。检查共享 UI 的桌面与触屏等价入口，不把鼠标 hover 当作移动端方案。
+- Widget tests 验证尺寸与状态断言，真实运行检查窗口、设备和平台输入；分别报告已执行的平台与组合，不能相互替代。
+- 发现本次改动引入的问题后集中修复、正确刷新并重新采集受影响场景；共享改动复查两端，临时状态恢复后交还控制权。
 
 ## Do's and Don'ts
 

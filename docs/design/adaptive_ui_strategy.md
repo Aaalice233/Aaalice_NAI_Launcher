@@ -1,6 +1,6 @@
 # 跨平台自适应策略
 
-本策略与 [`adaptive_ui_inventory.md`](adaptive_ui_inventory.md) 共同构成全界面重构契约：本文件定义共享规则，清单定义覆盖范围和完成证据。视觉规则以仓库根目录 `DESIGN.md` 为准。
+本文件维护共享自适应实现规则；[覆盖清单](adaptive_ui_inventory.md) 用于确定本次影响范围，[DESIGN.md](../../DESIGN.md) 定义视觉和交互标准。代码入口以 `lib/presentation/adaptive/` 为准，不把历史迁移计划当作现行 API。
 
 ## 1. 唯一全局尺寸分类
 
@@ -9,15 +9,15 @@
 | 分类 | 可用 pane 宽度 | 结构职责 |
 |---|---:|---|
 | Compact | `<600` | `NavigationBar`、单主流程、bottom sheet 或独立次级页 |
-| Medium | `600–839` | 60px Rail、紧凑双区；次级面板仍优先 bottom sheet |
-| Expanded | `840–1179` | 稳定 Rail、受限 side sheet、按内容最小宽度并列主辅区 |
+| Medium | `600–839` | 60px Rail、紧凑双区；表单居中，Panel/Picker 按共享 API 呈现 |
+| Expanded | `840–1179` | 稳定 Rail、模态内容居中、常驻主辅区按最小宽度并列 |
 | Wide | `≥1180` | 可展开 196px Rail，可增加辅助列；表单仍限制在 840–960px |
 
 执行规则：
 
 - Shell/整页依据当前无障碍 pane 的 constraints；局部组件依据最近的 `LayoutBuilder.constraints`。
 - IME 只改变可见高度，不改变 width class；折叠屏先由 `LargestDisplayFeatureSubScreen` 选择无铰链遮挡 pane。
-- 全局断点不得继续从 `DesignTokens.breakpointMobile/tablet/desktop` 等第二套常量读取；现有 `600/900/1200` 全局语义逐步迁移。
+- 全局断点只消费 `WindowSizeClass`，不得从 `DesignTokens.breakpointMobile/tablet/desktop` 或页面常量建立第二套全局分类。
 - 页面允许声明有业务含义并有测试的局部内容阈值，例如“主区 480 + 辅区 360 + gap 能否并列”；不得把局部阈值包装成设备类型。
 - 双栏/三栏成立条件始终是各区域最小宽度与间距之和不超过可用宽度，不因进入 Wide 就强制多栏。
 - 网格按最大 item extent 或现有 Masonry 算法算列数，不按设备固定列数。
@@ -36,7 +36,7 @@
 - 面板在 resize 时原位变形，不关闭重开；当前 Agent 会话、队列、输入、选择和滚动状态不得丢失。
 - Compact 键盘或全屏 workspace overlay 激活时可以暂时隐藏底栏以保护内容，但不得清空导航或 overlay 状态。
 
-对应清单：第 1 节全部条目，以及第 10 节“Medium 仍复用桌面 Shell”“键盘/底栏突变”“状态随断点销毁”。
+验证 Shell、键盘/底栏变化与状态恢复时，使用[覆盖清单](adaptive_ui_inventory.md) 建立具体入口矩阵。
 
 ## 3. 工作区、目录与配置页面模式
 
@@ -54,7 +54,7 @@
 适用：Local/Online Gallery、Tag/Vibe/Precise Ref Library。
 
 - Compact：工具面板 + 自适应网格/列表；分类、筛选和详情分层呈现。
-- Medium：紧凑 master/content；次级编辑仍优先 bottom sheet。
+- Medium：紧凑 master/content；编辑表单使用 `showForm` 的居中容器，Picker/Panel 遵循各自 API。
 - Expanded/Wide：可 persistent tree/content/detail；网格充分利用宽度。
 - 列数变化使用稳定 item ID + 局部偏移恢复，而不是只恢复 pixel offset。
 
@@ -76,21 +76,26 @@
 
 ## 4. Panel、Dialog、Menu 与 Overlay
 
-### Panel
+### 模态 Panel 与 Form
 
-统一复用 `AdaptivePresenter`：
+统一复用 [AdaptivePresenter](../../lib/presentation/adaptive/adaptive_presenter.dart)，按 API 职责选择容器：
 
-- Compact/Medium：避开 SafeArea 与 IME 的 `DraggableScrollableSheet`。
-- Expanded/Wide：受限 side sheet，默认宽度经 `WorkspaceSidePanelContract` 随可用 pane 计算；调用方的内容偏好宽度仍受同一上限约束，避免 Expanded 主区被挤压，Wide 也不盲目拉宽。
-- 公共契约补齐 dismiss policy、焦点恢复、可选 Compact fullscreen 和 Reduce Motion。
+| API | Compact | Medium | Expanded / Wide |
+|---|---|---|---|
+| `showForm` | content-sized bottom sheet，可显式展开 | 有界居中 Dialog | 有界居中 Dialog |
+| `showPanel` | 可拖拽 bottom sheet | 可拖拽 bottom sheet | 有界居中 Dialog |
+| `showPicker` | bottom sheet | bottom sheet | 几何稳定的有界居中 Dialog |
+
+短表单使用 `ContentSizedAdaptiveForm` 随内容收缩并在上限内滚动；长清单保持惰性视口。最大尺寸来自 safe viewport 与 IME，不能把最大高度当作短内容固定高度。呈现结束后按共享 API 恢复焦点，Reduce Motion 直接到稳定终态。
+
+常驻工作区侧栏由 Shell 或布局组件承载，宽度复用 `WorkspaceSidePanelContract`；它不等于模态 side sheet，不能用来替代需要完成/取消的表单。
 
 ### Dialog
 
-- Dialog 仅用于必须打断的决策、危险确认、脏状态确认和不可中断流程。
-- 短确认使用可滚动正文 + 固定可达 actions；取消在前，主操作在后。
-- 长表单/向导：Compact fullscreen，Medium 受限居中 dialog，Expanded/Wide 使用受限 side sheet；危险确认仍用短 dialog。
-- 最大尺寸依据 safe usable viewport、`viewInsets` 和稳定 viewport margin 计算；现有固定 `800x600`、`640x640` 等只作最大值，不得成为强制尺寸。
-- Esc/系统返回关闭后恢复触发控件焦点。
+- Dialog 承载短确认、通知、单选器或需要完成/取消的编辑任务，不只用于危险操作。
+- 正文在有界空间内滚动，取消在前、主操作在后；避免两个同轴主滚动区域。
+- 固定尺寸只能作为可用视口内的最大值；长内容、大字和 IME 下操作仍须可达。
+- Esc/系统返回遵守 dismiss policy，关闭后恢复合理焦点，不丢失不应丢弃的草稿。
 
 ### Menu
 
@@ -105,7 +110,7 @@
 - 所有 Overlay 覆盖屏幕边缘定位、IME、Escape/外部点击、route dispose、异步取消后不重开。
 - Toast 只承载瞬时反馈；必须阅读的错误、风险和状态在页面、panel 或 dialog 原位显示。
 
-对应清单：第 9 节全部条目，以及所有页面中的 dialog/menu/sheet 子项。
+Dialog、Menu、Sheet 等子项必须独立列入本次矩阵，不能用父页面证据外推。
 
 ## 5. Capability 与交互策略边界
 
@@ -170,32 +175,23 @@ Presentation-level interaction policy 回答当前交互方式：
 - 页面/dialog 标题具 header 语义；modal 使用独立焦点遍历；错误 Banner 谨慎使用 live region。
 - 覆盖文本缩放 `1.0/1.3/2.0/3.0`、Reduce Motion 和简中/繁中/English/日本語长文本。
 
-## 9. 实施依赖顺序
+## 9. 修改与验证顺序
 
-1. 统一 `WindowSizeClass`、pane/insets 指标和旧断点来源。
-2. 明确 OS capability 与 interaction policy 边界。
-3. 扩展 `AdaptivePresenter`、公共 dialog frame、menu/action presenter、焦点/insets 契约。
-4. 稳定 MainShell 拓扑、Medium Rail、目的地登记、返回顺序和 Banner。
-5. 统一 Toolbar、BulkActionBar、Pagination、卡片菜单、树节点、空/载/错状态。
-6. 生成/Prompt/角色/参数/历史/固定词/Agent。
-7. 图片详情/编辑器/Director/水印/3D/对比/幻灯片。
-8. 本地/在线画廊和 Tag/Vibe/Precise Ref 资源库。
-9. Prompt Config、Statistics、Settings、Cloud Sync、Login、Splash、错误页。
-10. 按清单逐项复核、补测试、运行 affected tests 与 analyze。
+先定位共享尺寸、呈现或状态 owner 的责任，再修改对应组件和调用方；页面复用共享业务状态，不能先复制两套布局再补同步。公共契约变化同步检查受影响的页面与测试，局部改动不扩大为全界面迁移。
 
-公共契约必须先于页面迁移；不得先复制 Compact/Expanded 页面，最后再抽象业务状态。
+按覆盖清单选择相关子表面，补充能证明行为的定向回归，再执行必要静态检查。真实运行验收使用项目技能，并与 Widget 测试的证据分开报告。
 
 ## 10. 可核验测试矩阵
 
 | 宽度 | Shell | Panel | 核心断言 |
 |---:|---|---|---|
-| 360 | NavigationBar | bottom/fullscreen | 单列、48px 主命中区、无 overflow |
-| 412 | NavigationBar | bottom/fullscreen | 软键盘、长本地化、系统返回 |
-| 600 | 60px Rail | bottom sheet | Medium 边界准确，不进入宽桌面布局 |
-| 700 | 60px Rail | bottom sheet | 在线画廊第一行可滚动且两行职责不混用 |
-| 840 | 60px Rail | side sheet | Expanded 边界准确，主辅区不挤压 |
-| 1180 | Wide，可展开 Rail | side sheet | 辅助列按局部最小宽度出现 |
-| 1600 | Wide | bounded side sheet | 表单不盲目拉宽，画廊充分利用空间 |
+| 320/360 | NavigationBar | bottom sheet | 单列、完整操作、48px 主命中区、无 overflow |
+| 412 | NavigationBar | bottom sheet | 软键盘、长本地化、系统返回 |
+| 600 | 60px Rail | Panel/Picker 为 sheet；Form 居中 | Medium 边界和呈现类型准确 |
+| 700 | 60px Rail | Panel/Picker 为 sheet；Form 居中 | 在线画廊第一行可滚动且两行职责不混用 |
+| 840 | 60px Rail | 居中 Dialog | Expanded 边界准确，主辅区不挤压 |
+| 1180 | Wide，可展开 Rail | 居中 Dialog | 辅助列按局部最小宽度出现 |
+| 1600 | Wide | 居中有界 Dialog | 表单不盲目拉宽，画廊充分利用空间 |
 
 每个适用阶段验证：
 
@@ -215,4 +211,4 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/test_affected.ps1 -Path "<
 flutter analyze
 ```
 
-除非用户后续明确要求，不启动 Windows/Android 自动化运行验收。
+用户明确要求自动化运行验收时，按[运行验收技能](../../.agents/skills/aaalice-runtime-verify/SKILL.md) 自动启动或复用热重载，再执行 Windows Computer Use / Android ADB 操作、截图检查与增量日志验证。普通修改不默认启动运行验收。

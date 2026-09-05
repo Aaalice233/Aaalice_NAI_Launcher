@@ -30,7 +30,7 @@ NAI Launcher 的核心定位是**本地优先的一体化 NovelAI 创作工作�
 - 用户可在 Danbooru、Safebooru、Gelbooru、AI TAG 和 NovelAI QuickTagCloud 等来源中寻找参考，并使用内容分级、黑名单和输出过滤。
 - 用户可维护标签、固定词、随机词库、Vibe 和 Precise Reference 等可复用资源。
 - 智能代理可协助检索标签、整理 Prompt、查看历史和准备生成，但不能绕过业务服务或用户确认。
-- 桌面端可连接 Krita Bridge 与本地 ComfyUI；同步与备份通过用户配置的 GitHub 或 WebDAV 存储完成。
+- 桌面端可连接 Krita Bridge 与本地 ComfyUI；同步与备份通过用户配置的 Google Drive、OneDrive、GitHub 或 WebDAV 存储完成，数据传输由用户显式触发。
 
 ## Capabilities and Constraints
 
@@ -57,8 +57,8 @@ NAI Launcher 的核心定位是**本地优先的一体化 NovelAI 创作工作�
 
 ## Evidence on Hand
 
-- 中英文用户说明与公开承诺：`README.md`、`README.en-US.md`。
-- 当前产品界面截图：`docs/screenshots/`，覆盖生成、画廊、资源库、队列、Agent、设置和 Android 主要流程。
+- 三语用户说明与公开承诺：`README.md`、`README.zh-TW.md`、`README.en-US.md`。
+- 产品界面素材：`docs/screenshots/`；只以实际文件和截图内容说明对应场景，截图不保证代表当前代码或全部平台。
 - 产品与平台图标：`assets/icons/`、`windows/runner/resources/app_icon.ico`、`macos/Runner/Assets.xcassets/AppIcon.appiconset/`。
 - 功能与页面边界：`lib/presentation/router/app_routes.dart`、`lib/presentation/router/app_router_config.dart`、`lib/presentation/screens/`。
 - 平台适配依据：`lib/core/platform/platform_capabilities.dart`、`lib/presentation/router/desktop_shell.dart`、`lib/presentation/router/mobile_shell.dart`。

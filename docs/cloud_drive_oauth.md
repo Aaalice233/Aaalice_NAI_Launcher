@@ -90,7 +90,7 @@ for (final provider in CloudDriveOAuthProvider.values) {
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_cloud_drive_oauth_config.ps1 -Platform windows -RequireConfigured
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_flutter_sources.ps1
 flutter pub get --enforce-lockfile
-flutter test test/core/cloud_sync/oauth/cloud_drive_oauth_test.dart test/core/storage/cloud_drive_oauth_secure_storage_test.dart
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/test_affected.ps1 -Include "test/core/cloud_sync/oauth/cloud_drive_oauth_test.dart,test/core/storage/cloud_drive_oauth_secure_storage_test.dart"
 flutter analyze lib/core/cloud_sync/oauth lib/core/storage/secure_storage_service.dart lib/core/constants/storage_keys.dart
 ```
 

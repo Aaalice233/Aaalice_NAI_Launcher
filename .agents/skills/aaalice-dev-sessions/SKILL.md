@@ -7,12 +7,13 @@ description: 管理 Aaalice NAI Launcher 项目专用的 Windows 与 Android Flu
 
 运行环境需要 Windows、PowerShell 7、Flutter 与 Android SDK。会话由 Codex 启动的独立 PowerShell 窗口承载，不使用外部终端编排器、`flutter attach` 或新的 Codex task。
 
-只管理当前 Aaalice NAI Launcher worktree；每个平台最多保留一个 `flutter run`。
+只管理当前 Aaalice NAI Launcher worktree；每个平台最多保留一个 `flutter run`。用户要求自动化验收时，启动或复用所需会话属于已授权的准备步骤，无需另问是否启动；就绪后继续由 [aaalice-runtime-verify](../aaalice-runtime-verify/SKILL.md) 操作和检查界面，不能停在“窗口已打开”。
 
 ## 前置检查
 
 1. 确认当前目录存在 `pubspec.yaml` 与本 skill 的 `scripts/start.ps1`、`scripts/windows_runner.ps1`、`scripts/android_runner.ps1`。
-2. 运行状态检查；命令可能因任一端未启动而返回非零，应分别读取两端结果：
+2. 确认 Flutter/Dart 可执行文件与 Android SDK 路径。当前进程 PATH 缺少工具时，先核对项目 `android/local.properties` 或已配置的 SDK 路径，再仅为启动进程设置 PATH 或 `FLUTTER_CMD`/`DART_CMD`；不猜路径、不修改用户/系统环境。
+3. 运行状态检查；命令可能因任一端未启动而返回非零，应分别读取两端结果：
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/scripts/control.ps1 -Action Status
@@ -33,8 +34,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-dev-session
 规则：
 
 - Android 项目会话必须使用基于 `system-images;android-35;google_apis_playstore;x86_64` 的 `-EmulatorId Aaalice_API35`，确保 Google Drive 登录所需的 Google Play Services 可用；Runner 在冷启动前会启用 AVD 的 host hardware keyboard，确保物理键盘输入可用。不要把临时的 `emulator-5554` 写成固定 `-DeviceId`；`-DeviceId` 只用于明确复用外部设备。
-- Runner 默认复用依赖与生成文件，不运行 `pub get` / `build_runner`。依赖变化时使用 `-RunPubGet`；Freezed/Riverpod 等生成输入变化或预检阻塞时才使用 `-RunBuildRunner`。生成步骤不得与另一端 Flutter 构建并发。
-- Windows 与 Android Runner 按 Process → User → Machine 的优先级读取各自平台的 Google Drive / OneDrive OAuth 环境变量并作为 `--dart-define` 注入，因此持久化到当前用户的开发配置无需重启 Codex；Windows OneDrive 本地注册也可通过 `-OneDriveClientId`、`-OneDriveRedirectUri`、`-OneDriveTenantId` 显式覆盖。不要把 client secret、access token 或 refresh token 传给 Runner；桌面与移动 OAuth client 都按 public client 处理。
+- Runner 默认复用依赖与生成文件，不额外执行独立的 `pub get` / `build_runner` 准备阶段；`flutter run` 自身仍可能解析依赖。依赖变化时使用 `-RunPubGet`；Freezed/Riverpod 等生成输入变化或预检阻塞时才使用 `-RunBuildRunner`。生成步骤不得与另一端 Flutter 构建并发。
+- Windows 与 Android Runner 按 Process → User → Machine 的优先级读取各自平台的 Google Drive / OneDrive OAuth 环境变量并作为 `--dart-define` 注入，因此持久化到当前用户的开发配置无需重启 Codex；Windows OneDrive 本地注册也可通过 `-OneDriveClientId`、`-OneDriveRedirectUri`、`-OneDriveTenantId` 显式覆盖。OAuth 参数以 [cloud_drive_oauth.md](../../../docs/cloud_drive_oauth.md) 和平台配置为准：Google Windows Desktop 使用已配置的 client secret；OneDrive 与移动 public client 不额外创建 secret。access token 或 refresh token 绝不能作为 Runner 参数或 dart-define。
 - Android runner 首次启动 emulator 时禁用 Quick Boot 快照、使用 host GPU、移除设备外框并等待系统完成启动；默认保留 emulator 作为暖缓存。只有显式传 `-StopEmulatorOnExit` 才随会话关闭。
 
 ## 状态、日志与关闭

@@ -29,9 +29,10 @@ new source states can still restore the latest compatible cache incrementally.
 `cache-windows-build` should be enabled only on Windows build jobs. Analysis and
 test jobs still reuse the SDK, Pub, and generated-code layers.
 
-Dependency resolution enforces the committed lockfile. The repository workflows
-set `PUB_HOSTED_URL` to the hosted source recorded in that lockfile, preventing
-source URL normalization from dirtying `pubspec.lock` during CI.
+Dependency resolution enforces the committed lockfile. Repository workflows
+pin `PUB_HOSTED_URL` to `https://pub.dev` and verify official Flutter/Pub sources;
+non-official hosted URLs in the lockfile are errors, not alternate source inputs.
+See [`verify_flutter_sources.ps1`](../../../scripts/verify_flutter_sources.ps1).
 
 The maintainer-dispatched portable workflow also caches the completed bundle by
 build-input fingerprint, build-recipe version, Flutter version, build mode, and
