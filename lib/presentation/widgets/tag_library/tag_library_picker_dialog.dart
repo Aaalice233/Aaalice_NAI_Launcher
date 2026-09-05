@@ -13,6 +13,7 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/thumbnail_display.dart';
 import '../common/translated_tag_text.dart';
+import 'tag_library_entry_hover_preview.dart';
 
 /// 词库条目选择对话框
 ///
@@ -304,54 +305,57 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
     final theme = Theme.of(context);
     final entry = widget.entry;
 
-    return Semantics(
-      label: entry.displayName,
-      button: true,
-      child: FocusableActionDetector(
-        shortcuts: const {
-          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
-        },
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              widget.onTap();
-              return null;
-            },
-          ),
-        },
-        onFocusChange: (focused) {
-          if (_isFocused != focused) setState(() => _isFocused = focused);
-        },
-        child: MouseRegion(
-          onEnter: (_) => setState(() => _isHovering = true),
-          onExit: (_) => setState(() => _isHovering = false),
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: widget.onTap,
-            child: AnimatedContainer(
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 120),
-              decoration: BoxDecoration(
-                color: _isHovering
-                    ? theme.colorScheme.surfaceContainerHigh
-                    : theme.colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(12),
-                border: _isFocused
-                    ? Border.all(color: theme.colorScheme.primary)
-                    : null,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AspectRatio(
-                    aspectRatio: 1.4,
-                    child: _buildThumbnail(theme, entry),
-                  ),
-                  _buildInfo(theme, entry),
-                ],
+    return TagLibraryEntryHoverPreview(
+      entry: entry,
+      child: Semantics(
+        label: entry.displayName,
+        button: true,
+        child: FocusableActionDetector(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+          },
+          actions: {
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                widget.onTap();
+                return null;
+              },
+            ),
+          },
+          onFocusChange: (focused) {
+            if (_isFocused != focused) setState(() => _isFocused = focused);
+          },
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _isHovering = true),
+            onExit: (_) => setState(() => _isHovering = false),
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: widget.onTap,
+              child: AnimatedContainer(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 120),
+                decoration: BoxDecoration(
+                  color: _isHovering
+                      ? theme.colorScheme.surfaceContainerHigh
+                      : theme.colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12),
+                  border: _isFocused
+                      ? Border.all(color: theme.colorScheme.primary)
+                      : null,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 1.4,
+                      child: _buildThumbnail(theme, entry),
+                    ),
+                    _buildInfo(theme, entry),
+                  ],
+                ),
               ),
             ),
           ),

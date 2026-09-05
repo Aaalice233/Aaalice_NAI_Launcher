@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:nai_launcher/presentation/widgets/tag_library/tag_library_entry_hover_preview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -12,6 +14,80 @@ import 'package:nai_launcher/presentation/widgets/tag_library/tag_library_picker
 import '../../../helpers/light_theme_contrast.dart';
 
 void main() {
+  testWidgets(
+    'picker reuses the fixed-tag hover preview and dismisses it on selection',
+    (tester) async {
+      tester.view.physicalSize = const Size(1180, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final entry = TagLibraryEntry.create(
+        name: '完整预览',
+        content: '${List.filled(120, 'green_hair').join(', ')}, final_tag',
+      ).copyWith(id: 'preview-entry');
+      final lookup = TagTranslationLookup.fromResolver(
+        (tags) async => {'green_hair': '绿发', 'final_tag': '末尾标签'},
+      );
+      addTearDown(lookup.dispose);
+      TagLibraryEntry? selected;
+      await tester.pumpWidget(
+        _buildTestApp(
+          entries: [entry],
+          lookup: lookup,
+          onSelected: (value) => selected = value,
+        ),
+      );
+      await tester.tap(find.text('打开'));
+      await tester.pumpAndSettle();
+      final card = find.byKey(
+        const ValueKey('tag-library-picker-entry-preview-entry'),
+      );
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byType(TagLibraryEntryHoverPreview),
+        ),
+        findsOneWidget,
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(tester.getCenter(card));
+      await tester.pump(const Duration(milliseconds: 699));
+      expect(find.byType(TagLibraryEntryPreviewOverlay), findsNothing);
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pumpAndSettle();
+      final preview = find.byType(TagLibraryEntryPreviewOverlay);
+      expect(preview, findsOneWidget);
+      expect(
+        find.descendant(of: preview, matching: find.text(entry.content)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: preview, matching: find.textContaining('末尾标签')),
+        findsOneWidget,
+      );
+      await mouse.moveTo(tester.getCenter(preview));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(preview, findsOneWidget);
+      final scrollable = find
+          .descendant(of: preview, matching: find.byType(Scrollable))
+          .first;
+      final position = tester.state<ScrollableState>(scrollable).position;
+      expect(position.maxScrollExtent, greaterThan(0));
+      position.jumpTo(position.maxScrollExtent);
+      await tester.pump();
+      expect(preview, findsOneWidget);
+      await mouse.moveTo(tester.getCenter(card));
+      await mouse.down(tester.getCenter(card));
+      await mouse.up();
+      await tester.pumpAndSettle();
+      expect(selected, entry);
+      expect(preview, findsNothing);
+      expect(tester.takeException(), isNull);
+      await mouse.removePointer();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     for (final scale in [1.0, 3.0]) {
       testWidgets('translated cards grow naturally at $width / ${scale}x', (
