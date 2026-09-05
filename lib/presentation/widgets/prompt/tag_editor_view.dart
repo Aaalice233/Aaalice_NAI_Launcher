@@ -452,7 +452,21 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
             PopupMenuItem(
               value: action,
               enabled: commands.available(action),
-              child: Text(tagEditorActionLabel(action, context.l10n)),
+              child: Builder(
+                builder: (context) => Row(
+                  children: [
+                    Icon(
+                      tagEditorActionIcon(action),
+                      size: 18,
+                      color: DefaultTextStyle.of(context).style.color,
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(tagEditorActionLabel(action, context.l10n)),
+                    ),
+                  ],
+                ),
+              ),
             ),
         ],
       );
@@ -562,6 +576,7 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
         : null;
     if (local == null) return const SizedBox.shrink();
     final anchor = MatrixUtils.transformRect(info.childPaintTransform, local);
+    final allDisabled = session.selectedTags.every((tag) => tag.span.disabled);
     return PromptActionOverlay(
       anchor: anchor,
       overlaySize: info.overlaySize,
@@ -580,19 +595,21 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
                 onStep: (step) => commands.adjustWeight(step: step),
                 trailing: [
                   IconButton(
-                    tooltip:
-                        session.selectedTags.every((tag) => tag.span.disabled)
+                    tooltip: allDisabled
                         ? context.l10n.tagMode_enable
                         : context.l10n.tagMode_disable,
                     onPressed: widget.enabled && commands.canAdjust
                         ? () => session.toggleEnabled(
                             session.selected,
-                            enabled: session.selectedTags.every(
-                              (tag) => tag.span.disabled,
-                            ),
+                            enabled: allDisabled,
                           )
                         : null,
-                    icon: const Icon(Icons.visibility_outlined, size: 18),
+                    icon: Icon(
+                      allDisabled
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 18,
+                    ),
                   ),
                   Builder(
                     builder: (buttonContext) => IconButton(
@@ -636,6 +653,10 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
 
   Widget _buildAddition() {
     final colors = Theme.of(context).colorScheme;
+    const inputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(8)),
+      borderSide: BorderSide.none,
+    );
     if (!_adding) {
       final diameter = context.interactionPolicy.minimumControlExtent.clamp(
         44.0,
@@ -678,9 +699,10 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
             hintText: context.l10n.tagMode_add,
             filled: true,
             fillColor: controlSurfaceColor(colors),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
+            border: inputBorder,
+            enabledBorder: inputBorder,
+            focusedBorder: inputBorder,
+            disabledBorder: inputBorder,
             contentPadding: const EdgeInsets.symmetric(
               vertical: 12,
               horizontal: 8,
@@ -783,6 +805,14 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
           overlayChildBuilder: _toolbar,
           child: Material(
             key: _surfaceKey,
+            borderRadius:
+                Theme.of(context).inputDecorationTheme.border
+                    is OutlineInputBorder
+                ? (Theme.of(context).inputDecorationTheme.border!
+                          as OutlineInputBorder)
+                      .borderRadius
+                : BorderRadius.circular(8),
+            clipBehavior: Clip.antiAlias,
             color:
                 widget.surfaceColor ??
                 Theme.of(context).colorScheme.surfaceContainerLow,

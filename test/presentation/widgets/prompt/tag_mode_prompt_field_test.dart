@@ -23,6 +23,7 @@ Future<void> pumpEditor(
   EdgeInsets insets = EdgeInsets.zero,
   TagTranslationLookup? lookup,
   bool enabled = true,
+  ThemeData? theme,
   InteractionPolicy policy = InteractionPolicy.touchFirst,
   ZhDictionaryService? dictionary,
 }) => tester.pumpWidget(
@@ -46,6 +47,7 @@ Future<void> pumpEditor(
       ),
     ],
     child: MaterialApp(
+      theme: theme,
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -84,41 +86,132 @@ Future<void> pumpEditor(
 );
 
 void main() {
-  testWidgets('editing hides translation and preserves the capsule footprint', (
+  testWidgets(
+    'editing hides translation and resizes the capsule with its text',
+    (tester) async {
+      final source = TextEditingController(text: 'cat, dog');
+      addTearDown(source.dispose);
+      await pumpEditor(tester, source);
+      await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+      await tester.pumpAndSettle();
+      final capsule = find.byType(TagEditorCapsule).first;
+      final before = tester.getSize(capsule);
+      expect(
+        find.descendant(of: capsule, matching: find.text('猫')),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('cat'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('cat'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(capsule).height, before.height);
+      expect(
+        find.descendant(of: capsule, matching: find.text('猫')),
+        findsNothing,
+      );
+      final field = find.byKey(const ValueKey('tag-input-0'));
+      expect(tester.getSize(field).height, closeTo(before.height - 16, 1));
+      await tester.enterText(field, 'longer_tag_name');
+      await tester.pumpAndSettle();
+      final expanded = tester.getSize(capsule);
+      expect(expanded.width, greaterThan(before.width));
+      expect(expanded.height, before.height);
+      expect(source.text, 'longer_tag_name, dog');
+      final editable = tester.widget<TextField>(field);
+      expect(editable.focusNode!.hasFocus, isTrue);
+      await tester.enterText(field, 'x');
+      await tester.pumpAndSettle();
+      expect(tester.getSize(capsule).width, lessThan(expanded.width));
+      expect(source.text, 'x, dog');
+      await tester.enterText(field, 'long_tag_' * 40);
+      await tester.pumpAndSettle();
+      expect(tester.getSize(capsule).width, lessThanOrEqualTo(600));
+      expect(tester.getSize(capsule).height, greaterThan(before.height));
+      expect(editable.focusNode!.hasFocus, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: capsule, matching: find.byType(TextField)),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'inline edit measures the effective TextField font without wrapping the last character',
+    (tester) async {
+      final source = TextEditingController(text: 'closed_mouth, cat');
+      addTearDown(source.dispose);
+      final base = ThemeData.dark();
+      await pumpEditor(
+        tester,
+        source,
+        theme: base.copyWith(
+          textTheme: base.textTheme.copyWith(
+            bodyLarge: const TextStyle(fontSize: 16, letterSpacing: 2),
+            bodyMedium: const TextStyle(fontSize: 14),
+          ),
+          inputDecorationTheme: const InputDecorationTheme(
+            focusedBorder: OutlineInputBorder(),
+            contentPadding: EdgeInsets.all(14),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('closed_mouth'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('closed_mouth'));
+      await tester.pumpAndSettle();
+      final field = find.byKey(const ValueKey('tag-input-0'));
+      for (final label in ['closed_mouth', 'blue_skirt', 'longer_tag_name']) {
+        await tester.enterText(field, label);
+        await tester.pumpAndSettle();
+        final editable = tester
+            .state<EditableTextState>(
+              find.descendant(of: field, matching: find.byType(EditableText)),
+            )
+            .renderEditable;
+        final boxes = editable.getBoxesForSelection(
+          TextSelection(baseOffset: 0, extentOffset: label.length),
+        );
+        expect(boxes, hasLength(1), reason: '$label must remain on one line');
+        expect(boxes.single.right, lessThanOrEqualTo(editable.size.width));
+        expect(boxes.single.bottom, lessThanOrEqualTo(editable.size.height));
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets('visibility icon follows the selected tag enabled state', (
     tester,
   ) async {
-    final source = TextEditingController(text: 'cat, dog');
+    final source = TextEditingController(text: 'cat');
     addTearDown(source.dispose);
     await pumpEditor(tester, source);
     await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
     await tester.pumpAndSettle();
-    final capsule = find.byType(TagEditorCapsule).first;
-    final before = tester.getSize(capsule);
-    expect(
-      find.descendant(of: capsule, matching: find.text('猫')),
-      findsOneWidget,
+    await tester.tap(
+      find.descendant(
+        of: find.byType(TagEditorCapsule),
+        matching: find.text('cat'),
+      ),
     );
-    await tester.tap(find.text('cat'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('cat'));
+    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.visibility_off_outlined), findsNothing);
+    await tester.tap(find.byIcon(Icons.visibility_outlined));
     await tester.pumpAndSettle();
-    expect(tester.getSize(capsule), before);
-    expect(
-      find.descendant(of: capsule, matching: find.text('猫')),
-      findsNothing,
-    );
-    final field = find.byKey(const ValueKey('tag-input-0'));
-    expect(tester.getSize(field).height, closeTo(before.height - 16, 1));
-    await tester.enterText(field, 'longer_tag_name');
+    expect(source.text, '/*disabled:cat*/');
+    expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.visibility_outlined), findsNothing);
+    await tester.tap(find.byIcon(Icons.visibility_off_outlined));
     await tester.pumpAndSettle();
-    expect(tester.getSize(capsule), before);
-    expect(source.text, 'longer_tag_name, dog');
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pumpAndSettle();
-    expect(
-      find.descendant(of: capsule, matching: find.byType(TextField)),
-      findsNothing,
-    );
+    expect(source.text, 'cat');
+    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

@@ -7,6 +7,7 @@ import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../themes/prompt_semantic_colors.dart';
+import 'prompt_control_button.dart';
 import '../common/rich_tooltip_surface.dart';
 import '../common/translated_tag_text.dart';
 import 'fixed_tags_dialog.dart';
@@ -31,8 +32,6 @@ class FixedTagsButton extends ConsumerStatefulWidget {
 }
 
 class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
-  bool _isHovering = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -42,144 +41,102 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
         .length;
     final hasEntries = fixedTagsState.entries.isNotEmpty;
     final hasEnabled = enabledCount > 0;
-    final activeControlColor = theme.colorScheme.onSurfaceVariant;
     final mediaQuery = MediaQuery.of(context);
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      cursor: SystemMouseCursors.click,
-      // Tooltip 会用外层文本缩放再次放大 WidgetSpan 的几何尺寸；外壳禁用
-      // 这次缩放，再在按钮和悬浮内容内部恢复真实的 MediaQuery。
-      child: MediaQuery(
-        data: mediaQuery.copyWith(textScaler: TextScaler.noScaling),
-        child: Tooltip(
-          richMessage: WidgetSpan(
-            child: MediaQuery(
-              data: mediaQuery,
-              child: RichTooltipSurface(
-                maxWidth: 420,
-                child: _buildTooltipContent(theme, fixedTagsState),
-              ),
-            ),
-          ),
-          preferBelow: true,
-          verticalOffset: 20,
-          waitDuration: const Duration(milliseconds: 300),
-          ignorePointer: false,
-          decoration: richTooltipOuterDecoration,
-          padding: EdgeInsets.zero,
+    return MediaQuery(
+      data: mediaQuery.copyWith(textScaler: TextScaler.noScaling),
+      child: Tooltip(
+        richMessage: WidgetSpan(
           child: MediaQuery(
             data: mediaQuery,
-            child: Semantics(
-              button: true,
-              label: context.l10n.fixedTags_label,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  final sidebarExpanded = ref.read(
-                    layoutStateNotifierProvider.select(
-                      (state) => state.fixedTagsSidebarExpanded,
-                    ),
-                  );
-                  if (!sidebarExpanded) {
-                    _showFixedTagsDialog(context);
-                  }
-                },
-                onLongPress: () => ref
-                    .read(layoutStateNotifierProvider.notifier)
-                    .toggleFixedTagsSidebar(),
-                child: AnimatedContainer(
-                  key: const Key('fixed-tags-button-surface'),
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : const Duration(milliseconds: 150),
-                  constraints: BoxConstraints(
-                    minHeight: widget.compact ? 36 : 44,
+            child: RichTooltipSurface(
+              maxWidth: 420,
+              child: _buildTooltipContent(theme, fixedTagsState),
+            ),
+          ),
+        ),
+        preferBelow: true,
+        verticalOffset: 20,
+        waitDuration: const Duration(milliseconds: 300),
+        ignorePointer: false,
+        decoration: richTooltipOuterDecoration,
+        padding: EdgeInsets.zero,
+        child: MediaQuery(
+          data: mediaQuery,
+          child: Semantics(
+            button: true,
+            label: context.l10n.fixedTags_label,
+            child: PromptControlButton(
+              key: const Key('fixed-tags-button-surface'),
+              color: theme.promptSemanticColors.fixedTag,
+              active: hasEnabled,
+              onPressed: () {
+                final sidebarExpanded = ref.read(
+                  layoutStateNotifierProvider.select(
+                    (state) => state.fixedTagsSidebarExpanded,
                   ),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: widget.compact ? 8 : 10,
-                    vertical: widget.compact ? 4 : 6,
+                );
+                if (!sidebarExpanded) _showFixedTagsDialog(context);
+              },
+              onLongPress: () => ref
+                  .read(layoutStateNotifierProvider.notifier)
+                  .toggleFixedTagsSidebar(),
+              padding: EdgeInsets.symmetric(
+                horizontal: widget.compact ? 8 : 10,
+                vertical: widget.compact ? 4 : 6,
+              ),
+              builder: (colors) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
+                    size: widget.compact ? 15 : 16,
+                    color: colors.accent,
                   ),
-                  decoration: BoxDecoration(
-                    color: hasEnabled
-                        ? activeControlColor.withValues(
-                            alpha: _isHovering ? 0.18 : 0.12,
-                          )
-                        : (_isHovering
-                              ? theme.colorScheme.surfaceContainerHigh
-                              : theme.colorScheme.surfaceContainerLow),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
-                        size: widget.compact ? 15 : 16,
-                        color: hasEnabled
-                            ? activeControlColor
-                            : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.5,
-                              ),
+                  if (!widget.iconOnly) ...[
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: widget.maxLabelWidth ?? double.infinity,
                       ),
-                      if (!widget.iconOnly) ...[
-                        const SizedBox(width: 4),
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: widget.maxLabelWidth ?? double.infinity,
-                          ),
-                          child: Text(
-                            context.l10n.fixedTags_label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: widget.compact ? 11 : 12,
-                              fontWeight: hasEnabled
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                              color: hasEnabled
-                                  ? activeControlColor
-                                  : theme.colorScheme.onSurface.withValues(
-                                      alpha: 0.5,
-                                    ),
-                            ),
-                          ),
+                      child: Text(
+                        context.l10n.fixedTags_label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: widget.compact ? 11 : 12,
+                          fontWeight: hasEnabled
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: colors.foreground,
                         ),
-                      ],
-                      if (hasEnabled) ...[
-                        const SizedBox(width: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: activeControlColor.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            enabledCount.toString(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: activeControlColor,
-                            ),
-                          ),
+                      ),
+                    ),
+                  ],
+                  if (hasEnabled) ...[
+                    const SizedBox(width: 5),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      child: Text(
+                        enabledCount.toString(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
                         ),
-                      ] else if (hasEntries) ...[
-                        const SizedBox(width: 3),
-                        Icon(
-                          Icons.visibility_off,
-                          size: 14,
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.4,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                      ),
+                    ),
+                  ] else if (hasEntries) ...[
+                    const SizedBox(width: 3),
+                    Icon(
+                      Icons.visibility_off,
+                      size: 14,
+                      color: colors.foreground,
+                    ),
+                  ],
+                ],
               ),
             ),
           ),

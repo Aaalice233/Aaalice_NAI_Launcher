@@ -155,57 +155,69 @@ class AppTheme {
   /// 主题构建器映射
   static final _themeBuilders = <AppStyle, _ThemeBuilder>{
     AppStyle.boldRetro: _ThemeBuilder(
-      BoldRetroTheme.light,
-      BoldRetroTheme.dark,
+      () => BoldRetroTheme.light,
+      () => BoldRetroTheme.dark,
     ),
     AppStyle.grungeCollage: _ThemeBuilder(
-      GrungeCollageTheme.light,
-      GrungeCollageTheme.dark,
+      () => GrungeCollageTheme.light,
+      () => GrungeCollageTheme.dark,
     ),
     AppStyle.fluidSaturated: _ThemeBuilder(
-      FluidSaturatedTheme.light,
-      FluidSaturatedTheme.dark,
+      () => FluidSaturatedTheme.light,
+      () => FluidSaturatedTheme.dark,
     ),
     AppStyle.materialYou: _ThemeBuilder(
-      MaterialYouTheme.light,
-      MaterialYouTheme.dark,
+      () => MaterialYouTheme.light,
+      () => MaterialYouTheme.dark,
     ),
     AppStyle.flatDesign: _ThemeBuilder(
-      FlatDesignTheme.light,
-      FlatDesignTheme.dark,
+      () => FlatDesignTheme.light,
+      () => FlatDesignTheme.dark,
     ),
     AppStyle.handDrawn: _ThemeBuilder(
-      HandDrawnTheme.light,
-      HandDrawnTheme.dark,
+      () => HandDrawnTheme.light,
+      () => HandDrawnTheme.dark,
     ),
     AppStyle.midnightEditorial: _ThemeBuilder(
-      MidnightEditorialTheme.light,
-      MidnightEditorialTheme.dark,
+      () => MidnightEditorialTheme.light,
+      () => MidnightEditorialTheme.dark,
     ),
     AppStyle.zenMinimalist: _ThemeBuilder(
-      ZenMinimalistTheme.light,
-      ZenMinimalistTheme.dark,
+      () => ZenMinimalistTheme.light,
+      () => ZenMinimalistTheme.dark,
     ),
     AppStyle.minimalGlass: _ThemeBuilder(
-      MinimalGlassTheme.light,
-      MinimalGlassTheme.dark,
+      () => MinimalGlassTheme.light,
+      () => MinimalGlassTheme.dark,
     ),
-    AppStyle.neoDark: _ThemeBuilder(NeoDarkTheme.light, NeoDarkTheme.dark),
-    AppStyle.proAi: _ThemeBuilder(ProAiTheme.light, ProAiTheme.dark),
-    AppStyle.social: _ThemeBuilder(SocialTheme.light, SocialTheme.dark),
+    AppStyle.neoDark: _ThemeBuilder(
+      () => NeoDarkTheme.light,
+      () => NeoDarkTheme.dark,
+    ),
+    AppStyle.proAi: _ThemeBuilder(
+      () => ProAiTheme.light,
+      () => ProAiTheme.dark,
+    ),
+    AppStyle.social: _ThemeBuilder(
+      () => SocialTheme.light,
+      () => SocialTheme.dark,
+    ),
     AppStyle.retroWave: _ThemeBuilder(
-      RetroWaveTheme.light,
-      RetroWaveTheme.dark,
+      () => RetroWaveTheme.light,
+      () => RetroWaveTheme.dark,
     ),
     AppStyle.brutalist: _ThemeBuilder(
-      BrutalistTheme.light,
-      BrutalistTheme.dark,
+      () => BrutalistTheme.light,
+      () => BrutalistTheme.dark,
     ),
     AppStyle.appleLight: _ThemeBuilder(
-      AppleLightTheme.light,
-      AppleLightTheme.dark,
+      () => AppleLightTheme.light,
+      () => AppleLightTheme.dark,
     ),
-    AppStyle.system: _ThemeBuilder(SystemTheme.light, SystemTheme.dark),
+    AppStyle.system: _ThemeBuilder(
+      () => SystemTheme.light,
+      () => SystemTheme.dark,
+    ),
   };
 
   /// 获取指定风格的主题
@@ -345,8 +357,12 @@ class AppTheme {
 }
 
 class _ThemeBuilder {
-  const _ThemeBuilder(this.light, this.dark);
+  _ThemeBuilder(this._buildLight, this._buildDark);
 
-  final ThemeData light;
-  final ThemeData dark;
+  final ThemeData Function() _buildLight;
+  final ThemeData Function() _buildDark;
+
+  // Only the selected preset and brightness should initialize fonts and styles.
+  late final ThemeData light = _buildLight();
+  late final ThemeData dark = _buildDark();
 }

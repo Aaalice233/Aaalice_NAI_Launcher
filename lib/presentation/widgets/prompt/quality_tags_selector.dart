@@ -7,6 +7,8 @@ import '../../../data/models/prompt/prompt_preset_mode.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/quality_preset_provider.dart';
 import '../common/translated_tag_text.dart';
+import '../../themes/prompt_semantic_colors.dart';
+import 'prompt_control_button.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'components/library_entry_menu_item.dart';
 
@@ -35,7 +37,6 @@ class QualityTagsSelector extends ConsumerStatefulWidget {
 }
 
 class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
-  bool _isHovering = false;
   final _layerLink = LayerLink();
   final _buttonKey = GlobalKey();
   OverlayEntry? _previewOverlay;
@@ -52,103 +53,68 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     final presetState = ref.watch(qualityPresetNotifierProvider);
     final customEntries = ref.watch(qualityCustomEntriesProvider);
     final isEnabled = presetState.mode != PromptPresetMode.none;
-    final qualityColor = theme.brightness == Brightness.dark
-        ? Colors.green.shade300
-        : Colors.green.shade700;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      cursor: SystemMouseCursors.click,
-      child: Tooltip(
-        richMessage: WidgetSpan(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
-            child: _buildTooltipContent(theme, presetState, customEntries),
+    return Tooltip(
+      richMessage: WidgetSpan(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: _buildTooltipContent(theme, presetState, customEntries),
+        ),
+      ),
+      preferBelow: true,
+      verticalOffset: 20,
+      waitDuration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-        ),
-        preferBelow: true,
-        verticalOffset: 20,
-        waitDuration: const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12),
-        child: GestureDetector(
-          onTap: () => _showMenu(context, presetState, customEntries),
-          child: CompositedTransformTarget(
-            key: _buttonKey,
-            link: _layerLink,
-            child: AnimatedContainer(
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 150),
-              constraints: BoxConstraints(minHeight: widget.compact ? 36 : 48),
-              padding: EdgeInsets.symmetric(
-                horizontal: widget.compact ? 8 : 10,
-                vertical: widget.compact ? 4 : 6,
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: CompositedTransformTarget(
+        key: _buttonKey,
+        link: _layerLink,
+        child: PromptControlButton(
+          color: theme.promptSemanticColors.positiveQuality,
+          active: isEnabled,
+          onPressed: () => _showMenu(context, presetState, customEntries),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.compact ? 8 : 10,
+            vertical: widget.compact ? 4 : 6,
+          ),
+          builder: (colors) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isEnabled ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+                size: 16,
+                color: colors.accent,
               ),
-              decoration: BoxDecoration(
-                color: isEnabled
-                    ? qualityColor.withValues(alpha: _isHovering ? 0.18 : 0.12)
-                    : (_isHovering
-                          ? theme.colorScheme.surfaceContainerHigh
-                          : theme.colorScheme.surfaceContainerLow),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isEnabled
-                        ? Icons.auto_awesome
-                        : Icons.auto_awesome_outlined,
-                    size: 16,
-                    color: isEnabled
-                        ? qualityColor
-                        : theme.colorScheme.onSurfaceVariant,
+              if (!widget.iconOnly) ...[
+                const SizedBox(width: 4),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: widget.maxLabelWidth ?? double.infinity,
                   ),
-                  if (!widget.iconOnly) ...[
-                    const SizedBox(width: 4),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: widget.maxLabelWidth ?? double.infinity,
-                      ),
-                      child: Text(
-                        _getDisplayLabel(context, presetState, customEntries),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isEnabled
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: isEnabled
-                              ? qualityColor
-                              : theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                  child: Text(
+                    _getDisplayLabel(context, presetState, customEntries),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
+                      color: colors.foreground,
                     ),
-                    const SizedBox(width: 2),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      size: 14,
-                      color: isEnabled
-                          ? qualityColor
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ],
-                ],
-              ),
-            ),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(Icons.arrow_drop_down, size: 14, color: colors.accent),
+              ],
+            ],
           ),
         ),
       ),
@@ -400,9 +366,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
           QualityTags.getQualityTags(ImageModels.animeDiffusionV45Full) ??
           '';
     }
-    final previewColor = theme.brightness == Brightness.dark
-        ? Colors.green.shade300
-        : Colors.green.shade700;
+    final previewColor = theme.promptSemanticColors.positiveQuality;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

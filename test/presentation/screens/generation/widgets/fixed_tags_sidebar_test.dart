@@ -1725,7 +1725,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final surface = find.byKey(const Key('fixed-tags-button-surface'));
-    expect(tester.getSize(surface).height, 36);
+    // Compact content keeps the shared touch target instead of shrinking it.
+    expect(tester.getSize(surface).height, 48);
     expect(tester.getSize(surface).width, lessThan(100));
   });
 

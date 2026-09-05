@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../../../l10n/app_localizations.dart';
 import 'nai_syntax_controller.dart';
 import 'prompt_weight_editing.dart';
@@ -41,6 +43,25 @@ String tagEditorActionLabel(TagEditorAction action, AppLocalizations l10n) =>
       TagEditorAction.undo => l10n.common_undo,
       TagEditorAction.redo => l10n.common_redo,
     };
+
+IconData tagEditorActionIcon(TagEditorAction action) => switch (action) {
+  TagEditorAction.edit => Icons.edit_outlined,
+  TagEditorAction.weight => Icons.tune,
+  TagEditorAction.enable => Icons.visibility_outlined,
+  TagEditorAction.disable => Icons.visibility_off_outlined,
+  TagEditorAction.copy => Icons.content_copy,
+  TagEditorAction.copyEffective => Icons.playlist_add_check,
+  TagEditorAction.cut => Icons.content_cut,
+  TagEditorAction.paste => Icons.content_paste,
+  TagEditorAction.delete => Icons.delete_outline,
+  TagEditorAction.selectAll => Icons.select_all,
+  TagEditorAction.previous => Icons.arrow_back,
+  TagEditorAction.next => Icons.arrow_forward,
+  TagEditorAction.first => Icons.first_page,
+  TagEditorAction.last => Icons.last_page,
+  TagEditorAction.undo => Icons.undo,
+  TagEditorAction.redo => Icons.redo,
+};
 
 class TagEditorCommands {
   const TagEditorCommands(this.session);

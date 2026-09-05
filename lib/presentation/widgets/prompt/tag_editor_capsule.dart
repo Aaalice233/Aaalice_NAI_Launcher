@@ -46,7 +46,7 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
   final FocusNode _focus = FocusNode();
   bool _syncing = false;
   String? _lastSubmitted;
-  Size? _editingSize;
+  double? _editingHeight;
   @override
   void initState() {
     super.initState();
@@ -68,6 +68,7 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
   void _inputChanged() {
     if (_syncing || !widget.editing) return;
     _lastSubmitted = _controller.text;
+    setState(() {});
     widget.onChanged(_controller.value);
   }
 
@@ -76,10 +77,10 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.editing && widget.editing) {
       final box = context.findRenderObject();
-      _editingSize = box is RenderBox && box.hasSize ? box.size : null;
+      _editingHeight = box is RenderBox && box.hasSize ? box.size.height : null;
       _requestFocus();
     }
-    if (oldWidget.editing && !widget.editing) _editingSize = null;
+    if (oldWidget.editing && !widget.editing) _editingHeight = null;
     final text = widget.tag.span.label;
     if (_controller.text != text &&
         !(widget.editing && _lastSubmitted?.trim() == text.trim())) {
@@ -104,40 +105,34 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
   }
 
   Widget _buildEditor(TextStyle? style) {
-    // Existing tags keep their measured footprint; newly created tags have no
-    // previous layout, so measure the source text with the same typography.
-    final text = TextPainter(
-      text: TextSpan(text: _controller.text, style: style),
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
-    )..layout(maxWidth: widget.maxWidth);
-    final size =
-        _editingSize ??
-        Size(text.width + 20, (text.height + 16).clamp(44, double.infinity));
-    text.dispose();
-    return SizedBox(
-      width: (size.width - 20).clamp(1.0, widget.maxWidth),
-      height: (size.height - 16).clamp(1.0, double.infinity),
-      child: AutocompleteWrapper(
-        overlayHandle: widget.autocompleteOverlay,
-        controller: _controller,
-        focusNode: _focus,
-        enabled: widget.enableAutocomplete,
-        expands: true,
-        child: TextField(
-          key: ValueKey('tag-input-${widget.tag.id}'),
+    // RenderEditable measures the effective font, composing text and caret.
+    // A separate TextPainter can disagree with the TextField's merged style.
+    final availableWidth = widget.maxWidth.clamp(1.0, double.infinity);
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: availableWidth.clamp(1.0, 24.0),
+        maxWidth: availableWidth,
+        minHeight: (_editingHeight ?? 44) - 16,
+      ),
+      child: IntrinsicWidth(
+        child: AutocompleteWrapper(
+          overlayHandle: widget.autocompleteOverlay,
           controller: _controller,
           focusNode: _focus,
+          enabled: widget.enableAutocomplete,
           maxLines: null,
-          expands: true,
-          style: style,
-          textAlignVertical: TextAlignVertical.center,
-          textInputAction: TextInputAction.done,
-          decoration: const InputDecoration.collapsed(
-            hintText: '',
-            filled: false,
+          child: TextField(
+            key: ValueKey('tag-input-${widget.tag.id}'),
+            controller: _controller,
+            focusNode: _focus,
+            minLines: 1,
+            maxLines: null,
+            style: style,
+            textAlignVertical: TextAlignVertical.center,
+            textInputAction: TextInputAction.done,
+            decoration: null,
+            onSubmitted: (_) => widget.onSubmitted(),
           ),
-          onSubmitted: (_) => widget.onSubmitted(),
         ),
       ),
     );
