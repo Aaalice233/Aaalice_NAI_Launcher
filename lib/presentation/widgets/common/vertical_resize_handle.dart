@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 
 import '../../adaptive/interaction_policy.dart';
 
@@ -25,6 +26,12 @@ class VerticalResizeHandle extends StatefulWidget {
 
 class _VerticalResizeHandleState extends State<VerticalResizeHandle> {
   bool _hovered = false;
+  double? _lastGlobalY;
+
+  void _endDrag() {
+    _lastGlobalY = null;
+    widget.onDragEnd?.call();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,15 +50,19 @@ class _VerticalResizeHandleState extends State<VerticalResizeHandle> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onVerticalDragStart: widget.onDragStart == null
-            ? null
-            : (_) => widget.onDragStart!(),
-        onVerticalDragEnd: widget.onDragEnd == null
-            ? null
-            : (_) => widget.onDragEnd!(),
-        onVerticalDragCancel: widget.onDragEnd,
+        dragStartBehavior: DragStartBehavior.down,
+        onVerticalDragStart: (details) {
+          _lastGlobalY = details.globalPosition.dy;
+          widget.onDragStart?.call();
+        },
+        onVerticalDragEnd: (_) => _endDrag(),
+        onVerticalDragCancel: _endDrag,
         onVerticalDragUpdate: (details) {
-          final delta = details.primaryDelta ?? details.delta.dy;
+          // The handle moves with the resized content. Screen coordinates
+          // keep that layout movement out of the pointer's displacement.
+          final currentY = details.globalPosition.dy;
+          final delta = currentY - _lastGlobalY!;
+          _lastGlobalY = currentY;
           if (delta != 0) widget.onDrag(delta);
         },
         child: SizedBox(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,6 +62,51 @@ void main() {
           ),
         ),
       ),
+    );
+  }
+
+  for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.touch]) {
+    testWidgets(
+      'character resize accumulates rapid events and tracks reversal $kind',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(),
+            child: const MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(body: CharacterPromptEditor(character: character)),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final area = find.byKey(
+          const ValueKey('character-prompt-editor-area-positive'),
+        );
+        final handle = find.byKey(
+          const ValueKey('character-prompt-resize-handle-positive'),
+        );
+        final initialHeight = tester.getSize(area).height;
+        final start = tester.getCenter(handle);
+        final gesture = await tester.startGesture(start, kind: kind);
+        await gesture.moveTo(start + const Offset(0, 30));
+        await gesture.moveTo(start + const Offset(0, 50));
+        await gesture.moveTo(start + const Offset(0, 90));
+        await tester.pump();
+        expect(tester.getSize(area).height, closeTo(initialHeight + 90, .01));
+        await gesture.moveTo(start + const Offset(0, 120));
+        await tester.pump();
+        expect(tester.getSize(area).height, closeTo(initialHeight + 120, .01));
+        await gesture.moveTo(start + const Offset(0, 60));
+        await tester.pump();
+        expect(tester.getSize(area).height, closeTo(initialHeight + 60, .01));
+        await gesture.up();
+        await tester.pumpAndSettle();
+        await tester.pumpWidget(const SizedBox.shrink());
+        // Flush the existing delayed focus-loss toolbar dismissal.
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(tester.takeException(), isNull);
+      },
     );
   }
 

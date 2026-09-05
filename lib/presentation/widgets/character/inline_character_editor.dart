@@ -279,11 +279,17 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
           key: ValueKey('character-prompt-resize-handle-$fieldName'),
           height: resizeHandleHeight,
           onDrag: (delta) {
-            final nextHeight = ((storedHeight ?? editorHeight) + delta)
+            final heightState = ref.read(
+              characterEditorHeightProvider(heightKey).notifier,
+            );
+            // Several pointer events can arrive before the next build.
+            final currentHeight = (heightState.state ?? editorHeight).clamp(
+              minimumHeight,
+              maximumHeight,
+            );
+            heightState.state = (currentHeight + delta)
                 .clamp(minimumHeight, maximumHeight)
                 .toDouble();
-            ref.read(characterEditorHeightProvider(heightKey).notifier).state =
-                nextHeight;
           },
         ),
       ],
