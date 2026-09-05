@@ -74,7 +74,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('包含保护模式、水印与在线画廊黑名单', (tester) async {
+  testWidgets('包含保护模式、打码、水印与在线画廊黑名单', (tester) async {
     await pumpSection(tester);
 
     expect(find.text('保护模式'), findsOneWidget);
@@ -82,6 +82,8 @@ void main() {
     expect(find.text('复制/拖拽时移除全部元数据'), findsOneWidget);
     expect(find.text('限制生图频率'), findsOneWidget);
     expect(find.text('生图间隔'), findsOneWidget);
+    expect(find.text('打码与隐私遮挡'), findsOneWidget);
+    expect(find.text('启用打码功能'), findsOneWidget);
     expect(find.text('水印'), findsOneWidget);
     expect(find.text('启用水印工具'), findsOneWidget);
     expect(find.text('水印副本保留元数据'), findsOneWidget);
@@ -111,6 +113,8 @@ void main() {
       safePadding: safePadding,
     );
 
+    await tester.ensureVisible(find.text('保护模式'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('保护模式'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Anlas 警告阈值'));
@@ -140,6 +144,8 @@ void main() {
   testWidgets('两个数字编辑器保留校验与保存返回语义', (tester) async {
     await pumpSection(tester);
 
+    await tester.ensureVisible(find.text('保护模式'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('保护模式'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Anlas 警告阈值'));
@@ -186,12 +192,17 @@ void main() {
   testWidgets('保护模式卡片保留整卡点击并控制子设置', (tester) async {
     await pumpSection(tester);
 
+    await tester.ensureVisible(find.text('保护模式'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('保护模式'));
     await tester.pumpAndSettle();
 
     final protectionSwitch = tester.widget<Switch>(
       find.descendant(
-        of: find.byType(SettingsCard).first,
+        of: find.ancestor(
+          of: find.text('保护模式'),
+          matching: find.byType(SettingsCard),
+        ),
         matching: find.byType(Switch),
       ),
     );
@@ -243,7 +254,7 @@ void main() {
       of: blacklistPanel,
       matching: find.byType(Card),
     );
-    expect(settingsCards, findsNWidgets(4));
+    expect(settingsCards, findsNWidgets(5));
     expect(blacklistCard, findsOneWidget);
     expect(
       find.descendant(of: blacklistPanel, matching: find.byType(Card)),
@@ -253,7 +264,7 @@ void main() {
     final primaryRect = tester.getRect(settingsCards.first);
     final blacklistRect = tester.getRect(blacklistCard);
 
-    for (var index = 1; index < 4; index++) {
+    for (var index = 1; index < settingsCards.evaluate().length; index++) {
       final sectionRect = tester.getRect(settingsCards.at(index));
       expect(sectionRect.left, primaryRect.left);
       expect(sectionRect.right, primaryRect.right);

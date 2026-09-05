@@ -2,10 +2,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image/image.dart' as img;
 
 import '../../../../core/comfyui/seedvr2_support.dart';
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
@@ -111,12 +111,13 @@ final class Img2ImgUpscaleCoordinator {
         Img2ImgUpscaleFailure.seedVr2ModelUnavailable,
       );
     }
-    final decodedSource = img.decodeImage(source);
-    if (decodedSource == null) {
+    final sourceSize = NaiResolutionAdapter.readImageSize(source);
+    if (sourceSize == null) {
       return const Img2ImgUpscaleRejected(
         Img2ImgUpscaleFailure.sourceDecodeFailed,
       );
     }
+    final (sourceWidth, sourceHeight) = sourceSize;
 
     late final String templateId;
     late final Map<String, dynamic> values;
@@ -145,13 +146,13 @@ final class Img2ImgUpscaleCoordinator {
           : Img2ImgUpscaleKind.seedVr2Legacy;
       final resolution = tiled
           ? calculateComfySeedvr2TiledTargetResolution(
-              sourceWidth: decodedSource.width,
-              sourceHeight: decodedSource.height,
+              sourceWidth: sourceWidth,
+              sourceHeight: sourceHeight,
               scale: settings.comfyScale,
             )
           : calculateComfySeedvr2TargetResolution(
-              sourceWidth: decodedSource.width,
-              sourceHeight: decodedSource.height,
+              sourceWidth: sourceWidth,
+              sourceHeight: sourceHeight,
               scale: settings.comfyScale,
             );
       templateId = tiled
@@ -184,11 +185,10 @@ final class Img2ImgUpscaleCoordinator {
       return const Img2ImgUpscaleRejected(Img2ImgUpscaleFailure.noResult);
     }
     final bytes = results.last;
-    final decoded = img.decodeImage(bytes);
-    final width =
-        decoded?.width ?? (decodedSource.width * settings.comfyScale).round();
+    final outputSize = NaiResolutionAdapter.readImageSize(bytes);
+    final width = outputSize?.$1 ?? (sourceWidth * settings.comfyScale).round();
     final height =
-        decoded?.height ?? (decodedSource.height * settings.comfyScale).round();
+        outputSize?.$2 ?? (sourceHeight * settings.comfyScale).round();
     await _register(
       bytes,
       params,
@@ -215,19 +215,19 @@ final class Img2ImgUpscaleCoordinator {
         Img2ImgUpscaleFailure.regularModelUnavailable,
       );
     }
-    final decodedSource = img.decodeImage(source);
-    if (decodedSource == null) {
+    final sourceSize = NaiResolutionAdapter.readImageSize(source);
+    if (sourceSize == null) {
       return const Img2ImgUpscaleRejected(
         Img2ImgUpscaleFailure.sourceDecodeFailed,
       );
     }
     final width = math.max(
       1,
-      (decodedSource.width * workflow.upscale.comfyScale).round(),
+      (sourceSize.$1 * workflow.upscale.comfyScale).round(),
     );
     final height = math.max(
       1,
-      (decodedSource.height * workflow.upscale.comfyScale).round(),
+      (sourceSize.$2 * workflow.upscale.comfyScale).round(),
     );
     final results = await _execute(comfyModelUpscaleTemplateId, source, {
       'upscale_model': model,
@@ -238,9 +238,9 @@ final class Img2ImgUpscaleCoordinator {
       return const Img2ImgUpscaleRejected(Img2ImgUpscaleFailure.noResult);
     }
     final bytes = results.last;
-    final decoded = img.decodeImage(bytes);
-    final outputWidth = decoded?.width ?? width;
-    final outputHeight = decoded?.height ?? height;
+    final outputSize = NaiResolutionAdapter.readImageSize(bytes);
+    final outputWidth = outputSize?.$1 ?? width;
+    final outputHeight = outputSize?.$2 ?? height;
     await _register(bytes, params, source, outputWidth, outputHeight);
     return Img2ImgUpscaleSuccess(
       kind: Img2ImgUpscaleKind.regular,
@@ -254,8 +254,8 @@ final class Img2ImgUpscaleCoordinator {
     Uint8List source,
     ImageWorkflowState workflow,
   ) async {
-    final decodedSource = img.decodeImage(source);
-    if (decodedSource == null) {
+    final sourceSize = NaiResolutionAdapter.readImageSize(source);
+    if (sourceSize == null) {
       return const Img2ImgUpscaleRejected(
         Img2ImgUpscaleFailure.sourceDecodeFailed,
       );
@@ -268,13 +268,13 @@ final class Img2ImgUpscaleCoordinator {
       return const Img2ImgUpscaleRejected(Img2ImgUpscaleFailure.noResult);
     }
     final bytes = results.last;
-    final decoded = img.decodeImage(bytes);
+    final outputSize = NaiResolutionAdapter.readImageSize(bytes);
     final width =
-        decoded?.width ??
-        math.max(8, ((decodedSource.width * scale) / 8).round() * 8);
+        outputSize?.$1 ??
+        math.max(8, ((sourceSize.$1 * scale) / 8).round() * 8);
     final height =
-        decoded?.height ??
-        math.max(8, ((decodedSource.height * scale) / 8).round() * 8);
+        outputSize?.$2 ??
+        math.max(8, ((sourceSize.$2 * scale) / 8).round() * 8);
     await _register(bytes, params, source, width, height);
     return Img2ImgUpscaleSuccess(
       kind: Img2ImgUpscaleKind.rtx,

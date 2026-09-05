@@ -6,6 +6,8 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/uc_preset_provider.dart';
 import '../common/translated_tag_text.dart';
+import '../../themes/prompt_semantic_colors.dart';
+import 'prompt_control_button.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'components/library_entry_menu_item.dart';
 
@@ -33,7 +35,6 @@ class UcPresetSelector extends ConsumerStatefulWidget {
 }
 
 class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
-  bool _isHovering = false;
   final _buttonKey = GlobalKey();
 
   String _getPresetDisplayName(BuildContext context, UcPresetType type) {
@@ -57,110 +58,76 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
     final presetState = ref.watch(ucPresetNotifierProvider);
     final customEntries = ref.watch(ucCustomEntriesProvider);
     final currentEntry = ref.watch(currentUcEntryProvider);
-
-    // 获取实际内容用于 Tooltip 显示
     final effectiveContent = ref
         .read(ucPresetNotifierProvider.notifier)
         .getEffectiveContent(widget.model);
     final isEnabled = !presetState.isDisabled;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      cursor: SystemMouseCursors.click,
-      child: Tooltip(
-        richMessage: WidgetSpan(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: _buildTooltipWidget(
-              theme,
-              effectiveContent,
-              isEnabled,
-              presetState.isCustom,
-              currentEntry,
-            ),
+    return Tooltip(
+      richMessage: WidgetSpan(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: _buildTooltipWidget(
+            theme,
+            effectiveContent,
+            isEnabled,
+            presetState.isCustom,
+            currentEntry,
           ),
         ),
-        preferBelow: true,
-        verticalOffset: 20,
-        waitDuration: const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+      ),
+      preferBelow: true,
+      verticalOffset: 20,
+      waitDuration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: PromptControlButton(
+        key: _buttonKey,
+        color: theme.promptSemanticColors.negativeQuality,
+        active: isEnabled,
+        onPressed: () => _showMenu(context, presetState, customEntries),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.compact ? 8 : 10,
+          vertical: widget.compact ? 4 : 6,
         ),
-        padding: const EdgeInsets.all(12),
-        child: GestureDetector(
-          onTap: () => _showMenu(context, presetState, customEntries),
-          child: AnimatedContainer(
-            key: _buttonKey,
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 150),
-            constraints: BoxConstraints(minHeight: widget.compact ? 36 : 48),
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.compact ? 8 : 10,
-              vertical: widget.compact ? 4 : 6,
+        builder: (colors) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isEnabled ? Icons.block : Icons.block_outlined,
+              size: 16,
+              color: colors.accent,
             ),
-            decoration: BoxDecoration(
-              color: isEnabled
-                  ? theme.colorScheme.error.withValues(
-                      alpha: _isHovering ? 0.18 : 0.12,
-                    )
-                  : (_isHovering
-                        ? theme.colorScheme.surfaceContainerHigh
-                        : theme.colorScheme.surfaceContainerLow),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isEnabled ? Icons.block : Icons.block_outlined,
-                  size: 16,
-                  color: isEnabled
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.onSurfaceVariant,
+            if (!widget.iconOnly) ...[
+              const SizedBox(width: 4),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: widget.maxLabelWidth ?? double.infinity,
                 ),
-                if (!widget.iconOnly) ...[
-                  const SizedBox(width: 4),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: widget.maxLabelWidth ?? double.infinity,
-                    ),
-                    child: Text(
-                      _getDisplayLabel(context, presetState, currentEntry),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isEnabled
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: isEnabled
-                            ? theme.colorScheme.error
-                            : theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                child: Text(
+                  _getDisplayLabel(context, presetState, currentEntry),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
+                    color: colors.foreground,
                   ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    size: 14,
-                    color: isEnabled
-                        ? theme.colorScheme.error
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
-                ],
-              ],
-            ),
-          ),
+                ),
+              ),
+              const SizedBox(width: 2),
+              Icon(Icons.arrow_drop_down, size: 14, color: colors.accent),
+            ],
+          ],
         ),
       ),
     );
@@ -350,7 +317,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
           content,
           selectable: false,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.secondary,
+            color: theme.promptSemanticColors.negativeQuality,
             height: 1.4,
           ),
         ),

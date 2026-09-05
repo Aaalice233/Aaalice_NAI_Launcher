@@ -18,6 +18,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../router/app_routes.dart';
 import 'autocomplete_config.dart';
+import 'autocomplete_overlay_handle.dart';
 import 'autocomplete_utils.dart';
 import 'completion_overlay.dart';
 
@@ -36,6 +37,7 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     this.maxLines,
     this.expands = false,
     this.config,
+    this.overlayHandle,
   });
 
   final Widget child;
@@ -51,6 +53,7 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
   final int? maxLines;
   final bool expands;
   final AutocompleteConfig? config;
+  final AutocompleteOverlayHandle? overlayHandle;
 
   factory AutocompleteWrapper.localTag({
     Key? key,
@@ -494,6 +497,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final entry = OverlayEntry(builder: _buildOverlay);
     _overlayEntry = entry;
     Overlay.of(context, rootOverlay: true).insert(entry);
+    widget.overlayHandle?.attach(_closeOverlay);
   }
 
   Widget _buildOverlay(BuildContext overlayContext) {
@@ -846,6 +850,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final entry = _overlayEntry;
     if (entry == null) return;
     _overlayEntry = null;
+    widget.overlayHandle?.detach(_closeOverlay);
     entry.remove();
     entry.dispose();
   }

@@ -46,6 +46,7 @@ class LocalGalleryQuery {
   List<File> _allFiles = [];
   List<File> _filteredFiles = [];
   FilterCriteria _currentFilter = const FilterCriteria();
+  int _fileListGeneration = 0;
   int _filterGeneration = 0;
   int _independentQueryGeneration = 0;
   String? _activeFilterOperationId;
@@ -59,8 +60,12 @@ class LocalGalleryQuery {
       _currentFilter.hasFilters ? _filteredFiles.length : totalCount;
   FilterCriteria get currentFilter => _currentFilter;
 
+  /// Bumped whenever the membership or ordering of [allFiles] changes.
+  int get fileListGeneration => _fileListGeneration;
+
   void replaceAll(List<File> files) {
     _allFiles = files;
+    _fileListGeneration++;
     if (!_currentFilter.hasFilters) _filteredFiles = files;
   }
 
@@ -79,7 +84,9 @@ class LocalGalleryQuery {
   }
 
   void addFirst(File file) {
-    if (!containsPath(file.path)) _allFiles.insert(0, file);
+    if (containsPath(file.path)) return;
+    _allFiles.insert(0, file);
+    _fileListGeneration++;
   }
 
   Future<void> syncAfterMutation(File file) async {
@@ -128,6 +135,7 @@ class LocalGalleryQuery {
         _allFiles,
         criteria,
         operationId: operationId,
+        fileListGeneration: _fileListGeneration,
       );
       if (generation != _filterGeneration || _currentFilter != criteria) return;
       _filteredFiles = result.files;
@@ -164,6 +172,9 @@ class LocalGalleryQuery {
     if (pageSize <= 0) throw RangeError.range(pageSize, 1, null, 'pageSize');
 
     final filesSnapshot = List<File>.unmodifiable(_allFiles);
+    // Read with the snapshot: a replaceAll during the await would key this
+    // result under a generation the snapshot never belonged to.
+    final snapshotGeneration = _fileListGeneration;
     final normalizedQuery = searchQuery.trim();
     var matchingFiles = filesSnapshot;
     if (normalizedQuery.isNotEmpty) {
@@ -172,6 +183,7 @@ class LocalGalleryQuery {
         filesSnapshot,
         FilterCriteria(searchQuery: normalizedQuery),
         operationId: 'local_gallery_query_$queryGeneration',
+        fileListGeneration: snapshotGeneration,
       );
       final databaseMatches = {
         for (final file in result.files) galleryFilePathKey(file.path),
@@ -224,6 +236,7 @@ class LocalGalleryQuery {
     _activeFilterOperationId = null;
     _allFiles = [];
     _filteredFiles = [];
+    _fileListGeneration++;
     _currentFilter = const FilterCriteria();
   }
 }

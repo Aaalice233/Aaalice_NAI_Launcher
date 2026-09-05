@@ -1556,6 +1556,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_appliedToMainPrompt => '已应用到主提示词';
 
   @override
+  String get prompt_resizeHeight => '拖动调整输入框高度，双击或按 Home 恢复自动高度';
+
+  @override
   String get prompt_inputPrompt => '描述你想生成的画面';
 
   @override
@@ -4013,11 +4016,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get weight_tagNameHint => '输入标签名称...';
 
   @override
-  String tag_selected(Object count) {
-    return '已选 $count';
-  }
-
-  @override
   String get tag_enable => '启用';
 
   @override
@@ -4028,21 +4026,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tag_addTag => '添加标签';
-
-  @override
-  String get tag_add => '添加';
-
-  @override
-  String get tag_inputHint => '输入标签...';
-
-  @override
-  String get tag_copiedToClipboard => '已复制到剪贴板';
-
-  @override
-  String get tag_emptyHint => '添加标签来描述你想要的画面';
-
-  @override
-  String get tag_emptyHintSub => '你可以浏览、搜索或手动添加标签';
 
   @override
   String get tagCategory_artist => '艺术家';
@@ -5162,24 +5145,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibeParseFailed => '无法解析 Vibe 文件';
-
-  @override
-  String get tag_categoryGeneral => '通用';
-
-  @override
-  String get tag_categoryArtist => '画师';
-
-  @override
-  String get tag_categoryCopyright => '版权';
-
-  @override
-  String get tag_categoryCharacter => '角色';
-
-  @override
-  String get tag_categoryMeta => '元数据';
-
-  @override
-  String get tag_countBadgeBreakdown => '标签分类统计';
 
   @override
   String get localGallery_progressiveLoadError => '图片加载失败';
@@ -7894,6 +7859,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shortcut_action_navigate_to_settings => '设置页面';
 
   @override
+  String get shortcut_action_navigate_to_vibe_library => 'Vibe 库页面';
+
+  @override
   String get shortcut_action_generate_image => '生成图像';
 
   @override
@@ -8069,6 +8037,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shortcut_action_toggle_theme => '切换主题';
+
+  @override
+  String get shortcut_action_vibe_import => '导入 Vibe';
+
+  @override
+  String get shortcut_action_vibe_export => '导出 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_send_to_generation => '发送到生成页';
+
+  @override
+  String get shortcut_action_vibe_detail_export => '导出';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => '重命名';
+
+  @override
+  String get shortcut_action_vibe_detail_delete => '删除';
+
+  @override
+  String get shortcut_action_vibe_detail_toggle_favorite => '收藏切换';
+
+  @override
+  String get shortcut_action_vibe_detail_prev_sub_vibe => '上一个子 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_next_sub_vibe => '下一个子 Vibe';
 
   @override
   String get shortcut_settings_title => '键盘快捷键';
@@ -9310,9 +9305,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shortcut_context_vibe_detail => 'Vibe 详情';
-
-  @override
-  String get shortcut_action_vibe_detail_rename => '重命名';
 
   @override
   String get vibeSelectorFilterFavorites => '收藏';
@@ -12179,31 +12171,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autocomplete_showTranslations => '显示中文汉化';
 
   @override
-  String get quickTranslate_show => '快速翻译';
-
-  @override
-  String get quickTranslate_restore => '还原原提示词（预览中的修改将被丢弃）';
-
-  @override
-  String get quickTranslate_previewSemantics => '本地汉化预览。此处修改不会影响原提示词。';
-
-  @override
-  String get quickTranslate_noMatches => '当前内容中没有找到可汉化的标签';
-
-  @override
-  String get quickTranslate_failed => '快速翻译失败，请检查汉化词库后重试';
-
-  @override
-  String get quickTranslate_missingTitle => '需要汉化词库';
-
-  @override
-  String get quickTranslate_missingMessage =>
-      '快速翻译需要 ffdkj 简体中文汉化库。是否前往数据与缓存设置并立即下载？';
-
-  @override
-  String get quickTranslate_download => '前往并下载';
-
-  @override
   String get autocomplete_autoComma => '插入后自动添加逗号';
 
   @override
@@ -13856,6 +13823,273 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get promptAssistant_responseTimeoutDescription =>
       '反推、优化、翻译、角色替换和自定义改写共用。默认 5 分钟；模型思考较慢时可调长，仍可随时取消。不影响连接超时和智能体聊天。';
+
+  @override
+  String get tagMode_enter => '切换到标签模式';
+
+  @override
+  String get tagMode_exit => '切换到文本模式';
+
+  @override
+  String get tagMode_add => '添加标签…';
+
+  @override
+  String get tagMode_missingTranslation => '暂无译文';
+
+  @override
+  String get tagMode_translationFailed => '翻译失败 · 重试';
+
+  @override
+  String get tagMode_loadingTranslation => '正在查询译文…';
+
+  @override
+  String get tagMode_invalidSyntax => '提示词语法不完整，请完成编辑后再排序或调整权重';
+
+  @override
+  String get tagMode_enable => '启用';
+
+  @override
+  String get tagMode_disable => '禁用';
+
+  @override
+  String get tagMode_cut => '剪切';
+
+  @override
+  String get tagMode_movePrevious => '前移';
+
+  @override
+  String get tagMode_moveNext => '后移';
+
+  @override
+  String get tagMode_moveFirst => '移至开头';
+
+  @override
+  String get tagMode_moveLast => '移至末尾';
+
+  @override
+  String get tagMode_copyEffective => '复制有效提示词';
+
+  @override
+  String get tagMode_weight => '权重';
+
+  @override
+  String get tagMode_mixedWeights => '多个权重';
+
+  @override
+  String get tagMode_dictionaryMissing => '中文译文需要本地汉化库，仍可正常编辑标签。';
+
+  @override
+  String get tagMode_dictionaryAction => '打开汉化库设置';
+
+  @override
+  String get tagMode_group => '提示词分组';
+
+  @override
+  String get tagMode_drag => '长按标签并拖动排序';
+
+  @override
+  String get settings_mosaicTitle => '打码与隐私遮挡';
+
+  @override
+  String get settings_mosaicSubtitle => '用马赛克、模糊、纯色遮挡、矩形、椭圆和自由画笔制作隐私安全副本。';
+
+  @override
+  String get settings_mosaicEnable => '启用打码功能';
+
+  @override
+  String get settings_mosaicPreserveMetadata => '保留支持的生成元数据';
+
+  @override
+  String get settings_mosaicPreserveMetadataHint =>
+      '用于隐私发布时建议关闭，避免提示词、种子等信息随图片保留。';
+
+  @override
+  String get settings_mosaicRememberStyle => '记住上次打码样式';
+
+  @override
+  String get settings_mosaicRememberStyleHint => '保存副本后自动复用最近一次的效果参数。';
+
+  @override
+  String get settings_mosaicCreateFromImage => '选择图片并创建打码副本';
+
+  @override
+  String get settings_mosaicEditDefault => '编辑默认打码样式';
+
+  @override
+  String get settings_mosaicConfigCorrupted => '保存的打码配置无效，请先保存安全默认值后再启用。';
+
+  @override
+  String get settings_mosaicConfigMigrated => '打码配置已升级，请保存一次以完成迁移。';
+
+  @override
+  String get mosaic_actionCreate => '创建打码副本';
+
+  @override
+  String get mosaic_actionRegenerate => '重新创建打码副本';
+
+  @override
+  String get mosaic_editorTitle => '打码编辑器';
+
+  @override
+  String get mosaic_defaultsTitle => '默认打码样式';
+
+  @override
+  String get mosaic_sourceMissing => '找不到原图';
+
+  @override
+  String get mosaic_sourceMissingHint =>
+      '当前图片看起来是打码副本，但关联原图已不存在。请手动选择原图，避免重复叠加打码。';
+
+  @override
+  String get mosaic_chooseOriginal => '选择原图';
+
+  @override
+  String get mosaic_sourceLoadFailed => '无法载入图片，请选择其他静态图片或重试。';
+
+  @override
+  String get mosaic_drawTool => '遮罩绘制工具';
+
+  @override
+  String get mosaic_shapeRectangle => '矩形';
+
+  @override
+  String get mosaic_shapeEllipse => '椭圆';
+
+  @override
+  String get mosaic_shapeBrush => '画笔';
+
+  @override
+  String get mosaic_drawHint => '在预览空白处拖动即可新增区域；拖动区域可移动，拖动四角控制点可缩放。';
+
+  @override
+  String get mosaic_addRegion => '添加区域';
+
+  @override
+  String get mosaic_fullImage => '整图打码';
+
+  @override
+  String get mosaic_clearAll => '清空全部';
+
+  @override
+  String get mosaic_effect => '打码效果';
+
+  @override
+  String get mosaic_effectPixelate => '马赛克';
+
+  @override
+  String get mosaic_effectBlur => '模糊';
+
+  @override
+  String get mosaic_effectSolid => '纯色遮挡';
+
+  @override
+  String get mosaic_pixelSize => '马赛克块大小';
+
+  @override
+  String get mosaic_blurStrength => '模糊强度';
+
+  @override
+  String get mosaic_opacity => '效果不透明度';
+
+  @override
+  String get mosaic_color => '遮挡颜色';
+
+  @override
+  String get mosaic_cornerRadius => '矩形圆角';
+
+  @override
+  String get mosaic_brushSize => '画笔粗细';
+
+  @override
+  String get mosaic_invertMask => '打码区域外部';
+
+  @override
+  String get mosaic_invertMaskHint => '反转遮罩：选中的区域保持清晰，其余部分全部打码。';
+
+  @override
+  String get mosaic_showLabels => '显示区域编号';
+
+  @override
+  String get mosaic_regions => '打码区域';
+
+  @override
+  String get mosaic_noRegions => '还没有打码区域。可在预览图上拖动绘制，或使用上方按钮添加。';
+
+  @override
+  String get mosaic_regionEnabled => '启用当前区域';
+
+  @override
+  String get mosaic_regionLocked => '锁定当前区域';
+
+  @override
+  String get mosaic_positionX => '水平位置';
+
+  @override
+  String get mosaic_positionY => '垂直位置';
+
+  @override
+  String get mosaic_width => '宽度';
+
+  @override
+  String get mosaic_height => '高度';
+
+  @override
+  String get mosaic_duplicate => '复制区域';
+
+  @override
+  String get mosaic_delete => '删除区域';
+
+  @override
+  String get mosaic_keyboardHint =>
+      '快捷键：方向键移动，Shift+方向键快速移动，Delete 删除，Ctrl+D 复制，Ctrl+Z/Y 撤销或重做。';
+
+  @override
+  String get mosaic_canvasHint => '在空白处拖动绘制；区域可选择、移动、缩放、锁定、复制或暂时禁用。';
+
+  @override
+  String get mosaic_noRegionError => '请至少添加并启用一个打码区域后再保存。';
+
+  @override
+  String get mosaic_defaultSaved => '默认打码样式已保存。';
+
+  @override
+  String get mosaic_saveDefaults => '设为默认';
+
+  @override
+  String get mosaic_saveCopy => '保存打码副本';
+
+  @override
+  String get mosaic_saving => '正在保存…';
+
+  @override
+  String get mosaic_saved => '打码副本已保存';
+
+  @override
+  String get mosaic_open => '打开';
+
+  @override
+  String get mosaic_share => '分享';
+
+  @override
+  String get mosaic_cancelled => '已取消打码渲染。';
+
+  @override
+  String get mosaic_failedGeneric => '无法创建打码副本。';
+
+  @override
+  String get mosaic_galleryRefreshFailed => '文件已保存，但本地图库刷新失败。';
+
+  @override
+  String get mosaic_systemGalleryExportFailed => '应用内副本已保存，但导出到系统相册失败。';
+
+  @override
+  String get mosaic_undo => '撤销';
+
+  @override
+  String get mosaic_redo => '重做';
+
+  @override
+  String get mosaic_reset => '重置';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -15408,6 +15642,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get prompt_appliedToMainPrompt => '已應用到主提示詞';
+
+  @override
+  String get prompt_resizeHeight => '拖動調整輸入框高度，按兩下或按 Home 恢復自動高度';
 
   @override
   String get prompt_inputPrompt => '描述你想生成的畫面';
@@ -17867,11 +18104,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get weight_tagNameHint => '輸入標籤名稱...';
 
   @override
-  String tag_selected(Object count) {
-    return '已選 $count';
-  }
-
-  @override
   String get tag_enable => '啟用';
 
   @override
@@ -17882,21 +18114,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get tag_addTag => '新增標籤';
-
-  @override
-  String get tag_add => '新增';
-
-  @override
-  String get tag_inputHint => '輸入標籤...';
-
-  @override
-  String get tag_copiedToClipboard => '已複製到剪貼簿';
-
-  @override
-  String get tag_emptyHint => '新增標籤來描述你想要的畫面';
-
-  @override
-  String get tag_emptyHintSub => '你可以瀏覽、搜尋或手動新增標籤';
 
   @override
   String get tagCategory_artist => '藝術家';
@@ -19016,24 +19233,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get vibeParseFailed => '無法解析 Vibe 檔案';
-
-  @override
-  String get tag_categoryGeneral => '通用';
-
-  @override
-  String get tag_categoryArtist => '畫師';
-
-  @override
-  String get tag_categoryCopyright => '版權';
-
-  @override
-  String get tag_categoryCharacter => '角色';
-
-  @override
-  String get tag_categoryMeta => '後設資料';
-
-  @override
-  String get tag_countBadgeBreakdown => '標籤分類統計';
 
   @override
   String get localGallery_progressiveLoadError => '圖片載入失敗';
@@ -21748,6 +21947,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get shortcut_action_navigate_to_settings => '設定頁面';
 
   @override
+  String get shortcut_action_navigate_to_vibe_library => 'Vibe 庫頁面';
+
+  @override
   String get shortcut_action_generate_image => '生成影象';
 
   @override
@@ -21923,6 +22125,33 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get shortcut_action_toggle_theme => '切換主題';
+
+  @override
+  String get shortcut_action_vibe_import => '匯入 Vibe';
+
+  @override
+  String get shortcut_action_vibe_export => '匯出 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_send_to_generation => '傳送到生成頁';
+
+  @override
+  String get shortcut_action_vibe_detail_export => '匯出';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => '重新命名';
+
+  @override
+  String get shortcut_action_vibe_detail_delete => '刪除';
+
+  @override
+  String get shortcut_action_vibe_detail_toggle_favorite => '收藏切換';
+
+  @override
+  String get shortcut_action_vibe_detail_prev_sub_vibe => '上一個子 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_next_sub_vibe => '下一個子 Vibe';
 
   @override
   String get shortcut_settings_title => '鍵盤快捷鍵';
@@ -23164,9 +23393,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get shortcut_context_vibe_detail => 'Vibe 詳情';
-
-  @override
-  String get shortcut_action_vibe_detail_rename => '重新命名';
 
   @override
   String get vibeSelectorFilterFavorites => '收藏';
@@ -26033,31 +26259,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get autocomplete_showTranslations => '顯示中文漢化';
 
   @override
-  String get quickTranslate_show => '快速翻譯';
-
-  @override
-  String get quickTranslate_restore => '還原原提示詞（預覽中的修改將被捨棄）';
-
-  @override
-  String get quickTranslate_previewSemantics => '本機漢化預覽。在此修改不會影響原提示詞。';
-
-  @override
-  String get quickTranslate_noMatches => '目前內容中沒有找到可漢化的標籤';
-
-  @override
-  String get quickTranslate_failed => '快速翻譯失敗，請檢查漢化詞庫後重試';
-
-  @override
-  String get quickTranslate_missingTitle => '需要漢化詞庫';
-
-  @override
-  String get quickTranslate_missingMessage =>
-      '快速翻譯需要 ffdkj 簡體中文漢化庫。是否前往資料與快取設定並立即下載？';
-
-  @override
-  String get quickTranslate_download => '前往並下載';
-
-  @override
   String get autocomplete_autoComma => '插入後自動新增逗號';
 
   @override
@@ -27711,4 +27912,271 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get promptAssistant_responseTimeoutDescription =>
       '反推、最佳化、翻譯、角色替換和自訂改寫共用。預設 5 分鐘；模型思考較慢時可延長，仍可隨時取消。不影響連線逾時和智慧體聊天。';
+
+  @override
+  String get tagMode_enter => '切換到標籤模式';
+
+  @override
+  String get tagMode_exit => '切換到文字模式';
+
+  @override
+  String get tagMode_add => '新增標籤…';
+
+  @override
+  String get tagMode_missingTranslation => '暫無譯文';
+
+  @override
+  String get tagMode_translationFailed => '翻譯失敗 · 重試';
+
+  @override
+  String get tagMode_loadingTranslation => '正在查詢譯文…';
+
+  @override
+  String get tagMode_invalidSyntax => '提示詞語法不完整，請完成編輯後再排序或調整權重';
+
+  @override
+  String get tagMode_enable => '啟用';
+
+  @override
+  String get tagMode_disable => '停用';
+
+  @override
+  String get tagMode_cut => '剪下';
+
+  @override
+  String get tagMode_movePrevious => '前移';
+
+  @override
+  String get tagMode_moveNext => '後移';
+
+  @override
+  String get tagMode_moveFirst => '移至開頭';
+
+  @override
+  String get tagMode_moveLast => '移至末尾';
+
+  @override
+  String get tagMode_copyEffective => '複製有效提示詞';
+
+  @override
+  String get tagMode_weight => '權重';
+
+  @override
+  String get tagMode_mixedWeights => '多個權重';
+
+  @override
+  String get tagMode_dictionaryMissing => '中文譯文需要本機漢化庫，仍可正常編輯標籤。';
+
+  @override
+  String get tagMode_dictionaryAction => '開啟漢化庫設定';
+
+  @override
+  String get tagMode_group => '提示詞分組';
+
+  @override
+  String get tagMode_drag => '長按標籤並拖動排序';
+
+  @override
+  String get settings_mosaicTitle => '打碼與隱私遮擋';
+
+  @override
+  String get settings_mosaicSubtitle => '用馬賽克、模糊、純色遮擋、矩形、橢圓和自由畫筆製作隱私安全副本。';
+
+  @override
+  String get settings_mosaicEnable => '啟用打碼功能';
+
+  @override
+  String get settings_mosaicPreserveMetadata => '保留支援的生成中繼資料';
+
+  @override
+  String get settings_mosaicPreserveMetadataHint =>
+      '用於隱私分享時建議關閉，避免提示詞、種子等資訊隨圖片保留。';
+
+  @override
+  String get settings_mosaicRememberStyle => '記住上次打碼樣式';
+
+  @override
+  String get settings_mosaicRememberStyleHint => '儲存副本後自動沿用最近一次的效果參數。';
+
+  @override
+  String get settings_mosaicCreateFromImage => '選擇圖片並建立打碼副本';
+
+  @override
+  String get settings_mosaicEditDefault => '編輯預設打碼樣式';
+
+  @override
+  String get settings_mosaicConfigCorrupted => '儲存的打碼設定無效，請先儲存安全預設值後再啟用。';
+
+  @override
+  String get settings_mosaicConfigMigrated => '打碼設定已升級，請儲存一次以完成遷移。';
+
+  @override
+  String get mosaic_actionCreate => '建立打碼副本';
+
+  @override
+  String get mosaic_actionRegenerate => '重新建立打碼副本';
+
+  @override
+  String get mosaic_editorTitle => '打碼編輯器';
+
+  @override
+  String get mosaic_defaultsTitle => '預設打碼樣式';
+
+  @override
+  String get mosaic_sourceMissing => '找不到原圖';
+
+  @override
+  String get mosaic_sourceMissingHint =>
+      '目前圖片看起來是打碼副本，但關聯原圖已不存在。請手動選擇原圖，避免重複疊加打碼。';
+
+  @override
+  String get mosaic_chooseOriginal => '選擇原圖';
+
+  @override
+  String get mosaic_sourceLoadFailed => '無法載入圖片，請選擇其他靜態圖片或重試。';
+
+  @override
+  String get mosaic_drawTool => '遮罩繪製工具';
+
+  @override
+  String get mosaic_shapeRectangle => '矩形';
+
+  @override
+  String get mosaic_shapeEllipse => '橢圓';
+
+  @override
+  String get mosaic_shapeBrush => '畫筆';
+
+  @override
+  String get mosaic_drawHint => '在預覽空白處拖曳即可新增區域；拖曳區域可移動，拖曳四角控制點可縮放。';
+
+  @override
+  String get mosaic_addRegion => '新增區域';
+
+  @override
+  String get mosaic_fullImage => '整圖打碼';
+
+  @override
+  String get mosaic_clearAll => '清空全部';
+
+  @override
+  String get mosaic_effect => '打碼效果';
+
+  @override
+  String get mosaic_effectPixelate => '馬賽克';
+
+  @override
+  String get mosaic_effectBlur => '模糊';
+
+  @override
+  String get mosaic_effectSolid => '純色遮擋';
+
+  @override
+  String get mosaic_pixelSize => '馬賽克塊大小';
+
+  @override
+  String get mosaic_blurStrength => '模糊強度';
+
+  @override
+  String get mosaic_opacity => '效果不透明度';
+
+  @override
+  String get mosaic_color => '遮擋顏色';
+
+  @override
+  String get mosaic_cornerRadius => '矩形圓角';
+
+  @override
+  String get mosaic_brushSize => '畫筆粗細';
+
+  @override
+  String get mosaic_invertMask => '打碼區域外部';
+
+  @override
+  String get mosaic_invertMaskHint => '反轉遮罩：選中的區域保持清晰，其餘部分全部打碼。';
+
+  @override
+  String get mosaic_showLabels => '顯示區域編號';
+
+  @override
+  String get mosaic_regions => '打碼區域';
+
+  @override
+  String get mosaic_noRegions => '還沒有打碼區域。可在預覽圖上拖曳繪製，或使用上方按鈕新增。';
+
+  @override
+  String get mosaic_regionEnabled => '啟用目前區域';
+
+  @override
+  String get mosaic_regionLocked => '鎖定目前區域';
+
+  @override
+  String get mosaic_positionX => '水平位置';
+
+  @override
+  String get mosaic_positionY => '垂直位置';
+
+  @override
+  String get mosaic_width => '寬度';
+
+  @override
+  String get mosaic_height => '高度';
+
+  @override
+  String get mosaic_duplicate => '複製區域';
+
+  @override
+  String get mosaic_delete => '刪除區域';
+
+  @override
+  String get mosaic_keyboardHint =>
+      '快捷鍵：方向鍵移動，Shift+方向鍵快速移動，Delete 刪除，Ctrl+D 複製，Ctrl+Z/Y 復原或重做。';
+
+  @override
+  String get mosaic_canvasHint => '在空白處拖曳繪製；區域可選擇、移動、縮放、鎖定、複製或暫時停用。';
+
+  @override
+  String get mosaic_noRegionError => '請至少新增並啟用一個打碼區域後再儲存。';
+
+  @override
+  String get mosaic_defaultSaved => '預設打碼樣式已儲存。';
+
+  @override
+  String get mosaic_saveDefaults => '設為預設';
+
+  @override
+  String get mosaic_saveCopy => '儲存打碼副本';
+
+  @override
+  String get mosaic_saving => '正在儲存…';
+
+  @override
+  String get mosaic_saved => '打碼副本已儲存';
+
+  @override
+  String get mosaic_open => '開啟';
+
+  @override
+  String get mosaic_share => '分享';
+
+  @override
+  String get mosaic_cancelled => '已取消打碼算繪。';
+
+  @override
+  String get mosaic_failedGeneric => '無法建立打碼副本。';
+
+  @override
+  String get mosaic_galleryRefreshFailed => '檔案已儲存，但本機圖庫重新整理失敗。';
+
+  @override
+  String get mosaic_systemGalleryExportFailed => '應用程式內副本已儲存，但匯出至系統相簿失敗。';
+
+  @override
+  String get mosaic_undo => '復原';
+
+  @override
+  String get mosaic_redo => '重做';
+
+  @override
+  String get mosaic_reset => '重設';
 }

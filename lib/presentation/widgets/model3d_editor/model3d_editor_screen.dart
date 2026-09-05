@@ -425,7 +425,7 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
                 ),
                 const SizedBox(width: 4),
                 if (compactActions)
-                  IconButton.filled(
+                  IconButton(
                     constraints: BoxConstraints.tightFor(
                       width: context.interactionPolicy.minimumControlExtent,
                       height: context.interactionPolicy.minimumControlExtent,

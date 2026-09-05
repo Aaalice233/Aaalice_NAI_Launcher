@@ -26,6 +26,44 @@ import 'sidebar_link_painter.dart';
 const _uncategorizedSectionId = '__uncategorized__';
 const _linkDetachDistance = 36.0;
 
+bool _paneHeaderUsesLargeText(BuildContext context) =>
+    MediaQuery.textScalerOf(context).scale(14) >= 28;
+
+EdgeInsets _paneHeaderPadding(BuildContext context) =>
+    _paneHeaderUsesLargeText(context)
+    ? const EdgeInsets.fromLTRB(8, 2, 4, 2)
+    : const EdgeInsets.fromLTRB(10, 8, 6, 6);
+
+double _scaledLineExtent(BuildContext context, TextStyle? style) {
+  final fontSize = MediaQuery.textScalerOf(
+    context,
+  ).scale(style?.fontSize ?? 14);
+  return fontSize * (style?.height ?? 1.45);
+}
+
+// 标题行取名称与计数徽标中较高者，徽标另算自身竖向内边距。
+double _paneHeaderTitleExtent(BuildContext context) {
+  final textTheme = Theme.of(context).textTheme;
+  return math.max(
+    _scaledLineExtent(context, textTheme.labelLarge),
+    _scaledLineExtent(context, textTheme.labelSmall) + 4,
+  );
+}
+
+// 文字缩放器可能非线性，就地按标题字号取斜率，压缩比才落在标题真实行高上。
+double _paneHeaderTextScaleFactor(BuildContext context) {
+  final fontSize = Theme.of(context).textTheme.labelLarge?.fontSize ?? 14;
+  return MediaQuery.textScalerOf(context).scale(fontSize) / fontSize;
+}
+
+// 高度预算与 _buildPaneHeader 的实际布局必须同源：预算低估会让 _buildPaneCard 的 Column 溢出。
+double _paneHeaderExtent(BuildContext context) =>
+    math.max(
+      _paneHeaderTitleExtent(context),
+      context.interactionPolicy.minimumControlExtent,
+    ) +
+    _paneHeaderPadding(context).vertical;
+
 double _gridCardHeight(BuildContext context) {
   final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
   // 底行取链接锚点与操作按钮中较高者：前者看有无精确指针，后者看有无触摸，两条规则会错配。
@@ -338,8 +376,10 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                 .toDouble();
         final hasPositiveEntries = fixedState.positiveEntries.isNotEmpty;
         final hasNegativeEntries = fixedState.negativeEntries.isNotEmpty;
+        // 面板头跟随文字缩放，正文下限保持定值：跟着放大会在大字号下抢走用户拖出来的分栏高度。
+        final paneHeaderMinimumHeight = _paneHeaderExtent(context);
         const populatedMinimumHeight = 138.0;
-        const emptyMinimumHeight = 64.0;
+        final emptyMinimumHeight = paneHeaderMinimumHeight;
         final desiredPositiveMinimum = !hasPositiveEntries
             ? emptyMinimumHeight
             : isListMode
@@ -348,8 +388,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         final desiredNegativeMinimum = !hasNegativeEntries
             ? emptyMinimumHeight
             : populatedMinimumHeight;
-        const paneHeaderMinimumHeight = 64.0;
-        const headerMinimumTotal = paneHeaderMinimumHeight * 2;
+        final headerMinimumTotal = paneHeaderMinimumHeight * 2;
         final bodyBudget = math.max(0.0, usableHeight - headerMinimumTotal);
         final desiredPositiveBody = math.max(
           0.0,
@@ -401,6 +440,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                   positiveSections,
                   libraryEntries,
                   isListMode,
+                  positiveHeight,
                 ),
               ),
               _buildNegativeResizeDivider(
@@ -416,6 +456,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                   negativeSections,
                   libraryEntries,
                   isListMode,
+                  negativeHeight,
                 ),
               ),
             ],
@@ -430,6 +471,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     List<_TagSection> sections,
     List<TagLibraryEntry> libraryEntries,
     bool isListMode,
+    double paneHeight,
   ) {
     final entryCount = sections.fold<int>(
       0,
@@ -440,11 +482,13 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       theme,
       key: const ValueKey('fixed-tags-positive-card'),
       accent: theme.colorScheme.primary,
-      header: _buildPaneHeader(
+      paneHeight: paneHeight,
+      headerBuilder: (headerExtent) => _buildPaneHeader(
         icon: Icons.add_circle_outline_rounded,
         label: context.l10n.fixedTags_positiveTitle,
         count: entryCount,
         color: theme.colorScheme.primary,
+        maxExtent: headerExtent,
         trailingBuilder: (iconOnly) => _buildGroupHeaderActions(
           keyPrefix: 'fixed-tags-positive',
           groupsKey: _positiveGroupsKey,
@@ -498,12 +542,19 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     ThemeData theme, {
     required Key key,
     required Color accent,
-    required Widget header,
+    required double paneHeight,
+    required Widget Function(double headerExtent) headerBuilder,
     required Widget body,
   }) {
     final baseColor = sectionSurfaceColor(theme.colorScheme);
     final cardTint = theme.brightness == Brightness.dark ? 0.04 : 0.025;
     final headerTint = theme.brightness == Brightness.dark ? 0.09 : 0.065;
+    // 面板头不超过整格高度，否则下面的 Expanded 拿到 0 仍会把 Column 撑破；
+    // 下界是操作按钮命中区，压过头等于缩小操作入口。
+    final headerExtent = math.max(
+      context.interactionPolicy.minimumControlExtent,
+      math.min(_paneHeaderExtent(context), paneHeight),
+    );
     return Material(
       key: key,
       color: Color.alphaBlend(accent.withValues(alpha: cardTint), baseColor),
@@ -517,7 +568,10 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
               accent.withValues(alpha: headerTint),
               baseColor,
             ),
-            child: header,
+            child: SizedBox(
+              height: headerExtent,
+              child: headerBuilder(headerExtent),
+            ),
           ),
           Expanded(child: body),
         ],
@@ -530,26 +584,49 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     required String label,
     required int count,
     required Color color,
+    required double maxExtent,
     Widget Function(bool iconOnly)? trailingBuilder,
   }) {
-    final usesLargeText = MediaQuery.textScalerOf(context).scale(14) >= 28;
+    final usesLargeText = _paneHeaderUsesLargeText(context);
+    final padding = _paneHeaderPadding(context);
+    final titleExtent = _paneHeaderTitleExtent(context);
+    final actionExtent = context.interactionPolicy.minimumControlExtent;
+    // 分到的高度不够时先收内边距再压标题字号，操作按钮命中区不参与压缩。
+    final verticalPadding = (maxExtent - math.max(titleExtent, actionExtent))
+        .clamp(0.0, padding.vertical)
+        .toDouble();
+    final paddingScale = padding.vertical == 0
+        ? 1.0
+        : verticalPadding / padding.vertical;
+    final contentExtent = math.max(0.0, maxExtent - verticalPadding);
+    final titleScaleFactor = _paneHeaderTextScaleFactor(context);
+    final titleMaxScaleFactor = contentExtent >= titleExtent
+        ? titleScaleFactor
+        : titleScaleFactor * contentExtent / titleExtent;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final trailing = trailingBuilder?.call(
           constraints.maxWidth < 360 || usesLargeText,
         );
         return Padding(
-          padding: usesLargeText
-              ? const EdgeInsets.fromLTRB(8, 2, 4, 2)
-              : const EdgeInsets.fromLTRB(10, 8, 6, 6),
+          padding: EdgeInsets.fromLTRB(
+            padding.left,
+            padding.top * paddingScale,
+            padding.right,
+            padding.bottom * paddingScale,
+          ),
           child: Row(
             children: [
               Expanded(
-                child: _SectionTitle(
-                  icon: icon,
-                  label: label,
-                  count: count,
-                  color: color,
+                child: MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: titleMaxScaleFactor,
+                  child: _SectionTitle(
+                    icon: icon,
+                    label: label,
+                    count: count,
+                    color: color,
+                  ),
                 ),
               ),
               if (trailing != null) trailing,
@@ -687,6 +764,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     List<_TagSection> sections,
     List<TagLibraryEntry> libraryEntries,
     bool isListMode,
+    double paneHeight,
   ) {
     final entryCount = sections.fold<int>(
       0,
@@ -696,11 +774,13 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       theme,
       key: const ValueKey('fixed-tags-negative-card'),
       accent: theme.colorScheme.error,
-      header: _buildPaneHeader(
+      paneHeight: paneHeight,
+      headerBuilder: (headerExtent) => _buildPaneHeader(
         icon: Icons.block_rounded,
         label: context.l10n.fixedTags_negativeTitle,
         count: entryCount,
         color: theme.colorScheme.error,
+        maxExtent: headerExtent,
         trailingBuilder: (iconOnly) => _buildGroupHeaderActions(
           keyPrefix: 'fixed-tags-negative',
           groupsKey: _negativeGroupsKey,
@@ -1310,12 +1390,19 @@ class _GroupedFixedTagCollection extends StatefulWidget {
 class _GroupedFixedTagCollectionState
     extends State<_GroupedFixedTagCollection> {
   final _collapsedSectionIds = <String>{};
+  // 条目在重排后会换 index，索引无关的 key 才能让 tile 的 hover 与动画状态跟着条目走。
+  final _entryItemKeys = <String, GlobalKey>{};
 
   @override
   void didUpdateWidget(covariant _GroupedFixedTagCollection oldWidget) {
     super.didUpdateWidget(oldWidget);
     final availableIds = widget.sections.map((section) => section.id).toSet();
     _collapsedSectionIds.removeWhere((id) => !availableIds.contains(id));
+    final entryIds = <String>{
+      for (final section in widget.sections)
+        for (final entry in section.entries) entry.id,
+    };
+    _entryItemKeys.removeWhere((id, _) => !entryIds.contains(id));
   }
 
   void _setSectionCollapsed(String sectionId, bool collapsed) {
@@ -1360,45 +1447,40 @@ class _GroupedFixedTagCollectionState
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            key: ValueKey('${widget.keyPrefix}-group-list'),
-            controller: widget.controller,
-            padding: const EdgeInsets.fromLTRB(6, 2, 6, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final section in widget.sections)
-                  Builder(
-                    builder: (context) {
-                      final isCollapsed =
-                          !widget.forceExpanded &&
-                          _collapsedSectionIds.contains(section.id);
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildSectionHeader(
-                              context,
-                              section: section,
-                              isCollapsed: isCollapsed,
-                            ),
-                            if (!isCollapsed)
-                              _buildSectionEntries(context, section),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
+    return CustomScrollView(
+      key: ValueKey('${widget.keyPrefix}-group-list'),
+      controller: widget.controller,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(6, 2, 6, 10),
+          sliver: SliverMainAxisGroup(
+            slivers: [
+              for (final section in widget.sections)
+                _buildSectionSliver(context, section),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSectionSliver(BuildContext context, _TagSection section) {
+    final isCollapsed =
+        !widget.forceExpanded && _collapsedSectionIds.contains(section.id);
+    return SliverPadding(
+      padding: const EdgeInsets.only(bottom: 6),
+      sliver: SliverMainAxisGroup(
+        slivers: [
+          SliverToBoxAdapter(
+            child: _buildSectionHeader(
+              context,
+              section: section,
+              isCollapsed: isCollapsed,
+            ),
+          ),
+          if (!isCollapsed) _buildSectionBodySliver(section),
+        ],
+      ),
     );
   }
 
@@ -1472,67 +1554,85 @@ class _GroupedFixedTagCollectionState
     );
   }
 
-  Widget _buildSectionEntries(BuildContext context, _TagSection section) {
-    if (widget.isListMode) {
-      return Padding(
-        key: ValueKey('${widget.keyPrefix}-group-${section.id}-body'),
-        padding: const EdgeInsets.only(top: 4),
-        child: ReorderableListView.builder(
-          key: ValueKey('${widget.keyPrefix}-group-${section.id}-entries'),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          buildDefaultDragHandles: false,
-          itemCount: section.entries.length,
-          prototypeItem: widget.listPrototypeBuilder(section.color),
-          onReorderItem: (oldIndex, newIndex) =>
-              widget.onReorder(section.entries, oldIndex, newIndex),
-          itemBuilder: (context, index) {
-            final entry = section.entries[index];
-            return Padding(
-              key: ValueKey('${widget.keyPrefix}-entry-${entry.id}'),
-              padding: const EdgeInsets.only(bottom: 4),
-              child: widget.entryBuilder(
-                entry,
-                section.color,
-                section.entries.length > 1
-                    ? (child) => ReorderableDragStartListener(
-                        index: index,
-                        child: child,
-                      )
-                    : null,
-              ),
-            );
-          },
-        ),
-      );
-    }
+  Widget _buildSectionBodySliver(_TagSection section) {
+    return SliverPadding(
+      key: ValueKey('${widget.keyPrefix}-group-${section.id}-body'),
+      padding: const EdgeInsets.only(top: 4),
+      sliver: widget.isListMode
+          ? _buildEntryListSliver(section)
+          : _buildEntryGridSliver(section),
+    );
+  }
 
-    return LayoutBuilder(
+  Widget _buildEntryListSliver(_TagSection section) {
+    return SliverReorderableList(
+      key: ValueKey('${widget.keyPrefix}-group-${section.id}-entries'),
+      itemCount: section.entries.length,
+      prototypeItem: widget.listPrototypeBuilder(section.color),
+      proxyDecorator: _buildDragProxy,
+      onReorderItem: (oldIndex, newIndex) =>
+          widget.onReorder(section.entries, oldIndex, newIndex),
+      itemBuilder: (context, index) {
+        final entry = section.entries[index];
+        return KeyedSubtree(
+          key: _entryItemKeys.putIfAbsent(entry.id, GlobalKey.new),
+          child: Padding(
+            key: ValueKey('${widget.keyPrefix}-entry-${entry.id}'),
+            padding: const EdgeInsets.only(bottom: 4),
+            child: widget.entryBuilder(
+              entry,
+              section.color,
+              section.entries.length > 1
+                  ? (child) =>
+                        ReorderableDragStartListener(index: index, child: child)
+                  : null,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEntryGridSliver(_TagSection section) {
+    return SliverLayoutBuilder(
       builder: (context, constraints) {
         const spacing = 7.0;
         final largeText = MediaQuery.textScalerOf(context).scale(14) >= 20;
         final minimumCardWidth = largeText ? 220.0 : 140.0;
         final columnCount =
-            ((constraints.maxWidth + spacing) / (minimumCardWidth + spacing))
+            ((constraints.crossAxisExtent + spacing) /
+                    (minimumCardWidth + spacing))
                 .floor()
                 .clamp(1, 3);
-        final cardHeight = _gridCardHeight(context);
-        return GridView.builder(
-          key: ValueKey('${widget.keyPrefix}-group-${section.id}-body'),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(top: 4),
+        return SliverGrid.builder(
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columnCount,
             mainAxisSpacing: spacing,
             crossAxisSpacing: spacing,
-            mainAxisExtent: cardHeight,
+            mainAxisExtent: _gridCardHeight(context),
           ),
           itemCount: section.entries.length,
           itemBuilder: (context, index) =>
               widget.entryBuilder(section.entries[index], section.color, null),
         );
       },
+    );
+  }
+
+  // SliverReorderableList 不带默认拖拽装饰，抬升要自己补回来。
+  Widget _buildDragProxy(Widget child, int index, Animation<double> animation) {
+    const draggingElevation = 6.0;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Material(elevation: draggingElevation, child: child);
+    }
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, proxyChild) => Material(
+        elevation:
+            draggingElevation * Curves.easeInOut.transform(animation.value),
+        child: proxyChild,
+      ),
+      child: child,
     );
   }
 }

@@ -98,9 +98,7 @@ class OnlineGalleryToolbarSourceControls {
           style: TextButton.styleFrom(
             backgroundColor: state.artistHuntEnabled
                 ? theme.colorScheme.primaryContainer
-                : theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.4,
-                  ),
+                : Colors.transparent,
             foregroundColor: state.artistHuntEnabled
                 ? theme.colorScheme.onPrimaryContainer
                 : theme.colorScheme.onSurfaceVariant,
@@ -618,9 +616,7 @@ class OnlineGalleryToolbarSourceControls {
         style: TextButton.styleFrom(
           backgroundColor: hasDateRange
               ? theme.colorScheme.primary.withValues(alpha: 0.12)
-              : theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.4,
-                ),
+              : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           visualDensity: context.interactionPolicy.prefersTouchPresentation
               ? VisualDensity.standard

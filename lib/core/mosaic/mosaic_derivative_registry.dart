@@ -51,9 +51,9 @@ class MosaicDerivativeRegistry {
       find(path) != null || looksLikeDerivativePath(path);
 
   static bool looksLikeDerivativePath(String path) => RegExp(
-        r'_redacted(?:[-_]\d+)?$',
-        caseSensitive: false,
-      ).hasMatch(p.basenameWithoutExtension(path));
+    r'_redacted(?:[-_]\d+)?$',
+    caseSensitive: false,
+  ).hasMatch(p.basenameWithoutExtension(path));
 
   Future<void> register({
     required String outputPath,

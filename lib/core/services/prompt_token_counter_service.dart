@@ -1,6 +1,7 @@
 import '../../data/models/character/character_prompt.dart';
 import '../constants/model_capabilities.dart';
 import '../utils/nai_prompt_parser.dart';
+import '../utils/prompt_edit_document.dart';
 import 'tokenizers/prompt_token_encoder.dart';
 import 'tokenizers/qwen_prompt_token_encoder.dart';
 import 'tokenizers/t5_prompt_token_encoder.dart';
@@ -147,9 +148,10 @@ class PromptTokenCounterService {
     var usedTokens = 0;
     for (final text in texts) {
       // Qwen 会把首尾空白与换行也编码成 token，官网原样计数，这里不能 trim。
+      final effective = PromptEditDocument.effectiveText(text);
       final normalizedText = stripWeightSyntax
-          ? _normalizePromptForCounting(text)
-          : text;
+          ? _normalizePromptForCounting(effective)
+          : effective;
       if (normalizedText.trim().isEmpty) {
         continue;
       }

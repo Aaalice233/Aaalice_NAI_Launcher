@@ -215,7 +215,7 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                         const SizedBox(height: 24),
                         Row(
                           children: [
-                            IconButton.filledTonal(
+                            IconButton(
                               onPressed: _decrementWeight,
                               icon: const Icon(Icons.remove),
                               tooltip: context.l10n.tooltip_decreaseWeight,
@@ -244,7 +244,7 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                                 ),
                               ),
                             ),
-                            IconButton.filledTonal(
+                            IconButton(
                               onPressed: _incrementWeight,
                               icon: const Icon(Icons.add),
                               tooltip: context.l10n.tooltip_increaseWeight,
@@ -359,7 +359,7 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                 : weight > 1.0
                 ? Colors.orange.withValues(alpha: 0.2)
                 : Colors.blue.withValues(alpha: 0.2))
-          : null,
+          : Colors.transparent,
       labelStyle: TextStyle(
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         color: isSelected

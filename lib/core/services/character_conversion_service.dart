@@ -2,6 +2,7 @@ import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
 import '../utils/app_logger.dart';
 import '../utils/character_prompt_block_parser.dart';
+import '../utils/prompt_edit_document.dart';
 
 /// 角色转换结果
 ///
@@ -98,14 +99,22 @@ class CharacterConversionService {
 
       // 先展开别名，再由共享解析器拆分角色词库扩展语法。这样通过
       // `<词库名>` 添加的角色也不会把 `negative` 标记发送给 NovelAI。
-      String resolvedPromptSource = uiChar.prompt;
-      String resolvedNegativePrompt = uiChar.negativePrompt;
+      String resolvedPromptSource = PromptEditDocument.effectiveText(
+        uiChar.prompt,
+      );
+      String resolvedNegativePrompt = PromptEditDocument.effectiveText(
+        uiChar.negativePrompt,
+      );
 
       if (resolveAliases) {
         final aliasResolver = _aliasResolver;
         if (aliasResolver != null) {
-          final promptWithAliases = aliasResolver(uiChar.prompt);
-          final negativeWithAliases = aliasResolver(uiChar.negativePrompt);
+          final promptWithAliases = PromptEditDocument.effectiveText(
+            aliasResolver(resolvedPromptSource),
+          );
+          final negativeWithAliases = PromptEditDocument.effectiveText(
+            aliasResolver(resolvedNegativePrompt),
+          );
 
           if (promptWithAliases != uiChar.prompt ||
               negativeWithAliases != uiChar.negativePrompt) {

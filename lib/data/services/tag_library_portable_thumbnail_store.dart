@@ -29,25 +29,38 @@ class PortableThumbnailMutation {
 class TagLibraryPortableThumbnailStore {
   const TagLibraryPortableThumbnailStore();
 
+  static const directoryName = 'tag_library_thumbnails';
+
+  static final _entryIdPattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$');
+  static final _extensionPattern = RegExp(r'^\.(png|jpe?g|webp|gif|bmp)$');
+
+  static bool isValidEntryId(String value) => _entryIdPattern.hasMatch(value);
+
+  static bool isSupportedExtension(String value) =>
+      _extensionPattern.hasMatch(value.toLowerCase());
+
+  static Future<Directory> resolveDirectory() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    return Directory(p.join(appDir.path, directoryName));
+  }
+
   Future<PortableThumbnailMutation> stage(
     String entryId, {
     required String? extension,
     required Stream<List<int>>? bytes,
     String? existingPath,
   }) async {
-    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$').hasMatch(entryId)) {
+    if (!isValidEntryId(entryId)) {
       throw const FormatException('Invalid tag library entry ID');
     }
     final safeExtension = extension?.toLowerCase();
-    if (safeExtension != null &&
-        !RegExp(r'^\.(png|jpe?g|webp|gif|bmp)$').hasMatch(safeExtension)) {
+    if (safeExtension != null && !isSupportedExtension(safeExtension)) {
       throw const FormatException('Unsupported tag library thumbnail');
     }
     if ((safeExtension == null) != (bytes == null)) {
       throw ArgumentError('Thumbnail extension and bytes must match');
     }
-    final appDir = await getApplicationDocumentsDirectory();
-    final directory = Directory(p.join(appDir.path, 'tag_library_thumbnails'));
+    final directory = await resolveDirectory();
     await directory.create(recursive: true);
     final target = safeExtension == null
         ? null
@@ -59,10 +72,7 @@ class TagLibraryPortableThumbnailStore {
       await for (final entity in directory.list())
         if (entity is File &&
             p.basenameWithoutExtension(entity.path) == entryId &&
-            RegExp(
-              r'^\.(png|jpe?g|webp|gif|bmp)$',
-              caseSensitive: false,
-            ).hasMatch(p.extension(entity.path)))
+            isSupportedExtension(p.extension(entity.path)))
           p.normalize(entity.path): entity,
     };
     final backups = <File, File>{};

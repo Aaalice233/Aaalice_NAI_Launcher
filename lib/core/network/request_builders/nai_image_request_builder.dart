@@ -11,6 +11,7 @@ import '../../utils/nai_resolution_adapter.dart';
 import '../../utils/nai_api_utils.dart';
 import '../../utils/novelai_auto_text.dart';
 import '../../utils/prompt_semantics_utils.dart';
+import '../../utils/prompt_edit_document.dart';
 import '../../../data/models/image/image_params.dart';
 
 /// Variety+ sigma 缩放的基准潜空间体积：4 通道 × 104 × 152（832×1216 的潜空间）。
@@ -215,6 +216,24 @@ class NAIImageRequestBuilder {
     required String effectivePrompt,
     required String effectiveNegativePrompt,
   }) {
+    PromptEditDocument.requireEffective(
+      effectivePrompt,
+      field: 'effectivePrompt',
+    );
+    PromptEditDocument.requireEffective(
+      effectiveNegativePrompt,
+      field: 'effectiveNegativePrompt',
+    );
+    for (final character in params.characters) {
+      PromptEditDocument.requireEffective(
+        character.prompt,
+        field: 'character.prompt',
+      );
+      PromptEditDocument.requireEffective(
+        character.negativePrompt,
+        field: 'character.negativePrompt',
+      );
+    }
     requestParameters['params_version'] = _officialParamsVersion;
     requestParameters['use_coords'] = params.useCoords;
     requestParameters['legacy_v3_extend'] = false;
@@ -541,6 +560,21 @@ class NAIImageRequestBuilder {
     required String sampler,
     bool isStream = false,
   }) async {
+    PromptEditDocument.requireEffective(params.prompt, field: 'prompt');
+    PromptEditDocument.requireEffective(
+      params.negativePrompt,
+      field: 'negativePrompt',
+    );
+    for (var i = 0; i < params.characters.length; i++) {
+      PromptEditDocument.requireEffective(
+        params.characters[i].prompt,
+        field: 'characters[$i].prompt',
+      );
+      PromptEditDocument.requireEffective(
+        params.characters[i].negativePrompt,
+        field: 'characters[$i].negativePrompt',
+      );
+    }
     if (sampler.isEmpty) {
       throw ArgumentError.value(sampler, 'sampler', 'Sampler cannot be empty');
     }

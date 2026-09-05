@@ -60,6 +60,7 @@ void main() {
   Future<void> pumpInput(
     WidgetTester tester, {
     required bool resolveAliasOnCopy,
+    bool enableTagMode = false,
   }) async {
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
@@ -90,7 +91,7 @@ void main() {
             ),
           ),
         ],
-        child: const MaterialApp(
+        child: MaterialApp(
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           home: Scaffold(
@@ -100,6 +101,7 @@ void main() {
               child: UnifiedPromptInput(
                 enableAssistant: false,
                 config: UnifiedPromptConfig(
+                  enableTagMode: enableTagMode,
                   enableAutocomplete: false,
                   enableSyntaxHighlight: false,
                   enableAutoFormat: false,
@@ -147,6 +149,47 @@ void main() {
       expect(lastClipboardText(), _expandedText);
       expect(clipboardWriteCount(), 1);
       expect(tester.takeException(), isNull);
+    });
+  });
+  testWidgets('隐藏禁用语法后复制仍保留禁用状态且只写一次剪贴板', (tester) async {
+    await onWindows(() async {
+      await pumpInput(tester, resolveAliasOnCopy: false, enableTagMode: true);
+      const raw = 'cat, /*disabled:dog*/, bird';
+      await tester.enterText(find.byType(TextField), raw);
+      final editable = tester.widget<EditableText>(find.byType(EditableText));
+      expect(editable.controller.text, 'cat, dog, bird');
+      editable.controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: editable.controller.text.length,
+      );
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      expect(lastClipboardText(), raw);
+      expect(clipboardWriteCount(), 1);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
+  testWidgets('复制展开别名时仍保留禁用标记及其原始内容', (tester) async {
+    await onWindows(() async {
+      await pumpInput(tester, resolveAliasOnCopy: true);
+      const text = '<scenery>, /*disabled:<scenery>*/';
+      final field = find.byType(TextField);
+      await tester.enterText(field, text);
+      final editable = tester.widget<EditableText>(find.byType(EditableText));
+      editable.controller.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: text.length,
+      );
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      expect(lastClipboardText(), '$_entryContent, /*disabled:<scenery>*/');
+      expect(clipboardWriteCount(), 1);
     });
   });
 

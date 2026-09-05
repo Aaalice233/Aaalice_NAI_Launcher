@@ -2,21 +2,20 @@ import 'package:flutter/material.dart';
 
 /// Returns the shared fill used by editable text surfaces.
 ///
-/// The application currently renders in dark mode, so editable controls use a
-/// restrained deep surface instead of lifting toward [ColorScheme.onSurface].
-/// The result stays visibly editable without becoming a pale block inside the
-/// workspace.
+/// Derive input depth from the canvas, not the raised container ladder. A dark
+/// overlay on a raised container can still leave fields brighter than the page.
+/// Black changes luminance without introducing the theme's foreground hue.
 Color inputSurfaceFillColor(ColorScheme colorScheme, {bool prominent = false}) {
   if (colorScheme.brightness == Brightness.dark) {
     return Color.alphaBlend(
       Colors.black.withValues(alpha: prominent ? 0.18 : 0.28),
-      colorScheme.surfaceContainerHighest,
+      colorScheme.surface,
     );
   }
 
-  final opacity = prominent ? 0.11 : 0.07;
+  final opacity = prominent ? 0.025 : 0.04;
   return Color.alphaBlend(
-    colorScheme.onSurface.withValues(alpha: opacity),
+    Colors.black.withValues(alpha: opacity),
     colorScheme.surface,
   );
 }

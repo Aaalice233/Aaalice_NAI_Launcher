@@ -5,6 +5,7 @@ import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../utils/text_selection_utils.dart';
 import '../common/app_toast.dart';
+import 'tag_editor_scope.dart';
 
 /// 提示词格式化包装器
 /// 为任意输入组件提供失焦时自动格式化功能
@@ -90,6 +91,7 @@ class _PromptFormatterWrapperState extends State<PromptFormatterWrapper> {
 
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
+      if (mounted && TagEditorScope.maybeOf(context)?.tagMode == true) return;
       _formatOnBlur();
     }
   }

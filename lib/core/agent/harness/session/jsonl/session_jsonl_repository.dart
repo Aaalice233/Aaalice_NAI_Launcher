@@ -4,43 +4,55 @@ import 'dart:io' as io;
 import 'package:path/path.dart' as p;
 
 import '../../../../utils/app_logger.dart';
-import '../../../agent_types.dart';
 import '../session.dart';
 import 'session_jsonl_line_storage.dart';
 import 'session_jsonl_protocol.dart';
 import 'session_jsonl_storage.dart';
 
+/// 会话列表项：头行元数据加一次目录 stat 得到的文件信息。
+typedef SessionFileInfo = ({
+  SessionMetadata metadata,
+  String path,
+  DateTime modifiedAt,
+  int size,
+});
+
 /// 会话仓库：目录内一 JSONL 一会话。
 class JsonlSessionRepo implements SessionRepo {
   JsonlSessionRepo(this.baseDir);
+
+  static const _listLimit = 30;
 
   final io.Directory baseDir;
 
   io.File _fileFor(String id) =>
       io.File(p.join(baseDir.path, 'agent_chat', 'sessions', '$id.jsonl'));
 
-  Future<List<(SessionMetadata, io.File)>> _listAll() async {
+  Future<List<SessionFileInfo>> _listAll() async {
     final dir = io.Directory(p.join(baseDir.path, 'agent_chat', 'sessions'));
     if (!dir.existsSync()) {
       return const [];
     }
-    final result = <(SessionMetadata, io.File)>[];
-    final files =
-        dir
-            .listSync()
-            .whereType<io.File>()
-            .where((f) => f.path.endsWith('.jsonl'))
-            .toList()
-          ..sort(
-            (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()),
-          );
-    for (final file in files) {
+    final candidates =
+        <(io.File, io.FileStat)>[
+          for (final entity in dir.listSync())
+            if (entity is io.File && entity.path.endsWith('.jsonl'))
+              (entity, entity.statSync()),
+        ]..sort((a, b) => b.$2.modified.compareTo(a.$2.modified));
+    final result = <SessionFileInfo>[];
+    for (final (file, stat) in candidates) {
       final metadata = _readHeader(file);
-      if (metadata != null) {
-        result.add((metadata, file));
-        if (result.length == 30) {
-          break;
-        }
+      if (metadata == null) {
+        continue;
+      }
+      result.add((
+        metadata: metadata,
+        path: file.path,
+        modifiedAt: stat.modified,
+        size: stat.size,
+      ));
+      if (result.length == _listLimit) {
+        break;
       }
     }
     return result;
@@ -48,24 +60,16 @@ class JsonlSessionRepo implements SessionRepo {
 
   SessionMetadata? _readHeader(io.File file) {
     try {
-      for (final line in SessionJsonlLineStorage(
+      final first = SessionJsonlLineStorage(
         file,
-      ).readCompleteLinesSync()) {
-        final trimmed = line.trim();
-        if (trimmed.isEmpty) {
-          continue;
-        }
-        final json = jsonDecode(trimmed);
-        final metadata = SessionJsonlProtocol.decodeHeader(json);
-        if (metadata != null) {
-          return metadata;
-        }
-        break;
+      ).readCompleteLinesSync(maxLines: 1);
+      if (first.isEmpty || first.first.isEmpty) {
+        return null;
       }
+      return SessionJsonlProtocol.decodeHeader(jsonDecode(first.first));
     } catch (_) {
       return null;
     }
-    return null;
   }
 
   @override
@@ -103,38 +107,11 @@ class JsonlSessionRepo implements SessionRepo {
   @override
   Future<List<SessionMetadata>> list() async {
     final all = await _listAll();
-    return [for (final (metadata, _) in all) metadata];
+    return [for (final item in all) item.metadata];
   }
 
-  /// 列出会话及 UI 列表名：优先 setName 持久化名，其次首条用户消息。
-  Future<List<(SessionMetadata, String, DateTime)>> listWithNames() async {
-    final all = await _listAll();
-    final result = <(SessionMetadata, String, DateTime)>[];
-    for (final (metadata, file) in all) {
-      final session = Session(JsonlSessionStorage(file, metadata));
-      var name = '';
-      try {
-        name = (await session.getName())?.trim() ?? '';
-      } catch (_) {
-        name = '';
-      }
-      if (name.isEmpty) {
-        final firstUser = await session.findEntry(
-          const EntryQuery(type: 'message'),
-        );
-        if (firstUser is MessageEntry && firstUser.message is UserMessage) {
-          final text = (firstUser.message as UserMessage).text
-              .replaceAll(RegExp(r'\s+'), ' ')
-              .trim();
-          if (text.isNotEmpty) {
-            name = text.length <= 40 ? text : '${text.substring(0, 40)}…';
-          }
-        }
-      }
-      result.add((metadata, name, file.lastModifiedSync()));
-    }
-    return result;
-  }
+  /// 只读头行的列表：不打开会话正文，调用方据文件信息决定是否回放。
+  Future<List<SessionFileInfo>> listWithFileInfo() => _listAll();
 
   @override
   Future<void> delete(SessionMetadata metadata) async {

@@ -3023,6 +3023,12 @@ abstract class AppLocalizations {
   /// **'Applied to main prompt'**
   String get prompt_appliedToMainPrompt;
 
+  /// No description provided for @prompt_resizeHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to resize the editor; double-click or press Home to restore automatic height'**
+  String get prompt_resizeHeight;
+
   /// No description provided for @prompt_inputPrompt.
   ///
   /// In en, this message translates to:
@@ -7465,12 +7471,6 @@ abstract class AppLocalizations {
   /// **'Enter tag name...'**
   String get weight_tagNameHint;
 
-  /// No description provided for @tag_selected.
-  ///
-  /// In en, this message translates to:
-  /// **'Selected {count}'**
-  String tag_selected(Object count);
-
   /// No description provided for @tag_enable.
   ///
   /// In en, this message translates to:
@@ -7494,36 +7494,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add Tag'**
   String get tag_addTag;
-
-  /// No description provided for @tag_add.
-  ///
-  /// In en, this message translates to:
-  /// **'Add'**
-  String get tag_add;
-
-  /// No description provided for @tag_inputHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter tag...'**
-  String get tag_inputHint;
-
-  /// No description provided for @tag_copiedToClipboard.
-  ///
-  /// In en, this message translates to:
-  /// **'Copied to clipboard'**
-  String get tag_copiedToClipboard;
-
-  /// No description provided for @tag_emptyHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Add tags to describe your desired image'**
-  String get tag_emptyHint;
-
-  /// No description provided for @tag_emptyHintSub.
-  ///
-  /// In en, this message translates to:
-  /// **'You can browse, search, or add tags manually'**
-  String get tag_emptyHintSub;
 
   /// No description provided for @tagCategory_artist.
   ///
@@ -9623,42 +9593,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to parse Vibe file'**
   String get vibeParseFailed;
-
-  /// No description provided for @tag_categoryGeneral.
-  ///
-  /// In en, this message translates to:
-  /// **'General'**
-  String get tag_categoryGeneral;
-
-  /// No description provided for @tag_categoryArtist.
-  ///
-  /// In en, this message translates to:
-  /// **'Artist'**
-  String get tag_categoryArtist;
-
-  /// No description provided for @tag_categoryCopyright.
-  ///
-  /// In en, this message translates to:
-  /// **'Copyright'**
-  String get tag_categoryCopyright;
-
-  /// No description provided for @tag_categoryCharacter.
-  ///
-  /// In en, this message translates to:
-  /// **'Character'**
-  String get tag_categoryCharacter;
-
-  /// No description provided for @tag_categoryMeta.
-  ///
-  /// In en, this message translates to:
-  /// **'Meta'**
-  String get tag_categoryMeta;
-
-  /// No description provided for @tag_countBadgeBreakdown.
-  ///
-  /// In en, this message translates to:
-  /// **'Tag Breakdown'**
-  String get tag_countBadgeBreakdown;
 
   /// No description provided for @localGallery_progressiveLoadError.
   ///
@@ -14541,6 +14475,12 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get shortcut_action_navigate_to_settings;
 
+  /// No description provided for @shortcut_action_navigate_to_vibe_library.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe Library'**
+  String get shortcut_action_navigate_to_vibe_library;
+
   /// No description provided for @shortcut_action_generate_image.
   ///
   /// In en, this message translates to:
@@ -14894,6 +14834,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Toggle Theme'**
   String get shortcut_action_toggle_theme;
+
+  /// No description provided for @shortcut_action_vibe_import.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Vibe'**
+  String get shortcut_action_vibe_import;
+
+  /// No description provided for @shortcut_action_vibe_export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Vibe'**
+  String get shortcut_action_vibe_export;
+
+  /// No description provided for @shortcut_action_vibe_detail_send_to_generation.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Generation'**
+  String get shortcut_action_vibe_detail_send_to_generation;
+
+  /// No description provided for @shortcut_action_vibe_detail_export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get shortcut_action_vibe_detail_export;
+
+  /// No description provided for @shortcut_action_vibe_detail_rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get shortcut_action_vibe_detail_rename;
+
+  /// No description provided for @shortcut_action_vibe_detail_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get shortcut_action_vibe_detail_delete;
+
+  /// No description provided for @shortcut_action_vibe_detail_toggle_favorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle Favorite'**
+  String get shortcut_action_vibe_detail_toggle_favorite;
+
+  /// No description provided for @shortcut_action_vibe_detail_prev_sub_vibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous Child Vibe'**
+  String get shortcut_action_vibe_detail_prev_sub_vibe;
+
+  /// No description provided for @shortcut_action_vibe_detail_next_sub_vibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Child Vibe'**
+  String get shortcut_action_vibe_detail_next_sub_vibe;
 
   /// No description provided for @shortcut_settings_title.
   ///
@@ -17018,12 +17012,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Vibe Detail'**
   String get shortcut_context_vibe_detail;
-
-  /// No description provided for @shortcut_action_vibe_detail_rename.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename'**
-  String get shortcut_action_vibe_detail_rename;
 
   /// No description provided for @vibeSelectorFilterFavorites.
   ///
@@ -22137,54 +22125,6 @@ abstract class AppLocalizations {
   /// **'Show Chinese translations'**
   String get autocomplete_showTranslations;
 
-  /// No description provided for @quickTranslate_show.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick translation'**
-  String get quickTranslate_show;
-
-  /// No description provided for @quickTranslate_restore.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore the original prompt (preview edits will be discarded)'**
-  String get quickTranslate_restore;
-
-  /// No description provided for @quickTranslate_previewSemantics.
-  ///
-  /// In en, this message translates to:
-  /// **'Local Chinese translation preview. Edits here do not affect the original prompt.'**
-  String get quickTranslate_previewSemantics;
-
-  /// No description provided for @quickTranslate_noMatches.
-  ///
-  /// In en, this message translates to:
-  /// **'No translatable tags were found in the current content'**
-  String get quickTranslate_noMatches;
-
-  /// No description provided for @quickTranslate_failed.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick translation failed. Check the translation dictionary and try again'**
-  String get quickTranslate_failed;
-
-  /// No description provided for @quickTranslate_missingTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Translation dictionary required'**
-  String get quickTranslate_missingTitle;
-
-  /// No description provided for @quickTranslate_missingMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick translation requires the ffdkj Simplified Chinese dictionary. Open Data & Cache settings and download it now?'**
-  String get quickTranslate_missingMessage;
-
-  /// No description provided for @quickTranslate_download.
-  ///
-  /// In en, this message translates to:
-  /// **'Open and download'**
-  String get quickTranslate_download;
-
   /// No description provided for @autocomplete_autoComma.
   ///
   /// In en, this message translates to:
@@ -25200,6 +25140,534 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shared by reverse prompting, optimization, translation, character replacement, and custom rewriting. Defaults to 5 minutes; increase it for slower models. You can still cancel at any time. Connection timeouts and agent chat are unchanged.'**
   String get promptAssistant_responseTimeoutDescription;
+
+  /// No description provided for @tagMode_enter.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to tag mode'**
+  String get tagMode_enter;
+
+  /// No description provided for @tagMode_exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to text mode'**
+  String get tagMode_exit;
+
+  /// No description provided for @tagMode_add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tags…'**
+  String get tagMode_add;
+
+  /// No description provided for @tagMode_missingTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'No translation'**
+  String get tagMode_missingTranslation;
+
+  /// No description provided for @tagMode_translationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation failed · retry'**
+  String get tagMode_translationFailed;
+
+  /// No description provided for @tagMode_loadingTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking up translation…'**
+  String get tagMode_loadingTranslation;
+
+  /// No description provided for @tagMode_invalidSyntax.
+  ///
+  /// In en, this message translates to:
+  /// **'Incomplete prompt syntax; finish editing before moving or adjusting weights'**
+  String get tagMode_invalidSyntax;
+
+  /// No description provided for @tagMode_enable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get tagMode_enable;
+
+  /// No description provided for @tagMode_disable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable'**
+  String get tagMode_disable;
+
+  /// No description provided for @tagMode_cut.
+  ///
+  /// In en, this message translates to:
+  /// **'Cut'**
+  String get tagMode_cut;
+
+  /// No description provided for @tagMode_movePrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Move backward'**
+  String get tagMode_movePrevious;
+
+  /// No description provided for @tagMode_moveNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Move forward'**
+  String get tagMode_moveNext;
+
+  /// No description provided for @tagMode_moveFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to start'**
+  String get tagMode_moveFirst;
+
+  /// No description provided for @tagMode_moveLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to end'**
+  String get tagMode_moveLast;
+
+  /// No description provided for @tagMode_copyEffective.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy effective prompt'**
+  String get tagMode_copyEffective;
+
+  /// No description provided for @tagMode_weight.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight'**
+  String get tagMode_weight;
+
+  /// No description provided for @tagMode_mixedWeights.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixed'**
+  String get tagMode_mixedWeights;
+
+  /// No description provided for @tagMode_dictionaryMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Chinese translations require the local dictionary. Tags can still be edited.'**
+  String get tagMode_dictionaryMissing;
+
+  /// No description provided for @tagMode_dictionaryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open dictionary settings'**
+  String get tagMode_dictionaryAction;
+
+  /// No description provided for @tagMode_group.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt group'**
+  String get tagMode_group;
+
+  /// No description provided for @tagMode_drag.
+  ///
+  /// In en, this message translates to:
+  /// **'Long press and drag to reorder'**
+  String get tagMode_drag;
+
+  /// No description provided for @settings_mosaicTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Redaction & mosaic'**
+  String get settings_mosaicTitle;
+
+  /// No description provided for @settings_mosaicSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create privacy-safe image copies with pixelation, blur, solid covers, shapes, and a freehand brush.'**
+  String get settings_mosaicSubtitle;
+
+  /// No description provided for @settings_mosaicEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable redaction tools'**
+  String get settings_mosaicEnable;
+
+  /// No description provided for @settings_mosaicPreserveMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Preserve supported generation metadata'**
+  String get settings_mosaicPreserveMetadata;
+
+  /// No description provided for @settings_mosaicPreserveMetadataHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For privacy-sensitive sharing, keeping this off is recommended.'**
+  String get settings_mosaicPreserveMetadataHint;
+
+  /// No description provided for @settings_mosaicRememberStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember the last redaction style'**
+  String get settings_mosaicRememberStyle;
+
+  /// No description provided for @settings_mosaicRememberStyleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically reuse the most recently saved effect settings.'**
+  String get settings_mosaicRememberStyleHint;
+
+  /// No description provided for @settings_mosaicCreateFromImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a redacted copy from an image'**
+  String get settings_mosaicCreateFromImage;
+
+  /// No description provided for @settings_mosaicEditDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit default redaction style'**
+  String get settings_mosaicEditDefault;
+
+  /// No description provided for @settings_mosaicConfigCorrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved redaction configuration is invalid. Save the safe defaults before enabling it.'**
+  String get settings_mosaicConfigCorrupted;
+
+  /// No description provided for @settings_mosaicConfigMigrated.
+  ///
+  /// In en, this message translates to:
+  /// **'The redaction configuration was upgraded. Save it once to finish migration.'**
+  String get settings_mosaicConfigMigrated;
+
+  /// No description provided for @mosaic_actionCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create redacted copy'**
+  String get mosaic_actionCreate;
+
+  /// No description provided for @mosaic_actionRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Recreate redacted copy'**
+  String get mosaic_actionRegenerate;
+
+  /// No description provided for @mosaic_editorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Redaction editor'**
+  String get mosaic_editorTitle;
+
+  /// No description provided for @mosaic_defaultsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default redaction style'**
+  String get mosaic_defaultsTitle;
+
+  /// No description provided for @mosaic_sourceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Original image not found'**
+  String get mosaic_sourceMissing;
+
+  /// No description provided for @mosaic_sourceMissingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This appears to be a redacted derivative, but its original image is unavailable. Choose the original manually to avoid stacking effects.'**
+  String get mosaic_sourceMissingHint;
+
+  /// No description provided for @mosaic_chooseOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose original image'**
+  String get mosaic_chooseOriginal;
+
+  /// No description provided for @mosaic_sourceLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The source image could not be loaded. Choose another static image or try again.'**
+  String get mosaic_sourceLoadFailed;
+
+  /// No description provided for @mosaic_drawTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Mask drawing tool'**
+  String get mosaic_drawTool;
+
+  /// No description provided for @mosaic_shapeRectangle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rectangle'**
+  String get mosaic_shapeRectangle;
+
+  /// No description provided for @mosaic_shapeEllipse.
+  ///
+  /// In en, this message translates to:
+  /// **'Ellipse'**
+  String get mosaic_shapeEllipse;
+
+  /// No description provided for @mosaic_shapeBrush.
+  ///
+  /// In en, this message translates to:
+  /// **'Brush'**
+  String get mosaic_shapeBrush;
+
+  /// No description provided for @mosaic_drawHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag on an empty part of the preview to draw. Drag a region to move it; use corner handles to resize.'**
+  String get mosaic_drawHint;
+
+  /// No description provided for @mosaic_addRegion.
+  ///
+  /// In en, this message translates to:
+  /// **'Add region'**
+  String get mosaic_addRegion;
+
+  /// No description provided for @mosaic_fullImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole image'**
+  String get mosaic_fullImage;
+
+  /// No description provided for @mosaic_clearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get mosaic_clearAll;
+
+  /// No description provided for @mosaic_effect.
+  ///
+  /// In en, this message translates to:
+  /// **'Redaction effect'**
+  String get mosaic_effect;
+
+  /// No description provided for @mosaic_effectPixelate.
+  ///
+  /// In en, this message translates to:
+  /// **'Pixelate'**
+  String get mosaic_effectPixelate;
+
+  /// No description provided for @mosaic_effectBlur.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur'**
+  String get mosaic_effectBlur;
+
+  /// No description provided for @mosaic_effectSolid.
+  ///
+  /// In en, this message translates to:
+  /// **'Solid cover'**
+  String get mosaic_effectSolid;
+
+  /// No description provided for @mosaic_pixelSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Pixel block size'**
+  String get mosaic_pixelSize;
+
+  /// No description provided for @mosaic_blurStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur strength'**
+  String get mosaic_blurStrength;
+
+  /// No description provided for @mosaic_opacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Effect opacity'**
+  String get mosaic_opacity;
+
+  /// No description provided for @mosaic_color.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover color'**
+  String get mosaic_color;
+
+  /// No description provided for @mosaic_cornerRadius.
+  ///
+  /// In en, this message translates to:
+  /// **'Corner radius'**
+  String get mosaic_cornerRadius;
+
+  /// No description provided for @mosaic_brushSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Brush size'**
+  String get mosaic_brushSize;
+
+  /// No description provided for @mosaic_invertMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Redact outside regions'**
+  String get mosaic_invertMask;
+
+  /// No description provided for @mosaic_invertMaskHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Inverts the mask: selected regions remain visible and everything outside is redacted.'**
+  String get mosaic_invertMaskHint;
+
+  /// No description provided for @mosaic_showLabels.
+  ///
+  /// In en, this message translates to:
+  /// **'Show region numbers'**
+  String get mosaic_showLabels;
+
+  /// No description provided for @mosaic_regions.
+  ///
+  /// In en, this message translates to:
+  /// **'Regions'**
+  String get mosaic_regions;
+
+  /// No description provided for @mosaic_noRegions.
+  ///
+  /// In en, this message translates to:
+  /// **'No regions yet. Drag on the preview or add one with the buttons above.'**
+  String get mosaic_noRegions;
+
+  /// No description provided for @mosaic_regionEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Region enabled'**
+  String get mosaic_regionEnabled;
+
+  /// No description provided for @mosaic_regionLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock region'**
+  String get mosaic_regionLocked;
+
+  /// No description provided for @mosaic_positionX.
+  ///
+  /// In en, this message translates to:
+  /// **'Horizontal position'**
+  String get mosaic_positionX;
+
+  /// No description provided for @mosaic_positionY.
+  ///
+  /// In en, this message translates to:
+  /// **'Vertical position'**
+  String get mosaic_positionY;
+
+  /// No description provided for @mosaic_width.
+  ///
+  /// In en, this message translates to:
+  /// **'Width'**
+  String get mosaic_width;
+
+  /// No description provided for @mosaic_height.
+  ///
+  /// In en, this message translates to:
+  /// **'Height'**
+  String get mosaic_height;
+
+  /// No description provided for @mosaic_duplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get mosaic_duplicate;
+
+  /// No description provided for @mosaic_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete region'**
+  String get mosaic_delete;
+
+  /// No description provided for @mosaic_keyboardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard: arrows move, Shift+arrows move faster, Delete removes, Ctrl+D duplicates, Ctrl+Z/Y undo/redo.'**
+  String get mosaic_keyboardHint;
+
+  /// No description provided for @mosaic_canvasHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw on empty space. Select, move, resize, lock, duplicate, or disable any region.'**
+  String get mosaic_canvasHint;
+
+  /// No description provided for @mosaic_noRegionError.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one enabled redaction region before saving.'**
+  String get mosaic_noRegionError;
+
+  /// No description provided for @mosaic_defaultSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Default redaction style saved.'**
+  String get mosaic_defaultSaved;
+
+  /// No description provided for @mosaic_saveDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as default'**
+  String get mosaic_saveDefaults;
+
+  /// No description provided for @mosaic_saveCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Save redacted copy'**
+  String get mosaic_saveCopy;
+
+  /// No description provided for @mosaic_saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get mosaic_saving;
+
+  /// No description provided for @mosaic_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Redacted copy saved'**
+  String get mosaic_saved;
+
+  /// No description provided for @mosaic_open.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get mosaic_open;
+
+  /// No description provided for @mosaic_share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get mosaic_share;
+
+  /// No description provided for @mosaic_cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Redaction rendering was cancelled.'**
+  String get mosaic_cancelled;
+
+  /// No description provided for @mosaic_failedGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'The redacted copy could not be created.'**
+  String get mosaic_failedGeneric;
+
+  /// No description provided for @mosaic_galleryRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The file was saved, but the local gallery could not be refreshed.'**
+  String get mosaic_galleryRefreshFailed;
+
+  /// No description provided for @mosaic_systemGalleryExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The app copy was saved, but system gallery export failed.'**
+  String get mosaic_systemGalleryExportFailed;
+
+  /// No description provided for @mosaic_undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get mosaic_undo;
+
+  /// No description provided for @mosaic_redo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get mosaic_redo;
+
+  /// No description provided for @mosaic_reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get mosaic_reset;
 }
 
 class _AppLocalizationsDelegate

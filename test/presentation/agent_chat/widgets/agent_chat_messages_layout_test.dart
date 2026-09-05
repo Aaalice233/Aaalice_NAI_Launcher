@@ -99,6 +99,19 @@ void main() {
         tester.getCenter(time).dy,
         closeTo(tester.getCenter(actions).dy, 1),
       );
+      // 操作栏与同行时间戳同属消息附属信息，不得自带色面把自己抬成独立层级。
+      // 按填充色而非部件类型断言：换一种容器铺色面同样要被挡住。
+      final filledFooterSurfaces = tester
+          .widgetList<Material>(
+            find.descendant(
+              of: find.byKey(
+                const ValueKey('agent-assistant-message-footer-1'),
+              ),
+              matching: find.byType(Material),
+            ),
+          )
+          .where((material) => (material.color?.a ?? 0) > 0);
+      expect(filledFooterSurfaces, isEmpty);
       for (final removedAction in ['helpful', 'not-helpful', 'share']) {
         expect(
           find.byKey(ValueKey('agent-assistant-message-$removedAction-1')),

@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 import '../models/tag_library/import_models.dart';
 import '../models/tag_library/tag_library_category.dart';
@@ -15,6 +14,10 @@ class TagLibraryIOService {
   TagLibraryIOService({TagLibraryPortableThumbnailStore? portableThumbnails})
     : _portableThumbnails =
           portableThumbnails ?? const TagLibraryPortableThumbnailStore();
+
+  static const _thumbnailsPrefix = 'thumbnails/';
+
+  static final _driveLetterPattern = RegExp(r'^[A-Za-z]:');
 
   final TagLibraryPortableThumbnailStore _portableThumbnails;
 
@@ -157,6 +160,8 @@ class TagLibraryIOService {
       throw Exception('无法解压词库文件：${e.toString()}');
     }
 
+    _preflightArchive(archive);
+
     // 读取 manifest
     final manifestFile = archive.findFile('manifest.json');
     if (manifestFile == null) {
@@ -203,9 +208,11 @@ class TagLibraryIOService {
       }
     }
 
+    _verifyIdentifiers(entries: entries, categories: categories);
+
     // 检查是否有预览图
     final hasThumbnails = archive.files.any(
-      (f) => f.name.startsWith('thumbnails/'),
+      (f) => f.name.startsWith(_thumbnailsPrefix),
     );
 
     return ImportPreview(
@@ -294,11 +301,16 @@ class TagLibraryIOService {
     final bytes = await zipFile.readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
 
-    // 获取应用文档目录用于保存预览图
-    final appDir = await getApplicationDocumentsDirectory();
-    final thumbnailsDir = Directory(
-      path.join(appDir.path, 'tag_library_thumbnails'),
+    // 归档与预览都由调用方提供，落盘前必须重新校验而不是沿用解析阶段的结论
+    final thumbnailMembers = _preflightArchive(archive);
+    _verifyIdentifiers(
+      entries: preview.entries,
+      categories: preview.categories,
     );
+
+    // 获取应用文档目录用于保存预览图
+    final thumbnailsDir =
+        await TagLibraryPortableThumbnailStore.resolveDirectory();
     if (!await thumbnailsDir.exists()) {
       await thumbnailsDir.create(recursive: true);
     }
@@ -375,20 +387,23 @@ class TagLibraryIOService {
       // 提取预览图并更新缩略图路径
       String? newThumbnailPath;
       if (entry.hasThumbnail) {
-        for (final file in archive.files) {
-          if (file.name.startsWith('thumbnails/${entry.id}')) {
-            final ext = path.extension(file.name);
-            newThumbnailPath = path.join(thumbnailsDir.path, '${entry.id}$ext');
-            final thumbnailFile = File(newThumbnailPath);
-            await thumbnailFile.writeAsBytes(file.content as List<int>);
-            break;
-          }
+        final member = thumbnailMembers[entry.id];
+        if (member != null) {
+          final ext = path.url.extension(member.name).toLowerCase();
+          _verifyThumbnailTarget(thumbnailsDir, entry.id, ext);
+          newThumbnailPath = await importPortableThumbnail(
+            entry.id,
+            ext,
+            Stream.value(member.content as List<int>),
+          );
         }
       }
 
       // 创建更新后的条目（使用新的缩略图路径）
       final updatedEntry = entry.copyWith(
-        thumbnail: newThumbnailPath ?? entry.thumbnail,
+        thumbnail:
+            newThumbnailPath ??
+            _retainedThumbnail(thumbnailsDir, entry.thumbnail),
       );
       updatedEntries[entry.id] = updatedEntry;
 
@@ -423,4 +438,111 @@ class TagLibraryIOService {
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
     return 'tag_library_export_$dateStr.zip';
   }
+
+  /// 校验归档成员，返回按条目 ID 索引的预览图成员
+  static Map<String, ArchiveFile> _preflightArchive(Archive archive) {
+    final names = <String>{};
+    final thumbnails = <String, ArchiveFile>{};
+
+    for (final file in archive.files) {
+      final name = file.name;
+      if (file.isSymbolicLink) {
+        throw FormatException('词库文件包含符号链接：${_excerpt(name)}');
+      }
+      if (!file.isFile) {
+        throw FormatException('词库文件包含非文件条目：${_excerpt(name)}');
+      }
+      if (!_isSafeMemberPath(name)) {
+        throw FormatException('词库文件包含不安全路径：${_excerpt(name)}');
+      }
+      if (!names.add(name.toLowerCase())) {
+        throw FormatException('词库文件包含重复条目：${_excerpt(name)}');
+      }
+      if (!name.startsWith(_thumbnailsPrefix)) continue;
+
+      final entryId = _thumbnailEntryId(name);
+      if (entryId == null) {
+        throw FormatException('词库文件包含无效预览图：${_excerpt(name)}');
+      }
+      if (thumbnails.containsKey(entryId)) {
+        throw FormatException('词库文件为同一条目包含多张预览图：${_excerpt(name)}');
+      }
+      thumbnails[entryId] = file;
+    }
+
+    return thumbnails;
+  }
+
+  /// 解析 `thumbnails/<条目 ID><扩展名>`，不符合精确形式时返回 null
+  static String? _thumbnailEntryId(String memberName) {
+    final relative = memberName.substring(_thumbnailsPrefix.length);
+    if (relative.contains('/')) return null;
+    if (!TagLibraryPortableThumbnailStore.isSupportedExtension(
+      path.url.extension(relative),
+    )) {
+      return null;
+    }
+    final entryId = path.url.basenameWithoutExtension(relative);
+    return TagLibraryPortableThumbnailStore.isValidEntryId(entryId)
+        ? entryId
+        : null;
+  }
+
+  static bool _isSafeMemberPath(String value) {
+    if (value.isEmpty || value.contains('\\')) return false;
+    if (value.startsWith('/') || _driveLetterPattern.hasMatch(value)) {
+      return false;
+    }
+    if (value.codeUnits.any((unit) => unit < 0x20 || unit == 0x7f)) {
+      return false;
+    }
+    return value
+        .split('/')
+        .every((part) => part.isNotEmpty && part != '.' && part != '..');
+  }
+
+  static void _verifyIdentifiers({
+    required List<TagLibraryEntry> entries,
+    required List<TagLibraryCategory> categories,
+  }) {
+    for (final category in categories) {
+      _verifyIdentifier(category.id, '分类 ID');
+      final parentId = category.parentId;
+      if (parentId != null) _verifyIdentifier(parentId, '父分类 ID');
+    }
+    for (final entry in entries) {
+      _verifyIdentifier(entry.id, '条目 ID');
+      final categoryId = entry.categoryId;
+      if (categoryId != null) _verifyIdentifier(categoryId, '条目所属分类 ID');
+    }
+  }
+
+  static void _verifyIdentifier(String value, String label) {
+    if (!TagLibraryPortableThumbnailStore.isValidEntryId(value)) {
+      throw FormatException('词库文件包含非法$label：${_excerpt(value)}');
+    }
+  }
+
+  static void _verifyThumbnailTarget(
+    Directory thumbnailsDir,
+    String entryId,
+    String extension,
+  ) {
+    final root = path.normalize(thumbnailsDir.absolute.path);
+    final target = path.normalize(path.join(root, '$entryId$extension'));
+    if (!path.isWithin(root, target)) {
+      throw FormatException('预览图写入路径越界：${_excerpt(entryId)}');
+    }
+  }
+
+  /// 包内条目自带的缩略图路径来自导出机器，只有仍位于本机缩略图目录内才保留
+  static String? _retainedThumbnail(Directory thumbnailsDir, String? value) {
+    if (value == null || value.isEmpty) return null;
+    final root = path.normalize(thumbnailsDir.absolute.path);
+    final normalized = path.normalize(path.absolute(value));
+    return path.isWithin(root, normalized) ? normalized : null;
+  }
+
+  static String _excerpt(String value) =>
+      value.length <= 64 ? value : '${value.substring(0, 64)}…';
 }

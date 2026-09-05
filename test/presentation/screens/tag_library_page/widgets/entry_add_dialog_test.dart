@@ -180,7 +180,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('entry-add-dialog-content-editor')),
-        matching: find.byKey(const ValueKey('quick-translate-button')),
+        matching: find.byKey(const ValueKey('tag-mode-button')),
       ),
       findsOneWidget,
     );

@@ -428,7 +428,7 @@ void main() {
     expect(
       find.descendant(
         of: positiveArea,
-        matching: find.byKey(const ValueKey('quick-translate-button')),
+        matching: find.byKey(const ValueKey('tag-mode-button')),
       ),
       findsOneWidget,
     );

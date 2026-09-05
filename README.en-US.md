@@ -58,7 +58,10 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - The offline Danbooru / e621 catalog and aliases show completion, tag type, popularity, and translations. Optional Chinese and related-tag data packs add more context.
 - Related-tag completion helps explore composition, clothing, poses, and visual elements, while Danbooru online results can fill in newer tags.
 - Personal tag, pinned-tag, and random-tag libraries support categories, search, batch editing, and quick insertion.
-- Local quick translation creates a preview without rewriting the original Prompt; local misses can be sent to a configured AI translation service.
+- Switch between text and tag mode at the bottom-right of the input to edit original text, adjust weights, long-press and drag selected tags to reorder them, and undo. Simplified and Traditional Chinese interfaces display the same local Chinese translations below tags; other languages show only the original text. Selecting a complete tag in text mode also displays its translation when using a Chinese interface.
+- Drag the bottom edge of the main prompt editor to resize it, or double-click the handle to restore automatic height. Text and tag modes share the same height.
+- Disable and restore tags without losing their content. The `/*disabled:original fragment*/` notation is saved and cloud-synced with the Prompt, while disabled content is excluded from generation, effective previews, and Token counts. This is Launcher editing syntax; older clients and external tools may not recognize it. Choose “Copy effective prompt” from the menu for external use.
+- Local translation misses can be sent to a configured AI translation service.
 - Prompt Assistant tasks, including reverse prompting, optimization, and translation, share a configurable response wait timeout: 1, 2, 5, 10, 15, or 30 minutes, with a 5-minute default.
 
 ### 🧬 Vibe, Precise Reference, and image editing
@@ -73,7 +76,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 - Scan only the folders you choose, then find artwork by folder, album, favorite status, Prompt, or generation metadata.
 - Image details separate positive and negative Prompts, pinned tags, character content, and full parameters for all-at-once or selective copying.
-- Batch categorization, favorites, moving, and deletion sit alongside comparison, slideshows, watermarks, and several viewing modes.
+- Batch categorization, favorites, moving, and deletion sit alongside comparison, slideshows, watermarks, redacted copies, and several viewing modes.
 - Desktop gets context menus, hover previews, and drag-and-drop; touch devices get equivalent menus instead of losing features.
 - Local images can go directly to generation, Agent Chat, or Krita without repeated exports and file picking.
 

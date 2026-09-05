@@ -446,9 +446,7 @@ class OnlineGalleryFuzzySearchToggle extends StatelessWidget {
       labelPadding: const EdgeInsets.symmetric(horizontal: 2),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       selectedColor: theme.colorScheme.secondaryContainer,
-      backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
-        alpha: 0.4,
-      ),
+      backgroundColor: Colors.transparent,
       side: BorderSide.none,
     );
   }

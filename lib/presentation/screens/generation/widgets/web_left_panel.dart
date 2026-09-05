@@ -163,12 +163,10 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
       },
     );
 
-    // 拖拽时不使用动画，避免粘滞感（与经典布局 LeftPanel 一致）
-    if (widget.isResizing) {
-      return Container(width: width, decoration: decoration, child: child);
-    }
+    // Keep the same subtree while dragging: replacing the container reparents
+    // the keyed prompt and its active OverlayPortal during layout.
     return AnimatedContainer(
-      duration: MediaQuery.disableAnimationsOf(context)
+      duration: widget.isResizing || MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
           : const Duration(milliseconds: 200),
       width: width,

@@ -18,6 +18,8 @@ import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/collapsed_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_controller.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/web_left_panel.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_capsule.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -110,6 +112,43 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('resizing retains the prompt subtree with its tag toolbar open', (
+    tester,
+  ) async {
+    final resizing = ValueNotifier(false);
+    addTearDown(resizing.dispose);
+    await _pumpPanel(
+      tester,
+      width: 500,
+      expanded: true,
+      resizing: resizing,
+      prompt: 'cat, dog',
+    );
+    final toggle = find.byKey(const ValueKey('tag-mode-button')).hitTestable();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    final capsule = find.byType(TagEditorCapsule).first;
+    await tester.ensureVisible(capsule);
+    await tester.tap(capsule);
+    await tester.pumpAndSettle();
+    final toolbar = find.byKey(const ValueKey('tag-action-toolbar'));
+    expect(toolbar, findsOneWidget);
+    final expanded = find.byKey(
+      const ValueKey('web-left-panel-expanded-content'),
+    );
+    final element = tester.element(expanded);
+    final editorState = tester.state(find.byType(TagEditorView));
+    for (final active in [true, false, true, false]) {
+      resizing.value = active;
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(tester.element(expanded), same(element));
+      expect(tester.state(find.byType(TagEditorView)), same(editorState));
+      expect(toolbar, findsOneWidget);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('macOS expand and collapse animations do not overflow', (
     tester,
   ) async {
@@ -160,12 +199,14 @@ Future<void> _pumpPanel(
   TextScaler textScaler = TextScaler.noScaling,
   TargetPlatform platform = TargetPlatform.windows,
   _MemoryLocalStorageService? storage,
+  ValueNotifier<bool>? resizing,
+  String prompt = '',
 }) async {
   final effectiveStorage =
       storage ?? _MemoryLocalStorageService(expanded: expanded);
   final negativeModeNotifier = ValueNotifier<bool>(false);
   final promptInputController = PromptInputController(
-    prompt: '',
+    prompt: prompt,
     negativePrompt: '',
     negativeModeNotifier: negativeModeNotifier,
   );
@@ -210,10 +251,15 @@ Future<void> _pumpPanel(
               child: SizedBox(
                 width: width,
                 height: 900,
-                child: WebLeftPanel(
-                  negativeModeNotifier: negativeModeNotifier,
-                  promptInputController: promptInputController,
-                  promptInputKey: promptInputKey,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable:
+                      resizing ?? const AlwaysStoppedAnimation(false),
+                  builder: (context, isResizing, _) => WebLeftPanel(
+                    isResizing: isResizing,
+                    negativeModeNotifier: negativeModeNotifier,
+                    promptInputController: promptInputController,
+                    promptInputKey: promptInputKey,
+                  ),
                 ),
               ),
             ),

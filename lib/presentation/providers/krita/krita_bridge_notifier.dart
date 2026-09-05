@@ -298,7 +298,7 @@ final kritaBridgeNotifierProvider =
               ref.read(generationStreamPreviewSettingsProvider),
           send: server.send,
           isUiGenerating: () =>
-              ref.read(imageGenerationNotifierProvider).isGenerating,
+              ref.read(imageGenerationNotifierProvider).isBusy,
           authGuard: () =>
               requireAuthenticatedAction(ref, AuthPromptReason.kritaBridge),
           generateStream: (request) {

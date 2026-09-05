@@ -232,16 +232,15 @@ class _MosaicEditorCanvasState extends State<MosaicEditorCanvas> {
       Size(source.width.toDouble(), source.height.toDouble()),
       viewport,
     );
-    return Alignment.center.inscribe(fitted.destination, Offset.zero & viewport);
+    return Alignment.center.inscribe(
+      fitted.destination,
+      Offset.zero & viewport,
+    );
   }
 
   static Offset _normalize(Offset point, Rect imageRect) => Offset(
-    ((point.dx - imageRect.left) / imageRect.width)
-        .clamp(0.0, 1.0)
-        .toDouble(),
-    ((point.dy - imageRect.top) / imageRect.height)
-        .clamp(0.0, 1.0)
-        .toDouble(),
+    ((point.dx - imageRect.left) / imageRect.width).clamp(0.0, 1.0).toDouble(),
+    ((point.dy - imageRect.top) / imageRect.height).clamp(0.0, 1.0).toDouble(),
   );
 
   static Rect _rectFromPoints(Offset a, Offset b) => Rect.fromLTRB(
@@ -311,11 +310,7 @@ class _MosaicEditorCanvasState extends State<MosaicEditorCanvas> {
     return null;
   }
 
-  _DragMode _hitHandle(
-    Offset position,
-    Rect imageRect,
-    MosaicRegion region,
-  ) {
+  _DragMode _hitHandle(Offset position, Rect imageRect, MosaicRegion region) {
     final rect = Rect.fromLTWH(
       imageRect.left + region.left * imageRect.width,
       imageRect.top + region.top * imageRect.height,
@@ -350,9 +345,10 @@ class _MosaicEditorCanvasState extends State<MosaicEditorCanvas> {
         minY = math.min(minY, point.y);
         maxY = math.max(maxY, point.y);
       }
-      final radius = region.brushSizeRatio / 2;
-      final safeDx = dx.clamp(-minX + radius, 1 - maxX - radius).toDouble();
-      final safeDy = dy.clamp(-minY + radius, 1 - maxY - radius).toDouble();
+      // Edge-spanning strokes already extend beyond the canvas by their radius.
+      // Constrain their centers without creating an inverted clamp interval.
+      final safeDx = dx.clamp(-minX, 1 - maxX).toDouble();
+      final safeDy = dy.clamp(-minY, 1 - maxY).toDouble();
       final translated = [
         for (final point in region.points)
           MosaicPoint(point.x + safeDx, point.y + safeDy),
@@ -368,12 +364,8 @@ class _MosaicEditorCanvasState extends State<MosaicEditorCanvas> {
     }
     return region
         .copyWith(
-          left: (region.left + dx)
-              .clamp(0.0, 1.0 - region.width)
-              .toDouble(),
-          top: (region.top + dy)
-              .clamp(0.0, 1.0 - region.height)
-              .toDouble(),
+          left: (region.left + dx).clamp(0.0, 1.0 - region.width).toDouble(),
+          top: (region.top + dy).clamp(0.0, 1.0 - region.height).toDouble(),
         )
         .normalized();
   }
@@ -413,8 +405,7 @@ class _MosaicEditorCanvasState extends State<MosaicEditorCanvas> {
       }
     }
     if (bottom - top < minimum) {
-      if (mode == _DragMode.resizeTopLeft ||
-          mode == _DragMode.resizeTopRight) {
+      if (mode == _DragMode.resizeTopLeft || mode == _DragMode.resizeTopRight) {
         top = bottom - minimum;
       } else {
         bottom = top + minimum;
@@ -578,8 +569,9 @@ class _MosaicCanvasPainter extends CustomPainter {
       if (region.shape == MosaicShape.ellipse) {
         canvas.drawOval(rect, paint);
       } else {
-        final radius =
-            math.min(rect.width, rect.height) * settings.cornerRadiusRatio;
+        final radius = region.coversFullImage
+            ? 0.0
+            : math.min(rect.width, rect.height) * settings.cornerRadiusRatio;
         canvas.drawRRect(
           RRect.fromRectAndRadius(rect, Radius.circular(radius)),
           paint,
@@ -677,11 +669,7 @@ class _MosaicCanvasPainter extends CustomPainter {
     );
   }
 
-  void _paintBrushDraft(
-    Canvas canvas,
-    Size size,
-    List<MosaicPoint> points,
-  ) {
+  void _paintBrushDraft(Canvas canvas, Size size, List<MosaicPoint> points) {
     final path = Path()
       ..moveTo(points.first.x * size.width, points.first.y * size.height);
     for (final point in points.skip(1)) {

@@ -146,11 +146,10 @@ class MosaicPoint {
   final double x;
   final double y;
 
-  MosaicPoint translated(double dx, double dy) =>
-      MosaicPoint(
-        (x + dx).clamp(0.0, 1.0).toDouble(),
-        (y + dy).clamp(0.0, 1.0).toDouble(),
-      );
+  MosaicPoint translated(double dx, double dy) => MosaicPoint(
+    (x + dx).clamp(0.0, 1.0).toDouble(),
+    (y + dy).clamp(0.0, 1.0).toDouble(),
+  );
 }
 
 /// One editable mask element.
@@ -181,6 +180,13 @@ class MosaicRegion {
   final double brushSizeRatio;
   final bool enabled;
   final bool locked;
+
+  bool get coversFullImage =>
+      shape == MosaicShape.roundedRectangle &&
+      left == 0 &&
+      top == 0 &&
+      width == 1 &&
+      height == 1;
 
   bool get isUsable {
     if (!enabled) return false;
@@ -246,19 +252,9 @@ class _MosaicSettingsReader {
     const fallback = MosaicSettings();
     return MosaicSettings(
       enabled: _bool('enabled', fallback.enabled),
-      preserveMetadata: _bool(
-        'preserveMetadata',
-        fallback.preserveMetadata,
-      ),
-      rememberLastStyle: _bool(
-        'rememberLastStyle',
-        fallback.rememberLastStyle,
-      ),
-      effect: _enumValue(
-        'effect',
-        MosaicEffect.values,
-        fallback.effect,
-      ),
+      preserveMetadata: _bool('preserveMetadata', fallback.preserveMetadata),
+      rememberLastStyle: _bool('rememberLastStyle', fallback.rememberLastStyle),
+      effect: _enumValue('effect', MosaicEffect.values, fallback.effect),
       defaultShape: _enumValue(
         'defaultShape',
         MosaicShape.values,
@@ -291,10 +287,7 @@ class _MosaicSettingsReader {
         0.25,
       ),
       invertMask: _bool('invertMask', fallback.invertMask),
-      showRegionLabels: _bool(
-        'showRegionLabels',
-        fallback.showRegionLabels,
-      ),
+      showRegionLabels: _bool('showRegionLabels', fallback.showRegionLabels),
     );
   }
 

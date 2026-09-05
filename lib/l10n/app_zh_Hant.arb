@@ -347,16 +347,7 @@
   "agentChat_reference": "引用資源",
   "agentChat_noResources": "這裡暫時沒有可用資源。",
   "agentChat_imageTooLarge": "{fileName} 超過 {maxSizeMB} MB。",
-  "@agentChat_imageTooLarge": {
-    "placeholders": {
-      "fileName": {
-        "type": "String"
-      },
-      "maxSizeMB": {
-        "type": "int"
-      }
-    }
-  },
+  "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "開啟聯網",
   "agentChat_disableWebAccess": "關閉聯網",
   "agentChat_webAccessLabel": "聯網",
@@ -389,75 +380,24 @@
   "agentChat_reasoningMax": "最大",
   "agentChat_jumpToLatest": "回到最新",
   "agentChat_toolGroupCount": "執行了 {count} 項操作",
-  "@agentChat_toolGroupCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@agentChat_toolGroupCount": {"placeholders": {"count": {"type": "int"}}},
   "agentChat_working": "正在工作",
   "agentChat_workingFor": "已工作 {duration}",
-  "@agentChat_workingFor": {
-    "placeholders": {
-      "duration": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentChat_workingFor": {"placeholders": {"duration": {"type": "String"}}},
   "agentChat_worked": "工作完成",
   "agentChat_workedFor": "工作耗時 {duration}",
-  "@agentChat_workedFor": {
-    "placeholders": {
-      "duration": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentChat_workedFor": {"placeholders": {"duration": {"type": "String"}}},
   "agentChat_workItemCount": "{count} 項",
-  "@agentChat_workItemCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@agentChat_workItemCount": {"placeholders": {"count": {"type": "int"}}},
   "agentChat_ranCommands": "執行了 {count} 條命令",
-  "@agentChat_ranCommands": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@agentChat_ranCommands": {"placeholders": {"count": {"type": "int"}}},
   "agentChat_exploredItems": "探索了 {count} 項資源",
-  "@agentChat_exploredItems": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@agentChat_exploredItems": {"placeholders": {"count": {"type": "int"}}},
   "agentChat_earlierMessages": "更早的 {count} 則訊息",
-  "@agentChat_earlierMessages": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@agentChat_earlierMessages": {"placeholders": {"count": {"type": "int"}}},
   "agentChat_loadEarlierMessages": "更早訊息",
   "agentChat_turnNavigation": "第 {number} 輪：{preview}",
-  "@agentChat_turnNavigation": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      },
-      "preview": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentChat_turnNavigation": {"placeholders": {"number": {"type": "int"}, "preview": {"type": "String"}}},
   "agentChat_phasePreparing": "準備中",
   "agentChat_phaseResponding": "回覆中",
   "agentChat_phaseAwaitingApproval": "等待確認",
@@ -514,21 +454,9 @@
   "agentChat_addResource": "傳送至智慧體",
   "agentChat_resourceAdded": "已新增至 Agent 輸入區",
   "agentChat_addResourceFailed": "新增引用失敗：{error}",
-  "@agentChat_addResourceFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "預計消耗：{cost} Anlas",
-  "@agentChat_approvalEstimatedAnlas": {
-    "placeholders": {
-      "cost": {
-        "type": "int"
-      }
-    }
-  },
+  "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
   "agentChat_needSetup": "未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。",
   "agentChat_heroTitle": "今天想做什麼？",
   "agentChat_heroSubtitle": "準備生成角色提示詞、整理靈感或最佳化設定。",
@@ -536,27 +464,12 @@
   "agentChat_compact": "壓縮上下文",
   "agentChat_compacting": "正在壓縮上下文…",
   "agentChat_compactDone": "已壓縮上下文：{before} → {after}",
-  "@agentChat_compactDone": {
-    "placeholders": {
-      "before": {
-        "type": "String"
-      },
-      "after": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentChat_compactDone": {"placeholders":{"before":{"type":"String"},"after":{"type":"String"}}},
   "agentChat_compactNotNeeded": "目前上下文無需壓縮",
   "agentChat_compactBusy": "正在產生回覆，請稍後再壓縮",
   "agentChat_compactUnavailable": "上下文用量不可用，無法壓縮",
   "agentChat_compactFailed": "壓縮上下文失敗：{error}",
-  "@agentChat_compactFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentChat_compactFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_requestFailed": "請求失敗，請重試。",
   "agentChat_errorDetails": "錯誤詳情",
   "agentChat_modelLabel": "模型",
@@ -664,6 +577,7 @@
     }
   },
   "prompt_appliedToMainPrompt": "已應用到主提示詞",
+  "prompt_resizeHeight": "拖動調整輸入框高度，按兩下或按 Home 恢復自動高度",
   "prompt_inputPrompt": "描述你想生成的畫面",
   "prompt_describeImage": "描述你想要生成的影象...",
   "prompt_describeImageWithHint": "輸入提示詞描述畫面，輸入 < 引用詞庫，支援自動補全標籤",
@@ -818,9 +732,7 @@
   "@img2img_directorConfirmContent": {
     "placeholders": {
       "tool": {},
-      "cost": {
-        "type": "int"
-      }
+      "cost": {"type": "int"}
     }
   },
   "img2img_directorResult": "處理結果",
@@ -1159,18 +1071,10 @@
   "editor_compressionClampedToLimit": "所選 {targetWidth}×{targetHeight} 超過請求面積上限，實際會以 {clampedWidth}×{clampedHeight} 傳送。",
   "@editor_compressionClampedToLimit": {
     "placeholders": {
-      "targetWidth": {
-        "type": "int"
-      },
-      "targetHeight": {
-        "type": "int"
-      },
-      "clampedWidth": {
-        "type": "int"
-      },
-      "clampedHeight": {
-        "type": "int"
-      }
+      "targetWidth": {"type": "int"},
+      "targetHeight": {"type": "int"},
+      "clampedWidth": {"type": "int"},
+      "clampedHeight": {"type": "int"}
     }
   },
   "editor_focusRequestSummary": "外層裁剪 {outerWidth}×{outerHeight}，實際傳送 {requestWidth}×{requestHeight}，預計 {cost} Anlas。",
@@ -1352,34 +1256,22 @@
   "character_summaryEnabled": "已啟用 {count} 個 · {name}",
   "@character_summaryEnabled": {
     "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "name": {
-        "type": "String"
-      }
+      "count": {"type": "int"},
+      "name": {"type": "String"}
     }
   },
   "character_summaryMore": "已啟用 {count} 個 · {name} +{additional}",
   "@character_summaryMore": {
     "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "name": {
-        "type": "String"
-      },
-      "additional": {
-        "type": "int"
-      }
+      "count": {"type": "int"},
+      "name": {"type": "String"},
+      "additional": {"type": "int"}
     }
   },
   "character_summaryAllDisabled": "已啟用 0 個 · 已停用 {count} 個",
   "@character_summaryAllDisabled": {
     "placeholders": {
-      "count": {
-        "type": "int"
-      }
+      "count": {"type": "int"}
     }
   },
   "gallery_generationParams": "生成引數",
@@ -1432,26 +1324,20 @@
   "onlineGallery_visibleFavoritesSaved": "已將 {count} 個項目儲存至本機收藏",
   "@onlineGallery_visibleFavoritesSaved": {
     "placeholders": {
-      "count": {
-        "type": "int"
-      }
+      "count": { "type": "int" }
     }
   },
   "onlineGallery_saveFavoritesFailed": "儲存本機收藏失敗：{error}",
   "@onlineGallery_saveFavoritesFailed": {
     "placeholders": {
-      "error": {
-        "type": "String"
-      }
+      "error": { "type": "String" }
     }
   },
   "onlineGallery_searchTags": "搜尋標籤...",
   "onlineGallery_maxTagsExceeded": "最多可組合搜尋 {max} 個標籤",
   "@onlineGallery_maxTagsExceeded": {
     "placeholders": {
-      "max": {
-        "type": "int"
-      }
+      "max": {"type": "int"}
     }
   },
   "onlineGallery_tagDetailsIncomplete": "部分作品的完整標籤取得失敗，未驗證的作品已排除；請重試以補齊結果。",
@@ -1461,12 +1347,8 @@
   "onlineGallery_continueScanning": "繼續掃描",
   "@onlineGallery_multiTagScanning": {
     "placeholders": {
-      "requests": {
-        "type": "int"
-      },
-      "candidates": {
-        "type": "int"
-      }
+      "requests": {"type": "int"},
+      "candidates": {"type": "int"}
     }
   },
   "onlineGallery_refresh": "重新整理",
@@ -1604,11 +1486,7 @@
   "onlineGallery_blacklistSyncFailedMessage": "黑名單同步失敗，請檢查登入狀態與網路連線",
   "onlineGallery_blacklistSaveFailed": "儲存黑名單失敗：{error}",
   "@onlineGallery_blacklistSaveFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
+    "placeholders": {"error": {"type": "String"}}
   },
   "onlineGallery_autoSyncOnStartup": "啟動時重新整理雲端清單",
   "onlineGallery_autoSyncOnStartupSubtitle": "安全合併雲端新增標籤，不刪除本機標籤",
@@ -1629,30 +1507,13 @@
   "onlineGallery_blacklistImportTitle": "批次匯入標籤",
   "onlineGallery_blacklistImportHint": "每行或使用逗號分隔一個標籤",
   "onlineGallery_blacklistImported": "已新增 {count} 個標籤",
-  "@onlineGallery_blacklistImported": {
-    "placeholders": {
-      "count": {}
-    }
-  },
+  "@onlineGallery_blacklistImported": {"placeholders": {"count": {}}},
   "onlineGallery_blacklistClearTitle": "清空統一黑名單？",
   "onlineGallery_blacklistClearBody": "畫廊將立即停止使用這些標籤過濾。雲端不會自動清空，可以復原本次操作。",
   "onlineGallery_blacklistPullSummary": "已新增 {added} 項，已有 {existing} 項，略過已刪除 {skipped} 項；保留 {opaque} 條雲端進階規則",
-  "@onlineGallery_blacklistPullSummary": {
-    "placeholders": {
-      "added": {},
-      "existing": {},
-      "skipped": {},
-      "opaque": {}
-    }
-  },
+  "@onlineGallery_blacklistPullSummary": {"placeholders": {"added": {}, "existing": {}, "skipped": {}, "opaque": {}}},
   "onlineGallery_blacklistPushDiff": "雲端將新增 {added} 項、刪除 {removed} 項，並刪除 {opaque} 條進階規則。",
-  "@onlineGallery_blacklistPushDiff": {
-    "placeholders": {
-      "added": {},
-      "removed": {},
-      "opaque": {}
-    }
-  },
+  "@onlineGallery_blacklistPushDiff": {"placeholders": {"added": {}, "removed": {}, "opaque": {}}},
   "onlineGallery_blacklistCloudEmptyConfirm": "確認清空雲端黑名單",
   "onlineGallery_blacklistMigrationConfirm": "此清單包含舊版本中無法確認帳號歸屬的雲端標籤；確認將它們同步到目前帳號",
   "onlineGallery_bulkFavorite": "批次收藏",
@@ -1735,12 +1596,7 @@
   "onlineGallery_codexOffline": "離線快取",
   "onlineGallery_codexContributors": "貢獻者與來源",
   "onlineGallery_codexEntryCount": "{entries} 個詞條 · {images} 個有圖",
-  "@onlineGallery_codexEntryCount": {
-    "placeholders": {
-      "entries": {},
-      "images": {}
-    }
-  },
+  "@onlineGallery_codexEntryCount": {"placeholders": {"entries": {}, "images": {}}},
   "onlineGallery_codexNoImage": "無配圖詞條",
   "onlineGallery_codexNoImageDescription": "這是純文字詞條，提示詞與中繼資料仍可完整使用。",
   "onlineGallery_codexAuthor": "作者",
@@ -1795,11 +1651,7 @@
   "onlineGallery_sourceNetworkError": "無法連線當前畫廊來源，請檢查網路或代理。",
   "onlineGallery_sourceRequestFailed": "請求失敗，請稍後重試。",
   "onlineGallery_actionFailed": "操作失敗：{error}",
-  "@onlineGallery_actionFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
+  "@onlineGallery_actionFailed": {"placeholders": {"error": {}}},
   "onlineGallery_sourceMalformedResponse": "來源返回的資料結構已變化，暫時無法解析。",
   "onlineGallery_detailNotFound": "作品不存在或已被刪除。",
   "onlineGallery_imageUnavailable": "圖片當前不可用。",
@@ -1823,21 +1675,9 @@
   "promptCopy_fixedPositive": "固定正面提示詞",
   "promptCopy_fixedNegative": "固定負面提示詞",
   "promptCopy_characterPositive": "角色 {index} 正面提示詞",
-  "@promptCopy_characterPositive": {
-    "placeholders": {
-      "index": {
-        "type": "int"
-      }
-    }
-  },
+  "@promptCopy_characterPositive": {"placeholders": {"index": {"type": "int"}}},
   "promptCopy_characterNegative": "角色 {index} 負面提示詞",
-  "@promptCopy_characterNegative": {
-    "placeholders": {
-      "index": {
-        "type": "int"
-      }
-    }
-  },
+  "@promptCopy_characterNegative": {"placeholders": {"index": {"type": "int"}}},
   "onlineGallery_gelbooruReadOnly": "只讀收藏",
   "onlineGallery_gelbooruFavoritesSortHint": "按帖子 ID 從新到舊排列，不保證與網站收藏時間順序一致。",
   "tooltip_fullscreenEdit": "全屏編輯",
@@ -1886,16 +1726,10 @@
   "weight_editTag": "編輯標籤",
   "weight_tagName": "標籤名稱",
   "weight_tagNameHint": "輸入標籤名稱...",
-  "tag_selected": "已選 {count}",
   "tag_enable": "啟用",
   "tag_disable": "禁用",
   "tag_delete": "刪除",
   "tag_addTag": "新增標籤",
-  "tag_add": "新增",
-  "tag_inputHint": "輸入標籤...",
-  "tag_copiedToClipboard": "已複製到剪貼簿",
-  "tag_emptyHint": "新增標籤來描述你想要的畫面",
-  "tag_emptyHintSub": "你可以瀏覽、搜尋或手動新增標籤",
   "tagCategory_artist": "藝術家",
   "tagCategory_copyright": "版權",
   "tagCategory_character": "角色",
@@ -2115,29 +1949,11 @@
   "drop_positivePrompt": "正向 Prompt",
   "drop_negativePrompt": "負向 Prompt",
   "drop_characterPrompts": "角色 Prompt（{count}）",
-  "@drop_characterPrompts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@drop_characterPrompts": {"placeholders": {"count": {"type": "int"}}},
   "drop_characterPositivePrompt": "角色 {index} 正向 Prompt",
-  "@drop_characterPositivePrompt": {
-    "placeholders": {
-      "index": {
-        "type": "int"
-      }
-    }
-  },
+  "@drop_characterPositivePrompt": {"placeholders": {"index": {"type": "int"}}},
   "drop_characterNegativePrompt": "角色 {index} 負向 Prompt",
-  "@drop_characterNegativePrompt": {
-    "placeholders": {
-      "index": {
-        "type": "int"
-      }
-    }
-  },
+  "@drop_characterNegativePrompt": {"placeholders": {"index": {"type": "int"}}},
   "drop_promptNotRecorded": "未記錄",
   "drop_promptCopy": "複製",
   "drop_promptAddWhole": "整段加入詞庫",
@@ -2155,28 +1971,14 @@
   "drop_promptLibrarySeparatorNewline": "換行",
   "drop_promptLibrarySeparatorNone": "不插入分隔符",
   "drop_promptLibraryCharacterCount": "{count} 字元",
-  "@drop_promptLibraryCharacterCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@drop_promptLibraryCharacterCount": {"placeholders": {"count": {"type": "int"}}},
   "drop_promptLibraryExactContentHint": "儲存當前文字，不自動清洗、重排或補全",
   "drop_promptLibraryResultPreview": "結果預覽",
   "drop_promptLibraryDuplicate": "相同內容已存在於「{name}」",
-  "@drop_promptLibraryDuplicate": {
-    "placeholders": {
-      "name": {}
-    }
-  },
+  "@drop_promptLibraryDuplicate": {"placeholders": {"name": {}}},
   "drop_promptLibraryNameConflict": "該名稱已存在，請改名或選擇追加/覆蓋",
   "drop_promptLibraryOverwriteWarning": "將完整替換「{name}」的提示詞內容",
-  "@drop_promptLibraryOverwriteWarning": {
-    "placeholders": {
-      "name": {}
-    }
-  },
+  "@drop_promptLibraryOverwriteWarning": {"placeholders": {"name": {}}},
   "drop_promptLibraryMore": "更多選項",
   "drop_promptLibraryConfirmOverwrite": "確認覆蓋",
   "drop_promptLibrarySaved": "已儲存到詞庫",
@@ -2257,12 +2059,8 @@
   "characterTooltip_enabledSummary": "{enabled} / {total} 啟用",
   "@characterTooltip_enabledSummary": {
     "placeholders": {
-      "enabled": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
+      "enabled": {"type": "int"},
+      "total": {"type": "int"}
     }
   },
   "tagLibrary_generatedCharacters": "已生成 {count} 個角色",
@@ -2824,34 +2622,22 @@
   "statistics_periodDays": "最近 {count} 天",
   "@statistics_periodDays": {
     "placeholders": {
-      "count": {
-        "type": "int"
-      }
+      "count": {"type": "int"}
     }
   },
   "statistics_periodSummary": "{start} 至 {end} · {count} 天",
   "@statistics_periodSummary": {
     "placeholders": {
-      "start": {
-        "type": "String"
-      },
-      "end": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
+      "start": {"type": "String"},
+      "end": {"type": "String"},
+      "count": {"type": "int"}
     }
   },
   "statistics_partialCoverage": "現有記錄始於 {date}，日均按現有 {count} 天計算",
   "@statistics_partialCoverage": {
     "placeholders": {
-      "date": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
+      "date": {"type": "String"},
+      "count": {"type": "int"}
     }
   },
   "statistics_customPeriodTitle": "自訂統計週期",
@@ -2859,9 +2645,7 @@
   "statistics_customDaysError": "請輸入 1 至 {max} 之間的整數",
   "@statistics_customDaysError": {
     "placeholders": {
-      "max": {
-        "type": "int"
-      }
+      "max": {"type": "int"}
     }
   },
   "statistics_daysUnit": "天",
@@ -2878,12 +2662,6 @@
   "layer_rename": "重新命名",
   "layer_moveUp": "上移",
   "layer_moveDown": "下移",
-  "tag_categoryGeneral": "通用",
-  "tag_categoryArtist": "畫師",
-  "tag_categoryCopyright": "版權",
-  "tag_categoryCharacter": "角色",
-  "tag_categoryMeta": "後設資料",
-  "tag_countBadgeBreakdown": "標籤分類統計",
   "localGallery_advancedFilters": "高階篩選",
   "localGallery_filterByModel": "按模型篩選",
   "localGallery_filterBySampler": "按取樣器篩選",
@@ -3952,11 +3730,7 @@
   "metadataImport_disableCurrentFixedTags": "關閉目前固定詞（推薦）",
   "metadataImport_keepCurrentFixedTags": "保留並與圖片提示詞疊加",
   "metadataImport_imageVersionName": "{name}（圖片版本）",
-  "@metadataImport_imageVersionName": {
-    "placeholders": {
-      "name": {}
-    }
-  },
+  "@metadataImport_imageVersionName": {"placeholders": {"name": {}}},
   "metadataImport_fixedPrefix": "字首: {text}",
   "@metadataImport_fixedPrefix": {
     "placeholders": {
@@ -4080,6 +3854,7 @@
   "shortcut_action_navigate_to_tag_library": "詞庫頁面",
   "shortcut_action_navigate_to_statistics": "統計頁面",
   "shortcut_action_navigate_to_settings": "設定頁面",
+  "shortcut_action_navigate_to_vibe_library": "Vibe 庫頁面",
   "shortcut_action_generate_image": "生成影象",
   "shortcut_action_generation_prev_image": "預覽上一張（歷史聯動）",
   "shortcut_action_generation_next_image": "預覽下一張（歷史聯動）",
@@ -4139,6 +3914,15 @@
   "shortcut_action_toggle_queue": "切換佇列",
   "shortcut_action_toggle_queue_pause": "暫停/繼續佇列",
   "shortcut_action_toggle_theme": "切換主題",
+  "shortcut_action_vibe_import": "匯入 Vibe",
+  "shortcut_action_vibe_export": "匯出 Vibe",
+  "shortcut_action_vibe_detail_send_to_generation": "傳送到生成頁",
+  "shortcut_action_vibe_detail_export": "匯出",
+  "shortcut_action_vibe_detail_rename": "重新命名",
+  "shortcut_action_vibe_detail_delete": "刪除",
+  "shortcut_action_vibe_detail_toggle_favorite": "收藏切換",
+  "shortcut_action_vibe_detail_prev_sub_vibe": "上一個子 Vibe",
+  "shortcut_action_vibe_detail_next_sub_vibe": "下一個子 Vibe",
   "shortcut_settings_title": "鍵盤快捷鍵",
   "shortcut_settings_enable": "啟用快捷鍵",
   "shortcut_settings_show_badges": "顯示快捷鍵標識",
@@ -4763,7 +4547,6 @@
   "clearSelection": "清空",
   "clearFilters": "清除篩選",
   "shortcut_context_vibe_detail": "Vibe 詳情",
-  "shortcut_action_vibe_detail_rename": "重新命名",
   "vibeSelectorFilterFavorites": "收藏",
   "vibeSelectorFilterSourceAll": "全部型別",
   "vibeSelectorSortCreated": "建立時間",
@@ -4843,11 +4626,7 @@
   "discordShare_joinServer": "加入 Discord 伺服器",
   "discordShare_retryVerification": "重新驗證",
   "discordShare_account": "已驗證為 {name}",
-  "@discordShare_account": {
-    "placeholders": {
-      "name": {}
-    }
-  },
+  "@discordShare_account": {"placeholders": {"name": {}}},
   "discordShare_disconnect": "解除 Discord 連線",
   "discordShare_channels": "傳送頻道",
   "discordShare_selectChannel": "至少選擇一個頻道",
@@ -4869,23 +4648,13 @@
   "discordShare_success": "已分享到 Discord",
   "discordShare_partialSuccess": "部分頻道傳送成功，請檢查失敗頻道後重試",
   "discordShare_failed": "分享到 Discord 失敗：{error}",
-  "@discordShare_failed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
+  "@discordShare_failed": {"placeholders": {"error": {}}},
   "discordShare_errorNetwork": "無法連線 Discord 分享服務，請檢查網路後重試",
   "discordShare_errorBrowser": "無法開啟瀏覽器，請檢查系統的預設瀏覽器設定",
   "discordShare_errorTimeout": "Discord 驗證已逾時，請重新驗證",
   "discordShare_errorRateLimited": "分享過於頻繁，請稍後再試",
   "discordShare_errorRateLimitedRetry": "分享過於頻繁，請在 {seconds} 秒後重試",
-  "@discordShare_errorRateLimitedRetry": {
-    "placeholders": {
-      "seconds": {
-        "type": "int"
-      }
-    }
-  },
+  "@discordShare_errorRateLimitedRetry": {"placeholders": {"seconds": {"type": "int"}}},
   "discordShare_errorNoChannels": "目前沒有可用的 Discord 分享頻道",
   "discordShare_errorSession": "Discord 驗證已失效，請重新驗證",
   "discordShare_errorRelay": "Discord 分享服務暫時無法使用，請稍後再試",
@@ -5697,9 +5466,7 @@
   "preciseRefLib_exportConfirm": "匯出所選 ({count})",
   "@preciseRefLib_exportConfirm": {
     "placeholders": {
-      "count": {
-        "type": "int"
-      }
+      "count": {"type": "int"}
     }
   },
   "preciseRefLib_exportedCount": "已匯出 {count} 個精準參考",
@@ -6243,11 +6010,6 @@
       "version": {}
     }
   },
-  "@tag_selected": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "@vibe_cleared": {
     "placeholders": {
       "count": {
@@ -6650,14 +6412,6 @@
   "autocomplete_allResults": "全部",
   "autocomplete_showAliases": "顯示命中的別名",
   "autocomplete_showTranslations": "顯示中文漢化",
-  "quickTranslate_show": "快速翻譯",
-  "quickTranslate_restore": "還原原提示詞（預覽中的修改將被捨棄）",
-  "quickTranslate_previewSemantics": "本機漢化預覽。在此修改不會影響原提示詞。",
-  "quickTranslate_noMatches": "目前內容中沒有找到可漢化的標籤",
-  "quickTranslate_failed": "快速翻譯失敗，請檢查漢化詞庫後重試",
-  "quickTranslate_missingTitle": "需要漢化詞庫",
-  "quickTranslate_missingMessage": "快速翻譯需要 ffdkj 簡體中文漢化庫。是否前往資料與快取設定並立即下載？",
-  "quickTranslate_download": "前往並下載",
   "autocomplete_autoComma": "插入後自動新增逗號",
   "autocomplete_openOnTagClick": "點選標籤時顯示補全",
   "autocomplete_openOnTagClickSubtitle": "開啟後，點選已有標籤會開啟普通補全選單；Ctrl/Command + 點選仍顯示相關標籤",
@@ -6845,13 +6599,7 @@
   "autocomplete_statusSearching": "查詢中",
   "autocomplete_statusTranslating": "翻譯中",
   "autocomplete_aiCacheEntries": "AI 翻譯快取：{count} 筆",
-  "@autocomplete_aiCacheEntries": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@autocomplete_aiCacheEntries": {"placeholders": {"count": {"type": "int"}}},
   "autocomplete_openSettings": "開啟補全與資料來源設定",
   "randomManager_searchCategories": "搜尋類別、詞組或標籤（Ctrl+F）",
   "randomManager_searchCategoriesCompact": "搜尋類別、詞組或標籤",
@@ -6885,31 +6633,13 @@
   "image_savedToSystemGallery": "已儲存到系統相簿",
   "localGallery_saveToSystemGallery": "儲存到系統相簿",
   "localGallery_saveToSystemGalleryFailed": "無法儲存到系統相簿：{error}",
-  "@localGallery_saveToSystemGalleryFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
+  "@localGallery_saveToSystemGalleryFailed": {"placeholders":{"error":{}}},
   "image_savedAppOnly": "已儲存到應用程式圖庫，但無法匯出到系統相簿：{error}",
-  "@image_savedAppOnly": {
-    "placeholders": {
-      "error": {}
-    }
-  },
+  "@image_savedAppOnly": {"placeholders":{"error":{}}},
   "image_shareFailed": "分享失敗: {error}",
-  "@image_shareFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
+  "@image_shareFailed": {"placeholders":{"error":{}}},
   "onlineGallery_savedFiles": "已儲存 {count} 個檔案",
-  "@onlineGallery_savedFiles": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@onlineGallery_savedFiles": {"placeholders":{"count":{"type":"int"}}},
   "statistics_exportJsonHint": "將全部統計結果和分佈資料匯出為結構化 JSON。",
   "statistics_exportCsvHint": "將分區統計資料匯出為可用試算表應用程式開啟的 CSV。",
   "queue_reorderTask": "調整任務順序",
@@ -6919,41 +6649,19 @@
   "settings_androidManagedStorage": "由系統安全管理；匯出時可選擇儲存位置",
   "settings_importLocalOnnxTaggerFiles": "匯入 ONNX 模型、標籤檔案或 ZIP 壓縮檔",
   "settings_localOnnxFilesImported": "已匯入 {count} 個模型檔案",
-  "@settings_localOnnxFilesImported": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@settings_localOnnxFilesImported": {"placeholders":{"count":{"type":"int"}}},
   "settings_localOnnxManagedFiles": "應用程式儲存空間中有 {count} 個模型檔案",
-  "@settings_localOnnxManagedFiles": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@settings_localOnnxManagedFiles": {"placeholders":{"count":{"type":"int"}}},
   "settings_clearLocalOnnxModelsTitle": "清除本地 ONNX 模型？",
   "settings_clearLocalOnnxModelsContent": "將刪除此裝置上已匯入的 ONNX 模型及標籤檔案。",
   "updateAndroidDownloadedHint": "新版本 v{version} 已下載並透過校驗。可以開啟 Android 系統安裝介面繼續更新。",
-  "@updateAndroidDownloadedHint": {
-    "placeholders": {
-      "version": {}
-    }
-  },
+  "@updateAndroidDownloadedHint": {"placeholders":{"version":{}}},
   "updateAndroidInstallingHint": "正在開啟 Android 系統安裝介面，請依系統提示確認更新。",
   "updateAndroidInstallConfirmationBody": "將開啟 Android 系統安裝介面。確認安裝後，系統會替換應用且不會清除本機資料；進行中的生成和下載任務可能停止，請先儲存必要內容。",
   "preciseRefLib_moreActions": "更多操作",
   "vibeDetail_setAsCover": "將所選圖片設為封面",
   "vibeDetail_bundleChildParameters": "正在顯示第 {index} 個子 Vibe 的匯入參數。",
-  "@vibeDetail_bundleChildParameters": {
-    "placeholders": {
-      "index": {
-        "type": "int"
-      }
-    }
-  },
+  "@vibeDetail_bundleChildParameters": {"placeholders":{"index":{"type":"int"}}},
   "vibeDetail_bundleDefaultParameters": "正在顯示合集預設參數。選擇下方子項可查看其參數。",
   "vibeDetail_choosePreviewImage": "點選圖片按鈕選擇預覽圖",
   "cloudSync_title": "備份與還原",
@@ -6968,31 +6676,13 @@
   "cloudSync_chooseBackend": "備份到哪裡",
   "cloudSync_chooseBackendDescription": "先選擇同步目的地，再連線帳號並選擇要同步的內容。憑證只會儲存在裝置的安全儲存區。",
   "cloudSync_oauthDescription": "連線 {provider} 帳號",
-  "@cloudSync_oauthDescription": {
-    "placeholders": {
-      "provider": {
-        "type": "String"
-      }
-    }
-  },
+  "@cloudSync_oauthDescription": {"placeholders": {"provider": {"type": "String"}}},
   "cloudSync_oauthSystemBrowser": "將使用系統瀏覽器安全登入；無需在應用程式中輸入密碼。",
   "cloudSync_oauthUnavailable": "此版本缺少 OAuth 發佈設定，暫時無法連線。請向發佈者提供以下診斷：\n{details}",
-  "@cloudSync_oauthUnavailable": {
-    "placeholders": {
-      "details": {
-        "type": "String"
-      }
-    }
-  },
+  "@cloudSync_oauthUnavailable": {"placeholders": {"details": {"type": "String"}}},
   "cloudSync_errorOAuthAuthorizationFailed": "應用程式尚未獲准存取此雲端服務。請檢查授權頁面中的提示後再試一次。",
   "cloudSync_accountConnected": "已連線 {provider}",
-  "@cloudSync_accountConnected": {
-    "placeholders": {
-      "provider": {
-        "type": "String"
-      }
-    }
-  },
+  "@cloudSync_accountConnected": {"placeholders": {"provider": {"type": "String"}}},
   "cloudSync_connectAccount": "連線帳號",
   "cloudSync_changeAccount": "更換帳號",
   "cloudSync_connectedAccount": "已連線帳號",
@@ -7031,13 +6721,7 @@
   "cloudSync_restoreDefaults": "恢復預設",
   "cloudSync_saveSelection": "儲存選擇",
   "cloudSync_selectedContentSummary": "已選擇 {count} 項內容",
-  "@cloudSync_selectedContentSummary": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@cloudSync_selectedContentSummary": {"placeholders": {"count": {"type": "int"}}},
   "cloudSync_rebuildCompactBackup": "清理舊備份並重新建立",
   "cloudSync_rebuildCompactBackupDescription": "刪除目前雲端備份空間並按現有選擇上傳新的精簡備份。服務商保留的歷史版本不會被重寫。",
   "cloudSync_rebuildCompactBackupConfirm": "刪除目前雲端備份並立即上傳新的精簡備份嗎？此操作無法復原。",
@@ -7054,24 +6738,12 @@
   "cloudSync_skillsSelectedCount": "已選擇 {count} 個 Skill",
   "cloudSync_missingSelectedSkills": "其中 {count} 個目前無法使用",
   "cloudSync_removeMissingSkills": "移除無法使用的項目",
-  "@cloudSync_skillsSelectedCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "@cloudSync_missingSelectedSkills": {
-    "placeholders": {
-      "count": {}
-    }
-  },
+  "@cloudSync_skillsSelectedCount": {"placeholders":{"count":{}}},
+  "@cloudSync_missingSelectedSkills": {"placeholders":{"count":{}}},
   "cloudSync_searchSkills": "搜尋 Skill",
   "cloudSync_noSkills": "沒有符合的 Skill",
   "cloudSync_actionFailed": "操作失敗：{error}",
-  "@cloudSync_actionFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
+  "@cloudSync_actionFailed": {"placeholders":{"error":{}}},
   "cloudSync_errorAuthentication": "登入狀態已過期，請重新連接帳號。",
   "cloudSync_errorAuthorization": "目前帳號無權存取備份位置。",
   "cloudSync_errorNotFound": "找不到雲端備份目錄或檔案。",
@@ -7145,13 +6817,7 @@
   "cloudSync_snapshotHistoryDescription": "可以先查看某次備份會帶來哪些變化，再決定是否恢復。目前資料不會直接被覆蓋。",
   "cloudSync_noSnapshots": "還沒有可恢復的備份。",
   "cloudSync_backupItemCount": "包含 {count} 項內容",
-  "@cloudSync_backupItemCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "@cloudSync_backupItemCount": {"placeholders":{"count":{"type":"int"}}},
   "cloudSync_previewRestore": "查看並恢復",
   "cloudSync_restorePreviewTitle": "恢復前確認",
   "cloudSync_restorePreviewDescription": "檢查恢復後會新增、更新或刪除哪些內容。確認前不會修改目前資料。",
@@ -7160,19 +6826,9 @@
   "cloudSync_previewAwaitingConfirmation": "請先確認下方變化。",
   "cloudSync_previewDeletesTitle": "將刪除目前裝置上的內容",
   "cloudSync_previewDeletesDescription": "恢復後會從目前裝置刪除 {count} 項內容，請確認這些變化符合預期。",
-  "@cloudSync_previewDeletesDescription": {
-    "placeholders": {
-      "count": {}
-    }
-  },
+  "@cloudSync_previewDeletesDescription": {"placeholders":{"count":{}}},
   "cloudSync_previewCounts": "新增 {added} · 修改 {modified} · 刪除 {deleted}",
-  "@cloudSync_previewCounts": {
-    "placeholders": {
-      "added": {},
-      "modified": {},
-      "deleted": {}
-    }
-  },
+  "@cloudSync_previewCounts": {"placeholders":{"added":{},"modified":{},"deleted":{}}},
   "cloudSync_previewNoChanges": "沒有需要套用的變更。",
   "cloudSync_confirmMerge": "確認套用",
   "cloudSync_confirmRestore": "確認恢復",
@@ -7216,13 +6872,7 @@
   "agentSettings_pendingMatch": "待配對",
   "agentSettings_contextWindow": "上下文視窗（token）",
   "agentSettings_contextWindowKnown": "留空則使用內建值 {value}。第三方中轉站或自訂部署的實際視窗不同時，可在此填寫覆寫。",
-  "@agentSettings_contextWindowKnown": {
-    "placeholders": {
-      "value": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentSettings_contextWindowKnown": {"placeholders":{"value":{"type":"String"}}},
   "agentSettings_contextWindowUnknown": "內建目錄未收錄此模型，無法自動判斷視窗。未填寫則無法顯示上下文用量，也無法壓縮上下文。",
   "agentSettings_contextWindowUnknownHint": "例如 128000",
   "agentSettings_contextWindowReset": "還原為內建值",
@@ -7264,16 +6914,7 @@
   "agentSettings_filterEnabled": "已啟用",
   "agentSettings_filterDisabled": "已停用",
   "agentSettings_skillEnabledCount": "已啟用 {enabled}/{total}",
-  "@agentSettings_skillEnabledCount": {
-    "placeholders": {
-      "enabled": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
+  "@agentSettings_skillEnabledCount": {"placeholders":{"enabled":{"type":"int"},"total":{"type":"int"}}},
   "agentSettings_diagnostics": "診斷",
   "agentSettings_noMatchingSkill": "沒有相符的 Skill",
   "agentSettings_noDiagnostics": "未發現診斷問題",
@@ -7283,59 +6924,26 @@
   "agentSettings_install": "安裝",
   "agentSettings_apply": "套用",
   "agentSettings_operationFailed": "操作失敗：{error}",
-  "@agentSettings_operationFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentSettings_operationFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentSettings_skillsTitle": "Skills",
   "agentSettings_skillsSourceHint": "目前圖片專案中的 Skill 會自動啟用；Pi 使用者與使用者全域 Skill 僅在手動啟用後使用。",
   "agentSettings_skillTransfer": "匯入或匯出",
   "agentSettings_skillsRescanned": "Skills 已重新掃描",
   "agentSettings_skillScanFailed": "掃描失敗：{error}",
-  "@agentSettings_skillScanFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentSettings_skillScanFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentSettings_exportSkillsTitle": "匯出 Skills",
   "agentSettings_skillsExported": "Skills 已匯出",
   "agentSettings_skillZipReadFailed": "無法讀取 ZIP 檔案",
   "agentSettings_confirmSkillsImport": "確認匯入 Skills",
   "agentSettings_skillArchiveStats": "{files} 個檔案 · {bytes} 位元組",
-  "@agentSettings_skillArchiveStats": {
-    "placeholders": {
-      "files": {
-        "type": "int"
-      },
-      "bytes": {
-        "type": "int"
-      }
-    }
-  },
+  "@agentSettings_skillArchiveStats": {"placeholders":{"files":{"type":"int"},"bytes":{"type":"int"}}},
   "agentSettings_skillConflictReplace": "存在同名 Skill，勾選以取代",
   "agentSettings_skillConflictUnsafe": "目標是檔案、連結或特殊實體，無法取代",
   "agentSettings_skillsInstalled": "Skills 已安裝",
   "agentSettings_skillShadowed": "{name} 被更高優先順序來源覆蓋",
-  "@agentSettings_skillShadowed": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentSettings_skillShadowed": {"placeholders":{"name":{"type":"String"}}},
   "agentSettings_preferredSource": "優先來源：{source}",
-  "@agentSettings_preferredSource": {
-    "placeholders": {
-      "source": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentSettings_preferredSource": {"placeholders":{"source":{"type":"String"}}},
   "agentSettings_sourceWorkspace": "目前圖片專案",
   "agentSettings_sourcePiUser": "Pi 使用者",
   "agentSettings_sourceCommonUser": "使用者全域",
@@ -7345,31 +6953,13 @@
   "agentSettings_confirmProfileImport": "確認匯入智慧體設定",
   "agentSettings_profileNoChanges": "目前設定不會變更",
   "agentSettings_profileChanges": "將變更：{changes}",
-  "@agentSettings_profileChanges": {
-    "placeholders": {
-      "changes": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentSettings_profileChanges": {"placeholders":{"changes":{"type":"String"}}},
   "agentSettings_listSeparator": "、",
   "agentSettings_pendingPreferences": "待配對偏好",
   "agentSettings_missingModel": "目前未提供模型：{model}",
-  "@agentSettings_missingModel": {
-    "placeholders": {
-      "model": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentSettings_missingModel": {"placeholders":{"model":{"type":"String"}}},
   "agentSettings_missingSkill": "目前未安裝 Skill：{skill}",
-  "@agentSettings_missingSkill": {
-    "placeholders": {
-      "skill": {
-        "type": "String"
-      }
-    }
-  },
+  "@agentSettings_missingSkill": {"placeholders":{"skill":{"type":"String"}}},
   "agentSettings_profileImported": "智慧體設定已匯入",
   "settings_watermarkTitle": "浮水印",
   "settings_watermarkSubtitle": "完全在本機建立浮水印副本，不修改原圖",
@@ -7445,11 +7035,7 @@
   "watermark_noLayer": "儲存前請啟用文字或 Logo。",
   "watermark_cancelled": "已取消浮水印渲染",
   "watermark_failed": "無法建立浮水印副本：{error}",
-  "@watermark_failed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
+  "@watermark_failed": {"placeholders":{"error":{}}},
   "watermark_failedGeneric": "無法建立浮水印副本，請檢查圖片後再試一次。",
   "watermark_systemGalleryExportFailed": "副本已儲存在 Aaalice 中，但無法加入系統圖庫。",
   "watermark_galleryRefreshFailed": "副本已儲存，但圖庫無法重新整理；重新開啟圖庫即可重試。",
@@ -7463,6 +7049,27 @@
   "watermark_sourceLoadFailed": "無法開啟此圖片。請確認檔案是有效的靜態 PNG、JPEG、WebP 或 BMP 圖片後再試一次。",
   "promptAssistant_responseTimeoutTitle": "回應等待逾時",
   "promptAssistant_responseTimeoutDescription": "反推、最佳化、翻譯、角色替換和自訂改寫共用。預設 5 分鐘；模型思考較慢時可延長，仍可隨時取消。不影響連線逾時和智慧體聊天。",
+  "tagMode_enter": "切換到標籤模式",
+  "tagMode_exit": "切換到文字模式",
+  "tagMode_add": "新增標籤…",
+  "tagMode_missingTranslation": "暫無譯文",
+  "tagMode_translationFailed": "翻譯失敗 · 重試",
+  "tagMode_loadingTranslation": "正在查詢譯文…",
+  "tagMode_invalidSyntax": "提示詞語法不完整，請完成編輯後再排序或調整權重",
+  "tagMode_enable": "啟用",
+  "tagMode_disable": "停用",
+  "tagMode_cut": "剪下",
+  "tagMode_movePrevious": "前移",
+  "tagMode_moveNext": "後移",
+  "tagMode_moveFirst": "移至開頭",
+  "tagMode_moveLast": "移至末尾",
+  "tagMode_copyEffective": "複製有效提示詞",
+  "tagMode_weight": "權重",
+  "tagMode_mixedWeights": "多個權重",
+  "tagMode_dictionaryMissing": "中文譯文需要本機漢化庫，仍可正常編輯標籤。",
+  "tagMode_dictionaryAction": "開啟漢化庫設定",
+  "tagMode_group": "提示詞分組",
+  "tagMode_drag": "長按標籤並拖動排序",
   "settings_mosaicTitle": "打碼與隱私遮擋",
   "settings_mosaicSubtitle": "用馬賽克、模糊、純色遮擋、矩形、橢圓和自由畫筆製作隱私安全副本。",
   "settings_mosaicEnable": "啟用打碼功能",

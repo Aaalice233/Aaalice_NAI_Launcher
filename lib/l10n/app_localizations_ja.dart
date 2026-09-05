@@ -1577,6 +1577,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get prompt_appliedToMainPrompt => 'メイン プロンプトに適用されます';
 
   @override
+  String get prompt_resizeHeight => 'ドラッグで高さを調整、ダブルクリックまたは Home キーで自動調整に戻す';
+
+  @override
   String get prompt_inputPrompt => '生成したい画像を説明';
 
   @override
@@ -4090,11 +4093,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get weight_tagNameHint => 'タグ名を入力してください...';
 
   @override
-  String tag_selected(Object count) {
-    return '$count が選択されました';
-  }
-
-  @override
   String get tag_enable => '有効にする';
 
   @override
@@ -4105,21 +4103,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get tag_addTag => 'タグを追加';
-
-  @override
-  String get tag_add => '追加';
-
-  @override
-  String get tag_inputHint => 'タグを入力してください...';
-
-  @override
-  String get tag_copiedToClipboard => 'クリップボードにコピーされました';
-
-  @override
-  String get tag_emptyHint => '希望の画像を説明するタグを追加します';
-
-  @override
-  String get tag_emptyHintSub => 'タグを手動で参照、検索、追加できます';
 
   @override
   String get tagCategory_artist => 'アーティスト';
@@ -5257,24 +5240,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vibeParseFailed => 'Vibe ファイルの解析に失敗しました';
-
-  @override
-  String get tag_categoryGeneral => '一般';
-
-  @override
-  String get tag_categoryArtist => 'アーティスト';
-
-  @override
-  String get tag_categoryCopyright => '著作権';
-
-  @override
-  String get tag_categoryCharacter => 'キャラクター';
-
-  @override
-  String get tag_categoryMeta => 'メタ';
-
-  @override
-  String get tag_countBadgeBreakdown => 'タグの内訳';
 
   @override
   String get localGallery_progressiveLoadError => '画像のロードに失敗しました';
@@ -8016,6 +7981,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shortcut_action_navigate_to_settings => '設定';
 
   @override
+  String get shortcut_action_navigate_to_vibe_library => 'Vibe ライブラリ';
+
+  @override
   String get shortcut_action_generate_image => '画像の生成';
 
   @override
@@ -8191,6 +8159,33 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get shortcut_action_toggle_theme => 'テーマの切り替え';
+
+  @override
+  String get shortcut_action_vibe_import => 'Vibe をインポート';
+
+  @override
+  String get shortcut_action_vibe_export => 'Vibe をエクスポート';
+
+  @override
+  String get shortcut_action_vibe_detail_send_to_generation => '生成ページに送信';
+
+  @override
+  String get shortcut_action_vibe_detail_export => 'エクスポート';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => '名前の変更';
+
+  @override
+  String get shortcut_action_vibe_detail_delete => '削除';
+
+  @override
+  String get shortcut_action_vibe_detail_toggle_favorite => 'お気に入りの切り替え';
+
+  @override
+  String get shortcut_action_vibe_detail_prev_sub_vibe => '前の子 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_next_sub_vibe => '次の子 Vibe';
 
   @override
   String get shortcut_settings_title => 'キーボード ショートカット';
@@ -9455,9 +9450,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get shortcut_context_vibe_detail => 'Vibe 詳細';
-
-  @override
-  String get shortcut_action_vibe_detail_rename => '名前の変更';
 
   @override
   String get vibeSelectorFilterFavorites => 'お気に入り';
@@ -12385,32 +12377,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get autocomplete_showTranslations => '中国語訳を表示';
 
   @override
-  String get quickTranslate_show => 'クイック翻訳';
-
-  @override
-  String get quickTranslate_restore => '元のプロンプトに戻す（プレビューでの編集は破棄されます）';
-
-  @override
-  String get quickTranslate_previewSemantics =>
-      'ローカル中国語翻訳のプレビューです。ここでの編集は元のプロンプトに影響しません。';
-
-  @override
-  String get quickTranslate_noMatches => '現在の内容に翻訳可能なタグが見つかりませんでした';
-
-  @override
-  String get quickTranslate_failed => 'クイック翻訳に失敗しました。翻訳辞書を確認してもう一度お試しください';
-
-  @override
-  String get quickTranslate_missingTitle => '翻訳辞書が必要です';
-
-  @override
-  String get quickTranslate_missingMessage =>
-      'クイック翻訳には ffdkj 簡体字中国語辞書が必要です。データとキャッシュ設定を開いて今すぐダウンロードしますか？';
-
-  @override
-  String get quickTranslate_download => '開いてダウンロード';
-
-  @override
   String get autocomplete_autoComma => '挿入後にカンマを追加';
 
   @override
@@ -14110,4 +14076,276 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get promptAssistant_responseTimeoutDescription =>
       '画像からのプロンプト作成、最適化、翻訳、キャラクター置換、カスタム書き換えで共通です。既定は5分。応答が遅いモデルでは延長でき、いつでもキャンセルできます。接続タイムアウトとエージェントチャットには影響しません。';
+
+  @override
+  String get tagMode_enter => 'タグモードに切り替え';
+
+  @override
+  String get tagMode_exit => 'テキストモードに切り替え';
+
+  @override
+  String get tagMode_add => 'タグを追加…';
+
+  @override
+  String get tagMode_missingTranslation => '翻訳なし';
+
+  @override
+  String get tagMode_translationFailed => '翻訳失敗 · 再試行';
+
+  @override
+  String get tagMode_loadingTranslation => '翻訳を検索中…';
+
+  @override
+  String get tagMode_invalidSyntax => '構文が未完成です。編集を完了してから並べ替えや重みの調整を行ってください';
+
+  @override
+  String get tagMode_enable => '有効にする';
+
+  @override
+  String get tagMode_disable => '無効にする';
+
+  @override
+  String get tagMode_cut => '切り取り';
+
+  @override
+  String get tagMode_movePrevious => '前へ移動';
+
+  @override
+  String get tagMode_moveNext => '後ろへ移動';
+
+  @override
+  String get tagMode_moveFirst => '先頭に移動';
+
+  @override
+  String get tagMode_moveLast => '末尾に移動';
+
+  @override
+  String get tagMode_copyEffective => '有効なプロンプトをコピー';
+
+  @override
+  String get tagMode_weight => '重み';
+
+  @override
+  String get tagMode_mixedWeights => '複数の重み';
+
+  @override
+  String get tagMode_dictionaryMissing => '中国語の翻訳にはローカル辞書が必要です。タグは引き続き編集できます。';
+
+  @override
+  String get tagMode_dictionaryAction => '辞書設定を開く';
+
+  @override
+  String get tagMode_group => 'プロンプトグループ';
+
+  @override
+  String get tagMode_drag => 'タグを長押ししてドラッグで並べ替え';
+
+  @override
+  String get settings_mosaicTitle => 'モザイク・プライバシー保護';
+
+  @override
+  String get settings_mosaicSubtitle =>
+      'モザイク、ぼかし、単色塗り、矩形・楕円、フリーハンドで安全な複製を作成します。';
+
+  @override
+  String get settings_mosaicEnable => 'モザイク機能を有効にする';
+
+  @override
+  String get settings_mosaicPreserveMetadata => '対応する生成メタデータを保持';
+
+  @override
+  String get settings_mosaicPreserveMetadataHint =>
+      'プライバシー重視の共有では、プロンプトやシードを残さないためオフを推奨します。';
+
+  @override
+  String get settings_mosaicRememberStyle => '最後のスタイルを記憶';
+
+  @override
+  String get settings_mosaicRememberStyleHint => '最後に保存した効果設定を次回も使用します。';
+
+  @override
+  String get settings_mosaicCreateFromImage => '画像からモザイク済みコピーを作成';
+
+  @override
+  String get settings_mosaicEditDefault => '既定のモザイク設定を編集';
+
+  @override
+  String get settings_mosaicConfigCorrupted =>
+      '保存された設定が無効です。安全な既定値を保存してから有効にしてください。';
+
+  @override
+  String get settings_mosaicConfigMigrated => '設定が更新されました。移行を完了するため一度保存してください。';
+
+  @override
+  String get mosaic_actionCreate => 'モザイク済みコピーを作成';
+
+  @override
+  String get mosaic_actionRegenerate => 'モザイク済みコピーを再作成';
+
+  @override
+  String get mosaic_editorTitle => 'モザイク編集';
+
+  @override
+  String get mosaic_defaultsTitle => '既定のモザイク設定';
+
+  @override
+  String get mosaic_sourceMissing => '元画像が見つかりません';
+
+  @override
+  String get mosaic_sourceMissingHint =>
+      'モザイク済み派生画像ですが元画像を利用できません。効果の重ね掛けを避けるため元画像を選択してください。';
+
+  @override
+  String get mosaic_chooseOriginal => '元画像を選択';
+
+  @override
+  String get mosaic_sourceLoadFailed => '画像を読み込めません。別の静止画像を選択するか再試行してください。';
+
+  @override
+  String get mosaic_drawTool => 'マスク描画ツール';
+
+  @override
+  String get mosaic_shapeRectangle => '矩形';
+
+  @override
+  String get mosaic_shapeEllipse => '楕円';
+
+  @override
+  String get mosaic_shapeBrush => 'ブラシ';
+
+  @override
+  String get mosaic_drawHint =>
+      'プレビューの空白部分をドラッグして追加します。領域をドラッグして移動し、角のハンドルでサイズを変更できます。';
+
+  @override
+  String get mosaic_addRegion => '領域を追加';
+
+  @override
+  String get mosaic_fullImage => '画像全体';
+
+  @override
+  String get mosaic_clearAll => 'すべて消去';
+
+  @override
+  String get mosaic_effect => '処理効果';
+
+  @override
+  String get mosaic_effectPixelate => 'モザイク';
+
+  @override
+  String get mosaic_effectBlur => 'ぼかし';
+
+  @override
+  String get mosaic_effectSolid => '単色塗り';
+
+  @override
+  String get mosaic_pixelSize => 'ブロックサイズ';
+
+  @override
+  String get mosaic_blurStrength => 'ぼかし強度';
+
+  @override
+  String get mosaic_opacity => '効果の不透明度';
+
+  @override
+  String get mosaic_color => '塗りつぶし色';
+
+  @override
+  String get mosaic_cornerRadius => '角の丸み';
+
+  @override
+  String get mosaic_brushSize => 'ブラシサイズ';
+
+  @override
+  String get mosaic_invertMask => '領域の外側を処理';
+
+  @override
+  String get mosaic_invertMaskHint => 'マスクを反転し、選択領域を見える状態にして外側を処理します。';
+
+  @override
+  String get mosaic_showLabels => '領域番号を表示';
+
+  @override
+  String get mosaic_regions => '領域';
+
+  @override
+  String get mosaic_noRegions => '領域がありません。プレビュー上でドラッグするか、上のボタンで追加してください。';
+
+  @override
+  String get mosaic_regionEnabled => 'この領域を有効化';
+
+  @override
+  String get mosaic_regionLocked => 'この領域をロック';
+
+  @override
+  String get mosaic_positionX => '横位置';
+
+  @override
+  String get mosaic_positionY => '縦位置';
+
+  @override
+  String get mosaic_width => '幅';
+
+  @override
+  String get mosaic_height => '高さ';
+
+  @override
+  String get mosaic_duplicate => '複製';
+
+  @override
+  String get mosaic_delete => '領域を削除';
+
+  @override
+  String get mosaic_keyboardHint =>
+      'キー操作：矢印で移動、Shift+矢印で高速移動、Deleteで削除、Ctrl+Dで複製、Ctrl+Z/Yで元に戻す・やり直す。';
+
+  @override
+  String get mosaic_canvasHint => '空白部分で描画できます。領域は選択、移動、サイズ変更、ロック、複製、無効化が可能です。';
+
+  @override
+  String get mosaic_noRegionError => '保存する前に、有効な領域を1つ以上追加してください。';
+
+  @override
+  String get mosaic_defaultSaved => '既定のモザイク設定を保存しました。';
+
+  @override
+  String get mosaic_saveDefaults => '既定として保存';
+
+  @override
+  String get mosaic_saveCopy => 'モザイク済みコピーを保存';
+
+  @override
+  String get mosaic_saving => '保存中…';
+
+  @override
+  String get mosaic_saved => 'モザイク済みコピーを保存しました';
+
+  @override
+  String get mosaic_open => '開く';
+
+  @override
+  String get mosaic_share => '共有';
+
+  @override
+  String get mosaic_cancelled => '処理をキャンセルしました。';
+
+  @override
+  String get mosaic_failedGeneric => 'モザイク済みコピーを作成できませんでした。';
+
+  @override
+  String get mosaic_galleryRefreshFailed =>
+      'ファイルは保存されましたが、ローカルギャラリーを更新できませんでした。';
+
+  @override
+  String get mosaic_systemGalleryExportFailed =>
+      'アプリ内には保存されましたが、システムギャラリーへの書き出しに失敗しました。';
+
+  @override
+  String get mosaic_undo => '元に戻す';
+
+  @override
+  String get mosaic_redo => 'やり直す';
+
+  @override
+  String get mosaic_reset => 'リセット';
 }

@@ -138,7 +138,7 @@ class GalleryTagRulesInput extends StatelessWidget {
         SizedBox(
           height: 48,
           child: Center(
-            child: IconButton.filledTonal(
+            child: IconButton(
               tooltip: context.l10n.common_add,
               onPressed: onAdd,
               icon: const Icon(Icons.add),

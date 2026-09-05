@@ -20,6 +20,7 @@ Future<void> generateWithProtection(BuildContext context, WidgetRef ref) async {
     return;
   }
   if (currentParams.prompt.isEmpty) {
+    AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
     return;
   }
   final confirmed = await AssetProtectionGuard.confirmHighAnlasCost(

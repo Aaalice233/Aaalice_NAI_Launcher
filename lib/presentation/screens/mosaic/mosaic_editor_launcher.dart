@@ -89,7 +89,7 @@ class MosaicEditorLauncher {
       resolvedSourcePath = pickedPath;
       bytes = selected.bytes;
     }
-    if (!context.mounted || bytes == null) return null;
+    if (!context.mounted) return null;
     return open(
       context: context,
       sourceBytes: bytes,

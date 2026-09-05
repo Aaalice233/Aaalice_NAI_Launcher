@@ -28,7 +28,7 @@ import '../../../widgets/common/safe_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_formatter_wrapper.dart';
-import '../../../widgets/prompt/quick_translate_prompt_field.dart';
+import '../../../widgets/prompt/tag_mode_prompt_field.dart';
 import 'thumbnail_crop_dialog.dart';
 import 'thumbnail_selection_preview.dart';
 
@@ -336,7 +336,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                   SizedBox(
                     key: const Key('entry-add-dialog-content-editor'),
                     height: 176,
-                    child: QuickTranslatePromptField(
+                    child: TagModePromptField(
                       controller: _contentController,
                       sourceFocusNode: _contentFocusNode,
                       child: PromptFormatterWrapper(
@@ -346,7 +346,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                           autoFormatPromptSettingsProvider,
                         ),
                         child: AutocompleteWrapper.withAlias(
-                          controller: _contentController,
+                          controller: _contentController.displayController,
                           focusNode: _contentFocusNode,
                           ref: ref,
                           expands: true,
@@ -356,7 +356,10 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                             autoInsertComma: true,
                           ),
                           child: ThemedInput(
-                            controller: _contentController,
+                            controller: _contentController.displayController,
+                            contextMenuBuilder: _contentController
+                                .displayController
+                                .buildContextMenu,
                             focusNode: _contentFocusNode,
                             decoration: InputDecoration(
                               hintText: context.l10n.tagLibrary_contentHint,

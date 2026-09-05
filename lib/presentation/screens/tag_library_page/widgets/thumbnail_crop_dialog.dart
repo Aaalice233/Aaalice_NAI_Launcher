@@ -383,7 +383,7 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
               icon: const Icon(Icons.close),
               tooltip: l10n.common_cancel,
             ),
-            IconButton.filled(
+            IconButton(
               onPressed: _confirm,
               icon: const Icon(Icons.check),
               tooltip: l10n.common_confirm,

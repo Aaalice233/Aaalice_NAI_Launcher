@@ -125,7 +125,7 @@ components:
 
 Aaalice NAI Launcher 是高频创作工具，而不是视觉陈列品。Prompt、图像、参数、状态和操作是视觉主体；容器、主题装饰与品牌表达退到背景，只在帮助理解任务时出现。整体气质克制、专业、内容优先，默认状态安静，交互状态清楚而及时。
 
-系统以 Flutter Material 3 为行为基础，以 `ColorScheme`、`TextTheme`、`AppThemeExtension` 和公共组件表达稳定语义。主题可以改变颜色、字体、形状与轻量动效，但不能改变信息架构、操作顺序、密度边界、可访问性或桌面与 Android 的能力等价。默认 frontmatter 记录 Grunge Collage 暗色主题的真实锚点；其他主题必须沿用同一语义角色，而不是创建另一套组件规则。
+系统以 Flutter Material 3 为行为基础，以 `ColorScheme`、`TextTheme`、`AppThemeExtension`、`PromptSemanticColors` 和公共组件表达稳定语义。主题可以改变颜色、字体、形状与轻量动效，但不能改变信息架构、操作顺序、密度边界、可访问性或桌面与 Android 的能力等价。默认 frontmatter 记录 Grunge Collage 暗色主题的真实锚点；其他主题必须沿用同一语义角色，而不是创建另一套组件规则。
 
 **Key Characteristics:**
 
@@ -259,12 +259,15 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 - **Shape / padding**：默认按钮 6px；Filled 与 tonal action 为水平 20px、垂直 12px，TextButton 为水平 16px、垂直 10px。
 - **Hierarchy**：`FilledButton` → tonal action → `TextButton` → `IconButton`；`OutlinedButton` 兼容入口表现为无 side 的 tonal action。
+- **Icon actions**：普通纯图标按钮静止时背景透明，不使用 filled / filledTonal 或容器底色作为默认底座；hover 时高亮，键盘 focus 与触屏 pressed 保留等价反馈。图片上的覆盖操作沿用下文专用覆盖色规范。
+- **Toggles**：开关、模式与页签按钮仅在激活或选中时保留背景；未激活时透明并使用中性前景，交互时显示临时反馈。此规则同时适用于自绘按钮和带文字的开关，不改变命中区、布局或操作语义。
 - **States**：loading 使用 16px spinner 并保持内容结构和按钮尺寸；危险操作在最终确认阶段使用 error 语义。
 - **Access**：仅图标按钮必须提供 tooltip 与语义标签；桌面保留焦点和快捷键，移动端提供足够命中区与即时按压反馈。
+- **Prompt roles**：正面沿用主题 primary、负面沿用 error，固定词使用清晰蓝色，质量词保留来源语义色，统一由 `PromptSemanticColors` 提供。未启用入口背景透明并使用中性图标，仅启用状态显示少量功能色与轻微底色，避免整排彩色块。五个入口复用 `PromptControlButton`；圆角和动效读取主题 token，文字与图标对实际底色保持至少 4.5:1 对比度，页签通过字重、选中色面与 selected 语义表达当前状态。
 
 ### Inputs / Fields
 
-- **Style**：深色填充 Control surface，默认 8px 圆角；单行公共输入通常使用水平 12px、垂直 10px padding，多行使用 12px。
+- **Style**：填充统一使用 `inputSurfaceFillColor`，从 Canvas 中性压暗形成凹入层级，不能从较亮的容器层混色；默认暗色主题约为 `#131313`（普通）/`#151515`（prominent），亮色主题仅轻微压暗。默认 8px 圆角；单行公共输入通常使用水平 12px、垂直 10px padding，多行使用 12px。
 - **Outline**：允许固定几何的低对比 1px 轮廓；默认态尽量接近透明，focus 使用主色增强，error 使用错误色增强。所有状态占用相同内部空间，不改变外部尺寸。
 - **Hierarchy**：大面积 Prompt 编辑器优先保障正文面积，工具操作放在框外 footer；只读内容无需编辑能力时直接使用文本。
 - **Behavior**：prefix/suffix 保持次级权重；软键盘打开后当前字段必须可见。

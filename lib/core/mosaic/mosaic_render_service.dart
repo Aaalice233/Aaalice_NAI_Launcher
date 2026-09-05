@@ -68,12 +68,47 @@ class MosaicRenderResult {
   final bool metadataPreserved;
 }
 
+typedef MosaicRenderOperation =
+    Future<MosaicRenderResult> Function(
+      MosaicRenderRequest request, {
+      MosaicCancellationToken? cancellationToken,
+    });
+
 /// Full-resolution redaction renderer shared by the editor and export flow.
 class MosaicRenderService {
   MosaicRenderService._();
 
   static const int _maxSourcePixels = 64000000;
   static const int _maxSourceDimension = 32768;
+
+  static Future<ui.Image> decodePreview(Uint8List bytes) async {
+    ui.ImmutableBuffer? buffer;
+    ui.ImageDescriptor? descriptor;
+    ui.Codec? codec;
+    try {
+      buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+      descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final longestEdge = math.max(descriptor.width, descriptor.height);
+      const previewEdgeLimit = 2048;
+      final scale = longestEdge > previewEdgeLimit
+          ? previewEdgeLimit / longestEdge
+          : 1.0;
+      codec = await descriptor.instantiateCodec(
+        targetWidth: math.max(1, (descriptor.width * scale).round()),
+        targetHeight: math.max(1, (descriptor.height * scale).round()),
+      );
+      if (codec.frameCount != 1) {
+        throw const MosaicRenderException(
+          'Choose a static source image. Animated images are not supported.',
+        );
+      }
+      return (await codec.getNextFrame()).image;
+    } finally {
+      codec?.dispose();
+      descriptor?.dispose();
+      buffer?.dispose();
+    }
+  }
 
   /// Builds the processed image displayed below the editable mask.
   ///
@@ -100,12 +135,7 @@ class MosaicRenderService {
           source.width.toDouble(),
           source.height.toDouble(),
         ),
-        ui.Rect.fromLTWH(
-          0,
-          0,
-          targetWidth.toDouble(),
-          targetHeight.toDouble(),
-        ),
+        ui.Rect.fromLTWH(0, 0, targetWidth.toDouble(), targetHeight.toDouble()),
         ui.Paint()..filterQuality = ui.FilterQuality.low,
       );
       final picture = recorder.endRecording();
@@ -163,15 +193,9 @@ class MosaicRenderService {
     }
     if (!settings.invertMask) return selected;
     final whole = ui.Path()..addRect(ui.Offset.zero & size);
-    try {
-      return ui.Path.combine(ui.PathOperation.difference, whole, selected);
-    } on Object {
-      final fallback = ui.Path()
-        ..fillType = ui.PathFillType.evenOdd
-        ..addRect(ui.Offset.zero & size)
-        ..addPath(selected, ui.Offset.zero);
-      return fallback;
-    }
+    // An even-odd fallback would redact intersections of overlapping exclusions.
+    // A failed mask operation must fail the export instead of changing coverage.
+    return ui.Path.combine(ui.PathOperation.difference, whole, selected);
   }
 
   static ui.Path _regionPath({
@@ -187,8 +211,10 @@ class MosaicRenderService {
         region.width * size.width,
         region.height * size.height,
       );
-      final radius =
-          math.min(rect.width, rect.height) * settings.cornerRadiusRatio;
+      // Full-image coverage must not expose the corners at any style setting.
+      final radius = region.coversFullImage
+          ? 0.0
+          : math.min(rect.width, rect.height) * settings.cornerRadiusRatio;
       path.addRRect(
         ui.RRect.fromRectAndRadius(rect, ui.Radius.circular(radius)),
       );
@@ -207,10 +233,9 @@ class MosaicRenderService {
     }
 
     if (region.points.isEmpty) return path;
-    final radius = math.max(
-      1.0,
-      math.min(size.width, size.height) * region.brushSizeRatio / 2,
-    );
+    // Keep coverage proportional even when the on-screen canvas is very small.
+    final radius =
+        math.min(size.width, size.height) * region.brushSizeRatio / 2;
     ui.Offset toOffset(MosaicPoint point) =>
         ui.Offset(point.x * size.width, point.y * size.height);
     var previous = toOffset(region.points.first);
@@ -218,10 +243,7 @@ class MosaicRenderService {
     for (var i = 1; i < region.points.length; i++) {
       final current = toOffset(region.points[i]);
       final distance = (current - previous).distance;
-      final steps = math.max(
-        1,
-        (distance / math.max(1.0, radius * 0.55)).ceil(),
-      );
+      final steps = math.max(1, (distance / (radius * 0.55)).ceil());
       for (var step = 1; step <= steps; step++) {
         final t = step / steps;
         final point = ui.Offset(
@@ -247,38 +269,11 @@ class MosaicRenderService {
       );
     }
 
-    ui.ImmutableBuffer? sourceBuffer;
-    ui.ImageDescriptor? sourceDescriptor;
-    ui.Codec? sourceCodec;
     ui.Image? sourceImage;
     ui.Image? processedImage;
     ui.Image? outputImage;
     try {
-      sourceBuffer = await ui.ImmutableBuffer.fromUint8List(
-        request.sourceBytes,
-      );
-      sourceDescriptor = await ui.ImageDescriptor.encoded(sourceBuffer);
-      if (sourceDescriptor.width <= 0 ||
-          sourceDescriptor.height <= 0 ||
-          sourceDescriptor.width > _maxSourceDimension ||
-          sourceDescriptor.height > _maxSourceDimension ||
-          sourceDescriptor.width * sourceDescriptor.height > _maxSourcePixels) {
-        throw const MosaicRenderException(
-          'The source image dimensions exceed the safe full-resolution rendering limit.',
-        );
-      }
-      sourceDescriptor.dispose();
-      sourceDescriptor = null;
-      sourceBuffer.dispose();
-      sourceBuffer = null;
-
-      sourceCodec = await ui.instantiateImageCodec(request.sourceBytes);
-      if (sourceCodec.frameCount != 1) {
-        throw const MosaicRenderException(
-          'Choose a static source image. Animated images are not supported.',
-        );
-      }
-      sourceImage = (await sourceCodec.getNextFrame()).image;
+      sourceImage = await _decodeSource(request.sourceBytes);
       token.throwIfCancelled();
 
       final width = sourceImage.width;
@@ -290,58 +285,11 @@ class MosaicRenderService {
       processedImage = await buildProcessedImage(sourceImage, request.settings);
       token.throwIfCancelled();
 
-      final size = ui.Size(width.toDouble(), height.toDouble());
-      final bounds = ui.Offset.zero & size;
-      final recorder = ui.PictureRecorder();
-      final canvas = ui.Canvas(recorder);
-      canvas.drawImage(sourceImage, ui.Offset.zero, ui.Paint());
-      canvas.save();
-      canvas.clipPath(
-        buildMaskPath(
-          size: size,
-          settings: request.settings,
-          regions: request.regions,
-        ),
-        doAntiAlias: true,
+      outputImage = await _drawRedactedImage(
+        sourceImage,
+        processedImage,
+        request,
       );
-      final alpha = (request.settings.opacity * 255)
-          .round()
-          .clamp(0, 255)
-          .toInt();
-      if (request.settings.effect == MosaicEffect.solid) {
-        canvas.drawRect(
-          bounds,
-          ui.Paint()
-            ..color = ui.Color(
-              request.settings.fillColorArgb,
-            ).withAlpha(alpha),
-        );
-      } else if (processedImage != null) {
-        canvas.drawImageRect(
-          processedImage,
-          ui.Rect.fromLTWH(
-            0,
-            0,
-            processedImage.width.toDouble(),
-            processedImage.height.toDouble(),
-          ),
-          bounds,
-          ui.Paint()
-            ..color = ui.Color.fromARGB(alpha, 255, 255, 255)
-            ..filterQuality =
-                request.settings.effect == MosaicEffect.pixelate
-                ? ui.FilterQuality.none
-                : ui.FilterQuality.medium,
-        );
-      }
-      canvas.restore();
-
-      final picture = recorder.endRecording();
-      try {
-        outputImage = await picture.toImage(width, height);
-      } finally {
-        picture.dispose();
-      }
       token.throwIfCancelled();
 
       final byteData = await outputImage.toByteData(
@@ -390,9 +338,99 @@ class MosaicRenderService {
       outputImage?.dispose();
       processedImage?.dispose();
       sourceImage?.dispose();
+    }
+  }
+
+  static Future<ui.Image> _decodeSource(Uint8List bytes) async {
+    ui.ImmutableBuffer? sourceBuffer;
+    ui.ImageDescriptor? sourceDescriptor;
+    ui.Codec? sourceCodec;
+    try {
+      sourceBuffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+      sourceDescriptor = await ui.ImageDescriptor.encoded(sourceBuffer);
+      if (sourceDescriptor.width <= 0 ||
+          sourceDescriptor.height <= 0 ||
+          sourceDescriptor.width > _maxSourceDimension ||
+          sourceDescriptor.height > _maxSourceDimension ||
+          sourceDescriptor.width * sourceDescriptor.height > _maxSourcePixels) {
+        throw const MosaicRenderException(
+          'The source image dimensions exceed the safe full-resolution rendering limit.',
+        );
+      }
+      sourceDescriptor.dispose();
+      sourceDescriptor = null;
+      sourceBuffer.dispose();
+      sourceBuffer = null;
+
+      sourceCodec = await ui.instantiateImageCodec(bytes);
+      if (sourceCodec.frameCount != 1) {
+        throw const MosaicRenderException(
+          'Choose a static source image. Animated images are not supported.',
+        );
+      }
+      return (await sourceCodec.getNextFrame()).image;
+    } finally {
       sourceCodec?.dispose();
       sourceDescriptor?.dispose();
       sourceBuffer?.dispose();
+    }
+  }
+
+  static Future<ui.Image> _drawRedactedImage(
+    ui.Image sourceImage,
+    ui.Image? processedImage,
+    MosaicRenderRequest request,
+  ) async {
+    final width = sourceImage.width;
+    final height = sourceImage.height;
+    final size = ui.Size(width.toDouble(), height.toDouble());
+    final bounds = ui.Offset.zero & size;
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    canvas.drawImage(sourceImage, ui.Offset.zero, ui.Paint());
+    canvas.save();
+    canvas.clipPath(
+      buildMaskPath(
+        size: size,
+        settings: request.settings,
+        regions: request.regions,
+      ),
+      doAntiAlias: true,
+    );
+    final alpha = (request.settings.opacity * 255)
+        .round()
+        .clamp(0, 255)
+        .toInt();
+    if (request.settings.effect == MosaicEffect.solid) {
+      canvas.drawRect(
+        bounds,
+        ui.Paint()
+          ..color = ui.Color(request.settings.fillColorArgb).withAlpha(alpha),
+      );
+    } else if (processedImage != null) {
+      canvas.drawImageRect(
+        processedImage,
+        ui.Rect.fromLTWH(
+          0,
+          0,
+          processedImage.width.toDouble(),
+          processedImage.height.toDouble(),
+        ),
+        bounds,
+        ui.Paint()
+          ..color = ui.Color.fromARGB(alpha, 255, 255, 255)
+          ..filterQuality = request.settings.effect == MosaicEffect.pixelate
+              ? ui.FilterQuality.none
+              : ui.FilterQuality.medium,
+      );
+    }
+    canvas.restore();
+
+    final picture = recorder.endRecording();
+    try {
+      return await picture.toImage(width, height);
+    } finally {
+      picture.dispose();
     }
   }
 

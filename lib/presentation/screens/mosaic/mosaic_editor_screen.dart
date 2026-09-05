@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -24,6 +23,7 @@ import '../../providers/local_gallery_provider.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../widgets/image_editor/widgets/color_picker.dart';
+import '../../widgets/common/horizontal_segmented_control.dart';
 import 'mosaic_editor_canvas.dart';
 
 class MosaicEditorSource {
@@ -46,6 +46,8 @@ class MosaicEditorScreen extends ConsumerStatefulWidget {
     required this.defaultsOnly,
     this.sourcePath,
     this.onChooseSource,
+    this.decodePreview = MosaicRenderService.decodePreview,
+    this.renderCopy = MosaicRenderService.render,
   });
 
   final Uint8List sourceBytes;
@@ -53,10 +55,11 @@ class MosaicEditorScreen extends ConsumerStatefulWidget {
   final String? sourcePath;
   final bool defaultsOnly;
   final Future<MosaicEditorSource?> Function()? onChooseSource;
+  final Future<ui.Image> Function(Uint8List bytes) decodePreview;
+  final MosaicRenderOperation renderCopy;
 
   @override
-  ConsumerState<MosaicEditorScreen> createState() =>
-      _MosaicEditorScreenState();
+  ConsumerState<MosaicEditorScreen> createState() => _MosaicEditorScreenState();
 }
 
 class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
@@ -80,6 +83,7 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
   bool _processingPreview = false;
   bool _saving = false;
   Object? _loadError;
+  Object? _previewError;
   int _processedEpoch = 0;
   int _regionSequence = 0;
 
@@ -113,7 +117,8 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
       'redaction_${DateTime.now().microsecondsSinceEpoch}_${_regionSequence++}';
 
   MosaicRegion _newCenteredRegion({MosaicShape? shape}) {
-    final resolvedShape = shape ??
+    final resolvedShape =
+        shape ??
         (_settings.defaultShape == MosaicShape.brush
             ? MosaicShape.roundedRectangle
             : _settings.defaultShape);
@@ -130,10 +135,7 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
 
   Future<void> _loadImage() async {
     try {
-      final source = await _decodeSingleFrame(
-        _sourceBytes,
-        requireStatic: true,
-      );
+      final source = await widget.decodePreview(_sourceBytes);
       if (!mounted) {
         source.dispose();
         return;
@@ -164,43 +166,16 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
     }
   }
 
-  Future<ui.Image> _decodeSingleFrame(
-    Uint8List bytes, {
-    bool requireStatic = false,
-  }) async {
-    ui.ImmutableBuffer? buffer;
-    ui.ImageDescriptor? descriptor;
-    ui.Codec? codec;
-    try {
-      buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-      descriptor = await ui.ImageDescriptor.encoded(buffer);
-      final longestEdge = math.max(descriptor.width, descriptor.height);
-      const previewEdgeLimit = 2048;
-      final scale = longestEdge > previewEdgeLimit
-          ? previewEdgeLimit / longestEdge
-          : 1.0;
-      codec = await descriptor.instantiateCodec(
-        targetWidth: math.max(1, (descriptor.width * scale).round()),
-        targetHeight: math.max(1, (descriptor.height * scale).round()),
-      );
-      if (requireStatic && codec.frameCount != 1) {
-        throw const MosaicRenderException(
-          'Choose a static source image. Animated images are not supported.',
-        );
-      }
-      return (await codec.getNextFrame()).image;
-    } finally {
-      codec?.dispose();
-      descriptor?.dispose();
-      buffer?.dispose();
-    }
-  }
-
   Future<void> _refreshProcessedImage() async {
     final source = _sourceImage;
     if (source == null) return;
     final epoch = ++_processedEpoch;
-    if (mounted) setState(() => _processingPreview = true);
+    if (mounted) {
+      setState(() {
+        _processingPreview = true;
+        _previewError = null;
+      });
+    }
     ui.Image? next;
     try {
       next = await MosaicRenderService.buildProcessedImage(source, _settings);
@@ -223,7 +198,10 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
         'MosaicEditor',
       );
       if (!mounted || epoch != _processedEpoch) return;
-      setState(() => _processingPreview = false);
+      setState(() {
+        _processingPreview = false;
+        _previewError = error;
+      });
     }
   }
 
@@ -239,11 +217,11 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
   }
 
   _MosaicSnapshot _snapshot() => _MosaicSnapshot(
-        settings: _settings,
-        regions: List<MosaicRegion>.of(_regions),
-        selectedId: _selectedId,
-        drawShape: _drawShape,
-      );
+    settings: _settings,
+    regions: List<MosaicRegion>.of(_regions),
+    selectedId: _selectedId,
+    drawShape: _drawShape,
+  );
 
   void _restoreSnapshot(_MosaicSnapshot snapshot) {
     final refresh = _processedStyleChanged(_settings, snapshot.settings);
@@ -513,9 +491,8 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
         minY = math.min(minY, point.y);
         maxY = math.max(maxY, point.y);
       }
-      final radius = selected.brushSizeRatio / 2;
-      final dx = delta.dx.clamp(-minX + radius, 1 - maxX - radius).toDouble();
-      final dy = delta.dy.clamp(-minY + radius, 1 - maxY - radius).toDouble();
+      final dx = delta.dx.clamp(-minX, 1 - maxX).toDouble();
+      final dy = delta.dy.clamp(-minY, 1 - maxY).toDouble();
       final points = <MosaicPoint>[
         for (final point in selected.points)
           MosaicPoint(point.x + dx, point.y + dy),
@@ -547,6 +524,7 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
   }
 
   KeyEventResult _handlePreviewKey(FocusNode node, KeyEvent event) {
+    if (_saving) return KeyEventResult.ignored;
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
@@ -603,9 +581,9 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
     _undo.clear();
     _redo.clear();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.mosaic_defaultSaved)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.mosaic_defaultSaved)));
   }
 
   Future<void> _saveCopy() async {
@@ -618,7 +596,7 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
     _renderToken = token;
     setState(() => _saving = true);
     try {
-      final result = await MosaicRenderService.render(
+      final result = await widget.renderCopy(
         MosaicRenderRequest(
           sourceBytes: _sourceBytes,
           settings: _settings,
@@ -663,32 +641,12 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
           ref.read(localStorageServiceProvider),
         ).register(outputPath: output, sourcePath: sourcePath);
       }
+      if (!mounted) return;
       if (_settings.rememberLastStyle) {
         await ref.read(mosaicSettingsProvider.notifier).saveDefaults(_settings);
       }
-      Object? galleryRefreshError;
-      try {
-        final previousError = ref.read(localGalleryNotifierProvider).error;
-        await ref.read(localGalleryNotifierProvider.notifier).refresh();
-        final refreshError = ref.read(localGalleryNotifierProvider).error;
-        if (refreshError != null && !identical(refreshError, previousError)) {
-          galleryRefreshError = refreshError;
-          AppLogger.e(
-            'Redacted copy saved but gallery refresh failed',
-            refreshError.details ?? refreshError.code.name,
-            null,
-            'MosaicEditor',
-          );
-        }
-      } on Object catch (error, stackTrace) {
-        galleryRefreshError = error;
-        AppLogger.e(
-          'Redacted copy saved but gallery refresh failed',
-          error,
-          stackTrace,
-          'MosaicEditor',
-        );
-      }
+      if (!mounted) return;
+      final galleryRefreshError = await _refreshGalleryAfterSave();
       if (!mounted) return;
       if (systemGalleryError != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -706,9 +664,9 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
       if (mounted) Navigator.of(context).pop(output);
     } on MosaicCancelledException {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.mosaic_cancelled)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.mosaic_cancelled)));
       }
     } on Object catch (error, stackTrace) {
       AppLogger.e(
@@ -722,6 +680,34 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
       _renderToken = null;
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<Object?> _refreshGalleryAfterSave() async {
+    Object? galleryRefreshError;
+    try {
+      final previousError = ref.read(localGalleryNotifierProvider).error;
+      await ref.read(localGalleryNotifierProvider.notifier).refresh();
+      if (!mounted) return null;
+      final refreshError = ref.read(localGalleryNotifierProvider).error;
+      if (refreshError != null && !identical(refreshError, previousError)) {
+        galleryRefreshError = refreshError;
+        AppLogger.e(
+          'Redacted copy saved but gallery refresh failed',
+          refreshError.details ?? refreshError.code.name,
+          null,
+          'MosaicEditor',
+        );
+      }
+    } on Object catch (error, stackTrace) {
+      galleryRefreshError = error;
+      AppLogger.e(
+        'Redacted copy saved but gallery refresh failed',
+        error,
+        stackTrace,
+        'MosaicEditor',
+      );
+    }
+    return galleryRefreshError;
   }
 
   Future<void> _showSaved(MosaicRenderResult result, String output) async {
@@ -827,7 +813,15 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
             child: Column(
               children: [
                 if (keyboardInset == 0) _buildHeader(),
-                Expanded(child: _buildBody()),
+                Expanded(
+                  child: ExcludeFocus(
+                    excluding: _saving,
+                    child: AbsorbPointer(
+                      absorbing: _saving,
+                      child: _buildBody(),
+                    ),
+                  ),
+                ),
                 _buildActions(),
               ],
             ),
@@ -838,30 +832,30 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
   }
 
   Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-        child: Row(
-          children: [
-            Icon(
-              Icons.grid_on_rounded,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                widget.defaultsOnly
-                    ? context.l10n.mosaic_defaultsTitle
-                    : context.l10n.mosaic_editorTitle,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-            IconButton(
-              tooltip: context.l10n.common_close,
-              onPressed: _saving ? null : () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+    child: Row(
+      children: [
+        Icon(
+          Icons.grid_on_rounded,
+          color: Theme.of(context).colorScheme.primary,
         ),
-      );
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            widget.defaultsOnly
+                ? context.l10n.mosaic_defaultsTitle
+                : context.l10n.mosaic_editorTitle,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+        IconButton(
+          tooltip: context.l10n.common_close,
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.close),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildBody() {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -963,9 +957,9 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
                         selectedId: _selectedId,
                         drawShape: _drawShape,
                         selectionColor: Theme.of(context).colorScheme.primary,
-                        backgroundColor: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerLowest,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerLowest,
                         onSelected: _selectRegion,
                         onBeginRegionTransform: _pushUndo,
                         onRegionChanged: (value) =>
@@ -995,26 +989,30 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
                           ),
                         ),
                       ),
+                    if (_previewError != null)
+                      Positioned.fill(
+                        child: Material(
+                          color: Theme.of(context).colorScheme.surface,
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '${context.l10n.mosaic_failedGeneric}\n$_previewError',
+                                ),
+                                TextButton.icon(
+                                  onPressed: _refreshProcessedImage,
+                                  icon: const Icon(Icons.refresh),
+                                  label: Text(context.l10n.common_retry),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Column(
-              children: [
-                Text(
-                  '${_effectName(_settings.effect)} · '
-                  '${context.l10n.mosaic_regions}: ${_regions.length}',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-                Text(
-                  context.l10n.mosaic_canvasHint,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
             ),
           ),
         ],
@@ -1027,367 +1025,12 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
       children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          secondary: Icon(
-            _settings.preserveMetadata
-                ? Icons.data_object_outlined
-                : Icons.remove_circle_outline,
-          ),
-          title: Text(context.l10n.settings_mosaicPreserveMetadata),
-          subtitle: Text(context.l10n.settings_mosaicPreserveMetadataHint),
-          value: _settings.preserveMetadata,
-          onChanged: (value) => _changeSettings(
-            _settings.copyWith(preserveMetadata: value),
-          ),
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          secondary: const Icon(Icons.history_toggle_off_outlined),
-          title: Text(context.l10n.settings_mosaicRememberStyle),
-          subtitle: Text(context.l10n.settings_mosaicRememberStyleHint),
-          value: _settings.rememberLastStyle,
-          onChanged: (value) => _changeSettings(
-            _settings.copyWith(rememberLastStyle: value),
-          ),
-        ),
-        const Divider(),
-        _sectionTitle(context.l10n.mosaic_drawTool),
-        const SizedBox(height: 8),
-        SegmentedButton<MosaicShape>(
-          showSelectedIcon: false,
-          segments: [
-            ButtonSegment(
-              value: MosaicShape.roundedRectangle,
-              icon: const Icon(Icons.rectangle_outlined),
-              label: Text(context.l10n.mosaic_shapeRectangle),
-            ),
-            ButtonSegment(
-              value: MosaicShape.ellipse,
-              icon: const Icon(Icons.circle_outlined),
-              label: Text(context.l10n.mosaic_shapeEllipse),
-            ),
-            ButtonSegment(
-              value: MosaicShape.brush,
-              icon: const Icon(Icons.brush_outlined),
-              label: Text(context.l10n.mosaic_shapeBrush),
-            ),
-          ],
-          selected: {_drawShape},
-          onSelectionChanged: (value) {
-            final shape = value.first;
-            _pushUndo();
-            setState(() {
-              _drawShape = shape;
-              _settings = _settings.copyWith(defaultShape: shape);
-            });
-          },
-        ),
-        const SizedBox(height: 8),
-        Text(
-          context.l10n.mosaic_drawHint,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            FilledButton.tonalIcon(
-              onPressed: () => _addCentered(_drawShape),
-              icon: const Icon(Icons.add_box_outlined),
-              label: Text(context.l10n.mosaic_addRegion),
-            ),
-            OutlinedButton.icon(
-              onPressed: _addFullImageRegion,
-              icon: const Icon(Icons.fullscreen),
-              label: Text(context.l10n.mosaic_fullImage),
-            ),
-            OutlinedButton.icon(
-              onPressed: _regions.isEmpty ? null : _clearAll,
-              icon: const Icon(Icons.layers_clear_outlined),
-              label: Text(context.l10n.mosaic_clearAll),
-            ),
-          ],
-        ),
-        const Divider(height: 28),
-        _sectionTitle(context.l10n.mosaic_effect),
-        const SizedBox(height: 8),
-        SegmentedButton<MosaicEffect>(
-          showSelectedIcon: false,
-          segments: [
-            ButtonSegment(
-              value: MosaicEffect.pixelate,
-              icon: const Icon(Icons.grid_on_rounded),
-              label: Text(context.l10n.mosaic_effectPixelate),
-            ),
-            ButtonSegment(
-              value: MosaicEffect.blur,
-              icon: const Icon(Icons.blur_on_outlined),
-              label: Text(context.l10n.mosaic_effectBlur),
-            ),
-            ButtonSegment(
-              value: MosaicEffect.solid,
-              icon: const Icon(Icons.crop_square_rounded),
-              label: Text(context.l10n.mosaic_effectSolid),
-            ),
-          ],
-          selected: {_settings.effect},
-          onSelectionChanged: (value) => _changeSettings(
-            _settings.copyWith(effect: value.first),
-          ),
-        ),
-        const SizedBox(height: 10),
-        if (_settings.effect == MosaicEffect.pixelate)
-          _MosaicSlider(
-            label: context.l10n.mosaic_pixelSize,
-            value: _settings.pixelSizeRatio,
-            min: 0.004,
-            max: 0.08,
-            onChangeStart: _pushUndo,
-            onChanged: (value) => _changeSettings(
-              _settings.copyWith(pixelSizeRatio: value),
-              recordUndo: false,
-            ),
-          ),
-        if (_settings.effect == MosaicEffect.blur)
-          _MosaicSlider(
-            label: context.l10n.mosaic_blurStrength,
-            value: _settings.blurSigmaRatio,
-            min: 0.003,
-            max: 0.06,
-            onChangeStart: _pushUndo,
-            onChanged: (value) => _changeSettings(
-              _settings.copyWith(blurSigmaRatio: value),
-              recordUndo: false,
-            ),
-          ),
-        if (_settings.effect == MosaicEffect.solid)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              backgroundColor: Color(_settings.fillColorArgb),
-              child: const Icon(Icons.palette_outlined),
-            ),
-            title: Text(context.l10n.mosaic_color),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _pickColor(
-              Color(_settings.fillColorArgb),
-              (color) => _changeSettings(
-                _settings.copyWith(fillColorArgb: color.toARGB32()),
-              ),
-            ),
-          ),
-        _MosaicSlider(
-          label: context.l10n.mosaic_opacity,
-          value: _settings.opacity,
-          min: 0.1,
-          max: 1,
-          onChangeStart: _pushUndo,
-          onChanged: (value) => _changeSettings(
-            _settings.copyWith(opacity: value),
-            recordUndo: false,
-          ),
-        ),
-        _MosaicSlider(
-          label: context.l10n.mosaic_cornerRadius,
-          value: _settings.cornerRadiusRatio,
-          min: 0,
-          max: 0.5,
-          onChangeStart: _pushUndo,
-          onChanged: (value) => _changeSettings(
-            _settings.copyWith(cornerRadiusRatio: value),
-            recordUndo: false,
-          ),
-        ),
-        _MosaicSlider(
-          label: context.l10n.mosaic_brushSize,
-          value: _settings.brushSizeRatio,
-          min: 0.01,
-          max: 0.16,
-          onChangeStart: _pushUndo,
-          onChanged: (value) {
-            _changeSettings(
-              _settings.copyWith(brushSizeRatio: value),
-              recordUndo: false,
-            );
-            if (_selectedRegion?.shape == MosaicShape.brush) {
-              _setSelectedBrushSize(value);
-            }
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          secondary: const Icon(Icons.flip),
-          title: Text(context.l10n.mosaic_invertMask),
-          subtitle: Text(context.l10n.mosaic_invertMaskHint),
-          value: _settings.invertMask,
-          onChanged: (value) => _changeSettings(
-            _settings.copyWith(invertMask: value),
-          ),
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          secondary: const Icon(Icons.numbers),
-          title: Text(context.l10n.mosaic_showLabels),
-          value: _settings.showRegionLabels,
-          onChanged: (value) => _changeSettings(
-            _settings.copyWith(showRegionLabels: value),
-          ),
-        ),
-        const Divider(height: 28),
-        Row(
-          children: [
-            Expanded(child: _sectionTitle(context.l10n.mosaic_regions)),
-            Text('${_regions.length}'),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (_regions.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              context.l10n.mosaic_noRegions,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          )
-        else
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (var index = 0; index < _regions.length; index++)
-                ChoiceChip(
-                  selected: _regions[index].id == _selectedId,
-                  avatar: Icon(_shapeIcon(_regions[index].shape), size: 16),
-                  label: Text('#${index + 1}'),
-                  onSelected: (_) => _selectRegion(_regions[index].id),
-                ),
-            ],
-          ),
-        if (selected != null) ...[
-          const SizedBox(height: 10),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(context.l10n.mosaic_regionEnabled),
-            value: selected.enabled,
-            onChanged: (value) =>
-                _updateRegion(selected.copyWith(enabled: value)),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(context.l10n.mosaic_regionLocked),
-            value: selected.locked,
-            onChanged: (value) =>
-                _updateRegion(selected.copyWith(locked: value)),
-          ),
-          SegmentedButton<MosaicShape>(
-            showSelectedIcon: false,
-            segments: [
-              ButtonSegment(
-                value: MosaicShape.roundedRectangle,
-                icon: const Icon(Icons.rectangle_outlined),
-                label: Text(context.l10n.mosaic_shapeRectangle),
-              ),
-              ButtonSegment(
-                value: MosaicShape.ellipse,
-                icon: const Icon(Icons.circle_outlined),
-                label: Text(context.l10n.mosaic_shapeEllipse),
-              ),
-              ButtonSegment(
-                value: MosaicShape.brush,
-                icon: const Icon(Icons.brush_outlined),
-                label: Text(context.l10n.mosaic_shapeBrush),
-              ),
-            ],
-            selected: {selected.shape},
-            onSelectionChanged: selected.locked
-                ? null
-                : (value) => _setSelectedShape(value.first),
-          ),
-          if (selected.shape != MosaicShape.brush) ...[
-            const SizedBox(height: 8),
-            _MosaicSlider(
-              label: context.l10n.mosaic_positionX,
-              value: selected.left,
-              min: 0,
-              max: math.max(0.001, 1 - selected.width),
-              onChangeStart: _pushUndo,
-              onChanged: selected.locked
-                  ? null
-                  : (value) => _updateRegion(
-                        selected.copyWith(left: value),
-                        recordUndo: false,
-                      ),
-            ),
-            _MosaicSlider(
-              label: context.l10n.mosaic_positionY,
-              value: selected.top,
-              min: 0,
-              max: math.max(0.001, 1 - selected.height),
-              onChangeStart: _pushUndo,
-              onChanged: selected.locked
-                  ? null
-                  : (value) => _updateRegion(
-                        selected.copyWith(top: value),
-                        recordUndo: false,
-                      ),
-            ),
-            _MosaicSlider(
-              label: context.l10n.mosaic_width,
-              value: selected.width,
-              min: 0.02,
-              max: math.max(0.02, 1 - selected.left),
-              onChangeStart: _pushUndo,
-              onChanged: selected.locked
-                  ? null
-                  : (value) => _updateRegion(
-                        selected.copyWith(width: value),
-                        recordUndo: false,
-                      ),
-            ),
-            _MosaicSlider(
-              label: context.l10n.mosaic_height,
-              value: selected.height,
-              min: 0.02,
-              max: math.max(0.02, 1 - selected.top),
-              onChangeStart: _pushUndo,
-              onChanged: selected.locked
-                  ? null
-                  : (value) => _updateRegion(
-                        selected.copyWith(height: value),
-                        recordUndo: false,
-                      ),
-            ),
-          ] else
-            _MosaicSlider(
-              label: context.l10n.mosaic_brushSize,
-              value: selected.brushSizeRatio,
-              min: 0.01,
-              max: 0.16,
-              onChangeStart: _pushUndo,
-              onChanged: selected.locked
-                  ? null
-                  : (value) => _setSelectedBrushSize(value),
-            ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: _duplicateSelected,
-                icon: const Icon(Icons.copy_all_outlined),
-                label: Text(context.l10n.mosaic_duplicate),
-              ),
-              OutlinedButton.icon(
-                onPressed: _deleteSelected,
-                icon: const Icon(Icons.delete_outline),
-                label: Text(context.l10n.mosaic_delete),
-              ),
-            ],
-          ),
-        ],
+        ..._buildExportControls(),
+        ..._buildDrawingControls(),
+        ..._buildEffectControls(),
+        ..._buildMaskControls(),
+        ..._buildRegionListControls(),
+        if (selected != null) ..._buildSelectedRegionControls(selected),
         const SizedBox(height: 12),
         Text(
           context.l10n.mosaic_keyboardHint,
@@ -1397,29 +1040,415 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
     );
   }
 
-  Widget _sectionTitle(String text) => Text(
-        text,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+  List<Widget> _buildExportControls() => [
+    Text(
+      '${_effectName(_settings.effect)} · ${context.l10n.mosaic_regions}: ${_regions.length}',
+      style: Theme.of(context).textTheme.labelLarge,
+    ),
+    Text(
+      context.l10n.mosaic_canvasHint,
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+    const SizedBox(height: 12),
+    SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: Icon(
+        _settings.preserveMetadata
+            ? Icons.data_object_outlined
+            : Icons.remove_circle_outline,
+      ),
+      title: Text(context.l10n.settings_mosaicPreserveMetadata),
+      subtitle: Text(context.l10n.settings_mosaicPreserveMetadataHint),
+      value: _settings.preserveMetadata,
+      onChanged: (value) =>
+          _changeSettings(_settings.copyWith(preserveMetadata: value)),
+    ),
+    SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: const Icon(Icons.history_toggle_off_outlined),
+      title: Text(context.l10n.settings_mosaicRememberStyle),
+      subtitle: Text(context.l10n.settings_mosaicRememberStyleHint),
+      value: _settings.rememberLastStyle,
+      onChanged: (value) =>
+          _changeSettings(_settings.copyWith(rememberLastStyle: value)),
+    ),
+    const Divider(),
+  ];
+
+  List<Widget> _buildDrawingControls() => [
+    _sectionTitle(context.l10n.mosaic_drawTool),
+    const SizedBox(height: 8),
+    HorizontalSegmentedControl(
+      child: SegmentedButton<MosaicShape>(
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(
+            value: MosaicShape.roundedRectangle,
+            icon: const Icon(Icons.rectangle_outlined),
+            label: Text(context.l10n.mosaic_shapeRectangle),
+          ),
+          ButtonSegment(
+            value: MosaicShape.ellipse,
+            icon: const Icon(Icons.circle_outlined),
+            label: Text(context.l10n.mosaic_shapeEllipse),
+          ),
+          ButtonSegment(
+            value: MosaicShape.brush,
+            icon: const Icon(Icons.brush_outlined),
+            label: Text(context.l10n.mosaic_shapeBrush),
+          ),
+        ],
+        selected: {_drawShape},
+        onSelectionChanged: (value) {
+          final shape = value.first;
+          _pushUndo();
+          setState(() {
+            _drawShape = shape;
+            _settings = _settings.copyWith(defaultShape: shape);
+          });
+        },
+      ),
+    ),
+    const SizedBox(height: 8),
+    Text(
+      context.l10n.mosaic_drawHint,
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+    const SizedBox(height: 10),
+    Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        FilledButton.tonalIcon(
+          onPressed: () => _addCentered(_drawShape),
+          icon: const Icon(Icons.add_box_outlined),
+          label: Text(context.l10n.mosaic_addRegion),
+        ),
+        OutlinedButton.icon(
+          onPressed: _addFullImageRegion,
+          icon: const Icon(Icons.fullscreen),
+          label: Text(context.l10n.mosaic_fullImage),
+        ),
+        OutlinedButton.icon(
+          onPressed: _regions.isEmpty ? null : _clearAll,
+          icon: const Icon(Icons.layers_clear_outlined),
+          label: Text(context.l10n.mosaic_clearAll),
+        ),
+      ],
+    ),
+    const Divider(height: 28),
+  ];
+
+  List<Widget> _buildEffectControls() => [
+    _sectionTitle(context.l10n.mosaic_effect),
+    const SizedBox(height: 8),
+    HorizontalSegmentedControl(
+      child: SegmentedButton<MosaicEffect>(
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(
+            value: MosaicEffect.pixelate,
+            icon: const Icon(Icons.grid_on_rounded),
+            label: Text(context.l10n.mosaic_effectPixelate),
+          ),
+          ButtonSegment(
+            value: MosaicEffect.blur,
+            icon: const Icon(Icons.blur_on_outlined),
+            label: Text(context.l10n.mosaic_effectBlur),
+          ),
+          ButtonSegment(
+            value: MosaicEffect.solid,
+            icon: const Icon(Icons.crop_square_rounded),
+            label: Text(context.l10n.mosaic_effectSolid),
+          ),
+        ],
+        selected: {_settings.effect},
+        onSelectionChanged: (value) =>
+            _changeSettings(_settings.copyWith(effect: value.first)),
+      ),
+    ),
+    const SizedBox(height: 10),
+    if (_settings.effect == MosaicEffect.pixelate)
+      _MosaicSlider(
+        label: context.l10n.mosaic_pixelSize,
+        value: _settings.pixelSizeRatio,
+        min: 0.004,
+        max: 0.08,
+        onChangeStart: _pushUndo,
+        onChanged: (value) => _changeSettings(
+          _settings.copyWith(pixelSizeRatio: value),
+          recordUndo: false,
+        ),
+      ),
+    if (_settings.effect == MosaicEffect.blur)
+      _MosaicSlider(
+        label: context.l10n.mosaic_blurStrength,
+        value: _settings.blurSigmaRatio,
+        min: 0.003,
+        max: 0.06,
+        onChangeStart: _pushUndo,
+        onChanged: (value) => _changeSettings(
+          _settings.copyWith(blurSigmaRatio: value),
+          recordUndo: false,
+        ),
+      ),
+    if (_settings.effect == MosaicEffect.solid)
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: CircleAvatar(
+          backgroundColor: Color(_settings.fillColorArgb),
+          child: const Icon(Icons.palette_outlined),
+        ),
+        title: Text(context.l10n.mosaic_color),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => _pickColor(
+          Color(_settings.fillColorArgb),
+          (color) => _changeSettings(
+            _settings.copyWith(fillColorArgb: color.toARGB32()),
+          ),
+        ),
+      ),
+  ];
+
+  List<Widget> _buildMaskControls() => [
+    _MosaicSlider(
+      label: context.l10n.mosaic_opacity,
+      value: _settings.opacity,
+      min: 0.1,
+      max: 1,
+      onChangeStart: _pushUndo,
+      onChanged: (value) => _changeSettings(
+        _settings.copyWith(opacity: value),
+        recordUndo: false,
+      ),
+    ),
+    _MosaicSlider(
+      label: context.l10n.mosaic_cornerRadius,
+      value: _settings.cornerRadiusRatio,
+      min: 0,
+      max: 0.5,
+      onChangeStart: _pushUndo,
+      onChanged: (value) => _changeSettings(
+        _settings.copyWith(cornerRadiusRatio: value),
+        recordUndo: false,
+      ),
+    ),
+    _MosaicSlider(
+      label: context.l10n.mosaic_brushSize,
+      value: _settings.brushSizeRatio,
+      min: 0.01,
+      max: 0.16,
+      onChangeStart: _pushUndo,
+      onChanged: (value) {
+        _changeSettings(
+          _settings.copyWith(brushSizeRatio: value),
+          recordUndo: false,
+        );
+        if (_selectedRegion?.shape == MosaicShape.brush) {
+          _setSelectedBrushSize(value);
+        }
+      },
+    ),
+    SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: const Icon(Icons.flip),
+      title: Text(context.l10n.mosaic_invertMask),
+      subtitle: Text(context.l10n.mosaic_invertMaskHint),
+      value: _settings.invertMask,
+      onChanged: (value) =>
+          _changeSettings(_settings.copyWith(invertMask: value)),
+    ),
+    SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: const Icon(Icons.numbers),
+      title: Text(context.l10n.mosaic_showLabels),
+      value: _settings.showRegionLabels,
+      onChanged: (value) =>
+          _changeSettings(_settings.copyWith(showRegionLabels: value)),
+    ),
+    const Divider(height: 28),
+  ];
+
+  List<Widget> _buildRegionListControls() => [
+    Row(
+      children: [
+        Expanded(child: _sectionTitle(context.l10n.mosaic_regions)),
+        Text('${_regions.length}'),
+      ],
+    ),
+    const SizedBox(height: 8),
+    if (_regions.isEmpty)
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          context.l10n.mosaic_noRegions,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      )
+    else
+      Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (var index = 0; index < _regions.length; index++)
+            ChoiceChip(
+              selected: _regions[index].id == _selectedId,
+              avatar: Icon(_shapeIcon(_regions[index].shape), size: 16),
+              label: Text('#${index + 1}'),
+              onSelected: (_) => _selectRegion(_regions[index].id),
             ),
-      );
+        ],
+      ),
+  ];
+
+  List<Widget> _buildSelectedRegionControls(MosaicRegion selected) => [
+    const SizedBox(height: 10),
+    SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(context.l10n.mosaic_regionEnabled),
+      value: selected.enabled,
+      onChanged: (value) => _updateRegion(selected.copyWith(enabled: value)),
+    ),
+    SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(context.l10n.mosaic_regionLocked),
+      value: selected.locked,
+      onChanged: (value) => _updateRegion(selected.copyWith(locked: value)),
+    ),
+    HorizontalSegmentedControl(
+      child: SegmentedButton<MosaicShape>(
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(
+            value: MosaicShape.roundedRectangle,
+            icon: const Icon(Icons.rectangle_outlined),
+            label: Text(context.l10n.mosaic_shapeRectangle),
+          ),
+          ButtonSegment(
+            value: MosaicShape.ellipse,
+            icon: const Icon(Icons.circle_outlined),
+            label: Text(context.l10n.mosaic_shapeEllipse),
+          ),
+          ButtonSegment(
+            value: MosaicShape.brush,
+            icon: const Icon(Icons.brush_outlined),
+            label: Text(context.l10n.mosaic_shapeBrush),
+          ),
+        ],
+        selected: {selected.shape},
+        onSelectionChanged: selected.locked
+            ? null
+            : (value) => _setSelectedShape(value.first),
+      ),
+    ),
+    ..._buildRegionGeometryControls(selected),
+    const SizedBox(height: 8),
+    Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _duplicateSelected,
+          icon: const Icon(Icons.copy_all_outlined),
+          label: Text(context.l10n.mosaic_duplicate),
+        ),
+        OutlinedButton.icon(
+          onPressed: _deleteSelected,
+          icon: const Icon(Icons.delete_outline),
+          label: Text(context.l10n.mosaic_delete),
+        ),
+      ],
+    ),
+  ];
+
+  List<Widget> _buildRegionGeometryControls(MosaicRegion selected) => [
+    if (selected.shape != MosaicShape.brush) ...[
+      const SizedBox(height: 8),
+      _MosaicSlider(
+        label: context.l10n.mosaic_positionX,
+        value: selected.left,
+        min: 0,
+        max: math.max(0.001, 1 - selected.width),
+        onChangeStart: _pushUndo,
+        onChanged: selected.locked
+            ? null
+            : (value) => _updateRegion(
+                selected.copyWith(left: value),
+                recordUndo: false,
+              ),
+      ),
+      _MosaicSlider(
+        label: context.l10n.mosaic_positionY,
+        value: selected.top,
+        min: 0,
+        max: math.max(0.001, 1 - selected.height),
+        onChangeStart: _pushUndo,
+        onChanged: selected.locked
+            ? null
+            : (value) => _updateRegion(
+                selected.copyWith(top: value),
+                recordUndo: false,
+              ),
+      ),
+      _MosaicSlider(
+        label: context.l10n.mosaic_width,
+        value: selected.width,
+        min: 0.02,
+        max: math.max(0.02, 1 - selected.left),
+        onChangeStart: _pushUndo,
+        onChanged: selected.locked
+            ? null
+            : (value) => _updateRegion(
+                selected.copyWith(width: value),
+                recordUndo: false,
+              ),
+      ),
+      _MosaicSlider(
+        label: context.l10n.mosaic_height,
+        value: selected.height,
+        min: 0.02,
+        max: math.max(0.02, 1 - selected.top),
+        onChangeStart: _pushUndo,
+        onChanged: selected.locked
+            ? null
+            : (value) => _updateRegion(
+                selected.copyWith(height: value),
+                recordUndo: false,
+              ),
+      ),
+    ] else
+      _MosaicSlider(
+        label: context.l10n.mosaic_brushSize,
+        value: selected.brushSizeRatio,
+        min: 0.01,
+        max: 0.16,
+        onChangeStart: _pushUndo,
+        onChanged: selected.locked
+            ? null
+            : (value) => _setSelectedBrushSize(value),
+      ),
+  ];
+
+  Widget _sectionTitle(String text) => Text(
+    text,
+    style: Theme.of(
+      context,
+    ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+  );
 
   String _effectName(MosaicEffect effect) => switch (effect) {
-        MosaicEffect.pixelate => context.l10n.mosaic_effectPixelate,
-        MosaicEffect.blur => context.l10n.mosaic_effectBlur,
-        MosaicEffect.solid => context.l10n.mosaic_effectSolid,
-      };
+    MosaicEffect.pixelate => context.l10n.mosaic_effectPixelate,
+    MosaicEffect.blur => context.l10n.mosaic_effectBlur,
+    MosaicEffect.solid => context.l10n.mosaic_effectSolid,
+  };
 
   static IconData _shapeIcon(MosaicShape shape) => switch (shape) {
-        MosaicShape.roundedRectangle => Icons.rectangle_outlined,
-        MosaicShape.ellipse => Icons.circle_outlined,
-        MosaicShape.brush => Icons.brush_outlined,
-      };
+    MosaicShape.roundedRectangle => Icons.rectangle_outlined,
+    MosaicShape.ellipse => Icons.circle_outlined,
+    MosaicShape.brush => Icons.brush_outlined,
+  };
 
-  Future<void> _pickColor(
-    Color initial,
-    ValueChanged<Color> onChanged,
-  ) async {
+  Future<void> _pickColor(Color initial, ValueChanged<Color> onChanged) async {
     var selected = initial;
     final result = await showDialog<Color>(
       context: context,
@@ -1455,18 +1484,28 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
   }
 
   Widget _buildActions() {
-    final ready = _sourceImage != null && !_loading && _loadError == null;
+    final ready =
+        _sourceImage != null &&
+        !_loading &&
+        _loadError == null &&
+        !_processingPreview &&
+        _previewError == null;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLow,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 650 ||
+          final compact =
+              constraints.maxWidth < 650 ||
               MediaQuery.textScalerOf(context).scale(14) > 21;
           return Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-            child: Row(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              runSpacing: 4,
               children: [
                 IconButton(
                   tooltip: context.l10n.mosaic_undo,
@@ -1487,7 +1526,6 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
                   onPressed: _saving || !ready ? null : _reset,
                   icon: const Icon(Icons.restart_alt),
                 ),
-                const Spacer(),
                 if (widget.defaultsOnly)
                   FilledButton.icon(
                     onPressed: _saving || !ready ? null : _saveDefaults,
@@ -1520,8 +1558,8 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
                       compact
                           ? context.l10n.common_save
                           : _saving
-                              ? context.l10n.mosaic_saving
-                              : context.l10n.mosaic_saveCopy,
+                          ? context.l10n.mosaic_saving
+                          : context.l10n.mosaic_saveCopy,
                     ),
                   ),
                 ],
@@ -1591,7 +1629,7 @@ class _MosaicSlider extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(child: slider),
-                    SizedBox(width: 48, child: percentage),
+                    percentage,
                   ],
                 ),
               ],
@@ -1601,7 +1639,7 @@ class _MosaicSlider extends StatelessWidget {
             children: [
               SizedBox(width: 116, child: Text(label)),
               Expanded(child: slider),
-              SizedBox(width: 52, child: percentage),
+              percentage,
             ],
           );
         },

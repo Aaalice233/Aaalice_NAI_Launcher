@@ -38,7 +38,7 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle> {
         : context.l10n.randomMode_disabledTip;
     final baseColor = widget.enabled
         ? colors.primaryContainer
-        : colors.surfaceContainerHigh;
+        : Colors.transparent;
     final backgroundColor = _hovered
         ? Color.alphaBlend(colors.onSurface.withValues(alpha: 0.07), baseColor)
         : baseColor;

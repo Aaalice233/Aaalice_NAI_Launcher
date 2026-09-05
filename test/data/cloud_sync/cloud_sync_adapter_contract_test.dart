@@ -190,6 +190,12 @@ void main() {
   test('portable preferences and explicit exclusions stay classified', () {
     expect(portableSettingKeys, contains(StorageKeys.defaultModel));
     expect(portableSettingKeys, contains(StorageKeys.watermarkConfigV1));
+    // Redaction remains local-only, including its original-file associations.
+    expect(portableSettingKeys, isNot(contains(StorageKeys.mosaicConfigV1)));
+    expect(
+      portableSettingKeys,
+      isNot(contains(StorageKeys.mosaicDerivativeRegistryV1)),
+    );
     expect(
       portableSettingKeys,
       isNot(contains(StorageKeys.watermarkLogoPathV1)),

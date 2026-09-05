@@ -1,6 +1,7 @@
 import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
 import 'novelai_auto_text.dart';
+import 'prompt_edit_document.dart';
 
 /// 提示词语义快照
 ///
@@ -34,6 +35,20 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
   List<NovelAiAutoTextCharacter> characters = const [],
   bool useCoords = false,
 }) {
+  final basePrompt = prompt;
+  final baseNegativePrompt = negativePrompt;
+  prompt = PromptEditDocument.effectiveText(prompt);
+  negativePrompt = PromptEditDocument.effectiveText(negativePrompt);
+  characters = characters
+      .map(
+        (character) => NovelAiAutoTextCharacter(
+          prompt: PromptEditDocument.effectiveText(character.prompt),
+          centerX: character.centerX,
+          centerY: character.centerY,
+          enabled: character.enabled,
+        ),
+      )
+      .toList(growable: false);
   final capabilities = ModelCapabilityRegistry.of(model);
   // 自定义质量预设在到这一步之前就已经并进 prompt（qualityToggle=false），
   // 因此 `transparent background` 会落在自定义质量词之后；官网没有自定义
@@ -75,8 +90,8 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
   );
 
   return PromptSemanticsSnapshot(
-    basePrompt: prompt,
-    baseNegativePrompt: negativePrompt,
+    basePrompt: basePrompt,
+    baseNegativePrompt: baseNegativePrompt,
     effectivePrompt: effectivePrompt,
     effectiveNegativePrompt: effectiveNegativePrompt,
     autoTextBlock: autoTextBlock,

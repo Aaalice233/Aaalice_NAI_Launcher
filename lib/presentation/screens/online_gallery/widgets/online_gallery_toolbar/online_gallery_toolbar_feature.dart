@@ -725,9 +725,7 @@ class _OnlineGalleryToolbarPresenter {
               style: TextButton.styleFrom(
                 backgroundColor: state.randomEnabled
                     ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.4,
-                      ),
+                    : Colors.transparent,
                 foregroundColor: state.randomEnabled
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,
@@ -751,9 +749,7 @@ class _OnlineGalleryToolbarPresenter {
               style: TextButton.styleFrom(
                 backgroundColor: state.randomEnabled
                     ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.4,
-                      ),
+                    : Colors.transparent,
                 foregroundColor: state.randomEnabled
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,

@@ -45,6 +45,7 @@ import 'generation/generation_result_lifecycle_service.dart';
 import 'generation/generation_settings_notifiers.dart';
 import 'generation/image_generation_coordinator.dart';
 import 'generation/image_workflow_controller.dart';
+import 'generation/stream_preview_snapshot.dart';
 import 'image_save_settings_provider.dart';
 import 'local_gallery_provider.dart';
 import 'prompt_config_provider.dart';
@@ -70,23 +71,10 @@ export 'generation/retry_policy_notifier.dart';
 
 part 'image_generation_provider.g.dart';
 
-class _RememberedStreamPreview {
-  const _RememberedStreamPreview({
-    required this.bytes,
-    required this.params,
-    this.focusedPreviewPlacement,
-  });
-
-  final Uint8List bytes;
-  final ImageParams params;
-  final FocusedStreamPreviewPlacement? focusedPreviewPlacement;
-}
-
 @Riverpod(keepAlive: true)
 class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<void>? _historyRestoreInFlight;
   bool _hasRestoredHistory = false;
-  bool _generationInvocationStarting = false;
   Completer<void>? _generationInvocationSettled;
   int _invocationCounter = 0;
   int _activeInvocationId = 0;
@@ -95,7 +83,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   GenerationRunHandle? _activeRun;
   ImageGenerationCoordinator? _coordinator;
   final Map<String, String?> _persistedHistoryFilePaths = <String, String?>{};
-  final Map<String, _RememberedStreamPreview> _streamPreviews = {};
+  final StreamPreviewSnapshotStore _streamPreviews =
+      StreamPreviewSnapshotStore();
   final Set<String> _failedSnapshotKeys = {};
   ImageComparisonSource? _activeComparisonSource;
   FixedTagUsageSnapshot? _activeFixedTagUsageSnapshot;
@@ -107,8 +96,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     ref.onDispose(() {
       _isDisposed = true;
       _lifecycleEpoch++;
-      _generationInvocationStarting = false;
       _activeComparisonSource = null;
+      _streamPreviews.clear();
       final invocationSettled = _generationInvocationSettled;
       _generationInvocationSettled = null;
       if (invocationSettled != null && !invocationSettled.isCompleted) {
@@ -123,6 +112,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   bool _isCurrentLifecycle(int epoch) =>
       !_isDisposed && epoch == _lifecycleEpoch;
+
+  /// copyWith 省略 errorMessage 等于清空，切换提交标志时必须原样带回。
+  void _setSubmitting(bool value) {
+    if (state.isSubmitting == value) return;
+    state = state.copyWith(
+      isSubmitting: value,
+      errorMessage: state.errorMessage,
+    );
+  }
 
   GenerationResultLifecycleService _lifecycle() {
     final gallery = ref.read(localGalleryNotifierProvider.notifier);
@@ -278,10 +276,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     bool preserveCharacterSnapshot = false,
     GenerationFocusedSnapshot? focusedOverride,
   }) async {
-    if (_isDisposed || _generationInvocationStarting || state.isGenerating) {
+    if (_isDisposed || state.isBusy) {
       return;
     }
-    _generationInvocationStarting = true;
+    _setSubmitting(true);
     final invocationSettled = Completer<void>();
     _generationInvocationSettled = invocationSettled;
     final epoch = _lifecycleEpoch;
@@ -401,9 +399,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         await _reduce(event, epoch);
       }
     } finally {
+      // 归属判断不可省：被取消后新一次提交已经接管标志，这里不能替它复位。
       if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
         _activeInvocationId = 0;
-        _generationInvocationStarting = false;
+        _setSubmitting(false);
         _activeComparisonSource = null;
         _activeFixedTagUsageSnapshot = null;
       }
@@ -607,14 +606,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           clearStreamPreview: true,
         );
         for (var i = 0; i < max(images.length, params.nSamples); i++) {
-          _streamPreviews.remove(_snapshotKey(event.runId, startImage + i));
+          _streamPreviews.release(event.runId, startImage + i);
         }
         _saveVibeEncodings(vibeEncodings);
         _retainHistoryCaches();
       case GenerationRequestSkipped(:final startImage, :final requestSize):
         _appendFailedSnapshots(event.runId);
         for (var i = 0; i < requestSize; i++) {
-          _streamPreviews.remove(_snapshotKey(event.runId, startImage + i));
+          _streamPreviews.release(event.runId, startImage + i);
         }
         state = state.copyWith(clearStreamPreview: true);
       case GenerationRequestFailed(:final error, :final isTerminal):
@@ -633,6 +632,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       case GenerationCompleted(:final params):
         final images = List<GeneratedImage>.from(state.currentImages);
         _activeComparisonSource = null;
+        _streamPreviews.clear();
         state = state.copyWith(
           status: GenerationStatus.completed,
           displayImages: images,
@@ -656,6 +656,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
       case GenerationCancelled():
         _appendFailedSnapshots(event.runId);
+        _streamPreviews.clear();
         _activeComparisonSource = null;
         state = state.copyWith(
           status: GenerationStatus.cancelled,
@@ -666,6 +667,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
       case GenerationFailed(:final error):
         _appendFailedSnapshots(event.runId);
+        _streamPreviews.clear();
         _activeComparisonSource = null;
         state = state.copyWith(
           status: GenerationStatus.error,
@@ -678,6 +680,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
   }
 
+  // 预览帧字节由解码与协调层逐帧新建，不会被复用，直接持有即可。
   void _rememberPreview(
     int runId,
     int imageNumber,
@@ -685,19 +688,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     ImageParams params,
     FocusedStreamPreviewPlacement? placement,
   ) {
-    if (bytes.isEmpty) return;
-    _streamPreviews[_snapshotKey(
-      runId,
-      imageNumber,
-    )] = _RememberedStreamPreview(
-      bytes: Uint8List.fromList(bytes),
+    _streamPreviews.remember(
+      runId: runId,
+      imageNumber: imageNumber,
+      bytes: bytes,
       params: params,
-      focusedPreviewPlacement: placement?.copyWith(
-        sourceImage: Uint8List.fromList(placement.sourceImage),
-        maskImage: placement.maskImage == null
-            ? null
-            : Uint8List.fromList(placement.maskImage!),
-      ),
+      placement: placement,
     );
   }
 
@@ -711,7 +707,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         : const <int>[];
     for (final number in numbers.reversed) {
       final key = _snapshotKey(runId, number);
-      final preview = _streamPreviews[key];
+      final preview = _streamPreviews.preview(runId, number);
       if (preview == null || !_failedSnapshotKeys.add(key)) continue;
       final bytes = _materializePreview(preview);
       final size =
@@ -735,12 +731,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           ...state.history,
         ].take(GenerationResultLifecycleService.historyLimit).toList(),
       );
-      _streamPreviews.remove(key);
+      _streamPreviews.release(runId, number);
     }
     _retainHistoryCaches();
   }
 
-  Uint8List _materializePreview(_RememberedStreamPreview preview) {
+  Uint8List _materializePreview(RememberedStreamPreview preview) {
     final placement = preview.focusedPreviewPlacement;
     if (placement == null || !placement.isValid) return preview.bytes;
     final source = img.decodeImage(placement.sourceImage);
@@ -832,19 +828,22 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (_isDisposed) return;
     final runId = _activeRunId;
     _activeInvocationId = 0;
-    _generationInvocationStarting = false;
     _activeComparisonSource = null;
     _appendFailedSnapshots(runId);
+    _streamPreviews.clear();
     final coordinator = _coordinator;
     final handle = _activeRun;
     if (coordinator != null && handle != null) coordinator.cancel(handle);
     _activeRunId = ++_runCounter;
+    // 图已出完、只剩落盘收尾时点取消，不该把已有结果改标成已取消。
+    final settled = state.status == GenerationStatus.completed;
     state = state.copyWith(
-      status: GenerationStatus.cancelled,
-      progress: 0,
+      status: settled ? state.status : GenerationStatus.cancelled,
+      progress: settled ? state.progress : 0,
       currentImage: 0,
       totalImages: 0,
       clearStreamPreview: true,
+      isSubmitting: false,
     );
   }
 

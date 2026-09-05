@@ -41,10 +41,7 @@ class MosaicSettingsNotifier extends Notifier<MosaicSettingsState> {
 
   Future<void> _persistConfiguration(MosaicSettings configuration) async {
     final normalized = MosaicSettings.decode(configuration.encode()).settings;
-    await _storage.setSetting(
-      StorageKeys.mosaicConfigV1,
-      normalized.encode(),
-    );
+    await _storage.setSetting(StorageKeys.mosaicConfigV1, normalized.encode());
     state = MosaicSettingsState(configuration: normalized);
   }
 }

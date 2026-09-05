@@ -346,7 +346,9 @@ class AutocompleteUtils {
     if (renderEditable != null) {
       // 使用 RenderEditable 获取精确的光标位置
       final caretRect = renderEditable.getLocalRectForCaret(
-        TextPosition(offset: cursorPosition),
+        TextPosition(
+          offset: renderEditable.selection?.baseOffset ?? cursorPosition,
+        ),
       );
 
       // 获取 RenderEditable 相对于 renderBox 的位置

@@ -521,7 +521,7 @@ class _SeedSectionState extends ConsumerState<SeedSection> {
                         .watch(generationParamsNotifierProvider.notifier)
                         .isSeedLocked
                     ? theme.colorScheme.primary.withValues(alpha: 0.15)
-                    : theme.colorScheme.surfaceContainerHighest,
+                    : Colors.transparent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -691,7 +691,7 @@ class _SmeaAutoButton extends StatelessWidget {
     return Material(
       color: isAuto
           ? theme.colorScheme.primary.withValues(alpha: 0.15)
-          : theme.colorScheme.surfaceContainerHighest,
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: () => onChanged(!isAuto),

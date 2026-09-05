@@ -438,6 +438,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     List<_SettingsSection> sections,
   ) {
     final theme = Theme.of(context);
+    // 必须从 textTheme 派生：NavigationRail 对这两项是整体替换而非合并，
+    // 传裸 TextStyle 会把默认的 labelMedium 连同用户字体一起顶掉。
+    final selectedLabelStyle = theme.textTheme.labelMedium?.copyWith(
+      color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w600,
+    );
+    final labelWidth = isExtended
+        ? _widestLabelWidth(context, sections, selectedLabelStyle)
+        : null;
 
     Widget buildRail() => NavigationRail(
       selectedIndex: sections.indexWhere((item) => item.id == _selectedSection),
@@ -446,12 +455,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       minExtendedWidth: 180,
       backgroundColor: Colors.transparent,
       selectedIconTheme: IconThemeData(color: theme.colorScheme.primary),
-      // 必须从 textTheme 派生：NavigationRail 对这两项是整体替换而非合并，
-      // 传裸 TextStyle 会把默认的 labelMedium 连同用户字体一起顶掉。
-      selectedLabelTextStyle: theme.textTheme.labelMedium?.copyWith(
-        color: theme.colorScheme.primary,
-        fontWeight: FontWeight.w600,
-      ),
+      selectedLabelTextStyle: selectedLabelStyle,
       unselectedIconTheme: IconThemeData(
         color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
       ),
@@ -459,10 +463,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
       ),
       destinations: sections.map((section) {
+        final label = Text(section.label);
         return NavigationRailDestination(
           icon: Icon(section.icon),
           selectedIcon: Icon(section.selectedIcon),
-          label: Text(section.label),
+          // NavigationRail 把目的地列按最宽一项居中，标签不等宽时窄的会整体右移。
+          label: labelWidth == null
+              ? label
+              : SizedBox(width: labelWidth, child: label),
         );
       }).toList(),
     );
@@ -489,5 +497,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  /// 用选中态样式测量：它比未选中态粗一档，按未选中态取值会裁掉选中项。
+  double _widestLabelWidth(
+    BuildContext context,
+    List<_SettingsSection> sections,
+    TextStyle? style,
+  ) {
+    final textScaler = MediaQuery.textScalerOf(context);
+    final textDirection = Directionality.of(context);
+    var widest = 0.0;
+    for (final section in sections) {
+      final painter = TextPainter(
+        text: TextSpan(text: section.label, style: style),
+        textDirection: textDirection,
+        textScaler: textScaler,
+        maxLines: 1,
+      )..layout();
+      if (painter.width > widest) widest = painter.width;
+      painter.dispose();
+    }
+    return widest;
   }
 }

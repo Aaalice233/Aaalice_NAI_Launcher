@@ -32,6 +32,101 @@ import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
 void main() {
+  testWidgets('主提示词拖动高度保留正文并跨正负和标签模式复用', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) {
+            return _TestLocalStorageService();
+          }),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.negative,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+        ],
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: PromptInputWidget(autoGrow: true),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final positive = find.byKey(
+      const ValueKey('generation_prompt_positive_input'),
+    );
+    final text = find
+        .descendant(of: positive, matching: find.byType(EditableText))
+        .first;
+    await tester.enterText(text, 'cat, dog');
+    await tester.pump();
+    final editor = tester.widget<EditableText>(text);
+    editor.controller.selection = const TextSelection.collapsed(offset: 3);
+    await tester.pump();
+    // Dismiss the autocomplete overlay before interacting with the bottom edge.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    final editorState = tester.state(text);
+    final oldHeight = tester.getSize(positive).height;
+    final handle = find.byKey(
+      const ValueKey('generation-prompt-height-handle'),
+    );
+    await tester.drag(
+      handle,
+      const Offset(0, 100),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+    final manualHeight = tester.getSize(positive).height;
+    expect(manualHeight, greaterThan(oldHeight + 40));
+    expect(tester.state(text), same(editorState));
+    expect(editor.focusNode.hasFocus, isTrue);
+    expect(editor.controller.text, 'cat, dog');
+    expect(
+      editor.controller.selection,
+      const TextSelection.collapsed(offset: 3),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+    await tester.pump();
+    expect(tester.getSize(positive).height, manualHeight);
+    await tester.drag(
+      handle,
+      const Offset(0, -40),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+    final tagHeight = tester.getSize(positive).height;
+    expect(tagHeight, lessThan(manualHeight));
+    expect(editor.controller.text, 'cat, dog');
+    await tester.tap(find.byIcon(Icons.block).first);
+    await tester.pump();
+    final negative = find.byKey(
+      const ValueKey('generation_prompt_negative_input'),
+    );
+    expect(tester.getSize(negative).height, tagHeight);
+    expect(tester.takeException(), isNull);
+    // Settle the double-tap recognizer and the existing toolbar blur delay.
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('冷启动时切换到负面提示词不会抛出异常', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -1146,7 +1241,7 @@ void main() {
     expect(
       find.descendant(
         of: input,
-        matching: find.byKey(const ValueKey('quick-translate-button')),
+        matching: find.byKey(const ValueKey('tag-mode-button')),
       ),
       findsOneWidget,
     );

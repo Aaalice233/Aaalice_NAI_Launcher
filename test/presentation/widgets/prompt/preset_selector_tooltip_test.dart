@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/quality_preset_provider.dart';
 import 'package:nai_launcher/presentation/providers/uc_preset_provider.dart';
+import 'package:nai_launcher/presentation/themes/prompt_semantic_colors.dart';
 import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/quality_tags_selector.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/uc_preset_selector.dart';
@@ -66,7 +67,7 @@ void main() {
       tester.element(find.byType(QualityTagsSelector)),
     ).textTheme.bodyMedium?.fontSize;
     expect(preview.style?.fontSize, resolvedBodyFontSize);
-    expect(preview.style?.color, Colors.green.shade300);
+    expect(preview.style?.color, theme.promptSemanticColors.positiveQuality);
     expect(find.text('非常唯美'), findsOneWidget);
 
     await mouse.moveTo(tester.getCenter(find.byType(UcPresetSelector)));

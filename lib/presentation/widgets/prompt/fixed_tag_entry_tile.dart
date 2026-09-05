@@ -54,7 +54,7 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
     final highlighted = _hovering || _focused;
     final restingColor = controlSurfaceColor(theme.colorScheme);
     final baseColor = Color.alphaBlend(
-      promptTypeColor.withValues(alpha: entry.enabled ? 0.12 : 0.07),
+      promptTypeColor.withValues(alpha: entry.enabled ? 0.22 : 0),
       restingColor,
     );
     final tile = Material(
@@ -303,7 +303,7 @@ class _EntryLabels extends StatelessWidget {
             fontWeight: FontWeight.w500,
             color: entry.enabled
                 ? theme.colorScheme.onSurface
-                : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                : theme.colorScheme.onSurfaceVariant,
             decoration: entry.enabled ? null : TextDecoration.lineThrough,
             decorationColor: theme.colorScheme.outline.withValues(alpha: 0.6),
             decorationThickness: 2,
@@ -320,9 +320,7 @@ class _EntryLabels extends StatelessWidget {
               selectable: false,
               style: TextStyle(
                 fontSize: 11,
-                color: entry.enabled
-                    ? theme.colorScheme.outline.withValues(alpha: 0.8)
-                    : theme.colorScheme.outline.withValues(alpha: 0.5),
+                color: theme.colorScheme.onSurfaceVariant,
                 height: 1.2,
                 decoration: entry.enabled ? null : TextDecoration.lineThrough,
                 decorationColor: theme.colorScheme.outline.withValues(

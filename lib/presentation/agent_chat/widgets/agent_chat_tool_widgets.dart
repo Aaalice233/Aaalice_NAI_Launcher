@@ -1489,7 +1489,7 @@ class _NetworkImagePreviewPage extends StatelessWidget {
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: IconButton.filledTonal(
+                  child: IconButton(
                     key: const ValueKey('agent-network-image-preview-close'),
                     tooltip: MaterialLocalizations.of(
                       context,

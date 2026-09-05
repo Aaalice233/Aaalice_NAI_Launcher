@@ -1,7 +1,4 @@
 /// 将颜色、排版、形状和动效四类有效模块组合成完整主题。
-///
-/// 阴影、纹理、玻璃和主题专属分割线模块曾经只声明不消费，现已移除；
-/// 浮层深度与结构分隔统一由语义组件主题控制。
 library;
 
 import 'package:flutter/material.dart';
@@ -9,6 +6,7 @@ import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/core/theme_modules.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
+import '../prompt_semantic_colors.dart';
 
 /// Composes the effective theme modules into a complete [ThemeData].
 class ThemeComposer {
@@ -71,7 +69,14 @@ class ThemeComposer {
       brightness: effectiveBrightness,
       colorScheme: colorScheme,
       textTheme: textTheme,
-      extensions: [buildExtension(effectiveBrightness)],
+      primaryTextTheme: _applyColorToTextTheme(
+        textTheme,
+        colorScheme.onPrimary,
+      ),
+      extensions: [
+        buildExtension(effectiveBrightness),
+        PromptSemanticColors.from(colorScheme),
+      ],
 
       // Icon theme - ensures icons have good visibility by default
       // Uses onSurface for proper contrast on surface backgrounds
@@ -86,7 +91,7 @@ class ThemeComposer {
         tickMarkShape: SliderTickMarkShape.noTickMark,
       ),
 
-      // Apply divider module colors to Flutter's built-in divider
+      // Keep structural separators quiet across all palettes.
       dividerColor: colorScheme.onSurface.withValues(alpha: 0.08),
       dividerTheme: DividerThemeData(
         color: colorScheme.onSurface.withValues(alpha: 0.08),
@@ -179,7 +184,7 @@ class ThemeComposer {
           error: true,
         ),
         // Explicit contrast keeps placeholders legible in custom themes.
-        hintStyle: TextStyle(color: colorScheme.outline, fontSize: 16),
+        hintStyle: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 14,
@@ -272,7 +277,7 @@ class ThemeComposer {
           borderRadius: BorderRadius.circular(shape.smallRadius),
         ),
         side: BorderSide.none,
-        backgroundColor: colorScheme.surfaceContainerHighest,
+        backgroundColor: Colors.transparent,
         selectedColor: colorScheme.primaryContainer,
         surfaceTintColor: Colors.transparent,
         // 两项都必须从 textTheme 派生：Chip 对 labelStyle 是"有则取之"而非
@@ -306,7 +311,7 @@ class ThemeComposer {
             ),
           ],
         ),
-        textStyle: TextStyle(
+        textStyle: textTheme.bodySmall?.copyWith(
           color: effectiveBrightness == Brightness.dark
               ? colorScheme.onSurface
               : colorScheme.onInverseSurface,

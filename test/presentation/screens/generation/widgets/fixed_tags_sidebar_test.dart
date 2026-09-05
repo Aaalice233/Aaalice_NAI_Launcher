@@ -191,6 +191,57 @@ void main() {
     }
   }
 
+  for (final width in const [320.0, 600.0, 840.0]) {
+    for (final viewMode in const ['list', 'grid']) {
+      for (final scale in const [1.0, 3.0]) {
+        testWidgets(
+          '$viewMode panes at $width / ${scale}x keep headers inside the card',
+          (tester) async {
+            await _pumpSidebar(
+              tester,
+              _paneHeaderStorage(viewMode: viewMode),
+              textScale: scale,
+              viewportSize: Size(width, 620),
+            );
+
+            // 这里只断言面板头，不断言条目：正文按需构建，窄屏大字号下条目本就
+            // 落在视口之外。条目渲染由本文件其余用例覆盖。
+            _expectPaneHeadersFit(tester);
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+    }
+  }
+
+  // 顶部卡片在 3x 下吃掉大半高度，面板头分到的高度低于自然高度时必须自己收缩。
+  testWidgets('pane headers shrink instead of overflowing a short pane', (
+    tester,
+  ) async {
+    await _pumpSidebar(
+      tester,
+      _paneHeaderStorage(),
+      textScale: 3,
+      viewportSize: const Size(320, 600),
+    );
+
+    _expectPaneHeadersFit(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  // 空面板只按面板头预算，4x 下自然高度已到 84，写死 64 就会少留 20。
+  testWidgets('empty pane reserves a text-scaled header at 4x', (tester) async {
+    await _pumpSidebar(
+      tester,
+      _paneHeaderStorage(withNegative: false),
+      textScale: 4,
+      viewportSize: const Size(320, 860),
+    );
+
+    _expectPaneHeadersFit(tester);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('select-all action follows input hit targets', (tester) async {
     tester.view.physicalSize = const Size(320, 700);
     tester.view.devicePixelRatio = 1;
@@ -622,10 +673,7 @@ void main() {
     final assistant = find.byType(PromptAssistantOverlay);
     expect(contentFooter, findsOneWidget);
     expect(assistant, findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('quick-translate-button')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('tag-mode-button')), findsOneWidget);
     expect(
       tester.getTopLeft(contentFooter).dy,
       closeTo(tester.getBottomLeft(contentInput).dy + 4, 1),
@@ -1728,7 +1776,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final surface = find.byKey(const Key('fixed-tags-button-surface'));
-    expect(tester.getSize(surface).height, 36);
+    // Compact content keeps the shared touch target instead of shrinking it.
+    expect(tester.getSize(surface).height, 48);
     expect(tester.getSize(surface).width, lessThan(100));
   });
 
@@ -2494,7 +2543,7 @@ void main() {
       const ValueKey('fixed-tags-positive-group-list'),
     );
     final controller = tester
-        .widget<SingleChildScrollView>(positiveGroupList)
+        .widget<CustomScrollView>(positiveGroupList)
         .controller!;
     controller.jumpTo(controller.position.maxScrollExtent);
     await tester.pumpAndSettle();
@@ -2525,7 +2574,7 @@ void main() {
         const ValueKey('fixed-tags-positive-group-list'),
       );
       final controller = tester
-          .widget<SingleChildScrollView>(positiveScrollView)
+          .widget<CustomScrollView>(positiveScrollView)
           .controller!;
       final initialMax = await _expectStableScrollMetrics(
         tester,
@@ -2562,7 +2611,7 @@ void main() {
         const ValueKey('fixed-tags-positive-group-list'),
       );
       final controller = tester
-          .widget<SingleChildScrollView>(positiveScrollView)
+          .widget<CustomScrollView>(positiveScrollView)
           .controller!;
       await _expectStableScrollMetrics(
         tester,
@@ -2659,7 +2708,7 @@ void main() {
     );
     expect(negativeList, findsOneWidget);
     final controller = tester
-        .widget<SingleChildScrollView>(negativeList)
+        .widget<CustomScrollView>(negativeList)
         .controller!;
     await _expectStableScrollMetrics(
       tester,
@@ -3211,13 +3260,70 @@ _buildUnevenPositiveFixture() {
   return (categories: categories, entries: entries);
 }
 
+_SidebarTestStorage _paneHeaderStorage({
+  String viewMode = 'list',
+  bool withNegative = true,
+}) {
+  final category = TagLibraryCategory.create(name: '分组', sortOrder: 0);
+  final types = withNegative
+      ? FixedTagPromptType.values
+      : const [FixedTagPromptType.positive];
+  return _SidebarTestStorage(
+    fixedEntries: [
+      for (final type in types)
+        for (var index = 0; index < 6; index++)
+          FixedTagEntry.create(
+            name: '${type.name}-$index',
+            content: 'tag $index',
+            enabled: false,
+            promptType: type,
+            categoryId: category.id,
+            sortOrder: index,
+          ),
+    ],
+    categories: [category],
+    libraryEntries: const [],
+  )..fixedSidebarViewMode = viewMode;
+}
+
+// 面板头收缩后仍不得越过卡片下沿，且两侧筛选入口保持完整命中区。
+void _expectPaneHeadersFit(WidgetTester tester) {
+  for (final prefix in const ['fixed-tags-positive', 'fixed-tags-negative']) {
+    final card = find.byKey(ValueKey('$prefix-card'));
+    expect(card, findsOneWidget);
+    final header = find
+        .descendant(of: card, matching: find.byType(ColoredBox))
+        .first;
+    expect(
+      tester.getRect(header).height,
+      lessThanOrEqualTo(tester.getRect(card).height),
+      reason: '$prefix 面板头超出了卡片高度',
+    );
+
+    final action = find.byKey(ValueKey('$prefix-enabled-only'));
+    expect(action.hitTestable(), findsOneWidget);
+    expect(
+      tester.getSize(action).height,
+      greaterThanOrEqualTo(40.0),
+      reason: '$prefix 的筛选入口被压缩到命中区以下',
+    );
+  }
+}
+
 Future<void> _pumpSidebar(
   WidgetTester tester,
   _SidebarTestStorage storage, {
   double textScale = 1,
+  Size? viewportSize,
   InteractionPolicy? interactionPolicy,
   TagTranslationLookup? translationLookup,
 }) async {
+  final size = viewportSize ?? const Size(340, 620);
+  if (viewportSize != null) {
+    tester.view.physicalSize = viewportSize;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+  }
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -3240,10 +3346,10 @@ Future<void> _pumpSidebar(
         home: Scaffold(
           body: InteractionPolicyScope(
             initialPolicy: interactionPolicy,
-            child: const SizedBox(
-              width: 340,
-              height: 620,
-              child: FixedTagsSidebar(),
+            child: SizedBox(
+              width: size.width,
+              height: size.height,
+              child: const FixedTagsSidebar(),
             ),
           ),
         ),

@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 import 'fixed_tag_prompt_type.dart';
+import '../../../core/utils/prompt_edit_document.dart';
 
 part 'fixed_tag_entry.freezed.dart';
 part 'fixed_tag_entry.g.dart';
@@ -228,11 +229,14 @@ String _applyEnabledEntries(
   required List<FixedTagEntry> prefixes,
   required List<FixedTagEntry> suffixes,
 }) {
-  final parts = <String>[
-    ...prefixes.sortedByOrder().map((entry) => entry.weightedContent),
-    userPrompt,
-    ...suffixes.sortedByOrder().map((entry) => entry.weightedContent),
-  ].where((part) => part.trim().isNotEmpty);
+  final parts =
+      <String>[
+            ...prefixes.sortedByOrder().map((entry) => entry.weightedContent),
+            userPrompt,
+            ...suffixes.sortedByOrder().map((entry) => entry.weightedContent),
+          ]
+          .map(PromptEditDocument.effectiveText)
+          .where((part) => part.trim().isNotEmpty);
   return parts.join(', ');
 }
 

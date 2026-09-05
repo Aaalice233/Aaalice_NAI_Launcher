@@ -9,6 +9,9 @@ import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/uc_preset_provider.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../adaptive/interaction_policy.dart';
+import '../../../themes/prompt_semantic_colors.dart';
+import '../../../themes/prompt_control_colors.dart';
+import '../../../widgets/prompt/prompt_control_button.dart';
 import '../../../widgets/common/rich_tooltip_surface.dart';
 import 'prompt_input_controller.dart';
 import 'prompt_input_models.dart';
@@ -60,7 +63,7 @@ class PromptTypeSwitch extends ConsumerWidget {
           label: context.l10n.prompt_positive,
           count: controller.promptCount,
           isSelected: !controller.isNegativeMode,
-          color: theme.colorScheme.primary,
+          color: theme.promptSemanticColors.positivePrompt,
           compact: compact,
           onTap: () => commands.setNegativeMode(false),
           tooltipBuilder: (theme) => PositivePromptTooltip(
@@ -81,7 +84,7 @@ class PromptTypeSwitch extends ConsumerWidget {
           label: context.l10n.prompt_negative,
           count: controller.negativePromptCount,
           isSelected: controller.isNegativeMode,
-          color: theme.colorScheme.error,
+          color: theme.promptSemanticColors.negativePrompt,
           compact: compact,
           onTap: () => commands.setNegativeMode(true),
           tooltipBuilder: (theme) => NegativePromptTooltip(
@@ -138,112 +141,60 @@ class PromptTypeButton extends StatefulWidget {
   State<PromptTypeButton> createState() => _PromptTypeButtonState();
 }
 
-class _PromptTypeButtonState extends State<PromptTypeButton>
-    with SingleTickerProviderStateMixin {
-  bool _isHovering = false;
-  late final AnimationController _animation = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 150),
-  );
-  late final Animation<double> _scale = Tween<double>(
-    begin: 1,
-    end: 0.96,
-  ).animate(CurvedAnimation(parent: _animation, curve: Curves.easeInOut));
-
-  @override
-  void dispose() {
-    _animation.dispose();
-    super.dispose();
-  }
-
+class _PromptTypeButtonState extends State<PromptTypeButton> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    final transitionDuration = disableAnimations
-        ? Duration.zero
-        : const Duration(milliseconds: 200);
-    final button = MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTapDown: (_) {
-          if (!disableAnimations) _animation.forward();
-        },
-        onTapUp: (_) {
-          if (!disableAnimations) _animation.reverse();
-          widget.onTap();
-        },
-        onTapCancel: () {
-          if (!disableAnimations) _animation.reverse();
-        },
-        child: AnimatedBuilder(
-          animation: _scale,
-          builder: (context, child) => Transform.scale(
-            scale: disableAnimations ? 1 : _scale.value,
-            child: child,
-          ),
-          child: AnimatedContainer(
-            duration: transitionDuration,
-            curve: Curves.easeOutCubic,
-            constraints: const BoxConstraints(minHeight: 48),
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.compact ? 6 : 14,
-              vertical: 8,
-            ),
-            decoration: BoxDecoration(
-              color: widget.isSelected
-                  ? widget.color.withValues(alpha: 0.16)
-                  : _isHovering
-                  ? theme.colorScheme.surfaceContainerHighest
-                  : theme.colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final fillsAvailableWidth =
-                    widget.compact && constraints.hasBoundedWidth;
-                final label = _label(theme);
-                return Row(
-                  mainAxisSize: fillsAvailableWidth
-                      ? MainAxisSize.max
-                      : MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AnimatedContainer(
-                      duration: transitionDuration,
-                      padding: EdgeInsets.all(widget.compact ? 2 : 4),
-                      decoration: BoxDecoration(
-                        color: widget.isSelected
-                            ? widget.color.withValues(alpha: 0.15)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        widget.icon,
-                        size: 16,
-                        color: widget.isSelected
-                            ? widget.color
-                            : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.5,
-                              ),
-                      ),
-                    ),
-                    SizedBox(width: widget.compact ? 4 : 8),
-                    if (fillsAvailableWidth) Flexible(child: label) else label,
-                    SizedBox(width: widget.compact ? 3 : 6),
-                    PromptTagCountBadge(
-                      count: widget.count,
-                      selected: widget.isSelected,
-                      color: widget.color,
-                      compact: widget.compact,
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
+    final button = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 52),
+      child: PromptControlButton(
+        color: widget.color,
+        active: widget.isSelected,
+        selected: widget.isSelected,
+        onPressed: widget.onTap,
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.compact ? 6 : 14,
+          vertical: 8,
+        ),
+        builder: (colors) => LayoutBuilder(
+          builder: (context, constraints) {
+            final fillsAvailableWidth =
+                widget.compact && constraints.hasBoundedWidth;
+            final label = Text(
+              widget.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: widget.isSelected
+                    ? FontWeight.w600
+                    : FontWeight.w500,
+                color: colors.foreground,
+                letterSpacing: 0.3,
+              ),
+            );
+            return Row(
+              mainAxisSize: fillsAvailableWidth
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(widget.compact ? 2 : 4),
+                  child: Icon(widget.icon, size: 16, color: colors.accent),
+                ),
+                SizedBox(width: widget.compact ? 4 : 8),
+                if (fillsAvailableWidth) Flexible(child: label) else label,
+                SizedBox(width: widget.compact ? 3 : 6),
+                PromptTagCountBadge(
+                  count: widget.count,
+                  selected: widget.isSelected,
+                  color: widget.color,
+                  compact: widget.compact,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -271,20 +222,6 @@ class _PromptTypeButtonState extends State<PromptTypeButton>
       child: button,
     );
   }
-
-  Widget _label(ThemeData theme) => Text(
-    widget.label,
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    style: TextStyle(
-      fontSize: 13,
-      fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
-      color: widget.isSelected
-          ? widget.color
-          : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-      letterSpacing: 0.3,
-    ),
-  );
 }
 
 class PromptTagCountBadge extends StatelessWidget {
@@ -303,13 +240,15 @@ class PromptTagCountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = PromptControlColors(
+      Theme.of(context),
+      color,
+      active: selected,
+    );
     return Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 5, vertical: 1),
       decoration: BoxDecoration(
-        color: selected
-            ? color.withValues(alpha: 0.2)
-            : colors.surfaceContainerHighest,
+        color: colors.background,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -317,7 +256,7 @@ class PromptTagCountBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: compact ? 10 : 11,
           fontWeight: FontWeight.w600,
-          color: selected ? color : colors.onSurface.withValues(alpha: 0.6),
+          color: colors.foreground,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
