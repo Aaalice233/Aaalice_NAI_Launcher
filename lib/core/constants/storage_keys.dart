@@ -67,6 +67,10 @@ class StorageKeys {
   static const String rightPanelExpanded = 'right_panel_expanded';
   static const String leftPanelWidth = 'left_panel_width';
   static const String promptAreaHeight = 'prompt_area_height';
+
+  // Device-local editor preferences; intentionally absent from cloud sync.
+  static const String promptTagMode = 'prompt_tag_mode';
+  static const String promptEditorManualHeight = 'prompt_editor_manual_height';
   static const String promptMaximized = 'prompt_maximized';
   static const String generationLayoutMode = 'generation_layout_mode';
   static const String mobileGenerationGestureHintCompleted =

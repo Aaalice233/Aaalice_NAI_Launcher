@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -251,17 +252,19 @@ void main() {
 
 Future<void> _pump(WidgetTester tester, NaiSyntaxController source) =>
     tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: SizedBox(
-            height: 200,
-            child: TagModePromptField(
-              controller: source,
-              child: ThemedInput(
-                controller: source.displayController,
-                maxLines: null,
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(
+              height: 200,
+              child: TagModePromptField(
+                controller: source,
+                child: ThemedInput(
+                  controller: source.displayController,
+                  maxLines: null,
+                ),
               ),
             ),
           ),

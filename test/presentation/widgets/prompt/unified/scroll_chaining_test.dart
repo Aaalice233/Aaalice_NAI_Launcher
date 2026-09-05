@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,8 @@ import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/prompt_scroll_coordinator.dart';
+
+import '../../../../helpers/memory_local_storage.dart';
 
 void main() {
   for (final scenario in [
@@ -30,6 +33,11 @@ void main() {
         addTearDown(height.dispose);
         await tester.pumpWidget(
           ProviderScope(
+            overrides: [
+              localStorageServiceProvider.overrideWith(
+                (ref) => MemoryLocalStorage(),
+              ),
+            ],
             child: MaterialApp(
               locale: const Locale('en'),
               supportedLocales: AppLocalizations.supportedLocales,

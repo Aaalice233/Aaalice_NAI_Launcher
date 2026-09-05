@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/prompt_editor_preferences_provider.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import 'tag_editor_scope.dart';
@@ -10,7 +12,7 @@ import '../common/themed_confirm_dialog.dart';
 
 /// Keeps the text editor mounted so its viewport and native editing state
 /// survive mode switches. Tag edits are transactions on the same controller.
-class TagModePromptField extends StatefulWidget {
+class TagModePromptField extends ConsumerStatefulWidget {
   const TagModePromptField({
     super.key,
     required this.controller,
@@ -39,10 +41,10 @@ class TagModePromptField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<bool>? onSearch;
   @override
-  State<TagModePromptField> createState() => _TagModePromptFieldState();
+  ConsumerState<TagModePromptField> createState() => _TagModePromptFieldState();
 }
 
-class _TagModePromptFieldState extends State<TagModePromptField> {
+class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
   late TagEditorSession _session;
   String _lastText = '';
   @override
@@ -52,7 +54,9 @@ class _TagModePromptFieldState extends State<TagModePromptField> {
   }
 
   void _attach() {
-    _session = TagEditorSession(widget.controller)..addListener(_changed);
+    _session = TagEditorSession(widget.controller)
+      ..tagMode = ref.read(promptTagModeProvider)
+      ..addListener(_changed);
     _lastText = widget.controller.text;
   }
 
@@ -82,7 +86,8 @@ class _TagModePromptFieldState extends State<TagModePromptField> {
 
   void _toggle() {
     _session.endEdit();
-    setState(() => _session.tagMode = !_session.tagMode);
+    _session.tagMode = !_session.tagMode;
+    ref.read(promptTagModeProvider.notifier).setEnabled(_session.tagMode);
     widget.onModeChanged?.call(_session.tagMode);
     if (_session.tagMode) {
       widget.sourceFocusNode?.unfocus();
@@ -111,6 +116,12 @@ class _TagModePromptFieldState extends State<TagModePromptField> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(promptTagModeProvider, (_, tagMode) {
+      if (_session.tagMode != tagMode) _session.endEdit();
+      _session.tagMode = tagMode;
+    });
+    final tagMode = ref.watch(promptTagModeProvider);
+    _session.tagMode = tagMode;
     final scheme = Theme.of(context).colorScheme;
     final extent = context.interactionPolicy.minimumControlExtent.clamp(
       44.0,

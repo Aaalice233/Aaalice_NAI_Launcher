@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +10,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_add_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+
+import '../../../../helpers/memory_local_storage.dart';
 
 void main() {
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
@@ -325,6 +328,9 @@ Future<void> _pumpLauncher(
 
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWith((ref) => MemoryLocalStorage()),
+      ],
       child: MaterialApp(
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,

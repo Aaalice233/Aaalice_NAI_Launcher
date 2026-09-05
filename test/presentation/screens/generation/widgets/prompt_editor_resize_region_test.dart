@@ -6,6 +6,32 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_editor_resize_region.dart';
 
 void main() {
+  testWidgets('restored height is clamped without overwriting the preference', (
+    tester,
+  ) async {
+    final writes = <double?>[];
+    Widget app(double height) => _app(
+      SizedBox(
+        height: height,
+        child: PromptEditorResizeRegion(
+          enabled: true,
+          initialHeight: 220,
+          onHeightChanged: writes.add,
+          builder: (manual) => TextField(maxLines: null, expands: manual),
+        ),
+      ),
+    );
+    await tester.pumpWidget(app(260));
+    expect(tester.getSize(find.byType(TextField)).height, 220);
+    await tester.pumpWidget(app(150));
+    expect(tester.getSize(find.byType(TextField)).height, lessThan(150));
+    await tester.pumpWidget(app(260));
+    expect(tester.getSize(find.byType(TextField)).height, 220);
+    expect(writes, isEmpty);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
     'drag preserves editor state and avoids rebuilding on each move',
     (tester) async {

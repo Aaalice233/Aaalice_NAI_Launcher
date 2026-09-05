@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/constants/storage_keys.dart';
+import '../../../../core/storage/local_storage_service.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../themes/core/input_surface_style.dart';
@@ -34,6 +36,7 @@ class PromptInputEditor extends ConsumerWidget {
     final enableSdSyntaxAutoConvert = ref.watch(
       sdSyntaxAutoConvertSettingsProvider,
     );
+    final storage = ref.watch(localStorageServiceProvider);
     final negative = controller.isNegativeMode;
     final promptController = negative
         ? controller.negativeController
@@ -47,6 +50,16 @@ class PromptInputEditor extends ConsumerWidget {
       child: Container(
         key: const ValueKey('generation_prompt_compact_surface'),
         child: PromptEditorResizeRegion(
+          initialHeight: storage.getSetting<double>(
+            StorageKeys.promptEditorManualHeight,
+          ),
+          onHeightChanged: (height) {
+            if (height == null) {
+              storage.deleteSetting(StorageKeys.promptEditorManualHeight);
+            } else {
+              storage.setSetting(StorageKeys.promptEditorManualHeight, height);
+            }
+          },
           enabled: viewData.autoGrow && !compact && !viewData.isMaximized,
           builder: (manualHeight) => UnifiedPromptInput(
             key: ValueKey(

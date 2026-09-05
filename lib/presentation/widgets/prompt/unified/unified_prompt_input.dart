@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../providers/prompt_editor_preferences_provider.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/prompt_edit_document.dart';
 import '../../../../core/utils/prompt_regex_replacer.dart';
@@ -136,7 +137,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 语法高亮控制器
   NaiSyntaxController? _syntaxController;
   bool _syncingControllerValue = false;
-  bool _tagMode = false;
+  bool get _tagMode =>
+      widget.config.enableTagMode && ref.read(promptTagModeProvider);
 
   /// 焦点节点
   FocusNode? _internalFocusNode;
@@ -1070,6 +1072,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.config.enableTagMode) ref.watch(promptTagModeProvider);
     Widget result = _buildTextField();
 
     // 如果启用 ComfyUI 导入，包装 ComfyuiImportWrapper
@@ -1454,7 +1457,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         enabled: !widget.config.readOnly,
         enableAutocomplete: widget.config.enableAutocomplete,
         onChanged: _handleTextChanged,
-        onModeChanged: (value) => setState(() => _tagMode = value),
         onSearch: (replace) => _openSearch(showReplace: replace),
         child: clipboardAwareInput,
       );

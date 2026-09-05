@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,8 @@ import 'package:nai_launcher/presentation/widgets/common/input_surface_container
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_capsule.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_mode_prompt_field.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
+
+import '../../../helpers/memory_local_storage.dart';
 
 Future<void> pumpEditor(
   WidgetTester tester,
@@ -31,6 +34,9 @@ Future<void> pumpEditor(
 }) => tester.pumpWidget(
   ProviderScope(
     overrides: [
+      localStorageServiceProvider.overrideWith(
+        (ref) => MemoryLocalStorage(),
+      ),
       zhDictionaryServiceProvider.overrideWith(
         (ref) => dictionary ?? _Dictionary(),
       ),

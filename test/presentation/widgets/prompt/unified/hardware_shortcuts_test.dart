@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,8 @@ import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_capsule.dart';
 
+import '../../../../helpers/memory_local_storage.dart';
+
 void main() {
   testWidgets('tag mode search, replace, clear and undo use the same source', (
     tester,
@@ -16,6 +19,11 @@ void main() {
     addTearDown(controller.dispose);
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => MemoryLocalStorage(),
+          ),
+        ],
         child: MaterialApp(
           locale: const Locale('en'),
           supportedLocales: AppLocalizations.supportedLocales,
@@ -97,6 +105,11 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => MemoryLocalStorage(),
+          ),
+        ],
         child: MaterialApp(
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,

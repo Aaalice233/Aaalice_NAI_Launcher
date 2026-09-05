@@ -14,8 +14,12 @@ class PromptEditorResizeRegion extends StatefulWidget {
     super.key,
     required this.enabled,
     required this.builder,
+    this.initialHeight,
+    this.onHeightChanged,
   });
 
+  final double? initialHeight;
+  final ValueChanged<double?>? onHeightChanged;
   final bool enabled;
   final Widget Function(bool manualHeight) builder;
 
@@ -26,7 +30,7 @@ class PromptEditorResizeRegion extends StatefulWidget {
 
 class _PromptEditorResizeRegionState extends State<PromptEditorResizeRegion> {
   final _editorKey = GlobalKey();
-  final _height = ValueNotifier<double?>(null);
+  late final _height = ValueNotifier<double?>(widget.initialHeight);
   double? _dragHeight;
 
   double get _renderedHeight => _editorKey.currentContext!.size!.height;
@@ -39,11 +43,13 @@ class _PromptEditorResizeRegionState extends State<PromptEditorResizeRegion> {
     final wasManual = _height.value != null;
     _height.value = next;
     if (!wasManual) setState(() {});
+    if (_dragHeight == null) widget.onHeightChanged?.call(next);
   }
 
   void _reset() {
     _dragHeight = null;
     _height.value = null;
+    widget.onHeightChanged?.call(null);
     setState(() {});
   }
 
@@ -130,7 +136,10 @@ class _PromptEditorResizeRegionState extends State<PromptEditorResizeRegion> {
                   height: handleHeight,
                   focused: Focus.of(context).hasFocus,
                   onDragStart: () => _dragHeight = _renderedHeight,
-                  onDragEnd: () => _dragHeight = null,
+                  onDragEnd: () {
+                    _dragHeight = null;
+                    widget.onHeightChanged?.call(_height.value);
+                  },
                   onDrag: resize,
                 ),
               ),

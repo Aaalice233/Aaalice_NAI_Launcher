@@ -1,5 +1,7 @@
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -31,39 +33,35 @@ import 'package:nai_launcher/presentation/widgets/prompt/uc_preset_selector.dart
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
+import '../../../../helpers/memory_local_storage.dart';
+
 void main() {
   testWidgets('主提示词拖动高度保留正文并跨正负和标签模式复用', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) {
-            return _TestLocalStorageService();
-          }),
-          characterPromptNotifierProvider.overrideWith(
-            _TestCharacterPromptNotifier.new,
-          ),
-          promptTokenUsageProvider(
-            PromptTokenCountTarget.positive,
-          ).overrideWith(
-            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
-          ),
-          promptTokenUsageProvider(
-            PromptTokenCountTarget.negative,
-          ).overrideWith(
-            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
-          ),
-        ],
-        child: const MaterialApp(
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: PromptInputWidget(autoGrow: true),
-            ),
-          ),
+    final storage = _TestLocalStorageService();
+    final app = ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWith((ref) {
+          return storage;
+        }),
+        characterPromptNotifierProvider.overrideWith(
+          _TestCharacterPromptNotifier.new,
+        ),
+        promptTokenUsageProvider(PromptTokenCountTarget.positive).overrideWith(
+          (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+        ),
+        promptTokenUsageProvider(PromptTokenCountTarget.negative).overrideWith(
+          (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+        ),
+      ],
+      child: const MaterialApp(
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: SingleChildScrollView(child: PromptInputWidget(autoGrow: true)),
         ),
       ),
     );
+    await tester.pumpWidget(app);
 
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -123,6 +121,34 @@ void main() {
     expect(tester.getSize(negative).height, tagHeight);
     expect(tester.takeException(), isNull);
     // Settle the double-tap recognizer and the existing toolbar blur delay.
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(
+      storage.getSetting<double>(StorageKeys.promptEditorManualHeight),
+      tagHeight,
+    );
+    expect(storage.getSetting<bool>(StorageKeys.promptTagMode), isTrue);
+    await tester.pumpWidget(app);
+    await tester.pump();
+    expect(tester.getSize(positive).height, tagHeight);
+    expect(find.byType(TagEditorView), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+    await tester.pump();
+    expect(storage.getSetting<bool>(StorageKeys.promptTagMode), isFalse);
+    Focus.of(tester.element(handle)).requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.pump();
+    expect(
+      storage.getSetting<double>(StorageKeys.promptEditorManualHeight),
+      isNull,
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(app);
+    await tester.pump();
+    expect(tester.getSize(positive).height, oldHeight);
+    expect(find.byType(TagEditorView), findsNothing);
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -1775,7 +1801,7 @@ class _ResponsivePromptHarnessState extends State<_ResponsivePromptHarness> {
   );
 }
 
-class _TestLocalStorageService extends LocalStorageService {
+class _TestLocalStorageService extends MemoryLocalStorage {
   _TestLocalStorageService({
     this.enablePromptWeightScroll = true,
     this.defaultModel = 'nai-diffusion-4-5-full',
