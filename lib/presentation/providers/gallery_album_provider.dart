@@ -126,6 +126,8 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
     final gallery = ref.read(localGalleryNotifierProvider.notifier);
     if (albumId == 'favorites') {
       await gallery.setSelectedCategory(null, null);
+      // 每个 setter 各触发一次过滤：先清相簿，避免中间态落在“相簿 ∩ 收藏”
+      await gallery.setSelectedAlbum(null);
       await gallery.setShowFavoritesOnly(true);
     } else if (albumId != null) {
       await gallery.setShowFavoritesOnly(false);
