@@ -2,6 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/nai_prompt_formatter.dart';
 
 void main() {
+  test('formatting preserves separators around consecutive disabled tags', () {
+    const source = 'cat, /*disabled:long hair*/, /*disabled:blue eyes*/, dog';
+    var formatted = source;
+    for (var i = 0; i < 5; i++) {
+      formatted = NaiPromptFormatter.format(formatted);
+      expect(formatted, source);
+    }
+    expect(
+      NaiPromptFormatter.format('/*disabled:cat*/, blue hair'),
+      '/*disabled:cat*/, blue_hair',
+    );
+  });
+
   group('NaiPromptFormatter.format', () {
     test('格式化标签时保留换行、空行和行首缩进', () {
       const prompt = 'quality   tags， best quality,\n\n  blue hair, red eyes';

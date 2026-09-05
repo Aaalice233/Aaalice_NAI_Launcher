@@ -13866,6 +13866,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagMode_enable => '启用';
 
   @override
+  String get tagMode_deleteTags => '删除标签';
+
+  @override
   String get tagMode_disable => '禁用';
 
   @override
@@ -28004,6 +28007,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get tagMode_enable => '啟用';
+
+  @override
+  String get tagMode_deleteTags => '刪除標籤';
 
   @override
   String get tagMode_disable => '停用';

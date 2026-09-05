@@ -21,7 +21,18 @@ class NaiPromptFormatter {
   /// - 将标签中的空格转换为下划线（保留逗号后的空格和尖括号内的空格）
   /// - 保留用户用于分组的换行、空行和行首缩进
   static String format(String prompt) {
-    return PromptEditDocument.mapActiveText(prompt, _formatActive);
+    var followsDisabled = false;
+    return PromptEditDocument.mapActiveText(prompt, (fragment) {
+      // A leading comma after an opaque disabled fragment separates tags;
+      // formatting that fragment alone would treat it as an empty first tag.
+      final separator = followsDisabled
+          ? RegExp(r'^[ \t]*[,，][ \t]*').firstMatch(fragment)
+          : null;
+      followsDisabled = true;
+      if (separator == null) return _formatActive(fragment);
+      return '${separator.group(0)!.replaceAll('，', ',')}'
+          '${_formatActive(fragment.substring(separator.end))}';
+    });
   }
 
   static String _formatActive(String prompt) {

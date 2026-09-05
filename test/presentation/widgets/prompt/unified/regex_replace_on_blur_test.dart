@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -33,6 +34,7 @@ void main() {
     required List<PromptRegexRule> rules,
     bool enableSdSyntaxAutoConvert = false,
     bool enableAutoFormat = false,
+    bool enableTagMode = false,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -54,6 +56,7 @@ void main() {
                 enableAssistant: false,
                 config: UnifiedPromptConfig(
                   enableAutocomplete: false,
+                  enableTagMode: enableTagMode,
                   enableSyntaxHighlight: false,
                   enableAutoFormat: enableAutoFormat,
                   enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
@@ -83,6 +86,50 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('disabled tags survive formatting and repeated mode switches', (
+    tester,
+  ) async {
+    controller.text = 'cat, long hair, blue eyes, dog';
+    await pumpInput(
+      tester,
+      enableRegexReplace: false,
+      rules: [],
+      enableTagMode: true,
+      enableAutoFormat: true,
+      enableSdSyntaxAutoConvert: true,
+    );
+    final toggle = find.byKey(const ValueKey('tag-mode-button'));
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    final session = tester
+        .widget<TagEditorView>(find.byType(TagEditorView))
+        .session;
+    session.setSelection(session.leaves.skip(1).take(2).map((tag) => tag.id));
+    session.toggleEnabled(session.selected, enabled: false);
+    final disabled = controller.text;
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      focusNode.requestFocus();
+      await tester.pump();
+      focusNode.unfocus();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(controller.text, disabled);
+      expect(session.leaves.length, 4);
+      expect(session.leaves.where((tag) => tag.span.disabled).length, 2);
+    }
+    session.toggleEnabled(
+      session.leaves.where((tag) => tag.span.disabled).map((tag) => tag.id),
+      enabled: true,
+    );
+    expect(controller.text, 'cat, long hair, blue eyes, dog');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('开关打开时失焦按规则改写文本', (tester) async {
     await pumpInput(

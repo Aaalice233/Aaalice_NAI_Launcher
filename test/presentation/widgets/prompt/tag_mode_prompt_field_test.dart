@@ -94,6 +94,40 @@ Future<void> pumpEditor(
 );
 
 void main() {
+  for (final fromMenu in [false, true]) {
+    testWidgets('delete selected tags with undo from menu=$fromMenu', (
+      tester,
+    ) async {
+      final source = TextEditingController(text: 'cat, dog, bird');
+      addTearDown(source.dispose);
+      await pumpEditor(tester, source);
+      await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+      await tester.pumpAndSettle();
+      final session = tester
+          .widget<TagEditorView>(find.byType(TagEditorView))
+          .session;
+      session.setSelection(session.leaves.take(2).map((tag) => tag.id));
+      await tester.pumpAndSettle();
+      if (fromMenu) {
+        await tester.tap(
+          find.byType(TagEditorCapsule).first,
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('删除标签'));
+      } else {
+        await tester.tap(find.byKey(const ValueKey('tag-delete-button')));
+      }
+      await tester.pumpAndSettle();
+      expect(source.text, 'bird');
+      session.undo();
+      await tester.pumpAndSettle();
+      expect(source.text, 'cat, dog, bird');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
   testWidgets('fields keep independent modes when controllers and IDs switch', (
     tester,
   ) async {

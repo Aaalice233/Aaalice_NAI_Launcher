@@ -655,6 +655,16 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
                       size: 18,
                     ),
                   ),
+                  IconButton(
+                    key: const ValueKey('tag-delete-button'),
+                    tooltip: context.l10n.tagMode_deleteTags,
+                    onPressed:
+                        widget.enabled &&
+                            commands.available(TagEditorAction.delete)
+                        ? () => _action(TagEditorAction.delete)
+                        : null,
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                  ),
                   Builder(
                     builder: (buttonContext) => IconButton(
                       tooltip: context.l10n.common_moreActions,

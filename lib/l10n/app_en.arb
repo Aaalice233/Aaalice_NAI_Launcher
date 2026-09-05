@@ -6715,6 +6715,7 @@
   "tagMode_loadingTranslation": "Looking up translation…",
   "tagMode_invalidSyntax": "Incomplete prompt syntax; finish editing before moving or adjusting weights",
   "tagMode_enable": "Enable",
+  "tagMode_deleteTags": "Delete tags",
   "tagMode_disable": "Disable",
   "tagMode_cut": "Cut",
   "tagMode_movePrevious": "Move backward",

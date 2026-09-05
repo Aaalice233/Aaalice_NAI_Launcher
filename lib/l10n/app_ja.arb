@@ -6740,6 +6740,7 @@
   "tagMode_loadingTranslation": "翻訳を検索中…",
   "tagMode_invalidSyntax": "構文が未完成です。編集を完了してから並べ替えや重みの調整を行ってください",
   "tagMode_enable": "有効にする",
+  "tagMode_deleteTags": "タグを削除",
   "tagMode_disable": "無効にする",
   "tagMode_cut": "切り取り",
   "tagMode_movePrevious": "前へ移動",

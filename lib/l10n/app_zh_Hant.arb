@@ -7062,6 +7062,7 @@
   "tagMode_loadingTranslation": "正在查詢譯文…",
   "tagMode_invalidSyntax": "提示詞語法不完整，請完成編輯後再排序或調整權重",
   "tagMode_enable": "啟用",
+  "tagMode_deleteTags": "刪除標籤",
   "tagMode_disable": "停用",
   "tagMode_cut": "剪下",
   "tagMode_movePrevious": "前移",

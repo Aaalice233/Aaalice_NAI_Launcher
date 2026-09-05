@@ -25219,6 +25219,12 @@ abstract class AppLocalizations {
   /// **'Enable'**
   String get tagMode_enable;
 
+  /// No description provided for @tagMode_deleteTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tags'**
+  String get tagMode_deleteTags;
+
   /// No description provided for @tagMode_disable.
   ///
   /// In en, this message translates to:

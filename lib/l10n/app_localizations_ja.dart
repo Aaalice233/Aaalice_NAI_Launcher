@@ -14119,6 +14119,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tagMode_enable => '有効にする';
 
   @override
+  String get tagMode_deleteTags => 'タグを削除';
+
+  @override
   String get tagMode_disable => '無効にする';
 
   @override

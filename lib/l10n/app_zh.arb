@@ -6784,6 +6784,7 @@
   "tagMode_loadingTranslation": "正在查询译文…",
   "tagMode_invalidSyntax": "提示词语法不完整，请完成编辑后再排序或调整权重",
   "tagMode_enable": "启用",
+  "tagMode_deleteTags": "删除标签",
   "tagMode_disable": "禁用",
   "tagMode_cut": "剪切",
   "tagMode_movePrevious": "前移",

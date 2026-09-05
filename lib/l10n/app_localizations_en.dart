@@ -14495,6 +14495,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagMode_enable => 'Enable';
 
   @override
+  String get tagMode_deleteTags => 'Delete tags';
+
+  @override
   String get tagMode_disable => 'Disable';
 
   @override

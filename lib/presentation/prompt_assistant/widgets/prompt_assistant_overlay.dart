@@ -592,22 +592,32 @@ class _PromptAssistantOverlayState
         widget.expandInPlace && state.expanded && !state.processing;
     final toolbar = TapRegion(
       groupId: widget.tapRegionGroupId,
-      child: Focus(
-        skipTraversal: true,
-        onKeyEvent: _toolbarKeyEvent,
-        child: GestureDetector(
-          onSecondaryTapUp: _usesAnchoredMenus
-              ? (details) => _showMenu(details.globalPosition)
-              : null,
-          child: PromptAssistantToolbar(
-            sessionId: widget.sessionId,
-            metrics: widget.metrics(context),
-            policy: _interactionPolicy,
-            expanded: expanded,
-            processing: state.processing,
-            processingLabel: state.action,
-            onCancel: _cancelToolbarTask,
-            actions: _toolbarActions(expanded, history),
+      child: TapRegion(
+        // The editor's shared group keeps its edit state alive, while dismissal
+        // belongs only to this toolbar, including its rounded corner padding.
+        behavior: HitTestBehavior.opaque,
+        onTapOutside: expanded
+            ? (_) => ref
+                  .read(promptAssistantStateProvider.notifier)
+                  .setExpanded(widget.sessionId, false)
+            : null,
+        child: Focus(
+          skipTraversal: true,
+          onKeyEvent: _toolbarKeyEvent,
+          child: GestureDetector(
+            onSecondaryTapUp: _usesAnchoredMenus
+                ? (details) => _showMenu(details.globalPosition)
+                : null,
+            child: PromptAssistantToolbar(
+              sessionId: widget.sessionId,
+              metrics: widget.metrics(context),
+              policy: _interactionPolicy,
+              expanded: expanded,
+              processing: state.processing,
+              processingLabel: state.action,
+              onCancel: _cancelToolbarTask,
+              actions: _toolbarActions(expanded, history),
+            ),
           ),
         ),
       ),
