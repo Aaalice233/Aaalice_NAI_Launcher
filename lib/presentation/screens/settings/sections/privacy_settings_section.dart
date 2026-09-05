@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/models/mosaic/mosaic_settings.dart';
 import '../../../../data/models/watermark/watermark_settings.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
+import '../../../providers/mosaic_settings_provider.dart';
 import '../../../providers/share_image_settings_provider.dart';
 import '../../../providers/watermark_settings_provider.dart';
+import '../../mosaic/mosaic_editor_launcher.dart';
 import '../../watermark/watermark_editor_launcher.dart';
 import '../../../widgets/online_gallery/blacklist_settings_panel.dart';
 import '../widgets/settings_card.dart';
@@ -92,10 +95,121 @@ class _PrivacySettingsSectionState
     final watermarkState = ref.watch(watermarkSettingsProvider);
     final watermarkSettings = watermarkState.configuration;
     final watermarkControlsEnabled = watermarkState.loadIssue == null;
+    final mosaicState = ref.watch(mosaicSettingsProvider);
+    final mosaicSettings = mosaicState.configuration;
+    final mosaicControlsEnabled = mosaicState.loadIssue == null;
+    final mosaicEffectLabel = switch (mosaicSettings.effect) {
+      MosaicEffect.pixelate => context.l10n.mosaic_effectPixelate,
+      MosaicEffect.blur => context.l10n.mosaic_effectBlur,
+      MosaicEffect.solid => context.l10n.mosaic_effectSolid,
+    };
 
     return SettingsPageLayout(
       title: context.l10n.settings_privacySharing,
       children: [
+        SettingsCard(
+          title: context.l10n.settings_mosaicTitle,
+          icon: Icons.grid_on_rounded,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(context.l10n.settings_mosaicSubtitle),
+                ),
+              ),
+              if (mosaicState.loadIssue != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          mosaicState.loadIssue ==
+                                  MosaicSettingsLoadIssue.corrupted
+                              ? context.l10n.settings_mosaicConfigCorrupted
+                              : context.l10n.settings_mosaicConfigMigrated,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => ref
+                            .read(mosaicSettingsProvider.notifier)
+                            .saveDefaults(),
+                        child: Text(context.l10n.common_save),
+                      ),
+                    ],
+                  ),
+                ),
+              SwitchListTile(
+                secondary: const Icon(Icons.toggle_on_outlined),
+                title: Text(context.l10n.settings_mosaicEnable),
+                value: mosaicSettings.enabled,
+                onChanged: mosaicControlsEnabled
+                    ? (value) => ref
+                          .read(mosaicSettingsProvider.notifier)
+                          .updateConfiguration(
+                            mosaicSettings.copyWith(enabled: value),
+                          )
+                    : null,
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.data_object_outlined),
+                title: Text(context.l10n.settings_mosaicPreserveMetadata),
+                subtitle: Text(
+                  context.l10n.settings_mosaicPreserveMetadataHint,
+                ),
+                value: mosaicSettings.preserveMetadata,
+                onChanged: mosaicControlsEnabled
+                    ? (value) => ref
+                          .read(mosaicSettingsProvider.notifier)
+                          .updateConfiguration(
+                            mosaicSettings.copyWith(preserveMetadata: value),
+                          )
+                    : null,
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.history_toggle_off_outlined),
+                title: Text(context.l10n.settings_mosaicRememberStyle),
+                subtitle: Text(context.l10n.settings_mosaicRememberStyleHint),
+                value: mosaicSettings.rememberLastStyle,
+                onChanged: mosaicControlsEnabled
+                    ? (value) => ref
+                          .read(mosaicSettingsProvider.notifier)
+                          .updateConfiguration(
+                            mosaicSettings.copyWith(rememberLastStyle: value),
+                          )
+                    : null,
+              ),
+              ListTile(
+                enabled: mosaicControlsEnabled && mosaicSettings.enabled,
+                leading: const Icon(Icons.add_photo_alternate_outlined),
+                title: Text(context.l10n.settings_mosaicCreateFromImage),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: mosaicControlsEnabled && mosaicSettings.enabled
+                    ? () => MosaicEditorLauncher.pickSourceAndOpen(
+                        context: context,
+                      )
+                    : null,
+              ),
+              ListTile(
+                leading: const Icon(Icons.tune_outlined),
+                title: Text(context.l10n.settings_mosaicEditDefault),
+                subtitle: Text(mosaicEffectLabel),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () =>
+                    MosaicEditorLauncher.editDefaults(context: context),
+              ),
+            ],
+          ),
+        ),
         SettingsCard(
           title: context.l10n.settings_protectionMode,
           icon: Icons.shield_outlined,

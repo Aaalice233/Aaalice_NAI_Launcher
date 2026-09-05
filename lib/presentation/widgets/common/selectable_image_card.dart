@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/image/image_stream_chunk.dart';
+import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import 'image_card_actions.dart';
 import 'image_card_context_menu.dart';
@@ -242,6 +243,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     final capabilities = _capabilities;
     ref.watch(
       watermarkSettingsProvider.select((state) => state.configuration.enabled),
+    );
+    ref.watch(
+      mosaicSettingsProvider.select((state) => state.configuration.enabled),
     );
     final coordinator = ImageCardActionCoordinator(
       context: context,

@@ -96,7 +96,9 @@
   "networkError_requestFailed": "リクエストに失敗しました ({code})",
   "@networkError_requestFailed": {
     "placeholders": {
-      "code": {"type": "int"}
+      "code": {
+        "type": "int"
+      }
     }
   },
   "nav_canvas": "キャンバス",
@@ -359,7 +361,16 @@
   "agentChat_reference": "参照",
   "agentChat_noResources": "利用できるリソースはまだありません。",
   "agentChat_imageTooLarge": "{fileName} は {maxSizeMB} MB を超えています。",
-  "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
+  "@agentChat_imageTooLarge": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      },
+      "maxSizeMB": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_enableWebAccess": "ウェブアクセスを有効にする",
   "agentChat_disableWebAccess": "ウェブアクセスを無効にする",
   "agentChat_webAccessLabel": "ウェブ",
@@ -392,24 +403,75 @@
   "agentChat_reasoningMax": "最大",
   "agentChat_jumpToLatest": "最新へ移動",
   "agentChat_toolGroupCount": "{count} 件の操作を実行",
-  "@agentChat_toolGroupCount": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_toolGroupCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_working": "作業中",
   "agentChat_workingFor": "{duration} 作業中",
-  "@agentChat_workingFor": {"placeholders": {"duration": {"type": "String"}}},
+  "@agentChat_workingFor": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_worked": "作業完了",
   "agentChat_workedFor": "作業時間 {duration}",
-  "@agentChat_workedFor": {"placeholders": {"duration": {"type": "String"}}},
+  "@agentChat_workedFor": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_workItemCount": "{count} 件",
-  "@agentChat_workItemCount": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_workItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_ranCommands": "{count} 件のコマンドを実行",
-  "@agentChat_ranCommands": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_ranCommands": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_exploredItems": "{count} 件のソースを調査",
-  "@agentChat_exploredItems": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_exploredItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_earlierMessages": "以前のメッセージ {count} 件",
-  "@agentChat_earlierMessages": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_earlierMessages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_loadEarlierMessages": "以前のメッセージ",
   "agentChat_turnNavigation": "ターン {number}：{preview}",
-  "@agentChat_turnNavigation": {"placeholders": {"number": {"type": "int"}, "preview": {"type": "String"}}},
+  "@agentChat_turnNavigation": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "preview": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_phasePreparing": "準備中",
   "agentChat_phaseResponding": "応答中",
   "agentChat_phaseAwaitingApproval": "確認待ち",
@@ -466,9 +528,21 @@
   "agentChat_addResource": "Agent に送信",
   "agentChat_resourceAdded": "Agent の入力欄に追加しました",
   "agentChat_addResourceFailed": "参照の追加に失敗しました：{error}",
-  "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
+  "@agentChat_addResourceFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_approvalEstimatedAnlas": "推定コスト：{cost} Anlas",
-  "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "@agentChat_approvalEstimatedAnlas": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_needSetup": "チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。",
   "agentChat_heroTitle": "今日は何をしますか？",
   "agentChat_heroSubtitle": "キャラクタープロンプトの準備、アイデアの整理、設定の調整ができます。",
@@ -476,12 +550,27 @@
   "agentChat_compact": "コンテキスト圧縮",
   "agentChat_compacting": "コンテキストを圧縮中…",
   "agentChat_compactDone": "コンテキストを圧縮しました：{before} → {after}",
-  "@agentChat_compactDone": {"placeholders":{"before":{"type":"String"},"after":{"type":"String"}}},
+  "@agentChat_compactDone": {
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_compactNotNeeded": "現在のコンテキストは圧縮の必要がありません",
   "agentChat_compactBusy": "応答の生成中です。完了後に圧縮してください",
   "agentChat_compactUnavailable": "コンテキスト使用量が取得できず、圧縮できません",
   "agentChat_compactFailed": "コンテキストの圧縮に失敗しました：{error}",
-  "@agentChat_compactFailed": {"placeholders":{"error":{"type":"String"}}},
+  "@agentChat_compactFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_requestFailed": "リクエストに失敗しました。もう一度お試しください。",
   "agentChat_errorDetails": "エラーの詳細",
   "agentChat_modelLabel": "モデル",
@@ -798,7 +887,9 @@
   "@img2img_directorConfirmContent": {
     "placeholders": {
       "tool": {},
-      "cost": {"type": "int"}
+      "cost": {
+        "type": "int"
+      }
     }
   },
   "img2img_directorResult": "結果",
@@ -1101,19 +1192,35 @@
   "editor_compressionSizeSummary": "作業サイズ {workWidth}×{workHeight} → 出力サイズ {targetWidth}×{targetHeight}",
   "@editor_compressionSizeSummary": {
     "placeholders": {
-      "workWidth": {"type": "int"},
-      "workHeight": {"type": "int"},
-      "targetWidth": {"type": "int"},
-      "targetHeight": {"type": "int"}
+      "workWidth": {
+        "type": "int"
+      },
+      "workHeight": {
+        "type": "int"
+      },
+      "targetWidth": {
+        "type": "int"
+      },
+      "targetHeight": {
+        "type": "int"
+      }
     }
   },
   "editor_compressionNormalSummary": "Normal（約 1 MP）: {normalWidth}×{normalHeight}。最低: {minimumWidth}×{minimumHeight}。",
   "@editor_compressionNormalSummary": {
     "placeholders": {
-      "normalWidth": {"type": "int"},
-      "normalHeight": {"type": "int"},
-      "minimumWidth": {"type": "int"},
-      "minimumHeight": {"type": "int"}
+      "normalWidth": {
+        "type": "int"
+      },
+      "normalHeight": {
+        "type": "int"
+      },
+      "minimumWidth": {
+        "type": "int"
+      },
+      "minimumHeight": {
+        "type": "int"
+      }
     }
   },
   "editor_compressionUnavailable": "作業キャンバスはすでに最低圧縮段階より小さいため、解像度を下げられません。",
@@ -1121,20 +1228,38 @@
   "editor_compressionClampedToLimit": "{targetWidth}×{targetHeight} はリクエストの面積上限を超えるため、実際には {clampedWidth}×{clampedHeight} で送信されます。",
   "@editor_compressionClampedToLimit": {
     "placeholders": {
-      "targetWidth": {"type": "int"},
-      "targetHeight": {"type": "int"},
-      "clampedWidth": {"type": "int"},
-      "clampedHeight": {"type": "int"}
+      "targetWidth": {
+        "type": "int"
+      },
+      "targetHeight": {
+        "type": "int"
+      },
+      "clampedWidth": {
+        "type": "int"
+      },
+      "clampedHeight": {
+        "type": "int"
+      }
     }
   },
   "editor_focusRequestSummary": "外側の切り抜き {outerWidth}×{outerHeight}、送信サイズ {requestWidth}×{requestHeight}、推定 {cost} Anlas。",
   "@editor_focusRequestSummary": {
     "placeholders": {
-      "outerWidth": {"type": "int"},
-      "outerHeight": {"type": "int"},
-      "requestWidth": {"type": "int"},
-      "requestHeight": {"type": "int"},
-      "cost": {"type": "int"}
+      "outerWidth": {
+        "type": "int"
+      },
+      "outerHeight": {
+        "type": "int"
+      },
+      "requestWidth": {
+        "type": "int"
+      },
+      "requestHeight": {
+        "type": "int"
+      },
+      "cost": {
+        "type": "int"
+      }
     }
   },
   "editor_unsupportedImageFormat": "サポートされていないファイル形式: .{extension}\n画像ファイル(PNG、JPG、WEBPなど)を選択してください。",
@@ -1316,22 +1441,34 @@
   "character_summaryEnabled": "{count}人有効 · {name}",
   "@character_summaryEnabled": {
     "placeholders": {
-      "count": {"type": "int"},
-      "name": {"type": "String"}
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
     }
   },
   "character_summaryMore": "{count}人有効 · {name} +{additional}",
   "@character_summaryMore": {
     "placeholders": {
-      "count": {"type": "int"},
-      "name": {"type": "String"},
-      "additional": {"type": "int"}
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      },
+      "additional": {
+        "type": "int"
+      }
     }
   },
   "character_summaryAllDisabled": "0人有効 · {count}人無効",
   "@character_summaryAllDisabled": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "gallery_generationParams": "生成パラメータ",
@@ -1384,20 +1521,26 @@
   "onlineGallery_visibleFavoritesSaved": "{count} 件をローカルお気に入りに保存しました",
   "@onlineGallery_visibleFavoritesSaved": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "onlineGallery_saveFavoritesFailed": "ローカルお気に入りの保存に失敗しました：{error}",
   "@onlineGallery_saveFavoritesFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "onlineGallery_searchTags": "タグを検索...",
   "onlineGallery_maxTagsExceeded": "一度に組み合わせて検索できるタグは最大 {max} 個です",
   "@onlineGallery_maxTagsExceeded": {
     "placeholders": {
-      "max": {"type": "int"}
+      "max": {
+        "type": "int"
+      }
     }
   },
   "onlineGallery_tagDetailsIncomplete": "一部の作品で完全なタグ一覧を取得できませんでした。未確認の作品は除外されています。再試行してください。",
@@ -1407,8 +1550,12 @@
   "onlineGallery_continueScanning": "検索を続ける",
   "@onlineGallery_multiTagScanning": {
     "placeholders": {
-      "requests": {"type": "int"},
-      "candidates": {"type": "int"}
+      "requests": {
+        "type": "int"
+      },
+      "candidates": {
+        "type": "int"
+      }
     }
   },
   "onlineGallery_refresh": "更新",
@@ -1551,7 +1698,11 @@
   "onlineGallery_blacklistSyncFailedMessage": "同期に失敗しました。ログイン状態とネットワーク接続を確認してください。",
   "onlineGallery_blacklistSaveFailed": "ブラックリストの保存に失敗しました：{error}",
   "@onlineGallery_blacklistSaveFailed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "onlineGallery_autoSyncOnStartup": "起動時にクラウドリストを更新",
   "onlineGallery_autoSyncOnStartupSubtitle": "ローカルタグを削除せず、クラウドの新しいタグを安全にマージします",
@@ -1572,13 +1723,30 @@
   "onlineGallery_blacklistImportTitle": "タグを一括インポート",
   "onlineGallery_blacklistImportHint": "1 行に 1 タグ、またはカンマで区切って入力します",
   "onlineGallery_blacklistImported": "{count} 個のタグを追加しました",
-  "@onlineGallery_blacklistImported": {"placeholders": {"count": {}}},
+  "@onlineGallery_blacklistImported": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_blacklistClearTitle": "統一ブラックリストをクリアしますか？",
   "onlineGallery_blacklistClearBody": "ギャラリーはこれらのタグによるフィルタリングを直ちに停止します。クラウドは自動的にクリアされず、この操作は元に戻せます。",
   "onlineGallery_blacklistPullSummary": "{added} 件追加、{existing} 件は登録済み、削除済み {skipped} 件をスキップし、高度なクラウドルール {opaque} 件を保持しました",
-  "@onlineGallery_blacklistPullSummary": {"placeholders": {"added": {}, "existing": {}, "skipped": {}, "opaque": {}}},
+  "@onlineGallery_blacklistPullSummary": {
+    "placeholders": {
+      "added": {},
+      "existing": {},
+      "skipped": {},
+      "opaque": {}
+    }
+  },
   "onlineGallery_blacklistPushDiff": "クラウドに {added} 件追加、{removed} 件削除し、高度なルール {opaque} 件を削除します。",
-  "@onlineGallery_blacklistPushDiff": {"placeholders": {"added": {}, "removed": {}, "opaque": {}}},
+  "@onlineGallery_blacklistPushDiff": {
+    "placeholders": {
+      "added": {},
+      "removed": {},
+      "opaque": {}
+    }
+  },
   "onlineGallery_blacklistCloudEmptyConfirm": "クラウドのブラックリストをクリアすることを確認",
   "onlineGallery_blacklistMigrationConfirm": "このリストにはアカウントを特定できない旧バージョンのクラウドタグが含まれます。現在のアカウントへの同期を確認してください",
   "onlineGallery_bulkFavorite": "選択項目をお気に入りに追加",
@@ -1661,7 +1829,12 @@
   "onlineGallery_codexOffline": "オフラインキャッシュ",
   "onlineGallery_codexContributors": "協力者と出典",
   "onlineGallery_codexEntryCount": "{entries} 項目 · 画像あり {images} 件",
-  "@onlineGallery_codexEntryCount": {"placeholders": {"entries": {}, "images": {}}},
+  "@onlineGallery_codexEntryCount": {
+    "placeholders": {
+      "entries": {},
+      "images": {}
+    }
+  },
   "onlineGallery_codexNoImage": "画像なし項目",
   "onlineGallery_codexNoImageDescription": "テキストのみの項目です。プロンプトとメタデータはすべて利用できます。",
   "onlineGallery_codexAuthor": "作者",
@@ -1692,10 +1865,18 @@
   "onlineGallery_promptCopyCategoryHint": "このソースのタグカテゴリをコピー",
   "onlineGallery_promptCopyStructuredHint": "このプロンプト欄の元の内容をコピー",
   "onlineGallery_artistCount": "絵師 {count} 人",
-  "@onlineGallery_artistCount": {"placeholders": {"count": {}}},
+  "@onlineGallery_artistCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_artistHuntNoExactResults": "候補作品に正確な絵師タグ列がありません",
   "onlineGallery_artistHuntPartialFailure": "{count} 件の作品を解析できませんでした。再試行できます。",
-  "@onlineGallery_artistHuntPartialFailure": {"placeholders": {"count": {}}},
+  "@onlineGallery_artistHuntPartialFailure": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_artistHuntDetailFailed": "候補作品の詳細をすべて解析できませんでした。再試行してください。",
   "onlineGallery_aiTagTimeRange": "期間",
   "onlineGallery_aiTagAllTime": "すべて",
@@ -1708,14 +1889,22 @@
   "onlineGallery_sourceNetworkError": "ギャラリーソースに接続できません。ネットワークまたはプロキシを確認してください。",
   "onlineGallery_sourceRequestFailed": "リクエストに失敗しました。しばらくしてから再試行してください。",
   "onlineGallery_actionFailed": "操作に失敗しました: {error}",
-  "@onlineGallery_actionFailed": {"placeholders": {"error": {}}},
+  "@onlineGallery_actionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "onlineGallery_sourceMalformedResponse": "ソースのレスポンス形式が変更され、解析できません。",
   "onlineGallery_detailNotFound": "作品が存在しないか、削除されています。",
   "onlineGallery_imageUnavailable": "画像は現在利用できません。",
   "onlineGallery_loadedAll": "すべて読み込み済み",
   "onlineGallery_retryAppend": "読み込みに失敗しました。クリックして再試行",
   "onlineGallery_multipleImages": "{count} 枚の画像",
-  "@onlineGallery_multipleImages": {"placeholders": {"count": {}}},
+  "@onlineGallery_multipleImages": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_views": "閲覧数",
   "onlineGallery_downloadAllMedia": "作品の全画像をダウンロード",
   "onlineGallery_copyAllTags": "すべての TAG をコピー",
@@ -1728,9 +1917,21 @@
   "promptCopy_fixedPositive": "固定ポジティブプロンプト",
   "promptCopy_fixedNegative": "固定ネガティブプロンプト",
   "promptCopy_characterPositive": "キャラクター {index} のポジティブ",
-  "@promptCopy_characterPositive": {"placeholders": {"index": {"type": "int"}}},
+  "@promptCopy_characterPositive": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "promptCopy_characterNegative": "キャラクター {index} のネガティブ",
-  "@promptCopy_characterNegative": {"placeholders": {"index": {"type": "int"}}},
+  "@promptCopy_characterNegative": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "onlineGallery_gelbooruReadOnly": "読み取り専用のお気に入り",
   "onlineGallery_gelbooruFavoritesSortHint": "投稿 ID の新しい順です。ウェブサイトのお気に入り登録時刻順とは異なる場合があります。",
   "tooltip_fullscreenEdit": "フルスクリーン編集",
@@ -1935,10 +2136,18 @@
   "generation_invalidResolutionHint": "{width}×{height} は生成に使用できません。幅と高さは 64 の倍数で、各辺は 4096 以下、総ピクセル数は 3,145,728 以下である必要があります。最も近い有効なサイズは {suggestedWidth}×{suggestedHeight} です。",
   "@generation_invalidResolutionHint": {
     "placeholders": {
-      "width": { "type": "int" },
-      "height": { "type": "int" },
-      "suggestedWidth": { "type": "int" },
-      "suggestedHeight": { "type": "int" }
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      },
+      "suggestedWidth": {
+        "type": "int"
+      },
+      "suggestedHeight": {
+        "type": "int"
+      }
     }
   },
   "api_error_429": "同時実行制限に達しました",
@@ -1999,8 +2208,12 @@
   "characterTooltip_enabledSummary": "{enabled} / {total} 有効",
   "@characterTooltip_enabledSummary": {
     "placeholders": {
-      "enabled": {"type": "int"},
-      "total": {"type": "int"}
+      "enabled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "tagLibrary_generatedCharacters": "{count} キャラクターを生成しました",
@@ -2568,22 +2781,34 @@
   "statistics_periodDays": "直近 {count} 日",
   "@statistics_periodDays": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "statistics_periodSummary": "{start}～{end}・{count} 日間",
   "@statistics_periodSummary": {
     "placeholders": {
-      "start": {"type": "String"},
-      "end": {"type": "String"},
-      "count": {"type": "int"}
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "statistics_partialCoverage": "利用可能な記録は {date} からです。1 日の平均は既存の {count} 日間で計算されます",
   "@statistics_partialCoverage": {
     "placeholders": {
-      "date": {"type": "String"},
-      "count": {"type": "int"}
+      "date": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "statistics_customPeriodTitle": "集計日数を指定",
@@ -2591,7 +2816,9 @@
   "statistics_customDaysError": "1 から {max} までの整数を入力してください",
   "@statistics_customDaysError": {
     "placeholders": {
-      "max": {"type": "int"}
+      "max": {
+        "type": "int"
+      }
     }
   },
   "statistics_daysUnit": "日",
@@ -2754,7 +2981,9 @@
   "bulkProgress_errorDeleteFailed": "画像の削除に失敗しました: {error}",
   "@bulkProgress_errorDeleteFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNoImagesToExport": "エクスポートする画像がありません",
@@ -2762,41 +2991,53 @@
   "bulkProgress_errorExportFailedWithDetails": "エクスポートに失敗しました: {error}",
   "@bulkProgress_errorExportFailedWithDetails": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNoMetadataChanges": "追加または削除するタグを入力してください",
   "bulkProgress_errorMetadataEditFailed": "画像メタデータの編集に失敗しました: {error}",
   "@bulkProgress_errorMetadataEditFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorFavoriteFailed": "お気に入りの更新に失敗しました: {error}",
   "@bulkProgress_errorFavoriteFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNoImagesForCollection": "コレクションに追加する画像がありません",
   "bulkProgress_errorAddToCollectionFailed": "コレクションへの画像追加に失敗しました: {error}",
   "@bulkProgress_errorAddToCollectionFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNothingToUndo": "元に戻す操作がありません",
   "bulkProgress_errorUndoFailed": "元に戻せませんでした: {error}",
   "@bulkProgress_errorUndoFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNothingToRedo": "やり直す操作がありません",
   "bulkProgress_errorRedoFailed": "やり直せませんでした: {error}",
   "@bulkProgress_errorRedoFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "collectionSelect_dialogTitle": "コレクションを選択してください",
@@ -3650,7 +3891,11 @@
   "metadataImport_disableCurrentFixedTags": "現在の固定タグを無効にする（推奨）",
   "metadataImport_keepCurrentFixedTags": "保持して画像プロンプトに重ねる",
   "metadataImport_imageVersionName": "{name}（画像バージョン）",
-  "@metadataImport_imageVersionName": {"placeholders": {"name": {}}},
+  "@metadataImport_imageVersionName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "metadataImport_fixedPrefix": "プレフィックス: {text}",
   "@metadataImport_fixedPrefix": {
     "placeholders": {
@@ -3907,11 +4152,29 @@
   "drop_positivePrompt": "プロンプト",
   "drop_negativePrompt": "除外したい要素",
   "drop_characterPrompts": "キャラクタープロンプト（{count}）",
-  "@drop_characterPrompts": {"placeholders": {"count": {"type": "int"}}},
+  "@drop_characterPrompts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "drop_characterPositivePrompt": "キャラクター {index} プロンプト",
-  "@drop_characterPositivePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "@drop_characterPositivePrompt": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "drop_characterNegativePrompt": "キャラクター {index} の除外したい要素",
-  "@drop_characterNegativePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "@drop_characterNegativePrompt": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "drop_promptNotRecorded": "記録なし",
   "drop_promptCopy": "コピー",
   "drop_promptAddWhole": "全文をライブラリに追加",
@@ -3929,14 +4192,28 @@
   "drop_promptLibrarySeparatorNewline": "改行",
   "drop_promptLibrarySeparatorNone": "区切りなし",
   "drop_promptLibraryCharacterCount": "{count} 文字",
-  "@drop_promptLibraryCharacterCount": {"placeholders": {"count": {"type": "int"}}},
+  "@drop_promptLibraryCharacterCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "drop_promptLibraryExactContentHint": "テキストを整形、並べ替え、補完せずに保存します",
   "drop_promptLibraryResultPreview": "結果プレビュー",
   "drop_promptLibraryDuplicate": "同じ内容が「{name}」に既にあります",
-  "@drop_promptLibraryDuplicate": {"placeholders": {"name": {}}},
+  "@drop_promptLibraryDuplicate": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "drop_promptLibraryNameConflict": "同じ名前があります。名前の変更、追記、または置換を選択してください",
   "drop_promptLibraryOverwriteWarning": "「{name}」のプロンプト内容をすべて置き換えます",
-  "@drop_promptLibraryOverwriteWarning": {"placeholders": {"name": {}}},
+  "@drop_promptLibraryOverwriteWarning": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "drop_promptLibraryMore": "その他のオプション",
   "drop_promptLibraryConfirmOverwrite": "置換を確認",
   "drop_promptLibrarySaved": "ライブラリに保存しました",
@@ -4101,13 +4378,17 @@
   "categoryError_loadFailed": "カテゴリの読み込みに失敗しました: {error}",
   "@categoryError_loadFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_syncFailed": "カテゴリの同期に失敗しました: {error}",
   "@categoryError_syncFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_nameEmpty": "カテゴリ名を入力してください",
@@ -4115,144 +4396,202 @@
   "categoryError_createFailed": "カテゴリの作成に失敗しました: {error}",
   "@categoryError_createFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_notFound": "カテゴリが存在しません",
   "categoryError_renameFailed": "カテゴリ名の変更に失敗しました: {error}",
   "@categoryError_renameFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_invalidMove": "子孫カテゴリの下には移動できません",
   "categoryError_moveFailed": "カテゴリの移動に失敗しました: {error}",
   "@categoryError_moveFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_hasSubcategories": "このカテゴリにはサブカテゴリがあります。先に削除してください。",
   "categoryError_deleteFailed": "カテゴリの削除に失敗しました: {error}",
   "@categoryError_deleteFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_moveImageFailed": "画像の移動に失敗しました: {error}",
   "@categoryError_moveImageFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_moveImagesFailed": "画像の一括移動に失敗しました: {error}",
   "@categoryError_moveImagesFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_reorderFailed": "カテゴリの並べ替えに失敗しました: {error}",
   "@categoryError_reorderFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorEntryNotFoundOrDeleteFailed": "{item} が見つからないか、削除できませんでした",
   "@vibeBulk_errorEntryNotFoundOrDeleteFailed": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorDeleteFailed": "{item} の削除に失敗しました: {error}",
   "@vibeBulk_errorDeleteFailed": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorEntryNotFound": "エントリが見つかりません: {item}",
   "@vibeBulk_errorEntryNotFound": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorMoveFailed": "{item} の移動に失敗しました: {error}",
   "@vibeBulk_errorMoveFailed": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorFavoriteFailed": "お気に入り状態の更新に失敗しました: {item}",
   "@vibeBulk_errorFavoriteFailed": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorFavoriteFailedWithDetails": "{item} のお気に入り状態の更新に失敗しました: {error}",
   "@vibeBulk_errorFavoriteFailedWithDetails": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorAddTagsFailed": "タグの追加に失敗しました: {item}",
   "@vibeBulk_errorAddTagsFailed": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorAddTagsFailedWithDetails": "{item} へのタグ追加に失敗しました: {error}",
   "@vibeBulk_errorAddTagsFailedWithDetails": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorRemoveTagsFailed": "タグの削除に失敗しました: {item}",
   "@vibeBulk_errorRemoveTagsFailed": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorRemoveTagsFailedWithDetails": "{item} からのタグ削除に失敗しました: {error}",
   "@vibeBulk_errorRemoveTagsFailedWithDetails": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorExportNoFile": "ファイルが作成されなかったため、エクスポートに失敗しました",
   "vibeBulk_errorExportFailed": "エクスポートに失敗しました: {error}",
   "@vibeBulk_errorExportFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorFileNotFound": "ファイルが見つかりません: {item}",
   "@vibeBulk_errorFileNotFound": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorNoVibeData": "{item} に有効な Vibe データが見つかりません",
   "@vibeBulk_errorNoVibeData": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorImportFailed": "{item} からの Vibe インポートに失敗しました: {error}",
   "@vibeBulk_errorImportFailed": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorProcessFileFailed": "{item} の処理に失敗しました: {error}",
   "@vibeBulk_errorProcessFileFailed": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulkTag_actionPreview": "変更内容",
@@ -4263,7 +4602,9 @@
   "vibeDetail_timesUsed": "{count} 回",
   "@vibeDetail_timesUsed": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "vibeDetail_lastUsed": "最終使用",
@@ -4744,7 +5085,6 @@
   "settings_fontScale_previewLarge": "フォント サイズのプレビュー",
   "settings_fontScale_reset": "リセット",
   "settings_fontScale_done": "完了",
-
   "settings_generationLayout": "生成ページのレイアウト",
   "settings_generationLayout_classic": "クラシック",
   "settings_generationLayout_classicDescription": "パラメータは左側、プロンプトはプレビューの上",
@@ -4769,7 +5109,11 @@
   "discordShare_joinServer": "Discord サーバーに参加",
   "discordShare_retryVerification": "再確認",
   "discordShare_account": "{name} として確認済み",
-  "@discordShare_account": {"placeholders": {"name": {}}},
+  "@discordShare_account": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "discordShare_disconnect": "Discord の接続を解除",
   "discordShare_channels": "送信先チャンネル",
   "discordShare_selectChannel": "チャンネルを1つ以上選択してください",
@@ -4791,19 +5135,28 @@
   "discordShare_success": "Discord に共有しました",
   "discordShare_partialSuccess": "一部のチャンネルだけ送信できました。失敗したチャンネルを確認して再試行してください。",
   "discordShare_failed": "Discord への共有に失敗しました：{error}",
-  "@discordShare_failed": {"placeholders": {"error": {}}},
+  "@discordShare_failed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "discordShare_errorNetwork": "Discord 共有サービスに接続できません。ネットワークを確認して再試行してください。",
   "discordShare_errorBrowser": "ブラウザーを開けません。システムの既定のブラウザー設定を確認してください。",
   "discordShare_errorTimeout": "Discord の確認がタイムアウトしました。もう一度確認してください。",
   "discordShare_errorRateLimited": "共有回数が多すぎます。しばらくしてから再試行してください。",
   "discordShare_errorRateLimitedRetry": "共有回数が多すぎます。{seconds} 秒後に再試行してください。",
-  "@discordShare_errorRateLimitedRetry": {"placeholders": {"seconds": {"type": "int"}}},
+  "@discordShare_errorRateLimitedRetry": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "discordShare_errorNoChannels": "現在利用できる Discord 共有チャンネルがありません。",
   "discordShare_errorSession": "Discord の確認が期限切れです。もう一度確認してください。",
   "discordShare_errorRelay": "Discord 共有サービスは一時的に利用できません。後でもう一度お試しください。",
   "discordShare_errorImageRejected": "Discord がこの画像を拒否しました。サイズまたは形式を確認してください。",
   "discordShare_errorDelivery": "Discord チャンネルへの送信に失敗しました。再試行してください。",
-
   "settings_defaultImagesPath": "デフォルト (Documents/NAI_Launcher/images/)",
   "settings_defaultVibePath": "{path} (デフォルト)",
   "@settings_defaultVibePath": {
@@ -4867,7 +5220,6 @@
     }
   },
   "settings_continueGeneration": "生成を続行",
-
   "settings_comfyUiEnable": "ComfyUI 統合を有効にする",
   "settings_comfyUiDisabledSubtitle": "無効にすると、ローカル拡大およびその他の ComfyUI 機能が非表示になります",
   "settings_comfyUiServerUrl": "サーバー URL",
@@ -5517,24 +5869,32 @@
   "updateActiveTasksWarning": "キュータスクが実行中です。インストールすると現在のタスクは停止します。",
   "updateNoticeAvailable": "新しいバージョン v{version} があります",
   "@updateNoticeAvailable": {
-    "placeholders": {"version": {}}
+    "placeholders": {
+      "version": {}
+    }
   },
   "updateNoticeAvailableSubtitle": "アプリ内で更新をダウンロード、検証し、安全にインストールできます",
   "updateNoticeManualSubtitle": "このプラットフォームでは Release ページから手動で更新してください",
   "updateNoticeReady": "バージョン v{version} の準備ができました",
   "@updateNoticeReady": {
-    "placeholders": {"version": {}}
+    "placeholders": {
+      "version": {}
+    }
   },
   "updateNoticeReadySubtitle": "パッケージは検証済みで、インストールできます",
   "updateNoticeFailed": "前回の更新は完了しませんでした",
   "updateViewDetails": "更新を表示",
   "updateSettingsAvailable": "v{version} が利用可能です。選択して詳細を表示",
   "@updateSettingsAvailable": {
-    "placeholders": {"version": {}}
+    "placeholders": {
+      "version": {}
+    }
   },
   "updateSettingsReady": "v{version} はダウンロード済みです。選択してインストール",
   "@updateSettingsReady": {
-    "placeholders": {"version": {}}
+    "placeholders": {
+      "version": {}
+    }
   },
   "goToDownload": "ダウンロードに移動",
   "updateDownloading": "アップデートをダウンロードしています...",
@@ -5568,7 +5928,6 @@
   "updatePortableManualHint": "このビルドはアプリ内更新に対応していません。Release ページから新しいバージョンを手動でダウンロードしてください。",
   "versionSkipped": "バージョンがスキップされました",
   "cannotOpenUrl": "リンクを開けません",
-
   "model3d_editorTitle": "3Dモデルレイヤー",
   "model3d_addMannequin": "内蔵マネキンを追加",
   "model3d_importModel": "モデルをインポート (.glb/.gltf)",
@@ -5591,7 +5950,6 @@
   "model3d_lightElevation": "仰角",
   "model3d_addLayerTooltip": "3Dモデルレイヤーを追加",
   "model3d_webview2Missing": "3DエディタにはMicrosoft Edge WebView2ランタイムが必要です。Windows 10/11には通常同梱されています。無い場合はMicrosoftからEvergreen版をインストールして再試行してください。",
-
   "nav_preciseRefLibrary": "精密参照ライブラリ",
   "preciseRefLib_title": "精密参照ライブラリ",
   "preciseRefLib_searchHint": "参照画像を検索...",
@@ -5605,7 +5963,9 @@
   "preciseRefLib_exportConfirm": "選択項目をエクスポート ({count})",
   "@preciseRefLib_exportConfirm": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "preciseRefLib_exportedCount": "精密参照を {count} 件エクスポートしました",
@@ -5640,19 +6000,25 @@
   "preciseRefLib_loadFailed": "精密参照ライブラリを読み込めませんでした：{error}",
   "@preciseRefLib_loadFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "preciseRefLib_importFailed": "精密参照ライブラリへの保存に失敗しました：{error}",
   "@preciseRefLib_importFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "preciseRefLib_importFailedCount": "{count} 枚の画像を精密参照ライブラリにインポートできませんでした",
   "@preciseRefLib_importFailedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "preciseRefLib_fromLibrary": "ライブラリから",
@@ -5665,88 +6031,106 @@
   "img2img_fromPreciseRefLibrary": "精密参照ライブラリから",
   "localGallery_saveToPreciseRefLibrary": "精密参照ライブラリへ保存",
   "drop_saveToPreciseRefLibrary": "精密参照ライブラリへ保存",
-
   "common_enabled": "有効",
   "common_disabled": "無効",
   "bulkAction_selectedCount": "{count} 件を選択中",
   "@bulkAction_selectedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
-
   "comfyTask_errorConnectionFailed": "ComfyUI サーバーに接続できません",
   "comfyTask_errorConnectionUnavailable": "ComfyUI 接続を利用できません",
   "comfyTask_errorExecutionFailedGeneric": "ComfyUI の実行に失敗しました",
   "comfyTask_errorExecutionFailed": "ComfyUI の実行に失敗しました: {error}",
   "@comfyTask_errorExecutionFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "comfyTask_errorTimeout": "ComfyUI タスクが 10 分でタイムアウトしました",
   "comfyTask_errorWorkflowNotFound": "ワークフローが見つかりません: {workflowId}",
   "@comfyTask_errorWorkflowNotFound": {
     "placeholders": {
-      "workflowId": {"type": "String"}
+      "workflowId": {
+        "type": "String"
+      }
     }
   },
   "comfyWorkflowSlot_vaeEncodeTileSize": "VAE エンコードのタイルサイズ",
   "comfyWorkflowSlot_vaeDecodeTileSize": "VAE デコードのタイルサイズ",
   "comfyWorkflowSlot_blocksToSwap": "スワップするブロック数",
   "comfyWorkflowSlot_swapIoComponents": "I/O コンポーネントをスワップ",
-
   "localGallery_firstIndexHint": "{count} 枚の画像を検出しました。初回のインデックス作成には数分かかる場合がありますが、アプリはそのまま使用できます。",
   "@localGallery_firstIndexHint": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "localGallery_errorPermissionDenied": "画像フォルダーにアクセスできません。フォルダーの権限を確認してください。",
   "localGallery_errorScanFailed": "画像のスキャンに失敗しました: {error}",
   "@localGallery_errorScanFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorInitializationFailed": "ギャラリーの初期化に失敗しました: {error}",
   "@localGallery_errorInitializationFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorServiceInitializing": "ギャラリーサービスを初期化しています。しばらくしてから再試行してください。",
   "localGallery_errorDatabaseFailed": "ギャラリーデータベースエラー: {error}",
   "@localGallery_errorDatabaseFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorRefreshFailed": "ギャラリーの更新に失敗しました: {error}",
   "@localGallery_errorRefreshFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorFilterFailed": "ギャラリーフィルターの適用に失敗しました: {error}",
   "@localGallery_errorFilterFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorFavoriteFailed": "お気に入り状態の更新に失敗しました: {error}",
   "@localGallery_errorFavoriteFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorRebuildFailed": "ギャラリーインデックスの再構築に失敗しました: {error}",
   "@localGallery_errorRebuildFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "diy_editDependencyTitle": "依存関係を編集",
   "diy_dependencyTitle": "依存関係設定",
   "diy_dependencySubtitle": "タグ選択間の依存関係を設定します",
@@ -5775,13 +6159,14 @@
   "diy_dependencyExistsDescription": "ソースカテゴリでタグが選択されている場合のみ適用します",
   "diy_dependencyValueDescription": "ソースカテゴリで選択された特定のタグ値に依存します",
   "diy_dependencyExcludesDescription": "ソースカテゴリでタグが選択されている場合は適用しません",
-
   "diy_editConditionalTitle": "条件分岐を編集",
   "diy_conditionalDefaultName": "条件分岐",
   "diy_branchDefaultName": "分岐 {index}",
   "@diy_branchDefaultName": {
     "placeholders": {
-      "index": {"type": "int"}
+      "index": {
+        "type": "int"
+      }
     }
   },
   "diy_conditionalTitle": "条件分岐",
@@ -5789,7 +6174,9 @@
   "diy_branchCount": "{count} 件の分岐",
   "@diy_branchCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_noConditionalBranches": "条件分岐はありません",
@@ -5797,7 +6184,9 @@
   "diy_conditionCount": "{count} 件の条件",
   "@diy_conditionCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_deleteBranch": "分岐を削除",
@@ -5805,23 +6194,28 @@
   "diy_editBranch": "編集: {name}",
   "@diy_editBranch": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "diy_branchName": "分岐名",
   "diy_probability": "確率",
   "diy_enableBranch": "この分岐を有効化",
-
   "diy_ruleDefaultName": "ルール {index}",
   "@diy_ruleDefaultName": {
     "placeholders": {
-      "index": {"type": "int"}
+      "index": {
+        "type": "int"
+      }
     }
   },
   "diy_ruleCount": "{count} 件のルール",
   "@diy_ruleCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_addRule": "ルールを追加",
@@ -5851,42 +6245,52 @@
   "diy_actionSummary": "[{triggers}] に一致した場合: {action}",
   "@diy_actionSummary": {
     "placeholders": {
-      "triggers": {"type": "String"},
-      "action": {"type": "String"}
+      "triggers": {
+        "type": "String"
+      },
+      "action": {
+        "type": "String"
+      }
     }
   },
-
   "diy_emphasisTitle": "グローバル強調",
   "diy_emphasisSubtitle": "タグの強調効果を調整",
   "diy_emphasisProbability": "強調確率",
   "diy_emphasisProbabilityHint": "選択された各タグに {percent}% の確率で強調括弧が追加されます",
   "@diy_emphasisProbabilityHint": {
     "placeholders": {
-      "percent": {"type": "String"}
+      "percent": {
+        "type": "String"
+      }
     }
   },
   "diy_bracketCount": "括弧の階層数",
   "diy_bracketLayers": "{count} 層",
   "@diy_bracketLayers": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_effectPreview": "効果プレビュー",
   "diy_exampleTag": "タグの例",
   "diy_emphasisExplanation": "強調括弧はタグの重みを増やし、階層が多いほど重みが高くなります",
-
   "diy_presetExportFailed": "プリセットのエクスポートに失敗しました: {error}",
   "@diy_presetExportFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "diy_presetJsonRootObject": "JSON のルートはオブジェクトである必要があります",
   "diy_presetInvalidData": "無効なプリセットデータ: {error}",
   "@diy_presetInvalidData": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "diy_presetExportTitle": "プリセットをエクスポート",
@@ -5899,7 +6303,6 @@
   "diy_description": "説明",
   "diy_categoryCount": "カテゴリ数",
   "diy_totalTagCount": "タグ総数",
-
   "diy_visibilityTitle": "表示ルール",
   "diy_visibilitySubtitle": "条件に基づいてカテゴリの表示を制御します",
   "diy_noVisibilityRules": "表示ルールはありません",
@@ -5916,7 +6319,6 @@
   "diy_conditionValueNotEquals": "値が等しくない",
   "diy_conditionValueInList": "値がリストに含まれる",
   "diy_conditionValueNotInList": "値がリストに含まれない",
-
   "diy_editTimeConditionTitle": "時間条件を編集",
   "diy_timeDefaultName": "時間条件",
   "diy_timeTitle": "時間条件",
@@ -5945,21 +6347,33 @@
   "diy_daysRemaining": "残り {count} 日",
   "@diy_daysRemaining": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_timeRangeSummary": "{name}（{startMonth}月{startDay}日～{endMonth}月{endDay}日）",
   "@diy_timeRangeSummary": {
     "placeholders": {
-      "name": {"type": "String"},
-      "startMonth": {"type": "int"},
-      "startDay": {"type": "int"},
-      "endMonth": {"type": "int"},
-      "endDay": {"type": "int"}
+      "name": {
+        "type": "String"
+      },
+      "startMonth": {
+        "type": "int"
+      },
+      "startDay": {
+        "type": "int"
+      },
+      "endMonth": {
+        "type": "int"
+      },
+      "endDay": {
+        "type": "int"
+      }
     }
   },
   "diy_activeBadge": "有効",
-"@preciseRefLib_confirmDelete": {
+  "@preciseRefLib_confirmDelete": {
     "placeholders": {
       "name": {
         "type": "String"
@@ -6015,7 +6429,6 @@
       }
     }
   },
-
   "common_optional": "任意",
   "common_emptyValue": "（空）",
   "common_previewLoadFailed": "プレビューを読み込めませんでした",
@@ -6026,73 +6439,79 @@
   "common_suffix": "サフィックス",
   "common_minimum": "最小",
   "common_maximum": "最大",
-
   "addToLibrary_displayNameHint": "この項目を識別する名前を入力",
   "addToLibrary_tagHint": "タグを入力して Enter キーで追加",
-
   "newPresetDialog_nameRequired": "プリセット名を入力してください",
   "newPresetDialog_nameLabel": "プリセット名",
   "newPresetDialog_nameHint": "新しいプリセットの名前を入力",
   "newPresetDialog_creationMode": "作成方法",
-
   "drop_saveVibeBundle": "Vibe Bundleを保存",
   "drop_saveVibeBundleSubtitle": "{name} などのVibeをライブラリに保存",
   "@drop_saveVibeBundleSubtitle": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "drop_saveEncodedVibeSubtitle": "エンコード済みVibeデータをライブラリに保存",
-
   "history_dragFilePreparationFailed": "ドラッグ用ファイルの準備に失敗しました。後でもう一度お試しください。",
   "history_dragFilePreparing": "ドラッグ用ファイルを準備しています...",
   "history_dragFileNotReady": "ドラッグ用ファイルはまだ準備できていません",
-
   "vibe_import_overwriteOriginalParams": "元のVibeパラメータを置換",
   "vibe_import_overwriteOriginalParamsHint": "{name} のライブラリ内パラメータのみ置換します。初期状態では無効です",
   "@vibe_import_overwriteOriginalParamsHint": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "vibe_import_reencodeFailed": "Vibeの再エンコードに失敗しました: {name}",
   "@vibe_import_reencodeFailed": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
-
   "galleryScan_skipped": "スキップ {count}",
   "@galleryScan_skipped": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "galleryScan_withMetadata": "メタデータあり {count}",
   "@galleryScan_withMetadata": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "galleryScan_failed": "失敗 {count}",
   "@galleryScan_failed": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "galleryScan_processing": "処理中",
   "galleryScan_pending": "処理待ち",
-
   "vibeDetail_useAll": "すべて使用",
   "vibeDetail_longPressSetCover": "長押ししてカバーに設定",
   "vibeDetail_noPreviewImage": "プレビュー画像がありません",
   "vibeDetail_dropPreviewImage": "ここに画像をドロップしてプレビューを設定",
   "vibeDetail_releasePreviewImage": "離すとプレビュー画像を設定",
-
   "imagePicker_dropReadFailed": "ドロップした画像を読み込めませんでした: {error}",
   "@imagePicker_dropReadFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "imagePicker_dropNoReadableImage": "ドロップされたデータに読み取り可能な画像ファイルまたは画像URLがありません",
@@ -6100,23 +6519,30 @@
   "imagePicker_fileSelectionFailed": "ファイルの選択に失敗しました: {error}",
   "@imagePicker_fileSelectionFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "imagePicker_directorySelectionFailed": "フォルダーの選択に失敗しました: {error}",
   "@imagePicker_directorySelectionFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "editor_effects": "エフェクト",
   "editor_shiftEdges": "エッジをシフト",
   "editor_currentSize": "現在: {width} x {height}",
   "@editor_currentSize": {
     "placeholders": {
-      "width": {"type": "int"},
-      "height": {"type": "int"}
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
     }
   },
   "editor_edgeLeft": "左",
@@ -6128,62 +6554,96 @@
   "editor_requestedSize": "指定: {width} x {height}",
   "@editor_requestedSize": {
     "placeholders": {
-      "width": {"type": "int"},
-      "height": {"type": "int"}
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
     }
   },
   "editor_requestedSizeInvalid": "指定: 無効",
   "editor_appliedSize": "適用: {width} x {height}",
   "@editor_appliedSize": {
     "placeholders": {
-      "width": {"type": "int"},
-      "height": {"type": "int"}
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
     }
   },
   "editor_appliedSizeInvalid": "適用: 無効",
   "editor_appliedEdges": "適用エッジ: 左 {left}、上 {top}、右 {right}、下 {bottom}",
   "@editor_appliedEdges": {
     "placeholders": {
-      "left": {"type": "int"},
-      "top": {"type": "int"},
-      "right": {"type": "int"},
-      "bottom": {"type": "int"}
+      "left": {
+        "type": "int"
+      },
+      "top": {
+        "type": "int"
+      },
+      "right": {
+        "type": "int"
+      },
+      "bottom": {
+        "type": "int"
+      }
     }
   },
   "editor_appliedEdgesInvalid": "適用エッジ: 無効",
   "editor_appliedDimensionLimit": "適用後の寸法は {max} 以下である必要があります。",
   "@editor_appliedDimensionLimit": {
     "placeholders": {
-      "max": {"type": "int"}
+      "max": {
+        "type": "int"
+      }
     }
   },
-
   "savePreset_title": "プリセットとして保存",
   "savePreset_nameHint": "プリセット名を入力",
   "savePreset_metadataDescription": "画像メタデータから保存",
   "savePreset_vibeData": "Vibeデータ（{count}）",
   "@savePreset_vibeData": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
-
   "onlineGallery_videoLoadFailed": "動画を読み込めませんでした",
   "vibe_releaseToAddStyleReference": "離すとスタイル参照を追加",
   "router_backAgainToExit": "もう一度スワイプするか戻るボタンを押すと終了します",
   "router_pageNotFound": "ページが見つかりません: {error}",
   "@router_pageNotFound": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "autocomplete_translating": "翻訳中…",
   "autocomplete_missingTranslation": "未翻訳",
   "autocomplete_translationCoverage": "翻訳カバー率：{translated}/{total}",
-  "@autocomplete_translationCoverage": {"placeholders": {"translated": {"type": "int"}, "total": {"type": "int"}}},
+  "@autocomplete_translationCoverage": {
+    "placeholders": {
+      "translated": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_aliasMatch": "別名：{alias}",
-  "@autocomplete_aliasMatch": {"placeholders": {"alias": {"type": "String"}}},
+  "@autocomplete_aliasMatch": {
+    "placeholders": {
+      "alias": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_settingsTitle": "オートコンプリート",
   "autocomplete_enable": "オートコンプリートを有効にする",
   "autocomplete_resultLimit": "結果数",
@@ -6210,26 +6670,80 @@
   "autocomplete_llmTranslation": "不足する翻訳に Prompt Assistant を使用",
   "autocomplete_llmRouteMissing": "先に Prompt Assistant で Translate ルートを設定してください",
   "autocomplete_llmRoute": "現在のルート：{route}。モデル利用料が発生する場合があります。",
-  "@autocomplete_llmRoute": {"placeholders": {"route": {"type": "String"}}},
+  "@autocomplete_llmRoute": {
+    "placeholders": {
+      "route": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrence": "ローカル関連タグデータ",
   "autocomplete_entryCount": "{count} 件",
-  "@autocomplete_entryCount": {"placeholders": {"count": {"type": "int"}}},
+  "@autocomplete_entryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_cooccurrenceAutoDownload": "ローカル関連タグデータを自動ダウンロード",
   "autocomplete_cooccurrenceAutoDownloadSubtitle": "関連タグが有効な場合、ホーム画面表示後にバックグラウンドで取得します。基本補完はブロックされません",
   "autocomplete_downloadNow": "今すぐダウンロード",
   "autocomplete_cooccurrenceUnavailable": "未インストール · ダウンロード {size}。オンライン関連タグは利用できます。",
-  "@autocomplete_cooccurrenceUnavailable": {"placeholders": {"size": {"type": "String"}}},
+  "@autocomplete_cooccurrenceUnavailable": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceChecking": "ローカルデータを確認中…",
   "autocomplete_cooccurrenceDownloading": "ダウンロード中 {downloaded} / {total} · {speed}。オンライン結果は利用できます。",
-  "@autocomplete_cooccurrenceDownloading": {"placeholders": {"downloaded": {"type": "String"}, "total": {"type": "String"}, "speed": {"type": "String"}}},
+  "@autocomplete_cooccurrenceDownloading": {
+    "placeholders": {
+      "downloaded": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceVerifying": "ダウンロード完了。データパックを検証中…",
   "autocomplete_cooccurrenceInstalling": "データベースを安全にインストール・切り替え中…",
   "autocomplete_cooccurrenceReady": "バージョン {version} · {count} 組 · ディスク使用量 {size}",
-  "@autocomplete_cooccurrenceReady": {"placeholders": {"version": {"type": "String"}, "count": {"type": "int"}, "size": {"type": "String"}}},
+  "@autocomplete_cooccurrenceReady": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceUpdateAvailable": "データバージョン {version} を利用できます",
-  "@autocomplete_cooccurrenceUpdateAvailable": {"placeholders": {"version": {"type": "String"}}},
+  "@autocomplete_cooccurrenceUpdateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceFailed": "ローカルデータを利用できません：{reason}。基本補完とオンライン関連タグには影響しません。",
-  "@autocomplete_cooccurrenceFailed": {"placeholders": {"reason": {"type": "String"}}},
+  "@autocomplete_cooccurrenceFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceErrorNetwork": "ネットワーク接続に失敗しました。後でもう一度お試しください",
   "autocomplete_cooccurrenceErrorDiskFull": "ディスクの空き容量が不足しています",
   "autocomplete_cooccurrenceErrorArchive": "ダウンロードが不完全、または検証に失敗しました",
@@ -6243,13 +6757,37 @@
   "autocomplete_clearDanbooruCache": "Danbooru キャッシュを消去",
   "autocomplete_clearAiCache": "AI 翻訳キャッシュを消去",
   "autocomplete_cacheCleared": "キャッシュを {count} 件消去しました",
-  "@autocomplete_cacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "@autocomplete_cacheCleared": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_baseCatalog": "基本 Danbooru カタログ",
   "autocomplete_catalogStatus": "{count} タグ · データ版 {version}",
-  "@autocomplete_catalogStatus": {"placeholders": {"count": {"type": "String"}, "version": {"type": "String"}}},
+  "@autocomplete_catalogStatus": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_zhDictionary": "ffdkj 簡体字中国語辞書",
   "autocomplete_zhInstalled": "{count} 件インストール済み · バージョン {version}",
-  "@autocomplete_zhInstalled": {"placeholders": {"count": {"type": "int"}, "version": {"type": "String"}}},
+  "@autocomplete_zhInstalled": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_zhNotInstalled": "未インストール（英語補完は利用できます）",
   "autocomplete_zhInstallPrompt": "中国語表示と逆引き用の ffdkj 辞書を上流から直接インストールできます。",
   "autocomplete_zhErrorMetadataRateLimited": "GitHub へのリクエストが多いため、辞書の更新を確認できません。しばらくしてから再試行してください。",
@@ -6272,7 +6810,16 @@
   "autocomplete_relatedLoading": "ローカル共起データとオンライン関連タグを検索中…",
   "autocomplete_relatedEmpty": "利用可能な関連タグがありません",
   "autocomplete_relatedMetric": "共起 {count} 回 · Jaccard {score}",
-  "@autocomplete_relatedMetric": {"placeholders": {"count": {"type": "int"}, "score": {"type": "String"}}},
+  "@autocomplete_relatedMetric": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "score": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_relatedPin": "このタグを固定して関連タグを連続挿入",
   "autocomplete_relatedUnpin": "固定を解除して連鎖候補に戻す",
   "autocomplete_statusBase": "ローカル",
@@ -6285,14 +6832,26 @@
   "autocomplete_statusReady": "準備完了",
   "autocomplete_statusNotInstalled": "未導入",
   "autocomplete_statusDownloading": "DL {progress}%",
-  "@autocomplete_statusDownloading": {"placeholders": {"progress": {"type": "int"}}},
+  "@autocomplete_statusDownloading": {
+    "placeholders": {
+      "progress": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_statusUpdateAvailable": "更新あり",
   "autocomplete_statusError": "エラー",
   "autocomplete_statusDisabled": "オフ",
   "autocomplete_statusSearching": "検索中",
   "autocomplete_statusTranslating": "翻訳中",
   "autocomplete_aiCacheEntries": "AI 翻訳キャッシュ：{count} 件",
-  "@autocomplete_aiCacheEntries": {"placeholders": {"count": {"type": "int"}}},
+  "@autocomplete_aiCacheEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_openSettings": "補完とデータソース設定を開く",
   "randomManager_searchCategories": "カテゴリ、グループ、タグを検索（Ctrl+F）",
   "randomManager_searchCategoriesCompact": "カテゴリ、グループ、タグを検索",
@@ -6326,13 +6885,31 @@
   "image_savedToSystemGallery": "システムギャラリーに保存しました",
   "localGallery_saveToSystemGallery": "システムギャラリーに保存",
   "localGallery_saveToSystemGalleryFailed": "システムギャラリーに保存できませんでした: {error}",
-  "@localGallery_saveToSystemGalleryFailed": {"placeholders":{"error":{}}},
+  "@localGallery_saveToSystemGalleryFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "image_savedAppOnly": "アプリ内ギャラリーには保存しましたが、システムギャラリーに書き出せませんでした: {error}",
-  "@image_savedAppOnly": {"placeholders":{"error":{}}},
+  "@image_savedAppOnly": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "image_shareFailed": "共有に失敗しました: {error}",
-  "@image_shareFailed": {"placeholders":{"error":{}}},
+  "@image_shareFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "onlineGallery_savedFiles": "{count} 個のファイルを保存しました",
-  "@onlineGallery_savedFiles": {"placeholders":{"count":{"type":"int"}}},
+  "@onlineGallery_savedFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "statistics_exportJsonHint": "すべての統計結果と分布データを構造化 JSON として書き出します。",
   "statistics_exportCsvHint": "セクション別の統計を表計算アプリで開ける CSV として書き出します。",
   "queue_reorderTask": "タスクの順序を変更",
@@ -6342,19 +6919,41 @@
   "settings_androidManagedStorage": "システムが安全に管理します。エクスポート時に保存先を選択できます",
   "settings_importLocalOnnxTaggerFiles": "ONNX モデル、ラベルファイル、ZIP をインポート",
   "settings_localOnnxFilesImported": "モデルファイルを {count} 件インポートしました",
-  "@settings_localOnnxFilesImported": {"placeholders":{"count":{"type":"int"}}},
+  "@settings_localOnnxFilesImported": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settings_localOnnxManagedFiles": "アプリストレージ内のモデルファイル: {count} 件",
-  "@settings_localOnnxManagedFiles": {"placeholders":{"count":{"type":"int"}}},
+  "@settings_localOnnxManagedFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settings_clearLocalOnnxModelsTitle": "ローカル ONNX モデルを消去しますか？",
   "settings_clearLocalOnnxModelsContent": "この端末にインポートした ONNX モデルとラベルファイルを削除します。",
   "updateAndroidDownloadedHint": "v{version} をダウンロードし、検証が完了しました。Android のシステムインストーラーを開いて更新を続行できます。",
-  "@updateAndroidDownloadedHint": {"placeholders":{"version":{}}},
+  "@updateAndroidDownloadedHint": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "updateAndroidInstallingHint": "Android のシステムインストーラーを開いています。システムの案内に従って更新を確認してください。",
   "updateAndroidInstallConfirmationBody": "Android のシステムインストーラーを開きます。確認後、ローカルデータを消去せずにアプリが更新されます。実行中の生成・ダウンロードタスクが停止する場合があるため、必要な内容を先に保存してください。",
   "preciseRefLib_moreActions": "その他の操作",
   "vibeDetail_setAsCover": "選択した画像をカバーに設定",
   "vibeDetail_bundleChildParameters": "子 Vibe {index} のインポートパラメーターを表示しています。",
-  "@vibeDetail_bundleChildParameters": {"placeholders":{"index":{"type":"int"}}},
+  "@vibeDetail_bundleChildParameters": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "vibeDetail_bundleDefaultParameters": "Bundle の既定パラメーターを表示しています。下の子項目を選択すると、そのパラメーターを確認できます。",
   "vibeDetail_choosePreviewImage": "画像ボタンからプレビューを選択してください",
   "cloudSync_title": "バックアップと復元",
@@ -6369,13 +6968,31 @@
   "cloudSync_chooseBackend": "バックアップ先",
   "cloudSync_chooseBackendDescription": "同期先を選び、アカウントを接続してから同期する内容を選択します。認証情報はこのデバイスの安全なストレージにのみ保存されます。",
   "cloudSync_oauthDescription": "{provider} アカウントを接続",
-  "@cloudSync_oauthDescription": {"placeholders": {"provider": {"type": "String"}}},
+  "@cloudSync_oauthDescription": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
   "cloudSync_oauthSystemBrowser": "システムブラウザーで安全にログインします。アプリ内でプロバイダーのパスワードを入力する必要はありません。",
   "cloudSync_oauthUnavailable": "このビルドには OAuth のリリース設定がないため接続できません。次の診断情報を配布元に送ってください：\n{details}",
-  "@cloudSync_oauthUnavailable": {"placeholders": {"details": {"type": "String"}}},
+  "@cloudSync_oauthUnavailable": {
+    "placeholders": {
+      "details": {
+        "type": "String"
+      }
+    }
+  },
   "cloudSync_errorOAuthAuthorizationFailed": "このアプリはクラウドサービスへのアクセスをまだ許可されていません。認証ページの案内を確認して、もう一度お試しください。",
   "cloudSync_accountConnected": "{provider} に接続済み",
-  "@cloudSync_accountConnected": {"placeholders": {"provider": {"type": "String"}}},
+  "@cloudSync_accountConnected": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
   "cloudSync_connectAccount": "アカウントを接続",
   "cloudSync_changeAccount": "アカウントを変更",
   "cloudSync_connectedAccount": "接続中のアカウント",
@@ -6414,7 +7031,13 @@
   "cloudSync_restoreDefaults": "既定に戻す",
   "cloudSync_saveSelection": "選択を保存",
   "cloudSync_selectedContentSummary": "{count} 件の内容を選択中",
-  "@cloudSync_selectedContentSummary": {"placeholders": {"count": {"type": "int"}}},
+  "@cloudSync_selectedContentSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cloudSync_rebuildCompactBackup": "古いバックアップを削除して再構築",
   "cloudSync_rebuildCompactBackupDescription": "現在のクラウド領域を削除し、現在の選択で新しい軽量バックアップをアップロードします。サービス側の履歴は書き換えません。",
   "cloudSync_rebuildCompactBackupConfirm": "現在のクラウドバックアップを削除し、新しい軽量バックアップを直ちにアップロードしますか？元に戻せません。",
@@ -6431,12 +7054,24 @@
   "cloudSync_skillsSelectedCount": "{count} 件の Skill を選択中",
   "cloudSync_missingSelectedSkills": "選択中の {count} 件は現在利用できません",
   "cloudSync_removeMissingSkills": "利用不可の項目を削除",
-  "@cloudSync_skillsSelectedCount": {"placeholders":{"count":{}}},
-  "@cloudSync_missingSelectedSkills": {"placeholders":{"count":{}}},
+  "@cloudSync_skillsSelectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@cloudSync_missingSelectedSkills": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "cloudSync_searchSkills": "Skill を検索",
   "cloudSync_noSkills": "一致する Skill はありません",
   "cloudSync_actionFailed": "操作に失敗しました：{error}",
-  "@cloudSync_actionFailed": {"placeholders":{"error":{}}},
+  "@cloudSync_actionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "cloudSync_errorAuthentication": "ログインの有効期限が切れました。アカウントを再接続してください。",
   "cloudSync_errorAuthorization": "このアカウントにはバックアップ先へのアクセス権がありません。",
   "cloudSync_errorNotFound": "クラウドのバックアップフォルダーまたはファイルが見つかりません。",
@@ -6510,7 +7145,13 @@
   "cloudSync_snapshotHistoryDescription": "復元前に変更内容を確認できます。現在のデータがすぐに上書きされることはありません。",
   "cloudSync_noSnapshots": "復元できるバックアップはまだありません。",
   "cloudSync_backupItemCount": "{count} 件の内容",
-  "@cloudSync_backupItemCount": {"placeholders":{"count":{"type":"int"}}},
+  "@cloudSync_backupItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cloudSync_previewRestore": "確認して復元",
   "cloudSync_restorePreviewTitle": "復元前の確認",
   "cloudSync_restorePreviewDescription": "追加・変更・削除される内容を確認します。確定するまで現在のデータは変更されません。",
@@ -6519,9 +7160,19 @@
   "cloudSync_previewAwaitingConfirmation": "先に以下の変更内容を確認してください。",
   "cloudSync_previewDeletesTitle": "このデバイスの内容が削除されます",
   "cloudSync_previewDeletesDescription": "復元するとこのデバイスから {count} 件が削除されます。意図した変更か確認してください。",
-  "@cloudSync_previewDeletesDescription": {"placeholders":{"count":{}}},
+  "@cloudSync_previewDeletesDescription": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "cloudSync_previewCounts": "追加 {added}・変更 {modified}・削除 {deleted}",
-  "@cloudSync_previewCounts": {"placeholders":{"added":{},"modified":{},"deleted":{}}},
+  "@cloudSync_previewCounts": {
+    "placeholders": {
+      "added": {},
+      "modified": {},
+      "deleted": {}
+    }
+  },
   "cloudSync_previewNoChanges": "適用する変更はありません。",
   "cloudSync_confirmMerge": "変更を適用",
   "cloudSync_confirmRestore": "復元を確定",
@@ -6565,7 +7216,13 @@
   "agentSettings_pendingMatch": "照合待ち",
   "agentSettings_contextWindow": "コンテキストウィンドウ（トークン）",
   "agentSettings_contextWindowKnown": "空欄なら内蔵値 {value} を使用します。中継サービスや独自デプロイで実際の値が異なる場合はここで上書きしてください。",
-  "@agentSettings_contextWindowKnown": {"placeholders":{"value":{"type":"String"}}},
+  "@agentSettings_contextWindowKnown": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_contextWindowUnknown": "このモデルは内蔵カタログに未収録のため、ウィンドウを自動判定できません。未入力のままではコンテキスト使用量を表示できず、圧縮も実行できません。",
   "agentSettings_contextWindowUnknownHint": "例：128000",
   "agentSettings_contextWindowReset": "内蔵値に戻す",
@@ -6607,7 +7264,16 @@
   "agentSettings_filterEnabled": "有効",
   "agentSettings_filterDisabled": "無効",
   "agentSettings_skillEnabledCount": "有効 {enabled}/{total}",
-  "@agentSettings_skillEnabledCount": {"placeholders":{"enabled":{"type":"int"},"total":{"type":"int"}}},
+  "@agentSettings_skillEnabledCount": {
+    "placeholders": {
+      "enabled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "agentSettings_diagnostics": "診断",
   "agentSettings_noMatchingSkill": "一致する Skill はありません",
   "agentSettings_noDiagnostics": "診断上の問題はありません",
@@ -6617,26 +7283,59 @@
   "agentSettings_install": "インストール",
   "agentSettings_apply": "適用",
   "agentSettings_operationFailed": "操作に失敗しました：{error}",
-  "@agentSettings_operationFailed": {"placeholders":{"error":{"type":"String"}}},
+  "@agentSettings_operationFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_skillsTitle": "Skills",
   "agentSettings_skillsSourceHint": "現在の画像プロジェクト内の Skill は自動的に有効になります。Pi ユーザーとユーザー共通の Skill は、手動で有効にした場合のみ使用されます。",
   "agentSettings_skillTransfer": "インポートまたはエクスポート",
   "agentSettings_skillsRescanned": "Skills を再スキャンしました",
   "agentSettings_skillScanFailed": "再スキャンに失敗しました：{error}",
-  "@agentSettings_skillScanFailed": {"placeholders":{"error":{"type":"String"}}},
+  "@agentSettings_skillScanFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_exportSkillsTitle": "Skills をエクスポート",
   "agentSettings_skillsExported": "Skills をエクスポートしました",
   "agentSettings_skillZipReadFailed": "ZIP ファイルを読み取れませんでした",
   "agentSettings_confirmSkillsImport": "Skills のインポートを確認",
   "agentSettings_skillArchiveStats": "{files} ファイル · {bytes} バイト",
-  "@agentSettings_skillArchiveStats": {"placeholders":{"files":{"type":"int"},"bytes":{"type":"int"}}},
+  "@agentSettings_skillArchiveStats": {
+    "placeholders": {
+      "files": {
+        "type": "int"
+      },
+      "bytes": {
+        "type": "int"
+      }
+    }
+  },
   "agentSettings_skillConflictReplace": "同名の Skill があります。置き換えるには選択してください。",
   "agentSettings_skillConflictUnsafe": "対象はファイル、リンク、または特殊なエンティティのため置き換えできません。",
   "agentSettings_skillsInstalled": "Skills をインストールしました",
   "agentSettings_skillShadowed": "{name} は優先度の高いソースに上書きされています",
-  "@agentSettings_skillShadowed": {"placeholders":{"name":{"type":"String"}}},
+  "@agentSettings_skillShadowed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_preferredSource": "優先ソース：{source}",
-  "@agentSettings_preferredSource": {"placeholders":{"source":{"type":"String"}}},
+  "@agentSettings_preferredSource": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_sourceWorkspace": "現在の画像プロジェクト",
   "agentSettings_sourcePiUser": "Pi ユーザー",
   "agentSettings_sourceCommonUser": "ユーザー共通",
@@ -6646,13 +7345,31 @@
   "agentSettings_confirmProfileImport": "エージェント設定のインポートを確認",
   "agentSettings_profileNoChanges": "現在の設定は変更されません",
   "agentSettings_profileChanges": "変更：{changes}",
-  "@agentSettings_profileChanges": {"placeholders":{"changes":{"type":"String"}}},
+  "@agentSettings_profileChanges": {
+    "placeholders": {
+      "changes": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_listSeparator": "、",
   "agentSettings_pendingPreferences": "保留中の設定",
   "agentSettings_missingModel": "現在利用できないモデル：{model}",
-  "@agentSettings_missingModel": {"placeholders":{"model":{"type":"String"}}},
+  "@agentSettings_missingModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_missingSkill": "現在利用できない Skill：{skill}",
-  "@agentSettings_missingSkill": {"placeholders":{"skill":{"type":"String"}}},
+  "@agentSettings_missingSkill": {
+    "placeholders": {
+      "skill": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_profileImported": "エージェント設定をインポートしました",
   "settings_watermarkTitle": "ウォーターマーク",
   "settings_watermarkSubtitle": "元画像を変更せず、ローカルで透かし入りコピーを作成します",
@@ -6728,7 +7445,11 @@
   "watermark_noLayer": "保存前にテキストまたはロゴを有効にしてください。",
   "watermark_cancelled": "ウォーターマーク処理をキャンセルしました",
   "watermark_failed": "透かし入りコピーを作成できませんでした：{error}",
-  "@watermark_failed": {"placeholders":{"error":{}}},
+  "@watermark_failed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "watermark_failedGeneric": "透かし入りコピーを作成できませんでした。画像を確認して再試行してください。",
   "watermark_systemGalleryExportFailed": "コピーは Aaalice に保存されましたが、システムギャラリーに追加できませんでした。",
   "watermark_galleryRefreshFailed": "コピーは保存されましたが、ギャラリーを更新できませんでした。ギャラリーを開き直して再試行してください。",
@@ -6741,5 +7462,72 @@
   "watermark_moveDown": "レイヤーを下へ移動",
   "watermark_sourceLoadFailed": "この画像を開けませんでした。有効な静止 PNG、JPEG、WebP、または BMP 画像であることを確認して、もう一度お試しください。",
   "promptAssistant_responseTimeoutTitle": "応答待機タイムアウト",
-  "promptAssistant_responseTimeoutDescription": "画像からのプロンプト作成、最適化、翻訳、キャラクター置換、カスタム書き換えで共通です。既定は5分。応答が遅いモデルでは延長でき、いつでもキャンセルできます。接続タイムアウトとエージェントチャットには影響しません。"
+  "promptAssistant_responseTimeoutDescription": "画像からのプロンプト作成、最適化、翻訳、キャラクター置換、カスタム書き換えで共通です。既定は5分。応答が遅いモデルでは延長でき、いつでもキャンセルできます。接続タイムアウトとエージェントチャットには影響しません。",
+  "settings_mosaicTitle": "モザイク・プライバシー保護",
+  "settings_mosaicSubtitle": "モザイク、ぼかし、単色塗り、矩形・楕円、フリーハンドで安全な複製を作成します。",
+  "settings_mosaicEnable": "モザイク機能を有効にする",
+  "settings_mosaicPreserveMetadata": "対応する生成メタデータを保持",
+  "settings_mosaicPreserveMetadataHint": "プライバシー重視の共有では、プロンプトやシードを残さないためオフを推奨します。",
+  "settings_mosaicRememberStyle": "最後のスタイルを記憶",
+  "settings_mosaicRememberStyleHint": "最後に保存した効果設定を次回も使用します。",
+  "settings_mosaicCreateFromImage": "画像からモザイク済みコピーを作成",
+  "settings_mosaicEditDefault": "既定のモザイク設定を編集",
+  "settings_mosaicConfigCorrupted": "保存された設定が無効です。安全な既定値を保存してから有効にしてください。",
+  "settings_mosaicConfigMigrated": "設定が更新されました。移行を完了するため一度保存してください。",
+  "mosaic_actionCreate": "モザイク済みコピーを作成",
+  "mosaic_actionRegenerate": "モザイク済みコピーを再作成",
+  "mosaic_editorTitle": "モザイク編集",
+  "mosaic_defaultsTitle": "既定のモザイク設定",
+  "mosaic_sourceMissing": "元画像が見つかりません",
+  "mosaic_sourceMissingHint": "モザイク済み派生画像ですが元画像を利用できません。効果の重ね掛けを避けるため元画像を選択してください。",
+  "mosaic_chooseOriginal": "元画像を選択",
+  "mosaic_sourceLoadFailed": "画像を読み込めません。別の静止画像を選択するか再試行してください。",
+  "mosaic_drawTool": "マスク描画ツール",
+  "mosaic_shapeRectangle": "矩形",
+  "mosaic_shapeEllipse": "楕円",
+  "mosaic_shapeBrush": "ブラシ",
+  "mosaic_drawHint": "プレビューの空白部分をドラッグして追加します。領域をドラッグして移動し、角のハンドルでサイズを変更できます。",
+  "mosaic_addRegion": "領域を追加",
+  "mosaic_fullImage": "画像全体",
+  "mosaic_clearAll": "すべて消去",
+  "mosaic_effect": "処理効果",
+  "mosaic_effectPixelate": "モザイク",
+  "mosaic_effectBlur": "ぼかし",
+  "mosaic_effectSolid": "単色塗り",
+  "mosaic_pixelSize": "ブロックサイズ",
+  "mosaic_blurStrength": "ぼかし強度",
+  "mosaic_opacity": "効果の不透明度",
+  "mosaic_color": "塗りつぶし色",
+  "mosaic_cornerRadius": "角の丸み",
+  "mosaic_brushSize": "ブラシサイズ",
+  "mosaic_invertMask": "領域の外側を処理",
+  "mosaic_invertMaskHint": "マスクを反転し、選択領域を見える状態にして外側を処理します。",
+  "mosaic_showLabels": "領域番号を表示",
+  "mosaic_regions": "領域",
+  "mosaic_noRegions": "領域がありません。プレビュー上でドラッグするか、上のボタンで追加してください。",
+  "mosaic_regionEnabled": "この領域を有効化",
+  "mosaic_regionLocked": "この領域をロック",
+  "mosaic_positionX": "横位置",
+  "mosaic_positionY": "縦位置",
+  "mosaic_width": "幅",
+  "mosaic_height": "高さ",
+  "mosaic_duplicate": "複製",
+  "mosaic_delete": "領域を削除",
+  "mosaic_keyboardHint": "キー操作：矢印で移動、Shift+矢印で高速移動、Deleteで削除、Ctrl+Dで複製、Ctrl+Z/Yで元に戻す・やり直す。",
+  "mosaic_canvasHint": "空白部分で描画できます。領域は選択、移動、サイズ変更、ロック、複製、無効化が可能です。",
+  "mosaic_noRegionError": "保存する前に、有効な領域を1つ以上追加してください。",
+  "mosaic_defaultSaved": "既定のモザイク設定を保存しました。",
+  "mosaic_saveDefaults": "既定として保存",
+  "mosaic_saveCopy": "モザイク済みコピーを保存",
+  "mosaic_saving": "保存中…",
+  "mosaic_saved": "モザイク済みコピーを保存しました",
+  "mosaic_open": "開く",
+  "mosaic_share": "共有",
+  "mosaic_cancelled": "処理をキャンセルしました。",
+  "mosaic_failedGeneric": "モザイク済みコピーを作成できませんでした。",
+  "mosaic_galleryRefreshFailed": "ファイルは保存されましたが、ローカルギャラリーを更新できませんでした。",
+  "mosaic_systemGalleryExportFailed": "アプリ内には保存されましたが、システムギャラリーへの書き出しに失敗しました。",
+  "mosaic_undo": "元に戻す",
+  "mosaic_redo": "やり直す",
+  "mosaic_reset": "リセット"
 }

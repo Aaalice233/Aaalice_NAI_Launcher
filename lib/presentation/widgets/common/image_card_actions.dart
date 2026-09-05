@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/services/android_media_store_service.dart';
@@ -14,8 +15,10 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
+import '../../screens/mosaic/mosaic_editor_launcher.dart';
 import '../../screens/watermark/watermark_editor_launcher.dart';
 import '../../utils/clipboard_image.dart';
 import 'app_toast.dart';
@@ -35,6 +38,7 @@ enum ImageCardActionId {
   addToAgent,
   shareDiscord,
   createWatermark,
+  createMosaic,
   saveToLibrary,
   openFolder,
   reversePrompt,
@@ -191,6 +195,20 @@ class ImageCardActionCatalog {
         hover: false,
       );
     }
+    if (coordinator.mosaicEnabled &&
+        (data.imageBytes != null ||
+            (data.sourceFilePath?.isNotEmpty ?? false))) {
+      add(
+        ImageCardActionId.createMosaic,
+        Icons.grid_on_rounded,
+        coordinator.isMosaicDerivative
+            ? l10n.mosaic_actionRegenerate
+            : l10n.mosaic_actionCreate,
+        coordinator.openMosaicEditor,
+        group: 1,
+        hover: false,
+      );
+    }
     add(
       ImageCardActionId.saveToLibrary,
       Icons.bookmark_add_rounded,
@@ -311,6 +329,9 @@ class ImageCardActionCoordinator {
   bool get watermarkEnabled =>
       ref.read(watermarkSettingsProvider).configuration.enabled;
 
+  bool get mosaicEnabled =>
+      ref.read(mosaicSettingsProvider).configuration.enabled;
+
   bool get isWatermarkDerivative {
     final path = _data.sourceFilePath;
     if (path == null || path.isEmpty) return false;
@@ -332,6 +353,33 @@ class ImageCardActionCoordinator {
     }
     if (bytes == null) return;
     await WatermarkEditorLauncher.open(
+      context: context,
+      sourceBytes: bytes,
+      sourceFileName: 'image_${(_data.index ?? 0) + 1}.png',
+    );
+  }
+
+  bool get isMosaicDerivative {
+    final path = _data.sourceFilePath;
+    if (path == null || path.isEmpty) return false;
+    return MosaicDerivativeRegistry(
+      ref.read(localStorageServiceProvider),
+    ).isDerivative(path);
+  }
+
+  Future<void> openMosaicEditor() async {
+    final bytes = _data.imageBytes;
+    final sourcePath = _data.sourceFilePath;
+    if (sourcePath != null && sourcePath.isNotEmpty) {
+      await MosaicEditorLauncher.openForLocalPath(
+        context: context,
+        path: sourcePath,
+        fallbackBytes: bytes,
+      );
+      return;
+    }
+    if (bytes == null) return;
+    await MosaicEditorLauncher.open(
       context: context,
       sourceBytes: bytes,
       sourceFileName: 'image_${(_data.index ?? 0) + 1}.png',

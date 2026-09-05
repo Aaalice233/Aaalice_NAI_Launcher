@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
+import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../adaptive/interaction_policy.dart';
@@ -14,6 +15,7 @@ import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../themes/theme_extension.dart';
@@ -464,6 +466,19 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           ref.read(localStorageServiceProvider),
         ).isDerivative(widget.record.path);
 
+    final mosaicEnabled =
+        widget.onSendAction != null &&
+        ref.watch(
+          mosaicSettingsProvider.select(
+            (state) => state.configuration.enabled,
+          ),
+        );
+    final isMosaicDerivative =
+        mosaicEnabled &&
+        MosaicDerivativeRegistry(
+          ref.read(localStorageServiceProvider),
+        ).isDerivative(widget.record.path);
+
     PopupMenuItem<Object> item({
       required Object value,
       required IconData icon,
@@ -548,6 +563,14 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                 label: isWatermarkDerivative
                     ? context.l10n.watermark_actionRegenerate
                     : context.l10n.watermark_actionCreate,
+              ),
+            if (mosaicEnabled)
+              item(
+                value: LocalImageContextAction.createMosaic,
+                icon: Icons.grid_on_rounded,
+                label: isMosaicDerivative
+                    ? context.l10n.mosaic_actionRegenerate
+                    : context.l10n.mosaic_actionCreate,
               ),
             if (widget.onSendAction != null) ...[
               const PopupMenuDivider(),
@@ -686,12 +709,22 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         WatermarkDerivativeRegistry(
           ref.read(localStorageServiceProvider),
         ).isDerivative(widget.record.path);
+    final mosaicEnabled = ref.read(
+      mosaicSettingsProvider.select((state) => state.configuration.enabled),
+    );
+    final isMosaicDerivative =
+        mosaicEnabled &&
+        MosaicDerivativeRegistry(
+          ref.read(localStorageServiceProvider),
+        ).isDerivative(widget.record.path);
     final action = await LocalImageContextMenu.showSendActions(
       context,
       position: Offset(left, top),
       isKritaConnected: widget.isKritaConnected,
       watermarkEnabled: watermarkEnabled,
       isWatermarkDerivative: isWatermarkDerivative,
+      mosaicEnabled: mosaicEnabled,
+      isMosaicDerivative: isMosaicDerivative,
     );
     if (action == null || !mounted) return;
 

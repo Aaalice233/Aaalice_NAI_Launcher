@@ -1,14 +1,11 @@
 {
   "@@locale": "zh",
-
   "app_title": "NAI 启动器",
   "app_subtitle": "NovelAI 第三方客户端",
-
   "desktopWindow_minimize": "最小化",
   "desktopWindow_maximize": "最大化",
   "desktopWindow_restore": "还原",
   "desktopWindow_close": "关闭窗口",
-
   "common_cancel": "取消",
   "common_confirm": "确定",
   "common_continue": "继续",
@@ -100,10 +97,11 @@
   "networkError_requestFailed": "请求失败（{code}）",
   "@networkError_requestFailed": {
     "placeholders": {
-      "code": {"type": "int"}
+      "code": {
+        "type": "int"
+      }
     }
   },
-
   "nav_canvas": "画布",
   "nav_localGallery": "本地图库",
   "nav_onlineGallery": "在线画廊",
@@ -116,7 +114,6 @@
   "nav_projectRepository": "项目仓库",
   "nav_expandSidebar": "展开侧边栏",
   "nav_collapseSidebar": "收起侧边栏",
-
   "auth_login": "登录",
   "auth_logout": "退出登录",
   "auth_continueWithoutLogin": "跳过登录，进入主界面",
@@ -134,7 +131,6 @@
   "auth_emailRequired": "请输入邮箱",
   "auth_emailInvalid": "请输入有效的邮箱地址",
   "auth_passwordRequired": "请输入密码",
-
   "auth_tokenLoginCompact": "Token登录",
   "auth_tokenLoginRecommended": "API Token 登录（推荐）",
   "auth_credentialsLogin": "邮箱密码登录",
@@ -202,10 +198,8 @@
   "auth_troubleshoot_firewall_desc": "确保防火墙允许连接到 NovelAI 服务器",
   "auth_troubleshoot_serverStatus_title": "检查服务器状态",
   "auth_troubleshoot_serverStatus_desc": "访问 NovelAI 状态页面或社区查看服务中断情况",
-
   "common_paste": "粘贴",
   "common_default": "默认",
-
   "settings_title": "设置",
   "settings_account": "账户",
   "settings_appearance": "外观",
@@ -294,14 +288,15 @@
   "settings_nicknameTooLong": "昵称不能超过{maxLength}个字符",
   "@settings_nicknameTooLong": {
     "placeholders": {
-      "maxLength": {"type": "int"}
+      "maxLength": {
+        "type": "int"
+      }
     }
   },
   "settings_nicknameUpdated": "昵称已更新",
   "settings_avatarUpdated": "头像已更新",
   "settings_avatarRemoved": "头像已移除",
   "settings_setAsDefaultSuccess": "已设为默认账号",
-
   "generation_gestureEditPrompt": "下滑编辑提示词",
   "generation_gestureOpenAgent": "上滑打开 AI 助手",
   "generation_promptOverviewCharacters": "{count} 字",
@@ -352,7 +347,16 @@
   "agentChat_reference": "引用资源",
   "agentChat_noResources": "这里暂时没有可用资源。",
   "agentChat_imageTooLarge": "{fileName} 超过 {maxSizeMB} MB。",
-  "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
+  "@agentChat_imageTooLarge": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      },
+      "maxSizeMB": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_enableWebAccess": "开启联网",
   "agentChat_disableWebAccess": "关闭联网",
   "agentChat_webAccessLabel": "联网",
@@ -385,24 +389,75 @@
   "agentChat_reasoningMax": "最大",
   "agentChat_jumpToLatest": "回到最新",
   "agentChat_toolGroupCount": "执行了 {count} 项操作",
-  "@agentChat_toolGroupCount": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_toolGroupCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_working": "正在工作",
   "agentChat_workingFor": "已工作 {duration}",
-  "@agentChat_workingFor": {"placeholders": {"duration": {"type": "String"}}},
+  "@agentChat_workingFor": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_worked": "工作完成",
   "agentChat_workedFor": "工作耗时 {duration}",
-  "@agentChat_workedFor": {"placeholders": {"duration": {"type": "String"}}},
+  "@agentChat_workedFor": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_workItemCount": "{count} 项",
-  "@agentChat_workItemCount": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_workItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_ranCommands": "执行了 {count} 条命令",
-  "@agentChat_ranCommands": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_ranCommands": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_exploredItems": "探索了 {count} 项资源",
-  "@agentChat_exploredItems": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_exploredItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_earlierMessages": "更早的 {count} 条消息",
-  "@agentChat_earlierMessages": {"placeholders": {"count": {"type": "int"}}},
+  "@agentChat_earlierMessages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_loadEarlierMessages": "更早消息",
   "agentChat_turnNavigation": "第 {number} 轮：{preview}",
-  "@agentChat_turnNavigation": {"placeholders": {"number": {"type": "int"}, "preview": {"type": "String"}}},
+  "@agentChat_turnNavigation": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "preview": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_phasePreparing": "准备中",
   "agentChat_phaseResponding": "回复中",
   "agentChat_phaseAwaitingApproval": "等待确认",
@@ -459,9 +514,21 @@
   "agentChat_addResource": "发送到智能体",
   "agentChat_resourceAdded": "已添加到 Agent 输入区",
   "agentChat_addResourceFailed": "添加引用失败：{error}",
-  "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
+  "@agentChat_addResourceFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_approvalEstimatedAnlas": "预计消耗：{cost} Anlas",
-  "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "@agentChat_approvalEstimatedAnlas": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
   "agentChat_needSetup": "未配置聊天模型。请先在设置中添加支持工具调用的供应商。",
   "agentChat_heroTitle": "今天想做什么？",
   "agentChat_heroSubtitle": "准备生成角色提示词、整理灵感或优化设置。",
@@ -469,12 +536,27 @@
   "agentChat_compact": "压缩上下文",
   "agentChat_compacting": "正在压缩上下文…",
   "agentChat_compactDone": "已压缩上下文：{before} → {after}",
-  "@agentChat_compactDone": {"placeholders":{"before":{"type":"String"},"after":{"type":"String"}}},
+  "@agentChat_compactDone": {
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_compactNotNeeded": "当前上下文无需压缩",
   "agentChat_compactBusy": "正在生成回复，请稍后再压缩",
   "agentChat_compactUnavailable": "上下文用量不可用，无法压缩",
   "agentChat_compactFailed": "压缩上下文失败：{error}",
-  "@agentChat_compactFailed": {"placeholders":{"error":{"type":"String"}}},
+  "@agentChat_compactFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "agentChat_requestFailed": "请求失败，请重试。",
   "agentChat_errorDetails": "错误详情",
   "agentChat_modelLabel": "模型",
@@ -688,7 +770,6 @@
   "prompt_formatted": "已格式化",
   "prompt_cooccurrenceRecommendation": "共现标签推荐",
   "prompt_cooccurrenceRecommendationSubtitle": "选中标签后自动推荐，也可按 Ctrl+Shift+Space 或 Ctrl+单击",
-
   "image_save": "保存",
   "image_copy": "复制",
   "image_upscale": "放大",
@@ -697,7 +778,6 @@
   "image_saveFailed": "保存失败: {error}",
   "image_copiedToClipboard": "已复制到剪贴板",
   "image_copyFailed": "复制失败: {error}",
-
   "config_newPreset": "新建预设",
   "config_deletePreset": "删除预设",
   "img2img_title": "图生图",
@@ -738,7 +818,9 @@
   "@img2img_directorConfirmContent": {
     "placeholders": {
       "tool": {},
-      "cost": {"type": "int"}
+      "cost": {
+        "type": "int"
+      }
     }
   },
   "img2img_directorResult": "处理结果",
@@ -832,11 +914,9 @@
   "img2img_seedvr2BlocksToSwap": "内存卸载层数",
   "img2img_seedvr2BlocksToSwapHint": "把多少 DiT 层放在内存里、推理时再逐层送入显存。调高更省显存但更吃内存也更慢；显存充裕可调低甚至设为 0。显存不足报错时请调高。",
   "img2img_upscalePanelOpened": "已打开图生图超分面板",
-
   "editor_tolerance": "容差",
   "editor_intensity": "强度",
   "editor_sourcePoint": "Alt+点击设置源点",
-
   "editor_brushPresets": "笔刷预设",
   "editor_size": "大小",
   "editor_opacity": "不透明度",
@@ -1043,19 +1123,35 @@
   "editor_compressionSizeSummary": "工作尺寸 {workWidth}×{workHeight} → 输出尺寸 {targetWidth}×{targetHeight}",
   "@editor_compressionSizeSummary": {
     "placeholders": {
-      "workWidth": {"type": "int"},
-      "workHeight": {"type": "int"},
-      "targetWidth": {"type": "int"},
-      "targetHeight": {"type": "int"}
+      "workWidth": {
+        "type": "int"
+      },
+      "workHeight": {
+        "type": "int"
+      },
+      "targetWidth": {
+        "type": "int"
+      },
+      "targetHeight": {
+        "type": "int"
+      }
     }
   },
   "editor_compressionNormalSummary": "Normal（约 1MP）为 {normalWidth}×{normalHeight}；最低档为 {minimumWidth}×{minimumHeight}。",
   "@editor_compressionNormalSummary": {
     "placeholders": {
-      "normalWidth": {"type": "int"},
-      "normalHeight": {"type": "int"},
-      "minimumWidth": {"type": "int"},
-      "minimumHeight": {"type": "int"}
+      "normalWidth": {
+        "type": "int"
+      },
+      "normalHeight": {
+        "type": "int"
+      },
+      "minimumWidth": {
+        "type": "int"
+      },
+      "minimumHeight": {
+        "type": "int"
+      }
     }
   },
   "editor_compressionUnavailable": "当前工作画布已经低于最低压缩档，不能继续降低分辨率。",
@@ -1063,20 +1159,38 @@
   "editor_compressionClampedToLimit": "所选 {targetWidth}×{targetHeight} 超过请求面积上限，实际会按 {clampedWidth}×{clampedHeight} 发送。",
   "@editor_compressionClampedToLimit": {
     "placeholders": {
-      "targetWidth": {"type": "int"},
-      "targetHeight": {"type": "int"},
-      "clampedWidth": {"type": "int"},
-      "clampedHeight": {"type": "int"}
+      "targetWidth": {
+        "type": "int"
+      },
+      "targetHeight": {
+        "type": "int"
+      },
+      "clampedWidth": {
+        "type": "int"
+      },
+      "clampedHeight": {
+        "type": "int"
+      }
     }
   },
   "editor_focusRequestSummary": "外层裁剪 {outerWidth}×{outerHeight}，实际发送 {requestWidth}×{requestHeight}，预计 {cost} Anlas。",
   "@editor_focusRequestSummary": {
     "placeholders": {
-      "outerWidth": {"type": "int"},
-      "outerHeight": {"type": "int"},
-      "requestWidth": {"type": "int"},
-      "requestHeight": {"type": "int"},
-      "cost": {"type": "int"}
+      "outerWidth": {
+        "type": "int"
+      },
+      "outerHeight": {
+        "type": "int"
+      },
+      "requestWidth": {
+        "type": "int"
+      },
+      "requestHeight": {
+        "type": "int"
+      },
+      "cost": {
+        "type": "int"
+      }
     }
   },
   "editor_unsupportedImageFormat": "不支持的文件格式: .{extension}\n请选择图像文件（PNG、JPG、WEBP 等）",
@@ -1203,7 +1317,6 @@
   "layer_empty": "无图层",
   "layer_add": "添加图层",
   "layer_mergeDown": "向下合并",
-
   "vibe_title": "风格迁移",
   "vibe_description": "改变图像，保留视觉风格",
   "vibe_addFromFileTitle": "从文件添加",
@@ -1231,7 +1344,6 @@
   "vibe_strength": "强度",
   "vibe_infoExtracted": "信息提取",
   "vibe_shiftReplaceHint": "Shift+点击 替换",
-
   "character_buttonLabel": "角色",
   "character_addCharacter": "添加角色",
   "character_limitReached": "已达当前模型的角色上限（{limit} 个）",
@@ -1240,22 +1352,34 @@
   "character_summaryEnabled": "已启用 {count} 个 · {name}",
   "@character_summaryEnabled": {
     "placeholders": {
-      "count": {"type": "int"},
-      "name": {"type": "String"}
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
     }
   },
   "character_summaryMore": "已启用 {count} 个 · {name} +{additional}",
   "@character_summaryMore": {
     "placeholders": {
-      "count": {"type": "int"},
-      "name": {"type": "String"},
-      "additional": {"type": "int"}
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      },
+      "additional": {
+        "type": "int"
+      }
     }
   },
   "character_summaryAllDisabled": "已启用 0 个 · 已停用 {count} 个",
   "@character_summaryAllDisabled": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "gallery_generationParams": "生成参数",
@@ -1293,7 +1417,6 @@
       "error": {}
     }
   },
-
   "preset_presetName": "预设名称",
   "onlineGallery_search": "搜索",
   "onlineGallery_popular": "热门",
@@ -1309,20 +1432,26 @@
   "onlineGallery_visibleFavoritesSaved": "已保存 {count} 项到本地收藏",
   "@onlineGallery_visibleFavoritesSaved": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "onlineGallery_saveFavoritesFailed": "保存本地收藏失败：{error}",
   "@onlineGallery_saveFavoritesFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "onlineGallery_searchTags": "搜索标签...",
   "onlineGallery_maxTagsExceeded": "最多可组合搜索 {max} 个标签",
   "@onlineGallery_maxTagsExceeded": {
     "placeholders": {
-      "max": {"type": "int"}
+      "max": {
+        "type": "int"
+      }
     }
   },
   "onlineGallery_tagDetailsIncomplete": "部分作品的完整标签获取失败，未验证的作品已排除；请重试以补全结果。",
@@ -1332,8 +1461,12 @@
   "onlineGallery_continueScanning": "继续扫描",
   "@onlineGallery_multiTagScanning": {
     "placeholders": {
-      "requests": {"type": "int"},
-      "candidates": {"type": "int"}
+      "requests": {
+        "type": "int"
+      },
+      "candidates": {
+        "type": "int"
+      }
     }
   },
   "onlineGallery_refresh": "刷新",
@@ -1471,7 +1604,11 @@
   "onlineGallery_blacklistSyncFailedMessage": "黑名单同步失败，请检查登录状态与网络连接",
   "onlineGallery_blacklistSaveFailed": "保存黑名单失败：{error}",
   "@onlineGallery_blacklistSaveFailed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "onlineGallery_autoSyncOnStartup": "启动时刷新云端列表",
   "onlineGallery_autoSyncOnStartupSubtitle": "安全合并云端新增标签，不删除本地标签",
@@ -1492,13 +1629,30 @@
   "onlineGallery_blacklistImportTitle": "批量导入标签",
   "onlineGallery_blacklistImportHint": "每行或使用逗号分隔一个标签",
   "onlineGallery_blacklistImported": "已新增 {count} 个标签",
-  "@onlineGallery_blacklistImported": {"placeholders": {"count": {}}},
+  "@onlineGallery_blacklistImported": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_blacklistClearTitle": "清空统一黑名单？",
   "onlineGallery_blacklistClearBody": "画廊将立即停止使用这些标签过滤。云端不会自动清空，可以撤销本次操作。",
   "onlineGallery_blacklistPullSummary": "已新增 {added} 项，已有 {existing} 项，跳过已删除 {skipped} 项；保留 {opaque} 条云端高级规则",
-  "@onlineGallery_blacklistPullSummary": {"placeholders": {"added": {}, "existing": {}, "skipped": {}, "opaque": {}}},
+  "@onlineGallery_blacklistPullSummary": {
+    "placeholders": {
+      "added": {},
+      "existing": {},
+      "skipped": {},
+      "opaque": {}
+    }
+  },
   "onlineGallery_blacklistPushDiff": "云端将新增 {added} 项、删除 {removed} 项，并删除 {opaque} 条高级规则。",
-  "@onlineGallery_blacklistPushDiff": {"placeholders": {"added": {}, "removed": {}, "opaque": {}}},
+  "@onlineGallery_blacklistPushDiff": {
+    "placeholders": {
+      "added": {},
+      "removed": {},
+      "opaque": {}
+    }
+  },
   "onlineGallery_blacklistCloudEmptyConfirm": "确认清空云端黑名单",
   "onlineGallery_blacklistMigrationConfirm": "此列表包含旧版本中无法确认账号归属的云端标签；确认将它们同步到当前账号",
   "onlineGallery_bulkFavorite": "批量收藏",
@@ -1581,7 +1735,12 @@
   "onlineGallery_codexOffline": "离线缓存",
   "onlineGallery_codexContributors": "贡献者与来源",
   "onlineGallery_codexEntryCount": "{entries} 个词条 · {images} 个有图",
-  "@onlineGallery_codexEntryCount": {"placeholders": {"entries": {}, "images": {}}},
+  "@onlineGallery_codexEntryCount": {
+    "placeholders": {
+      "entries": {},
+      "images": {}
+    }
+  },
   "onlineGallery_codexNoImage": "无配图词条",
   "onlineGallery_codexNoImageDescription": "这是纯文本词条，提示词与元数据仍可完整使用。",
   "onlineGallery_codexAuthor": "作者",
@@ -1612,10 +1771,18 @@
   "onlineGallery_promptCopyCategoryHint": "按来源提供的标签类别复制",
   "onlineGallery_promptCopyStructuredHint": "复制该提示词字段的原始内容",
   "onlineGallery_artistCount": "{count} 位画师",
-  "@onlineGallery_artistCount": {"placeholders": {"count": {}}},
+  "@onlineGallery_artistCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_artistHuntNoExactResults": "候选作品中没有精确画师串",
   "onlineGallery_artistHuntPartialFailure": "有 {count} 个作品解析失败，可重试再次检查。",
-  "@onlineGallery_artistHuntPartialFailure": {"placeholders": {"count": {}}},
+  "@onlineGallery_artistHuntPartialFailure": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_artistHuntDetailFailed": "候选作品详情全部解析失败，请重试。",
   "onlineGallery_aiTagTimeRange": "时间范围",
   "onlineGallery_aiTagAllTime": "全部",
@@ -1628,14 +1795,22 @@
   "onlineGallery_sourceNetworkError": "无法连接当前画廊来源，请检查网络或代理。",
   "onlineGallery_sourceRequestFailed": "请求失败，请稍后重试。",
   "onlineGallery_actionFailed": "操作失败：{error}",
-  "@onlineGallery_actionFailed": {"placeholders": {"error": {}}},
+  "@onlineGallery_actionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "onlineGallery_sourceMalformedResponse": "来源返回的数据结构已变化，暂时无法解析。",
   "onlineGallery_detailNotFound": "作品不存在或已被删除。",
   "onlineGallery_imageUnavailable": "图片当前不可用。",
   "onlineGallery_loadedAll": "已加载全部",
   "onlineGallery_retryAppend": "加载失败，点击重试",
   "onlineGallery_multipleImages": "{count} 张图片",
-  "@onlineGallery_multipleImages": {"placeholders": {"count": {}}},
+  "@onlineGallery_multipleImages": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_views": "浏览",
   "onlineGallery_downloadAllMedia": "下载作品全部图片",
   "onlineGallery_copyAllTags": "复制全部 TAG",
@@ -1648,12 +1823,23 @@
   "promptCopy_fixedPositive": "固定正面提示词",
   "promptCopy_fixedNegative": "固定负面提示词",
   "promptCopy_characterPositive": "角色 {index} 正面提示词",
-  "@promptCopy_characterPositive": {"placeholders": {"index": {"type": "int"}}},
+  "@promptCopy_characterPositive": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "promptCopy_characterNegative": "角色 {index} 负面提示词",
-  "@promptCopy_characterNegative": {"placeholders": {"index": {"type": "int"}}},
+  "@promptCopy_characterNegative": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "onlineGallery_gelbooruReadOnly": "只读收藏",
   "onlineGallery_gelbooruFavoritesSortHint": "按帖子 ID 从新到旧排列，不保证与网站收藏时间顺序一致。",
-
   "tooltip_fullscreenEdit": "全屏编辑",
   "tooltip_decreaseWeight": "减少权重 [-5%]",
   "tooltip_increaseWeight": "增加权重 [+5%]",
@@ -1663,7 +1849,6 @@
   "tooltip_enable": "启用",
   "tooltip_disable": "禁用",
   "tooltip_resetWeight": "点击重置为100%",
-
   "upscale_scale": "放大倍数",
   "danbooru_loginTitle": "登录 Danbooru",
   "danbooru_loginHint": "使用用户名和 API Key 登录以使用收藏夹功能",
@@ -1694,7 +1879,6 @@
   "gelbooru_malformedResponse": "Gelbooru 返回了无法解析的数据。",
   "gelbooru_storageError": "无法安全保存或读取 Gelbooru 凭据。",
   "gelbooru_unknownError": "Gelbooru 验证失败，请稍后重试。",
-
   "weight_title": "权重",
   "weight_reset": "重置",
   "weight_done": "完成",
@@ -1702,7 +1886,6 @@
   "weight_editTag": "编辑标签",
   "weight_tagName": "标签名称",
   "weight_tagNameHint": "输入标签名称...",
-
   "tag_selected": "已选 {count}",
   "tag_enable": "启用",
   "tag_disable": "禁用",
@@ -1713,13 +1896,11 @@
   "tag_copiedToClipboard": "已复制到剪贴板",
   "tag_emptyHint": "添加标签来描述你想要的画面",
   "tag_emptyHintSub": "你可以浏览、搜索或手动添加标签",
-
   "tagCategory_artist": "艺术家",
   "tagCategory_copyright": "版权",
   "tagCategory_character": "角色",
   "tagCategory_meta": "元数据",
   "tagCategory_general": "通用",
-
   "qualityTags_label": "质量词",
   "qualityTags_positive": "质量词（正面）",
   "qualityTags_negative": "质量词（负面）",
@@ -1731,7 +1912,6 @@
   "qualityTags_none": "无",
   "qualityTags_addFromLibrary": "从词库添加",
   "qualityTags_selectFromLibrary": "选择质量词条目",
-
   "ucPreset_label": "负面预设",
   "ucPreset_heavy": "重度",
   "ucPreset_light": "轻度",
@@ -1743,10 +1923,8 @@
   "ucPreset_nsfwHint": "💡 如需生成成人内容，请在正面提示词中添加 nsfw，负面提示词中的 nsfw 将自动移除",
   "ucPreset_addFromLibrary": "从词库添加",
   "ucPreset_selectFromLibrary": "选择负面词条目",
-
   "randomMode_enabledTip": "抽卡模式已开启\n每次生成后自动随机新提示词",
   "randomMode_disabledTip": "抽卡模式\n点击开启后每次生成自动随机提示词",
-
   "batchSize_title": "批次大小",
   "batchSize_tooltip": "每次请求生成 {count} 张",
   "@batchSize_tooltip": {
@@ -1760,14 +1938,19 @@
   "batchSize_formula": "总图像数 = {batchCount} × {batchSize} = {total} 张",
   "@batchSize_formula": {
     "placeholders": {
-      "batchCount": {"type": "int"},
-      "batchSize": {"type": "int"},
-      "total": {"type": "int"}
+      "batchCount": {
+        "type": "int"
+      },
+      "batchSize": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "batchSize_hint": "较大的批次可减少请求次数，但单次等待时间更长",
   "batchSize_costWarning": "⚠️ 批次大小 > 1 时会额外消耗 Anlas 点数",
-
   "warmup_networkCheck": "检测网络连接...",
   "warmup_networkCheck_noProxy": "无法连接到 NovelAI，请开启VPN或启用代理设置",
   "warmup_networkCheck_noSystemProxy": "已启用代理但未检测到系统代理，请开启VPN",
@@ -1788,7 +1971,6 @@
       "maxAttempts": {}
     }
   },
-
   "warmup_preparing": "准备中...",
   "warmup_complete": "完成",
   "warmup_danbooruAuth": "初始化 Danbooru 认证...",
@@ -1840,7 +2022,6 @@
   "warmup_fetchingCharacterTags": "正在拉取角色标签...",
   "warmup_fetchingCopyrightTags": "正在拉取版权标签...",
   "warmup_fetchingMetaTags": "正在拉取元标签...",
-
   "resolution_groupNormal": "常规",
   "resolution_groupLarge": "大尺寸",
   "resolution_groupWallpaper": "壁纸",
@@ -1856,13 +2037,20 @@
   "generation_invalidResolutionHint": "{width}×{height} 无法用于生成。宽度和高度必须是 64 的倍数、单边不能超过 4096，且总像素不能超过 3,145,728。最接近的可用尺寸是 {suggestedWidth}×{suggestedHeight}。",
   "@generation_invalidResolutionHint": {
     "placeholders": {
-      "width": { "type": "int" },
-      "height": { "type": "int" },
-      "suggestedWidth": { "type": "int" },
-      "suggestedHeight": { "type": "int" }
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      },
+      "suggestedWidth": {
+        "type": "int"
+      },
+      "suggestedHeight": {
+        "type": "int"
+      }
     }
   },
-
   "api_error_429": "并发限制",
   "api_error_429_hint": "请求过于频繁，请稍后重试（常见于合租账号）",
   "api_error_401": "认证失败",
@@ -1892,7 +2080,9 @@
   "drop_addedMultipleToVibe": "已添加 {count} 个风格参考",
   "@drop_addedMultipleToVibe": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "drop_addedToCharacterRef": "已添加到精准参考",
@@ -1925,11 +2115,29 @@
   "drop_positivePrompt": "正向 Prompt",
   "drop_negativePrompt": "负向 Prompt",
   "drop_characterPrompts": "角色 Prompt（{count}）",
-  "@drop_characterPrompts": {"placeholders": {"count": {"type": "int"}}},
+  "@drop_characterPrompts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "drop_characterPositivePrompt": "角色 {index} 正向 Prompt",
-  "@drop_characterPositivePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "@drop_characterPositivePrompt": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "drop_characterNegativePrompt": "角色 {index} 负向 Prompt",
-  "@drop_characterNegativePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "@drop_characterNegativePrompt": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "drop_promptNotRecorded": "未记录",
   "drop_promptCopy": "复制",
   "drop_promptAddWhole": "整段加入词库",
@@ -1947,21 +2155,34 @@
   "drop_promptLibrarySeparatorNewline": "换行",
   "drop_promptLibrarySeparatorNone": "不插入分隔符",
   "drop_promptLibraryCharacterCount": "{count} 字符",
-  "@drop_promptLibraryCharacterCount": {"placeholders": {"count": {"type": "int"}}},
+  "@drop_promptLibraryCharacterCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "drop_promptLibraryExactContentHint": "保存当前文本，不自动清洗、重排或补全",
   "drop_promptLibraryResultPreview": "结果预览",
   "drop_promptLibraryDuplicate": "相同内容已存在于“{name}”",
-  "@drop_promptLibraryDuplicate": {"placeholders": {"name": {}}},
+  "@drop_promptLibraryDuplicate": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "drop_promptLibraryNameConflict": "该名称已存在，请改名或选择追加/覆盖",
   "drop_promptLibraryOverwriteWarning": "将完整替换“{name}”的提示词内容",
-  "@drop_promptLibraryOverwriteWarning": {"placeholders": {"name": {}}},
+  "@drop_promptLibraryOverwriteWarning": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "drop_promptLibraryMore": "更多选项",
   "drop_promptLibraryConfirmOverwrite": "确认覆盖",
   "drop_promptLibrarySaved": "已保存到词库",
   "drop_promptLibrarySaveFailed": "词库保存失败",
   "drop_promptLibraryPositiveName": "正向提示词摘取",
   "drop_promptLibraryNegativeName": "负向提示词摘取",
-
   "preciseRef_title": "精准参考",
   "preciseRef_description": "添加参考图并设置类型和参数，可同时使用多个参考。",
   "preciseRef_addReference": "添加参考图",
@@ -1981,16 +2202,19 @@
   "preciseRef_addedCount": "已添加 {count} 个精准参考",
   "@preciseRef_addedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "preciseRef_removedCount": "已删除 {count} 个精准参考",
   "@preciseRef_removedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
-
   "characterEditor_close": "关闭",
   "characterEditor_clearAll": "清空所有",
   "characterEditor_clearAllTitle": "清空所有角色",
@@ -2027,15 +2251,18 @@
   "toolbar_clear": "清空",
   "toolbar_confirmClear": "确认清空",
   "toolbar_settings": "设置",
-
   "characterTooltip_disabledLabel": "已禁用",
   "characterTooltip_notSet": "未设置",
   "characterTooltip_previewTitle": "角色预览",
   "characterTooltip_enabledSummary": "{enabled} / {total} 启用",
   "@characterTooltip_enabledSummary": {
     "placeholders": {
-      "enabled": {"type": "int"},
-      "total": {"type": "int"}
+      "enabled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "tagLibrary_generatedCharacters": "已生成 {count} 个角色",
@@ -2050,10 +2277,8 @@
       "error": {}
     }
   },
-
   "randomPrompt_unsupportedModel": "当前模型不支持官网随机词库",
   "randomPrompt_unsupportedModelHint": "当前模型没有对应的 NovelAI 官网随机方案。请选择受支持的 NovelAI 模型，或使用自己的自定义预设。",
-
   "naiMode_noTags": "暂无标签",
   "naiAlgorithm_mainPrompt": "主提示词",
   "tagGroup_tagCount": "{count} 标签",
@@ -2083,11 +2308,9 @@
   "globalSettings_category_background": "背景",
   "globalSettings_category_scene": "场景",
   "globalSettings_category_style": "风格",
-
   "nav_generate": "生成",
   "nav_gallery": "图库",
   "nav_settings": "设置",
-
   "sync_preparing": "准备同步...",
   "sync_fetching": "正在获取 {category}...",
   "@sync_fetching": {
@@ -2116,7 +2339,6 @@
     }
   },
   "sync_merging": "正在合并标签...",
-
   "sync_fetching_tags": "正在获取 {groupName} 标签热度...",
   "@sync_fetching_tags": {
     "placeholders": {
@@ -2125,8 +2347,6 @@
   },
   "sync_filtering": "正在筛选标签...",
   "sync_done": "同步完成",
-
-
   "time_just_now": "刚刚",
   "time_minutes_ago": "{n}分钟前",
   "@time_minutes_ago": {
@@ -2147,21 +2367,18 @@
     }
   },
   "time_never_synced": "从未同步",
-
   "preset_resetToDefault": "重置为默认",
   "newPresetDialog_title": "创建新预设",
   "newPresetDialog_blank": "完全空白",
   "newPresetDialog_blankDesc": "从头开始创建预设，不包含任何预设内容",
   "newPresetDialog_template": "基于默认预设",
   "newPresetDialog_templateDesc": "复制默认预设的所有设置作为起点",
-
   "category_dialogTitle": "创建新类别",
   "category_nameHint": "输入类别名称",
   "category_nameRequired": "请输入类别名称",
   "category_selectEmoji": "选择 Emoji",
   "category_noRecentEmoji": "暂无最近使用的 Emoji",
   "category_searchEmoji": "搜索 Emoji",
-
   "characterCountConfig_title": "人数类别配置",
   "characterCountConfig_weight": "权重",
   "characterCountConfig_solo": "单人",
@@ -2358,9 +2575,7 @@
   "scope_characterTooltip": "提示词将只出现在角色提示词内\n每个角色单独生成\n适合：发色、眵色、服装、表情等",
   "scope_all": "通用",
   "scope_allTooltip": "提示词同时出现在主提示词和角色提示词\n适合：姿势、互动等通用标签",
-
   "vibeParseFailed": "无法解析 Vibe 文件",
-
   "localGallery_progressiveLoadError": "图片加载失败",
   "localGallery_noImagesFound": "未找到图片",
   "localGallery_unknownError": "未知错误",
@@ -2550,7 +2765,6 @@
   "localGallery_skipped": "跳过",
   "localGallery_remaining": "剩余",
   "localGallery_clearFilters": "清除筛选",
-
   "slideshow_of": "/",
   "slideshow_play": "播放",
   "slideshow_pause": "暂停",
@@ -2565,7 +2779,6 @@
   "comparison_close": "关闭对比",
   "comparison_zoomHint": "捏合或滚动可独立缩放",
   "comparison_loadError": "加载图片失败",
-
   "statistics_title": "统计仪表盘",
   "statistics_noData": "暂无统计数据",
   "statistics_noTagData": "暂无标签数据",
@@ -2611,22 +2824,34 @@
   "statistics_periodDays": "最近 {count} 天",
   "@statistics_periodDays": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "statistics_periodSummary": "{start} 至 {end} · {count} 天",
   "@statistics_periodSummary": {
     "placeholders": {
-      "start": {"type": "String"},
-      "end": {"type": "String"},
-      "count": {"type": "int"}
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "statistics_partialCoverage": "现有记录始于 {date}，日均按现有 {count} 天计算",
   "@statistics_partialCoverage": {
     "placeholders": {
-      "date": {"type": "String"},
-      "count": {"type": "int"}
+      "date": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "statistics_customPeriodTitle": "自定义统计周期",
@@ -2634,7 +2859,9 @@
   "statistics_customDaysError": "请输入 1 至 {max} 之间的整数",
   "@statistics_customDaysError": {
     "placeholders": {
-      "max": {"type": "int"}
+      "max": {
+        "type": "int"
+      }
     }
   },
   "statistics_daysUnit": "天",
@@ -2643,7 +2870,6 @@
   "statistics_timeAfternoon": "下午",
   "statistics_timeEvening": "傍晚",
   "statistics_timeNight": "深夜",
-
   "layer_duplicate": "复制图层",
   "layer_delete": "删除图层",
   "layer_merge": "合并图层",
@@ -2652,9 +2878,6 @@
   "layer_rename": "重命名",
   "layer_moveUp": "上移",
   "layer_moveDown": "下移",
-
-
-
   "tag_categoryGeneral": "通用",
   "tag_categoryArtist": "画师",
   "tag_categoryCopyright": "版权",
@@ -2677,7 +2900,6 @@
   "bulkExport_format": "导出格式",
   "bulkExport_jsonFormat": "JSON",
   "bulkExport_csvFormat": "CSV",
-
   "localGallery_group_today": "今天",
   "localGallery_group_yesterday": "昨天",
   "localGallery_group_thisWeek": "本周",
@@ -2756,7 +2978,6 @@
     }
   },
   "localGallery_moveImagesFailed": "移动图片失败",
-
   "brushPreset_selectHint": "双击选择此笔刷预设",
   "brushPreset_pencil": "铅笔",
   "brushPreset_fine": "细笔",
@@ -2766,7 +2987,6 @@
   "brushPreset_marker": "马克笔",
   "brushPreset_thick": "粗笔刷",
   "brushPreset_smudge": "涂抹笔刷",
-
   "bulkProgress_progress": "正在处理 {current}/{total}",
   "@bulkProgress_progress": {
     "placeholders": {
@@ -2818,7 +3038,9 @@
   "bulkProgress_errorDeleteFailed": "删除图片失败：{error}",
   "@bulkProgress_errorDeleteFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNoImagesToExport": "没有可导出的图片",
@@ -2826,41 +3048,53 @@
   "bulkProgress_errorExportFailedWithDetails": "导出失败：{error}",
   "@bulkProgress_errorExportFailedWithDetails": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNoMetadataChanges": "请至少输入一个要添加或移除的标签",
   "bulkProgress_errorMetadataEditFailed": "编辑图片元数据失败：{error}",
   "@bulkProgress_errorMetadataEditFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorFavoriteFailed": "更新收藏状态失败：{error}",
   "@bulkProgress_errorFavoriteFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNoImagesForCollection": "没有可添加到集合的图片",
   "bulkProgress_errorAddToCollectionFailed": "将图片添加到集合失败：{error}",
   "@bulkProgress_errorAddToCollectionFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNothingToUndo": "没有可撤销的操作",
   "bulkProgress_errorUndoFailed": "撤销失败：{error}",
   "@bulkProgress_errorUndoFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "bulkProgress_errorNothingToRedo": "没有可重做的操作",
   "bulkProgress_errorRedoFailed": "重做失败：{error}",
   "@bulkProgress_errorRedoFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "collectionSelect_dialogTitle": "选择集合",
@@ -2876,18 +3110,15 @@
       }
     }
   },
-
   "statistics_chartTopTags": "热门标签",
   "statistics_chartAspectRatio": "宽高比分布",
   "statistics_chartActivityHeatmap": "活动热力图",
   "statistics_chartHourlyDistribution": "小时分布",
   "statistics_chartWeekdayDistribution": "星期分布",
-
   "statistics_aspectSquare": "方形",
   "statistics_aspectLandscape": "横屏",
   "statistics_aspectPortrait": "竖屏",
   "statistics_aspectOther": "其他",
-
   "statistics_refresh": "刷新",
   "statistics_retry": "重试",
   "statistics_error": "错误: {error}",
@@ -2898,7 +3129,6 @@
   },
   "statistics_mostActiveDay": "最活跃日",
   "statistics_leastActiveDay": "最不活跃日",
-
   "statistics_sunday": "周日",
   "statistics_monday": "周一",
   "statistics_tuesday": "周二",
@@ -2906,7 +3136,6 @@
   "statistics_thursday": "周四",
   "statistics_friday": "周五",
   "statistics_saturday": "周六",
-
   "fixedTags_label": "固定词",
   "fixedTags_enabled": "已启用",
   "fixedTags_enabledOnly": "只看启用",
@@ -3056,7 +3285,6 @@
   "fixedTags_addFromLibrary": "从词库添加",
   "fixedTags_searchLibraryEntries": "搜索词库条目...",
   "fixedTags_noMatchingResults": "无匹配结果",
-
   "reversePrompt_title": "反推",
   "reversePrompt_imageCount": "{count} 张",
   "@reversePrompt_imageCount": {
@@ -3091,7 +3319,6 @@
   "reversePrompt_needReplacementCharacter": "请先在反推角色库中选择一个有效角色",
   "reversePrompt_needPromptForCharacterReplace": "角色替换需要先获得反推提示词",
   "reversePrompt_noOnnxModel": "未找到 ONNX tagger 模型，请先在设置中配置模型文件夹",
-
   "promptAssistant_translateProcessing": "翻译中",
   "promptAssistant_optimizeProcessing": "优化中",
   "promptAssistant_characterReplaceProcessing": "角色替换中",
@@ -3254,7 +3481,6 @@
   "autocomplete_categoryLore": "设定",
   "autocomplete_categoryLibrary": "词库",
   "autocomplete_categoryGeneral": "通用",
-
   "promptToken_webCalibration": "网页端校准",
   "promptToken_prompt": "提示词",
   "promptToken_fixedTags": "固定词",
@@ -3264,10 +3490,8 @@
   "promptToken_negativeFixedTags": "负面固定词",
   "promptToken_negativePreset": "负面预设",
   "promptToken_characterNegative": "角色负面",
-
   "common_rename": "重命名",
   "common_create": "创建",
-
   "tagLibrary_categories": "分类",
   "tagLibrary_newCategory": "新建分类",
   "tagLibrary_addEntry": "添加条目",
@@ -3471,11 +3695,9 @@
   "tagLibrary_categoryEmpty": "该分类暂无条目",
   "tagLibrary_empty": "词库为空",
   "tagLibrary_addFirstEntry": "点击上方按钮添加第一个条目",
-
   "tagLibraryPicker_title": "选择词条",
   "tagLibraryPicker_searchHint": "搜索词条...",
   "tagLibraryPicker_allCategories": "全部分类",
-
   "tagLibrary_addedToFixed": "已添加到固定词",
   "tagLibrary_entryMoved": "条目已移动到目标分类",
   "tagLibrary_addFavorite": "添加收藏",
@@ -3492,7 +3714,6 @@
   "tagLibrary_content": "提示词内容",
   "tagLibrary_contentHint": "输入提示词内容，支持智能补全",
   "tagLibrary_characterNegativeSyntaxHelp": "角色词库可用 negative(...) 保存独立负面提示词，例如：girl, blue eyes, negative(red hair, glasses)",
-
   "settings_network": "网络",
   "settings_enableProxy": "启用代理",
   "settings_proxyEnabled": "已启用",
@@ -3521,7 +3742,6 @@
     }
   },
   "settings_proxyRestartHint": "代理设置已更改，建议重启应用",
-
   "tagLibrary_categoryNameExists": "该分类名称已存在",
   "tagLibrary_addToLibrary": "收藏到词库",
   "tagLibrary_saveToLibrary": "保存到词库",
@@ -3547,7 +3767,6 @@
   "queue_idle": "空闲",
   "queue_ready": "就绪",
   "queue_noTasksToStart": "队列为空，无法开始",
-
   "queue_executionProgress": "执行进度",
   "queue_totalTasks": "总数",
   "queue_completedTasks": "已完成",
@@ -3578,7 +3797,6 @@
       "minutes": {}
     }
   },
-
   "queue_pause": "暂停",
   "queue_resume": "继续",
   "queue_startExecution": "开始队列",
@@ -3588,7 +3806,6 @@
   "queue_clearQueue": "清空队列",
   "queue_clearQueueConfirm": "确定要清空所有队列任务吗？此操作不可撤销。",
   "queue_confirmClear": "确认清空",
-
   "queue_retryCount": "重试 {current}/{max}",
   "@queue_retryCount": {
     "placeholders": {
@@ -3601,7 +3818,6 @@
   "queue_clearFailedTasks": "清空全部",
   "queue_noFailedTasks": "暂无失败任务",
   "queue_noCompletedTasks": "暂无完成记录",
-
   "queue_editTask": "编辑任务",
   "queue_taskDetails": "任务详情",
   "queue_clearCompletedTasks": "清空已完成",
@@ -3620,7 +3836,6 @@
   "queue_addCurrentTask": "加入当前任务",
   "queue_taskAdded": "已加入队列",
   "queue_negativePromptFromMain": "负向提示词将使用主界面设置",
-
   "queue_pinToTop": "置顶",
   "queue_delete": "删除",
   "queue_edit": "编辑",
@@ -3639,8 +3854,6 @@
       "count": {}
     }
   },
-
-
   "settings_queueRetryCount": "重试次数",
   "settings_queueRetryInterval": "重试间隔",
   "settings_showRandomPromptTools": "显示随机提示词工具",
@@ -3661,14 +3874,11 @@
   },
   "unit_times": "次",
   "unit_seconds": "秒",
-
-
   "settings_notificationSound": "完成音效",
   "settings_notificationSoundSubtitle": "生成完成时播放提示音效",
   "settings_notificationCustomSound": "自定义音效",
   "settings_notificationSelectSound": "选择音效",
   "settings_notificationResetSound": "恢复默认",
-
   "resetToDefault": "重置为默认",
   "toggleGroupEnabled": "切换词组启用状态",
   "diyNotAvailableForDefault": "默认预设不支持 DIY 配置",
@@ -3682,7 +3892,6 @@
     }
   },
   "statistics_heatmapNoActivity": "无活动",
-
   "sendToHome_dialogTitle": "发送到主页",
   "sendToHome_send": "发送",
   "sendToHome_mainPrompt": "发送到主提示词",
@@ -3726,7 +3935,6 @@
   "sendToHome_successMainPrompt": "已发送到主提示词",
   "sendToHome_successReplaceCharacter": "已替换角色提示词",
   "sendToHome_successAppendCharacter": "已追加角色提示词",
-
   "metadataImport_title": "选择要套用的参数",
   "metadataImport_promptsSection": "提示词",
   "metadataImport_generationSection": "生成参数",
@@ -3744,7 +3952,11 @@
   "metadataImport_disableCurrentFixedTags": "关闭当前固定词（推荐）",
   "metadataImport_keepCurrentFixedTags": "保留并与图片提示词叠加",
   "metadataImport_imageVersionName": "{name}（图像版本）",
-  "@metadataImport_imageVersionName": {"placeholders": {"name": {}}},
+  "@metadataImport_imageVersionName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "metadataImport_fixedPrefix": "前缀: {text}",
   "@metadataImport_fixedPrefix": {
     "placeholders": {
@@ -3772,20 +3984,26 @@
   "metadataImport_qualityTagsCount": "质量词 ({count}个)",
   "@metadataImport_qualityTagsCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "metadataImport_negativePrompt": "负向提示词",
   "metadataImport_characterPromptsCount": "角色提示词 ({count}个)",
   "@metadataImport_characterPromptsCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "metadataImport_characterIndex": "角色{index}: {text}",
   "@metadataImport_characterIndex": {
     "placeholders": {
-      "index": {"type": "int"},
+      "index": {
+        "type": "int"
+      },
       "text": {}
     }
   },
@@ -3793,13 +4011,17 @@
   "metadataImport_countUnit": "{count}个",
   "@metadataImport_countUnit": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "metadataImport_preciseReferenceCount": "精准参考 ({count}个)",
   "@metadataImport_preciseReferenceCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "metadataImport_vibeDetail": "{name} (强度 {strength}%, 信息提取 {info}%)",
@@ -3813,7 +4035,9 @@
   "metadataImport_preciseReferenceDetail": "参考{index}: {type} (强度 {strength}%, 保真 {fidelity}%)",
   "@metadataImport_preciseReferenceDetail": {
     "placeholders": {
-      "index": {"type": "int"},
+      "index": {
+        "type": "int"
+      },
       "type": {},
       "strength": {},
       "fidelity": {}
@@ -3823,7 +4047,9 @@
   "metadataImport_selectedCount": "已选择 {count} 项",
   "@metadataImport_selectedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "metadataImport_readImageMetadata": "读取图片元数据",
@@ -3834,7 +4060,9 @@
   "metadataImport_appliedCount": "已应用 {count} 项参数",
   "@metadataImport_appliedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "shortcut_context_global": "全局",
@@ -3845,7 +4073,6 @@
   "shortcut_context_random_config": "随机配置",
   "shortcut_context_settings": "设置",
   "shortcut_context_input": "输入框",
-
   "shortcut_action_navigate_to_generation": "生成页面",
   "shortcut_action_navigate_to_local_gallery": "本地画廊",
   "shortcut_action_navigate_to_online_gallery": "在线画廊",
@@ -3912,7 +4139,6 @@
   "shortcut_action_toggle_queue": "切换队列",
   "shortcut_action_toggle_queue_pause": "暂停/继续队列",
   "shortcut_action_toggle_theme": "切换主题",
-
   "shortcut_settings_title": "键盘快捷键",
   "shortcut_settings_enable": "启用快捷键",
   "shortcut_settings_show_badges": "显示快捷键标识",
@@ -3934,7 +4160,6 @@
       "action": {}
     }
   },
-
   "vibeLibrary_title": "Vibe 库",
   "vibeLibrary_categories": "分类",
   "vibeLibrary_createCategoryTitle": "新建分类",
@@ -4061,13 +4286,17 @@
   "categoryError_loadFailed": "加载分类失败：{error}",
   "@categoryError_loadFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_syncFailed": "同步分类失败：{error}",
   "@categoryError_syncFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_nameEmpty": "分类名称不能为空",
@@ -4075,144 +4304,202 @@
   "categoryError_createFailed": "创建分类失败：{error}",
   "@categoryError_createFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_notFound": "分类不存在",
   "categoryError_renameFailed": "重命名分类失败：{error}",
   "@categoryError_renameFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_invalidMove": "不能将分类移动到它的子孙分类下",
   "categoryError_moveFailed": "移动分类失败：{error}",
   "@categoryError_moveFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_hasSubcategories": "该分类包含子分类，请先删除子分类。",
   "categoryError_deleteFailed": "删除分类失败：{error}",
   "@categoryError_deleteFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_moveImageFailed": "移动图片失败：{error}",
   "@categoryError_moveImageFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_moveImagesFailed": "批量移动图片失败：{error}",
   "@categoryError_moveImagesFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "categoryError_reorderFailed": "重新排序分类失败：{error}",
   "@categoryError_reorderFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorEntryNotFoundOrDeleteFailed": "未找到 {item} 或删除失败",
   "@vibeBulk_errorEntryNotFoundOrDeleteFailed": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorDeleteFailed": "删除 {item} 失败：{error}",
   "@vibeBulk_errorDeleteFailed": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorEntryNotFound": "未找到条目：{item}",
   "@vibeBulk_errorEntryNotFound": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorMoveFailed": "移动 {item} 失败：{error}",
   "@vibeBulk_errorMoveFailed": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorFavoriteFailed": "更新收藏状态失败：{item}",
   "@vibeBulk_errorFavoriteFailed": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorFavoriteFailedWithDetails": "更新 {item} 的收藏状态失败：{error}",
   "@vibeBulk_errorFavoriteFailedWithDetails": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorAddTagsFailed": "添加标签失败：{item}",
   "@vibeBulk_errorAddTagsFailed": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorAddTagsFailedWithDetails": "为 {item} 添加标签失败：{error}",
   "@vibeBulk_errorAddTagsFailedWithDetails": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorRemoveTagsFailed": "移除标签失败：{item}",
   "@vibeBulk_errorRemoveTagsFailed": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorRemoveTagsFailedWithDetails": "从 {item} 移除标签失败：{error}",
   "@vibeBulk_errorRemoveTagsFailedWithDetails": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorExportNoFile": "导出失败：未创建文件",
   "vibeBulk_errorExportFailed": "导出失败：{error}",
   "@vibeBulk_errorExportFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorFileNotFound": "未找到文件：{item}",
   "@vibeBulk_errorFileNotFound": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorNoVibeData": "{item} 中没有有效的 Vibe 数据",
   "@vibeBulk_errorNoVibeData": {
     "placeholders": {
-      "item": {"type": "String"}
+      "item": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorImportFailed": "从 {item} 导入 Vibe 失败：{error}",
   "@vibeBulk_errorImportFailed": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulk_errorProcessFileFailed": "处理 {item} 失败：{error}",
   "@vibeBulk_errorProcessFileFailed": {
     "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
+      "item": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "vibeBulkTag_actionPreview": "操作预览",
@@ -4223,7 +4510,9 @@
   "vibeDetail_timesUsed": "{count} 次",
   "@vibeDetail_timesUsed": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "vibeDetail_lastUsed": "最后使用",
@@ -4300,8 +4589,12 @@
   "vibe_export_preparingVibeProgress": "正在读取 Vibe {current}/{total}...",
   "@vibe_export_preparingVibeProgress": {
     "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "vibe_export_exportingBundle": "正在导出 Bundle...",
@@ -4353,8 +4646,12 @@
   "vibe_import_bundleSelectedCount": "已选择 {selected}/{total}",
   "@vibe_import_bundleSelectedCount": {
     "placeholders": {
-      "selected": {"type": "int"},
-      "total": {"type": "int"}
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "vibe_saveToLibrary_title": "保存到库",
@@ -4363,14 +4660,18 @@
   "vibe_saveToLibrary_saving": "正在保存 {count} 个 vibes",
   "@vibe_saveToLibrary_saving": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "vibe_saveToLibrary_saveFailed": "保存到库失败",
   "vibe_saveToLibrary_savingCount": "正在保存 {count} 个 vibes",
   "@vibe_saveToLibrary_savingCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "vibe_saveToLibrary_nameLabel": "名称",
@@ -4378,27 +4679,37 @@
   "vibe_saveToLibrary_mixed": "已保存 {saved} 个，复用 {reused} 个",
   "@vibe_saveToLibrary_mixed": {
     "placeholders": {
-      "saved": {"type": "int"},
-      "reused": {"type": "int"}
+      "saved": {
+        "type": "int"
+      },
+      "reused": {
+        "type": "int"
+      }
     }
   },
   "vibe_saveToLibrary_saved": "已保存 {count} 个到库",
   "@vibe_saveToLibrary_saved": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "vibe_saveToLibrary_reused": "从库复用 {count} 个",
   "@vibe_saveToLibrary_reused": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "vibe_saveToLibrary_saveAsBundle": "保存为 Bundle",
   "vibe_saveToLibrary_saveAsBundleDescription": "将 {count} 个 Vibe 保存为一个 Bundle",
   "@vibe_saveToLibrary_saveAsBundleDescription": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "vibe_saveToLibrary_tagHint": "输入标签后点击添加",
@@ -4406,13 +4717,17 @@
   "vibe_addedNamed": "已添加 Vibe: {name}",
   "@vibe_addedNamed": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "vibe_addedCount": "已添加 {count} 个 vibes",
   "@vibe_addedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "vibe_statusEncoded": "已编码",
@@ -4429,7 +4744,9 @@
   "vibe_encodeError": "编码失败: {error}",
   "@vibe_encodeError": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "shortcuts_customize": "自定义快捷键",
@@ -4445,7 +4762,6 @@
   "selectAll": "全选",
   "clearSelection": "清空",
   "clearFilters": "清除筛选",
-
   "shortcut_context_vibe_detail": "Vibe 详情",
   "shortcut_action_vibe_detail_rename": "重命名",
   "vibeSelectorFilterFavorites": "收藏",
@@ -4457,13 +4773,13 @@
   "vibeSelectorItemsCount": "{count} 项",
   "@vibeSelectorItemsCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
-
   "tray_show": "显示窗口",
   "tray_exit": "退出",
-
   "settings_shortcutsSubtitle": "自定义键盘快捷键",
   "settings_openFolder": "打开文件夹",
   "settings_openFolderFailed": "打开文件夹失败",
@@ -4496,7 +4812,6 @@
       "client": {}
     }
   },
-
   "settings_fontScale": "字体大小",
   "settings_fontScale_description": "调整应用全局字体缩放比例",
   "settings_fontScale_previewSmall": "落霞与孤鹜齐飞",
@@ -4504,7 +4819,6 @@
   "settings_fontScale_previewLarge": "字体大小预览",
   "settings_fontScale_reset": "重置",
   "settings_fontScale_done": "完成",
-
   "settings_generationLayout": "生成页布局",
   "settings_generationLayout_classic": "经典布局",
   "settings_generationLayout_classicDescription": "参数在左侧，提示词位于预览区上方",
@@ -4529,7 +4843,11 @@
   "discordShare_joinServer": "加入 Discord 服务器",
   "discordShare_retryVerification": "重新验证",
   "discordShare_account": "已验证为 {name}",
-  "@discordShare_account": {"placeholders": {"name": {}}},
+  "@discordShare_account": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "discordShare_disconnect": "解除 Discord 连接",
   "discordShare_channels": "发送频道",
   "discordShare_selectChannel": "至少选择一个频道",
@@ -4551,19 +4869,28 @@
   "discordShare_success": "已分享到 Discord",
   "discordShare_partialSuccess": "部分频道发送成功，请检查失败频道后重试",
   "discordShare_failed": "分享到 Discord 失败：{error}",
-  "@discordShare_failed": {"placeholders": {"error": {}}},
+  "@discordShare_failed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "discordShare_errorNetwork": "无法连接 Discord 分享服务，请检查网络后重试",
   "discordShare_errorBrowser": "无法打开浏览器，请检查系统的默认浏览器设置",
   "discordShare_errorTimeout": "Discord 验证已超时，请重新验证",
   "discordShare_errorRateLimited": "分享过于频繁，请稍后再试",
   "discordShare_errorRateLimitedRetry": "分享过于频繁，请在 {seconds} 秒后重试",
-  "@discordShare_errorRateLimitedRetry": {"placeholders": {"seconds": {"type": "int"}}},
+  "@discordShare_errorRateLimitedRetry": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "discordShare_errorNoChannels": "当前没有可用的 Discord 分享频道",
   "discordShare_errorSession": "Discord 验证已失效，请重新验证",
   "discordShare_errorRelay": "Discord 分享服务暂时不可用，请稍后再试",
   "discordShare_errorImageRejected": "Discord 拒绝了这张图片，请检查图片大小或格式",
   "discordShare_errorDelivery": "Discord 频道发送失败，请稍后重试",
-
   "settings_defaultImagesPath": "默认 (Documents/NAI_Launcher/images/)",
   "settings_defaultVibePath": "{path} (默认)",
   "@settings_defaultVibePath": {
@@ -4627,7 +4954,6 @@
     }
   },
   "settings_continueGeneration": "继续生成",
-
   "settings_comfyUiEnable": "启用 ComfyUI 集成",
   "settings_comfyUiDisabledSubtitle": "关闭后将隐藏本地超分等 ComfyUI 功能",
   "settings_comfyUiServerUrl": "服务器地址",
@@ -4675,7 +5001,6 @@
   "settings_comfyUiCategoryInpaint": "重绘",
   "settings_comfyUiCategoryTxt2Img": "文生图",
   "settings_comfyUiCategoryCustom": "自定义",
-
   "comfyWorkflow_seedvr2UpscaleName": "SeedVR2 超分",
   "comfyWorkflow_seedvr2UpscaleDescription": "使用 SeedVR2 AI 模型进行超分辨率放大，效果优秀",
   "comfyWorkflow_seedvr2LegacyUpscaleName": "SeedVR2 兼容节点超分",
@@ -4725,7 +5050,6 @@
       "count": {}
     }
   },
-
   "promptAssistant_defaultOptimizeRuleName": "默认优化规则",
   "promptAssistant_defaultOptimizeRuleContent": "你是提示词优化助手。保留用户意图，补充可执行的视觉细节，并只输出一行可直接使用的逗号分隔提示词。",
   "promptAssistant_defaultTranslateRuleName": "默认翻译规则",
@@ -4736,9 +5060,7 @@
   "promptAssistant_defaultCharacterReplaceRuleContent": "你是角色替换助手。将输入提示词中的原角色身份、发型、服装和外观替换为目标角色，同时保留动作、构图、背景、风格、镜头和质量标签。只输出替换后的一行提示词。",
   "promptAssistant_defaultCustomRuleName": "默认自定义规则",
   "promptAssistant_defaultCustomRuleContent": "你是提示词改写助手。根据当前提示词、用户需求和可选参考图修改提示词。只输出最终可直接使用的一行提示词，不要解释。",
-
   "localGallery_dateFilterButton": "日期过滤",
-
   "cacheStats_title": "缓存统计",
   "cacheStats_autoRefreshUpdated": "自动刷新 · 上次更新: {time}",
   "@cacheStats_autoRefreshUpdated": {
@@ -4772,7 +5094,6 @@
       "metadataCount": {}
     }
   },
-
   "galleryCache_rescanTitle": "重新扫描画廊",
   "galleryCache_rescanContent": "这将执行以下操作：\n\n1. 检查数据一致性（标记不存在的文件）\n2. 扫描新文件和变更的文件\n3. 重新尝试历史上未提取成功的元数据（含失败记录）\n\n此操作不会清空已有数据，也不会删除图片文件。",
   "galleryCache_startScan": "开始扫描",
@@ -4798,7 +5119,6 @@
   "galleryCache_rescanSubtitle": "检查数据一致性、查漏补缺、提取元数据",
   "galleryCache_scanning": "正在扫描...",
   "galleryCache_scanAction": "扫描",
-
   "workflowImport_title": "导入 ComfyUI 工作流",
   "workflowImport_step": "步骤 {current}/4: {title}",
   "@workflowImport_step": {
@@ -4869,7 +5189,6 @@
       "name": {}
     }
   },
-
   "shortcut_settings_help": "查看快捷键帮助",
   "shortcut_settings_show_in_menus": "在菜单中显示",
   "shortcut_settings_defaultShortcut": "默认: {shortcut}",
@@ -4883,7 +5202,6 @@
   "shortcut_settings_reset_all_title": "重置所有快捷键",
   "shortcut_settings_reset_all_confirm": "确定要将所有快捷键重置为默认设置吗？此操作不可撤销。",
   "shortcut_settings_reset_to_default": "重置为默认",
-
   "toast_previewUpdated": "预览图已更新",
   "toast_styleReferenceLimit": "风格参考已达上限 ({max} 张)",
   "@toast_styleReferenceLimit": {
@@ -5073,7 +5391,6 @@
     }
   },
   "toast_savePreviewFailed": "保存预览图失败",
-
   "common_justNow": "刚刚",
   "common_minutesAgo": "{minutes}分钟前",
   "@common_minutesAgo": {
@@ -5092,7 +5409,6 @@
   "common_change": "更换",
   "common_expand": "展开",
   "common_collapse": "收起",
-
   "vibeLibrary_emptySearchTitle": "未找到匹配的 Vibe",
   "vibeLibrary_emptySearchSubtitle": "尝试其他关键词",
   "vibeLibrary_emptyFavoritesTitle": "暂无收藏的 Vibe",
@@ -5101,7 +5417,6 @@
   "vibeLibrary_emptyCategorySubtitle": "尝试切换到\"全部 Vibe\"查看所有内容",
   "vibeLibrary_emptyNoMatchesTitle": "无匹配结果",
   "vibeLibrary_emptySaveFromGenerationHint": "可从文件导入，或从生成页面保存 Vibe",
-
   "vibe_nameRequired": "名称不能为空",
   "vibe_import_namingTitle": "命名 Vibe",
   "vibe_import_nameConflictOverwrite": "该名称已存在，将被覆盖",
@@ -5125,7 +5440,6 @@
     }
   },
   "vibe_encodeSkipImage": "跳过此图",
-
   "detail_sendToImg2Img": "发送到图生图",
   "detail_sendToReversePrompt": "发送到反推",
   "detail_loadingImage": "加载图片中...",
@@ -5162,7 +5476,6 @@
   "detail_copyCharacterPrompt": "复制角色提示词",
   "detail_copyAllVibeData": "复制全部 Vibe 数据",
   "detail_saveToVibeLibrary": "保存到 Vibe 库",
-
   "pagination_firstPage": "首页",
   "pagination_previousPage": "上一页",
   "pagination_nextPage": "下一页",
@@ -5171,7 +5484,6 @@
   "pagination_jump": "跳转",
   "pagination_itemsPerPage": "每页",
   "pagination_itemUnit": "项",
-
   "diyGuide_title": "DIY 功能指南",
   "diyGuide_subtitle": "了解高级功能，创建专属词库",
   "diyGuide_intro": "本指南介绍了 DIY 系统的核心概念和高级功能，帮助您构建强大的动态提示词库。",
@@ -5209,7 +5521,6 @@
   "diyGuide_emphasisTitle": "强调概率 (Emphasis)",
   "diyGuide_emphasisDescription": "为标签随机添加权重符号的概率，增加结果的多样性。",
   "diyGuide_emphasisExample": "设置 30% 概率: 约有 1/3 的机会输出加权 tag，2/3 的机会输出普通 tag",
-
   "naiRules_title": "NAI 随机规则说明",
   "naiRules_characterCountProbability": "角色数量概率",
   "naiRules_solo": "1人 (Solo)",
@@ -5230,7 +5541,6 @@
   "naiRules_v4CharacterPositioning": "V4 多角色位置",
   "naiRules_smartPositionTitle": "智能位置分配",
   "naiRules_smartPositionSubtitle": "在 V4 模型下，使用 character positioning 语法精确控制多角色站位",
-
   "comfyImport_detectedTitle": "检测到 ComfyUI 多角色提示词",
   "comfyImport_characterList": "角色列表 ({count})",
   "@comfyImport_characterList": {
@@ -5251,7 +5561,6 @@
   "comfyImport_syntaxPipe": "竖线格式",
   "comfyImport_syntaxUnknown": "未知语法",
   "comfyImport_globalPrompt": "全局提示词",
-
   "danbooruPreview_noTagData": "暂无标签数据",
   "danbooruPreview_noPoolData": "暂无 Pool 数据",
   "danbooruPreview_postCount": "{count} 个帖子",
@@ -5260,7 +5569,6 @@
       "count": {}
     }
   },
-
   "checkForUpdate": "检查更新",
   "neverChecked": "从未检查",
   "lastCheckedAt": "上次检查: {time}",
@@ -5271,7 +5579,6 @@
   },
   "includePrereleaseUpdates": "包含预发布版本",
   "includePrereleaseUpdatesDescription": "检查更新时包含 beta/alpha 版本",
-
   "updateAvailable": "发现新版本",
   "updateChecking": "正在检查更新...",
   "updateDownloading": "正在下载更新...",
@@ -5325,29 +5632,36 @@
   "skipThisVersion": "忽略此版本",
   "updateNoticeAvailable": "新版本 v{version} 可用",
   "@updateNoticeAvailable": {
-    "placeholders": {"version": {}}
+    "placeholders": {
+      "version": {}
+    }
   },
   "updateNoticeAvailableSubtitle": "可在应用内下载、校验并安全安装更新",
   "updateNoticeManualSubtitle": "当前平台需要前往 Release 页面手动更新",
   "updateNoticeReady": "新版本 v{version} 已准备好",
   "@updateNoticeReady": {
-    "placeholders": {"version": {}}
+    "placeholders": {
+      "version": {}
+    }
   },
   "updateNoticeReadySubtitle": "更新包已校验，可以立即安装",
   "updateNoticeFailed": "上次更新没有完成",
   "updateViewDetails": "查看更新",
   "updateSettingsAvailable": "发现 v{version}，点击查看更新内容",
   "@updateSettingsAvailable": {
-    "placeholders": {"version": {}}
+    "placeholders": {
+      "version": {}
+    }
   },
   "updateSettingsReady": "v{version} 已下载，点击安装",
   "@updateSettingsReady": {
-    "placeholders": {"version": {}}
+    "placeholders": {
+      "version": {}
+    }
   },
   "goToDownload": "前往下载",
   "versionSkipped": "已忽略此版本",
   "cannotOpenUrl": "无法打开链接",
-
   "model3d_editorTitle": "3D 模型图层",
   "model3d_addMannequin": "添加内置人偶",
   "model3d_importModel": "导入模型 (.glb/.gltf)",
@@ -5370,7 +5684,6 @@
   "model3d_lightElevation": "仰角",
   "model3d_addLayerTooltip": "添加 3D 模型图层",
   "model3d_webview2Missing": "3D 编辑器需要 Microsoft Edge WebView2 运行时。Windows 10/11 通常已自带;若缺失请从微软官网安装 Evergreen 版本后重试。",
-
   "nav_preciseRefLibrary": "精准参考库",
   "preciseRefLib_title": "精准参考库",
   "preciseRefLib_searchHint": "搜索参考图...",
@@ -5384,7 +5697,9 @@
   "preciseRefLib_exportConfirm": "导出所选 ({count})",
   "@preciseRefLib_exportConfirm": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "preciseRefLib_exportedCount": "已导出 {count} 个精准参考",
@@ -5419,19 +5734,25 @@
   "preciseRefLib_loadFailed": "加载精准参考库失败：{error}",
   "@preciseRefLib_loadFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "preciseRefLib_importFailed": "保存到精准参考库失败：{error}",
   "@preciseRefLib_importFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "preciseRefLib_importFailedCount": "{count} 张图片未能导入精准参考库",
   "@preciseRefLib_importFailedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "preciseRefLib_fromLibrary": "从库导入",
@@ -5444,88 +5765,106 @@
   "img2img_fromPreciseRefLibrary": "从精准参考库导入",
   "localGallery_saveToPreciseRefLibrary": "保存到精准参考库",
   "drop_saveToPreciseRefLibrary": "存入精准参考库",
-
   "common_enabled": "已启用",
   "common_disabled": "已禁用",
   "bulkAction_selectedCount": "已选择 {count} 项",
   "@bulkAction_selectedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
-
   "comfyTask_errorConnectionFailed": "无法连接到 ComfyUI 服务器",
   "comfyTask_errorConnectionUnavailable": "ComfyUI 连接不可用",
   "comfyTask_errorExecutionFailedGeneric": "ComfyUI 执行失败",
   "comfyTask_errorExecutionFailed": "ComfyUI 执行失败：{error}",
   "@comfyTask_errorExecutionFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "comfyTask_errorTimeout": "ComfyUI 任务已在 10 分钟后超时",
   "comfyTask_errorWorkflowNotFound": "未找到工作流：{workflowId}",
   "@comfyTask_errorWorkflowNotFound": {
     "placeholders": {
-      "workflowId": {"type": "String"}
+      "workflowId": {
+        "type": "String"
+      }
     }
   },
   "comfyWorkflowSlot_vaeEncodeTileSize": "VAE 编码分块大小",
   "comfyWorkflowSlot_vaeDecodeTileSize": "VAE 解码分块大小",
   "comfyWorkflowSlot_blocksToSwap": "换出块数量",
   "comfyWorkflowSlot_swapIoComponents": "换出输入输出组件",
-
   "localGallery_firstIndexHint": "检测到 {count} 张图片。首次建立索引可能需要几分钟，期间仍可正常使用应用。",
   "@localGallery_firstIndexHint": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "localGallery_errorPermissionDenied": "无法访问图片文件夹，请检查文件夹权限。",
   "localGallery_errorScanFailed": "扫描图片失败：{error}",
   "@localGallery_errorScanFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorInitializationFailed": "初始化图库失败：{error}",
   "@localGallery_errorInitializationFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorServiceInitializing": "图库服务正在初始化，请稍后重试。",
   "localGallery_errorDatabaseFailed": "图库数据库错误：{error}",
   "@localGallery_errorDatabaseFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorRefreshFailed": "刷新图库失败：{error}",
   "@localGallery_errorRefreshFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorFilterFailed": "应用图库筛选条件失败：{error}",
   "@localGallery_errorFilterFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorFavoriteFailed": "更新收藏状态失败：{error}",
   "@localGallery_errorFavoriteFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "localGallery_errorRebuildFailed": "重建图库索引失败：{error}",
   "@localGallery_errorRebuildFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "diy_editDependencyTitle": "编辑依赖配置",
   "diy_dependencyTitle": "依赖配置",
   "diy_dependencySubtitle": "配置标签选择之间的依赖关系",
@@ -5554,13 +5893,14 @@
   "diy_dependencyExistsDescription": "仅在源类别中存在已选标签时生效",
   "diy_dependencyValueDescription": "依赖源类别中选定的特定标签值",
   "diy_dependencyExcludesDescription": "源类别中存在已选标签时不生效",
-
   "diy_editConditionalTitle": "编辑条件分支",
   "diy_conditionalDefaultName": "条件分支配置",
   "diy_branchDefaultName": "分支 {index}",
   "@diy_branchDefaultName": {
     "placeholders": {
-      "index": {"type": "int"}
+      "index": {
+        "type": "int"
+      }
     }
   },
   "diy_conditionalTitle": "条件分支配置",
@@ -5568,7 +5908,9 @@
   "diy_branchCount": "{count} 个分支",
   "@diy_branchCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_noConditionalBranches": "暂无条件分支",
@@ -5576,7 +5918,9 @@
   "diy_conditionCount": "{count} 个条件",
   "@diy_conditionCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_deleteBranch": "删除分支",
@@ -5584,23 +5928,28 @@
   "diy_editBranch": "编辑：{name}",
   "@diy_editBranch": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "diy_branchName": "分支名称",
   "diy_probability": "概率",
   "diy_enableBranch": "启用此分支",
-
   "diy_ruleDefaultName": "规则 {index}",
   "@diy_ruleDefaultName": {
     "placeholders": {
-      "index": {"type": "int"}
+      "index": {
+        "type": "int"
+      }
     }
   },
   "diy_ruleCount": "{count} 条规则",
   "@diy_ruleCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_addRule": "添加规则",
@@ -5630,42 +5979,52 @@
   "diy_actionSummary": "当 [{triggers}] 匹配时：{action}",
   "@diy_actionSummary": {
     "placeholders": {
-      "triggers": {"type": "String"},
-      "action": {"type": "String"}
+      "triggers": {
+        "type": "String"
+      },
+      "action": {
+        "type": "String"
+      }
     }
   },
-
   "diy_emphasisTitle": "全局强调配置",
   "diy_emphasisSubtitle": "调整标签强调效果",
   "diy_emphasisProbability": "强调概率",
   "diy_emphasisProbabilityHint": "每个选中的标签有 {percent}% 的概率被添加强调括号",
   "@diy_emphasisProbabilityHint": {
     "placeholders": {
-      "percent": {"type": "String"}
+      "percent": {
+        "type": "String"
+      }
     }
   },
   "diy_bracketCount": "括号层数",
   "diy_bracketLayers": "{count} 层",
   "@diy_bracketLayers": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_effectPreview": "效果预览",
   "diy_exampleTag": "示例标签",
   "diy_emphasisExplanation": "强调括号会增加标签的权重，层数越多权重越高",
-
   "diy_presetExportFailed": "导出预设失败：{error}",
   "@diy_presetExportFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "diy_presetJsonRootObject": "JSON 根节点必须是对象",
   "diy_presetInvalidData": "无效的预设数据：{error}",
   "@diy_presetInvalidData": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "diy_presetExportTitle": "导出预设",
@@ -5678,7 +6037,6 @@
   "diy_description": "描述",
   "diy_categoryCount": "类别数",
   "diy_totalTagCount": "总标签数",
-
   "diy_visibilityTitle": "可见性规则",
   "diy_visibilitySubtitle": "根据条件控制类别可见性",
   "diy_noVisibilityRules": "暂无可见性规则",
@@ -5695,7 +6053,6 @@
   "diy_conditionValueNotEquals": "值不等于",
   "diy_conditionValueInList": "值在列表中",
   "diy_conditionValueNotInList": "值不在列表中",
-
   "diy_editTimeConditionTitle": "编辑时间条件",
   "diy_timeDefaultName": "时间条件",
   "diy_timeTitle": "时间条件",
@@ -5724,17 +6081,29 @@
   "diy_daysRemaining": "剩余 {count} 天",
   "@diy_daysRemaining": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diy_timeRangeSummary": "{name}（{startMonth} 月 {startDay} 日至 {endMonth} 月 {endDay} 日）",
   "@diy_timeRangeSummary": {
     "placeholders": {
-      "name": {"type": "String"},
-      "startMonth": {"type": "int"},
-      "startDay": {"type": "int"},
-      "endMonth": {"type": "int"},
-      "endDay": {"type": "int"}
+      "name": {
+        "type": "String"
+      },
+      "startMonth": {
+        "type": "int"
+      },
+      "startDay": {
+        "type": "int"
+      },
+      "endMonth": {
+        "type": "int"
+      },
+      "endDay": {
+        "type": "int"
+      }
     }
   },
   "diy_activeBadge": "生效中",
@@ -6070,73 +6439,79 @@
   "common_suffix": "后缀",
   "common_minimum": "最小值",
   "common_maximum": "最大值",
-
   "addToLibrary_displayNameHint": "输入便于识别此条目的名称",
   "addToLibrary_tagHint": "输入标签并按 Enter 添加",
-
   "newPresetDialog_nameRequired": "请输入预设名称",
   "newPresetDialog_nameLabel": "预设名称",
   "newPresetDialog_nameHint": "输入新预设的名称",
   "newPresetDialog_creationMode": "创建方式",
-
   "drop_saveVibeBundle": "保存 Vibe Bundle",
   "drop_saveVibeBundleSubtitle": "将 {name} 等 Vibe 保存到库中",
   "@drop_saveVibeBundleSubtitle": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "drop_saveEncodedVibeSubtitle": "将预编码 Vibe 数据保存到库中",
-
   "history_dragFilePreparationFailed": "拖拽文件准备失败，请稍后重试",
   "history_dragFilePreparing": "正在准备拖拽文件...",
   "history_dragFileNotReady": "拖拽文件尚未准备完成",
-
   "vibe_import_overwriteOriginalParams": "直接替换原 Vibe 参数",
   "vibe_import_overwriteOriginalParamsHint": "仅覆盖 {name} 的库内参数，默认不勾选",
   "@vibe_import_overwriteOriginalParamsHint": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "vibe_import_reencodeFailed": "Vibe 重新编码失败: {name}",
   "@vibe_import_reencodeFailed": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
-
   "galleryScan_skipped": "跳过 {count}",
   "@galleryScan_skipped": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "galleryScan_withMetadata": "有元数据 {count}",
   "@galleryScan_withMetadata": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "galleryScan_failed": "失败 {count}",
   "@galleryScan_failed": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "galleryScan_processing": "处理中",
   "galleryScan_pending": "待处理",
-
   "vibeDetail_useAll": "使用全部",
   "vibeDetail_longPressSetCover": "长按设为封面",
   "vibeDetail_noPreviewImage": "无预览图像",
   "vibeDetail_dropPreviewImage": "拖拽图片到此处设置预览图",
   "vibeDetail_releasePreviewImage": "释放以设置预览图",
-
   "imagePicker_dropReadFailed": "读取拖入图片失败: {error}",
   "@imagePicker_dropReadFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "imagePicker_dropNoReadableImage": "拖入源未提供可读取的图片文件或图片链接",
@@ -6144,23 +6519,30 @@
   "imagePicker_fileSelectionFailed": "选择文件失败: {error}",
   "@imagePicker_fileSelectionFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "imagePicker_directorySelectionFailed": "选择目录失败: {error}",
   "@imagePicker_directorySelectionFailed": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "editor_effects": "效果",
   "editor_shiftEdges": "扩展边缘",
   "editor_currentSize": "当前: {width} x {height}",
   "@editor_currentSize": {
     "placeholders": {
-      "width": {"type": "int"},
-      "height": {"type": "int"}
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
     }
   },
   "editor_edgeLeft": "左",
@@ -6172,62 +6554,96 @@
   "editor_requestedSize": "请求尺寸: {width} x {height}",
   "@editor_requestedSize": {
     "placeholders": {
-      "width": {"type": "int"},
-      "height": {"type": "int"}
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
     }
   },
   "editor_requestedSizeInvalid": "请求尺寸: 无效",
   "editor_appliedSize": "应用尺寸: {width} x {height}",
   "@editor_appliedSize": {
     "placeholders": {
-      "width": {"type": "int"},
-      "height": {"type": "int"}
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
     }
   },
   "editor_appliedSizeInvalid": "应用尺寸: 无效",
   "editor_appliedEdges": "应用边缘: 左 {left}、上 {top}、右 {right}、下 {bottom}",
   "@editor_appliedEdges": {
     "placeholders": {
-      "left": {"type": "int"},
-      "top": {"type": "int"},
-      "right": {"type": "int"},
-      "bottom": {"type": "int"}
+      "left": {
+        "type": "int"
+      },
+      "top": {
+        "type": "int"
+      },
+      "right": {
+        "type": "int"
+      },
+      "bottom": {
+        "type": "int"
+      }
     }
   },
   "editor_appliedEdgesInvalid": "应用边缘: 无效",
   "editor_appliedDimensionLimit": "应用后的尺寸不能超过 {max}。",
   "@editor_appliedDimensionLimit": {
     "placeholders": {
-      "max": {"type": "int"}
+      "max": {
+        "type": "int"
+      }
     }
   },
-
   "savePreset_title": "另存为预设",
   "savePreset_nameHint": "输入预设名称",
   "savePreset_metadataDescription": "从图片元数据保存",
   "savePreset_vibeData": "Vibe 数据（{count}）",
   "@savePreset_vibeData": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
-
   "onlineGallery_videoLoadFailed": "视频加载失败",
   "vibe_releaseToAddStyleReference": "松开后添加风格参考",
   "router_backAgainToExit": "再滑一次或按返回键退出应用",
   "router_pageNotFound": "页面未找到: {error}",
   "@router_pageNotFound": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "autocomplete_translating": "翻译中…",
   "autocomplete_missingTranslation": "未汉化",
   "autocomplete_translationCoverage": "汉化覆盖：{translated}/{total}",
-  "@autocomplete_translationCoverage": {"placeholders": {"translated": {"type": "int"}, "total": {"type": "int"}}},
+  "@autocomplete_translationCoverage": {
+    "placeholders": {
+      "translated": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_aliasMatch": "别名：{alias}",
-  "@autocomplete_aliasMatch": {"placeholders": {"alias": {"type": "String"}}},
+  "@autocomplete_aliasMatch": {
+    "placeholders": {
+      "alias": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_settingsTitle": "自动补全",
   "autocomplete_enable": "启用自动补全",
   "autocomplete_resultLimit": "结果数量",
@@ -6254,26 +6670,80 @@
   "autocomplete_llmTranslation": "使用 Prompt Assistant 补译缺失汉化",
   "autocomplete_llmRouteMissing": "请先在 Prompt Assistant 中配置 Translate 路由",
   "autocomplete_llmRoute": "当前路由：{route}。调用模型可能产生费用。",
-  "@autocomplete_llmRoute": {"placeholders": {"route": {"type": "String"}}},
+  "@autocomplete_llmRoute": {
+    "placeholders": {
+      "route": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrence": "本地相关标签数据",
   "autocomplete_entryCount": "{count} 条记录",
-  "@autocomplete_entryCount": {"placeholders": {"count": {"type": "int"}}},
+  "@autocomplete_entryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_cooccurrenceAutoDownload": "自动下载本地相关标签数据",
   "autocomplete_cooccurrenceAutoDownloadSubtitle": "相关标签功能开启时，在进入主页后后台下载安装；不影响基础补全",
   "autocomplete_downloadNow": "立即下载",
   "autocomplete_cooccurrenceUnavailable": "尚未安装 · 下载大小 {size}。当前仅显示在线相关标签。",
-  "@autocomplete_cooccurrenceUnavailable": {"placeholders": {"size": {"type": "String"}}},
+  "@autocomplete_cooccurrenceUnavailable": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceChecking": "正在检查本地数据…",
   "autocomplete_cooccurrenceDownloading": "正在下载 {downloaded} / {total} · {speed}。当前仍可使用在线结果。",
-  "@autocomplete_cooccurrenceDownloading": {"placeholders": {"downloaded": {"type": "String"}, "total": {"type": "String"}, "speed": {"type": "String"}}},
+  "@autocomplete_cooccurrenceDownloading": {
+    "placeholders": {
+      "downloaded": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceVerifying": "下载完成，正在校验数据包…",
   "autocomplete_cooccurrenceInstalling": "正在安全安装并切换数据库…",
   "autocomplete_cooccurrenceReady": "版本 {version} · {count} 组关系 · 占用 {size}",
-  "@autocomplete_cooccurrenceReady": {"placeholders": {"version": {"type": "String"}, "count": {"type": "int"}, "size": {"type": "String"}}},
+  "@autocomplete_cooccurrenceReady": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceUpdateAvailable": "发现数据版本 {version}，可立即更新",
-  "@autocomplete_cooccurrenceUpdateAvailable": {"placeholders": {"version": {"type": "String"}}},
+  "@autocomplete_cooccurrenceUpdateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceFailed": "本地数据不可用：{reason}。基础补全与在线相关标签不受影响。",
-  "@autocomplete_cooccurrenceFailed": {"placeholders": {"reason": {"type": "String"}}},
+  "@autocomplete_cooccurrenceFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_cooccurrenceErrorNetwork": "网络连接失败，请稍后重试",
   "autocomplete_cooccurrenceErrorDiskFull": "磁盘空间不足",
   "autocomplete_cooccurrenceErrorArchive": "下载文件不完整或校验失败",
@@ -6287,13 +6757,37 @@
   "autocomplete_clearDanbooruCache": "清除 Danbooru 缓存",
   "autocomplete_clearAiCache": "清除 AI 汉化缓存",
   "autocomplete_cacheCleared": "已清除 {count} 条缓存",
-  "@autocomplete_cacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "@autocomplete_cacheCleared": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_baseCatalog": "基础 Danbooru 词库",
   "autocomplete_catalogStatus": "{count} 个标签 · 数据版本 {version}",
-  "@autocomplete_catalogStatus": {"placeholders": {"count": {"type": "String"}, "version": {"type": "String"}}},
+  "@autocomplete_catalogStatus": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_zhDictionary": "ffdkj 简体中文汉化库",
   "autocomplete_zhInstalled": "已安装 {count} 条 · 版本 {version}",
-  "@autocomplete_zhInstalled": {"placeholders": {"count": {"type": "int"}, "version": {"type": "String"}}},
+  "@autocomplete_zhInstalled": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_zhNotInstalled": "未安装；英文补全仍可正常使用",
   "autocomplete_zhInstallPrompt": "可安装 ffdkj 汉化库以显示中文并支持中文反查；词库将直接从上游下载。",
   "autocomplete_zhErrorMetadataRateLimited": "GitHub 请求过于频繁，暂时无法检查词库更新；请稍后重试。",
@@ -6316,7 +6810,16 @@
   "autocomplete_relatedLoading": "正在查询本地共现库与在线相关标签…",
   "autocomplete_relatedEmpty": "没有找到可用的相关标签",
   "autocomplete_relatedMetric": "共现 {count} 次 · Jaccard {score}",
-  "@autocomplete_relatedMetric": {"placeholders": {"count": {"type": "int"}, "score": {"type": "String"}}},
+  "@autocomplete_relatedMetric": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "score": {
+        "type": "String"
+      }
+    }
+  },
   "autocomplete_relatedPin": "固定当前标签，可连续插入相关标签",
   "autocomplete_relatedUnpin": "取消固定并继续链式推荐",
   "autocomplete_statusBase": "本地",
@@ -6329,14 +6832,26 @@
   "autocomplete_statusReady": "就绪",
   "autocomplete_statusNotInstalled": "未安装",
   "autocomplete_statusDownloading": "下载 {progress}%",
-  "@autocomplete_statusDownloading": {"placeholders": {"progress": {"type": "int"}}},
+  "@autocomplete_statusDownloading": {
+    "placeholders": {
+      "progress": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_statusUpdateAvailable": "可更新",
   "autocomplete_statusError": "异常",
   "autocomplete_statusDisabled": "已关闭",
   "autocomplete_statusSearching": "查询中",
   "autocomplete_statusTranslating": "翻译中",
   "autocomplete_aiCacheEntries": "AI 翻译缓存：{count} 条",
-  "@autocomplete_aiCacheEntries": {"placeholders": {"count": {"type": "int"}}},
+  "@autocomplete_aiCacheEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "autocomplete_openSettings": "打开补全与数据源设置",
   "randomManager_searchCategories": "搜索类别、词组或标签（Ctrl+F）",
   "randomManager_searchCategoriesCompact": "搜索类别、词组或标签",
@@ -6370,13 +6885,31 @@
   "image_savedToSystemGallery": "已保存到系统相册",
   "localGallery_saveToSystemGallery": "保存到系统相册",
   "localGallery_saveToSystemGalleryFailed": "无法保存到系统相册：{error}",
-  "@localGallery_saveToSystemGalleryFailed": {"placeholders":{"error":{}}},
+  "@localGallery_saveToSystemGalleryFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "image_savedAppOnly": "已保存到应用图库，但无法导出到系统相册：{error}",
-  "@image_savedAppOnly": {"placeholders":{"error":{}}},
+  "@image_savedAppOnly": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "image_shareFailed": "分享失败: {error}",
-  "@image_shareFailed": {"placeholders":{"error":{}}},
+  "@image_shareFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "onlineGallery_savedFiles": "已保存 {count} 个文件",
-  "@onlineGallery_savedFiles": {"placeholders":{"count":{"type":"int"}}},
+  "@onlineGallery_savedFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "statistics_exportJsonHint": "将全部统计结果和分布数据导出为结构化 JSON。",
   "statistics_exportCsvHint": "将分区统计数据导出为可用表格应用打开的 CSV。",
   "queue_reorderTask": "调整任务顺序",
@@ -6386,19 +6919,41 @@
   "settings_androidManagedStorage": "由系统安全管理；导出时可选择保存位置",
   "settings_importLocalOnnxTaggerFiles": "导入 ONNX 模型、标签文件或 ZIP 压缩包",
   "settings_localOnnxFilesImported": "已导入 {count} 个模型文件",
-  "@settings_localOnnxFilesImported": {"placeholders":{"count":{"type":"int"}}},
+  "@settings_localOnnxFilesImported": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settings_localOnnxManagedFiles": "应用存储中有 {count} 个模型文件",
-  "@settings_localOnnxManagedFiles": {"placeholders":{"count":{"type":"int"}}},
+  "@settings_localOnnxManagedFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settings_clearLocalOnnxModelsTitle": "清除本地 ONNX 模型？",
   "settings_clearLocalOnnxModelsContent": "将删除导入到此设备的 ONNX 模型及标签文件。",
   "updateAndroidDownloadedHint": "新版本 v{version} 已下载并通过校验。可以打开 Android 系统安装界面继续更新。",
-  "@updateAndroidDownloadedHint": {"placeholders":{"version":{}}},
+  "@updateAndroidDownloadedHint": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "updateAndroidInstallingHint": "正在打开 Android 系统安装界面，请按系统提示确认更新。",
   "updateAndroidInstallConfirmationBody": "将打开 Android 系统安装界面。确认安装后，系统会替换应用且不会清除本地数据；进行中的生成和下载任务可能停止，请先保存必要内容。",
   "preciseRefLib_moreActions": "更多操作",
   "vibeDetail_setAsCover": "将所选图片设为封面",
   "vibeDetail_bundleChildParameters": "正在显示第 {index} 个子 Vibe 的导入参数。",
-  "@vibeDetail_bundleChildParameters": {"placeholders":{"index":{"type":"int"}}},
+  "@vibeDetail_bundleChildParameters": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "vibeDetail_bundleDefaultParameters": "正在显示合集默认参数。选择下方子项可查看其参数。",
   "vibeDetail_choosePreviewImage": "点击图片按钮选择预览图",
   "cloudSync_title": "备份与恢复",
@@ -6413,13 +6968,31 @@
   "cloudSync_chooseBackend": "备份到哪里",
   "cloudSync_chooseBackendDescription": "先选择同步目的地，再连接账号并选择要同步的内容。凭据只保存在设备安全存储中。",
   "cloudSync_oauthDescription": "连接 {provider} 账号",
-  "@cloudSync_oauthDescription": {"placeholders": {"provider": {"type": "String"}}},
+  "@cloudSync_oauthDescription": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
   "cloudSync_oauthSystemBrowser": "将使用系统浏览器安全登录；无需在应用中输入密码。",
   "cloudSync_oauthUnavailable": "此版本缺少 OAuth 发布配置，暂时无法连接。请向发布者提供以下诊断：\n{details}",
-  "@cloudSync_oauthUnavailable": {"placeholders": {"details": {"type": "String"}}},
+  "@cloudSync_oauthUnavailable": {
+    "placeholders": {
+      "details": {
+        "type": "String"
+      }
+    }
+  },
   "cloudSync_errorOAuthAuthorizationFailed": "应用尚未获准访问该云端服务。请检查授权页面中的提示后重试。",
   "cloudSync_accountConnected": "已连接 {provider}",
-  "@cloudSync_accountConnected": {"placeholders": {"provider": {"type": "String"}}},
+  "@cloudSync_accountConnected": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
   "cloudSync_connectAccount": "连接账号",
   "cloudSync_changeAccount": "更换账号",
   "cloudSync_connectedAccount": "已连接账号",
@@ -6458,7 +7031,13 @@
   "cloudSync_restoreDefaults": "恢复默认",
   "cloudSync_saveSelection": "保存选择",
   "cloudSync_selectedContentSummary": "已选择 {count} 项内容",
-  "@cloudSync_selectedContentSummary": {"placeholders": {"count": {"type": "int"}}},
+  "@cloudSync_selectedContentSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cloudSync_rebuildCompactBackup": "清理旧备份并重新建立",
   "cloudSync_rebuildCompactBackupDescription": "删除当前云端备份空间并按现有选择上传新的精简备份。服务商保留的历史版本不会被重写。",
   "cloudSync_rebuildCompactBackupConfirm": "删除当前云端备份并立即上传新的精简备份吗？此操作不能撤销。",
@@ -6475,12 +7054,24 @@
   "cloudSync_skillsSelectedCount": "已选择 {count} 个 Skill",
   "cloudSync_missingSelectedSkills": "其中 {count} 个当前不可用",
   "cloudSync_removeMissingSkills": "移除不可用项",
-  "@cloudSync_skillsSelectedCount": {"placeholders":{"count":{}}},
-  "@cloudSync_missingSelectedSkills": {"placeholders":{"count":{}}},
+  "@cloudSync_skillsSelectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@cloudSync_missingSelectedSkills": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "cloudSync_searchSkills": "搜索 Skill",
   "cloudSync_noSkills": "没有匹配的 Skill",
   "cloudSync_actionFailed": "操作失败：{error}",
-  "@cloudSync_actionFailed": {"placeholders":{"error":{}}},
+  "@cloudSync_actionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "cloudSync_errorAuthentication": "登录状态已过期，请重新连接账号。",
   "cloudSync_errorAuthorization": "当前账号无权访问备份位置。",
   "cloudSync_errorNotFound": "未找到云端备份目录或文件。",
@@ -6554,7 +7145,13 @@
   "cloudSync_snapshotHistoryDescription": "可以先查看某次备份会带来哪些变化，再决定是否恢复。当前数据不会直接被覆盖。",
   "cloudSync_noSnapshots": "还没有可恢复的备份。",
   "cloudSync_backupItemCount": "包含 {count} 项内容",
-  "@cloudSync_backupItemCount": {"placeholders":{"count":{"type":"int"}}},
+  "@cloudSync_backupItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cloudSync_previewRestore": "查看并恢复",
   "cloudSync_restorePreviewTitle": "恢复前确认",
   "cloudSync_restorePreviewDescription": "检查恢复后会新增、更新或删除哪些内容。确认前不会修改当前数据。",
@@ -6563,9 +7160,19 @@
   "cloudSync_previewAwaitingConfirmation": "请先确认下方变化。",
   "cloudSync_previewDeletesTitle": "将删除当前设备上的内容",
   "cloudSync_previewDeletesDescription": "恢复后会从当前设备删除 {count} 项内容，请确认这些变化符合预期。",
-  "@cloudSync_previewDeletesDescription": {"placeholders":{"count":{}}},
+  "@cloudSync_previewDeletesDescription": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "cloudSync_previewCounts": "新增 {added} · 修改 {modified} · 删除 {deleted}",
-  "@cloudSync_previewCounts": {"placeholders":{"added":{},"modified":{},"deleted":{}}},
+  "@cloudSync_previewCounts": {
+    "placeholders": {
+      "added": {},
+      "modified": {},
+      "deleted": {}
+    }
+  },
   "cloudSync_previewNoChanges": "没有需要应用的变化。",
   "cloudSync_confirmMerge": "确认应用",
   "cloudSync_confirmRestore": "确认恢复",
@@ -6609,7 +7216,13 @@
   "agentSettings_pendingMatch": "待匹配",
   "agentSettings_contextWindow": "上下文窗口（token）",
   "agentSettings_contextWindowKnown": "留空使用内置值 {value}。第三方中转站或自定义部署的实际窗口不同时，在此填写覆盖。",
-  "@agentSettings_contextWindowKnown": {"placeholders":{"value":{"type":"String"}}},
+  "@agentSettings_contextWindowKnown": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_contextWindowUnknown": "内置目录未收录该模型，无法自动判断窗口。不填写则无法显示上下文用量，也无法压缩上下文。",
   "agentSettings_contextWindowUnknownHint": "例如 128000",
   "agentSettings_contextWindowReset": "恢复为内置值",
@@ -6651,7 +7264,16 @@
   "agentSettings_filterEnabled": "已启用",
   "agentSettings_filterDisabled": "已禁用",
   "agentSettings_skillEnabledCount": "已启用 {enabled}/{total}",
-  "@agentSettings_skillEnabledCount": {"placeholders":{"enabled":{"type":"int"},"total":{"type":"int"}}},
+  "@agentSettings_skillEnabledCount": {
+    "placeholders": {
+      "enabled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "agentSettings_diagnostics": "诊断",
   "agentSettings_noMatchingSkill": "没有匹配的 Skill",
   "agentSettings_noDiagnostics": "未发现诊断问题",
@@ -6661,26 +7283,59 @@
   "agentSettings_install": "安装",
   "agentSettings_apply": "应用",
   "agentSettings_operationFailed": "操作失败：{error}",
-  "@agentSettings_operationFailed": {"placeholders":{"error":{"type":"String"}}},
+  "@agentSettings_operationFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_skillsTitle": "Skills",
   "agentSettings_skillsSourceHint": "当前图片项目中的 Skill 会自动启用；Pi 用户与用户全局 Skill 仅在手动开启后使用。",
   "agentSettings_skillTransfer": "导入或导出",
   "agentSettings_skillsRescanned": "Skills 已重新扫描",
   "agentSettings_skillScanFailed": "扫描失败：{error}",
-  "@agentSettings_skillScanFailed": {"placeholders":{"error":{"type":"String"}}},
+  "@agentSettings_skillScanFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_exportSkillsTitle": "导出 Skills",
   "agentSettings_skillsExported": "Skills 已导出",
   "agentSettings_skillZipReadFailed": "无法读取 ZIP 文件",
   "agentSettings_confirmSkillsImport": "确认导入 Skills",
   "agentSettings_skillArchiveStats": "{files} 个文件 · {bytes} 字节",
-  "@agentSettings_skillArchiveStats": {"placeholders":{"files":{"type":"int"},"bytes":{"type":"int"}}},
+  "@agentSettings_skillArchiveStats": {
+    "placeholders": {
+      "files": {
+        "type": "int"
+      },
+      "bytes": {
+        "type": "int"
+      }
+    }
+  },
   "agentSettings_skillConflictReplace": "存在同名 Skill，勾选以替换",
   "agentSettings_skillConflictUnsafe": "目标是文件、链接或特殊实体，不能替换",
   "agentSettings_skillsInstalled": "Skills 已安装",
   "agentSettings_skillShadowed": "{name} 被更高优先级来源覆盖",
-  "@agentSettings_skillShadowed": {"placeholders":{"name":{"type":"String"}}},
+  "@agentSettings_skillShadowed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_preferredSource": "优先来源：{source}",
-  "@agentSettings_preferredSource": {"placeholders":{"source":{"type":"String"}}},
+  "@agentSettings_preferredSource": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_sourceWorkspace": "当前图片项目",
   "agentSettings_sourcePiUser": "Pi 用户",
   "agentSettings_sourceCommonUser": "用户全局",
@@ -6690,13 +7345,31 @@
   "agentSettings_confirmProfileImport": "确认导入智能体配置",
   "agentSettings_profileNoChanges": "当前配置不会发生变化",
   "agentSettings_profileChanges": "将变更：{changes}",
-  "@agentSettings_profileChanges": {"placeholders":{"changes":{"type":"String"}}},
+  "@agentSettings_profileChanges": {
+    "placeholders": {
+      "changes": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_listSeparator": "、",
   "agentSettings_pendingPreferences": "待匹配偏好",
   "agentSettings_missingModel": "当前未提供模型：{model}",
-  "@agentSettings_missingModel": {"placeholders":{"model":{"type":"String"}}},
+  "@agentSettings_missingModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_missingSkill": "当前未安装 Skill：{skill}",
-  "@agentSettings_missingSkill": {"placeholders":{"skill":{"type":"String"}}},
+  "@agentSettings_missingSkill": {
+    "placeholders": {
+      "skill": {
+        "type": "String"
+      }
+    }
+  },
   "agentSettings_profileImported": "智能体配置已导入",
   "settings_watermarkTitle": "水印",
   "settings_watermarkSubtitle": "完全在本地创建水印副本，不改动原图",
@@ -6772,7 +7445,11 @@
   "watermark_noLayer": "保存前请启用文字或 Logo。",
   "watermark_cancelled": "已取消水印渲染",
   "watermark_failed": "无法创建水印副本：{error}",
-  "@watermark_failed": {"placeholders":{"error":{}}},
+  "@watermark_failed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "watermark_failedGeneric": "无法创建水印副本，请检查图片后重试。",
   "watermark_systemGalleryExportFailed": "副本已保存在 Aaalice 中，但未能添加到系统图库。",
   "watermark_galleryRefreshFailed": "副本已保存，但图库未能刷新；重新打开图库即可重试。",
@@ -6785,5 +7462,72 @@
   "watermark_moveDown": "向下移动图层",
   "watermark_sourceLoadFailed": "无法打开此图片。请确认文件是有效的静态 PNG、JPEG、WebP 或 BMP 图片后重试。",
   "promptAssistant_responseTimeoutTitle": "响应等待超时",
-  "promptAssistant_responseTimeoutDescription": "反推、优化、翻译、角色替换和自定义改写共用。默认 5 分钟；模型思考较慢时可调长，仍可随时取消。不影响连接超时和智能体聊天。"
+  "promptAssistant_responseTimeoutDescription": "反推、优化、翻译、角色替换和自定义改写共用。默认 5 分钟；模型思考较慢时可调长，仍可随时取消。不影响连接超时和智能体聊天。",
+  "settings_mosaicTitle": "打码与隐私遮挡",
+  "settings_mosaicSubtitle": "用马赛克、模糊、纯色遮挡、矩形、椭圆和自由画笔制作隐私安全副本。",
+  "settings_mosaicEnable": "启用打码功能",
+  "settings_mosaicPreserveMetadata": "保留支持的生成元数据",
+  "settings_mosaicPreserveMetadataHint": "用于隐私发布时建议关闭，避免提示词、种子等信息随图片保留。",
+  "settings_mosaicRememberStyle": "记住上次打码样式",
+  "settings_mosaicRememberStyleHint": "保存副本后自动复用最近一次的效果参数。",
+  "settings_mosaicCreateFromImage": "选择图片并创建打码副本",
+  "settings_mosaicEditDefault": "编辑默认打码样式",
+  "settings_mosaicConfigCorrupted": "保存的打码配置无效，请先保存安全默认值后再启用。",
+  "settings_mosaicConfigMigrated": "打码配置已升级，请保存一次以完成迁移。",
+  "mosaic_actionCreate": "创建打码副本",
+  "mosaic_actionRegenerate": "重新创建打码副本",
+  "mosaic_editorTitle": "打码编辑器",
+  "mosaic_defaultsTitle": "默认打码样式",
+  "mosaic_sourceMissing": "找不到原图",
+  "mosaic_sourceMissingHint": "当前图片看起来是打码副本，但关联原图已不存在。请手动选择原图，避免重复叠加打码。",
+  "mosaic_chooseOriginal": "选择原图",
+  "mosaic_sourceLoadFailed": "无法载入图片，请选择其他静态图片或重试。",
+  "mosaic_drawTool": "遮罩绘制工具",
+  "mosaic_shapeRectangle": "矩形",
+  "mosaic_shapeEllipse": "椭圆",
+  "mosaic_shapeBrush": "画笔",
+  "mosaic_drawHint": "在预览空白处拖动即可新增区域；拖动区域可移动，拖动四角控制点可缩放。",
+  "mosaic_addRegion": "添加区域",
+  "mosaic_fullImage": "整图打码",
+  "mosaic_clearAll": "清空全部",
+  "mosaic_effect": "打码效果",
+  "mosaic_effectPixelate": "马赛克",
+  "mosaic_effectBlur": "模糊",
+  "mosaic_effectSolid": "纯色遮挡",
+  "mosaic_pixelSize": "马赛克块大小",
+  "mosaic_blurStrength": "模糊强度",
+  "mosaic_opacity": "效果不透明度",
+  "mosaic_color": "遮挡颜色",
+  "mosaic_cornerRadius": "矩形圆角",
+  "mosaic_brushSize": "画笔粗细",
+  "mosaic_invertMask": "打码区域外部",
+  "mosaic_invertMaskHint": "反转遮罩：选中的区域保持清晰，其余部分全部打码。",
+  "mosaic_showLabels": "显示区域编号",
+  "mosaic_regions": "打码区域",
+  "mosaic_noRegions": "还没有打码区域。可在预览图上拖动绘制，或使用上方按钮添加。",
+  "mosaic_regionEnabled": "启用当前区域",
+  "mosaic_regionLocked": "锁定当前区域",
+  "mosaic_positionX": "水平位置",
+  "mosaic_positionY": "垂直位置",
+  "mosaic_width": "宽度",
+  "mosaic_height": "高度",
+  "mosaic_duplicate": "复制区域",
+  "mosaic_delete": "删除区域",
+  "mosaic_keyboardHint": "快捷键：方向键移动，Shift+方向键快速移动，Delete 删除，Ctrl+D 复制，Ctrl+Z/Y 撤销或重做。",
+  "mosaic_canvasHint": "在空白处拖动绘制；区域可选择、移动、缩放、锁定、复制或暂时禁用。",
+  "mosaic_noRegionError": "请至少添加并启用一个打码区域后再保存。",
+  "mosaic_defaultSaved": "默认打码样式已保存。",
+  "mosaic_saveDefaults": "设为默认",
+  "mosaic_saveCopy": "保存打码副本",
+  "mosaic_saving": "正在保存…",
+  "mosaic_saved": "打码副本已保存",
+  "mosaic_open": "打开",
+  "mosaic_share": "分享",
+  "mosaic_cancelled": "已取消打码渲染。",
+  "mosaic_failedGeneric": "无法创建打码副本。",
+  "mosaic_galleryRefreshFailed": "文件已保存，但本地图库刷新失败。",
+  "mosaic_systemGalleryExportFailed": "应用内副本已保存，但导出到系统相册失败。",
+  "mosaic_undo": "撤销",
+  "mosaic_redo": "重做",
+  "mosaic_reset": "重置"
 }

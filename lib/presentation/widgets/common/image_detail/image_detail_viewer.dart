@@ -12,6 +12,7 @@ import '../../../../core/utils/window_focus_tracker.dart';
 import '../../../../core/windowing/workspace_side_panel_contract.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/share_image_settings_provider.dart';
+import '../../../screens/mosaic/mosaic_editor_launcher.dart';
 import '../../../screens/watermark/watermark_editor_launcher.dart';
 import '../../../utils/clipboard_image.dart';
 import '../../shortcuts/shortcuts.dart';
@@ -599,6 +600,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 ? () => _shareImage(context)
                 : null,
             onWatermark: () => _openWatermarkEditor(context),
+            onMosaic: () => _openMosaicEditor(context),
             onSendToImg2Img: widget.callbacks?.onSendToImg2Img != null
                 ? () => widget.callbacks!.onSendToImg2Img!(_currentImage)
                 : null,
@@ -714,6 +716,24 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     final bytes = await _currentImage.getImageBytes();
     if (!context.mounted) return;
     await WatermarkEditorLauncher.open(
+      context: context,
+      sourceBytes: bytes,
+      sourceFileName: 'image.png',
+    );
+  }
+
+  Future<void> _openMosaicEditor(BuildContext context) async {
+    final fileInfo = _currentImage.fileInfo;
+    if (fileInfo != null) {
+      await MosaicEditorLauncher.openForLocalPath(
+        context: context,
+        path: fileInfo.path,
+      );
+      return;
+    }
+    final bytes = await _currentImage.getImageBytes();
+    if (!context.mounted) return;
+    await MosaicEditorLauncher.open(
       context: context,
       sourceBytes: bytes,
       sourceFileName: 'image.png',
