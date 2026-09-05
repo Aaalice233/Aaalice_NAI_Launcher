@@ -188,12 +188,8 @@ class _TagModePromptFieldState extends State<TagModePromptField> {
                       ? _toggle
                       : null,
                   style: IconButton.styleFrom(
-                    foregroundColor: _session.tagMode
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurfaceVariant,
-                    backgroundColor: _session.tagMode
-                        ? scheme.primaryContainer
-                        : Colors.transparent,
+                    foregroundColor: scheme.onSurfaceVariant,
+                    backgroundColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
                     ),

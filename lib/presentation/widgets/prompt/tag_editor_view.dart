@@ -13,6 +13,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/prompt_edit_document.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../themes/core/layered_surface_style.dart';
+import '../../themes/core/input_surface_style.dart';
 import '../../router/app_routes.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
 import '../autocomplete/autocomplete_overlay_handle.dart';
@@ -815,7 +816,7 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
             clipBehavior: Clip.antiAlias,
             color:
                 widget.surfaceColor ??
-                Theme.of(context).colorScheme.surfaceContainerLow,
+                inputSurfaceFillColor(Theme.of(context).colorScheme),
             child: LayoutBuilder(builder: _buildContent),
           ),
         ),

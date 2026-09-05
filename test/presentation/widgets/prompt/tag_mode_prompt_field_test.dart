@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/autocomplete/zh_dictionary_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_capsule.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_mode_prompt_field.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
@@ -24,6 +25,7 @@ Future<void> pumpEditor(
   TagTranslationLookup? lookup,
   bool enabled = true,
   ThemeData? theme,
+  Color? surfaceColor,
   InteractionPolicy policy = InteractionPolicy.touchFirst,
   ZhDictionaryService? dictionary,
 }) => tester.pumpWidget(
@@ -68,10 +70,12 @@ Future<void> pumpEditor(
                 initialPolicy: policy,
                 child: TagModePromptField(
                   controller: source,
+                  surfaceColor: surfaceColor,
                   enabled: enabled,
                   enableAutocomplete: false,
                   child: ThemedInput(
                     controller: source,
+                    surfaceColor: surfaceColor,
                     maxLines: null,
                     expands: true,
                   ),
@@ -132,7 +136,7 @@ void main() {
     });
   }
 
-  testWidgets('tag mode is transparent until enabled', (tester) async {
+  testWidgets('tag mode only changes the icon when enabled', (tester) async {
     final source = TextEditingController(text: 'cat');
     addTearDown(source.dispose);
     await pumpEditor(tester, source);
@@ -140,14 +144,69 @@ void main() {
     Color? background() =>
         tester.widget<IconButton>(toggle).style!.backgroundColor!.resolve({});
     expect(background(), Colors.transparent);
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(of: toggle, matching: find.byType(Icon)),
+          )
+          .icon,
+      Icons.sell_outlined,
+    );
     await tester.tap(toggle);
     await tester.pumpAndSettle();
-    expect(background()!.a, greaterThan(0));
+    expect(background(), Colors.transparent);
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(of: toggle, matching: find.byType(Icon)),
+          )
+          .icon,
+      Icons.sell,
+    );
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(background(), Colors.transparent);
     expect(source.text, 'cat');
   });
+
+  for (final brightness in Brightness.values) {
+    for (final surfaceColor in [null, const Color(0xFF414141)]) {
+      testWidgets(
+        'text and tag mode share their surface: $brightness $surfaceColor',
+        (tester) async {
+          final source = TextEditingController(text: 'cat, dog');
+          addTearDown(source.dispose);
+          await pumpEditor(
+            tester,
+            source,
+            theme: ThemeData(brightness: brightness),
+            surfaceColor: surfaceColor,
+          );
+          final textSurface = tester.widget<AnimatedContainer>(
+            find
+                .descendant(
+                  of: find.byType(InputSurfaceContainer),
+                  matching: find.byType(AnimatedContainer),
+                )
+                .first,
+          );
+          final textColor = (textSurface.decoration! as BoxDecoration).color;
+          await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+          await tester.pumpAndSettle();
+          final tagSurface = tester.widget<Material>(
+            find
+                .descendant(
+                  of: find.byType(TagEditorView),
+                  matching: find.byType(Material),
+                )
+                .first,
+          );
+          expect(tagSurface.color, textColor);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
 
   for (final policy in [
     InteractionPolicy.touchFirst,
