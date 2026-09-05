@@ -8,34 +8,32 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/database/database_providers.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
-import '../../core/utils/bulk_tag_edit_utils.dart';
 import '../models/gallery/local_image_record.dart';
 import '../models/gallery/nai_image_metadata.dart';
+import 'bulk_gallery_store.dart';
+import 'bulk_image_state_service.dart';
+import 'bulk_operation_types.dart';
+
+export 'bulk_operation_types.dart';
 
 part 'bulk_operation_service.g.dart';
-
-/// Progress callback for bulk operations
-typedef BulkProgressCallback =
-    void Function({
-      required int current,
-      required int total,
-      required String currentItem,
-      required bool isComplete,
-    });
-
-/// Bulk operation result
-typedef BulkOperationResult = ({
-  int success,
-  int failed,
-  List<String> errors,
-  List<String> successfulItems,
-});
 
 /// Bulk operation service for managing batch operations on local images
 class BulkOperationService {
   final Ref _ref;
+  final BulkGalleryStore? _store;
 
-  BulkOperationService({Ref? ref}) : _ref = ref ?? _FakeRef();
+  BulkOperationService({Ref? ref, BulkGalleryStore? store})
+    : _ref = ref ?? _FakeRef(),
+      _store = store;
+
+  Future<BulkImageStateService> _stateService() async {
+    final store = _store;
+    if (store != null) return BulkImageStateService(store);
+    return BulkImageStateService(
+      GalleryDataSourceBulkStore(await _getDataSource()),
+    );
+  }
 
   /// 获取 GalleryDataSource
   Future<GalleryDataSource> _getDataSource() async {
@@ -276,28 +274,21 @@ class BulkOperationService {
   }
 
   /// 批量编辑元数据（添加/删除标签）
-  Future<BulkOperationResult> bulkEditMetadata(
+  Future<BulkTagEditOutcome> bulkEditMetadata(
     List<String> imagePaths, {
     List<String> tagsToAdd = const [],
     List<String> tagsToRemove = const [],
     BulkProgressCallback? onProgress,
   }) async {
-    final stopwatch = Stopwatch()..start();
-    var successCount = 0;
-    var failedCount = 0;
-    final errors = <String>[];
-    final successfulItems = <String>[];
-
     if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
       AppLogger.w(
         'No tags to add or remove, skipping bulk metadata edit',
         'BulkOperationService',
       );
-      return (
-        success: 0,
-        failed: 0,
-        errors: <String>[],
-        successfulItems: <String>[],
+      return BulkTagEditOutcome(
+        result: emptyBulkOperationResult,
+        previous: const [],
+        applied: const [],
       );
     }
 
@@ -306,179 +297,77 @@ class BulkOperationService {
       'BulkOperationService',
     );
 
-    final dataSource = await _getDataSource();
-
-    for (var i = 0; i < imagePaths.length; i++) {
-      final imagePath = imagePaths[i];
-      onProgress?.call(
-        current: i,
-        total: imagePaths.length,
-        currentItem: imagePath,
-        isComplete: false,
-      );
-
-      try {
-        // 获取或创建图片ID
-        var imageId = await dataSource.getImageIdByPath(imagePath);
-
-        if (imageId == null) {
-          // 图片不在数据库中，先索引它
-          final file = File(imagePath);
-          if (await file.exists()) {
-            final stat = await file.stat();
-            final fileName = imagePath.split(Platform.pathSeparator).last;
-            imageId = await dataSource.upsertImage(
-              filePath: imagePath,
-              fileName: fileName,
-              fileSize: stat.size,
-              createdAt: stat.changed,
-              modifiedAt: stat.modified,
-            );
-          } else {
-            throw Exception('File not found');
-          }
-        }
-
-        // 获取当前标签
-        final currentTags = await dataSource.getImageTags(imageId);
-        final updatedTags = applyBulkTagChanges(
-          currentTags,
-          tagsToAdd: tagsToAdd,
-          tagsToRemove: tagsToRemove,
-        );
-
-        await dataSource.setImageTags(imageId, updatedTags);
-        successCount++;
-        successfulItems.add(imagePath);
-        AppLogger.d(
-          'Updated tags for $imagePath: ${currentTags.length} -> ${updatedTags.length} ($successCount/${imagePaths.length})',
-          'BulkOperationService',
-        );
-      } catch (e) {
-        failedCount++;
-        errors.add('Failed to edit metadata for $imagePath: $e');
-        AppLogger.e(
-          'Metadata edit failed for $imagePath',
-          e,
-          null,
-          'BulkOperationService',
-        );
-      }
-    }
-
-    onProgress?.call(
-      current: imagePaths.length,
-      total: imagePaths.length,
-      currentItem: '',
-      isComplete: true,
+    final stopwatch = Stopwatch()..start();
+    final stateService = await _stateService();
+    final outcome = await stateService.editTags(
+      imagePaths,
+      tagsToAdd: tagsToAdd,
+      tagsToRemove: tagsToRemove,
+      onProgress: onProgress,
     );
     stopwatch.stop();
+
     AppLogger.i(
-      'Bulk metadata edit completed: $successCount succeeded, $failedCount failed in ${stopwatch.elapsedMilliseconds}ms',
+      'Bulk metadata edit completed: ${outcome.result.success} succeeded, ${outcome.result.failed} failed in ${stopwatch.elapsedMilliseconds}ms',
       'BulkOperationService',
     );
 
-    return (
-      success: successCount,
-      failed: failedCount,
-      errors: errors,
-      successfulItems: successfulItems,
+    return outcome;
+  }
+
+  /// 按显式目标回放标签，供撤销/重做复用同一条写入路径
+  Future<BulkOperationResult> applyTagAssignments(
+    List<BulkTagAssignment> assignments, {
+    BulkProgressCallback? onProgress,
+  }) async {
+    if (assignments.isEmpty) return emptyBulkOperationResult;
+
+    final stateService = await _stateService();
+    return stateService.applyTagAssignments(
+      assignments,
+      onProgress: onProgress,
     );
   }
 
   /// 批量切换收藏状态
-  Future<BulkOperationResult> bulkToggleFavorite(
+  Future<BulkFavoriteOutcome> bulkToggleFavorite(
     List<String> imagePaths, {
     required bool isFavorite,
     BulkProgressCallback? onProgress,
   }) async {
-    final stopwatch = Stopwatch()..start();
-    var successCount = 0;
-    var failedCount = 0;
-    final errors = <String>[];
-    final successfulItems = <String>[];
-
     AppLogger.i(
       'Starting bulk toggle favorite: ${imagePaths.length} images -> $isFavorite',
       'BulkOperationService',
     );
 
-    final dataSource = await _getDataSource();
-
-    for (var i = 0; i < imagePaths.length; i++) {
-      final imagePath = imagePaths[i];
-      onProgress?.call(
-        current: i,
-        total: imagePaths.length,
-        currentItem: imagePath,
-        isComplete: false,
-      );
-
-      try {
-        // 获取或创建图片ID
-        var imageId = await dataSource.getImageIdByPath(imagePath);
-
-        if (imageId == null) {
-          // 图片不在数据库中，先索引它
-          final file = File(imagePath);
-          if (await file.exists()) {
-            final stat = await file.stat();
-            final fileName = imagePath.split(Platform.pathSeparator).last;
-            imageId = await dataSource.upsertImage(
-              filePath: imagePath,
-              fileName: fileName,
-              fileSize: stat.size,
-              createdAt: stat.changed,
-              modifiedAt: stat.modified,
-            );
-          } else {
-            throw Exception('File not found');
-          }
-        }
-
-        // 检查当前收藏状态
-        final currentlyFavorite = await dataSource.isFavorite(imageId);
-
-        // 只有在状态需要改变时才切换
-        if (currentlyFavorite != isFavorite) {
-          await dataSource.toggleFavorite(imageId);
-        }
-
-        successCount++;
-        successfulItems.add(imagePath);
-        AppLogger.d(
-          'Set favorite: $imagePath -> $isFavorite ($successCount/${imagePaths.length})',
-          'BulkOperationService',
-        );
-      } catch (e) {
-        failedCount++;
-        errors.add('Failed to toggle favorite for $imagePath: $e');
-        AppLogger.e(
-          'Toggle favorite failed for $imagePath',
-          e,
-          null,
-          'BulkOperationService',
-        );
-      }
-    }
-
-    onProgress?.call(
-      current: imagePaths.length,
-      total: imagePaths.length,
-      currentItem: '',
-      isComplete: true,
+    final stopwatch = Stopwatch()..start();
+    final stateService = await _stateService();
+    final outcome = await stateService.setFavorites(
+      imagePaths,
+      isFavorite: isFavorite,
+      onProgress: onProgress,
     );
     stopwatch.stop();
+
     AppLogger.i(
-      'Bulk toggle favorite completed: $successCount succeeded, $failedCount failed in ${stopwatch.elapsedMilliseconds}ms',
+      'Bulk toggle favorite completed: ${outcome.result.success} succeeded, ${outcome.result.failed} failed in ${stopwatch.elapsedMilliseconds}ms',
       'BulkOperationService',
     );
 
-    return (
-      success: successCount,
-      failed: failedCount,
-      errors: errors,
-      successfulItems: successfulItems,
+    return outcome;
+  }
+
+  /// 按显式目标回放收藏状态，供撤销/重做复用同一条写入路径
+  Future<BulkOperationResult> applyFavoriteAssignments(
+    List<BulkFavoriteAssignment> assignments, {
+    BulkProgressCallback? onProgress,
+  }) async {
+    if (assignments.isEmpty) return emptyBulkOperationResult;
+
+    final stateService = await _stateService();
+    return stateService.applyFavoriteAssignments(
+      assignments,
+      onProgress: onProgress,
     );
   }
 
