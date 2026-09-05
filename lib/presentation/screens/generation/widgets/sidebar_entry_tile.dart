@@ -5,8 +5,11 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
+import '../../../themes/core/layered_surface_style.dart';
+import '../../../themes/prompt_semantic_colors.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/tile_action_button.dart';
@@ -62,31 +65,34 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tile = MouseRegion(
-      onEnter: (_) {
-        if (context.interactionPolicy.precisePointerAvailable) {
-          setState(() => _isHovering = true);
-        }
-      },
-      onExit: (_) => setState(() => _isHovering = false),
-      child: Material(
-        color: _backgroundColor(theme),
-        borderRadius: BorderRadius.circular(widget.isListMode ? 6 : 10),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
+    final tile = Semantics(
+      selected: widget.entry.enabled,
+      child: MouseRegion(
+        onEnter: (_) {
+          if (context.interactionPolicy.precisePointerAvailable) {
+            setState(() => _isHovering = true);
+          }
+        },
+        onExit: (_) => setState(() => _isHovering = false),
+        child: Material(
+          color: _backgroundColor(theme),
           borderRadius: BorderRadius.circular(widget.isListMode ? 6 : 10),
-          onFocusChange: (focused) => setState(() => _isFocused = focused),
-          onTap: widget.onToggle,
-          child: AnimatedContainer(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 120),
-            color: _isHovering
-                ? theme.colorScheme.onSurface.withValues(alpha: 0.045)
-                : Colors.transparent,
-            child: widget.isListMode
-                ? _buildListContent(theme)
-                : _buildCardContent(theme),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(widget.isListMode ? 6 : 10),
+            onFocusChange: (focused) => setState(() => _isFocused = focused),
+            onTap: widget.onToggle,
+            child: AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 120),
+              color: _isHovering
+                  ? theme.colorScheme.onSurface.withValues(alpha: 0.045)
+                  : Colors.transparent,
+              child: widget.isListMode
+                  ? _buildListContent(theme)
+                  : _buildCardContent(theme),
+            ),
           ),
         ),
       ),
@@ -101,19 +107,20 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   }
 
   Color _backgroundColor(ThemeData theme) {
-    if (widget.isListMode) {
-      return widget.entry.enabled
-          ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55)
-          : Colors.transparent;
-    }
+    final resting = controlSurfaceColor(theme.colorScheme);
     return widget.entry.enabled
-        ? theme.colorScheme.surfaceContainerHighest
-        : theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.65);
+        ? Color.alphaBlend(_statusColor(theme).withValues(alpha: 0.22), resting)
+        : resting;
   }
+
+  Color _statusColor(ThemeData theme) =>
+      widget.entry.promptType == FixedTagPromptType.positive
+      ? theme.promptSemanticColors.positiveFixedTag
+      : theme.promptSemanticColors.negativeFixedTag;
 
   Widget _buildListContent(ThemeData theme) {
     final leading = [
-      _buildStatusDot(),
+      _buildStatusIcon(theme),
       const SizedBox(width: 7),
       if (widget.linkAnchor != null) ...[
         widget.linkAnchor!,
@@ -133,7 +140,12 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(children: [...leading, Expanded(child: label)]),
+                Row(
+                  children: [
+                    ...leading,
+                    Expanded(child: label),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Align(
                   alignment: Alignment.centerRight,
@@ -223,6 +235,10 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
       children: [
         Row(
           children: [
+            if (!widget.isListMode) ...[
+              _buildStatusIcon(theme),
+              const SizedBox(width: 7),
+            ],
             Expanded(
               child: Text(
                 widget.entry.displayName,
@@ -256,16 +272,13 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
     );
   }
 
-  Widget _buildStatusDot() {
-    return Container(
-      width: 8,
-      height: 8,
-      decoration: BoxDecoration(
-        color: widget.entry.enabled
-            ? widget.categoryColor
-            : Theme.of(context).colorScheme.outline,
-        shape: BoxShape.circle,
-      ),
+  Widget _buildStatusIcon(ThemeData theme) {
+    return Icon(
+      widget.entry.enabled ? Icons.check_circle : Icons.radio_button_unchecked,
+      size: 18,
+      color: widget.entry.enabled
+          ? widget.categoryColor
+          : theme.colorScheme.onSurfaceVariant,
     );
   }
 
