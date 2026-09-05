@@ -161,50 +161,46 @@ class _ProContextMenuState extends State<ProContextMenu> {
           focusNode: _menuFocusNode,
           autofocus: true,
           onKeyEvent: _handleKeyEvent,
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: ProContextMenu.widthFor(context),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? colorScheme.surfaceContainerHigh.withValues(alpha: 0.98)
-                    : colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.12),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: ConstrainedBox(
-                  constraints: widget.maxHeight == null
-                      ? const BoxConstraints()
-                      : BoxConstraints(maxHeight: widget.maxHeight!),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (
-                          var index = 0;
-                          index < widget.items.length;
-                          index++
-                        )
-                          if (widget.items[index].isDivider)
-                            const ThemedDivider(height: 1)
-                          else
-                            _ContextMenuItem(
-                              item: widget.items[index],
-                              focusNode: _itemFocusNodes[index],
-                              order: index.toDouble(),
-                              onSelect: widget.onSelect,
-                            ),
-                      ],
-                    ),
+          child: Container(
+            width: ProContextMenu.widthFor(context),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? colorScheme.surfaceContainerHigh.withValues(alpha: 0.98)
+                  : colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.12),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            // Ink must paint above the menu surface, inside its rounded clip.
+            child: Material(
+              type: MaterialType.transparency,
+              clipBehavior: Clip.antiAlias,
+              borderRadius: BorderRadius.circular(6),
+              child: ConstrainedBox(
+                constraints: widget.maxHeight == null
+                    ? const BoxConstraints()
+                    : BoxConstraints(maxHeight: widget.maxHeight!),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var index = 0; index < widget.items.length; index++)
+                        if (widget.items[index].isDivider)
+                          const ThemedDivider(height: 1)
+                        else
+                          _ContextMenuItem(
+                            item: widget.items[index],
+                            focusNode: _itemFocusNodes[index],
+                            order: index.toDouble(),
+                            onSelect: widget.onSelect,
+                          ),
+                    ],
                   ),
                 ),
               ),
