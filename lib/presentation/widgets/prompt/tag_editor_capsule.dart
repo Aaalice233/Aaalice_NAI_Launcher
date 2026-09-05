@@ -147,7 +147,10 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
     final span = widget.tag.span;
     final emphasisColor = widget.emphasisColor;
     final background = widget.selected
-        ? scheme.secondaryContainer
+        ? Color.alphaBlend(
+            scheme.secondary.withValues(alpha: 0.12),
+            scheme.surfaceContainerHigh,
+          )
         : emphasisColor != null && !span.disabled
         ? TagEditorWeightStyle(
             emphasisColor,
@@ -199,7 +202,12 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
         color: span.disabled
             ? Color.alphaBlend(Colors.black.withValues(alpha: 0.32), background)
             : background,
-        borderRadius: BorderRadius.circular(8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: widget.selected
+              ? BorderSide(color: scheme.secondary.withValues(alpha: 0.5))
+              : BorderSide.none,
+        ),
         child: InkWell(
           onTap: widget.onTap,
           borderRadius: BorderRadius.circular(8),

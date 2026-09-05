@@ -40,13 +40,27 @@ void main() {
       );
       await tester.tap(find.text('cat'), kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
+      final selectedSurface = tester.widget<Material>(
+        find.descendant(of: cat, matching: find.byType(Material)).first,
+      );
       expect(
-        tester
-            .widget<Material>(
-              find.descendant(of: cat, matching: find.byType(Material)).first,
-            )
-            .color,
-        theme.colorScheme.secondaryContainer,
+        selectedSurface.color,
+        isNot(theme.colorScheme.secondaryContainer),
+      );
+      expect(
+        selectedSurface.color,
+        isNot(theme.colorScheme.surfaceContainerHigh),
+      );
+      expect(
+        (selectedSurface.shape! as RoundedRectangleBorder).side.style,
+        BorderStyle.solid,
+      );
+      final foregroundLuminance = theme.colorScheme.onSurface
+          .computeLuminance();
+      final backgroundLuminance = selectedSurface.color!.computeLuminance();
+      expect(
+        (foregroundLuminance + 0.05) / (backgroundLuminance + 0.05),
+        greaterThanOrEqualTo(4.5),
       );
       final disabled = tester
           .widgetList<TagEditorCapsule>(find.byType(TagEditorCapsule))
