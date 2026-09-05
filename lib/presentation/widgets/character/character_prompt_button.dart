@@ -1,3 +1,4 @@
+import '../common/delayed_rich_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +7,6 @@ import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
-import '../common/rich_tooltip_surface.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'character_tooltip_content.dart';
 
@@ -428,15 +428,8 @@ class _CharacterTooltipWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      richMessage: WidgetSpan(child: CharacterTooltipContent(config: config)),
-      constraints: const BoxConstraints(maxWidth: 380),
-      ignorePointer: false,
-      decoration: richTooltipOuterDecoration,
-      padding: EdgeInsets.zero,
-      waitDuration: const Duration(milliseconds: 400),
-      showDuration: const Duration(seconds: 8),
-      preferBelow: true,
+    return DelayedRichTooltip(
+      content: CharacterTooltipContent(config: config),
       child: child,
     );
   }

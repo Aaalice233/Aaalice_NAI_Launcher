@@ -130,12 +130,13 @@ void main() {
               await tester.pump();
               expect(tester.getRect(toolbar).height, before.height);
               expect(
-                tester
-                    .widget<IconButton>(
-                      find.widgetWithIcon(IconButton, Icons.translate),
-                    )
-                    .onPressed,
-                isNull,
+                tester.getRect(toolbar).width,
+                closeTo(before.height, .01),
+              );
+              expect(find.byIcon(Icons.translate), findsNothing);
+              expect(
+                find.byKey(const ValueKey('prompt_assistant_stop')),
+                findsOneWidget,
               );
               state.setError('layout', 'test failure');
               await tester.pump();

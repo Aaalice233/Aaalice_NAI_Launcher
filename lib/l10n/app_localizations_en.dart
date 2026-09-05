@@ -75,6 +75,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get common_error => 'Error';
 
   @override
+  String get promptAssistant_completed => 'Prompt assistant finished';
+
+  @override
   String get common_success => 'Success';
 
   @override

@@ -21,6 +21,7 @@
   "common_import": "インポート",
   "common_loading": "読み込み中...",
   "common_error": "エラー",
+  "promptAssistant_completed": "プロンプトアシスタントの処理が完了しました",
   "common_success": "成功",
   "common_retry": "再試行",
   "common_select": "選択してください",

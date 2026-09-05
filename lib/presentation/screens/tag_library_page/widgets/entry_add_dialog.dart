@@ -334,21 +334,25 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                     style: theme.textTheme.labelLarge,
                   ),
                   const SizedBox(height: 8),
-                  SizedBox(
+                  ConstrainedBox(
                     key: const Key('entry-add-dialog-content-editor'),
-                    height: 176,
+                    constraints: const BoxConstraints(minHeight: 176),
                     child: TagModePromptField(
                       sessionId: _modeId,
+                      fitContent: true,
                       showModeSwitch: false,
-                      assistant: PromptAssistantOverlay(
-                        sessionId: _assistantSessionId,
-                        controller: _contentController,
-                        iconOnly: true,
-                        tagModeSessionId: _modeId,
-                        supportsTagMode: true,
-                        stripFixedTagsFromInput: false,
-                        onOpenSettings: () =>
-                            PromptAssistantQuickSettings.show(context),
+                      assistant: Positioned.fill(
+                        child: PromptAssistantOverlay(
+                          placement: PromptAssistantPlacement.viewport,
+                          sessionId: _assistantSessionId,
+                          controller: _contentController,
+                          iconOnly: true,
+                          tagModeSessionId: _modeId,
+                          supportsTagMode: true,
+                          stripFixedTagsFromInput: false,
+                          onOpenSettings: () =>
+                              PromptAssistantQuickSettings.show(context),
+                        ),
                       ),
                       controller: _contentController,
                       sourceFocusNode: _contentFocusNode,
@@ -362,7 +366,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                           controller: _contentController.displayController,
                           focusNode: _contentFocusNode,
                           ref: ref,
-                          expands: true,
+                          expands: false,
                           config: const AutocompleteConfig(
                             showTranslation: true,
                             showCategory: true,
@@ -384,7 +388,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                               ),
                             ),
                             maxLines: null,
-                            expands: true,
+                            minLines: 4,
+                            expands: false,
                           ),
                         ),
                       ),

@@ -1,3 +1,5 @@
+import '../common/delayed_rich_tooltip.dart';
+import '../common/rich_tooltip_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -62,34 +64,17 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
         .read(ucPresetNotifierProvider.notifier)
         .getEffectiveContent(widget.model);
     final isEnabled = !presetState.isDisabled;
-    return Tooltip(
-      richMessage: WidgetSpan(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: _buildTooltipWidget(
-            theme,
-            effectiveContent,
-            isEnabled,
-            presetState.isCustom,
-            currentEntry,
-          ),
+    return DelayedRichTooltip(
+      content: RichTooltipSurface(
+        maxWidth: 360,
+        child: _buildTooltipWidget(
+          theme,
+          effectiveContent,
+          isEnabled,
+          presetState.isCustom,
+          currentEntry,
         ),
       ),
-      preferBelow: true,
-      verticalOffset: 20,
-      waitDuration: const Duration(milliseconds: 300),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
       child: PromptControlButton(
         key: _buttonKey,
         color: theme.promptSemanticColors.negativeQuality,

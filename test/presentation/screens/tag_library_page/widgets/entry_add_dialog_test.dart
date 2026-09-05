@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_toolbar.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_add_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -161,7 +162,7 @@ void main() {
       find.byKey(const ValueKey('entry-thumbnail-square-preview')),
     );
     expect(squarePreview.size, const Size.square(220));
-    expect(editor.height, 176);
+    expect(editor.height, greaterThanOrEqualTo(176));
     expect(editor.top, lessThan(490));
     final contentInput = find.descendant(
       of: find.byKey(const Key('entry-add-dialog-content-editor')),
@@ -180,7 +181,11 @@ void main() {
     final assistant = find.byType(PromptAssistantOverlay);
     expect(contentFooter, findsOneWidget);
     expect(assistant, findsOneWidget);
-    final collapsedAssistantHeight = tester.getSize(assistant).height;
+    final toolbar = find.descendant(
+      of: assistant,
+      matching: find.byType(PromptAssistantToolbar),
+    );
+    final collapsedAssistantHeight = tester.getSize(toolbar).height;
     expect(
       find.descendant(
         of: contentFooter,
@@ -197,15 +202,15 @@ void main() {
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).placement,
-      PromptAssistantPlacement.editor,
+      PromptAssistantPlacement.viewport,
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
       false,
     );
     expect(
-      tester.getTopRight(assistant).dx,
-      closeTo(tester.getTopRight(contentInput).dx - 8, 1),
+      tester.getTopRight(toolbar).dx,
+      closeTo(tester.getTopRight(contentInput).dx - 4, 1),
     );
 
     final dialogScrollable = find
@@ -223,7 +228,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final expandedAssistantRect = tester.getRect(assistant);
+    final expandedAssistantRect = tester.getRect(toolbar);
     expect(
       expandedAssistantRect.height,
       closeTo(collapsedAssistantHeight, .01),
@@ -272,6 +277,52 @@ void main() {
     expect(frame.center.dx, greaterThan(preview.center.dx));
     expect(frame.center.dy, lessThan(preview.center.dy));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long text and tags grow the editor and only the form scrolls', (
+    tester,
+  ) async {
+    final entry = TagLibraryEntry(
+      id: 'long-entry',
+      name: 'Long entry',
+      content: List.generate(150, (index) => 'detailed_tag_$index').join(', '),
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    await _pumpLauncher(tester, size: const Size(1180, 800), entry: entry);
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+    final editor = find.byKey(const Key('entry-add-dialog-content-editor'));
+    final form = find.byKey(const Key('entry-add-dialog-scroll'));
+    final footer = find.byKey(
+      const ValueKey('entry-add-dialog-content-footer'),
+    );
+    final footerBefore = tester.getRect(footer);
+    for (final tags in [false, true]) {
+      if (tags) {
+        await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+        await tester.pumpAndSettle();
+      }
+      expect(tester.getSize(editor).height, greaterThan(176));
+      for (final element
+          in find
+              .descendant(of: editor, matching: find.byType(Scrollable))
+              .evaluate()) {
+        final state = (element as StatefulElement).state as ScrollableState;
+        expect(state.position.maxScrollExtent, closeTo(0, .01));
+      }
+      final outer = tester
+          .state<ScrollableState>(
+            find.descendant(of: form, matching: find.byType(Scrollable)).first,
+          )
+          .position;
+      expect(outer.maxScrollExtent, greaterThan(0));
+      outer.jumpTo(outer.maxScrollExtent);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(footer), footerBefore);
+      expect(tester.takeException(), isNull);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('系统返回关闭表单且 Future<void> 正常完成', (tester) async {

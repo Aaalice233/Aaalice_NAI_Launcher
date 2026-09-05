@@ -25,6 +25,7 @@
   "common_import": "Import",
   "common_loading": "Loading...",
   "common_error": "Error",
+  "promptAssistant_completed": "Prompt assistant finished",
   "common_success": "Success",
   "common_retry": "Retry",
   "common_select": "Select",

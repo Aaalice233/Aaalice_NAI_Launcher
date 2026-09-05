@@ -75,6 +75,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get common_error => 'エラー';
 
   @override
+  String get promptAssistant_completed => 'プロンプトアシスタントの処理が完了しました';
+
+  @override
   String get common_success => '成功';
 
   @override

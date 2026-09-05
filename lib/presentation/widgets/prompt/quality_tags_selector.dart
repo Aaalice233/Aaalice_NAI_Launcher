@@ -1,3 +1,5 @@
+import '../common/delayed_rich_tooltip.dart';
+import '../common/rich_tooltip_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -53,28 +55,11 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     final presetState = ref.watch(qualityPresetNotifierProvider);
     final customEntries = ref.watch(qualityCustomEntriesProvider);
     final isEnabled = presetState.mode != PromptPresetMode.none;
-    return Tooltip(
-      richMessage: WidgetSpan(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320),
-          child: _buildTooltipContent(theme, presetState, customEntries),
-        ),
+    return DelayedRichTooltip(
+      content: RichTooltipSurface(
+        maxWidth: 320,
+        child: _buildTooltipContent(theme, presetState, customEntries),
       ),
-      preferBelow: true,
-      verticalOffset: 20,
-      waitDuration: const Duration(milliseconds: 300),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
       child: CompositedTransformTarget(
         key: _buttonKey,
         link: _layerLink,

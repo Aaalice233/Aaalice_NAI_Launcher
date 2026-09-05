@@ -1,3 +1,4 @@
+import '../../../widgets/common/delayed_rich_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -201,24 +202,9 @@ class _PromptTypeButtonState extends State<PromptTypeButton> {
     final tooltipBuilder = widget.tooltipBuilder;
     if (tooltipBuilder == null) return button;
     final rich = context.interactionPolicy.precisePointerAvailable;
-    return Tooltip(
-      message: rich ? null : widget.label,
-      richMessage: rich
-          ? WidgetSpan(
-              child: RichTooltipSurface(
-                maxWidth: 420,
-                child: tooltipBuilder(theme),
-              ),
-            )
-          : null,
-      preferBelow: true,
-      verticalOffset: 20,
-      waitDuration: const Duration(milliseconds: 300),
-      exitDuration: rich ? const Duration(milliseconds: 300) : null,
-      enableTapToDismiss: !rich,
-      ignorePointer: false,
-      decoration: richTooltipOuterDecoration,
-      padding: EdgeInsets.zero,
+    if (!rich) return Tooltip(message: widget.label, child: button);
+    return DelayedRichTooltip(
+      content: RichTooltipSurface(maxWidth: 420, child: tooltipBuilder(theme)),
       child: button,
     );
   }

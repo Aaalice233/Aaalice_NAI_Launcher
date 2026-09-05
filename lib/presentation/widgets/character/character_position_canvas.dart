@@ -516,26 +516,27 @@ class _ModeSegment extends StatelessWidget {
         ? 5.0
         : 10.0;
 
-    return InkWell(
-      onTap: onTap,
+    return Material(
+      color: selected
+          ? colorScheme.primary.withValues(alpha: 0.14)
+          : colorScheme.surfaceContainer,
       borderRadius: radius,
-      child: Container(
-        constraints: BoxConstraints(
-          minWidth: controlExtent,
-          minHeight: controlExtent,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: Container(
+          constraints: BoxConstraints(
+            minWidth: controlExtent,
+            minHeight: controlExtent,
+          ),
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: 5,
+          ),
+          child: child,
         ),
-        alignment: Alignment.center,
-        padding: EdgeInsets.symmetric(
-          horizontal: horizontalPadding,
-          vertical: 5,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.14)
-              : colorScheme.surfaceContainer,
-          borderRadius: radius,
-        ),
-        child: child,
       ),
     );
   }

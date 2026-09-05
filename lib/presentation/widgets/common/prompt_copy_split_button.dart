@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../adaptive/interaction_policy.dart';
 
 /// Shared high-frequency copy action with a compact secondary menu.
 class PromptCopySplitButton extends StatelessWidget {
@@ -25,21 +26,37 @@ class PromptCopySplitButton extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final effectiveStyle =
         (theme.outlinedButtonTheme.style ?? const ButtonStyle()).merge(style);
+    final height = (MediaQuery.textScalerOf(context).scale(12) * 1.4 + 20)
+        .clamp(
+          context.interactionPolicy.minimumControlExtent.clamp(
+            48.0,
+            double.infinity,
+          ),
+          double.infinity,
+        );
     final outerShape =
         effectiveStyle.shape?.resolve(const <WidgetState>{}) ??
-        const RoundedRectangleBorder();
+        const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+        );
     final segmentStyle = effectiveStyle.copyWith(
       shape: const WidgetStatePropertyAll(RoundedRectangleBorder()),
       side: const WidgetStatePropertyAll(BorderSide.none),
+      minimumSize: WidgetStatePropertyAll(Size(0, height)),
+      maximumSize: const WidgetStatePropertyAll(Size.infinite),
+      fixedSize: WidgetStatePropertyAll(Size.fromHeight(height)),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.standard,
     );
 
     return SizedBox(
-      height: 48,
+      height: height,
       child: Material(
         type: MaterialType.transparency,
         shape: outerShape,
         clipBehavior: Clip.antiAlias,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               child: OutlinedButton.icon(
@@ -53,11 +70,13 @@ class PromptCopySplitButton extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(
-              width: 1,
-              height: 24,
-              child: ColoredBox(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.72),
+            Center(
+              child: SizedBox(
+                width: 1,
+                height: 24,
+                child: ColoredBox(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.72),
+                ),
               ),
             ),
             SizedBox(
@@ -69,7 +88,7 @@ class PromptCopySplitButton extends StatelessWidget {
                   child: OutlinedButton(
                     key: menuButtonKey,
                     style: segmentStyle.copyWith(
-                      minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+                      minimumSize: WidgetStatePropertyAll(Size(48, height)),
                       padding: const WidgetStatePropertyAll(EdgeInsets.zero),
                     ),
                     onPressed: menuChildren.isEmpty

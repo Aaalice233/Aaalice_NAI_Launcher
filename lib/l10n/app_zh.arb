@@ -25,6 +25,7 @@
   "common_import": "导入",
   "common_loading": "加载中...",
   "common_error": "错误",
+  "promptAssistant_completed": "提示词助手处理完成",
   "common_success": "成功",
   "common_retry": "重试",
   "common_select": "选择",

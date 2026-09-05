@@ -75,6 +75,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get common_error => '错误';
 
   @override
+  String get promptAssistant_completed => '提示词助手处理完成';
+
+  @override
   String get common_success => '成功';
 
   @override
@@ -14209,6 +14212,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get common_error => '錯誤';
+
+  @override
+  String get promptAssistant_completed => '提示詞助手處理完成';
 
   @override
   String get common_success => '成功';

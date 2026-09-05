@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../adaptive/interaction_policy.dart';
-import '../../themes/core/layered_surface_style.dart';
+import '../../../core/utils/localization_extension.dart';
+import 'prompt_assistant_processing_button.dart';
+import '../../widgets/common/card_action_buttons.dart';
 
 /// Geometry is shared by every mounting surface and both expansion states.
 class PromptAssistantToolbarMetrics {
@@ -88,37 +90,58 @@ class PromptAssistantToolbar extends StatelessWidget {
     required this.policy,
     required this.expanded,
     required this.actions,
+    this.processing = false,
+    this.processingLabel,
+    this.onCancel,
   });
 
   final String sessionId;
   final PromptAssistantToolbarMetrics metrics;
   final InteractionPolicy policy;
   final bool expanded;
+  final bool processing;
+  final String? processingLabel;
+  final VoidCallback? onCancel;
   final List<PromptAssistantToolbarAction> actions;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return SizedBox(
       key: ValueKey('prompt_assistant_toolbar_$sessionId'),
       height: metrics.extent,
-      width: expanded ? metrics.expandedWidth : metrics.collapsedWidth,
+      width: processing
+          ? metrics.extent
+          : expanded
+          ? metrics.expandedWidth
+          : metrics.collapsedWidth,
       child: Material(
         color: expanded
-            ? overlaySurfaceColor(colors)
-            : controlSurfaceColor(colors),
-        borderRadius: BorderRadius.circular(10),
-        clipBehavior: Clip.antiAlias,
-        child: SingleChildScrollView(
-          key: ValueKey('prompt_assistant_action_scroll_$sessionId'),
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final action in actions) _actionButton(context, action),
-            ],
-          ),
+            ? ImageOverlayControlStyle.toolbarSurface
+            : ImageOverlayControlStyle.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: ImageOverlayControlStyle.border),
         ),
+        clipBehavior: Clip.antiAlias,
+        child: processing
+            ? PromptAssistantProcessingButton(
+                extent: metrics.extent,
+                showStop: policy.shouldExposeTouchAlternatives,
+                label:
+                    '${processingLabel ?? context.l10n.promptAssistant_assistant} · ${context.l10n.promptAssistant_cancelTask}',
+                onCancel: onCancel,
+              )
+            : SingleChildScrollView(
+                key: ValueKey('prompt_assistant_action_scroll_$sessionId'),
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final action in actions)
+                      _actionButton(context, action),
+                  ],
+                ),
+              ),
       ),
     );
   }
@@ -132,6 +155,12 @@ class PromptAssistantToolbar extends StatelessWidget {
       size: policy.shouldExposeTouchAlternatives ? 20 : 17,
     );
     final style = ButtonStyle(
+      foregroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? Colors.white54
+            : Colors.white,
+      ),
+      overlayColor: const WidgetStatePropertyAll(Color(0x24FFFFFF)),
       padding: const WidgetStatePropertyAll(EdgeInsets.zero),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.standard,

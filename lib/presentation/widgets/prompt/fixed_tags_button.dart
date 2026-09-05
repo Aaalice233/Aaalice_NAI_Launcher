@@ -1,3 +1,4 @@
+import '../common/delayed_rich_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -44,22 +45,14 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     final mediaQuery = MediaQuery.of(context);
     return MediaQuery(
       data: mediaQuery.copyWith(textScaler: TextScaler.noScaling),
-      child: Tooltip(
-        richMessage: WidgetSpan(
-          child: MediaQuery(
-            data: mediaQuery,
-            child: RichTooltipSurface(
-              maxWidth: 420,
-              child: _buildTooltipContent(theme, fixedTagsState),
-            ),
+      child: DelayedRichTooltip(
+        content: MediaQuery(
+          data: mediaQuery,
+          child: RichTooltipSurface(
+            maxWidth: 420,
+            child: _buildTooltipContent(theme, fixedTagsState),
           ),
         ),
-        preferBelow: true,
-        verticalOffset: 20,
-        waitDuration: const Duration(milliseconds: 300),
-        ignorePointer: false,
-        decoration: richTooltipOuterDecoration,
-        padding: EdgeInsets.zero,
         child: MediaQuery(
           data: mediaQuery,
           child: Semantics(

@@ -19,9 +19,9 @@ class PromptEditorControlRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: [
       Expanded(child: leading),
-      if (action != null) action!,
       const SizedBox(width: 4),
       PromptTagModeToggle(sessionId: sessionId),
+      if (action != null) ...[const SizedBox(width: 4), action!],
     ],
   );
 }

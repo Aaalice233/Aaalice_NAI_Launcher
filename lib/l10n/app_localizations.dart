@@ -233,6 +233,12 @@ abstract class AppLocalizations {
   /// **'Error'**
   String get common_error;
 
+  /// No description provided for @promptAssistant_completed.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt assistant finished'**
+  String get promptAssistant_completed;
+
   /// No description provided for @common_success.
   ///
   /// In en, this message translates to:
