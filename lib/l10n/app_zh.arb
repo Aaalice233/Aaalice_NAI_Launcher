@@ -6826,5 +6826,7 @@
   "watermark_moveRight": "向右移动图层",
   "watermark_moveUp": "向上移动图层",
   "watermark_moveDown": "向下移动图层",
-  "watermark_sourceLoadFailed": "无法打开此图片。请确认文件是有效的静态 PNG、JPEG、WebP 或 BMP 图片后重试。"
+  "watermark_sourceLoadFailed": "无法打开此图片。请确认文件是有效的静态 PNG、JPEG、WebP 或 BMP 图片后重试。",
+  "promptAssistant_responseTimeoutTitle": "响应等待超时",
+  "promptAssistant_responseTimeoutDescription": "反推、优化、翻译、角色替换和自定义改写共用。默认 5 分钟；模型思考较慢时可调长，仍可随时取消。不影响连接超时和智能体聊天。"
 }

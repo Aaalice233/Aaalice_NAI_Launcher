@@ -6780,5 +6780,7 @@
   "watermark_moveRight": "レイヤーを右へ移動",
   "watermark_moveUp": "レイヤーを上へ移動",
   "watermark_moveDown": "レイヤーを下へ移動",
-  "watermark_sourceLoadFailed": "この画像を開けませんでした。有効な静止 PNG、JPEG、WebP、または BMP 画像であることを確認して、もう一度お試しください。"
+  "watermark_sourceLoadFailed": "この画像を開けませんでした。有効な静止 PNG、JPEG、WebP、または BMP 画像であることを確認して、もう一度お試しください。",
+  "promptAssistant_responseTimeoutTitle": "応答待機タイムアウト",
+  "promptAssistant_responseTimeoutDescription": "画像からのプロンプト作成、最適化、翻訳、キャラクター置換、カスタム書き換えで共通です。既定は5分。応答が遅いモデルでは延長でき、いつでもキャンセルできます。接続タイムアウトとエージェントチャットには影響しません。"
 }

@@ -20,11 +20,15 @@ class PromptAssistantRequest {
     required this.systemPrompt,
     required this.userParts,
     required this.apiKey,
+    this.responseTimeout = const Duration(
+      seconds: PromptAssistantConfigState.defaultResponseTimeoutSeconds,
+    ),
     this.responseFormat = PromptAssistantResponseFormat.text,
     this.maxOutputTokens,
     this.reasoningMode = PromptAssistantReasoningMode.automatic,
   });
 
+  final Duration responseTimeout;
   final String sessionId;
   final ProviderConfig provider;
   final String model;
@@ -148,6 +152,7 @@ Future<PromptAssistantRequest> optimizePromptAssistantRequestImagesForUpload(
     systemPrompt: request.systemPrompt,
     userParts: parts,
     apiKey: request.apiKey,
+    responseTimeout: request.responseTimeout,
     responseFormat: request.responseFormat,
     maxOutputTokens: request.maxOutputTokens,
     reasoningMode: request.reasoningMode,

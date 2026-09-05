@@ -153,6 +153,11 @@ Prompt version: $tagTranslationPromptVersion
     await for (final chunk in _apiClient.complete(
       request: PromptAssistantRequest(
         sessionId: sessionId,
+        responseTimeout: Duration(
+          seconds: _ref
+              .read(promptAssistantConfigProvider)
+              .responseTimeoutSeconds,
+        ),
         provider: execution.provider,
         model: execution.model.name,
         systemPrompt: systemPrompt,
@@ -380,6 +385,11 @@ Prompt version: $tagTranslationPromptVersion
     yield* _apiClient.complete(
       request: PromptAssistantRequest(
         sessionId: sessionId,
+        responseTimeout: Duration(
+          seconds: _ref
+              .read(promptAssistantConfigProvider)
+              .responseTimeoutSeconds,
+        ),
         provider: execution.provider,
         model: execution.model.name,
         systemPrompt: systemPrompt,

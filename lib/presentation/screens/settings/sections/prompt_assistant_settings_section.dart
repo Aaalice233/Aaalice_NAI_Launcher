@@ -49,6 +49,42 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
                   ),
                   onChanged: notifier.setDesktopOverlayEnabled,
                 ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(context.l10n.promptAssistant_responseTimeoutTitle),
+                    const SizedBox(height: 4),
+                    Text(
+                      context.l10n.promptAssistant_responseTimeoutDescription,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButton<int>(
+                      key: const ValueKey('prompt-assistant-response-timeout'),
+                      isExpanded: true,
+                      value: state.responseTimeoutSeconds,
+                      items: [
+                        for (final seconds
+                            in PromptAssistantConfigState
+                                .responseTimeoutChoices)
+                          DropdownMenuItem(
+                            value: seconds,
+                            child: Text(
+                              context.l10n.queue_minutes(seconds ~/ 60),
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          notifier.setResponseTimeoutSeconds(value);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

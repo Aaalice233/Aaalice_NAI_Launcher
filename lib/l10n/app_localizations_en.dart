@@ -14574,4 +14574,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get watermark_sourceLoadFailed =>
       'This image could not be opened. Check that it is a valid, static PNG, JPEG, WebP, or BMP image, then try again.';
+
+  @override
+  String get promptAssistant_responseTimeoutTitle => 'Response wait timeout';
+
+  @override
+  String get promptAssistant_responseTimeoutDescription =>
+      'Shared by reverse prompting, optimization, translation, character replacement, and custom rewriting. Defaults to 5 minutes; increase it for slower models. You can still cancel at any time. Connection timeouts and agent chat are unchanged.';
 }

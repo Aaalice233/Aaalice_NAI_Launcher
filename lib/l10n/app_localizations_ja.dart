@@ -14195,4 +14195,11 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get watermark_sourceLoadFailed =>
       'この画像を開けませんでした。有効な静止 PNG、JPEG、WebP、または BMP 画像であることを確認して、もう一度お試しください。';
+
+  @override
+  String get promptAssistant_responseTimeoutTitle => '応答待機タイムアウト';
+
+  @override
+  String get promptAssistant_responseTimeoutDescription =>
+      '画像からのプロンプト作成、最適化、翻訳、キャラクター置換、カスタム書き換えで共通です。既定は5分。応答が遅いモデルでは延長でき、いつでもキャンセルできます。接続タイムアウトとエージェントチャットには影響しません。';
 }

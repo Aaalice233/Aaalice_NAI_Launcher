@@ -1022,6 +1022,10 @@ class AssistantOperationResult {
 }
 
 class PromptAssistantConfigState {
+  static const defaultResponseTimeoutSeconds = 300;
+  static const responseTimeoutChoices = [60, 120, 300, 600, 900, 1800];
+
+  final int responseTimeoutSeconds;
   final bool enabled;
   final bool desktopOverlayEnabled;
   final bool streamOutput;
@@ -1033,6 +1037,7 @@ class PromptAssistantConfigState {
   final Map<String, bool> providerHasApiKey;
 
   const PromptAssistantConfigState({
+    this.responseTimeoutSeconds = defaultResponseTimeoutSeconds,
     required this.enabled,
     required this.desktopOverlayEnabled,
     required this.streamOutput,
@@ -1111,6 +1116,7 @@ class PromptAssistantConfigState {
   }
 
   PromptAssistantConfigState copyWith({
+    int? responseTimeoutSeconds,
     bool? enabled,
     bool? desktopOverlayEnabled,
     bool? streamOutput,
@@ -1122,6 +1128,8 @@ class PromptAssistantConfigState {
     Map<String, bool>? providerHasApiKey,
   }) {
     return PromptAssistantConfigState(
+      responseTimeoutSeconds:
+          responseTimeoutSeconds ?? this.responseTimeoutSeconds,
       enabled: enabled ?? this.enabled,
       desktopOverlayEnabled:
           desktopOverlayEnabled ?? this.desktopOverlayEnabled,
@@ -1137,6 +1145,7 @@ class PromptAssistantConfigState {
 
   Map<String, dynamic> toJson() => {
     'schemaVersion': 2,
+    'responseTimeoutSeconds': responseTimeoutSeconds,
     'enabled': enabled,
     'desktopOverlayEnabled': desktopOverlayEnabled,
     'streamOutput': false,
@@ -1238,6 +1247,11 @@ class PromptAssistantConfigState {
     final rules = _mergeDefaultRules(decodedRules, defaults.rules);
 
     return PromptAssistantConfigState(
+      responseTimeoutSeconds:
+          json['responseTimeoutSeconds'] is int &&
+              responseTimeoutChoices.contains(json['responseTimeoutSeconds'])
+          ? json['responseTimeoutSeconds'] as int
+          : defaultResponseTimeoutSeconds,
       enabled: json['enabled'] as bool? ?? true,
       desktopOverlayEnabled: json['desktopOverlayEnabled'] as bool? ?? true,
       streamOutput: false,

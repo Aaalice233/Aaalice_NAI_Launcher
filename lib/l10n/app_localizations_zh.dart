@@ -13940,6 +13940,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get watermark_sourceLoadFailed =>
       '无法打开此图片。请确认文件是有效的静态 PNG、JPEG、WebP 或 BMP 图片后重试。';
+
+  @override
+  String get promptAssistant_responseTimeoutTitle => '响应等待超时';
+
+  @override
+  String get promptAssistant_responseTimeoutDescription =>
+      '反推、优化、翻译、角色替换和自定义改写共用。默认 5 分钟；模型思考较慢时可调长，仍可随时取消。不影响连接超时和智能体聊天。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -27879,4 +27886,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get watermark_sourceLoadFailed =>
       '無法開啟此圖片。請確認檔案是有效的靜態 PNG、JPEG、WebP 或 BMP 圖片後再試一次。';
+
+  @override
+  String get promptAssistant_responseTimeoutTitle => '回應等待逾時';
+
+  @override
+  String get promptAssistant_responseTimeoutDescription =>
+      '反推、最佳化、翻譯、角色替換和自訂改寫共用。預設 5 分鐘；模型思考較慢時可延長，仍可隨時取消。不影響連線逾時和智慧體聊天。';
 }

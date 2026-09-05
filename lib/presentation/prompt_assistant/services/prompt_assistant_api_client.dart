@@ -128,6 +128,9 @@ class PromptAssistantApiClient {
       if (status != null) 'HTTP $status',
       'provider=${request.provider.name}',
       'model=${request.model}',
+      if (error.type == DioExceptionType.receiveTimeout)
+        'response wait timeout=${request.responseTimeout.inSeconds}s; '
+            'adjust Settings > Prompt Assistant > Response wait timeout',
       if (target != null) 'endpoint=$target',
       if (detail != null && detail.trim().isNotEmpty) detail.trim(),
     ].join(': ');

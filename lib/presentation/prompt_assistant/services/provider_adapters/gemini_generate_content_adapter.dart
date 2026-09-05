@@ -50,7 +50,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       options: Options(
         headers: _headers(request.apiKey),
         sendTimeout: const Duration(seconds: 30),
-        receiveTimeout: Duration.zero,
+        receiveTimeout: request.responseTimeout,
       ),
       cancelToken: cancelToken,
     );

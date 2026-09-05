@@ -2169,7 +2169,7 @@ void main() {
           'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
         );
         expect(options.headers?['x-goog-api-key'], 'key');
-        expect(options.receiveTimeout, Duration.zero);
+        expect(options.receiveTimeout, const Duration(minutes: 5));
         expect(payload['systemInstruction'], isA<Map>());
         return Response<dynamic>(
           data: const {

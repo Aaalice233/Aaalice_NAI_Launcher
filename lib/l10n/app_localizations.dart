@@ -25362,6 +25362,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This image could not be opened. Check that it is a valid, static PNG, JPEG, WebP, or BMP image, then try again.'**
   String get watermark_sourceLoadFailed;
+
+  /// No description provided for @promptAssistant_responseTimeoutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Response wait timeout'**
+  String get promptAssistant_responseTimeoutTitle;
+
+  /// No description provided for @promptAssistant_responseTimeoutDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared by reverse prompting, optimization, translation, character replacement, and custom rewriting. Defaults to 5 minutes; increase it for slower models. You can still cancel at any time. Connection timeouts and agent chat are unchanged.'**
+  String get promptAssistant_responseTimeoutDescription;
 }
 
 class _AppLocalizationsDelegate

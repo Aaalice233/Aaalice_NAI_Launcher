@@ -49,7 +49,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
       options: Options(
         headers: _headers(request.apiKey),
         sendTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(minutes: 2),
+        receiveTimeout: request.responseTimeout,
       ),
       cancelToken: cancelToken,
     );

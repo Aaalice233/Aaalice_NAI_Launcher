@@ -66,6 +66,18 @@ class PromptAssistantConfigNotifier
     state = state.copyWith(providerHasApiKey: next);
   }
 
+  Future<void> setResponseTimeoutSeconds(int seconds) async {
+    if (!PromptAssistantConfigState.responseTimeoutChoices.contains(seconds)) {
+      throw ArgumentError.value(
+        seconds,
+        'seconds',
+        'Unsupported response timeout',
+      );
+    }
+    state = state.copyWith(responseTimeoutSeconds: seconds);
+    await _save();
+  }
+
   Future<void> setEnabled(bool enabled) async {
     state = state.copyWith(enabled: enabled);
     await _save();

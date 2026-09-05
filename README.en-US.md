@@ -59,6 +59,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Related-tag completion helps explore composition, clothing, poses, and visual elements, while Danbooru online results can fill in newer tags.
 - Personal tag, pinned-tag, and random-tag libraries support categories, search, batch editing, and quick insertion.
 - Local quick translation creates a preview without rewriting the original Prompt; local misses can be sent to a configured AI translation service.
+- Prompt Assistant tasks, including reverse prompting, optimization, and translation, share a configurable response wait timeout: 1, 2, 5, 10, 15, or 30 minutes, with a 5-minute default.
 
 ### 🧬 Vibe, Precise Reference, and image editing
 

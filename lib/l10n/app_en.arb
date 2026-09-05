@@ -6757,5 +6757,7 @@
   "watermark_moveRight": "Move layer right",
   "watermark_moveUp": "Move layer up",
   "watermark_moveDown": "Move layer down",
-  "watermark_sourceLoadFailed": "This image could not be opened. Check that it is a valid, static PNG, JPEG, WebP, or BMP image, then try again."
+  "watermark_sourceLoadFailed": "This image could not be opened. Check that it is a valid, static PNG, JPEG, WebP, or BMP image, then try again.",
+  "promptAssistant_responseTimeoutTitle": "Response wait timeout",
+  "promptAssistant_responseTimeoutDescription": "Shared by reverse prompting, optimization, translation, character replacement, and custom rewriting. Defaults to 5 minutes; increase it for slower models. You can still cancel at any time. Connection timeouts and agent chat are unchanged."
 }
