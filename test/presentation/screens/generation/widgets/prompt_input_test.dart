@@ -19,7 +19,6 @@ import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assist
 import 'package:nai_launcher/presentation/providers/character_position_canvas_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
-import 'package:nai_launcher/presentation/screens/generation/widgets/generation_toggle_button.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
@@ -719,6 +718,40 @@ void main() {
     );
 
     expect(toggle, findsOneWidget);
+    final footer = find.byKey(const ValueKey('generation_prompt_footer'));
+    final footerButtons = find.descendant(
+      of: footer,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is TextButton || widget is IconButton,
+      ),
+    );
+    final surfaces = <Finder>[];
+    for (final element in footerButtons.evaluate()) {
+      final surface = find
+          .descendant(
+            of: find.byWidget(element.widget),
+            matching: find.byType(Material),
+          )
+          .first;
+      surfaces.add(surface);
+      expect(tester.getSize(surface).height, 32);
+      expect(tester.widget<Material>(surface).shape, isA<StadiumBorder>());
+      expect(
+        tester.getSize(find.byWidget(element.widget)).height,
+        greaterThanOrEqualTo(44),
+      );
+    }
+    expect(surfaces.length, greaterThanOrEqualTo(4));
+    final hover = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await hover.addPointer(location: Offset.zero);
+    for (final surface in surfaces) {
+      final before = tester.getRect(surface);
+      await hover.moveTo(before.center);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.getRect(surface), before);
+      expect(tester.widget<Material>(surface).shape, isA<StadiumBorder>());
+    }
+    await hover.removePointer();
     expect(
       tester.getTopLeft(toggle).dy,
       greaterThanOrEqualTo(tester.getBottomLeft(promptField).dy),
@@ -731,7 +764,21 @@ void main() {
       tester.getRect(find.byKey(const ValueKey('tag-mode-button'))).left,
       greaterThan(tester.getRect(toggle).right),
     );
-    expect(tester.widget<GenerationToggleButton>(toggle).isEnabled, isFalse);
+    expect(
+      tester
+          .widget<Semantics>(
+            find.descendant(
+              of: toggle,
+              matching: find.byWidgetPredicate(
+                (widget) =>
+                    widget is Semantics && widget.properties.toggled != null,
+              ),
+            ),
+          )
+          .properties
+          .toggled,
+      isFalse,
+    );
 
     final assistant = find.byKey(
       const ValueKey(
@@ -785,7 +832,21 @@ void main() {
     await tester.tap(toggle);
     await tester.pump();
 
-    expect(tester.widget<GenerationToggleButton>(toggle).isEnabled, isTrue);
+    expect(
+      tester
+          .widget<Semantics>(
+            find.descendant(
+              of: toggle,
+              matching: find.byWidgetPredicate(
+                (widget) =>
+                    widget is Semantics && widget.properties.toggled != null,
+              ),
+            ),
+          )
+          .properties
+          .toggled,
+      isTrue,
+    );
     expect(storage.savedTransparentBackground, isTrue);
 
     await tester.tap(find.byIcon(Icons.block).first);
@@ -796,7 +857,21 @@ void main() {
       findsOneWidget,
     );
     expect(toggle, findsOneWidget);
-    expect(tester.widget<GenerationToggleButton>(toggle).isEnabled, isTrue);
+    expect(
+      tester
+          .widget<Semantics>(
+            find.descendant(
+              of: toggle,
+              matching: find.byWidgetPredicate(
+                (widget) =>
+                    widget is Semantics && widget.properties.toggled != null,
+              ),
+            ),
+          )
+          .properties
+          .toggled,
+      isTrue,
+    );
   });
 
   testWidgets('320 宽桌面侧栏可滚动到全部提示词入口且助手贴右', (tester) async {

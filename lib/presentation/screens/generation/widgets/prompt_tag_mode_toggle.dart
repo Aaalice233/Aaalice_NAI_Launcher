@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/prompt_editor_preferences_provider.dart';
+import 'prompt_footer_style.dart';
 
 class PromptTagModeToggle extends ConsumerWidget {
   const PromptTagModeToggle({super.key});
@@ -26,53 +27,42 @@ class PromptTagModeToggle extends ConsumerWidget {
           key: const ValueKey('tag-mode-button'),
           onPressed: () =>
               ref.read(promptTagModeProvider.notifier).setEnabled(!enabled),
-          style: TextButton.styleFrom(
-            minimumSize: const Size(88, 44),
-            padding: EdgeInsets.zero,
-            shape: const StadiumBorder(),
+          style: PromptFooterStyle.button(context, width: 88).copyWith(
+            padding: const WidgetStatePropertyAll(EdgeInsets.all(3)),
+            backgroundColor: WidgetStatePropertyAll(
+              colors.surfaceContainerHigh,
+            ),
           ),
           child: ExcludeSemantics(
             child: SizedBox(
-              width: 88,
-              height: 44,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(3),
-                    child: Stack(
-                      children: [
-                        AnimatedAlign(
-                          duration: duration,
-                          curve: Curves.easeOutCubic,
-                          alignment: enabled
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: 0.5,
-                            heightFactor: 1,
-                            child: AnimatedContainer(
-                              key: const ValueKey('tag-mode-thumb'),
-                              duration: duration,
-                              curve: Curves.easeOutCubic,
-                              decoration: BoxDecoration(
-                                color: enabled
-                                    ? colors.tertiaryContainer
-                                    : colors.primaryContainer,
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                            ),
-                          ),
+              width: 82,
+              height: PromptFooterStyle.height(context) - 6,
+              child: Stack(
+                children: [
+                  AnimatedAlign(
+                    duration: duration,
+                    curve: Curves.easeOutCubic,
+                    alignment: enabled
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: 0.5,
+                      heightFactor: 1,
+                      child: AnimatedContainer(
+                        key: const ValueKey('tag-mode-thumb'),
+                        duration: duration,
+                        curve: Curves.easeOutCubic,
+                        decoration: BoxDecoration(
+                          color: enabled
+                              ? colors.tertiaryContainer
+                              : colors.primaryContainer,
+                          borderRadius: BorderRadius.circular(24),
                         ),
-                        Positioned.fill(child: _modeIcons(colors, enabled)),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  Positioned.fill(child: _modeIcons(colors, enabled)),
+                ],
               ),
             ),
           ),
@@ -86,14 +76,14 @@ class PromptTagModeToggle extends ConsumerWidget {
       Expanded(
         child: Icon(
           Icons.text_fields,
-          size: 18,
+          size: PromptFooterStyle.iconSize,
           color: enabled ? colors.onSurfaceVariant : colors.onPrimaryContainer,
         ),
       ),
       Expanded(
         child: Icon(
           Icons.sell_outlined,
-          size: 18,
+          size: PromptFooterStyle.iconSize,
           color: enabled ? colors.onTertiaryContainer : colors.onSurfaceVariant,
         ),
       ),

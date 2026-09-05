@@ -34,6 +34,9 @@ class PromptEditorToolbar extends StatelessWidget {
     return BoxConstraints(minWidth: extent, minHeight: extent);
   }
 
+  final ButtonStyle? buttonStyle;
+  final double? actionIconSize;
+
   /// 工具栏配置
   final PromptEditorToolbarConfig config;
 
@@ -64,6 +67,8 @@ class PromptEditorToolbar extends StatelessWidget {
   const PromptEditorToolbar({
     super.key,
     required this.config,
+    this.buttonStyle,
+    this.actionIconSize,
     this.onRandomPressed,
     this.onRandomLongPressed,
     this.onFullscreenPressed,
@@ -129,7 +134,8 @@ class PromptEditorToolbar extends StatelessWidget {
     ThemeData theme,
     bool isCompact,
   ) {
-    final iconSize = isCompact ? _compactIconSize : _standardIconSize;
+    final iconSize =
+        actionIconSize ?? (isCompact ? _compactIconSize : _standardIconSize);
     final l10n = AppLocalizations.of(context)!;
 
     return GestureDetector(
@@ -144,7 +150,10 @@ class PromptEditorToolbar extends StatelessWidget {
         ),
         tooltip: l10n.toolbar_randomPrompt,
         onPressed: onRandomPressed,
-        visualDensity: VisualDensity.compact,
+        style: buttonStyle,
+        visualDensity: buttonStyle == null
+            ? VisualDensity.compact
+            : VisualDensity.standard,
         constraints: _buttonConstraints(context, isCompact),
         padding: isCompact ? const EdgeInsets.all(4) : null,
       ),
@@ -157,7 +166,8 @@ class PromptEditorToolbar extends StatelessWidget {
     ThemeData theme,
     bool isCompact,
   ) {
-    final iconSize = isCompact ? _compactIconSize : _standardIconSize;
+    final iconSize =
+        actionIconSize ?? (isCompact ? _compactIconSize : _standardIconSize);
     final l10n = AppLocalizations.of(context)!;
 
     return IconButton(
@@ -170,7 +180,10 @@ class PromptEditorToolbar extends StatelessWidget {
       ),
       tooltip: l10n.toolbar_fullscreenEdit,
       onPressed: onFullscreenPressed,
-      visualDensity: VisualDensity.compact,
+      style: buttonStyle,
+      visualDensity: buttonStyle == null
+          ? VisualDensity.compact
+          : VisualDensity.standard,
       constraints: _buttonConstraints(context, isCompact),
       padding: isCompact ? const EdgeInsets.all(4) : null,
     );
@@ -186,7 +199,8 @@ class PromptEditorToolbar extends StatelessWidget {
       return _buildClearButtonWithConfirmation(context, theme, isCompact);
     }
 
-    final iconSize = isCompact ? _compactIconSize : _standardIconSize;
+    final iconSize =
+        actionIconSize ?? (isCompact ? _compactIconSize : _standardIconSize);
     final l10n = AppLocalizations.of(context)!;
 
     return IconButton(
@@ -199,7 +213,10 @@ class PromptEditorToolbar extends StatelessWidget {
       ),
       tooltip: l10n.toolbar_clear,
       onPressed: onClearPressed,
-      visualDensity: VisualDensity.compact,
+      style: buttonStyle,
+      visualDensity: buttonStyle == null
+          ? VisualDensity.compact
+          : VisualDensity.standard,
       constraints: _buttonConstraints(context, isCompact),
       padding: isCompact ? const EdgeInsets.all(4) : null,
     );
@@ -211,11 +228,13 @@ class PromptEditorToolbar extends StatelessWidget {
     ThemeData theme,
     bool isCompact,
   ) {
-    final iconSize = isCompact ? _compactIconSize : _standardIconSize;
+    final iconSize =
+        actionIconSize ?? (isCompact ? _compactIconSize : _standardIconSize);
     final menuOffset = isCompact ? 32.0 : 40.0;
     final l10n = AppLocalizations.of(context)!;
 
     final button = PopupMenuButton<bool>(
+      style: buttonStyle,
       icon: Icon(
         Icons.clear,
         size: iconSize,
@@ -269,7 +288,8 @@ class PromptEditorToolbar extends StatelessWidget {
     ThemeData theme,
     bool isCompact,
   ) {
-    final iconSize = isCompact ? _compactIconSize : _standardIconSize;
+    final iconSize =
+        actionIconSize ?? (isCompact ? _compactIconSize : _standardIconSize);
     final l10n = AppLocalizations.of(context)!;
 
     return Builder(
@@ -285,7 +305,10 @@ class PromptEditorToolbar extends StatelessWidget {
         onPressed: onSettingsPressed != null
             ? () => _invokeSettingsWithContext(buttonContext)
             : null,
-        visualDensity: VisualDensity.compact,
+        style: buttonStyle,
+        visualDensity: buttonStyle == null
+            ? VisualDensity.compact
+            : VisualDensity.standard,
         constraints: _buttonConstraints(context, isCompact),
         padding: isCompact ? const EdgeInsets.all(4) : null,
       ),
