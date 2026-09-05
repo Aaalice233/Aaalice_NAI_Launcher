@@ -97,7 +97,7 @@ class AgentChatEventController {
           );
           await _sessionController.persistMessage(message);
           if (isVisualUserMessage(message)) {
-            await _sessionController.autoNameSession(message);
+            await _sessionController.autoNameSession();
           }
         }
         if (message is AssistantMessage && message.usage != null) {

@@ -22,6 +22,7 @@ import '../providers/agent_chat_session_view.dart';
 import '../providers/agent_chat_state.dart';
 import '../models/agent_chat_turn_timeline.dart';
 import 'agent_chat_draft_controller.dart';
+import 'agent_chat_session_naming.dart';
 import 'agent_chat_session_recovery.dart';
 import 'agent_chat_session_summary_cache.dart';
 
@@ -900,20 +901,14 @@ class AgentChatSessionController {
     }
   }
 
-  Future<void> autoNameSession(Message message) async {
+  Future<void> autoNameSession() async {
     final currentSession = session;
-    final userMessage = visibleUserMessage(message);
-    if (currentSession == null || userMessage == null) return;
+    if (currentSession == null) return;
     try {
       final existing = await currentSession.getName();
       if (existing != null && existing.trim().isNotEmpty) return;
-      final normalized = userMessage.text
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
-      if (normalized.isEmpty) return;
-      final name = normalized.length <= 40
-          ? normalized
-          : '${normalized.substring(0, 40)}…';
+      final name = await AgentChatSessionNaming.fromHistory(currentSession);
+      if (name.isEmpty) return;
       await currentSession.setName(name);
       _writeState(_readState().copyWith(sessions: await listSessions()));
     } catch (error) {

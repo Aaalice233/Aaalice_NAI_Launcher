@@ -1,7 +1,7 @@
-import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/session/session.dart';
 import '../../../core/agent/harness/session/session_jsonl.dart';
 import '../providers/agent_chat_session_view.dart';
+import 'agent_chat_session_naming.dart';
 
 /// Session list names, reused while the backing JSONL file is unchanged.
 ///
@@ -14,8 +14,6 @@ class AgentChatSessionSummaryCache {
     Future<Session> Function(SessionMetadata metadata)? openSession,
   }) : _repository = repository,
        _openSession = openSession ?? repository.open;
-
-  static const nameLengthLimit = 40;
 
   final JsonlSessionRepo _repository;
   final Future<Session> Function(SessionMetadata metadata) _openSession;
@@ -49,7 +47,7 @@ class AgentChatSessionSummaryCache {
     return summaries;
   }
 
-  /// Persisted name first, then a summary of the first user message.
+  /// Persisted name first, then the earliest user turn.
   Future<String> _readName(SessionMetadata metadata) async {
     final Session session;
     try {
@@ -64,17 +62,11 @@ class AgentChatSessionSummaryCache {
       name = '';
     }
     if (name.isNotEmpty) return name;
-    final firstUser = await session.findEntry(
-      const EntryQuery(type: 'message'),
-    );
-    if (firstUser is! MessageEntry || firstUser.message is! UserMessage) {
+    try {
+      return await AgentChatSessionNaming.fromHistory(session);
+    } catch (_) {
       return '';
     }
-    final text = (firstUser.message as UserMessage).text
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    if (text.isEmpty || text.length <= nameLengthLimit) return text;
-    return '${text.substring(0, nameLengthLimit)}…';
   }
 }
 
