@@ -17,7 +17,7 @@ void main() {
     (name: 'short read-only text', tags: false, short: true, readOnly: true),
   ]) {
     testWidgets(
-      '${scenario.name} contains wheel scrolling only with overflow',
+      '${scenario.name} passes wheel scrolling to the page at editor edges',
       (tester) async {
         final prompt = TextEditingController(
           text: scenario.short
@@ -67,7 +67,7 @@ void main() {
         final pointer = TestPointer(1, PointerDeviceKind.mouse)
           ..hover(tester.getCenter(editor));
         final initialPageOffset = page.offset;
-        Future<void> wheel(double delta) async {
+        Future<void> wheel(double delta, {bool innerScrolls = false}) async {
           final beforePageOffset = page.offset;
           pointer.hover(tester.getCenter(editor));
           bool? platformDefault;
@@ -79,7 +79,7 @@ void main() {
             ),
           );
           await tester.pump();
-          if (scenario.short) {
+          if (!innerScrolls) {
             expect(
               page.offset,
               delta > 0
@@ -87,7 +87,7 @@ void main() {
                   : lessThan(beforePageOffset),
             );
           } else {
-            expect(page.offset, initialPageOffset);
+            expect(page.offset, beforePageOffset);
           }
           expect(platformDefault, isFalse);
         }
@@ -103,7 +103,7 @@ void main() {
               )
               .firstWhere((state) => state.position.maxScrollExtent > 0);
           final before = inner.position.pixels;
-          await wheel(60);
+          await wheel(60, innerScrolls: true);
           expect(inner.position.pixels, greaterThan(before));
           inner.position.jumpTo(inner.position.maxScrollExtent);
         }
@@ -125,10 +125,11 @@ void main() {
           await wheel(-60);
         }
 
+        final beforeOutsideScroll = page.offset;
         pointer.hover(const Offset(20, 450));
         await tester.sendEventToBinding(pointer.scroll(const Offset(0, 60)));
         await tester.pump();
-        expect(page.offset, greaterThan(initialPageOffset));
+        expect(page.offset, greaterThan(beforeOutsideScroll));
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(milliseconds: 250));

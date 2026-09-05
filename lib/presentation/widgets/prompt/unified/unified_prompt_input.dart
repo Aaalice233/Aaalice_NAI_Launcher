@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,7 +31,6 @@ import '../../../providers/prompt_regex_rules_provider.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import '../tag_mode_prompt_field.dart';
-import '../tag_editor_view.dart';
 import 'unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
@@ -137,8 +135,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   NaiSyntaxController? _syntaxController;
   bool _syncingControllerValue = false;
   bool _tagMode = false;
-  ScrollMetrics? _textScrollMetrics;
-  ScrollMetrics? _tagScrollMetrics;
 
   /// 焦点节点
   FocusNode? _internalFocusNode;
@@ -1486,41 +1482,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       );
     }
 
-    return NotificationListener<ScrollMetricsNotification>(
-      onNotification: (notification) {
-        if (notification.depth != 0) return false;
-        // Text mode stays mounted while hidden; keep its metrics separate from
-        // the tag viewport, ignoring nested inline editors (depth > 0).
-        final isTagEditor =
-            notification.context
-                .findAncestorWidgetOfExactType<TagEditorView>() !=
-            null;
-        if (isTagEditor) {
-          _tagScrollMetrics = notification.metrics;
-        } else {
-          _textScrollMetrics = notification.metrics;
-        }
-        return false;
-      },
-      child: Listener(onPointerSignal: _containEditorScroll, child: result),
-    );
-  }
-
-  void _containEditorScroll(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent) return;
-    final metrics = _tagMode ? _tagScrollMetrics : _textScrollMetrics;
-    if (metrics == null || metrics.maxScrollExtent <= metrics.minScrollExtent) {
-      return;
-    }
-    final delta = metrics.axis == Axis.vertical
-        ? event.scrollDelta.dy
-        : event.scrollDelta.dx;
-    if (delta == 0) return;
-    // Inner scrolling and weight adjustment register first. At an edge Flutter
-    // leaves the signal unclaimed; consume it here before the outer page can.
-    GestureBinding.instance.pointerSignalResolver.register(event, (resolved) {
-      resolved.respond(allowPlatformDefault: false);
-    });
+    return result;
   }
 
   EdgeInsetsGeometry _withBottomActionClearance(
