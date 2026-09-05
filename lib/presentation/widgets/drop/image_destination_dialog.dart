@@ -1185,6 +1185,8 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
                       maxLines: null,
                       style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
                       decoration: const InputDecoration(
+                        // The surrounding container owns the prompt surface.
+                        filled: false,
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,

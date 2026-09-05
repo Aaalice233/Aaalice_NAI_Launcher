@@ -284,6 +284,7 @@ class GalleryLibrarySearchField extends StatelessWidget {
           style: theme.textTheme.bodyMedium,
           textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
+            filled: false,
             hintText: hintText,
             hintStyle: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55),

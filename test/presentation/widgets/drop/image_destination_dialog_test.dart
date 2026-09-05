@@ -13,6 +13,54 @@ import 'package:nai_launcher/presentation/providers/tag_library_page_provider.da
 import 'package:nai_launcher/presentation/widgets/drop/image_destination_dialog.dart';
 
 void main() {
+  testWidgets('prompt surfaces do not inherit a second theme fill', (
+    tester,
+  ) async {
+    await _openMetadataDialog(
+      tester,
+      theme: ThemeData(
+        inputDecorationTheme: const InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.purple,
+        ),
+      ),
+      metadata: const NaiImageMetadata(
+        prompt: 'positive',
+        negativePrompt: 'negative',
+        characterPrompts: ['character positive'],
+        characterNegativePrompts: ['character negative'],
+      ),
+    );
+    await tester.ensureVisible(find.text('Character Prompts (1)'));
+    await tester.tap(find.text('Character Prompts (1)'));
+    await tester.pumpAndSettle();
+    for (final key in [
+      'drop-positive-prompt-card',
+      'drop-negative-prompt-card',
+      'drop-character-prompt-card-0',
+      'drop-character-negative-prompt-card-0',
+    ]) {
+      final field = _promptFieldFinder(key);
+      await tester.ensureVisible(field);
+      await tester.pumpAndSettle();
+      final decorator = find.descendant(
+        of: field,
+        matching: find.byType(InputDecorator),
+      );
+      expect(
+        tester.widget<InputDecorator>(decorator).decoration.filled,
+        isFalse,
+      );
+      tester.widget<TextField>(field).focusNode!.requestFocus();
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<InputDecorator>(decorator).decoration.filled,
+        isFalse,
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows reverse prompt before image-to-image destination', (
     tester,
   ) async {
@@ -537,6 +585,7 @@ Future<void> _openMetadataDialog(
   double keyboardHeight = 0,
   EdgeInsets padding = EdgeInsets.zero,
   ValueChanged<ImageDestination?>? onResult,
+  ThemeData? theme,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -552,6 +601,7 @@ Future<void> _openMetadataDialog(
         ),
       ],
       child: MaterialApp(
+        theme: theme,
         locale: const Locale('en'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,

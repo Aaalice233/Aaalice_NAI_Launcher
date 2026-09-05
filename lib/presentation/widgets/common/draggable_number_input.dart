@@ -210,6 +210,7 @@ class _DraggableNumberInputState extends State<DraggableNumberInput> {
                               color: theme.colorScheme.onSurface,
                             ),
                             decoration: const InputDecoration(
+                              filled: false,
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: 4,

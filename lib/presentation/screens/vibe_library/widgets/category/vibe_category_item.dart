@@ -177,6 +177,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                               autofocus: true,
                               style: const TextStyle(fontSize: 13),
                               decoration: const InputDecoration(
+                                filled: false,
                                 isDense: true,
                                 border: InputBorder.none,
                                 contentPadding: EdgeInsets.zero,
